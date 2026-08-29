@@ -34,7 +34,7 @@ docker compose -f deploy/docker-compose.dev.yml ps
 - [维护者手动发布](docs/RELEASE.md)
 - [EasySub2api 运行命名迁移](docs/MIGRATION_EASYSUB2API.md)
 
-推送分支或 tag 不会自动发布。维护者必须在本地显式执行经过认证的发布命令，随后由 GitHub 构建 GHCR 多架构镜像。
+推送分支或 tag 不会自动发布。维护者必须在本地显式执行经过认证的发布命令，随后由 GitHub 构建 GHCR 多架构镜像和独立程序包。
 
 ## 项目结构
 

@@ -7,7 +7,8 @@ EasySub2api 不会因分支 push 或 tag push 自动发布。分支 push/PR 仍�
 - `ghcr.io/asukacc/easysub2api:X.Y.Z`
 - 同步更新 `X.Y`、`X` 和 `latest` 标签。
 - 单一 manifest 同时支持 `linux/amd64` 与 `linux/arm64`。
-- GitHub Release 只包含版本说明，不包含二进制附件。
+- GitHub Release 提供 Linux `amd64/arm64`、macOS `amd64/arm64` 和 Windows `amd64` 独立程序包。
+- 每个独立程序包包含嵌入式前端、运行时 `resources`、README 与 LICENSE，并提供 `checksums.txt`。
 - 不发布 Docker Hub 镜像。
 
 ## 前置条件
@@ -34,13 +35,13 @@ pwsh ./scripts/release.ps1 -Version 0.0.2
 pwsh ./scripts/release.ps1 -Version 0.0.2 -NotesFile ./release-notes.md
 ```
 
-脚本会更新 VERSION、提交并推送 `main`，等待 `CI` 与 `Security Scan` 成功，创建 annotated tag，随后触发并等待 `release.yml`。版本只允许稳定的 `X.Y.Z`。
+脚本会更新 VERSION、提交并推送 `main`，等待 `CI` 与 `Security Scan` 成功，创建 annotated tag，随后触发并等待 `release.yml` 构建 GHCR 镜像和独立程序包。版本只允许稳定的 `X.Y.Z`。
 
 ## 失败与重试
 
 - CI 或安全扫描失败：脚本停止且不会创建 tag；修复提交后使用新的版本号重新发布。
 - tag 已存在但指向其他提交：脚本停止，不覆盖或删除 tag。
 - 发布工作流失败：修复工作流或构建环境后，用相同版本再次执行命令；脚本会复用一致的版本提交和 tag。
-- GitHub Release 已存在：脚本视为已完成，不重复发布。
+- GitHub Release 已存在且附件完整：脚本视为已完成；补发缺失附件时可重新触发同一 tag 的发布工作流。
 
 不要直接在 GitHub 网页中创建版本 tag。`workflow_dispatch` 虽然可见，但正常发布必须通过本地脚本，以确保 VERSION、检查结果和 tag 一致。

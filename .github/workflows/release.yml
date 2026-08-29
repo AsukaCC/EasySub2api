@@ -18,8 +18,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      commit: ${{ steps.release.outputs.commit }}
+      built_at: ${{ steps.release.outputs.built_at }}
+      image: ${{ steps.release.outputs.image }}
+      release_exists: ${{ steps.release.outputs.release_exists }}
     steps:
       - name: Checkout release tag
         uses: actions/checkout@v6
@@ -54,9 +62,9 @@ jobs:
             exit 1
           fi
 
+          release_exists=false
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "GitHub Release ${RELEASE_TAG} already exists." >&2
-            exit 1
+            release_exists=true
           fi
 
           owner_lower="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
@@ -72,12 +80,145 @@ jobs:
             echo "commit=${head_commit}"
             echo "built_at=${built_at}"
             echo "image=ghcr.io/${owner_lower}/easysub2api"
+            echo "release_exists=${release_exists}"
           } >> "$GITHUB_OUTPUT"
 
-          git tag -l --format='%(contents)' "$RELEASE_TAG" > release-notes.md
-          if [ ! -s release-notes.md ]; then
-            printf 'EasySub2api %s\n' "$version" > release-notes.md
+  frontend:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build embedded frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Upload embedded frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: backend/internal/web/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  binaries:
+    needs: [prepare, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            extension: ''
+            format: tar.gz
+          - goos: linux
+            goarch: arm64
+            extension: ''
+            format: tar.gz
+          - goos: darwin
+            goarch: amd64
+            extension: ''
+            format: tar.gz
+          - goos: darwin
+            goarch: arm64
+            extension: ''
+            format: tar.gz
+          - goos: windows
+            goarch: amd64
+            extension: .exe
+            format: zip
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Download embedded frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: backend/internal/web/dist
+
+      - name: Build and package binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          BINARY_EXTENSION: ${{ matrix.extension }}
+          ARCHIVE_FORMAT: ${{ matrix.format }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+          RELEASE_DATE: ${{ needs.prepare.outputs.built_at }}
+        run: |
+          set -euo pipefail
+          archive_base="easysub2api_${RELEASE_VERSION}_${GOOS}_${GOARCH}"
+          stage="dist/${archive_base}"
+          mkdir -p "${stage}/resources"
+
+          (
+            cd backend
+            CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build \
+              -tags embed \
+              -ldflags="-s -w -X main.Version=${RELEASE_VERSION} -X main.Commit=${RELEASE_COMMIT} -X main.Date=${RELEASE_DATE} -X main.BuildType=release" \
+              -trimpath \
+              -o "../${stage}/easysub2api${BINARY_EXTENSION}" \
+              ./cmd/server
+          )
+
+          cp README.md LICENSE "${stage}/"
+          cp -R backend/resources/. "${stage}/resources/"
+
+          if [ "$ARCHIVE_FORMAT" = zip ]; then
+            (cd dist && zip -q -r "${archive_base}.zip" "${archive_base}")
+          else
+            tar -C dist -czf "dist/${archive_base}.tar.gz" "${archive_base}"
           fi
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/easysub2api_*.${{ matrix.format }}
+          if-no-files-found: error
+          retention-days: 1
+
+  container:
+    needs: prepare
+    if: needs.prepare.outputs.release_exists != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -102,30 +243,84 @@ jobs:
           provenance: mode=max
           sbom: true
           build-args: |
-            VERSION=${{ steps.release.outputs.version }}
-            COMMIT=${{ steps.release.outputs.commit }}
-            DATE=${{ steps.release.outputs.built_at }}
+            VERSION=${{ needs.prepare.outputs.version }}
+            COMMIT=${{ needs.prepare.outputs.commit }}
+            DATE=${{ needs.prepare.outputs.built_at }}
           tags: |
-            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.version }}
-            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}
-            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.major }}
-            ${{ steps.release.outputs.image }}:latest
+            ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.version }}
+            ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.major }}.${{ needs.prepare.outputs.minor }}
+            ${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.major }}
+            ${{ needs.prepare.outputs.image }}:latest
           labels: |
             org.opencontainers.image.title=EasySub2api
-            org.opencontainers.image.version=${{ steps.release.outputs.version }}
-            org.opencontainers.image.revision=${{ steps.release.outputs.commit }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.prepare.outputs.commit }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Create GitHub Release
+  publish-release:
+    needs: [prepare, binaries, container]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.binaries.result == 'success' &&
+      (needs.container.result == 'success' || needs.container.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Download packaged binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: release
+          merge-multiple: true
+
+      - name: Create checksums
+        working-directory: release
+        run: sha256sum easysub2api_* > checksums.txt
+
+      - name: Create or complete GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-          RELEASE_IMAGE: ${{ steps.release.outputs.image }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+          RELEASE_EXISTS: ${{ needs.prepare.outputs.release_exists }}
         run: |
           set -euo pipefail
+          expected_assets=(
+            "easysub2api_${RELEASE_VERSION}_linux_amd64.tar.gz"
+            "easysub2api_${RELEASE_VERSION}_linux_arm64.tar.gz"
+            "easysub2api_${RELEASE_VERSION}_darwin_amd64.tar.gz"
+            "easysub2api_${RELEASE_VERSION}_darwin_arm64.tar.gz"
+            "easysub2api_${RELEASE_VERSION}_windows_amd64.zip"
+            "checksums.txt"
+          )
+
+          existing_expected=0
+          if [ "$RELEASE_EXISTS" = true ]; then
+            existing_assets="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+            for asset in "${expected_assets[@]}"; do
+              if grep -Fxq "$asset" <<< "$existing_assets"; then
+                existing_expected=$((existing_expected + 1))
+              fi
+            done
+            if [ "$existing_expected" -gt 0 ] && [ "$existing_expected" -lt "${#expected_assets[@]}" ]; then
+              echo "Release ${RELEASE_TAG} contains only some expected binary assets; refusing to overwrite it." >&2
+              exit 1
+            fi
+          fi
+
+          git tag -l --format='%(contents)' "$RELEASE_TAG" > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            printf 'EasySub2api %s\n' "$RELEASE_VERSION" > release-notes.md
+          fi
           cat >> release-notes.md <<EOF
 
           ---
@@ -136,9 +331,24 @@ jobs:
           docker pull ${RELEASE_IMAGE}:${RELEASE_VERSION}
           \`\`\`
 
-          This release publishes a multi-architecture \`linux/amd64\` and \`linux/arm64\` image. It intentionally contains no binary release assets.
+          The container image supports \`linux/amd64\` and \`linux/arm64\`.
+
+          ## Standalone downloads
+
+          Release assets provide Linux (amd64/arm64), macOS (Intel/Apple Silicon), and Windows (amd64) executables. Each archive includes the embedded web application, runtime resources, README, and LICENSE. Verify downloads with \`checksums.txt\`.
           EOF
-          gh release create "$RELEASE_TAG" \
-            --verify-tag \
-            --title "EasySub2api ${RELEASE_VERSION}" \
-            --notes-file release-notes.md
+
+          if [ "$RELEASE_EXISTS" = true ]; then
+            gh release edit "$RELEASE_TAG" \
+              --title "EasySub2api ${RELEASE_VERSION}" \
+              --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              --title "EasySub2api ${RELEASE_VERSION}" \
+              --notes-file release-notes.md
+          fi
+
+          if [ "$existing_expected" -eq 0 ]; then
+            gh release upload "$RELEASE_TAG" release/*
+          fi

@@ -34,7 +34,7 @@ Open `http://127.0.0.1:8080` unless `SERVER_PORT` was changed.
 - [Maintainer release process](docs/RELEASE.md)
 - [EasySub2api runtime-name migration](docs/MIGRATION_EASYSUB2API.md)
 
-Git pushes and tags never publish a release. Maintainers explicitly start releases from a local, authenticated command; GitHub then builds the GHCR multi-architecture image.
+Git pushes and tags never publish a release. Maintainers explicitly start releases from a local, authenticated command; GitHub then builds the GHCR multi-architecture image and standalone release archives.
 
 ## Repository layout
 

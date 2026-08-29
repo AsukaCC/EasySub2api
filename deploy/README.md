@@ -1,6 +1,6 @@
 # EasySub2api 部署入口
 
-新版本以容器镜像作为唯一正式发布产物。GitHub Release 不再提供二进制附件，旧二进制安装器仅在 `legacy/` 中保留一个兼容版本用于迁移或卸载。
+新版本优先使用容器镜像部署，同时在 GitHub Release 提供 Linux、macOS 和 Windows 独立程序包。旧的自动安装器仍仅在 `legacy/` 中保留一个兼容版本用于迁移或卸载。
 
 ## 选择部署方式
 

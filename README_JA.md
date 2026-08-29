@@ -34,7 +34,7 @@ docker compose -f deploy/docker-compose.dev.yml ps
 - [メンテナー向け手動リリース](docs/RELEASE.md)
 - [実行時名称の移行](docs/MIGRATION_EASYSUB2API.md)
 
-ブランチや tag の push だけではリリースされません。メンテナーがローカルの認証済みコマンドを明示的に実行した後、GitHub が GHCR マルチアーキテクチャイメージを構築します。
+ブランチや tag の push だけではリリースされません。メンテナーがローカルの認証済みコマンドを明示的に実行した後、GitHub が GHCR マルチアーキテクチャイメージとスタンドアロン配布アーカイブを構築します。
 
 ## リポジトリ構成
 
