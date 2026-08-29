@@ -46,27 +46,28 @@ onUnmounted(() => {
 <style scoped>
 /* 桌面端：Flexbox 布局 */
 .table-page-layout {
+  position: relative;
+  isolation: isolate;
   height: calc(100vh - var(--app-shell-height) - 3.25rem);
 }
 
-/* 工具栏/筛选区内的下拉(列设置等)z-index 会被玻璃卡片的
-   isolation 层叠上下文困住;显式让固定区块叠在表格区块之上。 */
+/* 层级只在当前页面布局内生效:工具栏下拉高于表格,但低于应用导航和浮层。 */
 .layout-section-fixed {
   position: relative;
-  z-index: 300;
+  z-index: 2;
   flex-shrink: 0;
 }
 
 .layout-section-actions {
-  z-index: 320;
+  z-index: 3;
 }
 
 .layout-section-filters {
-  z-index: 310;
+  z-index: 2;
 }
 
 .layout-section-pagination {
-  z-index: 10;
+  z-index: 2;
 }
 
 .layout-section-scrollable {

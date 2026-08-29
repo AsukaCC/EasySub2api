@@ -217,7 +217,7 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 50;
-  padding: 0.75rem 1rem 0;
+  padding: 0.75rem clamp(1rem, 2vw, 2rem) 0;
 }
 
 /* 玻璃材质由 styles/glass.scss 中的 .app-top-nav-shell 提供 */
@@ -225,9 +225,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  max-width: 90rem;
   min-height: var(--app-shell-height);
-  margin: 0 auto;
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius-xl);
   box-shadow:

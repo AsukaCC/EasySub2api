@@ -163,6 +163,7 @@ const sizeClass = computed(() => ({
 
 <style scoped>
 .app-icon {
+  z-index: 1;
   display: inline-block;
   flex: none;
   max-width: none;

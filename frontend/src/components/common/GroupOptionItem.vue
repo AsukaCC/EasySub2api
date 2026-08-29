@@ -27,13 +27,11 @@
       <div class="components-common-group-option-item__panel-4">
         <!-- Rate pill (platform color) -->
         <span v-if="rateMultiplier !== undefined" :class="['components-common-group-option-item__text-5', ratePillClass]">
-          <template v-if="hasCustomRate">
-            <span class="components-common-group-option-item__text-2">{{ rateMultiplier }}x</span>
-            <span class="components-common-group-option-item__text-3">{{ userRateMultiplier }}x</span>
-          </template>
-          <template v-else>
-            {{ rateMultiplier }}x {{ t('admin.groups.rateLabel') }}
-          </template>
+          <GroupRateDisplay
+            :rate-multiplier="rateMultiplier"
+            :user-rate-multiplier="userRateMultiplier"
+            show-label
+          />
         </span>
         <span
           v-if="hasPeakRate"
@@ -62,6 +60,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupBadge from './GroupBadge.vue'
+import GroupRateDisplay from './GroupRateDisplay.vue'
 import type { SubscriptionType, GroupPlatform } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
@@ -89,16 +88,6 @@ const props = withDefaults(defineProps<Props>(), {
   showCheckmark: true,
   userRateMultiplier: null,
   peakRateEnabled: false
-})
-
-// Whether user has a custom rate different from default
-const hasCustomRate = computed(() => {
-  return (
-    props.userRateMultiplier !== null &&
-    props.userRateMultiplier !== undefined &&
-    props.rateMultiplier !== undefined &&
-    props.userRateMultiplier !== props.rateMultiplier
-  )
 })
 
 const appStore = useAppStore()

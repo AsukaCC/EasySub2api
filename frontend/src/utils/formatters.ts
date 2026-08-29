@@ -15,3 +15,16 @@ export function formatMultiplier(val: number): string {
   if (val < 0.0001) return val.toPrecision(2)
   return val.toFixed(4).replace(/(\.\d{2}\d*?)0+$/, '$1')
 }
+
+/**
+ * 返回用户当前可见倍率中的最低值。无效值不会参与比较，避免页面展示 NaN。
+ */
+export function lowestAvailableGroupRate(
+  rateMultiplier: number | null | undefined,
+  userRateMultiplier: number | null | undefined
+): number | null {
+  const rates = [rateMultiplier, userRateMultiplier].filter(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
+  )
+  return rates.length > 0 ? Math.min(...rates) : null
+}

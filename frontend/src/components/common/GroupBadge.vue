@@ -11,14 +11,12 @@
     <span class="components-common-group-badge__text">{{ name }}</span>
     <!-- Right side label -->
     <span v-if="showLabel" :class="labelClass">
-      <template v-if="hasCustomRate">
-        <!-- 原倍率删除线 + 专属倍率高亮 -->
-        <span class="components-common-group-badge__text-2">{{ rateMultiplier }}x</span>
-        <span class="components-common-group-badge__text-3">{{ userRateMultiplier }}x</span>
-      </template>
-      <template v-else>
-        {{ labelText }}
-      </template>
+      <GroupRateDisplay
+        v-if="showsRateValue"
+        :rate-multiplier="rateMultiplier"
+        :user-rate-multiplier="userRateMultiplier"
+      />
+      <template v-else>{{ labelText }}</template>
     </span>
     <span v-if="hasPeakRate" :class="peakRateClass" :title="peakRateTitle">
       {{ peakRateText }}
@@ -33,6 +31,7 @@ import type { SubscriptionType, GroupPlatform } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import PlatformIcon from './PlatformIcon.vue'
+import GroupRateDisplay from './GroupRateDisplay.vue'
 
 interface Props {
   name: string
@@ -67,15 +66,7 @@ const { t } = useI18n()
 
 const isSubscription = computed(() => props.subscriptionType === 'subscription')
 
-// 是否有专属倍率（且与默认倍率不同）
-const hasCustomRate = computed(() => {
-  return (
-    props.userRateMultiplier !== null &&
-    props.userRateMultiplier !== undefined &&
-    props.rateMultiplier !== undefined &&
-    props.userRateMultiplier !== props.rateMultiplier
-  )
-})
+const showsRateValue = computed(() => !isSubscription.value || props.alwaysShowRate)
 
 const appStore = useAppStore()
 
@@ -105,7 +96,7 @@ const showLabel = computed(() => {
   // 订阅类型：显示天数或"订阅"
   if (isSubscription.value) return true
   // 标准类型：显示倍率（包括专属倍率）
-  return props.rateMultiplier !== undefined || hasCustomRate.value
+  return props.rateMultiplier !== undefined || props.userRateMultiplier !== null
 })
 
 // Label text

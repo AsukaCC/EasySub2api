@@ -142,8 +142,10 @@ WORKDIR /app
 COPY --from=backend-builder --chown=easysub2api:easysub2api /app/easysub2api /app/easysub2api
 COPY --from=backend-builder --chown=easysub2api:easysub2api /app/backend/resources /app/resources
 
-# Create data directory
-RUN mkdir -p /app/data && chown easysub2api:easysub2api /app/data
+# Create the data directory and allow the non-root runtime process to perform
+# the updater's atomic binary swap inside /app.
+RUN mkdir -p /app/data && \
+    chown easysub2api:easysub2api /app /app/data
 
 # Copy entrypoint script (fixes volume permissions then drops to easysub2api)
 COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh

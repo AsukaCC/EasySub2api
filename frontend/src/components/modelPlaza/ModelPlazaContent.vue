@@ -72,6 +72,7 @@ import PlazaFilterBar from './PlazaFilterBar.vue'
 import PlazaGroupSection from './PlazaGroupSection.vue'
 import type { ModelPlazaGroup, ModelPlazaResponse } from '@/api/modelPlaza'
 import { useAuthStore } from '@/stores/auth'
+import { lowestAvailableGroupRate } from '@/utils/formatters'
 
 const props = defineProps<{
   response: ModelPlazaResponse | null
@@ -98,9 +99,9 @@ const descriptionHtml = computed(() => {
   return DOMPurify.sanitize(marked.parse(md) as string)
 })
 
-/** 生效倍率 = 用户专属倍率 ?? 分组默认倍率。 */
+/** 前端展示和价格预估统一使用用户当前可见的最低倍率。 */
 function effectiveRate(g: ModelPlazaGroup): number {
-  return g.user_rate_multiplier ?? g.rate_multiplier
+  return lowestAvailableGroupRate(g.rate_multiplier, g.user_rate_multiplier) ?? g.rate_multiplier
 }
 
 const platforms = computed(() =>

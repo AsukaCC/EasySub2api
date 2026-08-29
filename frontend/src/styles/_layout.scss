@@ -24,6 +24,17 @@
   transition: width 300ms ease, transform 300ms ease;
 }
 
+@media (min-width: 1024px) {
+  .sidebar {
+    inset: calc(var(--app-shell-height) + 1.5rem) auto 1rem 1rem;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow:
+      var(--glass-shadow),
+      0 1px 0 var(--glass-highlight) inset;
+  }
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;

@@ -1,6 +1,13 @@
 *,
 *::before,
 *::after {
+  --ui-translate-x: 0;
+  --ui-translate-y: 0;
+  --ui-rotate: 0;
+  --ui-skew-x: 0;
+  --ui-skew-y: 0;
+  --ui-scale-x: 1;
+  --ui-scale-y: 1;
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;

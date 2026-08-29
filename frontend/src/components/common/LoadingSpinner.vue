@@ -1,6 +1,6 @@
 <template>
   <div
-    :class="['spinner', sizeClasses, colorClass]"
+    :class="['loading-spinner', sizeClasses, colorClass]"
     role="status"
     :aria-label="t('common.loading')"
   >
@@ -39,9 +39,9 @@ const sizeClasses = computed(() => {
 
 const colorClass = computed(() => {
   const colors: Record<SpinnerColor, string> = {
-    primary: 'status-text--neutral',
+    primary: 'loading-spinner--primary',
     secondary: 'loading-spinner--secondary',
-    white: 'text-white',
+    white: 'loading-spinner--white',
     gray: 'loading-spinner--muted'
   }
   return colors[props.color]
@@ -49,7 +49,13 @@ const colorClass = computed(() => {
 </script>
 
 <style scoped>
-.spinner {
+.loading-spinner {
+  display: inline-block;
+  flex: 0 0 auto;
+  border-style: solid;
+  border-color: color-mix(in srgb, currentColor 24%, transparent);
+  border-top-color: currentColor;
+  border-radius: var(--radius-full);
   animation: spin 0.75s linear infinite;
 }
 
@@ -69,7 +75,9 @@ const colorClass = computed(() => {
 .loading-spinner--md { width: 2rem; height: 2rem; border-width: 2px; }
 .loading-spinner--lg { width: 3rem; height: 3rem; border-width: 3px; }
 .loading-spinner--xl { width: 4rem; height: 4rem; border-width: 4px; }
+.loading-spinner--primary { color: var(--color-primary); }
 .loading-spinner--secondary { color: var(--color-text-secondary); }
+.loading-spinner--white { color: var(--color-text-inverse); }
 .loading-spinner--muted { color: var(--color-text-muted); }
 
 @keyframes spin {

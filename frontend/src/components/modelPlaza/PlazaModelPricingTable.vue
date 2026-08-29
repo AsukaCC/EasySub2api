@@ -187,7 +187,7 @@
             <span v-else class="components-model-plaza-plaza-model-pricing-table__text-6">-</span>
           </td>
 
-          <!-- 折扣倍率(生图独立倍率行展示独立倍率;专属倍率划线展示原倍率) -->
+          <!-- 折扣倍率(生图独立倍率行展示独立倍率;最低倍率与原倍率对比展示) -->
           <td
             class="components-model-plaza-plaza-model-pricing-table__cell-6"
           >
@@ -196,11 +196,11 @@
               class="components-model-plaza-plaza-model-pricing-table__text-11"
               >{{ requestRate(m) }}x</span
             >
-            <template v-else-if="hasCustomRate">
-              <span class="components-model-plaza-plaza-model-pricing-table__text-12">{{ rateMultiplier }}x</span>
-              <span class="components-model-plaza-plaza-model-pricing-table__text-13">{{ effectiveRate }}x</span>
-            </template>
-            <span v-else class="components-model-plaza-plaza-model-pricing-table__text-11">{{ effectiveRate }}x</span>
+            <GroupRateDisplay
+              v-else
+              :rate-multiplier="rateMultiplier"
+              :user-rate-multiplier="userRateMultiplier"
+            />
           </td>
         </tr>
       </tbody>
@@ -213,6 +213,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatScaled } from '@/utils/pricing'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
+import { lowestAvailableGroupRate } from '@/utils/formatters'
+import GroupRateDisplay from '@/components/common/GroupRateDisplay.vue'
 import {
   BILLING_MODE_TOKEN,
   BILLING_MODE_IMAGE,
@@ -227,7 +229,7 @@ const props = defineProps<{
   platform?: string
   /** 分组默认倍率。 */
   rateMultiplier: number
-  /** 用户专属倍率;与默认不同,实付价按此计算并划线展示原倍率。 */
+  /** 用户专属倍率;低于默认倍率时作为最低可用倍率展示并参与价格预估。 */
   userRateMultiplier?: number | null
   /** 生图独立倍率:true 时图片计费模型的实付倍率取 imageRateMultiplier,不取分组/专属倍率。 */
   imageRateIndependent?: boolean
@@ -261,9 +263,8 @@ const sortedModels = computed(() => {
   })
 })
 
-const effectiveRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
-const hasCustomRate = computed(
-  () => props.userRateMultiplier != null && props.userRateMultiplier !== props.rateMultiplier
+const effectiveRate = computed(
+  () => lowestAvailableGroupRate(props.rateMultiplier, props.userRateMultiplier) ?? props.rateMultiplier
 )
 
 function billingMode(m: PlazaModel): BillingMode {

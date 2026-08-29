@@ -13,13 +13,7 @@
 
     <AppSidebar v-if="isAdmin" admin-menu-only />
 
-    <div
-      class="app-layout__content"
-      :class="{
-        'app-layout__content--admin': isAdmin && !sidebarCollapsed,
-        'app-layout__content--admin-collapsed': isAdmin && sidebarCollapsed,
-      }"
-    >
+    <div class="app-layout__content">
       <!-- Primary Navigation -->
       <AppTopNav />
 
@@ -33,16 +27,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { useAppStore, useAuthStore } from '@/stores'
+import { useAuthStore } from '@/stores'
 import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
 import AppTopNav from './AppTopNav.vue'
 import AppSidebar from './AppSidebar.vue'
 
 const authStore = useAuthStore()
-const appStore = useAppStore()
 const isAdmin = computed(() => authStore.user?.role === 'admin')
-const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 
 const { replayTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',
@@ -114,17 +106,13 @@ defineExpose({ replayTour })
   min-height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  transition: padding-left 300ms ease;
 }
 
 .app-layout__main {
   flex: 1 1 auto;
   width: 100%;
-  max-width: 92rem;
   min-height: 0;
-  margin-right: auto;
-  margin-left: auto;
-  padding: 1.25rem 1rem 2.5rem;
+  padding: 1.25rem clamp(1rem, 2vw, 2rem) 2.5rem;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scrollbar-width: none;
@@ -134,19 +122,4 @@ defineExpose({ replayTour })
   display: none;
 }
 
-@media (min-width: 1024px) {
-  .app-layout__content--admin {
-    padding-left: 16rem;
-  }
-
-  .app-layout__content--admin-collapsed {
-    padding-left: 4.5rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app-layout__content {
-    transition-duration: 1ms;
-  }
-}
 </style>
