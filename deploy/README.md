@@ -31,7 +31,7 @@ docker compose -f deploy/docker-compose.dev.yml ps
 
 ```bash
 cp deploy/.env.example deploy/.env
-# deploy/.env: EASYSUB2API_IMAGE=ghcr.io/asukacc/easysub2api:0.1.185
+# deploy/.env: EASYSUB2API_IMAGE=ghcr.io/asukacc/easysub2api:0.0.2
 docker compose -f deploy/docker-compose.yml config --quiet
 docker compose -f deploy/docker-compose.yml up -d
 docker compose -f deploy/docker-compose.yml ps

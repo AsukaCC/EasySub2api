@@ -83,11 +83,11 @@ function finiteAmount(amount: number | null | undefined): number {
   return typeof amount === 'number' && Number.isFinite(amount) ? amount : 0
 }
 
-/** Format a platform-point amount without appending the unit label. */
+/** Format a platform-point amount with exactly two decimal places. */
 export function formatPointAmount(amount: number | null | undefined, locale?: string): string {
   return new Intl.NumberFormat(numberFormatLocale(locale), {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 8,
+    maximumFractionDigits: 2,
   }).format(finiteAmount(amount))
 }
 

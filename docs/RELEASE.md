@@ -25,13 +25,13 @@ gh auth status
 自动从上一个 tag 之后的提交生成说明：
 
 ```powershell
-pwsh ./scripts/release.ps1 -Version 0.1.185
+pwsh ./scripts/release.ps1 -Version 0.0.2
 ```
 
 使用人工准备的说明：
 
 ```powershell
-pwsh ./scripts/release.ps1 -Version 0.1.185 -NotesFile ./release-notes.md
+pwsh ./scripts/release.ps1 -Version 0.0.2 -NotesFile ./release-notes.md
 ```
 
 脚本会更新 VERSION、提交并推送 `main`，等待 `CI` 与 `Security Scan` 成功，创建 annotated tag，随后触发并等待 `release.yml`。版本只允许稳定的 `X.Y.Z`。

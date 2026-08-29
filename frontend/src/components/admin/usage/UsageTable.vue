@@ -278,51 +278,55 @@
   <Teleport to="body">
     <div
       v-if="tokenTooltipVisible"
-      class="components-admin-usage-usage-table__panel-22"
+      ref="tokenTooltipElement"
+      class="usage-tooltip"
+      :class="`usage-tooltip--${tokenTooltipPosition.side}`"
+      role="tooltip"
       :style="{
         left: tokenTooltipPosition.x + 'px',
-        top: tokenTooltipPosition.y + 'px'
+        top: tokenTooltipPosition.y + 'px',
+        '--usage-tooltip-arrow-y': tokenTooltipPosition.arrowY + 'px'
       }"
     >
-      <div class="components-admin-usage-usage-table__panel-23">
-        <div class="components-admin-usage-usage-table__panel-24">
+      <div class="usage-tooltip__surface">
+        <div class="usage-tooltip__content">
           <div>
-            <div class="components-admin-usage-usage-table__panel-25">{{ t('usage.tokenDetails') }}</div>
-            <div v-if="tokenTooltipData && tokenTooltipData.input_tokens > 0 && !hasImageInputTokens(tokenTooltipData)" class="components-admin-usage-usage-table__panel-26">
+            <div class="usage-tooltip__title">{{ t('usage.tokenDetails') }}</div>
+            <div v-if="tokenTooltipData && tokenTooltipData.input_tokens > 0 && !hasImageInputTokens(tokenTooltipData)" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.inputTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-30">{{ tokenTooltipData.input_tokens.toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && hasImageInputTokens(tokenTooltipData) && textInputTokens(tokenTooltipData) > 0" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && hasImageInputTokens(tokenTooltipData) && textInputTokens(tokenTooltipData) > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.inputTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-30">{{ textInputTokens(tokenTooltipData).toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && hasImageInputTokens(tokenTooltipData)" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && hasImageInputTokens(tokenTooltipData)" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageInputTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-31">{{ tokenTooltipData.image_input_tokens.toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && tokenTooltipData.output_tokens > 0 && !hasImageOutputTokens(tokenTooltipData)" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && tokenTooltipData.output_tokens > 0 && !hasImageOutputTokens(tokenTooltipData)" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.outputTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-30">{{ tokenTooltipData.output_tokens.toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && hasImageOutputTokens(tokenTooltipData) && textOutputTokens(tokenTooltipData) > 0" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && hasImageOutputTokens(tokenTooltipData) && textOutputTokens(tokenTooltipData) > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.outputTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-30">{{ textOutputTokens(tokenTooltipData).toLocaleString() }}</span>
             </div>
-            <div v-if="tokenTooltipData && hasImageOutputTokens(tokenTooltipData)" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && hasImageOutputTokens(tokenTooltipData)" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageOutputTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-32">{{ tokenTooltipData.image_output_tokens.toLocaleString() }}</span>
             </div>
             <div v-if="tokenTooltipData && tokenTooltipData.cache_creation_tokens > 0">
               <!-- 有 5m/1h 明细时，展开显示 -->
               <template v-if="tokenTooltipData.cache_creation_5m_tokens > 0 || tokenTooltipData.cache_creation_1h_tokens > 0">
-                <div v-if="tokenTooltipData.cache_creation_5m_tokens > 0" class="components-admin-usage-usage-table__panel-26">
+                <div v-if="tokenTooltipData.cache_creation_5m_tokens > 0" class="usage-tooltip__row">
                   <span class="components-admin-usage-usage-table__text-33">
                     {{ t('admin.usage.cacheCreation5mTokens') }}
                     <span class="components-admin-usage-usage-table__text-34">5m</span>
                   </span>
                   <span class="components-admin-usage-usage-table__text-30">{{ tokenTooltipData.cache_creation_5m_tokens.toLocaleString() }}</span>
                 </div>
-                <div v-if="tokenTooltipData.cache_creation_1h_tokens > 0" class="components-admin-usage-usage-table__panel-26">
+                <div v-if="tokenTooltipData.cache_creation_1h_tokens > 0" class="usage-tooltip__row">
                   <span class="components-admin-usage-usage-table__text-33">
                     {{ t('admin.usage.cacheCreation1hTokens') }}
                     <span class="components-admin-usage-usage-table__text-35">1h</span>
@@ -331,29 +335,29 @@
                 </div>
               </template>
               <!-- 无明细时，只显示聚合值 -->
-              <div v-else class="components-admin-usage-usage-table__panel-26">
+              <div v-else class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.cacheCreationTokens') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ tokenTooltipData.cache_creation_tokens.toLocaleString() }}</span>
               </div>
             </div>
-            <div v-if="tokenTooltipData && tokenTooltipData.cache_ttl_overridden" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && tokenTooltipData.cache_ttl_overridden" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-33">
                 {{ t('usage.cacheTtlOverriddenLabel') }}
                 <span class="components-admin-usage-usage-table__text-36">R-{{ tokenTooltipData.cache_creation_1h_tokens > 0 ? '5m' : '1H' }}</span>
               </span>
               <span class="components-admin-usage-usage-table__text-37">{{ tokenTooltipData.cache_creation_1h_tokens > 0 ? t('usage.cacheTtlOverridden1h') : t('usage.cacheTtlOverridden5m') }}</span>
             </div>
-            <div v-if="tokenTooltipData && tokenTooltipData.cache_read_tokens > 0" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tokenTooltipData && tokenTooltipData.cache_read_tokens > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.cacheReadTokens') }}</span>
               <span class="components-admin-usage-usage-table__text-30">{{ tokenTooltipData.cache_read_tokens.toLocaleString() }}</span>
             </div>
           </div>
-          <div class="components-admin-usage-usage-table__panel-27">
+          <div class="usage-tooltip__summary">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.totalTokens') }}</span>
             <span class="components-admin-usage-usage-table__text-38">{{ ((tokenTooltipData?.input_tokens || 0) + (tokenTooltipData?.output_tokens || 0) + (tokenTooltipData?.cache_creation_tokens || 0) + (tokenTooltipData?.cache_read_tokens || 0)).toLocaleString() }}</span>
           </div>
         </div>
-        <div class="components-admin-usage-usage-table__panel-28"></div>
+        <div class="usage-tooltip__arrow"></div>
       </div>
     </div>
   </Teleport>
@@ -362,123 +366,127 @@
   <Teleport to="body">
     <div
       v-if="tooltipVisible"
-      class="components-admin-usage-usage-table__panel-22"
+      ref="costTooltipElement"
+      class="usage-tooltip"
+      :class="`usage-tooltip--${tooltipPosition.side}`"
+      role="tooltip"
       :style="{
         left: tooltipPosition.x + 'px',
-        top: tooltipPosition.y + 'px'
+        top: tooltipPosition.y + 'px',
+        '--usage-tooltip-arrow-y': tooltipPosition.arrowY + 'px'
       }"
     >
-      <div class="components-admin-usage-usage-table__panel-23">
-        <div class="components-admin-usage-usage-table__panel-24">
+      <div class="usage-tooltip__surface">
+        <div class="usage-tooltip__content">
           <!-- Cost Breakdown -->
-          <div class="components-admin-usage-usage-table__panel-29">
-            <div class="components-admin-usage-usage-table__panel-25">{{ t('usage.costDetails') }}</div>
-            <div v-if="tooltipData && tooltipData.input_cost > 0" class="components-admin-usage-usage-table__panel-26">
+          <div class="usage-tooltip__section">
+            <div class="usage-tooltip__title">{{ t('usage.costDetails') }}</div>
+            <div v-if="tooltipData && tooltipData.input_cost > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.inputCost') }}</span>
               <span class="components-admin-usage-usage-table__text-30">${{ tooltipData.input_cost.toFixed(6) }}</span>
             </div>
-            <div v-if="tooltipData && hasImageInputCost(tooltipData)" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tooltipData && hasImageInputCost(tooltipData)" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageInputCost') }}</span>
               <span class="components-admin-usage-usage-table__text-31">${{ tooltipData.image_input_cost.toFixed(6) }}</span>
             </div>
-            <div v-if="tooltipData && tooltipData.output_cost > 0" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tooltipData && tooltipData.output_cost > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.outputCost') }}</span>
               <span class="components-admin-usage-usage-table__text-30">${{ tooltipData.output_cost.toFixed(6) }}</span>
             </div>
-            <div v-if="tooltipData && hasImageOutputCost(tooltipData)" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tooltipData && hasImageOutputCost(tooltipData)" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageOutputCost') }}</span>
               <span class="components-admin-usage-usage-table__text-32">${{ tooltipData.image_output_cost.toFixed(6) }}</span>
             </div>
             <!-- Token billing: show unit prices per 1M tokens -->
             <template v-if="tooltipData && !isImageUsage(tooltipData) && (!tooltipData.billing_mode || tooltipData.billing_mode === BILLING_MODE_TOKEN)">
-              <div v-if="tooltipData && textInputTokens(tooltipData) > 0" class="components-admin-usage-usage-table__panel-26">
+              <div v-if="tooltipData && textInputTokens(tooltipData) > 0" class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.inputTokenPrice') }}</span>
                 <span class="components-admin-usage-usage-table__text-39">{{ formatTokenPricePerMillion(tooltipData.input_cost, textInputTokens(tooltipData)) }} {{ t('usage.perMillionTokens') }}</span>
               </div>
-              <div v-if="tooltipData && hasImageInputTokens(tooltipData)" class="components-admin-usage-usage-table__panel-26">
+              <div v-if="tooltipData && hasImageInputTokens(tooltipData)" class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageInputTokenPrice') }}</span>
                 <span class="components-admin-usage-usage-table__text-31">{{ formatTokenPricePerMillion(tooltipData.image_input_cost ?? 0, tooltipData.image_input_tokens) }} {{ t('usage.perMillionTokens') }}</span>
               </div>
-              <div v-if="tooltipData && tooltipData.output_cost > 0 && textOutputTokens(tooltipData) > 0" class="components-admin-usage-usage-table__panel-26">
+              <div v-if="tooltipData && tooltipData.output_cost > 0 && textOutputTokens(tooltipData) > 0" class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.outputTokenPrice') }}</span>
                 <span class="components-admin-usage-usage-table__text-40">{{ formatTokenPricePerMillion(tooltipData.output_cost, textOutputTokens(tooltipData)) }} {{ t('usage.perMillionTokens') }}</span>
               </div>
-              <div v-if="tooltipData && hasImageOutputTokens(tooltipData)" class="components-admin-usage-usage-table__panel-26">
+              <div v-if="tooltipData && hasImageOutputTokens(tooltipData)" class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageOutputTokenPrice') }}</span>
                 <span class="components-admin-usage-usage-table__text-32">{{ formatTokenPricePerMillion(tooltipData.image_output_cost ?? 0, tooltipData.image_output_tokens) }} {{ t('usage.perMillionTokens') }}</span>
               </div>
             </template>
             <template v-else-if="tooltipData && isImageUsage(tooltipData)">
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageCount') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ tooltipData.image_count }}{{ t('usage.imageUnit') }}</span>
               </div>
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageBillingSize') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ formatImageBillingSize(tooltipData, t) }}</span>
               </div>
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageSizeSource') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ formatImageSizeSource(tooltipData, t) }}</span>
               </div>
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageInputSize') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ formatImageInputSize(tooltipData, t) }}</span>
               </div>
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageOutputSize') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ formatImageOutputSize(tooltipData, t) }}</span>
               </div>
-              <div v-if="formatImageSizeBreakdown(tooltipData)" class="components-admin-usage-usage-table__panel-26">
+              <div v-if="formatImageSizeBreakdown(tooltipData)" class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageSizeBreakdown') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">{{ formatImageSizeBreakdown(tooltipData) }}</span>
               </div>
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageUnitPrice') }}</span>
                 <span class="components-admin-usage-usage-table__text-39">${{ imageUnitPrice(tooltipData).toFixed(6) }}</span>
               </div>
-              <div class="components-admin-usage-usage-table__panel-26">
+              <div class="usage-tooltip__row">
                 <span class="components-admin-usage-usage-table__text-14">{{ t('usage.imageTotalPrice') }}</span>
                 <span class="components-admin-usage-usage-table__text-30">${{ tooltipData.total_cost?.toFixed(6) || '0.000000' }}</span>
               </div>
             </template>
-            <div v-else class="components-admin-usage-usage-table__panel-26">
+            <div v-else class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.unitPrice') }}</span>
               <span class="components-admin-usage-usage-table__text-39">${{ tooltipData?.total_cost?.toFixed(6) || '0.000000' }}</span>
             </div>
-            <div v-if="tooltipData && tooltipData.cache_creation_cost > 0" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tooltipData && tooltipData.cache_creation_cost > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.cacheCreationCost') }}</span>
               <span class="components-admin-usage-usage-table__text-30">${{ tooltipData.cache_creation_cost.toFixed(6) }}</span>
             </div>
-            <div v-if="tooltipData && tooltipData.cache_read_cost > 0" class="components-admin-usage-usage-table__panel-26">
+            <div v-if="tooltipData && tooltipData.cache_read_cost > 0" class="usage-tooltip__row">
               <span class="components-admin-usage-usage-table__text-14">{{ t('admin.usage.cacheReadCost') }}</span>
               <span class="components-admin-usage-usage-table__text-30">${{ tooltipData.cache_read_cost.toFixed(6) }}</span>
             </div>
           </div>
           <!-- Rate and Summary -->
-          <div class="components-admin-usage-usage-table__panel-30">
+          <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.serviceTier') }}</span>
             <span class="components-admin-usage-usage-table__text-41">{{ getUsageServiceTierLabel(tooltipData?.service_tier, t) }}</span>
           </div>
-          <div class="components-admin-usage-usage-table__panel-30">
+          <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.rate') }}</span>
             <span class="components-admin-usage-usage-table__text-38">{{ formatMultiplier(tooltipData?.rate_multiplier || 1) }}x</span>
           </div>
-          <div class="components-admin-usage-usage-table__panel-30">
+          <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.original') }}</span>
             <span class="components-admin-usage-usage-table__text-30">${{ tooltipData?.total_cost?.toFixed(6) || '0.000000' }}</span>
           </div>
-          <div class="components-admin-usage-usage-table__panel-30">
+          <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.userBilled') }}</span>
             <span class="components-admin-usage-usage-table__text-42">{{ formatPoints(tooltipData?.actual_cost) }}</span>
           </div>
           <!-- Account billing (separated from user billing) -->
           <template v-if="showAccountBilling">
-            <div class="components-admin-usage-usage-table__panel-27">
+            <div class="usage-tooltip__summary">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountMultiplier') }}</span>
               <span class="components-admin-usage-usage-table__text-38">{{ formatMultiplier(tooltipData?.account_rate_multiplier ?? 1) }}x</span>
             </div>
-            <div class="components-admin-usage-usage-table__panel-30">
+            <div class="usage-tooltip__meta">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountBilled') }}</span>
               <span class="components-admin-usage-usage-table__text-42">
                 ${{ accountBilled({
@@ -490,14 +498,14 @@
             </div>
           </template>
         </div>
-        <div class="components-admin-usage-usage-table__panel-28"></div>
+        <div class="usage-tooltip__arrow"></div>
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime, formatPoints, formatReasoningEffort } from '@/utils/format'
@@ -643,14 +651,33 @@ const copyRequestId = async (requestId: string) => {
   }
 }
 
+type TooltipSide = 'left' | 'right'
+
+interface TooltipPosition {
+  x: number
+  y: number
+  arrowY: number
+  side: TooltipSide
+}
+
+const createTooltipPosition = (): TooltipPosition => ({
+  x: 0,
+  y: 0,
+  arrowY: 0,
+  side: 'right',
+})
+
+const costTooltipElement = ref<HTMLElement | null>(null)
+const tokenTooltipElement = ref<HTMLElement | null>(null)
+
 // Tooltip state - cost
 const tooltipVisible = ref(false)
-const tooltipPosition = ref({ x: 0, y: 0 })
+const tooltipPosition = ref<TooltipPosition>(createTooltipPosition())
 const tooltipData = ref<AdminUsageLog | null>(null)
 
 // Tooltip state - token
 const tokenTooltipVisible = ref(false)
-const tokenTooltipPosition = ref({ x: 0, y: 0 })
+const tokenTooltipPosition = ref<TooltipPosition>(createTooltipPosition())
 const tokenTooltipData = ref<AdminUsageLog | null>(null)
 
 const getRequestTypeLabel = (row: AdminUsageLog): string => {
@@ -689,14 +716,44 @@ const formatDuration = (ms: number | null | undefined): string => {
   return `${Math.floor(totalSec / 3600)}h ${Math.floor((totalSec % 3600) / 60)}m`
 }
 
+const placeTooltip = async (
+  target: HTMLElement,
+  element: Ref<HTMLElement | null>,
+  position: Ref<TooltipPosition>,
+) => {
+  await nextTick()
+
+  if (!element.value) return
+
+  const viewportPadding = 12
+  const anchorGap = 10
+  const targetRect = target.getBoundingClientRect()
+  const tooltipRect = element.value.getBoundingClientRect()
+  const availableRight = window.innerWidth - targetRect.right - viewportPadding
+  const availableLeft = targetRect.left - viewportPadding
+  const side: TooltipSide = availableRight >= tooltipRect.width || availableRight >= availableLeft
+    ? 'right'
+    : 'left'
+  const preferredX = side === 'right'
+    ? targetRect.right + anchorGap
+    : targetRect.left - anchorGap - tooltipRect.width
+  const maxX = Math.max(viewportPadding, window.innerWidth - viewportPadding - tooltipRect.width)
+  const x = Math.min(Math.max(preferredX, viewportPadding), maxX)
+  const height = Math.min(tooltipRect.height, window.innerHeight - viewportPadding * 2)
+  const anchorCenterY = targetRect.top + targetRect.height / 2
+  const maxY = Math.max(viewportPadding, window.innerHeight - viewportPadding - height)
+  const y = Math.min(Math.max(anchorCenterY - height / 2, viewportPadding), maxY)
+  const arrowY = Math.min(Math.max(anchorCenterY - y, 14), Math.max(14, height - 14))
+
+  position.value = { x, y, arrowY, side }
+}
+
 // Cost tooltip functions
 const showTooltip = (event: MouseEvent, row: AdminUsageLog) => {
   const target = event.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
   tooltipData.value = row
-  tooltipPosition.value.x = rect.right + 8
-  tooltipPosition.value.y = rect.top + rect.height / 2
   tooltipVisible.value = true
+  void placeTooltip(target, costTooltipElement, tooltipPosition)
 }
 
 const hideTooltip = () => {
@@ -707,11 +764,9 @@ const hideTooltip = () => {
 // Token tooltip functions
 const showTokenTooltip = (event: MouseEvent, row: AdminUsageLog) => {
   const target = event.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
   tokenTooltipData.value = row
-  tokenTooltipPosition.value.x = rect.right + 8
-  tokenTooltipPosition.value.y = rect.top + rect.height / 2
   tokenTooltipVisible.value = true
+  void placeTooltip(target, tokenTooltipElement, tokenTooltipPosition)
 }
 
 const hideTokenTooltip = () => {
@@ -719,3 +774,103 @@ const hideTokenTooltip = () => {
   tokenTooltipData.value = null
 }
 </script>
+
+<style lang="scss">
+.usage-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  inline-size: min(20rem, calc(100vw - 1.5rem));
+  color: var(--color-text-primary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-tooltip__surface {
+  position: relative;
+  border: 1px solid var(--glass-border-hover);
+  border-radius: var(--radius-md);
+  background-color: var(--glass-layer-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.usage-tooltip__content {
+  max-block-size: calc(100vh - 1.5rem);
+  padding: 0.75rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.usage-tooltip__title {
+  margin-block-end: 0.375rem;
+  color: var(--color-text-primary);
+  font-size: var(--type-control-size);
+  line-height: var(--type-control-line-height);
+  font-weight: var(--font-weight-semibold);
+}
+
+.usage-tooltip__row,
+.usage-tooltip__meta,
+.usage-tooltip__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-block-size: 1.5rem;
+}
+
+.usage-tooltip__row > :first-child,
+.usage-tooltip__meta > :first-child,
+.usage-tooltip__summary > :first-child {
+  color: var(--color-text-tertiary);
+}
+
+.usage-tooltip__row > :last-child,
+.usage-tooltip__meta > :last-child {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.usage-tooltip__section {
+  margin-block-end: 0.5rem;
+  padding-block-end: 0.5rem;
+  border-block-end: 1px solid var(--glass-border);
+}
+
+.usage-tooltip__summary {
+  margin-block-start: 0.375rem;
+  padding-block-start: 0.5rem;
+  border-block-start: 1px solid var(--glass-border);
+}
+
+.usage-tooltip__summary > :last-child {
+  color: var(--color-text-brand);
+  font-weight: var(--font-weight-semibold);
+}
+
+.usage-tooltip__arrow {
+  position: absolute;
+  top: var(--usage-tooltip-arrow-y);
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  background-color: var(--glass-layer-floating-bg);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.usage-tooltip--right .usage-tooltip__arrow {
+  left: -0.375rem;
+  border-block-end: 1px solid var(--glass-border-hover);
+  border-inline-start: 1px solid var(--glass-border-hover);
+}
+
+.usage-tooltip--left .usage-tooltip__arrow {
+  right: -0.375rem;
+  border-block-start: 1px solid var(--glass-border-hover);
+  border-inline-end: 1px solid var(--glass-border-hover);
+}
+</style>

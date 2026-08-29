@@ -17,7 +17,10 @@ import (
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 )
 
-const paymentResultReturnPath = "/payment/result"
+const (
+	paymentResultReturnPath  = "/payment/result"
+	alipayReturnURLMaxLength = 256
+)
 
 const (
 	PaymentSourceHostedRedirect    = "hosted_redirect"
@@ -301,6 +304,33 @@ func buildPaymentReturnURL(base string, orderID string, outTradeNo string, resum
 	parsed.RawQuery = query.Encode()
 
 	return parsed.String(), nil
+}
+
+// buildProviderPaymentReturnURL keeps provider callback URLs within their
+// documented limits. Alipay only accepts a 256-character return_url. The
+// signed resume token remains in the create-order response and the frontend's
+// recovery snapshot, so it can be omitted from Alipay's redirect without
+// weakening payment-result reconciliation.
+func buildProviderPaymentReturnURL(base string, orderID string, outTradeNo string, resumeToken string, providerKey string) (string, error) {
+	returnURL, err := buildPaymentReturnURL(base, orderID, outTradeNo, resumeToken)
+	if err != nil || returnURL == "" || !strings.EqualFold(strings.TrimSpace(providerKey), payment.TypeAlipay) {
+		return returnURL, err
+	}
+	if len(returnURL) <= alipayReturnURLMaxLength {
+		return returnURL, nil
+	}
+
+	returnURL, err = buildPaymentReturnURL(base, orderID, outTradeNo, "")
+	if err != nil {
+		return "", err
+	}
+	if len(returnURL) > alipayReturnURLMaxLength {
+		return "", infraerrors.BadRequest(
+			"INVALID_RETURN_URL",
+			"return_url exceeds the Alipay 256-character limit",
+		)
+	}
+	return returnURL, nil
 }
 
 func sameOriginHost(returnURLHost string, requestHost string) bool {

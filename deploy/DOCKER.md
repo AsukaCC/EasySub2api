@@ -5,8 +5,8 @@
 正式镜像只发布到 GitHub Container Registry：
 
 ```bash
-docker pull ghcr.io/asukacc/easysub2api:0.1.185
-docker run --rm ghcr.io/asukacc/easysub2api:0.1.185 --version
+docker pull ghcr.io/asukacc/easysub2api:0.0.2
+docker run --rm ghcr.io/asukacc/easysub2api:0.0.2 --version
 ```
 
 支持 `linux/amd64` 和 `linux/arm64`。稳定版本同时维护 `X.Y.Z`、`X.Y`、`X` 与 `latest` 标签；生产环境应固定 `X.Y.Z` 或 digest。
@@ -37,7 +37,7 @@ POSTGRES_PASSWORD=replace-with-a-strong-password
 POSTGRES_DB=easysub2api
 JWT_SECRET=replace-with-a-random-secret
 TOTP_ENCRYPTION_KEY=replace-with-a-random-secret
-EASYSUB2API_IMAGE=ghcr.io/asukacc/easysub2api:0.1.185
+EASYSUB2API_IMAGE=ghcr.io/asukacc/easysub2api:0.0.2
 ```
 
 默认只把应用端口暴露到宿主机；PostgreSQL 和 Redis 不应直接暴露到公网。生产环境还应配置可信代理、TLS、备份和资源限制，详见 [EDGE_SECURITY.md](EDGE_SECURITY.md)。
