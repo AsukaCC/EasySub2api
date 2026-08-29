@@ -1,0 +1,235 @@
+// ============================================================
+// 液态玻璃组件皮肤(统一分组维护 - Liquid Glass Theme)
+// ------------------------------------------------------------
+// 材质 mixin 统一由 _glass-mixins.scss 提供;本文件负责把
+// 材质映射到语义类(卡片 / 浮层 / 导航 / 控件 / 交互组件)。
+// 所有的 hover / active 均采用高斯模糊加深与微光透射,绝无实底。
+// ============================================================
+
+@use 'glass-mixins' as *;
+
+// ------------------------------------------------------------
+// 1. 原语基底:.glass-subtle / .glass-thin / .glass-regular / .glass-thick / .glass
+// ------------------------------------------------------------
+.glass-subtle {
+  position: relative;
+  @include glass-surface(inset);
+  @include glass-border;
+}
+
+.glass-thin {
+  position: relative;
+  @include glass-surface(content);
+  @include glass-border;
+}
+
+.glass-regular,
+.glass {
+  position: relative;
+  @include glass-surface(content);
+  @include glass-border;
+}
+
+.glass-thick {
+  position: relative;
+  @include glass-surface(shell);
+  @include glass-border;
+}
+
+// ------------------------------------------------------------
+// 2. 表面层:卡片 (Cards & Stat Cards)
+// ------------------------------------------------------------
+.card,
+.stat-card {
+  position: relative;
+  @include glass-surface(content);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  @include glass-shell-shadow;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.glass-card,
+.card-glass {
+  position: relative;
+  @include glass-surface(content);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  @include glass-shell-shadow;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+// 卡片悬停:在原高斯模糊基础上平滑加深,增强内高光与外阴影
+.card-hover {
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+
+  &:hover {
+    border-color: var(--glass-border-hover);
+    @include glass-shell-shadow-hover;
+
+    &::before {
+      background-color: var(--glass-bg-hover);
+      -webkit-backdrop-filter: blur(var(--glass-layer-content-blur-hover)) saturate(var(--glass-saturate-hover));
+      backdrop-filter: blur(var(--glass-layer-content-blur-hover)) saturate(var(--glass-saturate-hover));
+    }
+  }
+}
+
+// ------------------------------------------------------------
+// 3. 浮层:下拉菜单 / 模态框 / 对话框 / Toast / Popover
+// ------------------------------------------------------------
+.dropdown {
+  @include glass-surface(floating, true);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.modal-content,
+.dialog-container {
+  position: relative;
+  @include glass-surface(modal);
+  border: 1px solid var(--glass-border-hover);
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.toast {
+  @include glass-surface(floating, true);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg), 0 1px 0 var(--glass-highlight) inset;
+}
+
+// ------------------------------------------------------------
+// 4. 导航:侧边栏 / 顶部悬浮导航条
+// ------------------------------------------------------------
+.sidebar {
+  @include glass-surface(shell);
+  border-right: 1px solid var(--glass-border);
+}
+
+.app-top-nav-shell,
+.floating-nav-shell {
+  position: relative;
+  @include glass-surface(shell);
+  border: 1px solid var(--glass-border);
+  @include glass-shell-shadow;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+
+  &:hover {
+    border-color: var(--glass-border-hover);
+  }
+}
+
+// ------------------------------------------------------------
+// 5. 交互控件:次级按钮 / 幽灵按钮 / 输入框 / 分段控件
+// ------------------------------------------------------------
+.btn-secondary,
+.button--secondary {
+  @include glass-interactive(
+    var(--glass-bg-interactive),
+    var(--glass-blur-xs),
+    var(--glass-bg-interactive-hover),
+    var(--glass-blur-xs-hover),
+    var(--glass-border),
+    var(--glass-border-hover)
+  );
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 0 var(--glass-highlight) inset;
+
+  &:hover:not(:disabled) {
+    color: var(--color-primary);
+  }
+
+  .dark & {
+    color: var(--color-text-primary);
+
+    &:hover:not(:disabled) {
+      color: var(--color-text-primary);
+      border-color: var(--glass-border-hover);
+    }
+  }
+}
+
+.btn-ghost,
+.button--ghost {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  background: transparent;
+  transition: color 180ms ease, border-color 180ms ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background-color: var(--glass-bg-subtle-hover);
+    -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    transition: opacity 180ms ease, background-color 180ms ease;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--glass-border);
+    color: var(--color-text-primary);
+    box-shadow: 0 1px 0 var(--glass-highlight) inset;
+
+    &::before {
+      opacity: 1;
+    }
+  }
+}
+
+.input,
+.form-control {
+  @include glass-field;
+}
+
+.tabs {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--glass-border);
+  background-color: var(--glass-bg-subtle);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+}
+
+.tab {
+  position: relative;
+  @include glass-interactive(
+    transparent,
+    var(--glass-blur-xs),
+    var(--glass-bg-interactive),
+    var(--glass-blur-xs-hover),
+    transparent,
+    var(--glass-border)
+  );
+  transition: color 180ms ease, border-color 180ms ease;
+
+  &:hover:not(.tab-active) {
+    color: var(--color-text-primary);
+  }
+}
+
+.tab-active {
+  border: 1px solid var(--glass-border-hover);
+  background-color: var(--glass-tint-brand);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  color: var(--color-text-primary);
+  box-shadow:
+    0 2px 10px rgba(10, 132, 255, 0.12),
+    0 1px 0 var(--glass-highlight-hover) inset;
+
+  .dark & {
+    border-color: var(--glass-border-active);
+    background-color: var(--glass-tint-brand);
+    color: var(--color-text-primary);
+    box-shadow:
+      0 2px 10px rgba(0, 0, 0, 0.35),
+      0 1px 0 var(--glass-highlight-hover) inset;
+  }
+}

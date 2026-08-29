@@ -1,0 +1,86 @@
+package repository
+
+import (
+	"context"
+	"fmt"
+
+	dbent "github.com/AsukaCC/EasySub2api/ent"
+	"github.com/AsukaCC/EasySub2api/ent/group"
+	"github.com/AsukaCC/EasySub2api/internal/service"
+)
+
+const simpleModeDefaultGroupDescription = "Auto-created default group"
+
+func ensureSimpleModeDefaultGroups(ctx context.Context, client *dbent.Client) error {
+	if client == nil {
+		return fmt.Errorf("nil ent client")
+	}
+
+	if err := backfillSimpleModeGrokDefaultImageGeneration(ctx, client); err != nil {
+		return err
+	}
+
+	requiredPlatforms := []string{
+		service.PlatformAnthropic,
+		service.PlatformOpenAI,
+		service.PlatformGrok,
+	}
+
+	for _, platform := range requiredPlatforms {
+		name := platform + "-default"
+		if err := createGroupIfNotExists(ctx, client, name, platform); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createGroupIfNotExists(ctx context.Context, client *dbent.Client, name, platform string) error {
+	exists, err := client.Group.Query().
+		Where(group.NameEQ(name), group.DeletedAtIsNil()).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("check group exists %s: %w", name, err)
+	}
+	if exists {
+		return nil
+	}
+
+	_, err = client.Group.Create().
+		SetName(name).
+		SetDescription(simpleModeDefaultGroupDescription).
+		SetPlatform(platform).
+		SetStatus(service.StatusActive).
+		SetSubscriptionType(service.SubscriptionTypeStandard).
+		SetRateMultiplier(1.0).
+		SetIsExclusive(false).
+		SetAllowImageGeneration(platform == service.PlatformGrok).
+		Save(ctx)
+	if err != nil {
+		if dbent.IsConstraintError(err) {
+			// Concurrent server startups may race on creation; treat as success.
+			return nil
+		}
+		return fmt.Errorf("create default group %s: %w", name, err)
+	}
+	return nil
+}
+
+func backfillSimpleModeGrokDefaultImageGeneration(ctx context.Context, client *dbent.Client) error {
+	_, err := client.Group.Update().
+		Where(
+			group.NameEQ(service.PlatformGrok+"-default"),
+			group.PlatformEQ(service.PlatformGrok),
+			group.DescriptionEQ(simpleModeDefaultGroupDescription),
+			group.StatusEQ(service.StatusActive),
+			group.AllowImageGenerationEQ(false),
+			group.DeletedAtIsNil(),
+		).
+		SetAllowImageGeneration(true).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("backfill auto-created grok default image generation: %w", err)
+	}
+	return nil
+}

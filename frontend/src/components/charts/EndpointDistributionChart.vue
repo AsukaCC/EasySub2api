@@ -1,0 +1,304 @@
+<template>
+  <div class="components-charts-endpoint-distribution-chart__panel card">
+    <div class="components-charts-endpoint-distribution-chart__panel-2">
+      <h3 class="components-charts-endpoint-distribution-chart__heading">
+        {{ title || t('usage.endpointDistribution') }}
+      </h3>
+      <div class="components-charts-endpoint-distribution-chart__panel-3">
+        <div
+          v-if="showSourceToggle"
+          class="components-charts-endpoint-distribution-chart__panel-4"
+        >
+          <button
+            type="button"
+            class="components-charts-endpoint-distribution-chart__action"
+            :class="source === 'inbound'
+              ? 'components-charts-endpoint-distribution-chart__action-2'
+              : 'components-charts-endpoint-distribution-chart__action-3'"
+            @click="emit('update:source', 'inbound')"
+          >
+            {{ t('usage.inbound') }}
+          </button>
+          <button
+            type="button"
+            class="components-charts-endpoint-distribution-chart__action"
+            :class="source === 'upstream'
+              ? 'components-charts-endpoint-distribution-chart__action-2'
+              : 'components-charts-endpoint-distribution-chart__action-3'"
+            @click="emit('update:source', 'upstream')"
+          >
+            {{ t('usage.upstream') }}
+          </button>
+          <button
+            type="button"
+            class="components-charts-endpoint-distribution-chart__action"
+            :class="source === 'path'
+              ? 'components-charts-endpoint-distribution-chart__action-2'
+              : 'components-charts-endpoint-distribution-chart__action-3'"
+            @click="emit('update:source', 'path')"
+          >
+            {{ t('usage.path') }}
+          </button>
+        </div>
+
+        <div
+          v-if="showMetricToggle"
+          class="components-charts-endpoint-distribution-chart__panel-4"
+        >
+          <button
+            type="button"
+            class="components-charts-endpoint-distribution-chart__action"
+            :class="metric === 'tokens'
+              ? 'components-charts-endpoint-distribution-chart__action-2'
+              : 'components-charts-endpoint-distribution-chart__action-3'"
+            @click="emit('update:metric', 'tokens')"
+          >
+            {{ t('admin.dashboard.metricTokens') }}
+          </button>
+          <button
+            type="button"
+            class="components-charts-endpoint-distribution-chart__action"
+            :class="metric === 'actual_cost'
+              ? 'components-charts-endpoint-distribution-chart__action-2'
+              : 'components-charts-endpoint-distribution-chart__action-3'"
+            @click="emit('update:metric', 'actual_cost')"
+          >
+            {{ t('admin.dashboard.metricActualCost') }}
+          </button>
+        </div>
+      </div>
+    </div>
+    <div v-if="loading" class="components-charts-endpoint-distribution-chart__panel-5">
+      <LoadingSpinner />
+    </div>
+    <div v-else-if="displayEndpointStats.length > 0 && chartData" class="components-charts-endpoint-distribution-chart__panel-6">
+      <div class="components-charts-endpoint-distribution-chart__panel-7">
+        <D3DonutChart :data="chartData" :options="doughnutOptions" />
+      </div>
+      <div class="components-charts-endpoint-distribution-chart__panel-8">
+        <table class="components-charts-endpoint-distribution-chart__table">
+          <thead>
+            <tr class="components-charts-endpoint-distribution-chart__row">
+              <th class="components-charts-endpoint-distribution-chart__heading-2">{{ t('usage.endpoint') }}</th>
+              <th class="components-charts-endpoint-distribution-chart__heading-3">{{ t('admin.dashboard.requests') }}</th>
+              <th class="components-charts-endpoint-distribution-chart__heading-3">{{ t('admin.dashboard.tokens') }}</th>
+              <th class="components-charts-endpoint-distribution-chart__heading-3">{{ t('admin.dashboard.actual') }}</th>
+              <th class="components-charts-endpoint-distribution-chart__heading-3">{{ t('admin.dashboard.standard') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="item in displayEndpointStats" :key="item.endpoint">
+              <tr
+                class="components-charts-endpoint-distribution-chart__row-2"
+                :class="enableBreakdown ? 'components-charts-endpoint-distribution-chart__row-3' : ''"
+                @click="enableBreakdown && toggleBreakdown(item.endpoint)"
+              >
+                <td class="components-charts-endpoint-distribution-chart__cell" :class="enableBreakdown ? 'components-charts-endpoint-distribution-chart__cell-6' : 'components-charts-endpoint-distribution-chart__cell-7'" :title="item.endpoint">
+                  <span class="components-charts-endpoint-distribution-chart__text">
+                    <svg v-if="enableBreakdown && expandedKey === item.endpoint" class="components-charts-endpoint-distribution-chart__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <svg v-else-if="enableBreakdown" class="components-charts-endpoint-distribution-chart__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    {{ item.endpoint }}
+                  </span>
+                </td>
+                <td class="components-charts-endpoint-distribution-chart__cell-2">
+                  {{ formatNumber(item.requests) }}
+                </td>
+                <td class="components-charts-endpoint-distribution-chart__cell-2">
+                  {{ formatTokens(item.total_tokens) }}
+                </td>
+                <td class="components-charts-endpoint-distribution-chart__cell-3">
+                  {{ formatPoints(item.actual_cost) }}
+                </td>
+                <td class="components-charts-endpoint-distribution-chart__cell-4">
+                  ${{ formatCost(item.cost) }}
+                </td>
+              </tr>
+              <tr v-if="expandedKey === item.endpoint">
+                <td colspan="5" class="components-charts-endpoint-distribution-chart__cell-5">
+                  <UserBreakdownSubTable
+                    :items="breakdownItems"
+                    :loading="breakdownLoading"
+                  />
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div v-else class="components-charts-endpoint-distribution-chart__panel-9">
+      {{ t('admin.dashboard.noDataAvailable') }}
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import D3DonutChart from '@/components/charts/d3/D3DonutChart.vue'
+import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
+import type { EndpointStat, UserBreakdownItem } from '@/types'
+import { getUserBreakdown } from '@/api/admin/dashboard'
+import { formatPoints } from '@/utils/format'
+
+const { t } = useI18n()
+
+type DistributionMetric = 'tokens' | 'actual_cost'
+type EndpointSource = 'inbound' | 'upstream' | 'path'
+
+const props = withDefaults(
+  defineProps<{
+    endpointStats: EndpointStat[]
+    upstreamEndpointStats?: EndpointStat[]
+    endpointPathStats?: EndpointStat[]
+    loading?: boolean
+    title?: string
+    metric?: DistributionMetric
+    source?: EndpointSource
+    showMetricToggle?: boolean
+    showSourceToggle?: boolean
+    enableBreakdown?: boolean
+    startDate?: string
+    endDate?: string
+    filters?: Record<string, any>
+  }>(),
+  {
+    upstreamEndpointStats: () => [],
+    endpointPathStats: () => [],
+    loading: false,
+    title: '',
+    metric: 'tokens',
+    source: 'inbound',
+    showMetricToggle: false,
+    showSourceToggle: false,
+    enableBreakdown: true
+  }
+)
+
+const emit = defineEmits<{
+  'update:metric': [value: DistributionMetric]
+  'update:source': [value: EndpointSource]
+}>()
+
+const expandedKey = ref<string | null>(null)
+const breakdownItems = ref<UserBreakdownItem[]>([])
+const breakdownLoading = ref(false)
+
+const toggleBreakdown = async (endpoint: string) => {
+  if (expandedKey.value === endpoint) {
+    expandedKey.value = null
+    return
+  }
+  expandedKey.value = endpoint
+  breakdownLoading.value = true
+  breakdownItems.value = []
+  try {
+    const res = await getUserBreakdown({
+      ...props.filters,
+      start_date: props.startDate,
+      end_date: props.endDate,
+      endpoint,
+      endpoint_type: props.source,
+    })
+    breakdownItems.value = res.users || []
+  } catch {
+    breakdownItems.value = []
+  } finally {
+    breakdownLoading.value = false
+  }
+}
+
+const chartColors = [
+  '#3b82f6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+  '#ec4899',
+  '#14b8a6',
+  '#f97316',
+  '#6366f1',
+  '#84cc16',
+  '#06b6d4',
+  '#a855f7'
+]
+
+const displayEndpointStats = computed(() => {
+  const sourceStats = props.source === 'upstream'
+    ? props.upstreamEndpointStats
+    : props.source === 'path'
+      ? props.endpointPathStats
+      : props.endpointStats
+  if (!sourceStats?.length) return []
+
+  const metricKey = props.metric === 'actual_cost' ? 'actual_cost' : 'total_tokens'
+  return [...sourceStats].sort((a, b) => b[metricKey] - a[metricKey])
+})
+
+const chartData = computed(() => {
+  if (!displayEndpointStats.value?.length) return null
+
+  return {
+    labels: displayEndpointStats.value.map((item) => item.endpoint),
+    datasets: [
+      {
+        data: displayEndpointStats.value.map((item) =>
+          props.metric === 'actual_cost' ? item.actual_cost : item.total_tokens
+        ),
+        backgroundColor: chartColors.slice(0, displayEndpointStats.value.length),
+        borderWidth: 0
+      }
+    ]
+  }
+})
+
+const doughnutOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: any) => {
+          const value = context.raw as number
+          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
+          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
+          const formattedValue = props.metric === 'actual_cost'
+            ? formatPoints(value)
+            : formatTokens(value)
+          return `${context.label}: ${formattedValue} (${percentage}%)`
+        }
+      }
+    }
+  }
+}))
+
+const formatTokens = (value: number): string => {
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(2)}B`
+  } else if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2)}M`
+  } else if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(2)}K`
+  }
+  return value.toLocaleString()
+}
+
+const formatNumber = (value: number): string => {
+  return value.toLocaleString()
+}
+
+const formatCost = (value: number): string => {
+  if (value >= 1000) {
+    return (value / 1000).toFixed(2) + 'K'
+  } else if (value >= 1) {
+    return value.toFixed(2)
+  } else if (value >= 0.01) {
+    return value.toFixed(3)
+  }
+  return value.toFixed(4)
+}
+</script>

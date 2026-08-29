@@ -1,0 +1,85 @@
+//go:build unit
+
+package testutil
+
+import (
+	"time"
+
+	"github.com/AsukaCC/EasySub2api/internal/service"
+)
+
+const (
+	testUserID    = "0198c123-0001-7000-8000-000000000001"
+	testAccountID = "0198c123-0002-7000-8000-000000000002"
+	testAPIKeyID  = "0198c123-0003-7000-8000-000000000003"
+	testGroupID   = "0198c123-0004-7000-8000-000000000004"
+)
+
+// NewTestUser 创建一个可用的测试用户，可通过 opts 覆盖默认值。
+func NewTestUser(opts ...func(*service.User)) *service.User {
+	u := &service.User{
+		ID:          testUserID,
+		Email:       "test@example.com",
+		Username:    "testuser",
+		Role:        "user",
+		Balance:     100.0,
+		Concurrency: 5,
+		Status:      service.StatusActive,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	for _, opt := range opts {
+		opt(u)
+	}
+	return u
+}
+
+// NewTestAccount 创建一个可用的测试账户，可通过 opts 覆盖默认值。
+func NewTestAccount(opts ...func(*service.Account)) *service.Account {
+	a := &service.Account{
+		ID:          testAccountID,
+		Name:        "test-account",
+		Platform:    service.PlatformAnthropic,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Concurrency: 5,
+		Priority:    1,
+	}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
+}
+
+// NewTestAPIKey 创建一个可用的测试 API Key，可通过 opts 覆盖默认值。
+func NewTestAPIKey(opts ...func(*service.APIKey)) *service.APIKey {
+	groupID := testGroupID
+	k := &service.APIKey{
+		ID:        testAPIKeyID,
+		UserID:    testUserID,
+		Key:       "sk-test-key-12345678",
+		Name:      "test-key",
+		GroupID:   &groupID,
+		Status:    service.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	for _, opt := range opts {
+		opt(k)
+	}
+	return k
+}
+
+// NewTestGroup 创建一个可用的测试分组，可通过 opts 覆盖默认值。
+func NewTestGroup(opts ...func(*service.Group)) *service.Group {
+	g := &service.Group{
+		ID:       testGroupID,
+		Platform: service.PlatformAnthropic,
+		Status:   service.StatusActive,
+		Hydrated: true,
+	}
+	for _, opt := range opts {
+		opt(g)
+	}
+	return g
+}

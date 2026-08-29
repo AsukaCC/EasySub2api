@@ -1,0 +1,334 @@
+<template>
+  <div class="views-admin-ops-components-ops-error-log-table__panel">
+    <div class="views-admin-ops-components-ops-error-log-table__panel-2" :class="flat ? '' : 'card'">
+      <IpGeoBatchToolbar :ips="rows.map((r) => r.client_ip)" @failed="emit('ipGeoBatchFailed')" />
+
+      <DataTable
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        clickable-rows
+        server-side-sort
+        default-sort-key="created_at"
+        default-sort-order="desc"
+        @sort="onSort"
+        @rowClick="(row) => emit('openErrorDetail', row.id)"
+      >
+        <template #cell-created_at="{ row }">
+          <span
+            class="views-admin-ops-components-ops-error-log-table__text"
+            :title="row.request_id || row.client_request_id"
+          >{{ formatDateTime(row.created_at) }}</span>
+        </template>
+
+        <template #cell-type="{ row }">
+          <span class="views-admin-ops-components-ops-error-log-table__text-2" :class="getTypeBadge(row).className">
+            {{ getTypeBadge(row).label }}
+          </span>
+        </template>
+
+        <template #cell-endpoint="{ row }">
+          <div class="views-admin-ops-components-ops-error-log-table__panel-3">
+            <div class="views-admin-ops-components-ops-error-log-table__panel-4">
+              <span class="views-admin-ops-components-ops-error-log-table__text-3">{{ t('usage.inbound') }}:</span>
+              <span class="views-admin-ops-components-ops-error-log-table__text-4">{{ row.inbound_endpoint?.trim() || '-' }}</span>
+            </div>
+            <div v-if="row.upstream_endpoint" class="views-admin-ops-components-ops-error-log-table__panel-4">
+              <span class="views-admin-ops-components-ops-error-log-table__text-3">{{ t('usage.upstream') }}:</span>
+              <span class="views-admin-ops-components-ops-error-log-table__text-4">{{ row.upstream_endpoint?.trim() || '-' }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template #cell-platform="{ row }">
+          <span class="views-admin-ops-components-ops-error-log-table__text-5">{{ row.platform || '-' }}</span>
+        </template>
+
+        <template #cell-model="{ row }">
+          <div v-if="hasModelMapping(row)" class="views-admin-ops-components-ops-error-log-table__panel-5">
+            <div class="views-admin-ops-components-ops-error-log-table__panel-6">{{ row.requested_model }}</div>
+            <div class="views-admin-ops-components-ops-error-log-table__panel-7"><span class="views-admin-ops-components-ops-error-log-table__text-6">↳</span>{{ row.upstream_model }}</div>
+          </div>
+          <span v-else-if="displayModel(row)" class="views-admin-ops-components-ops-error-log-table__text-7">{{ displayModel(row) }}</span>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-group="{ row }">
+          <span
+            v-if="row.group_id"
+            class="views-admin-ops-components-ops-error-log-table__text-9"
+            :title="t('admin.ops.errorLog.id') + ' ' + row.group_id"
+          >
+            {{ row.group_name || '#' + row.group_id }}
+          </span>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-user="{ row }">
+          <div v-if="row.user_id" class="views-admin-ops-components-ops-error-log-table__panel-8">
+            <button
+              v-if="userClickable && row.user_email"
+              class="views-admin-ops-components-ops-error-log-table__action"
+              :title="t('admin.usage.clickToViewBalance')"
+              @click.stop="emit('userClick', row.user_id, row.user_email)"
+            >
+              {{ row.user_email }}
+            </button>
+            <span v-else class="views-admin-ops-components-ops-error-log-table__text-10">{{ row.user_email || '-' }}</span>
+            <span class="views-admin-ops-components-ops-error-log-table__text-11">#{{ row.user_id }}</span>
+          </div>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-api_key="{ row }">
+          <div v-if="row.api_key_id || row.api_key_name" class="views-admin-ops-components-ops-error-log-table__panel-8">
+            <span class="views-admin-ops-components-ops-error-log-table__text-12">{{ row.api_key_name || '#' + row.api_key_id }}</span>
+            <span
+              v-if="row.api_key_deleted"
+              class="views-admin-ops-components-ops-error-log-table__text-13"
+            >{{ t('admin.ops.errorLog.keyDeletedBadge') }}</span>
+          </div>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-account="{ row }">
+          <span
+            v-if="row.account_id"
+            class="views-admin-ops-components-ops-error-log-table__text-5"
+            :title="t('admin.ops.errorLog.accountId') + ' ' + row.account_id"
+          >{{ row.account_name || '#' + row.account_id }}</span>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-category="{ row }">
+          <span class="views-admin-ops-components-ops-error-log-table__text-5">
+            {{ t('usage.errors.categories.' + mapErrorCategory(row.phase, row.type)) }}
+          </span>
+        </template>
+
+        <template #cell-status="{ row }">
+          <div class="views-admin-ops-components-ops-error-log-table__panel-9">
+            <span class="views-admin-ops-components-ops-error-log-table__text-2" :class="getStatusClass(row.status_code)">
+              {{ row.status_code }}
+            </span>
+            <span
+              v-if="row.severity"
+              :class="['views-admin-ops-components-ops-error-log-table__text-18', getSeverityClass(row.severity)]"
+            >{{ row.severity }}</span>
+            <span
+              v-if="row.request_type != null && row.request_type > 0"
+              class="views-admin-ops-components-ops-error-log-table__text-14"
+            >{{ formatRequestType(row.request_type) }}</span>
+          </div>
+        </template>
+
+        <template #cell-message="{ row }">
+          <span
+            v-if="row.message"
+            class="views-admin-ops-components-ops-error-log-table__text-15"
+            :title="row.message"
+          >{{ formatSmartMessage(row.message) || '-' }}</span>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-user_agent="{ row }">
+          <span
+            v-if="row.user_agent"
+            class="views-admin-ops-components-ops-error-log-table__text-16"
+            :title="row.user_agent"
+          >{{ row.user_agent }}</span>
+          <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+        </template>
+
+        <template #cell-client_ip="{ row }">
+          <div @click.stop>
+            <div v-if="row.client_ip">
+              <span class="views-admin-ops-components-ops-error-log-table__text-17">{{ row.client_ip }}</span>
+              <IpGeoCell :ip="row.client_ip" />
+            </div>
+            <span v-else class="views-admin-ops-components-ops-error-log-table__text-8">-</span>
+          </div>
+        </template>
+
+        <template #cell-actions="{ row }">
+          <button
+            type="button"
+            class="views-admin-ops-components-ops-error-log-table__action-2"
+            :title="t('admin.ops.errorLog.details')"
+            @click.stop="emit('openErrorDetail', row.id)"
+          >
+            <svg class="views-admin-ops-components-ops-error-log-table__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          </button>
+        </template>
+
+        <template #empty><EmptyState :message="t('admin.ops.errorLog.noErrors')" /></template>
+      </DataTable>
+    </div>
+
+    <div class="views-admin-ops-components-ops-error-log-table__panel-10">
+      <Pagination
+        v-if="total > 0"
+        :total="total"
+        :page="page"
+        :page-size="pageSize"
+        @update:page="emit('update:page', $event)"
+        @update:pageSize="emit('update:pageSize', $event)"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import DataTable from '@/components/common/DataTable.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import IpGeoCell from '@/components/common/IpGeoCell.vue'
+import IpGeoBatchToolbar from '@/components/common/IpGeoBatchToolbar.vue'
+import type { OpsErrorLog } from '@/api/admin/ops'
+import type { Column } from '@/components/common/types'
+import { getSeverityClass, formatDateTime } from '../utils/opsFormatters'
+import { mapErrorCategory } from '@/utils/errorCategory'
+import { mapErrorSortKey, statusCodeBadgeClass } from '@/utils/errorBadges'
+
+const { t } = useI18n()
+
+// 列序对齐管理端用量明细:身份(用户→Key→账号)→ 请求形态(平台→模型→端点→分组→类型)
+// → 结果(状态→消息)→ 时间→UA→IP→操作
+const allColumns = computed<Column[]>(() => [
+  { key: 'user', label: t('admin.ops.errorLog.user') },
+  { key: 'api_key', label: t('admin.ops.errorLog.apiKey') },
+  { key: 'account', label: t('admin.ops.errorLog.account') },
+  { key: 'platform', label: t('admin.ops.errorLog.platform') },
+  { key: 'model', label: t('admin.ops.errorLog.model'), sortable: true },
+  { key: 'endpoint', label: t('admin.ops.errorLog.endpoint') },
+  { key: 'group', label: t('admin.ops.errorLog.group') },
+  { key: 'type', label: t('admin.ops.errorLog.type') },
+  { key: 'category', label: t('usage.errors.category') },
+  { key: 'status', label: t('admin.ops.errorLog.status'), sortable: true },
+  { key: 'message', label: t('admin.ops.errorLog.message') },
+  { key: 'created_at', label: t('admin.ops.errorLog.time'), sortable: true },
+  { key: 'user_agent', label: t('usage.userAgent') },
+  { key: 'client_ip', label: t('admin.ops.errorLog.ip') },
+  { key: 'actions', label: t('admin.ops.errorLog.action') },
+])
+
+// 传入 visibleColumnKeys 时按其过滤(列设置);未传则全量(Ops 弹窗等使用方)
+const columns = computed<Column[]>(() =>
+  props.visibleColumnKeys
+    ? allColumns.value.filter((c) => props.visibleColumnKeys!.includes(c.key))
+    : allColumns.value
+)
+
+function isUpstreamRow(log: OpsErrorLog): boolean {
+  const phase = String(log.phase || '').toLowerCase()
+  const owner = String(log.error_owner || '').toLowerCase()
+  return phase === 'upstream' && owner === 'provider'
+}
+
+function hasModelMapping(log: OpsErrorLog): boolean {
+  const requested = String(log.requested_model || '').trim()
+  const upstream = String(log.upstream_model || '').trim()
+  return !!requested && !!upstream && requested !== upstream
+}
+
+function displayModel(log: OpsErrorLog): string {
+  const upstream = String(log.upstream_model || '').trim()
+  if (upstream) return upstream
+  const requested = String(log.requested_model || '').trim()
+  if (requested) return requested
+  return String(log.model || '').trim()
+}
+
+function formatRequestType(type: number | null | undefined): string {
+  switch (type) {
+    case 1: return t('admin.ops.errorLog.requestTypeSync')
+    case 2: return t('admin.ops.errorLog.requestTypeStream')
+    case 3: return t('admin.ops.errorLog.requestTypeWs')
+    default: return ''
+  }
+}
+
+// 徽章配色对齐用量明细(UsageTable)的 bg-X-100/text-X-800 体系
+function getTypeBadge(log: OpsErrorLog): { label: string; className: string } {
+  const phase = String(log.phase || '').toLowerCase()
+  const owner = String(log.error_owner || '').toLowerCase()
+
+  if (isUpstreamRow(log)) {
+    return { label: t('admin.ops.errorLog.typeUpstream'), className: 'views-admin-ops-components-ops-error-log-table__state' }
+  }
+  if (phase === 'request' && owner === 'client') {
+    return { label: t('admin.ops.errorLog.typeRequest'), className: 'views-admin-ops-components-ops-error-log-table__state-2' }
+  }
+  if (phase === 'auth' && owner === 'client') {
+    return { label: t('admin.ops.errorLog.typeAuth'), className: 'views-admin-ops-components-ops-error-log-table__state-3' }
+  }
+  if (phase === 'account_auth') {
+    return { label: t('admin.ops.errorLog.typeAccountAuth'), className: 'views-admin-ops-components-ops-error-log-table__state-4' }
+  }
+  if (phase === 'routing' && owner === 'platform') {
+    return { label: t('admin.ops.errorLog.typeRouting'), className: 'views-admin-ops-components-ops-error-log-table__state-5' }
+  }
+  if (phase === 'internal' && owner === 'platform') {
+    return { label: t('admin.ops.errorLog.typeInternal'), className: 'views-admin-ops-components-ops-error-log-table__state-6' }
+  }
+
+  const fallback = phase || owner || t('common.unknown')
+  return { label: fallback, className: 'views-admin-ops-components-ops-error-log-table__state-6' }
+}
+
+interface Props {
+  rows: OpsErrorLog[]
+  total: number
+  loading: boolean
+  page: number
+  pageSize: number
+  /** 用户邮箱可点击(emit userClick),仅在有弹窗承接的使用方开启 */
+  userClickable?: boolean
+  /** 列设置:仅显示这些 key 的列;不传则全量 */
+  visibleColumnKeys?: string[]
+  /** 嵌入统一卡片内使用：去掉自身卡片外观 */
+  flat?: boolean
+}
+
+interface Emits {
+  (e: 'openErrorDetail', id: string): void
+  (e: 'update:page', value: number): void
+  (e: 'update:pageSize', value: number): void
+  (e: 'ipGeoBatchFailed'): void
+  (e: 'sort', sortBy: string, sortOrder: 'asc' | 'desc'): void
+  (e: 'userClick', userId: string, email?: string): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+function onSort(key: string, order: 'asc' | 'desc') {
+  emit('sort', mapErrorSortKey(key), order)
+}
+
+const getStatusClass = statusCodeBadgeClass
+
+function formatSmartMessage(msg: string): string {
+  if (!msg) return ''
+
+  if (msg.startsWith('{') || msg.startsWith('[')) {
+    try {
+      const obj = JSON.parse(msg)
+      if (obj?.error?.message) return String(obj.error.message)
+      if (obj?.message) return String(obj.message)
+      if (obj?.detail) return String(obj.detail)
+      if (typeof obj === 'object') return JSON.stringify(obj).substring(0, 150)
+    } catch {
+      // ignore parse error
+    }
+  }
+
+  if (msg.includes('context deadline exceeded')) return t('admin.ops.errorLog.commonErrors.contextDeadlineExceeded')
+  if (msg.includes('connection refused')) return t('admin.ops.errorLog.commonErrors.connectionRefused')
+  if (msg.toLowerCase().includes('rate limit')) return t('admin.ops.errorLog.commonErrors.rateLimit')
+
+  return msg.length > 200 ? msg.substring(0, 200) + '...' : msg
+}
+</script>

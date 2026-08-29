@@ -1,0 +1,669 @@
+@use 'mixins' as *;
+
+/* ============================================================
+   1. 按钮基础与体系规范 (Button System)
+   ============================================================ */
+.button,
+.btn {
+  @include glass-interactive;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--type-control-size);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+  // 按压 transform 由 GSAP 委托(utils/pressEffect)接管,transition 不含 transform
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.button--primary,
+.btn-primary {
+  @include glass-interactive(
+    var(--glass-tint-brand),
+    var(--glass-blur-thin),
+    var(--glass-tint-brand),
+    var(--glass-blur-thin-hover),
+    var(--color-primary-border),
+    var(--glass-border-active)
+  );
+  color: var(--color-text-brand);
+  box-shadow:
+    0 4px 14px rgba(10, 132, 255, 0.18),
+    0 1px 0 var(--glass-highlight) inset;
+
+  &:hover:not(:disabled) {
+    box-shadow:
+      0 6px 18px rgba(10, 132, 255, 0.26),
+      0 1px 0 var(--glass-highlight-hover) inset;
+  }
+
+  &:active:not(:disabled)::before {
+    background-color: var(--glass-tint-brand-active);
+  }
+}
+
+.button--danger,
+.btn-danger {
+  @include glass-interactive(
+    var(--glass-tint-danger),
+    var(--glass-blur-thin),
+    var(--glass-tint-danger),
+    var(--glass-blur-thin-hover),
+    rgba(239, 68, 68, 0.38),
+    rgba(239, 68, 68, 0.62)
+  );
+  color: var(--color-text-danger);
+  box-shadow:
+    0 4px 14px rgba(220, 38, 38, 0.30),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+
+  &:hover:not(:disabled) {
+    box-shadow:
+      0 6px 18px rgba(220, 38, 38, 0.28),
+      0 1px 0 var(--glass-highlight-hover) inset;
+  }
+}
+
+.btn-success {
+  @include glass-interactive(
+    var(--glass-tint-success),
+    var(--glass-blur-thin),
+    var(--glass-tint-success),
+    var(--glass-blur-thin-hover),
+    rgba(16, 185, 129, 0.36),
+    rgba(16, 185, 129, 0.58)
+  );
+  color: var(--color-text-success);
+  box-shadow:
+    0 4px 14px rgba(16, 185, 129, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+
+  &:hover:not(:disabled) {
+    box-shadow:
+      0 6px 18px rgba(16, 185, 129, 0.26),
+      0 1px 0 var(--glass-highlight-hover) inset;
+  }
+}
+
+.btn-warning {
+  @include glass-interactive(
+    var(--glass-tint-warning),
+    var(--glass-blur-thin),
+    var(--glass-tint-warning),
+    var(--glass-blur-thin-hover),
+    rgba(245, 158, 11, 0.38),
+    rgba(245, 158, 11, 0.62)
+  );
+  color: var(--color-text-warning);
+  box-shadow:
+    0 4px 14px rgba(245, 158, 11, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+
+  &:hover:not(:disabled) {
+    box-shadow:
+      0 6px 18px rgba(245, 158, 11, 0.26),
+      0 1px 0 var(--glass-highlight-hover) inset;
+  }
+}
+
+.btn-outline-danger {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: var(--color-danger);
+  background: transparent;
+  transition: color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background-color: var(--glass-tint-danger);
+    -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    transition: opacity 180ms ease;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: rgba(239, 68, 68, 0.75);
+    color: var(--color-danger-hover);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.18), 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  .dark & {
+    color: #f87171;
+
+    &:hover:not(:disabled) {
+      border-color: rgba(248, 113, 113, 0.8);
+      color: #fca5a5;
+    }
+  }
+}
+
+// 支付渠道品牌按钮
+.btn-stripe,
+.btn-alipay,
+.btn-wxpay,
+.btn-airwallex {
+  color: var(--color-text-primary);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.btn-stripe { @include glass-interactive(var(--glass-tint-stripe), var(--glass-blur-thin), var(--glass-tint-stripe), var(--glass-blur-thin-hover)); }
+.btn-alipay { @include glass-interactive(var(--glass-tint-alipay), var(--glass-blur-thin), var(--glass-tint-alipay), var(--glass-blur-thin-hover)); }
+.btn-wxpay { @include glass-interactive(var(--glass-tint-wxpay), var(--glass-blur-thin), var(--glass-tint-wxpay), var(--glass-blur-thin-hover)); }
+.btn-airwallex { @include glass-interactive(var(--glass-tint-airwallex), var(--glass-blur-thin), var(--glass-tint-airwallex), var(--glass-blur-thin-hover)); }
+
+// 按钮尺寸阶梯
+.btn-xs {
+  min-height: 1.75rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.btn-sm {
+  min-height: 2rem;
+  padding: 0.3125rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+}
+
+.btn-md {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--type-control-size);
+}
+
+.btn-lg {
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-xl);
+  font-size: var(--font-size-base);
+}
+
+.btn-icon {
+  min-height: 2.5rem;
+  width: 2.5rem;
+  padding: 0;
+  border-radius: var(--radius-lg);
+}
+
+/* ============================================================
+   2. 输入框与表单系统 (Form Controls & Inputs)
+   ============================================================ */
+.form-control,
+.input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-normal);
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.dark .input[type='date'],
+.dark .input[type='time'],
+.dark .input[type='datetime-local'],
+.dark .input[type='month'],
+.dark .input[type='week'] {
+  color-scheme: dark;
+}
+
+.input-sm {
+  min-height: 2rem;
+  padding: 0.25rem 0.625rem;
+  font-size: var(--font-size-xs);
+}
+
+.input-error {
+  border-color: var(--color-danger) !important;
+
+  &:focus {
+    border-color: var(--color-danger) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25), 0 1px 0 var(--glass-highlight) inset !important;
+  }
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.input-hint {
+  margin-top: 0.25rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.input-error-text {
+  margin-top: 0.25rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+}
+
+/* ============================================================
+   3. 卡片与表面容器 (Cards & Layout Surfaces)
+   ============================================================ */
+.card-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.card-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+// 统计卡片 (Stat Cards)
+.stat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-xl);
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-xl);
+  flex-shrink: 0;
+}
+
+.stat-icon-primary {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-border);
+}
+
+.stat-icon-success {
+  background: var(--color-success-subtle);
+  color: var(--color-text-success);
+}
+
+.stat-icon-warning {
+  background: var(--color-warning-subtle);
+  color: var(--color-text-warning);
+}
+
+.stat-icon-danger {
+  background: var(--color-danger-subtle);
+  color: var(--color-text-danger);
+}
+
+.stat-value {
+  overflow: hidden;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-top: 0.25rem;
+}
+
+/* ============================================================
+   4. 徽章系统 (Badges & Chips)
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1rem;
+  border: 1px solid transparent;
+}
+
+.badge-primary {
+  background: var(--color-primary-subtle);
+  color: var(--color-text-brand);
+  border-color: var(--color-primary-border);
+}
+
+.badge-success {
+  background: var(--color-success-subtle);
+  color: var(--color-text-success);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.badge-warning {
+  background: var(--color-warning-subtle);
+  color: var(--color-text-warning);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.badge-danger {
+  background: var(--color-danger-subtle);
+  color: var(--color-text-danger);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.badge-gray {
+  background: var(--glass-bg-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--glass-border);
+}
+
+.badge-purple {
+  background: rgba(168, 85, 247, 0.14);
+  color: #9333ea;
+  border-color: rgba(168, 85, 247, 0.25);
+
+  .dark & {
+    color: #c084fc;
+  }
+}
+
+/* ============================================================
+   5. 页面头部与空状态 (Page Header & Empty State)
+   ============================================================ */
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+}
+
+.page-description {
+  margin-top: 0.375rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  line-height: var(--line-height-normal);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-quaternary);
+}
+
+.empty-state-title {
+  margin-bottom: 0.25rem;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.empty-state-description {
+  max-width: 24rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  line-height: var(--line-height-relaxed);
+}
+
+/* ============================================================
+   6. 表格系统 (Table System with Glass Hover)
+   ============================================================ */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg-subtle);
+  -webkit-backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+}
+
+.table {
+  width: 100%;
+  font-size: var(--font-size-sm);
+
+  th {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--glass-bg-subtle);
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0;
+    text-align: left;
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border-subtle);
+    color: var(--color-text-secondary);
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tbody tr {
+    transition: background-color 160ms ease;
+
+    &:hover {
+      background: var(--glass-bg-subtle-hover);
+    }
+  }
+}
+
+// ============ 分隔线 / 进度条 / 开关 ============
+.divider {
+  height: 1px;
+  margin: 1rem 0;
+  background: var(--color-border);
+}
+
+.progress {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border-subtle);
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0a84ff, #5ac8fa);
+  transition: width 300ms ease;
+}
+
+.switch {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-interactive);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur-xs)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-xs)) saturate(var(--glass-saturate));
+  cursor: pointer;
+  transition: background-color 200ms ease;
+}
+
+.switch-active {
+  border-color: var(--glass-border-active);
+  background: var(--glass-tint-brand);
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border-hover);
+  background: var(--glass-bg-thick);
+  box-shadow: var(--shadow-sm);
+  -webkit-backdrop-filter: blur(var(--glass-blur-xs)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-xs)) saturate(var(--glass-saturate));
+  transition: transform 200ms ease;
+}
+
+.switch-active .switch-thumb {
+  transform: translateX(1.25rem);
+}
+
+// ============ 代码块 ============
+.code-block {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: #0c0c0e;
+  color: #f1f5f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.tab {
+  padding: 0.375rem 0.875rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.email-oauth-buttons__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .email-oauth-buttons__grid--multiple {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.group-badge__label--neutral {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.group-badge__label--danger { background: rgba(254, 202, 202, 0.8); color: #991b1b; }
+.group-badge__label--warning { background: rgba(253, 230, 138, 0.8); color: #92400e; }
+.group-badge__label--anthropic { background: rgba(254, 215, 170, 0.7); color: #9a3412; }
+.group-badge__label--openai { background: rgba(167, 243, 208, 0.7); color: #065f46; }
+.group-badge__label--grok { background: rgba(212, 212, 216, 0.75); color: #27272a; }
+.group-badge__label--kimi { background: rgba(251, 207, 232, 0.7); color: #9d174d; }
+.group-badge__label--zhipu { background: rgba(199, 210, 254, 0.7); color: #3730a3; }
+.group-badge__label--deepseek { background: rgba(153, 246, 228, 0.7); color: #115e59; }
+.group-badge__label--composite { background: rgba(165, 243, 252, 0.75); color: #164e63; }
+.group-badge__label--default { background: rgba(221, 214, 254, 0.7); color: #5b21b6; }
+
+.dark {
+  .group-badge__label--neutral { background: rgba(255, 255, 255, 0.1); }
+  .group-badge__label--danger { background: rgba(153, 27, 27, 0.5); color: #fca5a5; }
+  .group-badge__label--warning { background: rgba(146, 64, 14, 0.5); color: #fcd34d; }
+  .group-badge__label--anthropic { background: rgba(154, 52, 18, 0.42); color: #fdba74; }
+  .group-badge__label--openai { background: rgba(6, 95, 70, 0.42); color: #6ee7b7; }
+  .group-badge__label--default { background: rgba(91, 33, 182, 0.42); color: #c4b5fd; }
+  .group-badge__label--grok { background: rgba(63, 63, 70, 0.65); color: #e4e4e7; }
+  .group-badge__label--kimi { background: rgba(157, 23, 77, 0.42); color: #f9a8d4; }
+  .group-badge__label--zhipu { background: rgba(55, 48, 163, 0.42); color: #a5b4fc; }
+  .group-badge__label--deepseek { background: rgba(17, 94, 89, 0.42); color: #5eead4; }
+  .group-badge__label--composite { background: rgba(22, 78, 99, 0.5); color: #67e8f9; }
+}
+
+.status-fill--danger { background-color: var(--color-danger); }
+.status-fill--warning { background-color: var(--color-warning); }
+.status-fill--success { background-color: var(--color-success); }
+.status-fill--info { background-color: var(--color-info); }
+.status-fill--accent { background-color: #8b5cf6; }
+.status-fill--neutral { background-color: var(--color-text-quaternary); }
+.status-fill--danger-subtle { background-color: var(--color-danger-subtle); }
+.status-fill--warning-subtle { background-color: var(--color-warning-subtle); }
+.status-fill--success-subtle { background-color: var(--color-success-subtle); }
+.status-fill--info-subtle { background-color: var(--color-info-subtle); }
+
+.status-text--danger { color: var(--color-text-danger); }
+.status-text--warning { color: var(--color-text-warning); }
+.status-text--success { color: var(--color-text-success); }
+.status-text--info { color: var(--color-text-info); }
+.status-text--accent { color: #8b5cf6; }
+.status-text--neutral { color: var(--color-text-tertiary); }
+
+.toggle-track--on {
+  border-color: var(--glass-border-active);
+  background-color: var(--glass-tint-brand);
+}
+
+.toggle-thumb--on {
+  transform: translateX(1.25rem);
+}
+
+.toggle-thumb--off {
+  transform: translateX(0);
+}
+
+.filter-multi-select__value--wide {
+  max-width: 11rem;
+}
+
+.sidebar--collapsed {
+  width: 4.5rem;
+}
+
+.has-pseudo-indicator::after {
+  content: '';
+}
+
+.payment-logo--alipay { background-color: #00aeef; }
+.payment-logo--wechat { background-color: #2bb741; }

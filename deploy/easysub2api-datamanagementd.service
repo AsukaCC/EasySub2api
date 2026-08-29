@@ -1,0 +1,22 @@
+[Unit]
+Description=EasySub2api Data Management Daemon
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=easysub2api
+Group=easysub2api
+WorkingDirectory=/opt/easysub2api
+ExecStart=/opt/easysub2api/datamanagementd \
+  -socket-path /tmp/easysub2api-datamanagement.sock \
+  -sqlite-path /var/lib/easysub2api/datamanagement/datamanagementd.db \
+  -version 1.0.0
+Restart=always
+RestartSec=5s
+LimitNOFILE=100000
+NoNewPrivileges=true
+PrivateTmp=false
+
+[Install]
+WantedBy=multi-user.target

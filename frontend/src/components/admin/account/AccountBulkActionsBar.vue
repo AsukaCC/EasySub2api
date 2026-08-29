@@ -1,0 +1,86 @@
+<template>
+  <div class="components-admin-account-account-bulk-actions-bar__panel">
+    <div class="components-admin-account-account-bulk-actions-bar__panel-2">
+      <span v-if="allResultsSelected" class="components-admin-account-account-bulk-actions-bar__text">
+        {{ t('admin.accounts.bulkActions.selectedAll', { count: selectedIds.length }) }}
+      </span>
+      <span v-else-if="selectedIds.length > 0" class="components-admin-account-account-bulk-actions-bar__text">
+        {{ t('admin.accounts.bulkActions.selected', { count: selectedIds.length }) }}
+      </span>
+      <span v-else class="components-admin-account-account-bulk-actions-bar__text">
+        {{ t('admin.accounts.bulkEdit.title') }}
+      </span>
+      <template v-if="selectedIds.length > 0">
+        <button
+          @click="$emit('select-page')"
+          class="components-admin-account-account-bulk-actions-bar__action"
+        >
+          {{ t('admin.accounts.bulkActions.selectCurrentPage') }}
+        </button>
+      </template>
+      <template v-if="!allResultsSelected && totalResults > selectedIds.length">
+        <span v-if="selectedIds.length > 0" class="components-admin-account-account-bulk-actions-bar__text-2">•</span>
+        <button
+          :disabled="selectingAll"
+          @click="$emit('select-all-results')"
+          class="components-admin-account-account-bulk-actions-bar__action-2"
+        >
+          {{
+            selectingAll
+              ? t('admin.accounts.bulkActions.selectingAll')
+              : t('admin.accounts.bulkActions.selectAllResults', { count: totalResults })
+          }}
+        </button>
+      </template>
+      <template v-if="selectedIds.length > 0">
+        <span class="components-admin-account-account-bulk-actions-bar__text-2">•</span>
+        <button
+          @click="$emit('clear')"
+          class="components-admin-account-account-bulk-actions-bar__action"
+        >
+          {{ t('admin.accounts.bulkActions.clear') }}
+        </button>
+      </template>
+    </div>
+    <div class="components-admin-account-account-bulk-actions-bar__panel-3">
+      <template v-if="selectedIds.length > 0">
+        <button @click="$emit('delete')" class="btn btn-danger btn-sm">{{ t('admin.accounts.bulkActions.delete') }}</button>
+        <button @click="$emit('reset-status')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.resetStatus') }}</button>
+        <button @click="$emit('refresh-token')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.refreshToken') }}</button>
+        <button @click="$emit('probe-upstream-billing')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.probeUpstreamBilling') }}</button>
+        <button @click="$emit('toggle-schedulable', true)" class="btn btn-success btn-sm">{{ t('admin.accounts.bulkActions.enableScheduling') }}</button>
+        <button @click="$emit('toggle-schedulable', false)" class="btn btn-warning btn-sm">{{ t('admin.accounts.bulkActions.disableScheduling') }}</button>
+        <button @click="$emit('edit-selected')" class="btn btn-primary btn-sm">{{ t('admin.accounts.bulkActions.edit') }}</button>
+      </template>
+      <button @click="$emit('edit-filtered')" class="btn btn-primary btn-sm">
+        {{ t('admin.accounts.bulkEdit.submit') }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+defineProps<{
+  selectedIds: string[]
+  totalResults: number
+  selectingAll: boolean
+  allResultsSelected: boolean
+}>()
+
+defineEmits([
+  'delete',
+  'edit-selected',
+  'edit-filtered',
+  'clear',
+  'select-page',
+  'select-all-results',
+  'toggle-schedulable',
+  'reset-status',
+  'refresh-token',
+  'probe-upstream-billing'
+])
+
+const { t } = useI18n()
+</script>

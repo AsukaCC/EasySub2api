@@ -1,0 +1,89 @@
+/* 全站交互兜底层：组件专用样式仍负责尺寸和语义色，本层只统一材质反馈。 */
+:where(button, [role='button'], a[href], summary, label[for]) {
+  transition-property: color, border-color, background-color, box-shadow, backdrop-filter, -webkit-backdrop-filter;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+html body :where(button, [role='button'], a[href], summary, label[for]):not(:disabled):hover,
+html body :where(button, [role='button'], a[href], summary, label[for]):not(:disabled):focus-visible {
+  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+}
+
+/* 无容器的文字链接与图标命令也获得紧贴内容的通透承载面。 */
+html body a[href]:not(.btn):hover,
+html body a[href]:not(.btn):focus-visible,
+html body button:not(.btn):not(.select-trigger):not(.locale-trigger):not(.locale-option):not([role='switch']):hover,
+html body button:not(.btn):not(.select-trigger):not(.locale-trigger):not(.locale-option):not([role='switch']):focus-visible {
+  border-color: var(--glass-border);
+  background-color: var(--glass-bg-interactive);
+  box-shadow: 0 1px 0 var(--glass-highlight) inset;
+}
+
+html body :where(button, [role='button'], a[href], summary, label[for]):focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(10, 132, 255, 0.22),
+    0 1px 0 var(--glass-highlight-hover) inset;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+  border-color: var(--glass-border);
+  background-color: var(--glass-field-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  color: var(--color-text-primary);
+  font-size: var(--type-control-size);
+}
+
+input:not([type='checkbox']):not([type='radio']):hover,
+textarea:hover,
+select:hover {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-field-bg-hover);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  border: 1px solid var(--glass-border-hover);
+  background-color: var(--glass-bg-interactive);
+  accent-color: var(--color-primary);
+}
+
+/* 生成样式中的快速浮层：只强化自身，不创建页面遮罩。 */
+html body .components-common-help-tooltip__panel-3,
+html body .components-keys-endpoint-popover__panel-4,
+html body .components-common-announcement-bell__panel {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-layer-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+/* 公告详情与支付流程属于真正模态层，背景遮罩和本体分别承载。 */
+html body .components-common-announcement-bell__panel-26 {
+  background-color: var(--glass-layer-scrim-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-scrim-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-scrim-blur)) saturate(var(--glass-saturate));
+}
+
+html body .components-common-announcement-bell__panel-27,
+html body .views-user-stripe-popup-view__panel-2 {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-layer-modal-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-modal-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-modal-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role='button'], a[href], summary, label[for], input, textarea, select) {
+    transition-duration: 1ms;
+  }
+}

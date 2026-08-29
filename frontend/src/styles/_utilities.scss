@@ -1,0 +1,99 @@
+// 少量保留的原子工具类(模板/动态绑定中仍在使用)
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.w-64 {
+  width: 16rem;
+}
+
+.w-72 {
+  width: 18rem;
+}
+
+.w-80 {
+  width: 20rem;
+}
+
+.text-white {
+  color: #fff;
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.py-6 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.pr-16 {
+  padding-right: 4rem;
+}
+
+.pb-12 {
+  padding-bottom: 3rem;
+}
+
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.5rem;
+}
+
+// 渐变端点(与生成的别名体系共用 --ui-gradient-* 约定,
+// 供 latencyHealth.ts 等动态绑定的色条使用)
+@mixin gradient-from($color, $transparent) {
+  --ui-gradient-from: #{$color} var(--ui-gradient-from-position, 0%);
+  --ui-gradient-to: #{$transparent} var(--ui-gradient-to-position, 100%);
+  --ui-gradient-stops: var(--ui-gradient-from), var(--ui-gradient-to);
+}
+
+.from-emerald-500 {
+  @include gradient-from(#10b981, rgba(16, 185, 129, 0));
+}
+
+.from-amber-400 {
+  @include gradient-from(#fbbf24, rgba(251, 191, 36, 0));
+}
+
+.from-orange-500 {
+  @include gradient-from(#f97316, rgba(249, 115, 22, 0));
+}
+
+.from-red-500 {
+  @include gradient-from(#ef4444, rgba(239, 68, 68, 0));
+}
+
+.to-emerald-500 {
+  --ui-gradient-to: #10b981 var(--ui-gradient-to-position, 100%);
+}
+
+.to-amber-400 {
+  --ui-gradient-to: #fbbf24 var(--ui-gradient-to-position, 100%);
+}
+
+.to-orange-500 {
+  --ui-gradient-to: #f97316 var(--ui-gradient-to-position, 100%);
+}
+
+.to-red-500 {
+  --ui-gradient-to: #ef4444 var(--ui-gradient-to-position, 100%);
+}

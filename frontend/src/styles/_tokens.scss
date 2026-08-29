@@ -1,0 +1,348 @@
+:root {
+  /* ============================================================
+     1. 布局尺度 Tokens
+     ============================================================ */
+  --app-shell-height: 4rem;
+  --app-shell-sticky-offset: 4.75rem;
+  /* 页面固定区最高约 320；模态层必须稳定覆盖页面壳与普通浮层。 */
+  --z-modal-base: 10000;
+
+  /* ============================================================
+     2. 字体尺度与排版 Tokens (Typography Scale)
+     ============================================================ */
+  --font-size-3xs: 0.625rem;  /* 10px - 极小角标/图表微注 */
+  --font-size-2xs: 0.6875rem; /* 11px - 徽标、大写分类标签 */
+  --font-size-xs: 0.75rem;    /* 12px - 辅助提示、次级元数据 */
+  --font-size-sm: 0.875rem;   /* 14px - 核心控件(按钮/输入框/导航/表格) */
+  --font-size-base: 1rem;     /* 16px - 基础正文、标准标签、卡片次标题 */
+  --font-size-lg: 1.125rem;   /* 18px - 弹窗标题、模块子标题 */
+  --font-size-xl: 1.25rem;    /* 20px - 分区标题、卡片主标题 */
+  --font-size-2xl: 1.5rem;    /* 24px - 页面主标题、核心数据大字 */
+  --font-size-3xl: 1.875rem;  /* 30px - 大看板数值、突出大标题 */
+  --font-size-4xl: 2.25rem;   /* 36px - 展示页 Hero 标题 */
+
+  --line-height-none: 1;
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 1.75;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* 语义排版角色：组件应优先使用角色，而不是直接写数值字号。 */
+  --type-micro-size: var(--font-size-3xs);
+  --type-micro-line-height: var(--line-height-tight);
+  --type-caption-size: var(--font-size-xs);
+  --type-caption-line-height: var(--line-height-normal);
+  --type-control-size: var(--font-size-sm);
+  --type-control-line-height: var(--line-height-normal);
+  --type-body-size: var(--font-size-sm);
+  --type-body-line-height: var(--line-height-relaxed);
+  --type-card-size: var(--font-size-base);
+  --type-card-line-height: var(--line-height-normal);
+  --type-dialog-title-size: var(--font-size-lg);
+  --type-section-title-size: var(--font-size-xl);
+  --type-page-title-size: var(--font-size-2xl);
+  --type-display-size: var(--font-size-3xl);
+  --type-display-large-size: var(--font-size-4xl);
+
+  /* ============================================================
+     3. 核心语义色彩 Tokens (亮色)
+     ============================================================ */
+  --color-primary: #0a84ff;
+  --color-primary-hover: #007aff;
+  --color-primary-subtle: rgba(10, 132, 255, 0.10);
+  --color-primary-border: rgba(10, 132, 255, 0.35);
+
+  --color-success: #059669;
+  --color-success-hover: #047857;
+  --color-success-subtle: rgba(16, 185, 129, 0.12);
+
+  --color-warning: #d97706;
+  --color-warning-hover: #b45309;
+  --color-warning-subtle: rgba(245, 158, 11, 0.12);
+
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-subtle: rgba(239, 68, 68, 0.12);
+
+  --color-info: #0284c7;
+  --color-info-subtle: rgba(14, 165, 233, 0.12);
+
+  /* ============================================================
+     4. 表面、边框与文本色彩分级 (亮色)
+     ============================================================ */
+  --color-page: #edf2f7;
+  --color-surface: rgba(255, 255, 255, 0.70);
+  --color-surface-muted: rgba(248, 250, 252, 0.60);
+  --color-surface-hover: rgba(241, 245, 249, 0.75);
+  --color-surface-elevated: rgba(255, 255, 255, 0.88);
+
+  --color-border: rgba(226, 232, 240, 0.80);
+  --color-border-subtle: rgba(241, 245, 249, 0.60);
+  --color-border-strong: rgba(148, 163, 184, 0.75);
+
+  /* 文本色彩 4 级精细分层 (WCAG AA/AAA) */
+  --color-text-primary: #09090b;       /* Primary 一级:标题/主文本 */
+  --color-text-secondary: #3f3f46;     /* Secondary 二级:正文/主要控件 */
+  --color-text-tertiary: #71717a;      /* Tertiary 三级:次要说明/表头/副标题 */
+  --color-text-quaternary: #a1a1aa;    /* Quaternary 四级:微弱提示/图标 */
+  --color-text-muted: #a1a1aa;         /* Muted 禁用态/占位符 */
+  --color-text-inverse: #ffffff;       /* Inverse 反色文字 */
+
+  /* 语义状态文本色彩 */
+  --color-text-success: #059669;
+  --color-text-warning: #d97706;
+  --color-text-danger: #dc2626;
+  --color-text-info: #0284c7;
+  --color-text-brand: #0064d6;
+
+  --color-skeleton: rgba(226, 232, 240, 0.65);
+
+  /* ============================================================
+     5. 圆角与标准投影 Tokens
+     ============================================================ */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
+
+  /* ============================================================
+     6. 拟态玻璃核心系统 Tokens (亮色 - Liquid Glass)
+     ============================================================ */
+  /* 高斯模糊阶梯 (常规态 & 加深 Hover 态) */
+  --glass-blur-xs: 12px;
+  --glass-blur-xs-hover: 20px;
+  --glass-blur-thin: 28px;
+  --glass-blur-thin-hover: 44px;
+  --glass-blur: 48px;
+  --glass-blur-hover: 68px;
+  --glass-blur-thick: 64px;
+  --glass-blur-thick-hover: 84px;
+
+  /* 语义材质层级：组件按承载深度使用，禁止用透明度猜测层级。 */
+  --glass-layer-inset-bg: rgba(255, 255, 255, 0.12);
+  --glass-layer-inset-blur: var(--glass-blur-xs);
+  --glass-layer-inset-blur-hover: var(--glass-blur-xs-hover);
+  --glass-layer-content-bg: rgba(255, 255, 255, 0.28);
+  --glass-layer-content-blur: var(--glass-blur-thin);
+  --glass-layer-content-blur-hover: var(--glass-blur-thin-hover);
+  --glass-layer-shell-bg: rgba(255, 255, 255, 0.42);
+  --glass-layer-shell-blur: var(--glass-blur);
+  --glass-layer-shell-blur-hover: var(--glass-blur-hover);
+  --glass-layer-floating-bg: rgba(255, 255, 255, 0.72);
+  --glass-layer-floating-blur: var(--glass-blur-thick);
+  --glass-layer-modal-bg: rgba(255, 255, 255, 0.84);
+  --glass-layer-modal-blur: var(--glass-blur-thick-hover);
+  --glass-layer-scrim-bg: rgba(15, 23, 42, 0.28);
+  --glass-layer-scrim-blur: var(--glass-blur-xs-hover);
+
+  /* 玻璃半透明背景填充 (常规态 & 加深 Hover 态 - 通透微光且绝无不透明白底) */
+  --glass-bg-subtle: var(--glass-layer-inset-bg);
+  --glass-bg-subtle-hover: var(--glass-bg-subtle);
+
+  --glass-bg-thin: rgba(255, 255, 255, 0.20);
+  --glass-bg-thin-hover: var(--glass-bg-thin);
+
+  --glass-bg: var(--glass-layer-content-bg);
+  --glass-bg-hover: var(--glass-bg);
+
+  --glass-bg-thick: rgba(255, 255, 255, 0.38);
+  --glass-bg-thick-hover: var(--glass-bg-thick);
+
+  --glass-bg-interactive: var(--glass-layer-inset-bg);
+  --glass-bg-interactive-hover: var(--glass-bg-interactive);
+  --glass-bg-interactive-active: rgba(255, 255, 255, 0.24);
+
+  --glass-field-bg: var(--glass-layer-inset-bg);
+  --glass-field-bg-hover: var(--glass-field-bg);
+  --glass-field-bg-focus: rgba(255, 255, 255, 0.28);
+
+  --glass-overlay: var(--glass-layer-shell-bg);
+  --glass-bg-modal: var(--glass-layer-modal-bg);
+
+  /* 语义色只负责透明染色，绝不作为不透明控件底色。 */
+  --glass-tint-brand: rgba(10, 132, 255, 0.12);
+  --glass-tint-brand-active: rgba(10, 132, 255, 0.18);
+  --glass-tint-success: rgba(16, 185, 129, 0.11);
+  --glass-tint-warning: rgba(245, 158, 11, 0.12);
+  --glass-tint-danger: rgba(239, 68, 68, 0.11);
+  --glass-tint-info: rgba(14, 165, 233, 0.11);
+  --glass-tint-stripe: rgba(99, 91, 255, 0.16);
+  --glass-tint-alipay: rgba(0, 174, 239, 0.14);
+  --glass-tint-wxpay: rgba(43, 183, 65, 0.14);
+  --glass-tint-airwallex: rgba(20, 23, 26, 0.14);
+  --glass-legacy-fill-opacity: 0.18;
+
+  /* 玻璃高光、内环与边框 (复合光影) */
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-border-hover: rgba(255, 255, 255, 0.80);
+  --glass-border-active: rgba(10, 132, 255, 0.45);
+
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --glass-highlight-hover: rgba(255, 255, 255, 0.98);
+
+  --glass-inner-ring: rgba(255, 255, 255, 0.30);
+  --glass-hover: rgba(255, 255, 255, 0.24);
+
+  --glass-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --glass-shadow-hover: 0 14px 38px rgba(15, 23, 42, 0.10);
+  --glass-saturate: 1.8;
+  --glass-saturate-hover: 2.05;
+}
+
+/* ============================================================
+   7. 暗色模式配色 Tokens (.dark)
+   ============================================================ */
+.dark {
+  --color-page: #08080a;
+  --color-surface: rgba(20, 20, 26, 0.70);
+  --color-surface-muted: rgba(24, 24, 32, 0.60);
+  --color-surface-hover: rgba(30, 30, 40, 0.75);
+  --color-surface-elevated: rgba(24, 24, 32, 0.90);
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* 文本色彩 4 级精细分层 (暗色模式高通透清晰度) */
+  --color-text-primary: #fafafa;       /* Primary 一级:柔白高亮 */
+  --color-text-secondary: #d4d4d8;     /* Secondary 二级:清晰灰白 */
+  --color-text-tertiary: #a1a1aa;      /* Tertiary 三级:次级柔和灰 */
+  --color-text-quaternary: #71717a;    /* Quaternary 四级:微弱提示/低亮 */
+  --color-text-muted: #71717a;         /* Muted 禁用态/占位符 */
+  --color-text-inverse: #09090b;       /* Inverse 反色文字 */
+
+  /* 语义状态文本色彩 (暗色适度提亮) */
+  --color-text-success: #34d399;
+  --color-text-warning: #fbbf24;
+  --color-text-danger: #f87171;
+  --color-text-info: #38bdf8;
+  --color-text-brand: #60a5fa;
+
+  --color-skeleton: rgba(38, 38, 43, 0.7);
+  --color-primary-subtle: rgba(10, 132, 255, 0.18);
+  --color-primary-border: rgba(10, 132, 255, 0.45);
+
+  /* 拟态玻璃核心系统 Tokens (暗色) */
+  --glass-layer-inset-bg: rgba(255, 255, 255, 0.03);
+  --glass-layer-inset-blur: var(--glass-blur-xs);
+  --glass-layer-inset-blur-hover: var(--glass-blur-xs-hover);
+  --glass-layer-content-bg: rgba(20, 20, 28, 0.50);
+  --glass-layer-content-blur: var(--glass-blur-thin);
+  --glass-layer-content-blur-hover: var(--glass-blur-thin-hover);
+  --glass-layer-shell-bg: rgba(24, 24, 34, 0.65);
+  --glass-layer-shell-blur: var(--glass-blur);
+  --glass-layer-shell-blur-hover: var(--glass-blur-hover);
+  --glass-layer-floating-bg: rgba(18, 18, 24, 0.82);
+  --glass-layer-floating-blur: var(--glass-blur-thick);
+  --glass-layer-modal-bg: rgba(16, 16, 22, 0.90);
+  --glass-layer-modal-blur: var(--glass-blur-thick-hover);
+  --glass-layer-scrim-bg: rgba(0, 0, 0, 0.52);
+  --glass-layer-scrim-blur: var(--glass-blur-xs-hover);
+
+  --glass-bg-subtle: var(--glass-layer-inset-bg);
+  --glass-bg-subtle-hover: var(--glass-bg-subtle);
+
+  --glass-bg-thin: rgba(16, 16, 22, 0.38);
+  --glass-bg-thin-hover: var(--glass-bg-thin);
+
+  --glass-bg: var(--glass-layer-content-bg);
+  --glass-bg-hover: var(--glass-bg);
+
+  --glass-bg-thick: rgba(24, 24, 34, 0.65);
+  --glass-bg-thick-hover: var(--glass-bg-thick);
+
+  --glass-bg-interactive: var(--glass-layer-inset-bg);
+  --glass-bg-interactive-hover: var(--glass-bg-interactive);
+  --glass-bg-interactive-active: rgba(255, 255, 255, 0.10);
+
+  --glass-field-bg: var(--glass-layer-inset-bg);
+  --glass-field-bg-hover: var(--glass-field-bg);
+  --glass-field-bg-focus: rgba(20, 20, 28, 0.70);
+
+  --glass-overlay: var(--glass-layer-shell-bg);
+  --glass-bg-modal: var(--glass-layer-modal-bg);
+
+  --glass-tint-brand: rgba(10, 132, 255, 0.18);
+  --glass-tint-brand-active: rgba(10, 132, 255, 0.25);
+  --glass-tint-success: rgba(16, 185, 129, 0.16);
+  --glass-tint-warning: rgba(245, 158, 11, 0.17);
+  --glass-tint-danger: rgba(239, 68, 68, 0.16);
+  --glass-tint-info: rgba(14, 165, 233, 0.16);
+  --glass-tint-stripe: rgba(99, 91, 255, 0.22);
+  --glass-tint-alipay: rgba(0, 174, 239, 0.20);
+  --glass-tint-wxpay: rgba(43, 183, 65, 0.20);
+  --glass-tint-airwallex: rgba(122, 240, 196, 0.16);
+  --glass-legacy-fill-opacity: 0.22;
+
+  /* 玻璃暗色微光边框与内高光 */
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-border-hover: rgba(255, 255, 255, 0.22);
+  --glass-border-active: rgba(10, 132, 255, 0.50);
+
+  --glass-highlight: rgba(255, 255, 255, 0.08);
+  --glass-highlight-hover: rgba(255, 255, 255, 0.18);
+
+  --glass-inner-ring: rgba(255, 255, 255, 0.05);
+  --glass-hover: rgba(255, 255, 255, 0.07);
+
+  --glass-shadow: 0 14px 38px rgba(0, 0, 0, 0.40);
+  --glass-shadow-hover: 0 18px 46px rgba(0, 0, 0, 0.55);
+  --glass-saturate: 1.65;
+  --glass-saturate-hover: 1.9;
+}
+
+/* ============================================================
+   8. 不支持 backdrop-filter 浏览器的优雅降级
+   ============================================================ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-layer-inset-bg: rgba(255, 255, 255, 0.76);
+    --glass-layer-content-bg: rgba(255, 255, 255, 0.82);
+    --glass-layer-shell-bg: rgba(255, 255, 255, 0.86);
+    --glass-layer-floating-bg: rgba(255, 255, 255, 0.90);
+    --glass-layer-modal-bg: rgba(255, 255, 255, 0.94);
+    --glass-bg-thin: rgba(255, 255, 255, 0.72);
+    --glass-bg-thin-hover: var(--glass-bg-thin);
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-bg-hover: var(--glass-bg);
+    --glass-bg-thick: rgba(255, 255, 255, 0.84);
+    --glass-bg-thick-hover: var(--glass-bg-thick);
+    --glass-field-bg: rgba(255, 255, 255, 0.80);
+    --glass-field-bg-hover: var(--glass-field-bg);
+    --glass-field-bg-focus: rgba(255, 255, 255, 0.86);
+    --glass-overlay: rgba(255, 255, 255, 0.82);
+    --glass-bg-modal: rgba(255, 255, 255, 0.88);
+  }
+
+  .dark {
+    --glass-layer-inset-bg: rgba(18, 18, 22, 0.76);
+    --glass-layer-content-bg: rgba(20, 20, 26, 0.82);
+    --glass-layer-shell-bg: rgba(22, 22, 30, 0.86);
+    --glass-layer-floating-bg: rgba(16, 16, 22, 0.90);
+    --glass-layer-modal-bg: rgba(14, 14, 20, 0.94);
+    --glass-bg-thin: rgba(18, 18, 22, 0.76);
+    --glass-bg-thin-hover: var(--glass-bg-thin);
+    --glass-bg: rgba(20, 20, 26, 0.80);
+    --glass-bg-hover: var(--glass-bg);
+    --glass-bg-thick: rgba(24, 24, 32, 0.84);
+    --glass-bg-thick-hover: var(--glass-bg-thick);
+    --glass-field-bg: rgba(18, 18, 24, 0.80);
+    --glass-field-bg-hover: var(--glass-field-bg);
+    --glass-field-bg-focus: rgba(22, 22, 30, 0.86);
+    --glass-overlay: rgba(14, 14, 18, 0.84);
+    --glass-bg-modal: rgba(18, 18, 24, 0.88);
+  }
+}

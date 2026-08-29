@@ -1,0 +1,204 @@
+<template>
+  <div class="components-user-user-error-requests-table__panel">
+    <div class="components-user-user-error-requests-table__panel-2 card">
+      <IpGeoBatchToolbar :ips="rows.map((r) => r.client_ip)" @failed="emit('ipGeoBatchFailed')" />
+
+      <DataTable
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        clickable-rows
+        server-side-sort
+        default-sort-key="created_at"
+        default-sort-order="desc"
+        @sort="onSort"
+        @rowClick="(row) => openDetail(row.id)"
+      >
+        <template #cell-model="{ row }">
+          <span v-if="row.model" class="components-user-user-error-requests-table__text">{{ row.model }}</span>
+          <span v-else class="components-user-user-error-requests-table__text-2">-</span>
+        </template>
+
+        <template #cell-key_name="{ row }">
+          <div class="components-user-user-error-requests-table__panel-3">
+            <span class="components-user-user-error-requests-table__text-3">{{ row.key_name || '-' }}</span>
+            <span
+              v-if="row.key_deleted"
+              class="components-user-user-error-requests-table__text-4"
+            >{{ t('usage.errors.keyDeleted') }}</span>
+          </div>
+        </template>
+
+        <template #cell-endpoint="{ row }">
+          <div class="components-user-user-error-requests-table__panel-4">
+            <div class="components-user-user-error-requests-table__panel-5">
+              <span class="components-user-user-error-requests-table__text-5">{{ t('usage.inbound') }}:</span>
+              <span class="components-user-user-error-requests-table__text-6">{{ row.inbound_endpoint?.trim() || '-' }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template #cell-status="{ row }">
+          <span class="components-user-user-error-requests-table__text-7" :class="statusClass(row.status_code)">
+            {{ row.status_code || '-' }}
+          </span>
+        </template>
+
+        <template #cell-category="{ row }">
+          <span class="components-user-user-error-requests-table__text-8">{{ t('usage.errors.categories.' + row.category) }}</span>
+        </template>
+
+        <template #cell-message="{ row }">
+          <span
+            v-if="row.message"
+            class="components-user-user-error-requests-table__text-9"
+            :title="row.message"
+          >{{ row.message }}</span>
+          <span v-else class="components-user-user-error-requests-table__text-2">-</span>
+        </template>
+
+        <template #cell-group="{ row }">
+          <span
+            v-if="row.group_name"
+            class="components-user-user-error-requests-table__text-10"
+          >{{ row.group_name }}</span>
+          <span v-else class="components-user-user-error-requests-table__text-2">-</span>
+        </template>
+
+        <template #cell-type="{ row }">
+          <span
+            v-if="requestTypeBadge(row)"
+            class="components-user-user-error-requests-table__text-7"
+            :class="requestTypeBadge(row)!.className"
+          >{{ requestTypeBadge(row)!.label }}</span>
+          <span v-else class="components-user-user-error-requests-table__text-2">-</span>
+        </template>
+
+        <template #cell-platform="{ row }">
+          <span class="components-user-user-error-requests-table__text-8">{{ row.platform || '-' }}</span>
+        </template>
+
+        <template #cell-client_ip="{ row }">
+          <div @click.stop>
+            <div v-if="row.client_ip">
+              <span class="components-user-user-error-requests-table__text-11">{{ row.client_ip }}</span>
+              <IpGeoCell :ip="row.client_ip" />
+            </div>
+            <span v-else class="components-user-user-error-requests-table__text-2">-</span>
+          </div>
+        </template>
+
+        <template #cell-created_at="{ row }">
+          <span class="components-user-user-error-requests-table__text-12">{{ formatDateTime(row.created_at) }}</span>
+        </template>
+
+        <template #cell-user_agent="{ row }">
+          <span
+            v-if="row.user_agent"
+            class="components-user-user-error-requests-table__text-13"
+            :title="row.user_agent"
+          >{{ row.user_agent }}</span>
+          <span v-else class="components-user-user-error-requests-table__text-2">-</span>
+        </template>
+
+        <template #empty><EmptyState :message="t('usage.errors.empty')" /></template>
+      </DataTable>
+    </div>
+
+    <div class="components-user-user-error-requests-table__panel-6">
+      <Pagination
+        v-if="total > 0"
+        :page="page"
+        :page-size="pageSize"
+        :total="total"
+        @update:page="$emit('update:page', $event)"
+        @update:pageSize="$emit('update:pageSize', $event)"
+      />
+    </div>
+
+    <UserErrorDetailModal v-model:show="showDetail" :error-id="selectedId" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import DataTable from '@/components/common/DataTable.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import UserErrorDetailModal from '@/components/user/UserErrorDetailModal.vue'
+import IpGeoCell from '@/components/common/IpGeoCell.vue'
+import IpGeoBatchToolbar from '@/components/common/IpGeoBatchToolbar.vue'
+import { formatDateTime } from '@/utils/format'
+import {
+  mapErrorSortKey,
+  numericRequestTypeKind,
+  requestTypeBadgeClass,
+  requestTypeLabelKey,
+  statusCodeBadgeClass,
+} from '@/utils/errorBadges'
+import type { UserErrorRequest } from '@/types'
+import type { Column } from '@/components/common/types'
+
+const props = defineProps<{
+  rows: UserErrorRequest[]
+  total: number
+  loading: boolean
+  page: number
+  pageSize: number
+  /** 列设置:仅显示这些 key 的列;不传则全显(key 须与 allColumns 一致) */
+  visibleColumnKeys?: string[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:page', v: number): void
+  (e: 'update:pageSize', v: number): void
+  (e: 'ipGeoBatchFailed'): void
+  (e: 'sort', sortBy: string, sortOrder: 'asc' | 'desc'): void
+}>()
+
+function onSort(key: string, order: 'asc' | 'desc') {
+  emit('sort', mapErrorSortKey(key), order)
+}
+
+const { t } = useI18n()
+
+// 列序对齐用户端用量明细:Key → 模型 → 端点 → IP → 分组 → 类型 → 平台 → 分类
+// → 结果(状态→消息)→ 时间 → UA(用量明细 UA 同在时间之后的尾部)
+const allColumns = computed<Column[]>(() => [
+  { key: 'key_name', label: t('usage.errors.keyName') },
+  { key: 'model', label: t('usage.errors.model'), sortable: true },
+  { key: 'endpoint', label: t('usage.errors.endpoint') },
+  { key: 'client_ip', label: 'IP' },
+  { key: 'group', label: t('admin.usage.group') },
+  { key: 'type', label: t('usage.type') },
+  { key: 'platform', label: t('usage.errors.platform') },
+  { key: 'category', label: t('usage.errors.category') },
+  { key: 'status', label: t('usage.errors.status'), sortable: true },
+  { key: 'message', label: t('usage.errors.message') },
+  { key: 'created_at', label: t('usage.errors.time'), sortable: true },
+  { key: 'user_agent', label: t('usage.userAgent') },
+])
+
+const columns = computed<Column[]>(() =>
+  props.visibleColumnKeys
+    ? allColumns.value.filter((c) => props.visibleColumnKeys!.includes(c.key))
+    : allColumns.value
+)
+
+function requestTypeBadge(row: UserErrorRequest): { label: string; className: string } | null {
+  const kind = numericRequestTypeKind(row.request_type, row.stream)
+  if (!kind) return null
+  return { label: t(requestTypeLabelKey(kind)), className: requestTypeBadgeClass(kind) }
+}
+
+const showDetail = ref(false)
+const selectedId = ref<string | null>(null)
+
+function openDetail(id: string) {
+  selectedId.value = id
+  showDetail.value = true
+}
+
+const statusClass = statusCodeBadgeClass
+</script>

@@ -1,0 +1,19 @@
+# Relative path | expiry | reason
+deploy/.env.example|next-release|Legacy Apple image variable is read for one migration release.
+deploy/apple-container.sh|next-release|Legacy environment variable and app selector remain compatible for one release.
+deploy/docker-compose.dev.yml|next-release|Legacy development proxy variables remain fallback aliases.
+backend/internal/config/config.go|next-release|Legacy /etc config directory remains a fallback search path.
+backend/internal/handler/gateway_key_billing.go|next-release|Legacy billing route preserves its response discriminator.
+backend/internal/server/routes/gateway.go|next-release|Legacy billing route alias.
+backend/internal/server/middleware/api_key_auth.go|next-release|Legacy billing route must bypass normal charging.
+backend/internal/handler/admin/ops_ws_handler.go|next-release|Legacy WebSocket subprotocol alias.
+backend/internal/service/gateway_service.go|next-release|Legacy debug environment variable aliases.
+backend/internal/service/upstream_billing_probe.go|next-release|Fallback probing and legacy response discriminator.
+backend/internal/securityaudit/prompt_types.go|next-release|Dual Redis channel/key compatibility.
+backend/internal/service/data_management_service.go|next-release|Legacy socket paths are recognized during migration.
+backend/internal/service/update_service.go|next-release|Legacy binary names can still be extracted during migration.
+backend/internal/handler/admin/account_data.go|next-release|Legacy backup bundle types remain importable.
+frontend/src/utils/migrateLegacyStorage.ts|next-release|Browser storage migration source keys.
+frontend/src/utils/ipGeoLookup.ts|next-release|Legacy cache key fallback.
+frontend/src/types/index.ts|next-release|Legacy billing object discriminator remains accepted.
+frontend/src/components/admin/account/ImportDataModal.vue|next-release|Legacy backup bundle types remain importable.

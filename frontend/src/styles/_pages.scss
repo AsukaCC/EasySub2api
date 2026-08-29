@@ -1,0 +1,376 @@
+// ============================================================
+// 页面布局标准化层(以顶部导航为标准)
+// ------------------------------------------------------------
+// 在 generated/component-aliases 之后加载,统一覆盖历史迁移
+// 样式中不一致的容器宽度、区块节奏与组件间距。
+//
+// 标准:
+//   - 主内容区与顶部导航壳对齐:内容宽 90rem + 两侧 1rem 边距
+//   - 页面顶层区块节奏统一为 1.25rem
+//   - 表格页(TablePageLayout)固定区/滚动区间距统一为 1rem
+//
+// 推进方式:逐页覆盖,当前覆盖全局主内容区与用户端页面。
+// ============================================================
+
+// ---- 表格页框架:固定区(操作/筛选/分页)与滚动区统一间距 ----
+.table-page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+// ---- 用户端页面:顶层区块节奏统一为 1.25rem ----
+// 迁移样式用 space-y(子元素 margin)实现且数值不一(0.75/1/1.5rem),
+// 这里统一改为 flex + gap,并清零残留的 space-y 外边距。
+.views-admin-dashboard-view__panel,
+.views-user-usage-view__panel,
+.views-user-subscriptions-view__panel,
+.views-user-user-orders-view__panel,
+.views-user-affiliate-view__panel,
+.views-user-payment-view__panel,
+.views-user-profile-view__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}
+
+// ---- 用户端卡片网格:间距与区块节奏统一为 1.25rem ----
+.components-user-dashboard-user-dashboard-stats__panel,
+.components-user-dashboard-user-dashboard-charts__panel-7,
+.views-user-usage-view__panel-8 {
+  gap: 1.25rem;
+}
+
+// ---- 统计卡(仪表盘/用量页共用形态):对齐 .stat-card 标准 ----
+.views-admin-dashboard-view__panel-4,
+.components-user-dashboard-user-dashboard-stats__panel-2,
+.components-admin-usage-usage-stats-cards__panel-2 {
+  border-radius: var(--radius-xl);
+}
+
+.components-user-dashboard-user-dashboard-stats__panel-2,
+.components-admin-usage-usage-stats-cards__panel-2 {
+  padding: 1.25rem;
+}
+
+.components-admin-usage-usage-stats-cards__panel {
+  gap: 1.25rem;
+}
+
+// ---- 图表卡(趋势/模型分布/分组分布):内边距统一 1.25rem ----
+.components-charts-token-usage-trend__panel,
+.components-charts-model-distribution-chart__panel,
+.components-charts-group-distribution-chart__panel {
+  padding: 1.25rem;
+}
+
+// ---- 模型广场:容器对齐悬浮导航壳,筛选区/分组卡对齐玻璃卡标准 ----
+.views-model-plaza-view__main {
+  max-width: 92rem; // 与悬浮导航壳(90rem + 2×1rem 边距)边缘对齐
+  padding-top: 1.25rem;
+  padding-bottom: 2.5rem;
+}
+
+// 筛选区:原来无容器裸排,包进标准玻璃卡
+.components-model-plaza-plaza-filter-bar__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  box-shadow:
+    0 12px 28px rgb(12 12 14 / 0.07),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
+// 分组卡片与价格说明卡:玻璃底 + 1.25rem 圆角 + 标准阴影
+// (分组卡的平台色描边类只设置 border-color,不受影响)
+.components-model-plaza-plaza-group-section__section,
+.components-model-plaza-model-plaza-content__panel-2 {
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  box-shadow:
+    0 12px 28px rgb(12 12 14 / 0.07),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
+.components-model-plaza-model-plaza-content__panel-2 {
+  border-color: var(--glass-border);
+}
+
+.dark .components-model-plaza-plaza-filter-bar__panel,
+.dark .components-model-plaza-plaza-group-section__section,
+.dark .components-model-plaza-model-plaza-content__panel-2 {
+  background: var(--glass-bg);
+  box-shadow:
+    0 16px 36px rgb(0 0 0 / 0.28),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
+.dark .components-model-plaza-model-plaza-content__panel-2 {
+  border-color: var(--glass-border);
+}
+
+// 空态 / 错误态圆角统一
+.components-model-plaza-model-plaza-content__panel-5,
+.components-model-plaza-model-plaza-content__panel-6 {
+  border-radius: var(--radius-xl);
+}
+
+// 搜索行:输入框与标签同行(原 width:100% 会被挤到下一行占满整行)
+.components-model-plaza-plaza-filter-bar__panel-4 {
+  align-items: center;
+}
+
+.components-model-plaza-plaza-filter-bar__panel-4 .components-model-plaza-plaza-filter-bar__text {
+  padding-top: 0;
+}
+
+.components-model-plaza-plaza-filter-bar__panel-5 {
+  flex: 1;
+  width: auto;
+  min-width: 14rem;
+  max-width: 28rem;
+}
+
+// 搜索输入框:对齐全站输入框标准(圆角 lg、高度、字号),两侧为图标/清除按钮留位
+.components-model-plaza-plaza-filter-bar__field {
+  min-height: 2.25rem;
+  padding: 0.4375rem 2.5rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+}
+
+// 放大镜与清除按钮垂直居中:迁移样式的 transform 依赖未定义的
+// --ui-translate-x 变量而整体失效,这里用显式 transform 修正
+.components-model-plaza-plaza-filter-bar__icon {
+  position: absolute;
+  top: 50%;
+  left: 0.875rem;
+  display: block;
+  transform: translateY(-50%);
+}
+
+.components-model-plaza-plaza-filter-bar__action-5 {
+  position: absolute;
+  top: 50%;
+  right: 0.625rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.components-model-plaza-plaza-filter-bar__action-5:hover {
+  background-color: var(--glass-bg-interactive-hover);
+  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+}
+
+// ---- 订阅页(/subscriptions):订阅卡玻璃化 + 自适应两列 ----
+.views-user-subscriptions-view__panel-6 {
+  grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr));
+  gap: 1.25rem;
+}
+
+.views-user-subscriptions-view__panel-7 {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--radius-xl);
+  background: transparent;
+  box-shadow:
+    0 12px 28px rgb(12 12 14 / 0.07),
+    0 1px 0 var(--glass-highlight) inset;
+  transition: box-shadow 200ms ease;
+}
+
+.views-user-subscriptions-view__panel-7::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-color: var(--glass-layer-content-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
+  pointer-events: none;
+  transition: backdrop-filter 200ms ease, -webkit-backdrop-filter 200ms ease;
+}
+
+.views-user-subscriptions-view__panel-7:hover {
+  box-shadow:
+    var(--glass-shadow-hover),
+    0 1px 0 var(--glass-highlight-hover) inset;
+}
+
+.views-user-subscriptions-view__panel-7:hover::before {
+  -webkit-backdrop-filter: blur(var(--glass-layer-content-blur-hover)) saturate(var(--glass-saturate-hover));
+  backdrop-filter: blur(var(--glass-layer-content-blur-hover)) saturate(var(--glass-saturate-hover));
+}
+
+.dark .views-user-subscriptions-view__panel-7 {
+  background: transparent;
+  box-shadow:
+    0 16px 36px rgb(0 0 0 / 0.28),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
+.dark .views-user-subscriptions-view__panel-7:hover {
+  box-shadow:
+    var(--glass-shadow-hover),
+    0 1px 0 var(--glass-highlight-hover) inset;
+}
+
+.views-user-subscriptions-view__panel-8 {
+  padding: 1rem 1.25rem;
+}
+
+.views-user-subscriptions-view__panel-12 {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+// 区块标题与内容的间距(原 0.5rem 过于局促)
+.views-user-subscriptions-view__panel > section > .views-user-subscriptions-view__heading {
+  margin-bottom: 0.75rem;
+}
+
+// 内嵌的"可购订阅"(PaymentView embedded)跟随页面全宽,
+// 避免与上方全宽订阅卡网格一个靠左一个居中的错位
+.views-user-subscriptions-view__panel .views-user-payment-view__panel {
+  max-width: none;
+}
+
+// ---- 订单页(/orders):筛选卡内边距对齐工具条标准 ----
+.views-user-user-orders-view__panel-2 {
+  padding: 0.875rem 1.25rem;
+}
+
+// ---- 全站列设置与筛选下拉浮层层级与玻璃样式 (Column Settings & Filter Dropdowns) ----
+// 1. 触发容器提升层叠上下文，确保高于下方 sticky 表头 (z-index: 200/210) 与卡片内容
+.views-admin-usage-view__panel-10,
+.views-user-usage-view__panel-16,
+.views-user-keys-view__panel-4,
+.views-admin-users-view__panel-9,
+.views-admin-groups-view__panel-7,
+.views-admin-subscriptions-view__panel-9,
+.usage-filter-dropdown,
+.components-admin-usage-usage-filters__panel-3,
+.components-admin-usage-usage-filters__panel-6 {
+  position: relative;
+  z-index: 300;
+}
+
+// 2. 用量明细与筛选工具栏在包含块内保持高层级
+.views-admin-usage-view__usage-filters,
+.components-admin-usage-usage-filters__panel-10,
+.views-user-usage-view__panel-9,
+.views-user-usage-view__panel-10,
+.views-user-usage-view__panel-15 {
+  position: relative;
+  z-index: 300;
+}
+
+.views-admin-usage-view__panel-12 {
+  position: relative;
+  z-index: 1;
+}
+
+// 3. 列设置与筛选下拉浮层统一玻璃材质、定位、阴影与层级
+.views-admin-usage-view__panel-11,
+.views-user-usage-view__panel-17,
+.views-user-keys-view__panel-5,
+.views-admin-users-view__panel-12,
+.views-admin-groups-view__panel-8,
+.views-admin-subscriptions-view__panel-10,
+.components-admin-usage-usage-filters__panel-4 {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  margin-top: 0.375rem;
+  padding: 0.375rem;
+  min-width: 11.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-thick);
+  -webkit-backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-xl), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.dark .views-admin-usage-view__panel-11,
+.dark .views-user-usage-view__panel-17,
+.dark .views-user-keys-view__panel-5,
+.dark .views-admin-users-view__panel-12,
+.dark .views-admin-groups-view__panel-8,
+.dark .views-admin-subscriptions-view__panel-10,
+.dark .components-admin-usage-usage-filters__panel-4 {
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-thick);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5), 0 1px 0 var(--glass-highlight) inset;
+}
+
+// 4. 下拉项通用交互样式 (类似 .dropdown-item)
+.views-admin-usage-view__action-3,
+.views-user-usage-view__action-2,
+.views-user-keys-view__action-2,
+.views-admin-users-view__action-13,
+.views-admin-users-view__action-15,
+.views-admin-groups-view__action,
+.views-admin-subscriptions-view__action-4,
+.components-admin-usage-usage-filters__action-2 {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+
+  &:hover:not(:disabled) {
+    color: var(--color-text-primary);
+    border-color: var(--glass-border);
+    background-color: var(--glass-bg-interactive-hover);
+    -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    box-shadow: 0 1px 0 var(--glass-highlight) inset;
+  }
+
+  .dark &:hover:not(:disabled) {
+    border-color: var(--glass-border-hover);
+    background-color: var(--glass-bg-interactive-hover);
+  }
+}
+
+.views-admin-users-view__action-14,
+.views-admin-users-view__action-13:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+// ---- 仪表盘快捷操作 ----
+// 样式已内聚到 UserDashboardQuickActions.vue(语义化类名,不再依赖生成别名)

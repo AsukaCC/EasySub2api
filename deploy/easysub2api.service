@@ -1,0 +1,30 @@
+[Unit]
+Description=EasySub2api - AI API Gateway Platform
+Documentation=https://github.com/AsukaCC/EasySub2api
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=easysub2api
+Group=easysub2api
+WorkingDirectory=/opt/easysub2api
+ExecStart=/opt/easysub2api/easysub2api
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=easysub2api
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/easysub2api
+
+Environment=GIN_MODE=release
+Environment=SERVER_HOST=0.0.0.0
+Environment=SERVER_PORT=8080
+
+[Install]
+WantedBy=multi-user.target

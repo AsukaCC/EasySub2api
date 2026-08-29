@@ -1,0 +1,201 @@
+// ============================================================
+// 统一磨砂玻璃材质模块 —— 项目唯一材质源
+// ------------------------------------------------------------
+// 用法:
+//   全局 SCSS 分区:@use 'glass-mixins' as *;
+//   (styles/_mixins.scss 已 @forward 本模块,@use 'mixins' 同样可用)
+//
+// 两种承载方式:
+//   glass-material        伪元素承载。携带 backdrop-filter 的元素会成为
+//                         "backdrop root",其后代的 backdrop-filter 只能对该
+//                         容器内部取样;把模糊放到 ::before 上,容器本身不再是
+//                         backdrop root,嵌套玻璃组件(顶栏内下拉、卡片内弹层)
+//                         才能正确模糊页面背景。
+//   glass-material-direct 直接承载。可滚动容器 / sticky 单元格必须用这种:
+//                         伪元素会随内容滚动导致材质错位。
+//
+// 交互规范:
+//   所有的 hover / active 交互都必须保持通透质感,在原有高斯模糊
+//   基础上平滑加深 (加深 blur 与微光填充),严禁使用不透明死白/死黑实底。
+// ============================================================
+
+@mixin glass-material(
+  $fill: var(--glass-bg),
+  $blur: var(--glass-blur),
+  $border: var(--glass-border)
+) {
+  isolation: isolate;
+  border: 1px solid $border;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: $fill;
+    -webkit-backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+    backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+    transition: background-color 200ms ease, backdrop-filter 200ms ease, -webkit-backdrop-filter 200ms ease;
+  }
+}
+
+@mixin glass-material-direct(
+  $fill: var(--glass-bg),
+  $blur: var(--glass-blur),
+  $border: var(--glass-border)
+) {
+  border: 1px solid $border;
+  background-color: $fill;
+  -webkit-backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+  backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+  transition: background-color 200ms ease, border-color 200ms ease, backdrop-filter 200ms ease, -webkit-backdrop-filter 200ms ease;
+}
+
+// 交互式玻璃材质:悬停时在原有高斯模糊基础上平滑加深,无实底遮挡
+@mixin glass-interactive(
+  $fill: var(--glass-bg-interactive),
+  $blur: var(--glass-layer-inset-blur),
+  $fill-hover: var(--glass-bg-interactive-hover),
+  $blur-hover: var(--glass-layer-inset-blur-hover),
+  $border: var(--glass-border),
+  $border-hover: var(--glass-border-hover)
+) {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid $border;
+  transition: color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: $fill;
+    -webkit-backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+    backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+    transition: background-color 200ms ease, backdrop-filter 200ms ease, -webkit-backdrop-filter 200ms ease;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: $border-hover;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06), 0 1px 0 var(--glass-highlight-hover) inset;
+
+    &::before {
+      background-color: $fill-hover;
+      -webkit-backdrop-filter: blur($blur-hover) saturate(var(--glass-saturate));
+      backdrop-filter: blur($blur-hover) saturate(var(--glass-saturate));
+    }
+  }
+
+  &:active:not(:disabled) {
+    &::before {
+      background-color: var(--glass-bg-interactive-active);
+    }
+  }
+
+  &:focus-visible:not(:disabled) {
+    border-color: var(--glass-border-active);
+    outline: none;
+    box-shadow:
+      0 0 0 3px rgba(10, 132, 255, 0.22),
+      0 1px 0 var(--glass-highlight-hover) inset;
+
+    &::before {
+      background-color: $fill-hover;
+      -webkit-backdrop-filter: blur($blur-hover) saturate(var(--glass-saturate));
+      backdrop-filter: blur($blur-hover) saturate(var(--glass-saturate));
+    }
+  }
+}
+
+// 语义承载面：inset / content / shell / floating / modal。
+// 高层容器只在外壳应用一次；内部控件继续使用 inset 交互材质。
+@mixin glass-surface(
+  $level: content,
+  $direct: false,
+  $border: var(--glass-border)
+) {
+  @if $direct {
+    @include glass-material-direct(
+      var(--glass-layer-#{$level}-bg),
+      var(--glass-layer-#{$level}-blur),
+      $border
+    );
+  } @else {
+    @include glass-material(
+      var(--glass-layer-#{$level}-bg),
+      var(--glass-layer-#{$level}-blur),
+      $border
+    );
+  }
+}
+
+// 无显式容器的文字/图标交互项也使用紧贴内容的透明玻璃承载层。
+@mixin glass-inline-interactive {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -0.25rem -0.375rem;
+    z-index: -1;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    pointer-events: none;
+    transition: background-color 180ms ease, border-color 180ms ease, backdrop-filter 180ms ease, -webkit-backdrop-filter 180ms ease;
+  }
+
+  &:hover::before,
+  &:focus-visible::before {
+    border-color: var(--glass-border);
+    background-color: var(--glass-bg-interactive);
+    -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+  }
+}
+
+// 控件输入框玻璃材质
+@mixin glass-field {
+  border: 1px solid var(--glass-border);
+  background-color: var(--glass-field-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, backdrop-filter 180ms ease, -webkit-backdrop-filter 180ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--glass-border-hover);
+    background-color: var(--glass-field-bg-hover);
+    -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+    backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  }
+
+  &:focus {
+    border-color: var(--color-primary);
+    background-color: var(--glass-field-bg-focus);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.22), 0 1px 0 var(--glass-highlight) inset;
+  }
+}
+
+@mixin glass-border {
+  border: 1px solid var(--glass-border);
+}
+
+// 玻璃壳标准复合投影:柔和漫反射外阴影 + 顶部 1px 通透内高光
+@mixin glass-shell-shadow {
+  box-shadow:
+    var(--glass-shadow),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
+@mixin glass-shell-shadow-hover {
+  box-shadow:
+    var(--glass-shadow-hover),
+    0 1px 0 var(--glass-highlight-hover) inset;
+}

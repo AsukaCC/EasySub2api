@@ -1,0 +1,144 @@
+name: Release
+run-name: Release ${{ inputs.tag }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated tag to publish (for example, v0.1.185)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Validate release input
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Only stable vX.Y.Z tags can be released." >&2
+            exit 1
+          fi
+
+          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          tag_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+          head_commit="$(git rev-parse HEAD)"
+          if [ "$tag_commit" != "$head_commit" ]; then
+            echo "Checked-out commit does not match ${RELEASE_TAG}." >&2
+            exit 1
+          fi
+
+          version="${RELEASE_TAG#v}"
+          version_file="$(tr -d '\r\n' < backend/cmd/server/VERSION)"
+          if [ "$version_file" != "$version" ]; then
+            echo "VERSION contains ${version_file}; expected ${version}." >&2
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "GitHub Release ${RELEASE_TAG} already exists." >&2
+            exit 1
+          fi
+
+          owner_lower="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          major="${version%%.*}"
+          remainder="${version#*.}"
+          minor="${remainder%%.*}"
+
+          {
+            echo "version=${version}"
+            echo "major=${major}"
+            echo "minor=${minor}"
+            echo "commit=${head_commit}"
+            echo "built_at=${built_at}"
+            echo "image=ghcr.io/${owner_lower}/easysub2api"
+          } >> "$GITHUB_OUTPUT"
+
+          git tag -l --format='%(contents)' "$RELEASE_TAG" > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            printf 'EasySub2api %s\n' "$version" > release-notes.md
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish multi-architecture image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ steps.release.outputs.version }}
+            COMMIT=${{ steps.release.outputs.commit }}
+            DATE=${{ steps.release.outputs.built_at }}
+          tags: |
+            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.version }}
+            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}
+            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.major }}
+            ${{ steps.release.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.title=EasySub2api
+            org.opencontainers.image.version=${{ steps.release.outputs.version }}
+            org.opencontainers.image.revision=${{ steps.release.outputs.commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_IMAGE: ${{ steps.release.outputs.image }}
+        run: |
+          set -euo pipefail
+          cat >> release-notes.md <<EOF
+
+          ---
+
+          ## Container image
+
+          \`\`\`bash
+          docker pull ${RELEASE_IMAGE}:${RELEASE_VERSION}
+          \`\`\`
+
+          This release publishes a multi-architecture \`linux/amd64\` and \`linux/arm64\` image. It intentionally contains no binary release assets.
+          EOF
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --title "EasySub2api ${RELEASE_VERSION}" \
+            --notes-file release-notes.md

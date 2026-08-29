@@ -1,0 +1,24 @@
+// 磨砂材质 mixin 统一在 _glass-mixins.scss 维护,这里转发以便
+// `@use 'mixins'` 的分区一并获得。
+@forward 'glass-mixins';
+
+@mixin focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.32);
+  }
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

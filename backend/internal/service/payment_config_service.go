@@ -1,0 +1,724 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+
+	dbent "github.com/AsukaCC/EasySub2api/ent"
+	"github.com/AsukaCC/EasySub2api/ent/paymentproviderinstance"
+	"github.com/AsukaCC/EasySub2api/internal/payment"
+	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
+	"github.com/shopspring/decimal"
+)
+
+const (
+	SettingPaymentEnabled      = "payment_enabled"
+	SettingPaymentUserVisible  = "payment_user_visible"
+	SettingMinRechargeAmount   = "MIN_RECHARGE_AMOUNT"
+	SettingMaxRechargeAmount   = "MAX_RECHARGE_AMOUNT"
+	SettingDailyRechargeLimit  = "DAILY_RECHARGE_LIMIT"
+	SettingOrderTimeoutMinutes = "ORDER_TIMEOUT_MINUTES"
+	SettingMaxPendingOrders    = "MAX_PENDING_ORDERS"
+	SettingEnabledPaymentTypes = "ENABLED_PAYMENT_TYPES"
+	SettingLoadBalanceStrategy = "LOAD_BALANCE_STRATEGY"
+	SettingBalancePayDisabled  = "BALANCE_PAYMENT_DISABLED"
+	SettingBalanceRechargeMult = "BALANCE_RECHARGE_MULTIPLIER"
+	SettingRechargeBonusTiers  = "recharge_bonus_tiers"
+	// SettingSubscriptionUSDToCNYRate is retained as a read/write compatibility
+	// setting. Subscription checkout is points-only and never reads this rate.
+	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
+	SettingRechargeFeeRate               = "RECHARGE_FEE_RATE"
+	SettingProductNamePrefix             = "PRODUCT_NAME_PREFIX"
+	SettingProductNameSuffix             = "PRODUCT_NAME_SUFFIX"
+	SettingHelpImageURL                  = "PAYMENT_HELP_IMAGE_URL"
+	SettingHelpText                      = "PAYMENT_HELP_TEXT"
+	SettingCancelRateLimitOn             = "CANCEL_RATE_LIMIT_ENABLED"
+	SettingCancelRateLimitMax            = "CANCEL_RATE_LIMIT_MAX"
+	SettingCancelWindowSize              = "CANCEL_RATE_LIMIT_WINDOW"
+	SettingCancelWindowUnit              = "CANCEL_RATE_LIMIT_UNIT"
+	SettingCancelWindowMode              = "CANCEL_RATE_LIMIT_WINDOW_MODE"
+	SettingAlipayForceQRCode             = "ALIPAY_FORCE_QRCODE"
+	SettingAlipayMobilePrecreateDeepLink = "ALIPAY_MOBILE_PRECREATE_DEEP_LINK"
+)
+
+// Default values for payment configuration settings.
+const (
+	defaultOrderTimeoutMin  = 30
+	defaultMaxPendingOrders = 3
+)
+
+// PaymentConfig holds the payment system configuration.
+type PaymentConfig struct {
+	Enabled                   bool                `json:"enabled"`
+	MinAmount                 float64             `json:"min_amount"`
+	MaxAmount                 float64             `json:"max_amount"`
+	DailyLimit                float64             `json:"daily_limit"`
+	OrderTimeoutMin           int                 `json:"order_timeout_minutes"`
+	MaxPendingOrders          int                 `json:"max_pending_orders"`
+	EnabledTypes              []string            `json:"enabled_payment_types"`
+	BalanceDisabled           bool                `json:"balance_disabled"`
+	BalanceRechargeMultiplier float64             `json:"balance_recharge_multiplier"`
+	RechargeBonusTiers        []RechargeBonusTier `json:"recharge_bonus_tiers"`
+	// SubscriptionUSDToCNYRate is exposed for API compatibility only.
+	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
+	LoadBalanceStrategy      string  `json:"load_balance_strategy"`
+	ProductNamePrefix        string  `json:"product_name_prefix"`
+	ProductNameSuffix        string  `json:"product_name_suffix"`
+	HelpImageURL             string  `json:"help_image_url"`
+	HelpText                 string  `json:"help_text"`
+	StripePublishableKey     string  `json:"stripe_publishable_key,omitempty"`
+
+	// Cancel rate limit settings
+	CancelRateLimitEnabled bool   `json:"cancel_rate_limit_enabled"`
+	CancelRateLimitMax     int    `json:"cancel_rate_limit_max"`
+	CancelRateLimitWindow  int    `json:"cancel_rate_limit_window"`
+	CancelRateLimitUnit    string `json:"cancel_rate_limit_unit"`
+	CancelRateLimitMode    string `json:"cancel_rate_limit_window_mode"`
+
+	// Force Alipay mobile users to use QR code instead of mobile redirect
+	AlipayForceQRCode bool `json:"alipay_force_qrcode"`
+	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
+	AlipayMobilePrecreateDeepLink bool `json:"alipay_mobile_precreate_deep_link"`
+}
+
+// RechargeBonusTier grants a fixed number of points when the CNY principal
+// reaches MinAmount. Eligible tiers are not cumulative; only the highest tier
+// is applied to an order.
+type RechargeBonusTier struct {
+	MinAmount   float64 `json:"threshold_cny"`
+	BonusPoints float64 `json:"bonus_points"`
+}
+
+func (t *RechargeBonusTier) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ThresholdCNY *json.Number `json:"threshold_cny"`
+		LegacyAmount *json.Number `json:"min_amount"`
+		BonusPoints  *json.Number `json:"bonus_points"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	threshold, err := parseRechargeBonusTierNumber(raw.ThresholdCNY, "threshold_cny", 2)
+	if err != nil {
+		return err
+	}
+	legacyThreshold, err := parseRechargeBonusTierNumber(raw.LegacyAmount, "min_amount", 2)
+	if err != nil {
+		return err
+	}
+	bonus, err := parseRechargeBonusTierNumber(raw.BonusPoints, "bonus_points", 8)
+	if err != nil {
+		return err
+	}
+	if raw.ThresholdCNY != nil && raw.LegacyAmount != nil && !threshold.Equal(legacyThreshold) {
+		return fmt.Errorf("threshold_cny conflicts with legacy min_amount")
+	}
+	if raw.ThresholdCNY == nil {
+		threshold = legacyThreshold
+	}
+	t.MinAmount = threshold.InexactFloat64()
+	t.BonusPoints = bonus.InexactFloat64()
+	return nil
+}
+
+func parseRechargeBonusTierNumber(raw *json.Number, field string, places int32) (decimal.Decimal, error) {
+	if raw == nil {
+		return decimal.Zero, nil
+	}
+	value, err := decimal.NewFromString(raw.String())
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("%s must be a decimal number: %w", field, err)
+	}
+	if !value.Equal(value.Round(places)) {
+		return decimal.Zero, fmt.Errorf("%s allows at most %d decimal places", field, places)
+	}
+	floatValue := value.InexactFloat64()
+	if math.IsNaN(floatValue) || math.IsInf(floatValue, 0) {
+		return decimal.Zero, fmt.Errorf("%s is outside the supported range", field)
+	}
+	return value, nil
+}
+
+// UpdatePaymentConfigRequest contains fields to update payment configuration.
+type UpdatePaymentConfigRequest struct {
+	Enabled                   *bool               `json:"enabled"`
+	MinAmount                 *float64            `json:"min_amount"`
+	MaxAmount                 *float64            `json:"max_amount"`
+	DailyLimit                *float64            `json:"daily_limit"`
+	OrderTimeoutMin           *int                `json:"order_timeout_minutes"`
+	MaxPendingOrders          *int                `json:"max_pending_orders"`
+	EnabledTypes              []string            `json:"enabled_payment_types"`
+	BalanceDisabled           *bool               `json:"balance_disabled"`
+	BalanceRechargeMultiplier *float64            `json:"balance_recharge_multiplier"`
+	RechargeBonusTiers        []RechargeBonusTier `json:"recharge_bonus_tiers"`
+	SubscriptionUSDToCNYRate  *float64            `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate           *float64            `json:"recharge_fee_rate"`
+	LoadBalanceStrategy       *string             `json:"load_balance_strategy"`
+	ProductNamePrefix         *string             `json:"product_name_prefix"`
+	ProductNameSuffix         *string             `json:"product_name_suffix"`
+	HelpImageURL              *string             `json:"help_image_url"`
+	HelpText                  *string             `json:"help_text"`
+
+	// Cancel rate limit settings
+	CancelRateLimitEnabled *bool   `json:"cancel_rate_limit_enabled"`
+	CancelRateLimitMax     *int    `json:"cancel_rate_limit_max"`
+	CancelRateLimitWindow  *int    `json:"cancel_rate_limit_window"`
+	CancelRateLimitUnit    *string `json:"cancel_rate_limit_unit"`
+	CancelRateLimitMode    *string `json:"cancel_rate_limit_window_mode"`
+
+	// Force Alipay mobile users to use QR code instead of mobile redirect
+	AlipayForceQRCode *bool `json:"alipay_force_qrcode"`
+	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
+	AlipayMobilePrecreateDeepLink *bool `json:"alipay_mobile_precreate_deep_link"`
+
+	VisibleMethodAlipaySource  *string `json:"payment_visible_method_alipay_source"`
+	VisibleMethodWxpaySource   *string `json:"payment_visible_method_wxpay_source"`
+	VisibleMethodAlipayEnabled *bool   `json:"payment_visible_method_alipay_enabled"`
+	VisibleMethodWxpayEnabled  *bool   `json:"payment_visible_method_wxpay_enabled"`
+}
+
+// MethodLimits holds per-payment-type limits.
+type MethodLimits struct {
+	PaymentType string  `json:"payment_type"`
+	DisplayName string  `json:"display_name,omitempty"`
+	Currency    string  `json:"currency"`
+	FeeRate     float64 `json:"fee_rate"`
+	DailyLimit  float64 `json:"daily_limit"`
+	SingleMin   float64 `json:"single_min"`
+	SingleMax   float64 `json:"single_max"`
+}
+
+// MethodLimitsResponse is the full response for the user-facing /limits API.
+// It includes per-method limits and the global widest range (union of all methods).
+type MethodLimitsResponse struct {
+	Methods   map[string]MethodLimits `json:"methods"`
+	GlobalMin float64                 `json:"global_min"` // 0 = no minimum
+	GlobalMax float64                 `json:"global_max"` // 0 = no maximum
+}
+
+type CreateProviderInstanceRequest struct {
+	ProviderKey     string            `json:"provider_key"`
+	Name            string            `json:"name"`
+	Config          map[string]string `json:"config"`
+	SupportedTypes  []string          `json:"supported_types"`
+	Enabled         bool              `json:"enabled"`
+	PaymentMode     string            `json:"payment_mode"`
+	SortOrder       int               `json:"sort_order"`
+	Limits          string            `json:"limits"`
+	RefundEnabled   bool              `json:"refund_enabled"`
+	AllowUserRefund bool              `json:"allow_user_refund"`
+}
+
+type UpdateProviderInstanceRequest struct {
+	Name            *string           `json:"name"`
+	Config          map[string]string `json:"config"`
+	SupportedTypes  []string          `json:"supported_types"`
+	Enabled         *bool             `json:"enabled"`
+	PaymentMode     *string           `json:"payment_mode"`
+	SortOrder       *int              `json:"sort_order"`
+	Limits          *string           `json:"limits"`
+	RefundEnabled   *bool             `json:"refund_enabled"`
+	AllowUserRefund *bool             `json:"allow_user_refund"`
+}
+type CreatePlanRequest struct {
+	GroupID       string   `json:"group_id"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	Price         float64  `json:"price"`
+	OriginalPrice *float64 `json:"original_price"`
+	Currency      string   `json:"currency"`
+	ValidityDays  int      `json:"validity_days"`
+	ValidityUnit  string   `json:"validity_unit"`
+	Features      string   `json:"features"`
+	ProductName   string   `json:"product_name"`
+	ForSale       bool     `json:"for_sale"`
+	SortOrder     int      `json:"sort_order"`
+}
+
+type UpdatePlanRequest struct {
+	GroupID       *string  `json:"group_id"`
+	Name          *string  `json:"name"`
+	Description   *string  `json:"description"`
+	Price         *float64 `json:"price"`
+	OriginalPrice *float64 `json:"original_price"`
+	Currency      *string  `json:"currency"`
+	ValidityDays  *int     `json:"validity_days"`
+	ValidityUnit  *string  `json:"validity_unit"`
+	Features      *string  `json:"features"`
+	ProductName   *string  `json:"product_name"`
+	ForSale       *bool    `json:"for_sale"`
+	SortOrder     *int     `json:"sort_order"`
+}
+
+// PaymentConfigService manages payment configuration and CRUD for
+// provider instances, channels, and subscription plans.
+type PaymentConfigService struct {
+	entClient     *dbent.Client
+	settingRepo   SettingRepository
+	encryptionKey []byte
+}
+
+// NewPaymentConfigService creates a new PaymentConfigService.
+func NewPaymentConfigService(entClient *dbent.Client, settingRepo SettingRepository, encryptionKey []byte) *PaymentConfigService {
+	return &PaymentConfigService{entClient: entClient, settingRepo: settingRepo, encryptionKey: encryptionKey}
+}
+
+// IsPaymentEnabled returns whether the payment system is enabled.
+func (s *PaymentConfigService) IsPaymentEnabled(ctx context.Context) bool {
+	val, err := s.settingRepo.GetValue(ctx, SettingPaymentEnabled)
+	if err != nil {
+		return false
+	}
+	return val == "true"
+}
+
+// GetPaymentConfig returns the full payment configuration.
+func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentConfig, error) {
+	keys := []string{
+		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
+		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingRechargeBonusTiers, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
+		SettingProductNamePrefix, SettingProductNameSuffix,
+		SettingHelpImageURL, SettingHelpText,
+		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
+		SettingCancelWindowSize, SettingCancelWindowUnit, SettingCancelWindowMode,
+		SettingAlipayForceQRCode, SettingAlipayMobilePrecreateDeepLink,
+		SettingPaymentVisibleMethodAlipayEnabled, SettingPaymentVisibleMethodAlipaySource,
+		SettingPaymentVisibleMethodWxpayEnabled, SettingPaymentVisibleMethodWxpaySource,
+	}
+	vals, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return nil, fmt.Errorf("get payment config settings: %w", err)
+	}
+	cfg := s.parsePaymentConfig(vals)
+	// Load Stripe publishable key from the first enabled Stripe provider instance
+	cfg.StripePublishableKey = s.getStripePublishableKey(ctx)
+	return cfg, nil
+}
+
+func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *PaymentConfig {
+	cfg := &PaymentConfig{
+		Enabled:          vals[SettingPaymentEnabled] == "true",
+		MinAmount:        pcParseFloat(vals[SettingMinRechargeAmount], 1),
+		MaxAmount:        pcParseFloat(vals[SettingMaxRechargeAmount], 0),
+		DailyLimit:       pcParseFloat(vals[SettingDailyRechargeLimit], 0),
+		OrderTimeoutMin:  pcParseInt(vals[SettingOrderTimeoutMinutes], defaultOrderTimeoutMin),
+		MaxPendingOrders: pcParseInt(vals[SettingMaxPendingOrders], defaultMaxPendingOrders),
+		BalanceDisabled:  vals[SettingBalancePayDisabled] == "true",
+		// The legacy multiplier remains in the API contract, but points now have
+		// a permanent 1:1 relationship with the CNY recharge principal.
+		BalanceRechargeMultiplier: defaultBalanceRechargeMultiplier,
+		RechargeBonusTiers:        parseRechargeBonusTiers(vals[SettingRechargeBonusTiers]),
+		SubscriptionUSDToCNYRate:  normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
+		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
+		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
+		ProductNamePrefix:         vals[SettingProductNamePrefix],
+		ProductNameSuffix:         vals[SettingProductNameSuffix],
+		HelpImageURL:              vals[SettingHelpImageURL],
+		HelpText:                  vals[SettingHelpText],
+
+		CancelRateLimitEnabled: vals[SettingCancelRateLimitOn] == "true",
+		CancelRateLimitMax:     pcParseInt(vals[SettingCancelRateLimitMax], 10),
+		CancelRateLimitWindow:  pcParseInt(vals[SettingCancelWindowSize], 1),
+		CancelRateLimitUnit:    vals[SettingCancelWindowUnit],
+		CancelRateLimitMode:    vals[SettingCancelWindowMode],
+
+		AlipayForceQRCode:             vals[SettingAlipayForceQRCode] == "true",
+		AlipayMobilePrecreateDeepLink: vals[SettingAlipayMobilePrecreateDeepLink] == "true",
+	}
+	cfg.AlipayMobilePrecreateDeepLink = pcEnvBoolOverride(
+		SettingAlipayMobilePrecreateDeepLink,
+		cfg.AlipayMobilePrecreateDeepLink,
+	)
+	if cfg.LoadBalanceStrategy == "" {
+		cfg.LoadBalanceStrategy = payment.DefaultLoadBalanceStrategy
+	}
+	if raw := vals[SettingEnabledPaymentTypes]; raw != "" {
+		types := make([]string, 0, len(strings.Split(raw, ",")))
+		for _, t := range strings.Split(raw, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				types = append(types, t)
+			}
+		}
+		cfg.EnabledTypes = NormalizeVisibleMethods(types)
+	}
+	return cfg
+}
+
+func pcEnvBoolOverride(key string, fallback bool) bool {
+	raw, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return fallback
+	}
+	value, err := strconv.ParseBool(strings.TrimSpace(raw))
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+// getStripePublishableKey finds the publishable key from the first enabled Stripe provider instance.
+func (s *PaymentConfigService) getStripePublishableKey(ctx context.Context) string {
+	if s.entClient == nil {
+		return ""
+	}
+	instances, err := s.entClient.PaymentProviderInstance.Query().
+		Where(
+			paymentproviderinstance.EnabledEQ(true),
+			paymentproviderinstance.ProviderKeyEQ(payment.TypeStripe),
+		).Limit(1).All(ctx)
+	if err != nil || len(instances) == 0 {
+		return ""
+	}
+	cfg, err := s.decryptConfig(instances[0].Config)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return cfg[payment.ConfigKeyPublishableKey]
+}
+
+// UpdatePaymentConfig updates the payment configuration settings.
+// NOTE: This function exceeds 30 lines because each field requires an independent
+// nil-check before serialisation — this is inherent to patch-style update patterns
+// and cannot be meaningfully decomposed without introducing unnecessary abstraction.
+func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req UpdatePaymentConfigRequest) error {
+	if req.BalanceRechargeMultiplier != nil {
+		if math.IsNaN(*req.BalanceRechargeMultiplier) || math.IsInf(*req.BalanceRechargeMultiplier, 0) || *req.BalanceRechargeMultiplier != defaultBalanceRechargeMultiplier {
+			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_MULTIPLIER", "balance recharge multiplier is permanently fixed at 1")
+		}
+	}
+	normalizedBonusTiers, err := normalizeRechargeBonusTiers(req.RechargeBonusTiers)
+	if err != nil {
+		return err
+	}
+	if req.SubscriptionUSDToCNYRate != nil {
+		v := *req.SubscriptionUSDToCNYRate
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
+			return infraerrors.BadRequest("INVALID_SUBSCRIPTION_USD_TO_CNY_RATE", "legacy subscription USD to CNY rate must be non-negative")
+		}
+	}
+	if req.RechargeFeeRate != nil {
+		v := *req.RechargeFeeRate
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 100 {
+			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate must be between 0 and 100")
+		}
+		// Enforce max 2 decimal places
+		if !hasAtMostDecimalPlaces(v, 2) {
+			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate allows at most 2 decimal places")
+		}
+	}
+	m := make(map[string]string)
+	if req.Enabled != nil {
+		m[SettingPaymentEnabled] = formatBoolOrEmpty(req.Enabled)
+	}
+	if req.MinAmount != nil {
+		m[SettingMinRechargeAmount] = formatPositiveFloat(req.MinAmount)
+	}
+	if req.MaxAmount != nil {
+		m[SettingMaxRechargeAmount] = formatPositiveFloat(req.MaxAmount)
+	}
+	if req.DailyLimit != nil {
+		m[SettingDailyRechargeLimit] = formatPositiveFloat(req.DailyLimit)
+	}
+	if req.OrderTimeoutMin != nil {
+		m[SettingOrderTimeoutMinutes] = formatPositiveInt(req.OrderTimeoutMin)
+	}
+	if req.MaxPendingOrders != nil {
+		m[SettingMaxPendingOrders] = formatPositiveInt(req.MaxPendingOrders)
+	}
+	if req.EnabledTypes != nil {
+		m[SettingEnabledPaymentTypes] = strings.Join(req.EnabledTypes, ",")
+	}
+	if req.BalanceDisabled != nil {
+		m[SettingBalancePayDisabled] = formatBoolOrEmpty(req.BalanceDisabled)
+	}
+	if req.BalanceRechargeMultiplier != nil {
+		m[SettingBalanceRechargeMult] = "1"
+	}
+	if req.RechargeBonusTiers != nil {
+		raw, err := json.Marshal(normalizedBonusTiers)
+		if err != nil {
+			return fmt.Errorf("marshal recharge bonus tiers: %w", err)
+		}
+		m[SettingRechargeBonusTiers] = string(raw)
+	}
+	if req.SubscriptionUSDToCNYRate != nil {
+		m[SettingSubscriptionUSDToCNYRate] = formatPositiveFloatExact(req.SubscriptionUSDToCNYRate)
+	}
+	if req.RechargeFeeRate != nil {
+		m[SettingRechargeFeeRate] = formatNonNegativeFloat(req.RechargeFeeRate)
+	}
+	if req.LoadBalanceStrategy != nil {
+		m[SettingLoadBalanceStrategy] = derefStr(req.LoadBalanceStrategy)
+	}
+	if req.ProductNamePrefix != nil {
+		m[SettingProductNamePrefix] = derefStr(req.ProductNamePrefix)
+	}
+	if req.ProductNameSuffix != nil {
+		m[SettingProductNameSuffix] = derefStr(req.ProductNameSuffix)
+	}
+	if req.HelpImageURL != nil {
+		m[SettingHelpImageURL] = derefStr(req.HelpImageURL)
+	}
+	if req.HelpText != nil {
+		m[SettingHelpText] = derefStr(req.HelpText)
+	}
+	if req.CancelRateLimitEnabled != nil {
+		m[SettingCancelRateLimitOn] = formatBoolOrEmpty(req.CancelRateLimitEnabled)
+	}
+	if req.CancelRateLimitMax != nil {
+		m[SettingCancelRateLimitMax] = formatPositiveInt(req.CancelRateLimitMax)
+	}
+	if req.CancelRateLimitWindow != nil {
+		m[SettingCancelWindowSize] = formatPositiveInt(req.CancelRateLimitWindow)
+	}
+	if req.CancelRateLimitUnit != nil {
+		m[SettingCancelWindowUnit] = derefStr(req.CancelRateLimitUnit)
+	}
+	if req.CancelRateLimitMode != nil {
+		m[SettingCancelWindowMode] = derefStr(req.CancelRateLimitMode)
+	}
+	if req.AlipayForceQRCode != nil {
+		m[SettingAlipayForceQRCode] = formatBoolOrEmpty(req.AlipayForceQRCode)
+	}
+	if req.AlipayMobilePrecreateDeepLink != nil {
+		m[SettingAlipayMobilePrecreateDeepLink] = formatBoolOrEmpty(req.AlipayMobilePrecreateDeepLink)
+	}
+	if req.VisibleMethodAlipaySource != nil {
+		m[SettingPaymentVisibleMethodAlipaySource] = derefStr(req.VisibleMethodAlipaySource)
+	}
+	if req.VisibleMethodWxpaySource != nil {
+		m[SettingPaymentVisibleMethodWxpaySource] = derefStr(req.VisibleMethodWxpaySource)
+	}
+	if req.VisibleMethodAlipayEnabled != nil {
+		m[SettingPaymentVisibleMethodAlipayEnabled] = formatBoolOrEmpty(req.VisibleMethodAlipayEnabled)
+	}
+	if req.VisibleMethodWxpayEnabled != nil {
+		m[SettingPaymentVisibleMethodWxpayEnabled] = formatBoolOrEmpty(req.VisibleMethodWxpayEnabled)
+	}
+	return s.settingRepo.SetMultiple(ctx, m)
+}
+
+func parseRechargeBonusTiers(raw string) []RechargeBonusTier {
+	tiers := make([]RechargeBonusTier, 0)
+	if strings.TrimSpace(raw) == "" {
+		return tiers
+	}
+	if err := json.Unmarshal([]byte(raw), &tiers); err != nil {
+		return []RechargeBonusTier{}
+	}
+	normalized, err := normalizeRechargeBonusTiers(tiers)
+	if err != nil {
+		return []RechargeBonusTier{}
+	}
+	return normalized
+}
+
+func normalizeRechargeBonusTiers(tiers []RechargeBonusTier) ([]RechargeBonusTier, error) {
+	if tiers == nil {
+		return nil, nil
+	}
+	normalized := make([]RechargeBonusTier, len(tiers))
+	seenThresholds := make(map[string]struct{}, len(tiers))
+	for i, tier := range tiers {
+		if math.IsNaN(tier.MinAmount) || math.IsInf(tier.MinAmount, 0) || tier.MinAmount < 0 {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier threshold_cny must be non-negative")
+		}
+		if math.IsNaN(tier.BonusPoints) || math.IsInf(tier.BonusPoints, 0) || tier.BonusPoints < 0 {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier bonus_points must be non-negative")
+		}
+		if !hasAtMostDecimalPlaces(tier.MinAmount, 2) {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier threshold_cny allows at most 2 decimal places")
+		}
+		if !hasAtMostDecimalPlaces(tier.BonusPoints, 8) {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier bonus_points allows at most 8 decimal places")
+		}
+		threshold := decimal.NewFromFloat(tier.MinAmount).Round(2)
+		bonus := decimal.NewFromFloat(tier.BonusPoints).Round(8)
+		tier.MinAmount = threshold.InexactFloat64()
+		tier.BonusPoints = bonus.InexactFloat64()
+		thresholdKey := threshold.StringFixed(2)
+		if _, exists := seenThresholds[thresholdKey]; exists {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier threshold_cny values must be unique")
+		}
+		seenThresholds[thresholdKey] = struct{}{}
+		normalized[i] = tier
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		return normalized[i].MinAmount < normalized[j].MinAmount
+	})
+	return normalized, nil
+}
+
+func hasAtMostDecimalPlaces(value float64, places int) bool {
+	amount := decimal.NewFromFloat(value)
+	return amount.Equal(amount.Round(int32(places)))
+}
+
+func formatBoolOrEmpty(v *bool) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.FormatBool(*v)
+}
+
+func formatPositiveFloat(v *float64) string {
+	if v == nil || *v <= 0 {
+		return "" // empty → parsePaymentConfig uses default
+	}
+	return strconv.FormatFloat(*v, 'f', 2, 64)
+}
+
+// formatPositiveFloatExact 保留完整精度，用于汇率等对小数位敏感的配置。
+func formatPositiveFloatExact(v *float64) string {
+	if v == nil || *v <= 0 {
+		return "" // empty → parsePaymentConfig 视为未配置（换算关闭）
+	}
+	return strconv.FormatFloat(*v, 'f', -1, 64)
+}
+
+func formatNonNegativeFloat(v *float64) string {
+	if v == nil || *v < 0 {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'f', 2, 64)
+}
+
+func formatPositiveInt(v *int) string {
+	if v == nil || *v <= 0 {
+		return ""
+	}
+	return strconv.Itoa(*v)
+}
+
+func derefStr(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+func splitTypes(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+func joinTypes(types []string) string {
+	return strings.Join(types, ",")
+}
+
+func pcParseFloat(s string, defaultVal float64) float64 {
+	if s == "" {
+		return defaultVal
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return defaultVal
+	}
+	return v
+}
+
+func pcParseInt(s string, defaultVal int) int {
+	if s == "" {
+		return defaultVal
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return v
+}
+
+func buildVisibleMethodSourceAvailability(instances []*dbent.PaymentProviderInstance) map[string]bool {
+	available := make(map[string]bool, 4)
+	for _, inst := range instances {
+		switch inst.ProviderKey {
+		case payment.TypeAlipay:
+			if inst.SupportedTypes == "" || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeAlipay) || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeAlipayDirect) {
+				available[VisibleMethodSourceOfficialAlipay] = true
+			}
+		case payment.TypeWxpay:
+			if inst.SupportedTypes == "" || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeWxpay) || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeWxpayDirect) {
+				available[VisibleMethodSourceOfficialWechat] = true
+			}
+		case payment.TypeEasyPay:
+			for _, supportedType := range splitTypes(inst.SupportedTypes) {
+				switch NormalizeVisibleMethod(supportedType) {
+				case payment.TypeAlipay:
+					available[VisibleMethodSourceEasyPayAlipay] = true
+				case payment.TypeWxpay:
+					available[VisibleMethodSourceEasyPayWechat] = true
+				}
+			}
+		}
+	}
+	return available
+}
+
+func applyVisibleMethodRoutingToEnabledTypes(base []string, vals map[string]string, available map[string]bool) []string {
+	shouldExpose := map[string]bool{
+		payment.TypeAlipay: visibleMethodShouldBeExposed(payment.TypeAlipay, vals, available),
+		payment.TypeWxpay:  visibleMethodShouldBeExposed(payment.TypeWxpay, vals, available),
+	}
+
+	seen := make(map[string]struct{}, len(base)+2)
+	out := make([]string, 0, len(base)+2)
+	appendType := func(paymentType string) {
+		paymentType = NormalizeVisibleMethod(paymentType)
+		if paymentType == "" {
+			return
+		}
+		if _, ok := seen[paymentType]; ok {
+			return
+		}
+		seen[paymentType] = struct{}{}
+		out = append(out, paymentType)
+	}
+
+	for _, paymentType := range base {
+		visibleMethod := NormalizeVisibleMethod(paymentType)
+		switch visibleMethod {
+		case payment.TypeAlipay, payment.TypeWxpay:
+			if shouldExpose[visibleMethod] {
+				appendType(visibleMethod)
+			}
+		default:
+			appendType(visibleMethod)
+		}
+	}
+
+	for _, visibleMethod := range []string{payment.TypeAlipay, payment.TypeWxpay} {
+		if shouldExpose[visibleMethod] {
+			appendType(visibleMethod)
+		}
+	}
+	return out
+}
+
+func visibleMethodShouldBeExposed(method string, vals map[string]string, available map[string]bool) bool {
+	enabledKey := visibleMethodEnabledSettingKey(method)
+	sourceKey := visibleMethodSourceSettingKey(method)
+	if enabledKey == "" || sourceKey == "" || vals[enabledKey] != "true" {
+		return false
+	}
+	source := NormalizeVisibleMethodSource(method, vals[sourceKey])
+	return source != "" && available[source]
+}
