@@ -15,6 +15,7 @@
         v-if="showsRateValue"
         :rate-multiplier="rateMultiplier"
         :user-rate-multiplier="userRateMultiplier"
+        :effective-rate-multiplier="effectiveRateMultiplier"
       />
       <template v-else>{{ labelText }}</template>
     </span>
@@ -39,6 +40,7 @@ interface Props {
   subscriptionType?: SubscriptionType
   rateMultiplier?: number
   userRateMultiplier?: number | null // 用户专属倍率
+  effectiveRateMultiplier?: number | null // 当前实际扣分倍率
   peakRateEnabled?: boolean
   peakStart?: string
   peakEnd?: string
@@ -58,6 +60,7 @@ const props = withDefaults(defineProps<Props>(), {
   showRate: true,
   daysRemaining: null,
   userRateMultiplier: null,
+  effectiveRateMultiplier: null,
   peakRateEnabled: false,
   alwaysShowRate: false
 })

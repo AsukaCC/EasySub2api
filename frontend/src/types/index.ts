@@ -585,6 +585,7 @@ export interface Group {
   description: string | null
   platform: GroupPlatform
 	rate_multiplier: number
+	effective_rate_multiplier?: number
 	level_rate_multipliers: Record<string, number>
 	dynamic_rate_rules: GroupDynamicRateRule[]
   rpm_limit?: number // Group-level RPM cap (0 = unlimited); overrides user-level rpm_limit when set

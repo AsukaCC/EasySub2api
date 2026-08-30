@@ -465,6 +465,7 @@
                   :subscription-type="option.subscriptionType"
                   :rate-multiplier="option.rate"
                   :user-rate-multiplier="option.userRate"
+                  :effective-rate-multiplier="option.effectiveRate"
                   :peak-rate-enabled="option.peakRateEnabled"
                   :peak-start="option.peakStart"
                   :peak-end="option.peakEnd"
@@ -1049,6 +1050,7 @@ interface GroupOption {
   description: string | null
   rate: number
   userRate: number | null
+  effectiveRate: number | null
   peakRateEnabled: boolean
   peakStart: string
   peakEnd: string
@@ -1297,6 +1299,7 @@ const groupOptions = computed<GroupOption[]>(() =>
     description: group.description,
     rate: group.rate_multiplier,
     userRate: userGroupRates.value[group.id] ?? null,
+    effectiveRate: group.effective_rate_multiplier ?? null,
     peakRateEnabled: group.peak_rate_enabled,
     peakStart: group.peak_start,
     peakEnd: group.peak_end,

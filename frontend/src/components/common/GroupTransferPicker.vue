@@ -29,6 +29,7 @@
               :platform="group.platform"
               :subscription-type="group.subscription_type"
               :rate-multiplier="group.rate_multiplier"
+              :effective-rate-multiplier="group.effective_rate_multiplier"
               :peak-rate-enabled="group.peak_rate_enabled"
               :peak-start="group.peak_start"
               :peak-end="group.peak_end"
@@ -62,6 +63,7 @@
               :platform="group.platform"
               :subscription-type="group.subscription_type"
               :rate-multiplier="group.rate_multiplier"
+              :effective-rate-multiplier="group.effective_rate_multiplier"
               :peak-rate-enabled="group.peak_rate_enabled"
               :peak-start="group.peak_start"
               :peak-end="group.peak_end"
@@ -91,6 +93,7 @@ interface GroupTransferGroup {
   platform: GroupPlatform
   subscription_type: SubscriptionType
   rate_multiplier: number
+  effective_rate_multiplier?: number
   peak_rate_enabled: boolean
   peak_start: string
   peak_end: string

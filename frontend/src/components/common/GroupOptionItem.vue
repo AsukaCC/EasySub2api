@@ -30,6 +30,7 @@
           <GroupRateDisplay
             :rate-multiplier="rateMultiplier"
             :user-rate-multiplier="userRateMultiplier"
+            :effective-rate-multiplier="effectiveRateMultiplier"
             show-label
           />
         </span>
@@ -73,6 +74,7 @@ interface Props {
   subscriptionType?: SubscriptionType
   rateMultiplier?: number
   userRateMultiplier?: number | null
+  effectiveRateMultiplier?: number | null
   peakRateEnabled?: boolean
   peakStart?: string
   peakEnd?: string
@@ -87,6 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
   selected: false,
   showCheckmark: true,
   userRateMultiplier: null,
+  effectiveRateMultiplier: null,
   peakRateEnabled: false
 })
 

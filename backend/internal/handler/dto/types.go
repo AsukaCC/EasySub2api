@@ -98,15 +98,16 @@ type APIKey struct {
 }
 
 type Group struct {
-	ID                   string                         `json:"id"`
-	Name                 string                         `json:"name"`
-	Description          string                         `json:"description"`
-	Platform             string                         `json:"platform"`
-	RateMultiplier       float64                        `json:"rate_multiplier"`
-	LevelRateMultipliers map[string]float64             `json:"level_rate_multipliers"`
-	DynamicRateRules     []service.GroupDynamicRateRule `json:"dynamic_rate_rules"`
-	IsExclusive          bool                           `json:"is_exclusive"`
-	Status               string                         `json:"status"`
+	ID                      string                         `json:"id"`
+	Name                    string                         `json:"name"`
+	Description             string                         `json:"description"`
+	Platform                string                         `json:"platform"`
+	RateMultiplier          float64                        `json:"rate_multiplier"`
+	EffectiveRateMultiplier *float64                       `json:"effective_rate_multiplier,omitempty"`
+	LevelRateMultipliers    map[string]float64             `json:"level_rate_multipliers"`
+	DynamicRateRules        []service.GroupDynamicRateRule `json:"dynamic_rate_rules"`
+	IsExclusive             bool                           `json:"is_exclusive"`
+	Status                  string                         `json:"status"`
 
 	SubscriptionType          string   `json:"subscription_type"`
 	DailyLimitUSD             *float64 `json:"daily_limit_usd"` // Legacy alias; value is platform points.

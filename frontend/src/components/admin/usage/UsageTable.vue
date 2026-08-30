@@ -191,7 +191,7 @@
         <template #cell-cost="{ row }">
           <div class="components-admin-usage-usage-table__panel-3">
             <div class="components-admin-usage-usage-table__panel-12">
-              <span class="components-admin-usage-usage-table__text-21">{{ formatPoints(row.actual_cost) }}</span>
+              <span class="components-admin-usage-usage-table__text-21">{{ formatUsagePoints(row.actual_cost) }}</span>
               <span
                 v-if="row.long_context_billing_applied"
                 data-testid="long-context-billing-marker"
@@ -478,7 +478,7 @@
           </div>
           <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.userBilled') }}</span>
-            <span class="components-admin-usage-usage-table__text-42">{{ formatPoints(tooltipData?.actual_cost) }}</span>
+            <span class="components-admin-usage-usage-table__text-42">{{ formatUsagePoints(tooltipData?.actual_cost) }}</span>
           </div>
           <!-- Account billing (separated from user billing) -->
           <template v-if="showAccountBilling">
@@ -508,7 +508,7 @@
 import { computed, nextTick, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
-import { formatDateTime, formatPoints, formatReasoningEffort } from '@/utils/format'
+import { formatDateTime, formatPointsFixed, formatReasoningEffort } from '@/utils/format'
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
@@ -568,6 +568,8 @@ interface Props {
   defaultSortOrder?: 'asc' | 'desc'
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
+  /** 扣除积分显示精度；用户端使用 6 位，后台保持默认 2 位。 */
+  costFractionDigits?: number
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
 }
@@ -579,6 +581,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   showAccountBilling: true,
   showUpstreamEndpoint: true,
+  costFractionDigits: 2,
   flat: false
 })
 const emit = defineEmits<{
@@ -592,6 +595,9 @@ const copiedRequestId = ref<string | null>(null)
 const showAccountBilling = props.showAccountBilling
 const showUpstreamEndpoint = props.showUpstreamEndpoint
 const ipGeoBatchLoading = ref(false)
+
+const formatUsagePoints = (amount: number | null | undefined) =>
+  formatPointsFixed(amount, props.costFractionDigits)
 
 const showIpGeoToolbar = computed(() => props.columns.some((col) => col.key === 'ip_address'))
 

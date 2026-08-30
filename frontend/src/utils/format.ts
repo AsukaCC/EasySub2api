@@ -97,6 +97,21 @@ export function formatPoints(amount: number | null | undefined, locale?: string)
   return `${formatPointAmount(amount, locale)} ${unit}`
 }
 
+/** Format a platform-point amount with an explicit fixed precision. */
+export function formatPointsFixed(
+  amount: number | null | undefined,
+  fractionDigits: number,
+  locale?: string,
+): string {
+  const digits = Math.min(20, Math.max(0, Math.trunc(fractionDigits)))
+  const unit = numberFormatLocale(locale) === 'zh-CN' ? '积分' : 'points'
+  const value = new Intl.NumberFormat(numberFormatLocale(locale), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(finiteAmount(amount))
+  return `${value} ${unit}`
+}
+
 function formatKnownCurrency(
   amount: number | null | undefined,
   currency: 'CNY' | 'USD',

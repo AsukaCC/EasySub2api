@@ -178,6 +178,7 @@
           :server-side-sort="true"
           :show-account-billing="false"
           :show-upstream-endpoint="false"
+          :cost-fraction-digits="6"
           default-sort-key="created_at"
           default-sort-order="desc"
           @sort="handleSort"

@@ -5,6 +5,7 @@ export default {
     justNow: '刚刚',
     peakRateTooltip: '高峰倍率：{window}',
     groupRateComparison: '原倍率 {original}x，当前可用最低倍率 {lowest}x',
+    groupRateActualComparison: '原倍率 {original}x，当前实际扣分倍率 {actual}x',
     peakRateImageNote: '；token 计费的图片 token 同样适用，图片按次计费不受高峰影响',
     save: '保存',
     saved: '保存成功',

@@ -19,7 +19,13 @@ import (
 
 // APIKeyHandler handles API key-related requests
 type APIKeyHandler struct {
-	apiKeyService *service.APIKeyService
+	apiKeyService    *service.APIKeyService
+	userLevelService *service.UserLevelService
+}
+
+// SetUserLevelService attaches the canonical rate-plan resolver used by request scheduling.
+func (h *APIKeyHandler) SetUserLevelService(userLevelService *service.UserLevelService) {
+	h.userLevelService = userLevelService
 }
 
 // NewAPIKeyHandler creates a new APIKeyHandler
@@ -335,9 +341,31 @@ func (h *APIKeyHandler) GetAvailableGroups(c *gin.Context) {
 		return
 	}
 
+	effectiveRates := make(map[string]float64, len(groups))
+	if h.userLevelService != nil && len(groups) > 0 {
+		groupIDs := make([]string, 0, len(groups))
+		for i := range groups {
+			groupIDs = append(groupIDs, groups[i].ID)
+		}
+		ranked, rankErr := h.userLevelService.RankGroups(
+			c.Request.Context(), subject.UserID, groupIDs, time.Now(), "",
+		)
+		if rankErr != nil {
+			response.ErrorFrom(c, rankErr)
+			return
+		}
+		for i := range ranked {
+			effectiveRates[ranked[i].Plan.GroupID] = ranked[i].Plan.EffectiveMultiplier
+		}
+	}
+
 	out := make([]dto.Group, 0, len(groups))
 	for i := range groups {
-		out = append(out, *dto.GroupFromService(&groups[i]))
+		groupDTO := dto.GroupFromService(&groups[i])
+		if effectiveRate, ok := effectiveRates[groups[i].ID]; ok {
+			groupDTO.EffectiveRateMultiplier = &effectiveRate
+		}
+		out = append(out, *groupDTO)
 	}
 	response.Success(c, out)
 }

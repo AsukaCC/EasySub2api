@@ -201,6 +201,7 @@ func ProvideHandlers(
 	apiKeyService *service.APIKeyService,
 ) *Handlers {
 	userHandler.SetUserLevelDependencies(userLevelService, apiKeyService)
+	apiKeyHandler.SetUserLevelService(userLevelService)
 	announcementHandler.SetUserLevelService(userLevelService)
 	if adminHandlers != nil && adminHandlers.Announcement != nil {
 		adminHandlers.Announcement.SetUserLevelService(userLevelService)

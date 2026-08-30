@@ -2,14 +2,18 @@
   <span
     v-if="rate.effective !== null"
     class="group-rate"
-    :class="{ 'group-rate--compared': rate.hasComparison }"
+    :class="{
+      'group-rate--compared': rate.hasComparison,
+      'group-rate--discount': rate.direction === 'lower',
+      'group-rate--surcharge': rate.direction === 'higher',
+    }"
     :title="comparisonTitle"
   >
     <template v-if="rate.hasComparison">
       <span class="group-rate__original">{{ formatMultiplier(rate.original!) }}x</span>
       <Icon name="arrowRight" size="xs" class="group-rate__arrow" />
     </template>
-    <span class="group-rate__minimum">{{ formatMultiplier(rate.effective) }}x</span>
+    <span class="group-rate__effective">{{ formatMultiplier(rate.effective) }}x</span>
     <span v-if="showLabel" class="group-rate__label">{{ t('admin.groups.rateLabel') }}</span>
   </span>
 </template>
@@ -23,9 +27,11 @@ import { formatMultiplier, lowestAvailableGroupRate } from '@/utils/formatters'
 const props = withDefaults(defineProps<{
   rateMultiplier?: number
   userRateMultiplier?: number | null
+  effectiveRateMultiplier?: number | null
   showLabel?: boolean
 }>(), {
   userRateMultiplier: null,
+  effectiveRateMultiplier: null,
   showLabel: false,
 })
 
@@ -33,20 +39,26 @@ const { t } = useI18n()
 
 const rate = computed(() => {
   const original = lowestAvailableGroupRate(props.rateMultiplier, null)
-  const effective = lowestAvailableGroupRate(props.rateMultiplier, props.userRateMultiplier)
+  const explicitEffective = lowestAvailableGroupRate(props.effectiveRateMultiplier, null)
+  const effective = explicitEffective
+    ?? lowestAvailableGroupRate(props.rateMultiplier, props.userRateMultiplier)
+  const difference = original !== null && effective !== null ? effective - original : 0
 
   return {
     original,
     effective,
-    hasComparison: original !== null && effective !== null && effective < original,
+    isActualRate: explicitEffective !== null,
+    hasComparison: original !== null && effective !== null && Math.abs(difference) > 1e-9,
+    direction: difference < 0 ? 'lower' : difference > 0 ? 'higher' : 'same',
   }
 })
 
 const comparisonTitle = computed(() => {
   if (!rate.value.hasComparison || rate.value.original === null || rate.value.effective === null) return undefined
-  return t('common.groupRateComparison', {
+  return t(rate.value.isActualRate ? 'common.groupRateActualComparison' : 'common.groupRateComparison', {
     original: formatMultiplier(rate.value.original),
     lowest: formatMultiplier(rate.value.effective),
+    actual: formatMultiplier(rate.value.effective),
   })
 })
 </script>
@@ -70,17 +82,26 @@ const comparisonTitle = computed(() => {
   color: var(--color-text-quaternary);
 }
 
-.group-rate__minimum {
+.group-rate__effective {
   font-weight: var(--font-weight-semibold);
 }
 
-.group-rate--compared .group-rate__minimum {
+.group-rate--compared .group-rate__effective {
   padding: 0.0625rem 0.25rem;
-  border: 1px solid color-mix(in srgb, var(--color-success) 32%, transparent);
   border-radius: var(--radius-sm);
+  box-shadow: 0 1px 0 var(--glass-highlight) inset;
+}
+
+.group-rate--discount .group-rate__effective {
+  border: 1px solid color-mix(in srgb, var(--color-success) 32%, transparent);
   background: var(--glass-tint-success);
   color: var(--color-text-success);
-  box-shadow: 0 1px 0 var(--glass-highlight) inset;
+}
+
+.group-rate--surcharge .group-rate__effective {
+  border: 1px solid color-mix(in srgb, var(--color-warning) 36%, transparent);
+  background: var(--glass-tint-warning);
+  color: var(--color-text-warning);
 }
 
 .group-rate__label {
