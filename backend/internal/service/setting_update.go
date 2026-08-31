@@ -344,6 +344,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// OEM设置
 	updates[SettingKeySiteName] = settings.SiteName
+	updates[SettingKeyThemeAccent] = normalizeThemeAccent(settings.ThemeAccent)
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
@@ -446,6 +447,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
+	updates[SettingKeySupportTicketsEnabled] = strconv.FormatBool(settings.SupportTicketsEnabled)
+	updates[SettingKeySupportTicketsUserVisible] = strconv.FormatBool(settings.SupportTicketsUserVisible)
+	updates[SettingKeySupportTicketAccountEnabled] = strconv.FormatBool(settings.SupportTicketAccountEnabled)
+	updates[SettingKeySupportTicketRefundEnabled] = strconv.FormatBool(settings.SupportTicketRefundEnabled)
 
 	// cyber 会话屏蔽开关 + TTL
 	updates[SettingKeyCyberSessionBlockEnabled] = strconv.FormatBool(settings.CyberSessionBlockEnabled)

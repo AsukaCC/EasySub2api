@@ -75,7 +75,17 @@ export default {
       groupPricingDesc: '配置分组计费规则',
       systemSettings: '系统设置',
       configureSystem: '配置系统设置',
-      failedToLoad: '加载仪表盘数据失败'
+      failedToLoad: '加载仪表盘数据失败',
+      accountQuotaTitle: '账号周额度',
+      accountQuotaHint: '按平台和分组汇总已记录的周额度；仪表盘不会主动探测上游。',
+      quotaAccounts: '个账号',
+      quotaRateLimited: '429 限流',
+      quotaAvailable: '可用',
+      quotaUnknown: '未知',
+      quotaRemaining: '剩余',
+      quotaModelsLimited: '个模型受限',
+      quotaNoAccounts: '暂无账号额度数据',
+      quotaLastObserved: '最近观测'
     },
 
     backup: {
@@ -1169,6 +1179,11 @@ export default {
         unsupportedTitle: '当前服务端不支持 Live',
         unsupportedMessage: '当前 EasySub2api 服务端无法生成 Live 所需的设备证明，即使开启也不能使用。是否仍然开启？',
         enableAnyway: '仍然开启'
+      },
+      ccsCodexWebsocket: {
+        title: 'CC-Switch Codex WebSocket',
+        allow: '导出时启用 WebSocket',
+        hint: '启用后，属于此 OpenAI 分组的密钥导入 CC-Switch 时会写入 supports_websockets 与 responses_websockets_v2。仅影响导出配置，请确保网关本身已启用 Responses WebSocket；部分旧版 CC-Switch 可能丢弃自定义 Codex 字段。'
       },
       invalidRequestFallback: {
         title: '无效请求兜底分组',

@@ -3,13 +3,13 @@
     <div v-if="loading" class="components-payment-stripe-payment-inline__panel-2">
       <div class="components-payment-stripe-payment-inline__panel-3"></div>
     </div>
-    <div v-else-if="initError" class="components-payment-stripe-payment-inline__panel-4 card">
+    <div v-else-if="initError" class="components-payment-stripe-payment-inline__panel-4 card-body card">
       <p class="components-payment-stripe-payment-inline__description">{{ initError }}</p>
       <button class="components-payment-stripe-payment-inline__action btn btn-secondary" @click="$emit('back')">{{ t('payment.result.backToRecharge') }}</button>
     </div>
     <!-- Success -->
     <template v-else-if="success">
-      <div class="components-payment-stripe-payment-inline__panel-5 card">
+      <div class="components-payment-stripe-payment-inline__panel-5 card-body card">
         <div class="components-payment-stripe-payment-inline__panel-6">
           <div class="components-payment-stripe-payment-inline__panel-7">
             <Icon name="check" size="lg" class="components-payment-stripe-payment-inline__icon" />
@@ -44,7 +44,7 @@
         </div>
       </div>
       <!-- Stripe Payment Element -->
-      <div class="components-payment-stripe-payment-inline__panel-5 card">
+      <div class="components-payment-stripe-payment-inline__panel-5 card-body card">
         <div ref="stripeMount" class="components-payment-stripe-payment-inline__panel-13"></div>
         <p v-if="error" class="components-payment-stripe-payment-inline__description-5">{{ error }}</p>
         <button class="components-payment-stripe-payment-inline__action-2 btn btn-stripe" :disabled="submitting || !ready" @click="handlePay">

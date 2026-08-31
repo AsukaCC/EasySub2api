@@ -61,3 +61,31 @@ describe('AppSidebar mobile visibility', () => {
     )
   })
 })
+
+describe('AppSidebar layout placement', () => {
+  it('keeps the desktop sidebar in document flow', () => {
+    const sidebarBlock = styleSource.match(/^\.sidebar \{[\s\S]*?\n\}/m)
+    expect(sidebarBlock?.[0]).not.toContain('position: fixed')
+    expect(sidebarBlock?.[0]).toContain('flex: 0 0 16rem')
+  })
+
+  it('uses a fixed drawer only below the desktop breakpoint', () => {
+    expect(styleSource).toMatch(
+      /@media \(max-width: 1023px\)\s*\{\s*\.sidebar \{\s*position: fixed;/,
+    )
+  })
+
+  it('collapses to an icon rail instead of hiding the sidebar', () => {
+    expect(componentSource).not.toContain('v-show="!sidebarCollapsed"')
+    expect(componentSource).not.toContain('admin-menu-trigger')
+    expect(styleSource).toContain('.sidebar--collapsed')
+    expect(styleSource).toContain('flex: 0 0 4.5rem')
+  })
+
+  it('opens a teleported secondary menu flyout when the icon rail is collapsed', () => {
+    expect(componentSource).toContain('sidebar-collapsed-flyout')
+    expect(componentSource).toContain("placement: 'right'")
+    expect(componentSource).toContain('onCollapsedGroupEnter')
+    expect(componentSource).toContain('<Teleport to="body">')
+  })
+})

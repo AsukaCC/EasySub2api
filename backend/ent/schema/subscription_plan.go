@@ -25,7 +25,14 @@ type SubscriptionPlan struct {
 
 func (SubscriptionPlan) Annotations() []schema.Annotation {
 	return []schema.Annotation{
-		entsql.Annotation{Table: "subscription_plans"},
+		entsql.Annotation{
+			Table: "subscription_plans",
+			Checks: map[string]string{
+				"subscription_plans_stock_nonnegative":   "stock_quantity IS NULL OR stock_quantity >= 0",
+				"subscription_plans_frozen_nonnegative":  "stock_frozen >= 0",
+				"subscription_plans_stock_covers_frozen": "stock_quantity IS NULL OR stock_quantity >= stock_frozen",
+			},
+		},
 	}
 }
 
@@ -64,6 +71,11 @@ func (SubscriptionPlan) Fields() []ent.Field {
 			Default(""),
 		field.Bool("for_sale").
 			Default(true),
+		field.Int("stock_quantity").
+			Optional().
+			Nillable(),
+		field.Int("stock_frozen").
+			Default(0),
 		field.Int("sort_order").
 			Default(0),
 		field.Time("created_at").

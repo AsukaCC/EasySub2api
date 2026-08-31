@@ -115,7 +115,7 @@ const options = computed(() => {
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-switch-rate-trend-chart__panel">
+  <div class="views-admin-ops-components-ops-switch-rate-trend-chart__panel card-body">
     <div class="views-admin-ops-components-ops-switch-rate-trend-chart__panel-2">
       <h3 class="views-admin-ops-components-ops-switch-rate-trend-chart__heading">
         <svg class="views-admin-ops-components-ops-switch-rate-trend-chart__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">

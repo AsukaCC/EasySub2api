@@ -47,6 +47,25 @@
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="views-admin-orders-plan-edit-dialog__text">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
       </div>
       <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
+      <div class="plan-stock">
+        <div class="plan-stock__toggle-row">
+          <label class="input-label">{{ t('payment.admin.stockControl') }}</label>
+          <button
+            type="button"
+            :class="['views-admin-orders-plan-edit-dialog__action', planForm.stock_enabled ? 'views-admin-orders-plan-edit-dialog__action-2' : 'views-admin-orders-plan-edit-dialog__action-3']"
+            @click="planForm.stock_enabled = !planForm.stock_enabled"
+          >
+            <span :class="['views-admin-orders-plan-edit-dialog__text-5', planForm.stock_enabled ? 'toggle-thumb--on' : 'views-admin-orders-plan-edit-dialog__text-6']" />
+          </button>
+        </div>
+        <div v-if="planForm.stock_enabled">
+          <label class="input-label">{{ t('payment.admin.stockQuantity') }}</label>
+          <input v-model.number="planForm.stock_quantity" type="number" step="1" :min="plan?.stock_frozen || 0" max="2147483647" class="input" required />
+          <p class="views-admin-orders-plan-edit-dialog__description">
+            {{ t('payment.admin.stockHint', { frozen: plan?.stock_frozen || 0 }) }}
+          </p>
+        </div>
+      </div>
       <div>
         <label class="input-label">{{ t('payment.admin.features') }}</label>
         <textarea v-model="planFeaturesText" rows="3" class="input" :placeholder="t('payment.admin.featuresPlaceholder')"></textarea>
@@ -109,7 +128,7 @@ const localeCode = computed(() => String(locale?.value || ''))
 const appStore = useAppStore()
 
 const saving = ref(false)
-const planForm = reactive({ name: '', group_id: null as string | null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+const planForm = reactive({ name: '', group_id: null as string | null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, stock_enabled: false, stock_quantity: 0 })
 const planFeaturesText = ref('')
 
 const validityUnitOptions = computed(() => [
@@ -142,10 +161,10 @@ function groupLimitPoints(points: number | null | undefined, legacy: number | nu
 watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price_points ?? props.plan.price, original_price: props.plan.original_price_points ?? props.plan.original_price ?? 0, validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
+    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price_points ?? props.plan.price, original_price: props.plan.original_price_points ?? props.plan.original_price ?? 0, validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, stock_enabled: props.plan.stock_enabled === true, stock_quantity: props.plan.stock_quantity ?? 0 })
     planFeaturesText.value = (props.plan.features || []).join('\n')
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, stock_enabled: false, stock_quantity: 0 })
     planFeaturesText.value = ''
   }
 })
@@ -163,6 +182,8 @@ function buildPlanPayload() {
     validity_unit: planForm.validity_unit,
     sort_order: planForm.sort_order,
     for_sale: planForm.for_sale,
+    stock_enabled: planForm.stock_enabled,
+    stock_quantity: planForm.stock_enabled ? planForm.stock_quantity : undefined,
     features,
   }
 }
@@ -180,6 +201,14 @@ async function handleSavePlan() {
     appStore.showError(t('payment.admin.validityRequired'))
     return
   }
+  if (planForm.stock_enabled && (
+    !Number.isInteger(planForm.stock_quantity)
+    || planForm.stock_quantity < (props.plan?.stock_frozen || 0)
+    || planForm.stock_quantity > 2147483647
+  )) {
+    appStore.showError(t('payment.admin.stockInvalid', { frozen: props.plan?.stock_frozen || 0 }))
+    return
+  }
   saving.value = true
   try {
     const data = buildPlanPayload()
@@ -192,3 +221,17 @@ async function handleSavePlan() {
   finally { saving.value = false }
 }
 </script>
+
+<style scoped>
+.plan-stock {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.plan-stock__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+</style>

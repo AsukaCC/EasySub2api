@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <div class="views-admin-settings-email-template-editor__panel-3">
+    <div class="views-admin-settings-email-template-editor__panel-3 card-body">
       <div
         v-if="loadingList"
         class="views-admin-settings-email-template-editor__panel-4"

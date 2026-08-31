@@ -254,6 +254,9 @@ func (Group) Fields() []ent.Field {
 		field.Bool("allow_live").
 			Default(false).
 			Comment("是否允许此 OpenAI 分组访问 Live 接口"),
+		field.Bool("ccs_codex_ws_enabled").
+			Default(false).
+			Comment("CC-Switch 导出此 OpenAI/Codex 分组时是否启用 Responses WebSocket"),
 		field.Bool("require_oauth_only").
 			Default(false).
 			Comment("仅允许非 apikey 类型账号关联到此分组"),

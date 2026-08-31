@@ -20,24 +20,25 @@
           <span>/</span>
           <span>{{ t('usage.out') }}: {{ formatTokens(stats?.total_output_tokens || 0) }}</span>
           <span>/</span>
-          <span class="components-admin-usage-usage-stats-cards__text" tabindex="0">
+          <span class="components-admin-usage-usage-stats-cards__text">
             <span>{{ cacheLabel() }}: {{ formatTokens(stats?.total_cache_tokens || 0) }}</span>
-            <svg
-              class="components-admin-usage-usage-stats-cards__icon-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span
-              class="components-admin-usage-usage-stats-cards__text-2"
-            >
+            <HelpTooltip width-class="w-64">
+              <template #trigger>
+                <svg
+                  class="components-admin-usage-usage-stats-cards__icon-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </template>
+              <span class="usage-cache-popover">
               <span class="components-admin-usage-usage-stats-cards__text-3">
                 {{ cacheDetailLabel() }}
               </span>
@@ -53,7 +54,8 @@
                   {{ formatTokens(stats?.total_cache_read_tokens || 0) }}
                 </span>
               </span>
-            </span>
+              </span>
+            </HelpTooltip>
           </span>
         </p>
       </div>
@@ -94,6 +96,7 @@ import { useI18n } from 'vue-i18n'
 import type { AdminUsageStatsResponse } from '@/api/admin/usage'
 import type { UsageStatsResponse } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import { formatPoints } from '@/utils/format'
 
 const props = withDefaults(defineProps<{
@@ -127,3 +130,11 @@ const formatTokens = (value: number) => {
 const cacheLabel = () => t('usage.cacheTotal')
 const cacheDetailLabel = () => t('usage.cacheBreakdown')
 </script>
+
+<style scoped>
+.usage-cache-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+</style>

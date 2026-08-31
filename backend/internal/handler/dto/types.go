@@ -153,6 +153,8 @@ type Group struct {
 	AllowMessagesDispatch bool `json:"allow_messages_dispatch"`
 	// OpenAI Live 接口开关
 	AllowLive bool `json:"allow_live"`
+	// CC-Switch Codex 导出 WebSocket 开关
+	CcsCodexWSEnabled bool `json:"ccs_codex_ws_enabled"`
 
 	// 账号过滤控制。
 	RequireOAuthOnly  bool `json:"require_oauth_only"`

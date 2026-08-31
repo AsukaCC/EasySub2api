@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="views-user-subscriptions-view__panel">
+    <div class="page-stack">
       <section>
         <h2 class="views-user-subscriptions-view__heading">
           {{ t('userSubscriptions.currentSubscriptions') }}
@@ -33,7 +33,7 @@
           <div
             v-for="subscription in subscriptions"
             :key="subscription.id"
-            class="views-user-subscriptions-view__panel-7"
+            class="views-user-subscriptions-view__panel-7 card card-hover"
             :class="platformBorderClass(subscription.group?.platform || '')"
           >
           <!-- Header -->
@@ -244,6 +244,57 @@
         </div>
       </section>
 
+      <section v-if="pendingSubscriptions.length > 0" class="pending-subscriptions">
+        <h2 class="views-user-subscriptions-view__heading">
+          {{ t('userSubscriptions.pendingSubscriptions') }}
+        </h2>
+        <div class="pending-subscriptions__grid">
+          <article
+            v-for="pending in pendingSubscriptions"
+            :key="pending.id"
+            class="pending-sub-card card"
+            :class="platformBorderClass(pending.platform)"
+          >
+            <div class="pending-sub-card__header">
+              <div>
+                <div class="pending-sub-card__title-row">
+                  <h3 class="pending-sub-card__title">
+                    {{ pending.group?.name || `Group #${pending.group_id}` }}
+                  </h3>
+                  <span :class="['badge', platformBadgeClass(pending.platform)]">
+                    {{ platformLabel(pending.platform) }}
+                  </span>
+                </div>
+                <p class="pending-sub-card__description">
+                  {{ t('userSubscriptions.fullValidity', { days: pending.validity_days }) }}
+                </p>
+              </div>
+              <span class="badge badge-warning">{{ t('userSubscriptions.status.pending') }}</span>
+            </div>
+            <dl class="pending-sub-card__details">
+              <div>
+                <dt>{{ t('userSubscriptions.expectedActivation') }}</dt>
+                <dd>{{ pending.expected_activation_at ? formatDateTimeToMinute(pending.expected_activation_at) : t('common.unknown') }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('userSubscriptions.source') }}</dt>
+                <dd>{{ t(`userSubscriptions.sources.${pending.source_type}`, pending.source_type) }}</dd>
+              </div>
+            </dl>
+            <p v-if="pending.last_error" class="pending-sub-card__error">
+              {{ pending.last_error }}
+            </p>
+            <button
+              type="button"
+              class="btn btn-danger pending-sub-card__activate"
+              @click="openActivationConfirm(pending)"
+            >
+              {{ t('userSubscriptions.activateNow') }}
+            </button>
+          </article>
+        </div>
+      </section>
+
       <section v-if="paymentEnabled">
         <h2 class="views-user-subscriptions-view__heading">
           {{ t('userSubscriptions.availableSubscriptions') }}
@@ -257,6 +308,16 @@
         />
       </section>
     </div>
+
+    <ConfirmDialog
+      :show="showActivationConfirm"
+      :title="t('userSubscriptions.activateNowTitle')"
+      :message="activationConfirmMessage"
+      :confirm-text="t('userSubscriptions.confirmActivateNow')"
+      danger
+      @confirm="activatePendingNow"
+      @cancel="closeActivationConfirm"
+    />
   </AppLayout>
 </template>
 
@@ -264,11 +325,13 @@
 import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useSubscriptionStore } from '@/stores/subscriptions'
 import subscriptionsAPI from '@/api/subscriptions'
-import type { UserSubscription } from '@/types'
+import type { PendingSubscription, UserSubscription } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import PaymentView from '@/views/user/PaymentView.vue'
 import Icon from '@/components/icons/Icon.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { formatDateTimeToMinute, formatPointAmount, formatPoints } from '@/utils/format'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
@@ -289,10 +352,15 @@ function platformAccentDotClass(p: string): string {
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const subscriptionStore = useSubscriptionStore()
 
 const paymentViewRef = ref<InstanceType<typeof PaymentView> | null>(null)
 const subscriptions = ref<UserSubscription[]>([])
+const pendingSubscriptions = ref<PendingSubscription[]>([])
 const loading = ref(true)
+const activating = ref(false)
+const selectedPending = ref<PendingSubscription | null>(null)
+const showActivationConfirm = computed(() => selectedPending.value !== null)
 const paymentEnabled = computed(
   () => appStore.cachedPublicSettings?.payment_enabled === true,
 )
@@ -328,12 +396,59 @@ function subscriptionPeakRateLabel(subscription: UserSubscription): string {
 async function loadSubscriptions() {
   try {
     loading.value = true
-    subscriptions.value = await subscriptionsAPI.getMySubscriptions()
+    const [current, pending] = await Promise.all([
+      subscriptionsAPI.getMySubscriptions(),
+      subscriptionsAPI.getPendingSubscriptions(),
+    ])
+    subscriptions.value = current
+    pendingSubscriptions.value = pending
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
     appStore.showError(t('userSubscriptions.failedToLoad'))
   } finally {
     loading.value = false
+  }
+}
+
+function openActivationConfirm(pending: PendingSubscription) {
+  selectedPending.value = pending
+}
+
+function closeActivationConfirm() {
+  if (!activating.value) selectedPending.value = null
+}
+
+const activationConfirmMessage = computed(() => {
+  if (!selectedPending.value) return ''
+  const blockers = subscriptions.value.filter(subscription =>
+    (subscription.status === 'active' || subscription.status === 'suspended')
+    && subscription.group?.platform === selectedPending.value?.platform,
+  )
+  const names = blockers.map(subscription => subscription.group?.name || `#${subscription.id}`).join('、')
+  return t('userSubscriptions.activateNowWarning', {
+    subscriptions: names || t('userSubscriptions.currentPlatformSubscription'),
+    days: selectedPending.value.validity_days,
+  })
+})
+
+async function activatePendingNow() {
+  if (!selectedPending.value || activating.value) return
+  activating.value = true
+  try {
+    await subscriptionsAPI.activatePendingNow(selectedPending.value.id)
+    appStore.showSuccess(t('userSubscriptions.activateNowSuccess'))
+    selectedPending.value = null
+    subscriptionStore.invalidateCache()
+    await Promise.all([
+      loadSubscriptions(),
+      subscriptionStore.fetchActiveSubscriptions(true),
+      subscriptionStore.fetchPendingSubscriptions(true),
+    ])
+  } catch (error) {
+    console.error('Failed to activate pending subscription:', error)
+    appStore.showError(t('userSubscriptions.activateNowFailed'))
+  } finally {
+    activating.value = false
   }
 }
 
@@ -426,3 +541,73 @@ onMounted(() => {
   loadSubscriptions()
 })
 </script>
+
+<style scoped>
+.pending-subscriptions,
+.pending-subscriptions__grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.pending-subscriptions__grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+.pending-sub-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.pending-sub-card__header,
+.pending-sub-card__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pending-sub-card__title-row {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.pending-sub-card__title {
+  color: var(--color-text-primary);
+  font-size: var(--type-card-size);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pending-sub-card__description,
+.pending-sub-card__details dt {
+  color: var(--color-text-tertiary);
+  font-size: var(--type-caption-size);
+}
+
+.pending-sub-card__details {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pending-sub-card__details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pending-sub-card__details dd {
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+.pending-sub-card__error {
+  color: var(--color-text-danger);
+  font-size: var(--type-caption-size);
+}
+
+.pending-sub-card__activate {
+  justify-self: end;
+}
+</style>

@@ -9,6 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type activatePendingSubscriptionRequest struct {
+	ConfirmForfeitCurrent bool `json:"confirm_forfeit_current"`
+}
+
 // SubscriptionSummaryItem represents a subscription item in summary
 type SubscriptionSummaryItem struct {
 	ID                 string  `json:"id"`
@@ -92,6 +96,42 @@ func (h *SubscriptionHandler) GetActive(c *gin.Context) {
 	response.Success(c, out)
 }
 
+// ListPending returns subscriptions waiting for the current platform term to end.
+func (h *SubscriptionHandler) ListPending(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	items, err := h.subscriptionService.ListPendingSubscriptions(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
+// ActivatePendingNow forfeits the current platform subscription and activates
+// the selected pending entitlement. Explicit confirmation is required.
+func (h *SubscriptionHandler) ActivatePendingNow(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	var req activatePendingSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.subscriptionService.ActivatePendingNow(c.Request.Context(), subject.UserID, c.Param("id"), req.ConfirmForfeitCurrent)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 // GetProgress handles getting subscription progress for current user
 // GET /api/v1/subscriptions/progress
 func (h *SubscriptionHandler) GetProgress(c *gin.Context) {
@@ -107,7 +147,6 @@ func (h *SubscriptionHandler) GetProgress(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-
 	result := make([]SubscriptionProgressInfo, 0, len(subscriptions))
 	for i := range subscriptions {
 		sub := &subscriptions[i]
@@ -136,6 +175,11 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 
 	// Get all active subscriptions
 	subscriptions, err := h.subscriptionService.ListActiveUserSubscriptions(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	pending, err := h.subscriptionService.ListPendingSubscriptions(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -187,15 +231,19 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 	}
 
 	summary := struct {
-		ActiveCount     int                       `json:"active_count"`
-		TotalUsedUSD    float64                   `json:"total_used_usd"`
-		TotalUsedPoints float64                   `json:"total_used_points"`
-		Subscriptions   []SubscriptionSummaryItem `json:"subscriptions"`
+		ActiveCount     int                           `json:"active_count"`
+		TotalUsedUSD    float64                       `json:"total_used_usd"`
+		TotalUsedPoints float64                       `json:"total_used_points"`
+		Subscriptions   []SubscriptionSummaryItem     `json:"subscriptions"`
+		PendingCount    int                           `json:"pending_count"`
+		Pending         []service.PendingSubscription `json:"pending"`
 	}{
 		ActiveCount:     len(subscriptions),
 		TotalUsedUSD:    totalUsed,
 		TotalUsedPoints: totalUsed,
 		Subscriptions:   items,
+		PendingCount:    len(pending),
+		Pending:         pending,
 	}
 
 	response.Success(c, summary)

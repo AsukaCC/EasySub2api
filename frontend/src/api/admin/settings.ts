@@ -476,6 +476,7 @@ export interface SystemSettings {
   auth_source_default_dingtalk_platform_quotas?: DefaultPlatformQuotasMap;
   // OEM settings
   site_name: string;
+  theme_accent?: string;
   site_logo: string;
   site_subtitle: string;
   api_base_url: string;
@@ -729,6 +730,12 @@ export interface SystemSettings {
   affiliate_enabled: boolean;
   affiliate_user_visible: boolean;
 
+  // Unified support tickets
+  support_tickets_enabled: boolean;
+  support_tickets_user_visible: boolean;
+  support_ticket_account_enabled: boolean;
+  support_ticket_refund_enabled: boolean;
+
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
@@ -810,6 +817,7 @@ export interface UpdateSettingsRequest {
   auth_source_default_google_platform_quotas?: DefaultPlatformQuotasMap;
   auth_source_default_dingtalk_platform_quotas?: DefaultPlatformQuotasMap;
   site_name?: string;
+  theme_accent?: string;
   site_logo?: string;
   site_subtitle?: string;
   api_base_url?: string;
@@ -1023,6 +1031,11 @@ export interface UpdateSettingsRequest {
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
   affiliate_user_visible?: boolean;
+
+  support_tickets_enabled?: boolean;
+  support_tickets_user_visible?: boolean;
+  support_ticket_account_enabled?: boolean;
+  support_ticket_refund_enabled?: boolean;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;

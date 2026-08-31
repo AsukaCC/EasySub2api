@@ -144,6 +144,7 @@ type SystemSettings struct {
 	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
 
 	SiteName                    string           `json:"site_name"`
+	ThemeAccent                 string           `json:"theme_accent"`
 	SiteLogo                    string           `json:"site_logo"`
 	SiteSubtitle                string           `json:"site_subtitle"`
 	APIBaseURL                  string           `json:"api_base_url"`
@@ -315,7 +316,11 @@ type SystemSettings struct {
 	ModelPlazaDescription string `json:"model_plaza_description"`
 
 	// 风控中心功能开关
-	RiskControlEnabled bool `json:"risk_control_enabled"`
+	RiskControlEnabled          bool `json:"risk_control_enabled"`
+	SupportTicketsEnabled       bool `json:"support_tickets_enabled"`
+	SupportTicketsUserVisible   bool `json:"support_tickets_user_visible"`
+	SupportTicketAccountEnabled bool `json:"support_ticket_account_enabled"`
+	SupportTicketRefundEnabled  bool `json:"support_ticket_refund_enabled"`
 
 	// cyber 会话屏蔽开关 + TTL
 	CyberSessionBlockEnabled    bool `json:"cyber_session_block_enabled"`
@@ -369,6 +374,7 @@ type PublicSettings struct {
 	AliyunCaptchaPrefix                 string                   `json:"aliyun_captcha_prefix"`
 	AliyunCaptchaRegion                 string                   `json:"aliyun_captcha_region"`
 	SiteName                            string                   `json:"site_name"`
+	ThemeAccent                         string                   `json:"theme_accent"`
 	SiteLogo                            string                   `json:"site_logo"`
 	SiteSubtitle                        string                   `json:"site_subtitle"`
 	APIBaseURL                          string                   `json:"api_base_url"`
@@ -418,7 +424,10 @@ type PublicSettings struct {
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
-	RiskControlEnabled bool `json:"risk_control_enabled"`
+	RiskControlEnabled          bool `json:"risk_control_enabled"`
+	SupportTicketsEnabled       bool `json:"support_tickets_enabled"`
+	SupportTicketAccountEnabled bool `json:"support_ticket_account_enabled"`
+	SupportTicketRefundEnabled  bool `json:"support_ticket_refund_enabled"`
 
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 }

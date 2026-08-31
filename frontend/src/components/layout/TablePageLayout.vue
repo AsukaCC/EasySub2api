@@ -104,8 +104,6 @@ onUnmounted(() => {
   flex: 1;
   overflow-x: auto;
   overflow-y: auto;
-  /* 确保横向滚动条显示在最底部 */
-  scrollbar-gutter: stable;
 }
 
 .table-scroll-container :deep(table) {

@@ -1,7 +1,7 @@
 <template>
   <div class="views-user-stripe-popup-view__panel">
     <div
-      class="views-user-stripe-popup-view__panel-2"
+      class="views-user-stripe-popup-view__panel-2 card-body modal-content"
     >
       <!-- Amount + Order ID -->
       <div v-if="amount" class="views-user-stripe-popup-view__panel-3">

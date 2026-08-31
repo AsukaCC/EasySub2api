@@ -70,7 +70,7 @@
           <!-- Content -->
           <div
             ref="markdownContainer"
-            class="views-user-custom-page-view__panel-8 markdown-page-content"
+            class="views-user-custom-page-view__panel-8 card-body markdown-page-content"
             v-html="renderedHtml"
             @scroll="onContentScroll"
           ></div>

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbent "github.com/AsukaCC/EasySub2api/ent"
+	"github.com/AsukaCC/EasySub2api/ent/pendingsubscription"
 	"github.com/AsukaCC/EasySub2api/internal/config"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
@@ -475,12 +476,12 @@ func (s *SubscriptionService) BulkAssignSubscription(ctx context.Context, input 
 	}
 
 	for _, userID := range input.UserIDs {
-		sub, reused, err := s.assignSubscriptionWithReuse(ctx, &AssignSubscriptionInput{
-			UserID:       userID,
-			GroupID:      input.GroupID,
-			ValidityDays: input.ValidityDays,
-			AssignedBy:   input.AssignedBy,
-			Notes:        input.Notes,
+		grant, err := s.GrantOrQueueSubscription(ctx, &SubscriptionGrantInput{
+			AssignSubscriptionInput: AssignSubscriptionInput{
+				UserID: userID, GroupID: input.GroupID, ValidityDays: input.ValidityDays,
+				AssignedBy: input.AssignedBy, Notes: input.Notes,
+			},
+			SourceType: "admin_bulk_assignment",
 		})
 		if err != nil {
 			result.FailedCount++
@@ -488,13 +489,12 @@ func (s *SubscriptionService) BulkAssignSubscription(ctx context.Context, input 
 			result.Statuses[userID] = "failed"
 		} else {
 			result.SuccessCount++
-			result.Subscriptions = append(result.Subscriptions, *sub)
-			if reused {
-				result.ReusedCount++
-				result.Statuses[userID] = "reused"
-			} else {
+			if grant.ActivationStatus == SubscriptionActivationPending {
+				result.Statuses[userID] = "pending"
+			} else if grant.Subscription != nil {
 				result.CreatedCount++
 				result.Statuses[userID] = "created"
+				result.Subscriptions = append(result.Subscriptions, *grant.Subscription)
 			}
 		}
 	}
@@ -610,8 +610,44 @@ func (s *SubscriptionService) RevokeSubscription(ctx context.Context, subscripti
 	if err := s.invalidateSubscriptionCaches(sub.UserID, sub.GroupID); err != nil {
 		return err
 	}
+	if err := s.refreshPendingActivationExpectation(ctx, sub.UserID, sub.GroupID); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func (s *SubscriptionService) refreshPendingActivationExpectation(ctx context.Context, userID, groupID string) error {
+	grp, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil || grp == nil {
+		return err
+	}
+	platform := strings.ToLower(strings.TrimSpace(grp.Platform))
+	if platform == "" {
+		return nil
+	}
+	blockers, err := currentPlatformSubscriptions(ctx, s.entClient, userID, platform, time.Now().UTC(), false)
+	if err != nil {
+		return err
+	}
+	update := s.entClient.PendingSubscription.Update().Where(
+		pendingsubscription.UserIDEQ(userID),
+		pendingsubscription.PlatformEQ(platform),
+		pendingsubscription.StatusEQ(PendingSubscriptionStatusPending),
+	)
+	if len(blockers) == 0 {
+		_, err = update.SetExpectedActivationAt(time.Now().UTC()).ClearBlockedBySubscriptionID().Save(ctx)
+		return err
+	}
+	expected := blockers[0].ExpiresAt
+	blockedBy := blockers[0].ID
+	for _, blocker := range blockers[1:] {
+		if blocker.ExpiresAt.After(expected) {
+			expected, blockedBy = blocker.ExpiresAt, blocker.ID
+		}
+	}
+	_, err = update.SetExpectedActivationAt(expected).SetBlockedBySubscriptionID(blockedBy).Save(ctx)
+	return err
 }
 
 // RestoreSubscription 恢复已撤销订阅
@@ -622,6 +658,29 @@ func (s *SubscriptionService) RestoreSubscription(ctx context.Context, subscript
 	}
 	if sub.DeletedAt == nil {
 		return nil, ErrSubscriptionNotRevoked
+	}
+	grp, groupErr := s.groupRepo.GetByID(ctx, sub.GroupID)
+	if groupErr != nil || grp == nil {
+		return nil, ErrSubscriptionRestoreConflict
+	}
+	platform := strings.ToLower(strings.TrimSpace(grp.Platform))
+	blockers, blockErr := currentPlatformSubscriptions(ctx, s.entClient, sub.UserID, platform, time.Now().UTC(), false)
+	if blockErr != nil {
+		return nil, blockErr
+	}
+	if len(blockers) > 0 {
+		return nil, ErrSubscriptionRestoreConflict
+	}
+	pendingExists, pendingErr := s.entClient.PendingSubscription.Query().Where(
+		pendingsubscription.UserIDEQ(sub.UserID),
+		pendingsubscription.PlatformEQ(platform),
+		pendingsubscription.StatusEQ(PendingSubscriptionStatusPending),
+	).Exist(ctx)
+	if pendingErr != nil {
+		return nil, pendingErr
+	}
+	if pendingExists {
+		return nil, ErrSubscriptionRestoreConflict
 	}
 
 	exists, err := s.userSubRepo.ExistsActiveByUserIDAndGroupID(ctx, sub.UserID, sub.GroupID)
@@ -711,6 +770,9 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 			defer cancel()
 			_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
 		}()
+	}
+	if err := s.refreshPendingActivationExpectation(ctx, sub.UserID, sub.GroupID); err != nil {
+		return nil, err
 	}
 
 	return s.userSubRepo.GetByID(ctx, subscriptionID)

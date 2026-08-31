@@ -993,6 +993,20 @@ func (_u *GroupUpdate) SetNillableAllowLive(v *bool) *GroupUpdate {
 	return _u
 }
 
+// SetCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field.
+func (_u *GroupUpdate) SetCcsCodexWsEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetCcsCodexWsEnabled(v)
+	return _u
+}
+
+// SetNillableCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableCcsCodexWsEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetCcsCodexWsEnabled(*v)
+	}
+	return _u
+}
+
 // SetRequireOauthOnly sets the "require_oauth_only" field.
 func (_u *GroupUpdate) SetRequireOauthOnly(v bool) *GroupUpdate {
 	_u.mutation.SetRequireOauthOnly(v)
@@ -1805,6 +1819,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AllowLive(); ok {
 		_spec.SetField(group.FieldAllowLive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CcsCodexWsEnabled(); ok {
+		_spec.SetField(group.FieldCcsCodexWsEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RequireOauthOnly(); ok {
 		_spec.SetField(group.FieldRequireOauthOnly, field.TypeBool, value)
@@ -3123,6 +3140,20 @@ func (_u *GroupUpdateOne) SetNillableAllowLive(v *bool) *GroupUpdateOne {
 	return _u
 }
 
+// SetCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field.
+func (_u *GroupUpdateOne) SetCcsCodexWsEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetCcsCodexWsEnabled(v)
+	return _u
+}
+
+// SetNillableCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableCcsCodexWsEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetCcsCodexWsEnabled(*v)
+	}
+	return _u
+}
+
 // SetRequireOauthOnly sets the "require_oauth_only" field.
 func (_u *GroupUpdateOne) SetRequireOauthOnly(v bool) *GroupUpdateOne {
 	_u.mutation.SetRequireOauthOnly(v)
@@ -3965,6 +3996,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AllowLive(); ok {
 		_spec.SetField(group.FieldAllowLive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CcsCodexWsEnabled(); ok {
+		_spec.SetField(group.FieldCcsCodexWsEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.RequireOauthOnly(); ok {
 		_spec.SetField(group.FieldRequireOauthOnly, field.TypeBool, value)

@@ -35,6 +35,10 @@ const (
 	FieldProductName = "product_name"
 	// FieldForSale holds the string denoting the for_sale field in the database.
 	FieldForSale = "for_sale"
+	// FieldStockQuantity holds the string denoting the stock_quantity field in the database.
+	FieldStockQuantity = "stock_quantity"
+	// FieldStockFrozen holds the string denoting the stock_frozen field in the database.
+	FieldStockFrozen = "stock_frozen"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -59,6 +63,8 @@ var Columns = []string{
 	FieldFeatures,
 	FieldProductName,
 	FieldForSale,
+	FieldStockQuantity,
+	FieldStockFrozen,
 	FieldSortOrder,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -97,6 +103,8 @@ var (
 	ProductNameValidator func(string) error
 	// DefaultForSale holds the default value on creation for the "for_sale" field.
 	DefaultForSale bool
+	// DefaultStockFrozen holds the default value on creation for the "stock_frozen" field.
+	DefaultStockFrozen int
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
 	DefaultSortOrder int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -170,6 +178,16 @@ func ByProductName(opts ...sql.OrderTermOption) OrderOption {
 // ByForSale orders the results by the for_sale field.
 func ByForSale(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldForSale, opts...).ToFunc()
+}
+
+// ByStockQuantity orders the results by the stock_quantity field.
+func ByStockQuantity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStockQuantity, opts...).ToFunc()
+}
+
+// ByStockFrozen orders the results by the stock_frozen field.
+func ByStockFrozen(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStockFrozen, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

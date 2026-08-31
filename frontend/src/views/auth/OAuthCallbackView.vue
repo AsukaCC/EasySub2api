@@ -1,7 +1,7 @@
 <template>
   <div class="views-auth-oauth-callback-view__panel">
     <div class="views-auth-oauth-callback-view__panel-2">
-      <div v-if="isProcessing" class="views-auth-oauth-callback-view__panel-3 card">
+      <div v-if="isProcessing" class="views-auth-oauth-callback-view__panel-3 card-body card">
         <div class="views-auth-oauth-callback-view__panel-4"></div>
         <h1 class="views-auth-oauth-callback-view__heading">
           {{ t('auth.oauth.callbackTitle') }}
@@ -11,7 +11,7 @@
         </p>
       </div>
 
-      <div v-else-if="needsRegistrationCompletion" class="views-auth-oauth-callback-view__panel-5 card">
+      <div v-else-if="needsRegistrationCompletion" class="views-auth-oauth-callback-view__panel-5 card-body card">
         <h1 class="views-auth-oauth-callback-view__heading-2">
           {{ t('auth.oidc.callbackTitle', { providerName }) }}
         </h1>
@@ -79,7 +79,7 @@
         </div>
       </div>
 
-      <div v-else-if="invalidCallback" class="views-auth-oauth-callback-view__panel-3 card">
+      <div v-else-if="invalidCallback" class="views-auth-oauth-callback-view__panel-3 card-body card">
         <h1 class="views-auth-oauth-callback-view__heading-2">
           {{ t('auth.oauth.invalidCallbackTitle') }}
         </h1>
@@ -91,7 +91,7 @@
         </button>
       </div>
 
-      <div v-else class="views-auth-oauth-callback-view__panel-5 card">
+      <div v-else class="views-auth-oauth-callback-view__panel-5 card-body card">
         <h1 class="views-auth-oauth-callback-view__heading-2">
           {{ t('auth.oauth.callbackTitle') }}
         </h1>

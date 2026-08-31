@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import subscriptionsAPI from '@/api/subscriptions'
-import type { UserSubscription } from '@/types'
+import type { PendingSubscription, UserSubscription } from '@/types'
 
 // Cache TTL: 60 seconds
 const CACHE_TTL_MS = 60_000
@@ -17,12 +17,14 @@ let requestGeneration = 0
 export const useSubscriptionStore = defineStore('subscriptions', () => {
   // State
   const activeSubscriptions = ref<UserSubscription[]>([])
+  const pendingSubscriptions = ref<PendingSubscription[]>([])
   const loading = ref(false)
   const loaded = ref(false)
   const lastFetchedAt = ref<number | null>(null)
 
   // In-flight request deduplication
   let activePromise: Promise<UserSubscription[]> | null = null
+  let pendingPromise: Promise<PendingSubscription[]> | null = null
 
   // Auto-refresh interval
   let pollerInterval: ReturnType<typeof setInterval> | null = null
@@ -82,6 +84,23 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
     return activePromise
   }
 
+  async function fetchPendingSubscriptions(force = false): Promise<PendingSubscription[]> {
+    if (pendingPromise && !force) return pendingPromise
+
+    const requestPromise = subscriptionsAPI
+      .getPendingSubscriptions()
+      .then((data) => {
+        pendingSubscriptions.value = data
+        return data
+      })
+      .finally(() => {
+        if (pendingPromise === requestPromise) pendingPromise = null
+      })
+
+    pendingPromise = requestPromise
+    return requestPromise
+  }
+
   /**
    * Start auto-refresh polling 
    */
@@ -111,7 +130,9 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
   function clear() {
     requestGeneration++
     activePromise = null
+    pendingPromise = null
     activeSubscriptions.value = []
+    pendingSubscriptions.value = []
     loaded.value = false
     lastFetchedAt.value = null
     stopPolling()
@@ -127,11 +148,13 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
   return {
     // State
     activeSubscriptions,
+    pendingSubscriptions,
     loading,
     hasActiveSubscriptions,
 
     // Actions
     fetchActiveSubscriptions,
+    fetchPendingSubscriptions,
     startPolling,
     stopPolling,
     clear,

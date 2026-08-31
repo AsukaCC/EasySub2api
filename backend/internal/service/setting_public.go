@@ -181,6 +181,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAliyunCaptchaRegion,
 		SettingKeyAPIKeyACLTrustForwardedIP,
 		SettingKeySiteName,
+		SettingKeyThemeAccent,
 		SettingKeySiteLogo,
 		SettingKeySiteSubtitle,
 		SettingKeyAPIBaseURL,
@@ -241,6 +242,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAffiliateEnabled,
 		SettingKeyAffiliateUserVisible,
 		SettingKeyRiskControlEnabled,
+		SettingKeySupportTicketsEnabled,
+		SettingKeySupportTicketsUserVisible,
+		SettingKeySupportTicketAccountEnabled,
+		SettingKeySupportTicketRefundEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
 
@@ -319,6 +324,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		AliyunCaptchaPrefix:                 settings[SettingKeyAliyunCaptchaPrefix],
 		AliyunCaptchaRegion:                 normalizeAliyunCaptchaRegion(settings[SettingKeyAliyunCaptchaRegion]),
 		SiteName:                            s.getStringOrDefault(settings, SettingKeySiteName, "EasySub2api"),
+		ThemeAccent:                         normalizeThemeAccent(settings[SettingKeyThemeAccent]),
 		SiteLogo:                            settings[SettingKeySiteLogo],
 		SiteSubtitle:                        s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                          settings[SettingKeyAPIBaseURL],
@@ -362,7 +368,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AffiliateEnabled: userFeatureAvailable(settings, SettingKeyAffiliateEnabled, SettingKeyAffiliateUserVisible, false),
 
-		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
+		RiskControlEnabled:          settings[SettingKeyRiskControlEnabled] == "true",
+		SupportTicketsEnabled:       userFeatureAvailable(settings, SettingKeySupportTicketsEnabled, SettingKeySupportTicketsUserVisible, false),
+		SupportTicketAccountEnabled: !isFalseSettingValue(settings[SettingKeySupportTicketAccountEnabled]),
+		SupportTicketRefundEnabled:  !isFalseSettingValue(settings[SettingKeySupportTicketRefundEnabled]),
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
 	}, nil
@@ -562,6 +571,7 @@ type PublicSettingsInjectionPayload struct {
 	AliyunCaptchaPrefix                 string                   `json:"aliyun_captcha_prefix"`
 	AliyunCaptchaRegion                 string                   `json:"aliyun_captcha_region"`
 	SiteName                            string                   `json:"site_name"`
+	ThemeAccent                         string                   `json:"theme_accent"`
 	SiteLogo                            string                   `json:"site_logo"`
 	SiteSubtitle                        string                   `json:"site_subtitle"`
 	APIBaseURL                          string                   `json:"api_base_url"`
@@ -607,13 +617,16 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
 	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
-	ChannelMonitorShowQuota    bool `json:"channel_monitor_show_quota"`
-	AvailableChannelsEnabled   bool `json:"available_channels_enabled"`
-	ModelPlazaEnabled          bool `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth      bool `json:"model_plaza_require_auth"`
-	AffiliateEnabled           bool `json:"affiliate_enabled"`
-	RiskControlEnabled         bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+	ChannelMonitorShowQuota     bool `json:"channel_monitor_show_quota"`
+	AvailableChannelsEnabled    bool `json:"available_channels_enabled"`
+	ModelPlazaEnabled           bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth       bool `json:"model_plaza_require_auth"`
+	AffiliateEnabled            bool `json:"affiliate_enabled"`
+	RiskControlEnabled          bool `json:"risk_control_enabled"`
+	SupportTicketsEnabled       bool `json:"support_tickets_enabled"`
+	SupportTicketAccountEnabled bool `json:"support_ticket_account_enabled"`
+	SupportTicketRefundEnabled  bool `json:"support_ticket_refund_enabled"`
+	AllowUserViewErrorRequests  bool `json:"allow_user_view_error_requests"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -649,6 +662,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AliyunCaptchaPrefix:                 settings.AliyunCaptchaPrefix,
 		AliyunCaptchaRegion:                 settings.AliyunCaptchaRegion,
 		SiteName:                            settings.SiteName,
+		ThemeAccent:                         settings.ThemeAccent,
 		SiteLogo:                            settings.SiteLogo,
 		SiteSubtitle:                        settings.SiteSubtitle,
 		APIBaseURL:                          settings.APIBaseURL,
@@ -692,6 +706,9 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
+		SupportTicketsEnabled:                settings.SupportTicketsEnabled,
+		SupportTicketAccountEnabled:          settings.SupportTicketAccountEnabled,
+		SupportTicketRefundEnabled:           settings.SupportTicketRefundEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
 }

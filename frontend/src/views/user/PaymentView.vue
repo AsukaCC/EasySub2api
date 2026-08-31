@@ -1,6 +1,6 @@
 <template>
   <component :is="embedded ? 'div' : AppLayout">
-    <div class="views-user-payment-view__panel">
+    <div :class="['page-stack', { 'page-stack--narrow': !embedded }]">
       <div v-if="loading" class="views-user-payment-view__panel-2">
         <div class="views-user-payment-view__panel-3"></div>
       </div>
@@ -89,6 +89,7 @@
                 :key="plan.id"
                 :plan="plan"
                 :active-subscriptions="activeSubscriptions"
+                :pending-platforms="pendingPlatforms"
                 @select="selectPlan"
               />
             </div>
@@ -231,6 +232,9 @@
         <p v-if="selectedPlan.description" class="subscription-dialog__desc">
           {{ selectedPlan.description }}
         </p>
+        <p v-if="selectedPlatformHasActive" class="subscription-dialog__queue-note">
+          {{ t('payment.subscriptionWillQueue') }}
+        </p>
         <!-- Rate + Limits grid -->
         <div class="subscription-dialog__limits-grid">
           <div class="subscription-dialog__limit-item">
@@ -335,6 +339,7 @@
           :key="plan.id"
           :plan="plan"
           :active-subscriptions="activeSubscriptions"
+          :pending-platforms="pendingPlatforms"
           @select="selectPlanFromModal"
         />
       </div>
@@ -423,6 +428,8 @@ const appStore = useAppStore()
 
 const user = computed(() => authStore.user)
 const activeSubscriptions = computed(() => subscriptionStore.activeSubscriptions)
+const pendingSubscriptions = computed(() => subscriptionStore.pendingSubscriptions)
+const pendingPlatforms = computed(() => pendingSubscriptions.value.map(item => item.platform))
 
 function getDaysRemaining(expiresAt: string): number {
   const diff = new Date(expiresAt).getTime() - Date.now()
@@ -791,7 +798,10 @@ const selectedPlanHasQuota = computed(() => selectedPlan.value
 const hasSufficientSubscriptionPoints = computed(() =>
   checkout.value.wallet.available_balance + 0.00000001 >= selectedPlanPricePoints.value)
 const canSubmitSubscription = computed(() =>
-  selectedPlan.value !== null && hasSufficientSubscriptionPoints.value)
+  selectedPlan.value !== null
+    && hasSufficientSubscriptionPoints.value
+    && !selectedPlanSoldOut.value
+    && !selectedPlatformHasPending.value)
 
 // Auto-switch to first available method when current selection can't handle the amount
 watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
@@ -831,6 +841,20 @@ const isRenewalSelectedPlan = computed(() => {
   )
 })
 
+const selectedPlanSoldOut = computed(() => selectedPlan.value?.stock_enabled === true
+  && (selectedPlan.value.stock_available ?? 0) <= 0)
+const selectedPlatformHasPending = computed(() => {
+  const platform = selectedPlan.value?.group_platform || ''
+  return platform !== '' && pendingPlatforms.value.includes(platform)
+})
+const selectedPlatformHasActive = computed(() => {
+  const platform = selectedPlan.value?.group_platform || ''
+  return platform !== '' && activeSubscriptions.value.some(
+    subscription => (subscription.status === 'active' || subscription.status === 'suspended')
+      && subscription.group?.platform === platform,
+  )
+})
+
 const planValiditySuffix = computed(() => {
   if (!selectedPlan.value) return ''
   return validitySuffixOf(selectedPlan.value, t)
@@ -845,12 +869,28 @@ function planPeakRateLabel(plan: SubscriptionPlan): string {
 }
 
 function selectPlan(plan: SubscriptionPlan) {
+  if (plan.stock_enabled === true && (plan.stock_available ?? 0) <= 0) {
+    appStore.showWarning(t('payment.errors.PLAN_SOLD_OUT'))
+    return
+  }
+  if (pendingPlatforms.value.includes(plan.group_platform || '')) {
+    appStore.showWarning(t('payment.errors.SUBSCRIPTION_PLATFORM_PENDING_EXISTS'))
+    return
+  }
   selectedPlan.value = plan
   errorMessage.value = ''
   showSubscriptionDialog.value = true
 }
 
 function selectPlanFromModal(plan: SubscriptionPlan) {
+  if (plan.stock_enabled === true && (plan.stock_available ?? 0) <= 0) {
+    appStore.showWarning(t('payment.errors.PLAN_SOLD_OUT'))
+    return
+  }
+  if (pendingPlatforms.value.includes(plan.group_platform || '')) {
+    appStore.showWarning(t('payment.errors.SUBSCRIPTION_PLATFORM_PENDING_EXISTS'))
+    return
+  }
   showRenewalModal.value = false
   renewGroupId.value = null
   selectedPlan.value = plan
@@ -946,10 +986,12 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: s
     const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
 	if (orderType === 'subscription' && !result.wallet_only) {
 	  throw new Error('Subscription checkout must be completed with platform points')
-	}
+    }
     if (result.wallet_only) {
+      const wasRenewal = isRenewalSelectedPlan.value
       await authStore.refreshUser()
       await subscriptionStore.fetchActiveSubscriptions(true)
+      await subscriptionStore.fetchPendingSubscriptions(true)
       try {
         const res = await paymentAPI.getCheckoutInfo()
         checkout.value = res.data
@@ -959,7 +1001,9 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: s
       showSubscriptionDialog.value = false
       selectedPlan.value = null
       emit('subscriptionUpdated')
-      appStore.showSuccess(isRenewalSelectedPlan.value ? t('userSubscriptions.renewSuccess') : t('payment.wallet.paymentSuccess'))
+      appStore.showSuccess(result.activation_status === 'pending'
+        ? t('payment.subscriptionQueued')
+        : wasRenewal ? t('userSubscriptions.renewSuccess') : t('payment.wallet.paymentSuccess'))
       return
     }
     const openWindow = (url: string) => {
@@ -1089,7 +1133,20 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: s
     }
   } catch (err: unknown) {
     const apiErr = err as Record<string, unknown>
-    if (apiErr.reason === 'TOO_MANY_PENDING') {
+    if (apiErr.reason === 'PLAN_SOLD_OUT') {
+      errorMessage.value = t('payment.errors.PLAN_SOLD_OUT')
+      errorHintMessage.value = ''
+      try {
+        const res = await paymentAPI.getCheckoutInfo()
+        checkout.value = res.data
+      } catch {
+        // Preserve the inventory conflict as the primary error.
+      }
+    } else if (apiErr.reason === 'SUBSCRIPTION_PLATFORM_PENDING_EXISTS') {
+      errorMessage.value = t('payment.errors.SUBSCRIPTION_PLATFORM_PENDING_EXISTS')
+      errorHintMessage.value = ''
+      await subscriptionStore.fetchPendingSubscriptions(true).catch(() => {})
+    } else if (apiErr.reason === 'TOO_MANY_PENDING') {
       const metadata = apiErr.metadata as Record<string, unknown> | undefined
       errorMessage.value = t('payment.errors.tooManyPending', { max: metadata?.max || '' })
       errorHintMessage.value = ''
@@ -1286,6 +1343,10 @@ onMounted(async () => {
   try {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
+    await Promise.allSettled([
+      subscriptionStore.fetchActiveSubscriptions(),
+      subscriptionStore.fetchPendingSubscriptions(),
+    ])
     if (enabledMethods.value.length) {
       const order: readonly string[] = METHOD_ORDER
       const sorted = [...enabledMethods.value].sort((a, b) => {
@@ -1339,8 +1400,6 @@ onMounted(async () => {
     }
   } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { loading.value = false }
-  // Fetch active subscriptions (uses cache, non-blocking)
-  subscriptionStore.fetchActiveSubscriptions().catch(() => {})
 })
 
 defineExpose({
@@ -1612,6 +1671,17 @@ defineExpose({
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   line-height: 1.5;
+}
+
+.subscription-dialog__queue-note {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-text-warning) 30%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--glass-tint-warning);
+  color: var(--color-text-warning);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line-height);
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
 }
 
 .subscription-dialog__limits-grid {

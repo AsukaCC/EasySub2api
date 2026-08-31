@@ -462,6 +462,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		ModelRouting:                    input.ModelRouting,
 		AllowMessagesDispatch:           input.AllowMessagesDispatch,
 		AllowLive:                       input.AllowLive,
+		CcsCodexWSEnabled:               input.CcsCodexWSEnabled,
 		RequireOAuthOnly:                input.RequireOAuthOnly,
 		RequirePrivacySet:               input.RequirePrivacySet,
 		DefaultMappedModel:              input.DefaultMappedModel,
@@ -474,6 +475,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	sanitizeGroupMessagesDispatchFields(group)
 	if group.Platform != PlatformOpenAI {
 		group.AllowLive = false
+		group.CcsCodexWSEnabled = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -808,6 +810,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id string, input *Up
 	if input.AllowLive != nil {
 		group.AllowLive = *input.AllowLive
 	}
+	if input.CcsCodexWSEnabled != nil {
+		group.CcsCodexWSEnabled = *input.CcsCodexWSEnabled
+	}
 	if input.RequireOAuthOnly != nil {
 		group.RequireOAuthOnly = *input.RequireOAuthOnly
 	}
@@ -843,6 +848,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id string, input *Up
 	sanitizeGroupMessagesDispatchFields(group)
 	if group.Platform != PlatformOpenAI {
 		group.AllowLive = false
+		group.CcsCodexWSEnabled = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
 

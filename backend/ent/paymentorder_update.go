@@ -873,6 +873,80 @@ func (_u *PaymentOrderUpdate) SetNillableStatus(v *string) *PaymentOrderUpdate {
 	return _u
 }
 
+// SetInventoryStatus sets the "inventory_status" field.
+func (_u *PaymentOrderUpdate) SetInventoryStatus(v string) *PaymentOrderUpdate {
+	_u.mutation.SetInventoryStatus(v)
+	return _u
+}
+
+// SetNillableInventoryStatus sets the "inventory_status" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableInventoryStatus(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetInventoryStatus(*v)
+	}
+	return _u
+}
+
+// SetInventoryReservedAt sets the "inventory_reserved_at" field.
+func (_u *PaymentOrderUpdate) SetInventoryReservedAt(v time.Time) *PaymentOrderUpdate {
+	_u.mutation.SetInventoryReservedAt(v)
+	return _u
+}
+
+// SetNillableInventoryReservedAt sets the "inventory_reserved_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableInventoryReservedAt(v *time.Time) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetInventoryReservedAt(*v)
+	}
+	return _u
+}
+
+// ClearInventoryReservedAt clears the value of the "inventory_reserved_at" field.
+func (_u *PaymentOrderUpdate) ClearInventoryReservedAt() *PaymentOrderUpdate {
+	_u.mutation.ClearInventoryReservedAt()
+	return _u
+}
+
+// SetInventoryConsumedAt sets the "inventory_consumed_at" field.
+func (_u *PaymentOrderUpdate) SetInventoryConsumedAt(v time.Time) *PaymentOrderUpdate {
+	_u.mutation.SetInventoryConsumedAt(v)
+	return _u
+}
+
+// SetNillableInventoryConsumedAt sets the "inventory_consumed_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableInventoryConsumedAt(v *time.Time) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetInventoryConsumedAt(*v)
+	}
+	return _u
+}
+
+// ClearInventoryConsumedAt clears the value of the "inventory_consumed_at" field.
+func (_u *PaymentOrderUpdate) ClearInventoryConsumedAt() *PaymentOrderUpdate {
+	_u.mutation.ClearInventoryConsumedAt()
+	return _u
+}
+
+// SetInventoryReleasedAt sets the "inventory_released_at" field.
+func (_u *PaymentOrderUpdate) SetInventoryReleasedAt(v time.Time) *PaymentOrderUpdate {
+	_u.mutation.SetInventoryReleasedAt(v)
+	return _u
+}
+
+// SetNillableInventoryReleasedAt sets the "inventory_released_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableInventoryReleasedAt(v *time.Time) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetInventoryReleasedAt(*v)
+	}
+	return _u
+}
+
+// ClearInventoryReleasedAt clears the value of the "inventory_released_at" field.
+func (_u *PaymentOrderUpdate) ClearInventoryReleasedAt() *PaymentOrderUpdate {
+	_u.mutation.ClearInventoryReleasedAt()
+	return _u
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_u *PaymentOrderUpdate) SetRefundAmount(v float64) *PaymentOrderUpdate {
 	_u.mutation.ResetRefundAmount()
@@ -1265,6 +1339,11 @@ func (_u *PaymentOrderUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.InventoryStatus(); ok {
+		if err := paymentorder.InventoryStatusValidator(v); err != nil {
+			return &ValidationError{Name: "inventory_status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.inventory_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ClientIP(); ok {
 		if err := paymentorder.ClientIPValidator(v); err != nil {
 			return &ValidationError{Name: "client_ip", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.client_ip": %w`, err)}
@@ -1529,6 +1608,27 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryStatus(); ok {
+		_spec.SetField(paymentorder.FieldInventoryStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryReservedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryReservedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InventoryReservedAtCleared() {
+		_spec.ClearField(paymentorder.FieldInventoryReservedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InventoryConsumedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryConsumedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InventoryConsumedAtCleared() {
+		_spec.ClearField(paymentorder.FieldInventoryConsumedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InventoryReleasedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryReleasedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InventoryReleasedAtCleared() {
+		_spec.ClearField(paymentorder.FieldInventoryReleasedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.RefundAmount(); ok {
 		_spec.SetField(paymentorder.FieldRefundAmount, field.TypeFloat64, value)
@@ -2504,6 +2604,80 @@ func (_u *PaymentOrderUpdateOne) SetNillableStatus(v *string) *PaymentOrderUpdat
 	return _u
 }
 
+// SetInventoryStatus sets the "inventory_status" field.
+func (_u *PaymentOrderUpdateOne) SetInventoryStatus(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetInventoryStatus(v)
+	return _u
+}
+
+// SetNillableInventoryStatus sets the "inventory_status" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableInventoryStatus(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetInventoryStatus(*v)
+	}
+	return _u
+}
+
+// SetInventoryReservedAt sets the "inventory_reserved_at" field.
+func (_u *PaymentOrderUpdateOne) SetInventoryReservedAt(v time.Time) *PaymentOrderUpdateOne {
+	_u.mutation.SetInventoryReservedAt(v)
+	return _u
+}
+
+// SetNillableInventoryReservedAt sets the "inventory_reserved_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableInventoryReservedAt(v *time.Time) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetInventoryReservedAt(*v)
+	}
+	return _u
+}
+
+// ClearInventoryReservedAt clears the value of the "inventory_reserved_at" field.
+func (_u *PaymentOrderUpdateOne) ClearInventoryReservedAt() *PaymentOrderUpdateOne {
+	_u.mutation.ClearInventoryReservedAt()
+	return _u
+}
+
+// SetInventoryConsumedAt sets the "inventory_consumed_at" field.
+func (_u *PaymentOrderUpdateOne) SetInventoryConsumedAt(v time.Time) *PaymentOrderUpdateOne {
+	_u.mutation.SetInventoryConsumedAt(v)
+	return _u
+}
+
+// SetNillableInventoryConsumedAt sets the "inventory_consumed_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableInventoryConsumedAt(v *time.Time) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetInventoryConsumedAt(*v)
+	}
+	return _u
+}
+
+// ClearInventoryConsumedAt clears the value of the "inventory_consumed_at" field.
+func (_u *PaymentOrderUpdateOne) ClearInventoryConsumedAt() *PaymentOrderUpdateOne {
+	_u.mutation.ClearInventoryConsumedAt()
+	return _u
+}
+
+// SetInventoryReleasedAt sets the "inventory_released_at" field.
+func (_u *PaymentOrderUpdateOne) SetInventoryReleasedAt(v time.Time) *PaymentOrderUpdateOne {
+	_u.mutation.SetInventoryReleasedAt(v)
+	return _u
+}
+
+// SetNillableInventoryReleasedAt sets the "inventory_released_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableInventoryReleasedAt(v *time.Time) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetInventoryReleasedAt(*v)
+	}
+	return _u
+}
+
+// ClearInventoryReleasedAt clears the value of the "inventory_released_at" field.
+func (_u *PaymentOrderUpdateOne) ClearInventoryReleasedAt() *PaymentOrderUpdateOne {
+	_u.mutation.ClearInventoryReleasedAt()
+	return _u
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_u *PaymentOrderUpdateOne) SetRefundAmount(v float64) *PaymentOrderUpdateOne {
 	_u.mutation.ResetRefundAmount()
@@ -2909,6 +3083,11 @@ func (_u *PaymentOrderUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.InventoryStatus(); ok {
+		if err := paymentorder.InventoryStatusValidator(v); err != nil {
+			return &ValidationError{Name: "inventory_status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.inventory_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ClientIP(); ok {
 		if err := paymentorder.ClientIPValidator(v); err != nil {
 			return &ValidationError{Name: "client_ip", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.client_ip": %w`, err)}
@@ -3190,6 +3369,27 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryStatus(); ok {
+		_spec.SetField(paymentorder.FieldInventoryStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.InventoryReservedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryReservedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InventoryReservedAtCleared() {
+		_spec.ClearField(paymentorder.FieldInventoryReservedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InventoryConsumedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryConsumedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InventoryConsumedAtCleared() {
+		_spec.ClearField(paymentorder.FieldInventoryConsumedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.InventoryReleasedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryReleasedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InventoryReleasedAtCleared() {
+		_spec.ClearField(paymentorder.FieldInventoryReleasedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.RefundAmount(); ok {
 		_spec.SetField(paymentorder.FieldRefundAmount, field.TypeFloat64, value)

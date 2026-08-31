@@ -1,7 +1,7 @@
 <template>
     <div class="views-admin-backup-view__panel settings-backup-content">
       <!-- S3 Storage Config -->
-      <div class="views-admin-backup-view__panel-2 card">
+      <div class="views-admin-backup-view__panel-2 card-body card">
         <div class="views-admin-backup-view__panel-3">
           <div>
             <h3 class="views-admin-backup-view__heading">
@@ -55,7 +55,7 @@
       </div>
 
       <!-- Async image object storage -->
-      <div class="views-admin-backup-view__panel-2 card">
+      <div class="views-admin-backup-view__panel-2 card-body card">
         <div class="views-admin-backup-view__panel-3">
           <div>
             <h3 class="views-admin-backup-view__heading">
@@ -130,7 +130,7 @@
       </div>
 
       <!-- Schedule Config -->
-      <div class="views-admin-backup-view__panel-2 card">
+      <div class="views-admin-backup-view__panel-2 card-body card">
         <div class="views-admin-backup-view__panel-7">
           <h3 class="views-admin-backup-view__heading">
             {{ t('admin.backup.schedule.title') }}
@@ -168,7 +168,7 @@
       </div>
 
       <!-- Backup Operations -->
-      <div class="views-admin-backup-view__panel-2 card">
+      <div class="views-admin-backup-view__panel-2 card-body card">
         <div class="views-admin-backup-view__panel-3">
           <div>
             <h3 class="views-admin-backup-view__heading">
@@ -276,7 +276,7 @@
       <transition name="modal">
         <div v-if="showR2Guide" class="views-admin-backup-view__panel-13" @mousedown.self="showR2Guide = false">
           <div class="views-admin-backup-view__panel-14" @click="showR2Guide = false"></div>
-          <div class="views-admin-backup-view__panel-15">
+          <div class="views-admin-backup-view__panel-15 card-body">
             <button type="button" class="views-admin-backup-view__action-2" @click="showR2Guide = false">
               <svg class="views-admin-backup-view__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -363,7 +363,7 @@
           @mousedown.self="closeDownloadParts"
         >
           <div class="views-admin-backup-view__panel-14" @click="closeDownloadParts"></div>
-          <div class="views-admin-backup-view__panel-21">
+          <div class="views-admin-backup-view__panel-21 card-body">
             <button
               type="button"
               class="views-admin-backup-view__action-2"

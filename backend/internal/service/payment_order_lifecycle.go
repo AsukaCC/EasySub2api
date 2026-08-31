@@ -132,6 +132,9 @@ func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, 
 		return "", fmt.Errorf("update order status: %w", err)
 	}
 	if c > 0 {
+		if releaseErr := s.releaseSubscriptionInventory(ctx, o.ID); releaseErr != nil {
+			return "", fmt.Errorf("release subscription inventory: %w", releaseErr)
+		}
 		if o.WalletHoldID != nil && strings.TrimSpace(*o.WalletHoldID) != "" {
 			if _, releaseErr := s.userRepo.ReleaseWalletHold(ctx, *o.WalletHoldID, strings.ToLower(fs)); releaseErr != nil {
 				return "", fmt.Errorf("release subscription wallet hold: %w", releaseErr)

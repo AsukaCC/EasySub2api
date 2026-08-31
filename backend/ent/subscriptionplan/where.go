@@ -119,6 +119,16 @@ func ForSale(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldForSale, v))
 }
 
+// StockQuantity applies equality check predicate on the "stock_quantity" field. It's identical to StockQuantityEQ.
+func StockQuantity(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStockQuantity, v))
+}
+
+// StockFrozen applies equality check predicate on the "stock_frozen" field. It's identical to StockFrozenEQ.
+func StockFrozen(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStockFrozen, v))
+}
+
 // SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
 func SortOrder(v int) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSortOrder, v))
@@ -727,6 +737,96 @@ func ForSaleEQ(v bool) predicate.SubscriptionPlan {
 // ForSaleNEQ applies the NEQ predicate on the "for_sale" field.
 func ForSaleNEQ(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldForSale, v))
+}
+
+// StockQuantityEQ applies the EQ predicate on the "stock_quantity" field.
+func StockQuantityEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStockQuantity, v))
+}
+
+// StockQuantityNEQ applies the NEQ predicate on the "stock_quantity" field.
+func StockQuantityNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldStockQuantity, v))
+}
+
+// StockQuantityIn applies the In predicate on the "stock_quantity" field.
+func StockQuantityIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldStockQuantity, vs...))
+}
+
+// StockQuantityNotIn applies the NotIn predicate on the "stock_quantity" field.
+func StockQuantityNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldStockQuantity, vs...))
+}
+
+// StockQuantityGT applies the GT predicate on the "stock_quantity" field.
+func StockQuantityGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldStockQuantity, v))
+}
+
+// StockQuantityGTE applies the GTE predicate on the "stock_quantity" field.
+func StockQuantityGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldStockQuantity, v))
+}
+
+// StockQuantityLT applies the LT predicate on the "stock_quantity" field.
+func StockQuantityLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldStockQuantity, v))
+}
+
+// StockQuantityLTE applies the LTE predicate on the "stock_quantity" field.
+func StockQuantityLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldStockQuantity, v))
+}
+
+// StockQuantityIsNil applies the IsNil predicate on the "stock_quantity" field.
+func StockQuantityIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldStockQuantity))
+}
+
+// StockQuantityNotNil applies the NotNil predicate on the "stock_quantity" field.
+func StockQuantityNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldStockQuantity))
+}
+
+// StockFrozenEQ applies the EQ predicate on the "stock_frozen" field.
+func StockFrozenEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStockFrozen, v))
+}
+
+// StockFrozenNEQ applies the NEQ predicate on the "stock_frozen" field.
+func StockFrozenNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldStockFrozen, v))
+}
+
+// StockFrozenIn applies the In predicate on the "stock_frozen" field.
+func StockFrozenIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldStockFrozen, vs...))
+}
+
+// StockFrozenNotIn applies the NotIn predicate on the "stock_frozen" field.
+func StockFrozenNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldStockFrozen, vs...))
+}
+
+// StockFrozenGT applies the GT predicate on the "stock_frozen" field.
+func StockFrozenGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldStockFrozen, v))
+}
+
+// StockFrozenGTE applies the GTE predicate on the "stock_frozen" field.
+func StockFrozenGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldStockFrozen, v))
+}
+
+// StockFrozenLT applies the LT predicate on the "stock_frozen" field.
+func StockFrozenLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldStockFrozen, v))
+}
+
+// StockFrozenLTE applies the LTE predicate on the "stock_frozen" field.
+func StockFrozenLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldStockFrozen, v))
 }
 
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.

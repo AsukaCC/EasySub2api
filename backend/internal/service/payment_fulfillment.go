@@ -548,6 +548,9 @@ func (s *PaymentService) ExecuteSubscriptionFulfillment(ctx context.Context, oid
 	if err := s.doSub(ctx, o, lease); err != nil {
 		s.releaseFailedSubscriptionWalletHold(ctx, o)
 		s.markFailed(ctx, oid, lease, err)
+		if releaseErr := s.releaseSubscriptionInventory(ctx, oid); releaseErr != nil {
+			slog.Error("release failed subscription inventory", "orderID", oid, "error", releaseErr)
+		}
 		return err
 	}
 	return nil
@@ -642,15 +645,23 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		case lookupErr != nil && !errors.Is(lookupErr, ErrSubscriptionNotFound):
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
-			if _, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
+			grant, err := s.subscriptionSvc.GrantOrQueueSubscription(txCtx, &SubscriptionGrantInput{AssignSubscriptionInput: AssignSubscriptionInput{
 				UserID:       o.UserID,
 				GroupID:      groupID,
 				ValidityDays: days,
 				AssignedBy:   "",
 				Notes:        orderNote,
-			}, true); err != nil {
+			}, SourceType: "payment_order", SourceID: o.ID})
+			if err != nil {
 				return fmt.Errorf("assign subscription: %w", err)
 			}
+			if grant != nil && grant.ActivationStatus == SubscriptionActivationPending {
+				recoveredFromNote = false
+			}
+		}
+
+		if err := s.consumeSubscriptionInventoryTx(txCtx, txClient, o.ID); err != nil {
+			return err
 		}
 
 		detail, _ := json.Marshal(map[string]any{
@@ -676,6 +687,9 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		}
 	} else {
 		slog.Info("subscription already assigned for order, skipping", "orderID", o.ID, "groupID", groupID)
+		if err := s.consumeSubscriptionInventoryTx(txCtx, txClient, o.ID); err != nil {
+			return err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

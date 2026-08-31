@@ -32,7 +32,7 @@
 
       <section
         v-else-if="loadError"
-        class="views-public-legal-document-view__section"
+        class="views-public-legal-document-view__section card-body"
       >
         <h1 class="views-public-legal-document-view__heading">{{ t('legal.loadFailed') }}</h1>
         <p class="views-public-legal-document-view__description">{{ t('legal.retryLater') }}</p>
@@ -40,7 +40,7 @@
 
       <section
         v-else-if="!currentDocument"
-        class="views-public-legal-document-view__section-2"
+        class="views-public-legal-document-view__section-2 card-body"
       >
         <div class="views-public-legal-document-view__panel-5">
           <span class="views-public-legal-document-view__text-5">

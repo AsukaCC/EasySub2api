@@ -13,7 +13,7 @@
 
       <!-- Invalid Link State -->
       <div v-if="isInvalidLink" class="views-auth-reset-password-view__panel">
-        <div class="views-auth-reset-password-view__panel-3">
+        <div class="views-auth-reset-password-view__panel-3 card-body">
           <div class="views-auth-reset-password-view__panel-4">
             <div class="views-auth-reset-password-view__panel-5">
               <Icon name="exclamationCircle" size="lg" class="views-auth-reset-password-view__icon" />
@@ -41,7 +41,7 @@
 
       <!-- Success State -->
       <div v-else-if="isSuccess" class="views-auth-reset-password-view__panel">
-        <div class="views-auth-reset-password-view__panel-6">
+        <div class="views-auth-reset-password-view__panel-6 card-body">
           <div class="views-auth-reset-password-view__panel-4">
             <div class="views-auth-reset-password-view__panel-7">
               <Icon name="checkCircle" size="lg" class="views-auth-reset-password-view__icon-2" />

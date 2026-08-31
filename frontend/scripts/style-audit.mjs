@@ -134,10 +134,20 @@ for (const token of pairedThemeTokens) {
 
 const canonicalLayerMappings = [
   ['src/styles/glass.scss', '@include glass-surface(floating'],
-  ['src/styles/glass.scss', '@include glass-surface(modal'],
+  ['src/styles/glass.scss', '@include glass-surface(modal, true'],
+  ['src/styles/glass.scss', '.glass-popover'],
+  ['src/styles/_feedback.scss', '.dropdown--portal'],
+  ['src/styles/_feedback.scss', '.filter-toolbar'],
+  ['src/styles/_tokens.scss', '--theme-accent'],
   ['src/components/common/Select.vue', 'var(--glass-layer-floating-bg)'],
   ['src/styles/_feedback.scss', 'var(--glass-layer-scrim-bg)'],
 ]
+
+const pagesPath = join(sourceRoot, 'styles', '_pages.scss')
+const pagesSource = await readFile(pagesPath, 'utf8')
+if (pagesSource.includes('--glass-layer-floating-bg') || pagesSource.includes('--glass-bg-thick')) {
+  failures.push('src/styles/_pages.scss [glass-material-copy] page overrides must not redeclare floating/thick glass material')
+}
 for (const [relativePath, requiredSource] of canonicalLayerMappings) {
   const source = await readFile(join(frontendRoot, relativePath), 'utf8')
   if (!source.includes(requiredSource)) {

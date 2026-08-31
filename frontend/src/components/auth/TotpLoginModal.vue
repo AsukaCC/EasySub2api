@@ -1,9 +1,9 @@
 <template>
-  <div class="components-auth-totp-login-modal__panel">
-    <div class="components-auth-totp-login-modal__panel-2">
+  <div class="components-auth-totp-login-modal__panel modal-overlay">
+    <div class="components-auth-totp-login-modal__panel-2 modal-content">
       <div class="components-auth-totp-login-modal__panel-3"></div>
 
-      <div class="components-auth-totp-login-modal__panel-4">
+      <div class="components-auth-totp-login-modal__panel-4 card-body">
         <!-- Header -->
         <div class="components-auth-totp-login-modal__panel-5">
           <div class="components-auth-totp-login-modal__panel-6">

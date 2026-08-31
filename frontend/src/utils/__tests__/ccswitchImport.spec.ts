@@ -11,6 +11,11 @@ function paramsFromDeeplink(deeplink: string): URLSearchParams {
   return new URLSearchParams(query)
 }
 
+function decodeBase64Utf8(value: string): string {
+  const bytes = Uint8Array.from(atob(value), character => character.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
+
 describe('ccswitchImport utils', () => {
   it('defaults OpenAI CC Switch imports to the current Codex model', () => {
     expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-5.5')
@@ -41,6 +46,27 @@ describe('ccswitchImport utils', () => {
     expect(params.get('endpoint')).toBe(baseInput.baseUrl)
     expect(params.get('model')).toBe(OPENAI_CC_SWITCH_CODEX_MODEL)
     expect(atob(params.get('usageScript') || '')).toBe(baseInput.usageScript)
+    const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
+    expect(payload.auth.OPENAI_API_KEY).toBe(baseInput.apiKey)
+    expect(payload.config).toContain('supports_websockets = false')
+    expect(payload.config).toContain('responses_websockets_v2 = false')
+  })
+
+  it('adds WebSocket support to the Codex configuration when enabled by admin settings', () => {
+    const params = paramsFromDeeplink(
+      buildCcSwitchImportDeeplink({
+        ...baseInput,
+        providerName: '测试站点',
+        platform: 'openai',
+        clientType: 'claude',
+        codexWebsocketEnabled: true
+      })
+    )
+
+    const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
+    expect(payload.config).toContain('name = "测试站点"')
+    expect(payload.config).toContain('supports_websockets = true')
+    expect(payload.config).toContain('responses_websockets_v2 = true')
   })
 
   it.each([

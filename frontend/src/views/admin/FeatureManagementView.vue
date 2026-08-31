@@ -56,6 +56,14 @@
                 @update:model-value="updateFeature(feature, 'visible', $event)"
               />
             </label>
+            <label v-for="secondary in feature.secondaryKeys" :key="secondary.key" class="feature-management__switch">
+              <span>{{ t(secondary.labelKey) }}</span>
+              <Toggle
+                :model-value="state[secondary.key]"
+                :disabled="saving.has(feature.id) || !state[feature.enabledKey]"
+                @update:model-value="updateFeature(feature, secondary.key, $event)"
+              />
+            </label>
             <RouterLink class="btn btn-secondary feature-management__configure" :to="feature.configPath">
               <Icon name="cog" size="sm" />
               {{ t('admin.settings.featureManagement.configure') }}
@@ -85,12 +93,16 @@ type EnabledKey =
   | 'affiliate_enabled'
   | 'risk_control_enabled'
   | 'ops_monitoring_enabled'
+  | 'support_tickets_enabled'
+  | 'support_ticket_account_enabled'
+  | 'support_ticket_refund_enabled'
 type VisibleKey =
   | 'channel_monitor_user_visible'
   | 'available_channels_user_visible'
   | 'model_plaza_user_visible'
   | 'payment_user_visible'
   | 'affiliate_user_visible'
+  | 'support_tickets_user_visible'
 type FeatureState = Record<EnabledKey | VisibleKey, boolean>
 type FeatureDefinition = {
   id: string
@@ -98,8 +110,9 @@ type FeatureDefinition = {
   descriptionKey: string
   enabledKey: EnabledKey
   visibleKey?: VisibleKey
+  secondaryKeys?: Array<{ key: EnabledKey; labelKey: string }>
   configPath: string
-  icon: 'chart' | 'globe' | 'grid' | 'creditCard' | 'gift' | 'shield' | 'server'
+  icon: 'chart' | 'globe' | 'grid' | 'creditCard' | 'gift' | 'shield' | 'server' | 'clipboard'
 }
 
 const { t } = useI18n()
@@ -121,6 +134,10 @@ const state = reactive<FeatureState>({
   affiliate_user_visible: false,
   risk_control_enabled: false,
   ops_monitoring_enabled: true,
+  support_tickets_enabled: false,
+  support_tickets_user_visible: false,
+  support_ticket_account_enabled: true,
+  support_ticket_refund_enabled: true,
 })
 
 const features: FeatureDefinition[] = [
@@ -128,6 +145,15 @@ const features: FeatureDefinition[] = [
   { id: 'available-channels', titleKey: 'admin.settings.features.availableChannels.title', descriptionKey: 'admin.settings.features.availableChannels.description', enabledKey: 'available_channels_enabled', visibleKey: 'available_channels_user_visible', configPath: '/admin/channels/pricing', icon: 'globe' },
   { id: 'model-plaza', titleKey: 'admin.settings.features.modelPlaza.title', descriptionKey: 'admin.settings.features.modelPlaza.description', enabledKey: 'model_plaza_enabled', visibleKey: 'model_plaza_user_visible', configPath: '/admin/model-plaza/settings', icon: 'grid' },
   { id: 'payment', titleKey: 'admin.settings.featureManagement.modules.payment', descriptionKey: 'admin.settings.featureManagement.moduleDescriptions.payment', enabledKey: 'payment_enabled', visibleKey: 'payment_user_visible', configPath: '/admin/orders/settings', icon: 'creditCard' },
+  {
+    id: 'support-tickets',
+    titleKey: 'admin.settings.featureManagement.modules.supportTickets',
+    descriptionKey: 'admin.settings.featureManagement.moduleDescriptions.supportTickets',
+    enabledKey: 'support_tickets_enabled',
+    visibleKey: 'support_tickets_user_visible',
+    configPath: '/admin/tickets',
+    icon: 'clipboard',
+  },
   { id: 'affiliate', titleKey: 'admin.settings.features.affiliate.title', descriptionKey: 'admin.settings.features.affiliate.description', enabledKey: 'affiliate_enabled', visibleKey: 'affiliate_user_visible', configPath: '/admin/affiliates/settings', icon: 'gift' },
   { id: 'risk-control', titleKey: 'admin.settings.features.riskControl.title', descriptionKey: 'admin.settings.features.riskControl.description', enabledKey: 'risk_control_enabled', configPath: '/admin/risk-control', icon: 'shield' },
   { id: 'ops-monitoring', titleKey: 'admin.settings.featureManagement.modules.opsMonitoring', descriptionKey: 'admin.settings.featureManagement.moduleDescriptions.opsMonitoring', enabledKey: 'ops_monitoring_enabled', configPath: '/admin/ops/settings', icon: 'server' },
@@ -140,6 +166,7 @@ async function load() {
     for (const feature of features) {
       state[feature.enabledKey] = Boolean(settings[feature.enabledKey])
       if (feature.visibleKey) state[feature.visibleKey] = Boolean(settings[feature.visibleKey])
+      for (const secondary of feature.secondaryKeys || []) state[secondary.key] = Boolean(settings[secondary.key])
     }
     loaded.value = true
   } catch {
@@ -149,10 +176,11 @@ async function load() {
   }
 }
 
-async function updateFeature(feature: FeatureDefinition, kind: 'enabled' | 'visible', next: boolean) {
+async function updateFeature(feature: FeatureDefinition, kind: 'enabled' | 'visible' | EnabledKey, next: boolean) {
   if (saving.value.has(feature.id)) return
   const beforeEnabled = state[feature.enabledKey]
   const beforeVisible = feature.visibleKey ? state[feature.visibleKey] : false
+  const beforeSecondary = Object.fromEntries((feature.secondaryKeys || []).map(item => [item.key, state[item.key]])) as Partial<FeatureState>
   const payload: UpdateSettingsRequest = {}
   if (kind === 'enabled') {
     state[feature.enabledKey] = next
@@ -162,8 +190,16 @@ async function updateFeature(feature: FeatureDefinition, kind: 'enabled' | 'visi
       payload[feature.visibleKey] = false
     }
   } else if (feature.visibleKey) {
-    state[feature.visibleKey] = next
-    payload[feature.visibleKey] = next
+    if (kind === 'visible') {
+      state[feature.visibleKey] = next
+      payload[feature.visibleKey] = next
+    } else {
+      state[kind] = next
+      payload[kind] = next
+    }
+  } else if (kind !== 'visible') {
+    state[kind] = next
+    payload[kind] = next
   }
 
   saving.value = new Set(saving.value).add(feature.id)
@@ -171,10 +207,12 @@ async function updateFeature(feature: FeatureDefinition, kind: 'enabled' | 'visi
     const updated = await adminAPI.settings.updateSettings(payload)
     state[feature.enabledKey] = Boolean(updated[feature.enabledKey])
     if (feature.visibleKey) state[feature.visibleKey] = Boolean(updated[feature.visibleKey])
+    for (const secondary of feature.secondaryKeys || []) state[secondary.key] = Boolean(updated[secondary.key])
     await Promise.all([appStore.fetchPublicSettings(true), adminSettingsStore.fetch(true)])
   } catch {
     state[feature.enabledKey] = beforeEnabled
     if (feature.visibleKey) state[feature.visibleKey] = beforeVisible
+    for (const secondary of feature.secondaryKeys || []) state[secondary.key] = Boolean(beforeSecondary[secondary.key])
     appStore.showError(t('admin.settings.featureManagement.saveFailed'))
   } finally {
     const nextSaving = new Set(saving.value)

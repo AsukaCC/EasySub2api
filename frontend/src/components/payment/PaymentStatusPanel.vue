@@ -4,7 +4,7 @@
 
     <!-- Success -->
     <template v-if="outcome === 'success'">
-      <div class="components-payment-payment-status-panel__panel-2 card">
+      <div class="components-payment-payment-status-panel__panel-2 card-body card">
         <div class="components-payment-payment-status-panel__panel-3">
           <div class="components-payment-payment-status-panel__panel-4">
             <Icon name="check" size="lg" class="components-payment-payment-status-panel__icon" />
@@ -39,7 +39,7 @@
 
     <!-- Cancelled -->
     <template v-else-if="outcome === 'cancelled'">
-      <div class="components-payment-payment-status-panel__panel-2 card">
+      <div class="components-payment-payment-status-panel__panel-2 card-body card">
         <div class="components-payment-payment-status-panel__panel-3">
           <div class="components-payment-payment-status-panel__panel-8">
             <svg class="components-payment-payment-status-panel__icon-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -55,7 +55,7 @@
 
     <!-- Expired / Failed -->
     <template v-else-if="outcome === 'expired'">
-      <div class="components-payment-payment-status-panel__panel-2 card">
+      <div class="components-payment-payment-status-panel__panel-2 card-body card">
         <div class="components-payment-payment-status-panel__panel-3">
           <div class="components-payment-payment-status-panel__panel-9">
             <svg class="components-payment-payment-status-panel__icon-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -74,7 +74,7 @@
     <!-- Mobile Alipay app handoff. The QR fallback stays hidden until launch timeout. -->
     <template v-else-if="isMobileAlipayDeepLink">
       <template v-if="!deepLinkFallbackVisible">
-        <div class="components-payment-payment-status-panel__panel-2 card">
+        <div class="components-payment-payment-status-panel__panel-2 card-body card">
           <div class="components-payment-payment-status-panel__panel-10">
             <div
               v-if="deepLinkState === 'launching'"
@@ -108,7 +108,7 @@
         </div>
       </template>
       <template v-else>
-        <div data-test="alipay-qr-fallback" class="components-payment-payment-status-panel__panel-2 card">
+        <div data-test="alipay-qr-fallback" class="components-payment-payment-status-panel__panel-2 card-body card">
           <div class="components-payment-payment-status-panel__panel-14">
             <div class="components-payment-payment-status-panel__panel-15">
               <p class="components-payment-payment-status-panel__description-3">{{ t('payment.qr.alipayFallbackTitle') }}</p>
@@ -169,7 +169,7 @@
 
     <!-- QR Code Mode -->
     <template v-else-if="showQRCode">
-      <div class="components-payment-payment-status-panel__panel-2 card">
+      <div class="components-payment-payment-status-panel__panel-2 card-body card">
         <div class="components-payment-payment-status-panel__panel-14">
           <p class="components-payment-payment-status-panel__description-3">{{ scanTitle }}</p>
           <div :class="['components-payment-payment-status-panel__panel-21', qrBorderClass]">
@@ -199,7 +199,7 @@
 
     <!-- Waiting for Popup/Redirect Mode -->
     <template v-else>
-      <div class="components-payment-payment-status-panel__panel-2 card">
+      <div class="components-payment-payment-status-panel__panel-2 card-body card">
         <div class="components-payment-payment-status-panel__panel-3">
           <div class="components-payment-payment-status-panel__panel-20"></div>
           <p class="components-payment-payment-status-panel__description-2">{{ t('payment.qr.payInNewWindowHint') }}</p>

@@ -637,6 +637,10 @@ export default {
     subscriptions: {
       title: '订阅管理',
       description: '管理用户订阅和配额限制',
+      pendingSubscriptions: '待生效订阅',
+      pendingSubscriptionsDesc: '只读查看按平台排队、等待当前订阅结束后生效的权益。',
+      pendingSource: '来源',
+      expectedActivation: '预计生效',
       assignSubscription: '分配订阅',
       adjustSubscription: '调整订阅',
       revokeSubscription: '撤销订阅',
@@ -704,6 +708,7 @@ export default {
       noSubscriptionsYet: '暂无订阅',
       assignFirstSubscription: '分配一个订阅以开始使用。',
       subscriptionAssigned: '订阅分配成功',
+      subscriptionQueued: '订阅已分配并加入待生效队列',
       subscriptionAdjusted: '订阅调整成功',
       subscriptionRevoked: '订阅撤销成功',
       subscriptionRestored: '订阅已恢复',

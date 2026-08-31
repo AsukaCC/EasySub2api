@@ -268,13 +268,6 @@ type AdminProcessRefundRequest struct {
 	DeductBalance   bool     `json:"deduct_balance"`
 }
 
-type AdminReviewRefundTicketRequest struct {
-	Decision                string   `json:"decision" binding:"required"`
-	ApprovedPrincipalAmount *float64 `json:"approved_principal_amount,omitempty"`
-	ReviewNote              string   `json:"review_note"`
-	AffiliateAction         string   `json:"affiliate_action"`
-}
-
 // ProcessRefund processes a refund for an order (admin).
 // POST /api/v1/admin/payment/orders/:id/refund
 func (h *PaymentHandler) ProcessRefund(c *gin.Context) {
@@ -324,43 +317,6 @@ func (h *PaymentHandler) QueryAndFinalizeRefund(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// ListRefundTickets returns refund tickets for manual review.
-// GET /api/v1/admin/payment/refund-tickets
-func (h *PaymentHandler) ListRefundTickets(c *gin.Context) {
-	page, pageSize := response.ParsePagination(c)
-	result, err := h.paymentService.AdminListRefundTickets(c.Request.Context(), c.Query("status"), page, pageSize)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Paginated(c, result.Items, int64(result.Total), page, pageSize)
-}
-
-// ReviewRefundTicket approves or rejects one refund ticket. Approved tickets
-// use a stable ticket-scoped idempotency key for provider retries.
-// POST /api/v1/admin/payment/refund-tickets/:id/review
-func (h *PaymentHandler) ReviewRefundTicket(c *gin.Context) {
-	ticketID, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	var req AdminReviewRefundTicketRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	result, err := h.paymentService.ReviewRefundTicket(c.Request.Context(), service.ReviewRefundTicketInput{
-		TicketID: ticketID, ReviewerID: getAdminIDFromContext(c),
-		Decision: req.Decision, ApprovedPrincipalAmount: req.ApprovedPrincipalAmount,
-		ReviewNote: req.ReviewNote, AffiliateAction: req.AffiliateAction,
-	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, result)
-}
-
 // --- Subscription Plans ---
 
 // ListPlans returns all subscription plans.
@@ -400,6 +356,10 @@ type AdminSubscriptionPlanResult struct {
 	ProductName         string    `json:"product_name"`
 	ForSale             bool      `json:"for_sale"`
 	SortOrder           int       `json:"sort_order"`
+	StockEnabled        bool      `json:"stock_enabled"`
+	StockQuantity       *int      `json:"stock_quantity"`
+	StockFrozen         int       `json:"stock_frozen"`
+	StockAvailable      *int      `json:"stock_available"`
 	CreatedAt           time.Time `json:"created_at,omitempty"`
 	UpdatedAt           time.Time `json:"updated_at,omitempty"`
 }
@@ -411,6 +371,11 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 			continue
 		}
 		gi := groupInfo[p.GroupID]
+		var stockAvailable *int
+		if p.StockQuantity != nil {
+			available := *p.StockQuantity - p.StockFrozen
+			stockAvailable = &available
+		}
 		result = append(result, AdminSubscriptionPlanResult{
 			ID:                  p.ID,
 			GroupID:             p.GroupID,
@@ -436,6 +401,10 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 			ProductName:         p.ProductName,
 			ForSale:             p.ForSale,
 			SortOrder:           p.SortOrder,
+			StockEnabled:        p.StockQuantity != nil,
+			StockQuantity:       p.StockQuantity,
+			StockFrozen:         p.StockFrozen,
+			StockAvailable:      stockAvailable,
 			CreatedAt:           p.CreatedAt,
 			UpdatedAt:           p.UpdatedAt,
 		})
@@ -456,7 +425,8 @@ func (h *PaymentHandler) CreatePlan(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Created(c, plan)
+	items := adminSubscriptionPlansForResponse([]*dbent.SubscriptionPlan{plan}, h.configService.GetGroupInfoMap(c.Request.Context(), []*dbent.SubscriptionPlan{plan}))
+	response.Created(c, items[0])
 }
 
 // UpdatePlan updates an existing subscription plan.
@@ -476,7 +446,8 @@ func (h *PaymentHandler) UpdatePlan(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, plan)
+	items := adminSubscriptionPlansForResponse([]*dbent.SubscriptionPlan{plan}, h.configService.GetGroupInfoMap(c.Request.Context(), []*dbent.SubscriptionPlan{plan}))
+	response.Success(c, items[0])
 }
 
 // DeletePlan deletes a subscription plan.

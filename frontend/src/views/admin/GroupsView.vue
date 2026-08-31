@@ -21,27 +21,14 @@
                 @input="handleSearch"
               />
             </div>
-            <div class="groups-toolbar__platforms views-admin-groups-view__panel-4" role="tablist" :aria-label="t('admin.groups.allPlatforms')">
-              <div class="views-admin-groups-view__panel-5">
-                <button
-                  v-for="option in platformFilterOptions"
-                  :key="option.value || 'all'"
-                  type="button"
-                  role="tab"
-                  :aria-selected="filters.platform === option.value"
-                  :class="[
-                    'views-admin-groups-view__action-22',
-                    filters.platform === option.value
-                      ? 'views-admin-groups-view__action-23'
-                      : 'views-admin-groups-view__action-24'
-                  ]"
-                  @click="selectPlatformFilter(option.value)"
-                >
-                  <PlatformIcon v-if="option.value" :platform="option.value as GroupPlatform" size="xs" />
-                  {{ option.label }}
-                </button>
-              </div>
-            </div>
+            <Select
+              v-model="filters.platform"
+              :options="platformFilterOptions"
+              :placeholder="t('admin.groups.allPlatforms')"
+              :aria-label="t('admin.groups.allPlatforms')"
+              class="views-admin-groups-view__field-2"
+              @change="handleFilterChange"
+            />
             <Select
               v-model="filters.status"
               :options="statusOptions"
@@ -74,7 +61,7 @@
                 :class="loading ? 'views-admin-groups-view__icon-8' : ''"
               />
             </button>
-            <div class="views-admin-groups-view__panel-7" ref="columnDropdownRef">
+            <div class="views-admin-groups-view__panel-7 filter-toolbar" ref="columnDropdownRef">
               <button
                 @click="showColumnDropdown = !showColumnDropdown"
                 class="btn btn-secondary"
@@ -87,13 +74,13 @@
               </button>
               <div
                 v-if="showColumnDropdown"
-                class="views-admin-groups-view__panel-8"
+                class="views-admin-groups-view__panel-8 dropdown dropdown--menu"
               >
                 <button
                   v-for="col in toggleableColumns"
                   :key="col.key"
                   @click="toggleColumn(col.key)"
-                  class="views-admin-groups-view__action"
+                  class="views-admin-groups-view__action dropdown-item"
                 >
                   <span>{{ col.label }}</span>
                   <Icon
@@ -515,7 +502,7 @@
             t("admin.groups.form.platform")
           }}</label>
           <div class="views-admin-groups-view__panel-14" role="tablist" :aria-label="t('admin.groups.form.platform')" data-tour="group-form-platform">
-            <div class="views-admin-groups-view__panel-5">
+            <div class="tabs">
               <button
                 v-for="option in platformOptions"
                 :key="option.value"
@@ -1448,6 +1435,39 @@
           </p>
         </div>
 
+        <!-- CC-Switch Codex WebSocket 导出（仅 openai 平台） -->
+        <div
+          v-if="createForm.platform === 'openai'"
+          class="views-admin-groups-view__panel-47"
+        >
+          <h4 class="views-admin-groups-view__heading">
+            {{ t("admin.groups.ccsCodexWebsocket.title") }}
+          </h4>
+          <div class="views-admin-groups-view__panel-53">
+            <label class="views-admin-groups-view__label-8">
+              {{ t("admin.groups.ccsCodexWebsocket.allow") }}
+            </label>
+            <button
+              type="button"
+              @click="createForm.ccs_codex_ws_enabled = !createForm.ccs_codex_ws_enabled"
+              class="views-admin-groups-view__action-12"
+              :class="
+                createForm.ccs_codex_ws_enabled
+                  ? 'views-admin-groups-view__action-27'
+                  : 'views-admin-groups-view__action-28'
+              "
+            >
+              <span
+                class="views-admin-groups-view__text-24"
+                :class="createForm.ccs_codex_ws_enabled ? 'toggle-thumb--on' : 'toggle-thumb--off'"
+              />
+            </button>
+          </div>
+          <p class="views-admin-groups-view__description-11">
+            {{ t("admin.groups.ccsCodexWebsocket.hint") }}
+          </p>
+        </div>
+
         <!-- OpenAI Messages 调度配置（仅 openai 平台） -->
         <div
           v-if="createForm.platform === 'openai'"
@@ -2025,14 +2045,14 @@
     <BaseDialog
       :show="showEditModal"
       :title="t('admin.groups.editGroup')"
-      width="normal"
+      width="extra-wide"
       @close="closeEditModal"
     >
       <form
         v-if="editingGroup"
         id="edit-group-form"
         @submit.prevent="handleUpdateGroup"
-        class="views-admin-groups-view__form"
+        class="group-form"
       >
         <div>
           <label class="input-label">{{ t("admin.groups.form.name") }}</label>
@@ -2059,7 +2079,7 @@
             t("admin.groups.form.platform")
           }}</label>
           <div class="views-admin-groups-view__panel-14" role="tablist" :aria-label="t('admin.groups.form.platform')" data-tour="group-form-platform">
-            <div class="views-admin-groups-view__panel-79">
+            <div class="tabs tabs--disabled">
               <button
                 v-for="option in platformOptions"
                 :key="option.value"
@@ -2083,32 +2103,11 @@
         </div>
         <!-- 从分组复制账号（编辑时） -->
         <div v-if="copyAccountsGroupOptionsForEdit.length > 0">
-          <div class="views-admin-groups-view__panel-15">
-            <label class="views-admin-groups-view__label">
+          <div class="group-form__label-row">
+            <label class="input-label">
               {{ t("admin.groups.copyAccounts.title") }}
             </label>
-            <div class="views-admin-groups-view__panel-16">
-              <Icon
-                name="questionCircle"
-                size="sm"
-                :stroke-width="2"
-                class="views-admin-groups-view__icon-4"
-              />
-              <div
-                class="views-admin-groups-view__panel-17"
-              >
-                <div
-                  class="views-admin-groups-view__panel-18"
-                >
-                  <p class="views-admin-groups-view__description">
-                    {{ t("admin.groups.copyAccounts.tooltipEdit") }}
-                  </p>
-                  <div
-                    class="views-admin-groups-view__panel-19"
-                  ></div>
-                </div>
-              </div>
-            </div>
+            <HelpTooltip :content="t('admin.groups.copyAccounts.tooltipEdit')" />
           </div>
           <!-- 已选分组标签 -->
           <div
@@ -2196,48 +2195,19 @@
           v-model:mappings="editForm.reasoning_effort_mappings"
         />
         <div v-if="editForm.subscription_type !== 'subscription'">
-          <div class="views-admin-groups-view__panel-15">
-            <label class="views-admin-groups-view__label">
+          <div class="group-form__label-row">
+            <label class="input-label">
               {{ t("admin.groups.form.exclusive") }}
             </label>
-            <!-- Help Tooltip -->
-            <div class="views-admin-groups-view__panel-16">
-              <Icon
-                name="questionCircle"
-                size="sm"
-                :stroke-width="2"
-                class="views-admin-groups-view__icon-4"
-              />
-              <!-- Tooltip Popover -->
-              <div
-                class="views-admin-groups-view__panel-17"
-              >
-                <div
-                  class="views-admin-groups-view__panel-18"
-                >
-                  <p class="views-admin-groups-view__description-2">
-                    {{ t("admin.groups.exclusiveTooltip.title") }}
-                  </p>
-                  <p class="views-admin-groups-view__description-3">
-                    {{ t("admin.groups.exclusiveTooltip.description") }}
-                  </p>
-                  <div class="views-admin-groups-view__panel-21">
-                    <p class="views-admin-groups-view__description">
-                      <span
-                        class="views-admin-groups-view__text-18"
-                        ><Icon name="lightbulb" size="xs" />
-                        {{ t("admin.groups.exclusiveTooltip.example") }}</span
-                      >
-                      {{ t("admin.groups.exclusiveTooltip.exampleContent") }}
-                    </p>
-                  </div>
-                  <!-- Arrow -->
-                  <div
-                    class="views-admin-groups-view__panel-19"
-                  ></div>
-                </div>
-              </div>
-            </div>
+            <HelpTooltip>
+              <p class="group-form__tip-title">{{ t("admin.groups.exclusiveTooltip.title") }}</p>
+              <p>{{ t("admin.groups.exclusiveTooltip.description") }}</p>
+              <p class="group-form__tip-example">
+                <Icon name="lightbulb" size="xs" />
+                {{ t("admin.groups.exclusiveTooltip.example") }}
+                {{ t("admin.groups.exclusiveTooltip.exampleContent") }}
+              </p>
+            </HelpTooltip>
           </div>
           <div class="views-admin-groups-view__panel-22">
             <button
@@ -2272,7 +2242,7 @@
         </div>
 
         <!-- Subscription Configuration -->
-        <div class="views-admin-groups-view__panel-23">
+        <div class="group-form__section">
           <div>
             <label class="input-label">{{
               t("admin.groups.subscription.type")
@@ -2334,10 +2304,10 @@
           </div>
         </div>
 
-        <div class="views-admin-groups-view__panel-25">
+        <div class="group-form__section">
           <div class="views-admin-groups-view__panel-26">
             <div>
-              <label class="views-admin-groups-view__label">
+              <label class="input-label">
                 {{ t("admin.groups.modelsList.title") }}
               </label>
               <p class="views-admin-groups-view__description-4">
@@ -2444,7 +2414,7 @@
         <!-- 图片生成计费配置 -->
         <div
           v-if="supportsImagePricingPlatform(editForm.platform)"
-          class="views-admin-groups-view__panel-25"
+          class="group-form__section"
         >
           <label
             class="views-admin-groups-view__label-2"
@@ -2544,7 +2514,7 @@
         <!-- 视频生成计费配置（仅 Grok 平台） -->
         <div
           v-if="supportsVideoPricingPlatform(editForm.platform)"
-          class="views-admin-groups-view__panel-25"
+          class="group-form__section"
         >
           <label
             class="views-admin-groups-view__label-2"
@@ -2673,7 +2643,7 @@
         </div>
 
         <!-- 高峰时段倍率配置（仅订阅类型分组） -->
-        <div v-if="editForm.subscription_type === 'subscription'" class="views-admin-groups-view__panel-25">
+        <div v-if="editForm.subscription_type === 'subscription'" class="group-form__section">
           <div class="views-admin-groups-view__panel-32">
             <label class="views-admin-groups-view__label-3">
               <input
@@ -2720,7 +2690,7 @@
         </div>
 
         <!-- 分组利润控制（五个平台 token 请求） -->
-        <div v-if="isProfitControlPlatform(editForm.platform)" class="views-admin-groups-view__panel-25">
+        <div v-if="isProfitControlPlatform(editForm.platform)" class="group-form__section">
           <label class="views-admin-groups-view__label-3">
             <input
               v-model="editForm.profit_control_enabled"
@@ -2770,34 +2740,12 @@
         </div>
 
         <!-- Claude Code 客户端限制（仅 anthropic 平台） -->
-        <div v-if="editForm.platform === 'anthropic'" class="views-admin-groups-view__panel-25">
-          <div class="views-admin-groups-view__panel-15">
-            <label class="views-admin-groups-view__label">
+        <div v-if="editForm.platform === 'anthropic'" class="group-form__section">
+          <div class="group-form__label-row">
+            <label class="input-label">
               {{ t("admin.groups.claudeCode.title") }}
             </label>
-            <!-- Help Tooltip -->
-            <div class="views-admin-groups-view__panel-16">
-              <Icon
-                name="questionCircle"
-                size="sm"
-                :stroke-width="2"
-                class="views-admin-groups-view__icon-4"
-              />
-              <div
-                class="views-admin-groups-view__panel-17"
-              >
-                <div
-                  class="views-admin-groups-view__panel-18"
-                >
-                  <p class="views-admin-groups-view__description">
-                    {{ t("admin.groups.claudeCode.tooltip") }}
-                  </p>
-                  <div
-                    class="views-admin-groups-view__panel-19"
-                  ></div>
-                </div>
-              </div>
-            </div>
+            <HelpTooltip :content="t('admin.groups.claudeCode.tooltip')" />
           </div>
           <div class="views-admin-groups-view__panel-22">
             <button
@@ -2844,7 +2792,7 @@
         <!-- Codex 网页搜索按次计费（仅 openai 平台） -->
         <div
           v-if="editForm.platform === 'openai'"
-          class="views-admin-groups-view__panel-47"
+          class="group-form__section"
         >
           <h4 class="views-admin-groups-view__heading">
             {{ t("admin.groups.webSearchPricing.title") }}
@@ -2988,6 +2936,39 @@
           </div>
           <p class="views-admin-groups-view__description-11">
             {{ t("admin.groups.openaiLive.hint") }}
+          </p>
+        </div>
+
+        <!-- CC-Switch Codex WebSocket 导出（仅 openai 平台） -->
+        <div
+          v-if="editForm.platform === 'openai'"
+          class="views-admin-groups-view__panel-47"
+        >
+          <h4 class="views-admin-groups-view__heading">
+            {{ t("admin.groups.ccsCodexWebsocket.title") }}
+          </h4>
+          <div class="views-admin-groups-view__panel-53">
+            <label class="views-admin-groups-view__label-8">
+              {{ t("admin.groups.ccsCodexWebsocket.allow") }}
+            </label>
+            <button
+              type="button"
+              @click="editForm.ccs_codex_ws_enabled = !editForm.ccs_codex_ws_enabled"
+              class="views-admin-groups-view__action-12"
+              :class="
+                editForm.ccs_codex_ws_enabled
+                  ? 'views-admin-groups-view__action-27'
+                  : 'views-admin-groups-view__action-28'
+              "
+            >
+              <span
+                class="views-admin-groups-view__text-24"
+                :class="editForm.ccs_codex_ws_enabled ? 'toggle-thumb--on' : 'toggle-thumb--off'"
+              />
+            </button>
+          </div>
+          <p class="views-admin-groups-view__description-11">
+            {{ t("admin.groups.ccsCodexWebsocket.hint") }}
           </p>
         </div>
 
@@ -3312,7 +3293,7 @@
             editForm.platform === 'anthropic' &&
             editForm.subscription_type !== 'subscription'
           "
-          class="views-admin-groups-view__panel-25"
+          class="group-form__section"
         >
           <label class="input-label">{{
             t("admin.groups.invalidRequestFallback.title")
@@ -3328,34 +3309,12 @@
         </div>
 
         <!-- 模型路由配置（仅 anthropic 平台） -->
-        <div v-if="editForm.platform === 'anthropic'" class="views-admin-groups-view__panel-25">
-          <div class="views-admin-groups-view__panel-15">
-            <label class="views-admin-groups-view__label">
+        <div v-if="editForm.platform === 'anthropic'" class="group-form__section">
+          <div class="group-form__label-row">
+            <label class="input-label">
               {{ t("admin.groups.modelRouting.title") }}
             </label>
-            <!-- Help Tooltip -->
-            <div class="views-admin-groups-view__panel-16">
-              <Icon
-                name="questionCircle"
-                size="sm"
-                :stroke-width="2"
-                class="views-admin-groups-view__icon-4"
-              />
-              <div
-                class="views-admin-groups-view__panel-72"
-              >
-                <div
-                  class="views-admin-groups-view__panel-18"
-                >
-                  <p class="views-admin-groups-view__description">
-                    {{ t("admin.groups.modelRouting.tooltip") }}
-                  </p>
-                  <div
-                    class="views-admin-groups-view__panel-19"
-                  ></div>
-                </div>
-              </div>
-            </div>
+            <HelpTooltip :content="t('admin.groups.modelRouting.tooltip')" />
           </div>
           <!-- 启用开关 -->
           <div class="views-admin-groups-view__panel-73">
@@ -3875,7 +3834,7 @@
                   t("admin.groups.compositeRoutes.targetPlatform")
                 }}</label>
                 <div class="views-admin-groups-view__panel-14" role="tablist" :aria-label="t('admin.groups.compositeRoutes.targetPlatform')">
-                  <div class="views-admin-groups-view__panel-5">
+                  <div class="tabs">
                     <button
                       v-for="option in compositeRoutePlatformOptions"
                       :key="option.value"
@@ -4106,6 +4065,7 @@ import DataTable from "@/components/common/DataTable.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import HelpTooltip from "@/components/common/HelpTooltip.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
@@ -4440,13 +4400,6 @@ const platformFilterOptions = computed(() => [
   { value: "composite", label: "Composite" },
 ]);
 
-const selectPlatformFilter = (platform: string) => {
-  if (filters.platform === platform) return;
-  filters.platform = platform;
-  pagination.page = 1;
-  loadGroups();
-};
-
 const selectCreatePlatform = (platform: GroupPlatform) => {
   if (createForm.platform === platform) return;
   createForm.platform = platform;
@@ -4779,6 +4732,7 @@ const createForm = reactive({
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   allow_messages_dispatch: false,
   allow_live: false,
+  ccs_codex_ws_enabled: false,
   opus_mapped_model: createMessagesDispatchDefaults.opus_mapped_model,
   sonnet_mapped_model: createMessagesDispatchDefaults.sonnet_mapped_model,
   haiku_mapped_model: createMessagesDispatchDefaults.haiku_mapped_model,
@@ -5113,6 +5067,7 @@ const editForm = reactive({
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   allow_messages_dispatch: false,
   allow_live: false,
+  ccs_codex_ws_enabled: false,
   default_mapped_model: '',
   opus_mapped_model: editMessagesDispatchDefaults.opus_mapped_model,
   sonnet_mapped_model: editMessagesDispatchDefaults.sonnet_mapped_model,
@@ -5544,6 +5499,7 @@ const closeCreateModal = () => {
   createForm.fallback_group_id_on_invalid_request = null;
   resetMessagesDispatchFormState(createForm);
   createForm.allow_live = false;
+  createForm.ccs_codex_ws_enabled = false;
   createForm.require_oauth_only = false;
   createForm.require_privacy_set = false;
   createForm.copy_accounts_from_group_ids = [];
@@ -5783,6 +5739,7 @@ const handleEdit = async (group: AdminGroup) => {
     group.allow_messages_dispatch ||
     messagesDispatchFormState.allow_messages_dispatch;
   editForm.allow_live = group.allow_live ?? false;
+  editForm.ccs_codex_ws_enabled = group.ccs_codex_ws_enabled ?? false;
   editForm.opus_mapped_model = messagesDispatchFormState.opus_mapped_model;
   editForm.sonnet_mapped_model = messagesDispatchFormState.sonnet_mapped_model;
   editForm.haiku_mapped_model = messagesDispatchFormState.haiku_mapped_model;
@@ -5844,6 +5801,7 @@ const closeEditModal = () => {
   editForm.audio_stt_price_per_hour = null;
   resetMessagesDispatchFormState(editForm);
   editForm.allow_live = false;
+  editForm.ccs_codex_ws_enabled = false;
   resetModelsListState(editModelsListState);
 };
 
@@ -6271,6 +6229,7 @@ watch(
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(createForm);
       createForm.allow_live = false;
+      createForm.ccs_codex_ws_enabled = false;
     }
     if (!isProfitControlPlatform(newVal)) {
       createForm.profit_control_enabled = false;
@@ -6304,6 +6263,7 @@ watch(
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(editForm);
       editForm.allow_live = false;
+      editForm.ccs_codex_ws_enabled = false;
     }
     if (!isProfitControlPlatform(newVal)) {
       editForm.profit_control_enabled = false;
@@ -6339,6 +6299,7 @@ watch(
     if (newVal !== 'openai') {
       editForm.allow_messages_dispatch = false
       editForm.allow_live = false
+      editForm.ccs_codex_ws_enabled = false
       editForm.default_mapped_model = ''
     }
   }
@@ -6429,20 +6390,46 @@ onUnmounted(() => {
   max-width: 100%;
 }
 
-.groups-toolbar__platforms {
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+.views-admin-groups-view__panel-14 {
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
 }
 
-.views-admin-groups-view__panel-14 {
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
+.group-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
 
-  &::-webkit-scrollbar {
-    display: none;
-  }
+.group-form__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.group-form__label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.group-form__label-row .input-label {
+  margin-bottom: 0;
+}
+
+.group-form__tip-title {
+  margin: 0 0 0.375rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.group-form__tip-example {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
+  color: var(--color-text-secondary);
 }
 </style>

@@ -6,7 +6,7 @@
         <p class="components-user-dashboard-user-dashboard-recent-usage__description-2">{{ t('dashboard.requestSummaryHint') }}</p>
       </div>
     </div>
-    <div class="components-user-dashboard-user-dashboard-recent-usage__panel-2">
+    <div class="components-user-dashboard-user-dashboard-recent-usage__panel-2 card-body">
       <div v-if="loading" class="components-user-dashboard-user-dashboard-recent-usage__panel-3">
         <LoadingSpinner size="lg" />
       </div>

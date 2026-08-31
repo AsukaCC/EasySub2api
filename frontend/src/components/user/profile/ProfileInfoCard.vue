@@ -99,7 +99,7 @@
       <div data-testid="profile-main-column" class="components-user-profile-profile-info-card__panel">
         <section
           data-testid="profile-basics-panel"
-          class="components-user-profile-profile-info-card__section-2 card"
+          class="components-user-profile-profile-info-card__section-2 card-body card"
         >
           <div class="components-user-profile-profile-info-card__panel-12">
             <div>
@@ -131,7 +131,7 @@
 
         <section
           data-testid="profile-auth-bindings-panel"
-          class="components-user-profile-profile-info-card__section-2 card"
+          class="components-user-profile-profile-info-card__section-2 card-body card"
         >
           <ProfileIdentityBindingsSection
             :user="user"
@@ -150,7 +150,7 @@
       <div data-testid="profile-side-column" class="components-user-profile-profile-info-card__panel">
         <section
           v-if="sourceHints.length"
-          class="components-user-profile-profile-info-card__section-2 card"
+          class="components-user-profile-profile-info-card__section-2 card-body card"
         >
           <h3 class="components-user-profile-profile-info-card__heading-2">
             {{ t('profile.linkedProfileSources') }}

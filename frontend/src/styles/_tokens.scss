@@ -4,8 +4,8 @@
      ============================================================ */
   --app-shell-height: 4rem;
   --app-shell-sticky-offset: 4.75rem;
-  /* 页面固定区最高约 320；模态层必须稳定覆盖页面壳与普通浮层。 */
-  --z-modal-base: 10000;
+  /* 页面固定区最高约 320；模态层取 500 即可压过工具条与页面壳。 */
+  --z-modal-base: 500;
 
   /* ============================================================
      2. 字体尺度与排版 Tokens (Typography Scale)
@@ -53,10 +53,13 @@
   /* ============================================================
      3. 核心语义色彩 Tokens (亮色)
      ============================================================ */
-  --color-primary: #0a84ff;
-  --color-primary-hover: #007aff;
-  --color-primary-subtle: rgba(10, 132, 255, 0.10);
-  --color-primary-border: rgba(10, 132, 255, 0.35);
+  /* 主题强调色单源:只改这个值,按钮/链接/焦点/品牌 tint 全部派生。
+     不改亮暗,也不改 --glass-layer-* 磨砂底色。 */
+  --theme-accent: #0a84ff;
+  --color-primary: var(--theme-accent);
+  --color-primary-hover: color-mix(in srgb, var(--theme-accent) 82%, black);
+  --color-primary-subtle: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  --color-primary-border: color-mix(in srgb, var(--theme-accent) 35%, transparent);
 
   --color-success: #059669;
   --color-success-hover: #047857;
@@ -99,7 +102,7 @@
   --color-text-warning: #d97706;
   --color-text-danger: #dc2626;
   --color-text-info: #0284c7;
-  --color-text-brand: #0064d6;
+  --color-text-brand: color-mix(in srgb, var(--theme-accent) 72%, black);
 
   --color-skeleton: rgba(226, 232, 240, 0.65);
 
@@ -173,8 +176,8 @@
   --glass-bg-modal: var(--glass-layer-modal-bg);
 
   /* 语义色只负责透明染色，绝不作为不透明控件底色。 */
-  --glass-tint-brand: rgba(10, 132, 255, 0.12);
-  --glass-tint-brand-active: rgba(10, 132, 255, 0.18);
+  --glass-tint-brand: color-mix(in srgb, var(--theme-accent) 12%, transparent);
+  --glass-tint-brand-active: color-mix(in srgb, var(--theme-accent) 18%, transparent);
   --glass-tint-success: rgba(16, 185, 129, 0.11);
   --glass-tint-warning: rgba(245, 158, 11, 0.12);
   --glass-tint-danger: rgba(239, 68, 68, 0.11);
@@ -188,7 +191,7 @@
   /* 玻璃高光、内环与边框 (复合光影) */
   --glass-border: rgba(255, 255, 255, 0.55);
   --glass-border-hover: rgba(255, 255, 255, 0.80);
-  --glass-border-active: rgba(10, 132, 255, 0.45);
+  --glass-border-active: color-mix(in srgb, var(--theme-accent) 45%, transparent);
 
   --glass-highlight: rgba(255, 255, 255, 0.85);
   --glass-highlight-hover: rgba(255, 255, 255, 0.98);
@@ -229,11 +232,11 @@
   --color-text-warning: #fbbf24;
   --color-text-danger: #f87171;
   --color-text-info: #38bdf8;
-  --color-text-brand: #60a5fa;
+  --color-text-brand: color-mix(in srgb, var(--theme-accent) 70%, white);
 
   --color-skeleton: rgba(38, 38, 43, 0.7);
-  --color-primary-subtle: rgba(10, 132, 255, 0.18);
-  --color-primary-border: rgba(10, 132, 255, 0.45);
+  --color-primary-subtle: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  --color-primary-border: color-mix(in srgb, var(--theme-accent) 45%, transparent);
 
   /* 拟态玻璃核心系统 Tokens (暗色) */
   --glass-layer-inset-bg: rgba(255, 255, 255, 0.03);
@@ -275,8 +278,8 @@
   --glass-overlay: var(--glass-layer-shell-bg);
   --glass-bg-modal: var(--glass-layer-modal-bg);
 
-  --glass-tint-brand: rgba(10, 132, 255, 0.18);
-  --glass-tint-brand-active: rgba(10, 132, 255, 0.25);
+  --glass-tint-brand: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  --glass-tint-brand-active: color-mix(in srgb, var(--theme-accent) 25%, transparent);
   --glass-tint-success: rgba(16, 185, 129, 0.16);
   --glass-tint-warning: rgba(245, 158, 11, 0.17);
   --glass-tint-danger: rgba(239, 68, 68, 0.16);
@@ -290,7 +293,7 @@
   /* 玻璃暗色微光边框与内高光 */
   --glass-border: rgba(255, 255, 255, 0.10);
   --glass-border-hover: rgba(255, 255, 255, 0.22);
-  --glass-border-active: rgba(10, 132, 255, 0.50);
+  --glass-border-active: color-mix(in srgb, var(--theme-accent) 50%, transparent);
 
   --glass-highlight: rgba(255, 255, 255, 0.08);
   --glass-highlight-hover: rgba(255, 255, 255, 0.18);

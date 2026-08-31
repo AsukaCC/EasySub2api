@@ -99,12 +99,24 @@ ON CONFLICT (user_id, provider_type, grant_reason) DO NOTHING`,
 	}
 	if s.defaultSubAssigner != nil {
 		for _, item := range providerDefaults.Subscriptions {
-			if _, _, err := s.defaultSubAssigner.AssignOrExtendSubscription(ctx, &AssignSubscriptionInput{
+			input := &AssignSubscriptionInput{
 				UserID:       userID,
 				GroupID:      item.GroupID,
 				ValidityDays: item.ValidityDays,
 				Notes:        "auto assigned by first bind defaults",
-			}); err != nil {
+			}
+			var err error
+			if grantAssigner, ok := s.defaultSubAssigner.(interface {
+				GrantOrQueueSubscription(context.Context, *SubscriptionGrantInput) (*SubscriptionGrantResult, error)
+			}); ok {
+				_, err = grantAssigner.GrantOrQueueSubscription(ctx, &SubscriptionGrantInput{
+					AssignSubscriptionInput: *input, SourceType: "auth_first_bind",
+					SourceID: userID + ":" + strings.TrimSpace(providerType) + ":" + item.GroupID,
+				})
+			} else {
+				_, _, err = s.defaultSubAssigner.AssignOrExtendSubscription(ctx, input)
+			}
+			if err != nil {
 				return fmt.Errorf("apply first bind subscription default: %w", err)
 			}
 		}

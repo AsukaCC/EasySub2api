@@ -294,7 +294,7 @@
         <div class="views-home-view__panel-22">
           <!-- Feature 1: Unified Gateway -->
           <div
-            class="views-home-view__panel-23"
+            class="views-home-view__panel-23 card-body"
           >
             <div
               class="views-home-view__panel-24"
@@ -311,7 +311,7 @@
 
           <!-- Feature 2: Account Pool -->
           <div
-            class="views-home-view__panel-23"
+            class="views-home-view__panel-23 card-body"
           >
             <div
               class="views-home-view__panel-25"
@@ -340,7 +340,7 @@
 
           <!-- Feature 3: Billing & Quota -->
           <div
-            class="views-home-view__panel-23"
+            class="views-home-view__panel-23 card-body"
           >
             <div
               class="views-home-view__panel-26"

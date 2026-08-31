@@ -15,7 +15,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent/paymentorder"
 	"github.com/AsukaCC/EasySub2api/ent/paymentrefund"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
-	"github.com/AsukaCC/EasySub2api/ent/refundticket"
+	"github.com/AsukaCC/EasySub2api/ent/supportticket"
 	"github.com/AsukaCC/EasySub2api/internal/payment"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/google/uuid"
@@ -34,18 +34,9 @@ const (
 	RefundSourceTicket      = "TICKET"
 	RefundSourceAdmin       = "ADMIN"
 
-	RefundTicketStatusPending    = "PENDING"
-	RefundTicketStatusApproved   = "APPROVED"
-	RefundTicketStatusProcessing = "PROCESSING"
-	RefundTicketStatusCompleted  = "COMPLETED"
-	RefundTicketStatusRejected   = "REJECTED"
-	RefundTicketStatusCancelled  = "CANCELLED"
-	RefundTicketStatusFailed     = "FAILED"
-
-	RefundAffiliateActionManual = "MANUAL"
-	selfServiceRefundWindow     = 168 * time.Hour
-	refundSubmittingRetryAfter  = 2 * time.Minute
-	affiliateRefundHoldPurpose  = "affiliate_refund"
+	selfServiceRefundWindow    = 168 * time.Hour
+	refundSubmittingRetryAfter = 2 * time.Minute
+	affiliateRefundHoldPurpose = "affiliate_refund"
 )
 
 type RefundQuote struct {
@@ -102,25 +93,6 @@ type PaymentRefundResponse struct {
 	SubmittedAt           *time.Time `json:"submitted_at,omitempty"`
 	SettledAt             *time.Time `json:"settled_at,omitempty"`
 	CreatedAt             time.Time  `json:"created_at"`
-}
-
-type RefundTicketPage struct {
-	Items []*dbent.RefundTicket `json:"items"`
-	Total int                   `json:"total"`
-}
-
-type ReviewRefundTicketInput struct {
-	TicketID                string
-	ReviewerID              string
-	Decision                string
-	ApprovedPrincipalAmount *float64
-	ReviewNote              string
-	AffiliateAction         string
-}
-
-type RefundTicketReviewResult struct {
-	Ticket *dbent.RefundTicket    `json:"ticket"`
-	Refund *PaymentRefundResponse `json:"refund,omitempty"`
 }
 
 type refundCalculation struct {
@@ -1049,12 +1021,12 @@ func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, prov
 		return nil, fmt.Errorf("mark refund succeeded: %w", err)
 	}
 	if refund.TicketID != nil {
-		if _, err := tx.RefundTicket.Update().Where(refundticket.IDEQ(*refund.TicketID)).
-			SetStatus(RefundTicketStatusCompleted).
+		if _, err := tx.SupportTicket.Update().Where(supportticket.IDEQ(*refund.TicketID)).
+			SetStatus(SupportTicketStatusResolved).
 			SetRefundID(refund.ID).
-			SetCompletedAt(now).
+			SetResolvedAt(now).
 			Save(txCtx); err != nil {
-			return nil, fmt.Errorf("complete refund ticket: %w", err)
+			return nil, fmt.Errorf("complete support ticket refund: %w", err)
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -1127,15 +1099,14 @@ func (s *PaymentService) failPaymentRefund(ctx context.Context, refundID, code, 
 		return nil, fmt.Errorf("restore order after failed refund: %w", err)
 	}
 	if refund.TicketID != nil {
-		if _, updateErr := tx.RefundTicket.Update().Where(
-			refundticket.IDEQ(*refund.TicketID),
-			refundticket.StatusIn(refundTicketFailureSourceStatuses()...),
+		if _, updateErr := tx.SupportTicket.Update().Where(
+			supportticket.IDEQ(*refund.TicketID),
+			supportticket.StatusIn(SupportTicketStatusInProgress, SupportTicketStatusPendingAdmin),
 		).
-			SetStatus(RefundTicketStatusFailed).
+			SetStatus(SupportTicketStatusPendingAdmin).
 			SetRefundID(refund.ID).
-			SetCompletedAt(now).
 			Save(txCtx); updateErr != nil {
-			return nil, fmt.Errorf("fail refund ticket: %w", updateErr)
+			return nil, fmt.Errorf("fail support ticket refund: %w", updateErr)
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -1146,10 +1117,6 @@ func (s *PaymentService) failPaymentRefund(ctx context.Context, refundID, code, 
 		s.invalidateRefundWalletCaches(ctx, affiliateWalletUserID)
 	}
 	return refund, nil
-}
-
-func refundTicketFailureSourceStatuses() []string {
-	return []string{RefundTicketStatusApproved, RefundTicketStatusProcessing}
 }
 
 func paymentRefundFailedOrderUpdate(update *dbent.PaymentOrderUpdateOne, now time.Time, message string) *dbent.PaymentOrderUpdateOne {
@@ -1525,235 +1492,4 @@ func (s *PaymentService) invalidateRefundWalletCaches(ctx context.Context, userI
 	if s.billingCacheService != nil {
 		_ = s.billingCacheService.InvalidateUserBalance(ctx, userID)
 	}
-}
-
-func (s *PaymentService) CreateRefundTicket(ctx context.Context, orderID, userID, comment string) (*dbent.RefundTicket, error) {
-	order, err := s.entClient.PaymentOrder.Get(ctx, orderID)
-	if err != nil {
-		return nil, infraerrors.NotFound("NOT_FOUND", "order not found")
-	}
-	if order.UserID != userID {
-		return nil, infraerrors.Forbidden("FORBIDDEN", "no permission")
-	}
-	if err := s.validateRechargeRefundOrder(ctx, order, false); err != nil {
-		return nil, err
-	}
-	comment = strings.TrimSpace(comment)
-	if comment == "" {
-		return nil, infraerrors.BadRequest("REFUND_TICKET_COMMENT_REQUIRED", "refund ticket comment is required")
-	}
-	if len(comment) > 2000 {
-		return nil, infraerrors.BadRequest("REFUND_TICKET_COMMENT_TOO_LONG", "refund ticket comment must be at most 2000 characters")
-	}
-	input, err := cumulativeRefundInputForOrder(order)
-	if err != nil {
-		return nil, infraerrors.BadRequest("REFUND_SNAPSHOT_MISSING", err.Error())
-	}
-	if !input.PrincipalAmount.Sub(input.PreviousPrincipal).Round(refundMoneyScale).IsPositive() {
-		return nil, infraerrors.BadRequest("ALREADY_REFUNDED", "order principal has already been fully refunded")
-	}
-	ticket, err := s.entClient.RefundTicket.Create().
-		SetOrderID(order.ID).
-		SetUserID(userID).
-		SetStatus(RefundTicketStatusPending).
-		SetComment(comment).
-		SetAffiliateAction(RefundAffiliateActionManual).
-		Save(ctx)
-	if err != nil {
-		if dbent.IsConstraintError(err) {
-			return nil, infraerrors.Conflict("ACTIVE_REFUND_TICKET_EXISTS", "an active refund ticket already exists for this order")
-		}
-		return nil, fmt.Errorf("create refund ticket: %w", err)
-	}
-	return ticket, nil
-}
-
-func (s *PaymentService) ListUserRefundTickets(ctx context.Context, userID string, page, pageSize int) (*RefundTicketPage, error) {
-	page, pageSize = normalizeRefundTicketPagination(page, pageSize)
-	query := s.entClient.RefundTicket.Query().Where(refundticket.UserIDEQ(userID))
-	total, err := query.Clone().Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("count refund tickets: %w", err)
-	}
-	items, err := query.Order(refundticket.ByCreatedAt(sql.OrderDesc())).
-		Offset((page - 1) * pageSize).Limit(pageSize).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list refund tickets: %w", err)
-	}
-	return &RefundTicketPage{Items: items, Total: total}, nil
-}
-
-func (s *PaymentService) CancelRefundTicket(ctx context.Context, ticketID, userID string) (*dbent.RefundTicket, error) {
-	updated, err := s.entClient.RefundTicket.Update().Where(
-		refundticket.IDEQ(ticketID), refundticket.UserIDEQ(userID),
-		refundticket.StatusEQ(RefundTicketStatusPending),
-	).SetStatus(RefundTicketStatusCancelled).Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cancel refund ticket: %w", err)
-	}
-	if updated == 0 {
-		ticket, getErr := s.entClient.RefundTicket.Get(ctx, ticketID)
-		if getErr != nil || ticket.UserID != userID {
-			return nil, infraerrors.NotFound("REFUND_TICKET_NOT_FOUND", "refund ticket not found")
-		}
-		return nil, infraerrors.Conflict("REFUND_TICKET_STATE_CONFLICT", "only pending refund tickets can be canceled")
-	}
-	return s.entClient.RefundTicket.Get(ctx, ticketID)
-}
-
-func (s *PaymentService) AdminListRefundTickets(ctx context.Context, status string, page, pageSize int) (*RefundTicketPage, error) {
-	page, pageSize = normalizeRefundTicketPagination(page, pageSize)
-	query := s.entClient.RefundTicket.Query()
-	if status = strings.ToUpper(strings.TrimSpace(status)); status != "" {
-		query.Where(refundticket.StatusEQ(status))
-	}
-	total, err := query.Clone().Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("count refund tickets: %w", err)
-	}
-	items, err := query.Order(refundticket.ByCreatedAt(sql.OrderDesc())).
-		Offset((page - 1) * pageSize).Limit(pageSize).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list refund tickets: %w", err)
-	}
-	return &RefundTicketPage{Items: items, Total: total}, nil
-}
-
-func (s *PaymentService) ReviewRefundTicket(ctx context.Context, input ReviewRefundTicketInput) (*RefundTicketReviewResult, error) {
-	decision := strings.ToUpper(strings.TrimSpace(input.Decision))
-	if decision != "APPROVE" && decision != "REJECT" {
-		return nil, infraerrors.BadRequest("INVALID_DECISION", "decision must be APPROVE or REJECT")
-	}
-	affiliateAction := strings.ToUpper(strings.TrimSpace(input.AffiliateAction))
-	if affiliateAction == "" {
-		affiliateAction = RefundAffiliateActionManual
-	}
-	if affiliateAction != RefundAffiliateActionManual {
-		return nil, infraerrors.BadRequest("INVALID_AFFILIATE_ACTION", "refund tickets currently support affiliate_action=MANUAL only")
-	}
-	if decision == "APPROVE" && input.ApprovedPrincipalAmount == nil {
-		return nil, infraerrors.BadRequest("APPROVED_PRINCIPAL_REQUIRED", "approved_principal_amount is required when approving a refund ticket")
-	}
-	if decision == "REJECT" {
-		now := time.Now()
-		updated, err := s.entClient.RefundTicket.Update().Where(
-			refundticket.IDEQ(input.TicketID),
-			refundticket.StatusEQ(RefundTicketStatusPending),
-		).
-			SetStatus(RefundTicketStatusRejected).
-			SetReviewerID(input.ReviewerID).
-			SetReviewNote(strings.TrimSpace(input.ReviewNote)).
-			SetAffiliateAction(affiliateAction).
-			SetReviewedAt(now).
-			SetCompletedAt(now).
-			Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("reject refund ticket: %w", err)
-		}
-		ticket, getErr := s.entClient.RefundTicket.Get(ctx, input.TicketID)
-		if getErr != nil {
-			if dbent.IsNotFound(getErr) {
-				return nil, infraerrors.NotFound("REFUND_TICKET_NOT_FOUND", "refund ticket not found")
-			}
-			return nil, fmt.Errorf("load rejected refund ticket: %w", getErr)
-		}
-		if updated == 0 && ticket.Status != RefundTicketStatusRejected {
-			return nil, infraerrors.Conflict("REFUND_TICKET_STATE_CONFLICT", "only pending refund tickets can be rejected")
-		}
-		return &RefundTicketReviewResult{Ticket: ticket}, nil
-	}
-
-	if math.IsNaN(*input.ApprovedPrincipalAmount) || math.IsInf(*input.ApprovedPrincipalAmount, 0) || *input.ApprovedPrincipalAmount <= 0 {
-		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "approved_principal_amount must be positive")
-	}
-	if !hasRefundMoneyPrecision(*input.ApprovedPrincipalAmount) {
-		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "approved_principal_amount allows at most 2 decimal places")
-	}
-	updated, err := s.entClient.RefundTicket.Update().Where(
-		refundticket.IDEQ(input.TicketID),
-		refundticket.StatusEQ(RefundTicketStatusPending),
-	).
-		SetStatus(RefundTicketStatusApproved).
-		SetReviewerID(input.ReviewerID).
-		SetReviewNote(strings.TrimSpace(input.ReviewNote)).
-		SetAffiliateAction(affiliateAction).
-		SetReviewedAt(time.Now()).
-		SetApprovedPrincipalAmount(*input.ApprovedPrincipalAmount).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("claim refund ticket approval: %w", err)
-	}
-	ticket, err := s.entClient.RefundTicket.Get(ctx, input.TicketID)
-	if err != nil {
-		if dbent.IsNotFound(err) {
-			return nil, infraerrors.NotFound("REFUND_TICKET_NOT_FOUND", "refund ticket not found")
-		}
-		return nil, fmt.Errorf("load approved refund ticket: %w", err)
-	}
-	if updated == 0 && (ticket.Status == RefundTicketStatusPending || ticket.Status == RefundTicketStatusCancelled || ticket.Status == RefundTicketStatusRejected) {
-		return nil, infraerrors.Conflict("REFUND_TICKET_STATE_CONFLICT", "refund ticket cannot be approved in its current state")
-	}
-	if ticket.ApprovedPrincipalAmount == nil {
-		return nil, infraerrors.Conflict("REFUND_TICKET_STATE_CONFLICT", "approved refund ticket has no approved principal amount")
-	}
-	requested := decimal.NewFromFloat(*input.ApprovedPrincipalAmount).Round(refundMoneyScale)
-	approved := decimal.NewFromFloat(*ticket.ApprovedPrincipalAmount).Round(refundMoneyScale)
-	if !requested.Equal(approved) {
-		return nil, infraerrors.Conflict("REFUND_TICKET_APPROVAL_CONFLICT", "approved_principal_amount does not match the existing approval")
-	}
-	principal := ticket.ApprovedPrincipalAmount
-	reason := ticket.ReviewNote
-	refund, _, err := s.preparePaymentRefund(ctx, CreatePaymentRefundInput{
-		OrderID: ticket.OrderID, UserID: ticket.UserID, RequestedBy: input.ReviewerID,
-		IdempotencyKey: "refund-ticket:" + ticket.ID,
-		Principal:      principal, Reason: reason,
-		Source: RefundSourceTicket, TicketID: ticket.ID, AutoAffiliate: false,
-	})
-	if err != nil {
-		return nil, err
-	}
-	ticketStatus := RefundTicketStatusProcessing
-	switch refund.Status {
-	case RefundStatusSucceeded:
-		ticketStatus = RefundTicketStatusCompleted
-	case RefundStatusFailed:
-		ticketStatus = RefundTicketStatusFailed
-	}
-	ticketUpdate := s.entClient.RefundTicket.Update().Where(
-		refundticket.IDEQ(ticket.ID),
-		refundticket.StatusIn(RefundTicketStatusApproved, RefundTicketStatusProcessing),
-	).
-		SetStatus(ticketStatus).
-		SetRefundID(refund.ID)
-	if ticketStatus == RefundTicketStatusCompleted || ticketStatus == RefundTicketStatusFailed {
-		ticketUpdate.SetCompletedAt(time.Now())
-	}
-	_, err = ticketUpdate.Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("synchronize refund ticket status: %w", err)
-	}
-	if refund.Status == RefundStatusReserved || refund.Status == RefundStatusSubmitting {
-		refund, err = s.executePaymentRefund(ctx, refund.ID)
-		if err != nil {
-			return nil, err
-		}
-	}
-	ticket, err = s.entClient.RefundTicket.Get(ctx, ticket.ID)
-	if err != nil {
-		return nil, err
-	}
-	return &RefundTicketReviewResult{Ticket: ticket, Refund: paymentRefundResponse(refund)}, nil
-}
-
-func normalizeRefundTicketPagination(page, pageSize int) (int, int) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = defaultPageSize
-	}
-	if pageSize > maxPageSize {
-		pageSize = maxPageSize
-	}
-	return page, pageSize
 }

@@ -14,7 +14,7 @@
         <button class="views-user-airwallex-payment-view__action btn btn-primary" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
       </div>
 
-      <div v-else class="views-user-airwallex-payment-view__panel-6 card">
+      <div v-else class="views-user-airwallex-payment-view__panel-6 card-body card">
         <div class="views-user-airwallex-payment-view__panel-7">
           <div class="views-user-airwallex-payment-view__panel-8"></div>
           <p class="views-user-airwallex-payment-view__description-2">{{ t('payment.qr.payInNewWindowHint') }}</p>

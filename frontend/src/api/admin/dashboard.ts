@@ -25,6 +25,75 @@ export async function getStats(): Promise<DashboardStats> {
   return data
 }
 
+export interface AccountWeeklyQuotaSnapshot {
+  known: boolean
+  used_percent: number
+  remaining_percent: number
+  reset_at?: string
+  observed_at?: string
+  source?: string
+  expired?: boolean
+}
+
+export interface AccountQuotaAccount {
+  id: string
+  name: string
+  platform: string
+  status: string
+  schedulable: boolean
+  weekly: AccountWeeklyQuotaSnapshot
+  rate_limited: boolean
+  rate_limit_reset_at?: string
+  model_rate_limit_count?: number
+  state: 'available' | 'rate_limited' | 'used' | 'unknown' | 'unavailable'
+}
+
+export interface AccountQuotaAggregate {
+  account_count: number
+  known_count: number
+  unknown_count: number
+  rate_limited_count: number
+  unavailable_count: number
+  available_percent: number
+  rate_limited_percent: number
+  used_percent: number
+  unknown_percent: number
+  unavailable_percent: number
+}
+
+export interface AccountQuotaGroup {
+  id: string
+  name: string
+  summary: AccountQuotaAggregate
+}
+
+export interface AccountQuotaPlatform {
+  platform: string
+  summary: AccountQuotaAggregate
+  groups: AccountQuotaGroup[]
+}
+
+export interface AccountQuotaDashboard {
+  generated_at: string
+  latest_observed_at?: string
+  platforms: AccountQuotaPlatform[]
+}
+
+export async function getAccountQuotas(): Promise<AccountQuotaDashboard> {
+  const { data } = await apiClient.get<AccountQuotaDashboard>('/admin/dashboard/account-quotas')
+  return data
+}
+
+export async function getAccountQuotaAccounts(params: {
+  platform: string
+  group_id: string
+  offset?: number
+  limit?: number
+}): Promise<{ accounts: AccountQuotaAccount[]; total: number; offset: number; limit: number }> {
+  const { data } = await apiClient.get('/admin/dashboard/account-quotas/accounts', { params })
+  return data
+}
+
 /**
  * Get real-time metrics
  * @returns Real-time system metrics
@@ -47,6 +116,7 @@ export async function getRealtimeMetrics(): Promise<{
 export interface TrendParams {
   start_date?: string
   end_date?: string
+  timezone?: string
   granularity?: 'day' | 'hour'
   user_id?: string
   api_key_id?: string
@@ -241,7 +311,7 @@ export interface UserTrendResponse {
 }
 
 export interface UserSpendingRankingParams
-  extends Pick<TrendParams, 'start_date' | 'end_date'> {
+  extends Pick<TrendParams, 'start_date' | 'end_date' | 'timezone'> {
   limit?: number
 }
 
@@ -338,7 +408,9 @@ export const dashboardAPI = {
   getUserUsageTrend,
   getUserSpendingRanking,
   getBatchUsersUsage,
-  getBatchApiKeysUsage
+  getBatchApiKeysUsage,
+  getAccountQuotas,
+  getAccountQuotaAccounts
 }
 
 export default dashboardAPI

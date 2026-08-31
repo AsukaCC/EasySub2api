@@ -23,11 +23,11 @@
       <Transition name="modal-fade">
         <div
           v-if="isModalOpen"
-          class="components-common-announcement-bell__panel"
+          class="components-common-announcement-bell__panel modal-overlay"
           @click="closeModal"
         >
           <div
-            class="components-common-announcement-bell__panel-2"
+            class="components-common-announcement-bell__panel-2 modal-content"
             @click.stop
           >
             <!-- Header with Gradient -->
@@ -183,11 +183,11 @@
       <Transition name="modal-fade">
         <div
           v-if="detailModalOpen && selectedAnnouncement"
-          class="components-common-announcement-bell__panel-26"
+          class="components-common-announcement-bell__panel-26 modal-overlay"
           @click="closeDetail"
         >
           <div
-            class="components-common-announcement-bell__panel-27"
+            class="components-common-announcement-bell__panel-27 modal-content"
             @click.stop
           >
             <!-- Header with Decorative Elements -->

@@ -71,7 +71,7 @@ const options = computed(() => {
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-latency-chart__panel">
+  <div class="views-admin-ops-components-ops-latency-chart__panel card-body">
     <div class="views-admin-ops-components-ops-latency-chart__panel-2">
       <h3 class="views-admin-ops-components-ops-latency-chart__heading">
         <svg class="views-admin-ops-components-ops-latency-chart__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">

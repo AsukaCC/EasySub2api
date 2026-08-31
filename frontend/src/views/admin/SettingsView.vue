@@ -42,7 +42,7 @@
                 {{ t("admin.settings.adminApiKey.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-5">
+            <div class="views-admin-settings-view__panel-5 card-body">
               <!-- Security Warning -->
               <div
                 class="views-admin-settings-view__panel-6"
@@ -199,7 +199,7 @@
                 {{ t("admin.settings.overloadCooldown.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div
                 v-if="overloadCooldownLoading"
                 class="views-admin-settings-view__panel-8"
@@ -300,7 +300,7 @@
                 {{ t("admin.settings.rateLimit429Cooldown.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div
                 v-if="rateLimit429CooldownLoading"
                 class="views-admin-settings-view__panel-8"
@@ -407,7 +407,7 @@
                 {{ t("admin.settings.streamTimeout.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Loading State -->
               <div
                 v-if="streamTimeoutLoading"
@@ -576,7 +576,7 @@
                 {{ t("admin.settings.rectifier.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Loading State -->
               <div
                 v-if="rectifierLoading"
@@ -775,7 +775,7 @@
                 {{ t("admin.settings.betaPolicy.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Loading State -->
               <div
                 v-if="betaPolicyLoading"
@@ -1054,11 +1054,11 @@
                 {{ t("admin.settings.openaiFastPolicy.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Empty state -->
               <div
                 v-if="openaiFastPolicyForm.rules.length === 0"
-                class="views-admin-settings-view__panel-27"
+                class="views-admin-settings-view__panel-27 card-body"
               >
                 {{ t("admin.settings.openaiFastPolicy.empty") }}
               </div>
@@ -1407,7 +1407,7 @@
                 {{ t("admin.settings.registration.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Enable Registration -->
               <div class="views-admin-settings-view__panel-10">
                 <div>
@@ -1739,7 +1739,7 @@
                 {{ t("admin.settings.apiKeyAcl.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div class="views-admin-settings-view__panel-38">
                 <div>
                   <label class="views-admin-settings-view__label-2">
@@ -1833,7 +1833,7 @@
                 {{ t("admin.settings.panelRateLimit.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div
                 v-if="panelRateLimitLoading"
                 class="views-admin-settings-view__panel-8"
@@ -2017,7 +2017,7 @@
                 {{ t("admin.settings.captcha.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Enable Captcha -->
               <div class="views-admin-settings-view__panel-10">
                 <div>
@@ -2426,7 +2426,7 @@
                 }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-52">
+            <div class="views-admin-settings-view__panel-52 card-body">
               <div class="views-admin-settings-view__panel-53">
                 <div class="views-admin-settings-view__panel-54">
                   <div class="views-admin-settings-view__panel-36">
@@ -2647,7 +2647,7 @@
                 {{ t("admin.settings.wechatConnect.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div class="views-admin-settings-view__panel-10">
                 <div>
                   <label class="views-admin-settings-view__label-2">{{
@@ -2989,7 +2989,7 @@
                 {{ t("admin.settings.dingtalk.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div class="views-admin-settings-view__panel-10">
                 <div>
                   <label class="views-admin-settings-view__label-2">{{
@@ -3277,7 +3277,7 @@
                 {{ t("admin.settings.oidc.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div class="views-admin-settings-view__panel-10">
                 <div>
                   <label class="views-admin-settings-view__label-2">{{
@@ -3683,7 +3683,7 @@
                 {{ t("admin.settings.defaults.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-52">
+            <div class="views-admin-settings-view__panel-52 card-body">
               <div class="views-admin-settings-view__panel-47">
                 <div>
                   <label
@@ -3961,7 +3961,7 @@
                 {{ t("admin.settings.authSourceDefaults.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-52">
+            <div class="views-admin-settings-view__panel-52 card-body">
               <div
                 class="views-admin-settings-view__panel-67"
               >
@@ -4309,7 +4309,7 @@
                 {{ t("admin.settings.claudeCode.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-77">
+            <div class="views-admin-settings-view__panel-77 card-body">
               <div>
                 <label
                   class="views-admin-settings-view__label-3"
@@ -4358,7 +4358,7 @@
                 {{ t("admin.settings.gatewayForwarding.codexHardeningTitle") }}
               </h2>
             </div>
-            <div class="views-admin-settings-view__panel-79">
+            <div class="views-admin-settings-view__panel-79 card-body">
                 <div>
                   <h3 class="views-admin-settings-view__heading-5">
                     {{ t("admin.settings.gatewayForwarding.codexClientRestrictionTitle") }}
@@ -4609,7 +4609,7 @@
                 {{ t("admin.settings.upstreamBillingProbe.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div
                 v-if="upstreamBillingProbeLoading"
                 class="views-admin-settings-view__panel-8"
@@ -4693,7 +4693,7 @@
                 {{ t("admin.settings.ollamaCloudUsage.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div v-if="ollamaCloudUsageLoading" class="views-admin-settings-view__panel-8">
                 <div class="views-admin-settings-view__panel-9"></div>
                 {{ t("common.loading") }}
@@ -4779,7 +4779,7 @@
                 {{ t("admin.settings.scheduling.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div class="views-admin-settings-view__panel-10">
                 <div>
                   <label
@@ -5060,7 +5060,7 @@
                 {{ t("admin.settings.gatewayForwarding.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <div class="views-admin-settings-view__panel-92">
                 <div>
                   <label
@@ -5594,7 +5594,7 @@
                 {{ t("admin.settings.webSearchEmulation.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-15">
+            <div class="views-admin-settings-view__panel-15 card-body">
               <!-- Global Toggle -->
               <div class="views-admin-settings-view__panel-10">
                 <div>
@@ -5942,7 +5942,7 @@
             @click.self="wsTestDialogOpen = false"
           >
             <div
-              class="views-admin-settings-view__panel-110"
+              class="views-admin-settings-view__panel-110 card-body"
             >
               <h3
                 class="views-admin-settings-view__heading-6"
@@ -6028,7 +6028,7 @@
               {{ t('admin.settings.usageRecords.description') }}
             </p>
           </div>
-          <div class="views-admin-settings-view__panel-5">
+          <div class="views-admin-settings-view__panel-5 card-body">
             <!-- User error requests visibility -->
             <div class="views-admin-settings-view__panel-10">
               <div>
@@ -6065,7 +6065,7 @@
                   </p>
                 </div>
               </div>
-              <div class="views-admin-settings-view__panel-52">
+              <div class="views-admin-settings-view__panel-52 card-body">
                 <div class="views-admin-settings-view__panel-115">
                   <div>
                     <h3 class="views-admin-settings-view__text-2">
@@ -6093,7 +6093,7 @@
                   </p>
                 </div>
               </div>
-              <div class="views-admin-settings-view__panel-52">
+              <div class="views-admin-settings-view__panel-52 card-body">
                 <div class="views-admin-settings-view__panel-47">
                   <div>
                     <label class="views-admin-settings-view__label-3">
@@ -6107,6 +6107,34 @@
                     />
                     <p class="views-admin-settings-view__description-6">
                       {{ t("admin.settings.site.siteNameHint") }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="views-admin-settings-view__label-3">
+                      {{ t("admin.settings.site.themeAccent") }}
+                    </label>
+                    <div class="theme-swatch-row">
+                      <button
+                        v-for="preset in themeAccentPresets"
+                        :key="preset.id"
+                        type="button"
+                        class="theme-swatch"
+                        :class="{ 'theme-swatch--active': form.theme_accent === preset.value }"
+                        :style="{ '--swatch': preset.value }"
+                        :aria-label="preset.id"
+                        @click="form.theme_accent = preset.value"
+                      />
+                      <label class="theme-swatch theme-swatch--custom">
+                        <input
+                          v-model="form.theme_accent"
+                          type="color"
+                          class="theme-swatch__input"
+                          :aria-label="t('admin.settings.site.themeAccentCustom')"
+                        />
+                      </label>
+                    </div>
+                    <p class="views-admin-settings-view__description-6">
+                      {{ t("admin.settings.site.themeAccentHint") }}
                     </p>
                   </div>
                   <div>
@@ -6167,7 +6195,7 @@
                   </p>
                 </div>
               </div>
-              <div class="views-admin-settings-view__panel-52">
+              <div class="views-admin-settings-view__panel-52 card-body">
                 <div>
                   <label class="views-admin-settings-view__label-3">
                     {{ t("admin.settings.site.apiBaseUrl") }}
@@ -6212,7 +6240,7 @@
                   </p>
                 </div>
               </div>
-              <div class="views-admin-settings-view__panel-52">
+              <div class="views-admin-settings-view__panel-52 card-body">
                 <div>
                   <label class="views-admin-settings-view__label-3">
                     {{ t("admin.settings.site.homeContent") }}
@@ -6268,7 +6296,7 @@
                   </p>
                 </div>
               </div>
-              <div class="views-admin-settings-view__panel-52">
+              <div class="views-admin-settings-view__panel-52 card-body">
                 <div class="views-admin-settings-view__panel-32">
                   <h3 class="views-admin-settings-view__text-2">
                     {{ t("admin.settings.site.tablePreferencesTitle") }}
@@ -6423,7 +6451,7 @@
               </p>
               </div>
             </div>
-            <div class="views-admin-settings-view__panel-5">
+            <div class="views-admin-settings-view__panel-5 card-body">
               <!-- Existing menu items -->
               <div
                 v-for="(item, index) in form.custom_menu_items"
@@ -6629,7 +6657,7 @@
 	              </div>
 	            </div>
 
-	            <div class="views-admin-settings-view__panel-52">
+	            <div class="views-admin-settings-view__panel-52 card-body">
 	              <div class="views-admin-settings-view__panel-120">
 	                <div>
 	                  <label class="views-admin-settings-view__label-3">
@@ -6825,7 +6853,7 @@
               </router-link>
             </p>
           </div>
-          <div class="views-admin-settings-view__panel-15">
+          <div class="views-admin-settings-view__panel-15 card-body">
             <div class="views-admin-settings-view__panel-128">
               <div class="views-admin-settings-view__panel-36">
                 <div class="views-admin-settings-view__panel-88">
@@ -6860,7 +6888,7 @@
               </router-link>
             </p>
           </div>
-          <div class="views-admin-settings-view__panel-15">
+          <div class="views-admin-settings-view__panel-15 card-body">
             <div class="views-admin-settings-view__panel-10">
               <div>
                 <label class="views-admin-settings-view__label-4">
@@ -6884,7 +6912,7 @@
               {{ t('admin.settings.features.modelPlaza.description') }}
             </p>
           </div>
-          <div class="views-admin-settings-view__panel-15">
+          <div class="views-admin-settings-view__panel-15 card-body">
             <div class="views-admin-settings-view__panel-10">
               <div>
                 <label class="views-admin-settings-view__label-4">
@@ -6931,7 +6959,7 @@
               </router-link>
             </p>
           </div>
-          <div class="views-admin-settings-view__panel-15">
+          <div class="views-admin-settings-view__panel-15 card-body">
             <div class="views-admin-settings-view__panel-10">
               <div>
                 <label class="views-admin-settings-view__label-4">
@@ -6981,7 +7009,7 @@
               {{ t('admin.settings.features.affiliate.description') }}
             </p>
           </div>
-          <div class="views-admin-settings-view__panel-15">
+          <div class="views-admin-settings-view__panel-15 card-body">
             <div class="views-admin-settings-view__form">
               <div>
                 <label class="input-label">
@@ -7192,7 +7220,7 @@
           class="views-admin-settings-view__panel-133"
           @click.self="closeAffiliateModal"
         >
-          <div class="views-admin-settings-view__panel-134">
+          <div class="views-admin-settings-view__panel-134 card-body">
             <h3 class="views-admin-settings-view__heading-9">
               {{ affiliateModal.mode === 'add' ? t('admin.settings.features.affiliate.modal.addTitle') : t('admin.settings.features.affiliate.modal.editTitle') }}
             </h3>
@@ -7317,7 +7345,7 @@
           class="views-admin-settings-view__panel-133"
           @click.self="affiliateBatchModal.open = false"
         >
-          <div class="views-admin-settings-view__panel-134">
+          <div class="views-admin-settings-view__panel-134 card-body">
             <h3 class="views-admin-settings-view__heading-9">
               {{ t('admin.settings.features.affiliate.batchModal.title', { count: affiliateState.selected.length }) }}
             </h3>
@@ -7393,7 +7421,7 @@
                 </a>
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-5">
+            <div class="views-admin-settings-view__panel-5 card-body">
               <!-- Row 1: Product name -->
                 <div class="views-admin-settings-view__panel-139">
                   <div>
@@ -7898,7 +7926,7 @@
         <div v-if="isTabVisible('email')" class="views-admin-settings-view__form">
           <!-- Email disabled hint - show when email_verify_enabled is off -->
           <div v-if="!form.email_verify_enabled" class="card">
-            <div class="views-admin-settings-view__panel-77">
+            <div class="views-admin-settings-view__panel-77 card-body">
               <div class="views-admin-settings-view__panel-145">
                 <Icon
                   name="mail"
@@ -7963,7 +7991,7 @@
                 }}
               </button>
             </div>
-            <div class="views-admin-settings-view__panel-52">
+            <div class="views-admin-settings-view__panel-52 card-body">
               <div class="views-admin-settings-view__panel-47">
                 <div>
                   <label
@@ -8092,7 +8120,7 @@
                 {{ t("admin.settings.testEmail.description") }}
               </p>
             </div>
-            <div class="views-admin-settings-view__panel-77">
+            <div class="views-admin-settings-view__panel-77 card-body">
               <div class="views-admin-settings-view__panel-147">
                 <div class="views-admin-settings-view__field-3">
                   <label
@@ -8455,6 +8483,7 @@ import {
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
 import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
+import { THEME_ACCENT_PRESETS } from "@/utils/themeAccent";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
@@ -8477,6 +8506,7 @@ const appStore = useAppStore();
 const settingsStepUp = useStepUp();
 const adminSettingsStore = useAdminSettingsStore();
 const isZhLocale = computed(() => locale.value.startsWith("zh"));
+const themeAccentPresets = THEME_ACCENT_PRESETS;
 
 function localText(zh: string, en: string): string {
   return isZhLocale.value ? zh : en;
@@ -8550,7 +8580,7 @@ function isFeatureSettingsCard(feature: "channel-monitor" | "available-channels"
 
 const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
   platform: new Set([
-    "site_name", "site_logo", "site_subtitle", "api_base_url", "contact_info",
+    "site_name", "theme_accent", "site_logo", "site_subtitle", "api_base_url", "contact_info",
     "doc_url", "home_content", "frontend_url", "compact_home_enabled",
     "hide_ccs_import_button", "table_default_page_size", "table_page_size_options",
     "custom_menu_items", "custom_endpoints", "backend_mode_enabled",
@@ -9299,6 +9329,7 @@ const form = reactive<SettingsForm>({
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
   site_name: "EasySub2api",
+  theme_accent: "#0a84ff",
   site_logo: "",
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
@@ -9310,6 +9341,10 @@ const form = reactive<SettingsForm>({
   hide_ccs_import_button: false,
   payment_enabled: false,
   payment_user_visible: false,
+  support_tickets_enabled: false,
+  support_tickets_user_visible: false,
+  support_ticket_account_enabled: true,
+  support_ticket_refund_enabled: true,
   risk_control_enabled: false,
   cyber_session_block_enabled: false,
   cyber_session_block_ttl_seconds: 3600,
@@ -11023,6 +11058,7 @@ async function saveSettings(section?: SettingsSection) {
       force_email_on_third_party_signup: form.force_email_on_third_party_signup,
       default_user_rpm_limit: form.default_user_rpm_limit,
       site_name: form.site_name,
+      theme_accent: form.theme_accent,
       site_logo: form.site_logo,
       site_subtitle: form.site_subtitle,
       api_base_url: form.api_base_url,
@@ -13157,5 +13193,45 @@ watch(
   .payment-bonus-tiers__remove {
     align-self: flex-end;
   }
+}
+
+.theme-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.theme-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--swatch, var(--theme-accent));
+  cursor: pointer;
+}
+
+.theme-swatch--active {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 22%, transparent);
+}
+
+.theme-swatch--custom {
+  position: relative;
+  overflow: hidden;
+  background:
+    conic-gradient(from 180deg, #0a84ff, #7c3aed, #db2777, #ea580c, #059669, #0891b2, #0a84ff);
+}
+
+.theme-swatch__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 </style>

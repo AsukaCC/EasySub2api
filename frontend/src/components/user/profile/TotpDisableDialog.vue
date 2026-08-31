@@ -3,7 +3,7 @@
     <div class="components-user-profile-totp-disable-dialog__panel-2">
       <div class="components-user-profile-totp-disable-dialog__panel-3" @click="$emit('close')"></div>
 
-      <div class="components-user-profile-totp-disable-dialog__panel-4">
+      <div class="components-user-profile-totp-disable-dialog__panel-4 card-body">
         <!-- Header -->
         <div class="components-user-profile-totp-disable-dialog__panel-5">
           <div class="components-user-profile-totp-disable-dialog__panel-6">

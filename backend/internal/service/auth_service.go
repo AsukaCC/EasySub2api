@@ -889,12 +889,23 @@ func (s *AuthService) assignSubscriptions(ctx context.Context, userID string, it
 		return
 	}
 	for _, item := range items {
-		if _, _, err := s.defaultSubAssigner.AssignOrExtendSubscription(ctx, &AssignSubscriptionInput{
+		input := &AssignSubscriptionInput{
 			UserID:       userID,
 			GroupID:      item.GroupID,
 			ValidityDays: item.ValidityDays,
 			Notes:        notes,
-		}); err != nil {
+		}
+		var err error
+		if grantAssigner, ok := s.defaultSubAssigner.(interface {
+			GrantOrQueueSubscription(context.Context, *SubscriptionGrantInput) (*SubscriptionGrantResult, error)
+		}); ok {
+			_, err = grantAssigner.GrantOrQueueSubscription(ctx, &SubscriptionGrantInput{
+				AssignSubscriptionInput: *input, SourceType: "auth_default", SourceID: userID + ":" + item.GroupID + ":" + notes,
+			})
+		} else {
+			_, _, err = s.defaultSubAssigner.AssignOrExtendSubscription(ctx, input)
+		}
+		if err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to assign default subscription: user_id=%v group_id=%v err=%v", userID, item.GroupID, err)
 		}
 	}

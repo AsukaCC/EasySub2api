@@ -43,6 +43,7 @@ type AdminHandlers struct {
 	Affiliate              *admin.AffiliateHandler
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
+	SupportTicket          *admin.SupportTicketHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -67,6 +68,7 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	ModelPlaza       *ModelPlazaHandler
 	AsyncImage       *AsyncImageHandler
+	SupportTicket    *SupportTicketHandler
 }
 
 // BuildInfo contains build-time information

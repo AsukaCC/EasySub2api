@@ -392,7 +392,7 @@ function cancelDelete() {
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-alert-rules-card__panel">
+  <div class="views-admin-ops-components-ops-alert-rules-card__panel card-body">
     <div class="views-admin-ops-components-ops-alert-rules-card__panel-2">
       <div>
         <h3 class="views-admin-ops-components-ops-alert-rules-card__heading">{{ t('admin.ops.alertRules.title') }}</h3>

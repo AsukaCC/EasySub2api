@@ -860,7 +860,7 @@ function handleToolbarRefresh() {
 </script>
 
 <template>
-  <div :class="['views-admin-ops-components-ops-dashboard-header__panel-64', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-header__panel-65' : 'views-admin-ops-components-ops-dashboard-header__panel-66']">
+  <div :class="['views-admin-ops-components-ops-dashboard-header__panel-64', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-header__panel-65' : 'views-admin-ops-components-ops-dashboard-header__panel-66 card-body']">
     <!-- Top Toolbar -->
     <div class="views-admin-ops-components-ops-dashboard-header__panel">
       <div>
@@ -994,7 +994,7 @@ function handleToolbarRefresh() {
 
     <div v-if="overview && !props.compact" class="views-admin-ops-components-ops-dashboard-header__panel-5">
       <!-- Left: Health + Realtime -->
-      <div :class="['views-admin-ops-components-ops-dashboard-header__panel-67', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-header__panel-66' : 'views-admin-ops-components-ops-dashboard-header__panel-68']">
+      <div :class="['views-admin-ops-components-ops-dashboard-header__panel-67', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-header__panel-66 card-body' : 'views-admin-ops-components-ops-dashboard-header__panel-68']">
         <div class="views-admin-ops-components-ops-dashboard-header__panel-6">
           <!-- 1) Health Score -->
           <div

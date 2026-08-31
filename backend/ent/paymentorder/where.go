@@ -280,6 +280,26 @@ func Status(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldStatus, v))
 }
 
+// InventoryStatus applies equality check predicate on the "inventory_status" field. It's identical to InventoryStatusEQ.
+func InventoryStatus(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryStatus, v))
+}
+
+// InventoryReservedAt applies equality check predicate on the "inventory_reserved_at" field. It's identical to InventoryReservedAtEQ.
+func InventoryReservedAt(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryReservedAt, v))
+}
+
+// InventoryConsumedAt applies equality check predicate on the "inventory_consumed_at" field. It's identical to InventoryConsumedAtEQ.
+func InventoryConsumedAt(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryConsumedAt, v))
+}
+
+// InventoryReleasedAt applies equality check predicate on the "inventory_released_at" field. It's identical to InventoryReleasedAtEQ.
+func InventoryReleasedAt(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryReleasedAt, v))
+}
+
 // RefundAmount applies equality check predicate on the "refund_amount" field. It's identical to RefundAmountEQ.
 func RefundAmount(v float64) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldRefundAmount, v))
@@ -2703,6 +2723,221 @@ func StatusEqualFold(v string) predicate.PaymentOrder {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// InventoryStatusEQ applies the EQ predicate on the "inventory_status" field.
+func InventoryStatusEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryStatus, v))
+}
+
+// InventoryStatusNEQ applies the NEQ predicate on the "inventory_status" field.
+func InventoryStatusNEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldInventoryStatus, v))
+}
+
+// InventoryStatusIn applies the In predicate on the "inventory_status" field.
+func InventoryStatusIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldInventoryStatus, vs...))
+}
+
+// InventoryStatusNotIn applies the NotIn predicate on the "inventory_status" field.
+func InventoryStatusNotIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldInventoryStatus, vs...))
+}
+
+// InventoryStatusGT applies the GT predicate on the "inventory_status" field.
+func InventoryStatusGT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldInventoryStatus, v))
+}
+
+// InventoryStatusGTE applies the GTE predicate on the "inventory_status" field.
+func InventoryStatusGTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldInventoryStatus, v))
+}
+
+// InventoryStatusLT applies the LT predicate on the "inventory_status" field.
+func InventoryStatusLT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldInventoryStatus, v))
+}
+
+// InventoryStatusLTE applies the LTE predicate on the "inventory_status" field.
+func InventoryStatusLTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldInventoryStatus, v))
+}
+
+// InventoryStatusContains applies the Contains predicate on the "inventory_status" field.
+func InventoryStatusContains(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContains(FieldInventoryStatus, v))
+}
+
+// InventoryStatusHasPrefix applies the HasPrefix predicate on the "inventory_status" field.
+func InventoryStatusHasPrefix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasPrefix(FieldInventoryStatus, v))
+}
+
+// InventoryStatusHasSuffix applies the HasSuffix predicate on the "inventory_status" field.
+func InventoryStatusHasSuffix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasSuffix(FieldInventoryStatus, v))
+}
+
+// InventoryStatusEqualFold applies the EqualFold predicate on the "inventory_status" field.
+func InventoryStatusEqualFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEqualFold(FieldInventoryStatus, v))
+}
+
+// InventoryStatusContainsFold applies the ContainsFold predicate on the "inventory_status" field.
+func InventoryStatusContainsFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContainsFold(FieldInventoryStatus, v))
+}
+
+// InventoryReservedAtEQ applies the EQ predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryReservedAt, v))
+}
+
+// InventoryReservedAtNEQ applies the NEQ predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtNEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldInventoryReservedAt, v))
+}
+
+// InventoryReservedAtIn applies the In predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldInventoryReservedAt, vs...))
+}
+
+// InventoryReservedAtNotIn applies the NotIn predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtNotIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldInventoryReservedAt, vs...))
+}
+
+// InventoryReservedAtGT applies the GT predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtGT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldInventoryReservedAt, v))
+}
+
+// InventoryReservedAtGTE applies the GTE predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtGTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldInventoryReservedAt, v))
+}
+
+// InventoryReservedAtLT applies the LT predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtLT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldInventoryReservedAt, v))
+}
+
+// InventoryReservedAtLTE applies the LTE predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtLTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldInventoryReservedAt, v))
+}
+
+// InventoryReservedAtIsNil applies the IsNil predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldInventoryReservedAt))
+}
+
+// InventoryReservedAtNotNil applies the NotNil predicate on the "inventory_reserved_at" field.
+func InventoryReservedAtNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldInventoryReservedAt))
+}
+
+// InventoryConsumedAtEQ applies the EQ predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryConsumedAt, v))
+}
+
+// InventoryConsumedAtNEQ applies the NEQ predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtNEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldInventoryConsumedAt, v))
+}
+
+// InventoryConsumedAtIn applies the In predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldInventoryConsumedAt, vs...))
+}
+
+// InventoryConsumedAtNotIn applies the NotIn predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtNotIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldInventoryConsumedAt, vs...))
+}
+
+// InventoryConsumedAtGT applies the GT predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtGT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldInventoryConsumedAt, v))
+}
+
+// InventoryConsumedAtGTE applies the GTE predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtGTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldInventoryConsumedAt, v))
+}
+
+// InventoryConsumedAtLT applies the LT predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtLT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldInventoryConsumedAt, v))
+}
+
+// InventoryConsumedAtLTE applies the LTE predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtLTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldInventoryConsumedAt, v))
+}
+
+// InventoryConsumedAtIsNil applies the IsNil predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldInventoryConsumedAt))
+}
+
+// InventoryConsumedAtNotNil applies the NotNil predicate on the "inventory_consumed_at" field.
+func InventoryConsumedAtNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldInventoryConsumedAt))
+}
+
+// InventoryReleasedAtEQ applies the EQ predicate on the "inventory_released_at" field.
+func InventoryReleasedAtEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldInventoryReleasedAt, v))
+}
+
+// InventoryReleasedAtNEQ applies the NEQ predicate on the "inventory_released_at" field.
+func InventoryReleasedAtNEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldInventoryReleasedAt, v))
+}
+
+// InventoryReleasedAtIn applies the In predicate on the "inventory_released_at" field.
+func InventoryReleasedAtIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldInventoryReleasedAt, vs...))
+}
+
+// InventoryReleasedAtNotIn applies the NotIn predicate on the "inventory_released_at" field.
+func InventoryReleasedAtNotIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldInventoryReleasedAt, vs...))
+}
+
+// InventoryReleasedAtGT applies the GT predicate on the "inventory_released_at" field.
+func InventoryReleasedAtGT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldInventoryReleasedAt, v))
+}
+
+// InventoryReleasedAtGTE applies the GTE predicate on the "inventory_released_at" field.
+func InventoryReleasedAtGTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldInventoryReleasedAt, v))
+}
+
+// InventoryReleasedAtLT applies the LT predicate on the "inventory_released_at" field.
+func InventoryReleasedAtLT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldInventoryReleasedAt, v))
+}
+
+// InventoryReleasedAtLTE applies the LTE predicate on the "inventory_released_at" field.
+func InventoryReleasedAtLTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldInventoryReleasedAt, v))
+}
+
+// InventoryReleasedAtIsNil applies the IsNil predicate on the "inventory_released_at" field.
+func InventoryReleasedAtIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldInventoryReleasedAt))
+}
+
+// InventoryReleasedAtNotNil applies the NotNil predicate on the "inventory_released_at" field.
+func InventoryReleasedAtNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldInventoryReleasedAt))
 }
 
 // RefundAmountEQ applies the EQ predicate on the "refund_amount" field.

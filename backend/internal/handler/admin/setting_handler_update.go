@@ -149,6 +149,7 @@ type UpdateSettingsRequest struct {
 
 	// OEM设置
 	SiteName                    string                `json:"site_name"`
+	ThemeAccent                 string                `json:"theme_accent"`
 	SiteLogo                    string                `json:"site_logo"`
 	SiteSubtitle                string                `json:"site_subtitle"`
 	APIBaseURL                  string                `json:"api_base_url"`
@@ -347,7 +348,11 @@ type UpdateSettingsRequest struct {
 	AffiliateUserVisible *bool `json:"affiliate_user_visible"`
 
 	// 风控中心功能开关
-	RiskControlEnabled *bool `json:"risk_control_enabled"`
+	RiskControlEnabled          *bool `json:"risk_control_enabled"`
+	SupportTicketsEnabled       *bool `json:"support_tickets_enabled"`
+	SupportTicketsUserVisible   *bool `json:"support_tickets_user_visible"`
+	SupportTicketAccountEnabled *bool `json:"support_ticket_account_enabled"`
+	SupportTicketRefundEnabled  *bool `json:"support_ticket_refund_enabled"`
 
 	// cyber 会话屏蔽开关 + TTL
 	CyberSessionBlockEnabled    *bool `json:"cyber_session_block_enabled"`
@@ -1628,6 +1633,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GoogleOAuthRedirectURL:                 req.GoogleOAuthRedirectURL,
 		GoogleOAuthFrontendRedirectURL:         req.GoogleOAuthFrontendRedirectURL,
 		SiteName:                               req.SiteName,
+		ThemeAccent:                            req.ThemeAccent,
 		SiteLogo:                               req.SiteLogo,
 		SiteSubtitle:                           req.SiteSubtitle,
 		APIBaseURL:                             req.APIBaseURL,
@@ -1944,6 +1950,30 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.RiskControlEnabled
 		}(),
+		SupportTicketsEnabled: func() bool {
+			if req.SupportTicketsEnabled != nil {
+				return *req.SupportTicketsEnabled
+			}
+			return previousSettings.SupportTicketsEnabled
+		}(),
+		SupportTicketsUserVisible: func() bool {
+			if req.SupportTicketsUserVisible != nil {
+				return *req.SupportTicketsUserVisible
+			}
+			return previousSettings.SupportTicketsUserVisible
+		}(),
+		SupportTicketAccountEnabled: func() bool {
+			if req.SupportTicketAccountEnabled != nil {
+				return *req.SupportTicketAccountEnabled
+			}
+			return previousSettings.SupportTicketAccountEnabled
+		}(),
+		SupportTicketRefundEnabled: func() bool {
+			if req.SupportTicketRefundEnabled != nil {
+				return *req.SupportTicketRefundEnabled
+			}
+			return previousSettings.SupportTicketRefundEnabled
+		}(),
 		CyberSessionBlockEnabled: func() bool {
 			if req.CyberSessionBlockEnabled != nil {
 				return *req.CyberSessionBlockEnabled
@@ -2222,6 +2252,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GoogleOAuthRedirectURL:                                 updatedSettings.GoogleOAuthRedirectURL,
 		GoogleOAuthFrontendRedirectURL:                         updatedSettings.GoogleOAuthFrontendRedirectURL,
 		SiteName:                                               updatedSettings.SiteName,
+		ThemeAccent:                                            updatedSettings.ThemeAccent,
 		SiteLogo:                                               updatedSettings.SiteLogo,
 		SiteSubtitle:                                           updatedSettings.SiteSubtitle,
 		APIBaseURL:                                             updatedSettings.APIBaseURL,
@@ -2362,6 +2393,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateUserVisible: updatedSettings.AffiliateUserVisible,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
+		SupportTicketsEnabled:       updatedSettings.SupportTicketsEnabled,
+		SupportTicketsUserVisible:   updatedSettings.SupportTicketsUserVisible,
+		SupportTicketAccountEnabled: updatedSettings.SupportTicketAccountEnabled,
+		SupportTicketRefundEnabled:  updatedSettings.SupportTicketRefundEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
 		CyberSessionBlockTTLSeconds: updatedSettings.CyberSessionBlockTTLSeconds,
 		AccountSchedulingThresholds: updatedSettings.AccountSchedulingThresholds,

@@ -39,18 +39,10 @@
 // ------------------------------------------------------------
 // 2. 表面层:卡片 (Cards & Stat Cards)
 // ------------------------------------------------------------
-.card,
-.stat-card {
-  position: relative;
-  @include glass-surface(content);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  @include glass-shell-shadow;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
-}
-
-.glass-card,
-.card-glass {
+// html body / html.dark 用来压过 generated 遗留实底;透明底写在这组完整皮肤里,
+// 不单独抽一条 background-color: transparent。
+html body :is(.card, .stat-card, .glass-card, .card-glass),
+:is(html.dark, .dark) :is(.card, .stat-card, .glass-card, .card-glass) {
   position: relative;
   @include glass-surface(content);
   border: 1px solid var(--glass-border);
@@ -87,7 +79,7 @@
 .modal-content,
 .dialog-container {
   position: relative;
-  @include glass-surface(modal);
+  @include glass-surface(modal, true);
   border: 1px solid var(--glass-border-hover);
   box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
 }
@@ -96,6 +88,16 @@
   @include glass-surface(floating, true);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-lg), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.glass-popover {
+  @include glass-surface(floating, true);
+  border: 1px solid var(--glass-border-hover);
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.glass-sticky-cell {
+  @include glass-surface(floating, true);
 }
 
 // ------------------------------------------------------------
@@ -184,17 +186,31 @@
 }
 
 .input,
-.form-control {
+.form-control,
+.picker-trigger {
   @include glass-field;
 }
 
 .tabs {
   position: relative;
   isolation: isolate;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.25rem;
   border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
   background-color: var(--glass-bg-subtle);
   -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+}
+
+.tabs--disabled {
+  opacity: 0.7;
 }
 
 .tab {
@@ -221,7 +237,7 @@
   backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
   color: var(--color-text-primary);
   box-shadow:
-    0 2px 10px rgba(10, 132, 255, 0.12),
+    0 2px 10px color-mix(in srgb, var(--theme-accent) 12%, transparent),
     0 1px 0 var(--glass-highlight-hover) inset;
 
   .dark & {

@@ -134,7 +134,7 @@
       <div class="components-user-profile-profile-passkey-card__panel-16">
         <div class="components-user-profile-profile-passkey-card__panel-17" @click="closeDeleteDialog"></div>
         <div
-          class="components-user-profile-profile-passkey-card__panel-18"
+          class="components-user-profile-profile-passkey-card__panel-18 card-body"
         >
           <h3 class="components-user-profile-profile-passkey-card__heading-2">
             {{ t('profile.passkey.deleteTitle') }}

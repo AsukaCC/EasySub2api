@@ -39,6 +39,10 @@ type SubscriptionPlan struct {
 	ProductName string `json:"product_name,omitempty"`
 	// ForSale holds the value of the "for_sale" field.
 	ForSale bool `json:"for_sale,omitempty"`
+	// StockQuantity holds the value of the "stock_quantity" field.
+	StockQuantity *int `json:"stock_quantity,omitempty"`
+	// StockFrozen holds the value of the "stock_frozen" field.
+	StockFrozen int `json:"stock_frozen,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -57,7 +61,7 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldValidityDays, subscriptionplan.FieldStockQuantity, subscriptionplan.FieldStockFrozen, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
 			values[i] = new(sql.NullString)
@@ -151,6 +155,19 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ForSale = value.Bool
 			}
+		case subscriptionplan.FieldStockQuantity:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field stock_quantity", values[i])
+			} else if value.Valid {
+				_m.StockQuantity = new(int)
+				*_m.StockQuantity = int(value.Int64)
+			}
+		case subscriptionplan.FieldStockFrozen:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field stock_frozen", values[i])
+			} else if value.Valid {
+				_m.StockFrozen = int(value.Int64)
+			}
 		case subscriptionplan.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field sort_order", values[i])
@@ -239,6 +256,14 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("for_sale=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ForSale))
+	builder.WriteString(", ")
+	if v := _m.StockQuantity; v != nil {
+		builder.WriteString("stock_quantity=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("stock_frozen=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StockFrozen))
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))

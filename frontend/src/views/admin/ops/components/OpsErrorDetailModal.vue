@@ -11,7 +11,7 @@
       {{ emptyText }}
     </div>
 
-    <div v-else class="views-admin-ops-components-ops-error-detail-modal__panel-6">
+    <div v-else class="views-admin-ops-components-ops-error-detail-modal__panel-6 card-body">
       <!-- Summary -->
       <div class="views-admin-ops-components-ops-error-detail-modal__panel-7">
         <div class="views-admin-ops-components-ops-error-detail-modal__panel-8">
@@ -117,13 +117,13 @@
       </div>
 
       <!-- Response content (client request -> error_body; upstream -> upstream_error_detail/message) -->
-      <div class="views-admin-ops-components-ops-error-detail-modal__panel-15">
+      <div class="views-admin-ops-components-ops-error-detail-modal__panel-15 card-body">
         <h3 class="views-admin-ops-components-ops-error-detail-modal__heading">{{ t('admin.ops.errorDetail.responseBody') }}</h3>
         <pre class="views-admin-ops-components-ops-error-detail-modal__pre"><code>{{ prettyJSON(primaryResponseBody || '') }}</code></pre>
       </div>
 
       <!-- Upstream errors list (only for request errors) -->
-      <div v-if="showUpstreamList" class="views-admin-ops-components-ops-error-detail-modal__panel-15">
+      <div v-if="showUpstreamList" class="views-admin-ops-components-ops-error-detail-modal__panel-15 card-body">
         <div class="views-admin-ops-components-ops-error-detail-modal__panel-16">
           <h3 class="views-admin-ops-components-ops-error-detail-modal__heading">{{ t('admin.ops.errorDetails.upstreamErrors') }}</h3>
           <div class="views-admin-ops-components-ops-error-detail-modal__panel-17" v-if="correlatedUpstreamLoading">{{ t('common.loading') }}</div>

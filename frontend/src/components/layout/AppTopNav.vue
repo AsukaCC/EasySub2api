@@ -28,7 +28,12 @@
       </button>
 
       <div class="app-top-nav-scroll">
-        <div class="app-top-nav-list">
+        <div ref="navListRef" class="app-top-nav-list" @pointerdown="primeActiveIndicator">
+          <span
+            ref="activeIndicatorRef"
+            class="app-top-nav-active-indicator"
+            aria-hidden="true"
+          ></span>
           <router-link
             v-for="item in visibleNavItems"
             :key="item.path"
@@ -46,6 +51,7 @@
             ></span>
             <Icon v-else :name="item.icon" size="sm" class="app-top-nav-icon" />
             <span class="app-top-nav-label">{{ item.label }}</span>
+            <span v-if="item.badge" class="app-top-nav-badge">{{ item.badge > 99 ? '99+' : item.badge }}</span>
           </router-link>
         </div>
       </div>
@@ -58,15 +64,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import gsap from 'gsap'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
+import {
+  getNavigationIndicatorGeometry,
+  setNavigationIndicatorGeometry
+} from '@/utils/navigationMotion'
 import Icon from '@/components/icons/Icon.vue'
 import AppNavUserModule from './AppNavUserModule.vue'
+import { supportTicketsAPI } from '@/api/supportTickets'
 
 interface NavItem {
   path: string
@@ -77,6 +89,7 @@ interface NavItem {
   hideInSimpleMode?: boolean
   exact?: boolean
   featureFlag?: () => boolean | undefined
+  badge?: number
 }
 
 const route = useRoute()
@@ -86,6 +99,10 @@ const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 
 const navRootRef = ref<HTMLElement | null>(null)
+const navListRef = ref<HTMLElement | null>(null)
+const activeIndicatorRef = ref<HTMLElement | null>(null)
+let activeIndicatorReady = false
+let navResizeObserver: ResizeObserver | null = null
 const isAdmin = computed(() => authStore.isAdmin)
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
 const siteName = computed(() => appStore.siteName)
@@ -97,6 +114,8 @@ const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
+const supportSummary = ref({ total: 0, unread: 0, featureEnabled: false, loaded: false })
+const flagSupportTickets = () => !supportSummary.value.loaded || supportSummary.value.featureEnabled || supportSummary.value.total > 0
 
 const customMenuItemsForUser = computed(() => {
   const items = appStore.cachedPublicSettings?.custom_menu_items ?? []
@@ -140,6 +159,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
       hideInSimpleMode: true,
       featureFlag: flagPayment
     },
+    { path: '/tickets', label: t('nav.supportTickets'), icon: 'clipboard', hideInSimpleMode: true, featureFlag: flagSupportTickets, badge: supportSummary.value.unread },
     { path: '/redeem', label: t('nav.redeem'), icon: 'gift', hideInSimpleMode: true },
     {
       path: '/available-channels',
@@ -196,13 +216,128 @@ function scrollActiveItemIntoView(): void {
   })
 }
 
+function getTopNavigationGeometry(target: HTMLElement) {
+  const list = navListRef.value
+  if (!list) return null
+  const listRect = list.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  return {
+    x: targetRect.left - listRect.left,
+    y: targetRect.top - listRect.top,
+    width: targetRect.width,
+    height: targetRect.height
+  }
+}
+
+function primeActiveIndicator(event: PointerEvent): void {
+  if (event.button !== 0) return
+  const target = (event.target as HTMLElement | null)?.closest<HTMLElement>('.app-top-nav-item')
+  const indicator = activeIndicatorRef.value
+  const geometry = target ? getTopNavigationGeometry(target) : null
+  if (!indicator || !geometry) return
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  gsap.to(indicator, {
+    ...geometry,
+    opacity: 1,
+    duration: reduceMotion ? 0 : 0.42,
+    ease: 'power3.out',
+    overwrite: 'auto'
+  })
+  activeIndicatorReady = true
+}
+
+function persistCurrentActiveIndicatorGeometry(): void {
+  const list = navListRef.value
+  const indicator = activeIndicatorRef.value
+  if (!list || !indicator || !activeIndicatorReady) return
+  const geometry = getTopNavigationGeometry(indicator)
+  if (geometry) setNavigationIndicatorGeometry('top-navigation', geometry)
+}
+
+function updateActiveIndicator(animate = true): void {
+  void nextTick(() => {
+    window.requestAnimationFrame(() => {
+      const list = navListRef.value
+      const indicator = activeIndicatorRef.value
+      const activeItem = list?.querySelector<HTMLElement>('.app-top-nav-item-active')
+      if (!list || !indicator || !activeItem) {
+        if (indicator) gsap.set(indicator, { opacity: 0 })
+        return
+      }
+
+      const listRect = list.getBoundingClientRect()
+      const itemRect = activeItem.getBoundingClientRect()
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const nextGeometry = {
+        x: itemRect.left - listRect.left,
+        y: itemRect.top - listRect.top,
+        width: itemRect.width,
+        height: itemRect.height
+      }
+
+      if (!activeIndicatorReady && animate && !reduceMotion) {
+        const previousGeometry = getNavigationIndicatorGeometry('top-navigation')
+        if (previousGeometry) {
+          gsap.set(indicator, { ...previousGeometry, opacity: 1 })
+          activeIndicatorReady = true
+        }
+      }
+      const duration = animate && activeIndicatorReady && !reduceMotion ? 0.42 : 0
+
+      gsap.to(indicator, {
+        ...nextGeometry,
+        opacity: 1,
+        duration,
+        ease: 'power3.out',
+        overwrite: 'auto'
+      })
+      setNavigationIndicatorGeometry('top-navigation', nextGeometry)
+      activeIndicatorReady = true
+    })
+  })
+}
+
+async function fetchSupportSummary() {
+  try {
+    const response = await supportTicketsAPI.summary()
+    supportSummary.value = { total: response.data.total || 0, unread: response.data.unread || 0, featureEnabled: response.data.feature_enabled || false, loaded: true }
+  } catch {
+    supportSummary.value.loaded = true
+  }
+}
+
 watch(
-  () => route.fullPath,
-  scrollActiveItemIntoView
+  () => [route.fullPath, visibleNavItems.value.map((item) => item.path).join('|')],
+  () => {
+    scrollActiveItemIntoView()
+    updateActiveIndicator()
+  },
+  { flush: 'post' }
 )
 
 onMounted(() => {
   scrollActiveItemIntoView()
+  updateActiveIndicator()
+  if (typeof ResizeObserver !== 'undefined') {
+    navResizeObserver = new ResizeObserver(() => updateActiveIndicator())
+    if (navListRef.value) navResizeObserver.observe(navListRef.value)
+  }
+  window.addEventListener('resize', updateActiveIndicatorOnResize)
+  window.addEventListener('support-tickets:updated', fetchSupportSummary)
+  void fetchSupportSummary()
+})
+
+function updateActiveIndicatorOnResize(): void {
+  updateActiveIndicator(false)
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('support-tickets:updated', fetchSupportSummary)
+  window.removeEventListener('resize', updateActiveIndicatorOnResize)
+  navResizeObserver?.disconnect()
+  persistCurrentActiveIndicatorGeometry()
+  if (activeIndicatorRef.value) gsap.killTweensOf(activeIndicatorRef.value)
 })
 </script>
 
@@ -211,6 +346,19 @@ onMounted(() => {
   width: 2.25rem;
   height: 2.25rem;
   object-fit: contain;
+}
+
+.app-top-nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  border-radius: 999px;
+  background: var(--glass-tint-danger);
+  color: var(--color-danger);
+  font-size: var(--type-micro-size);
 }
 
 .app-top-nav-wrap {
@@ -284,10 +432,32 @@ onMounted(() => {
 }
 
 .app-top-nav-list {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.25rem;
   width: max-content;
+}
+
+.app-top-nav-active-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  display: block;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  border: 1px solid var(--glass-border-active);
+  border-radius: var(--radius-lg);
+  background-color: var(--glass-tint-brand);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  box-shadow:
+    0 4px 16px rgba(10, 132, 255, 0.12),
+    0 1px 0 var(--glass-highlight-hover) inset;
+  will-change: transform, width, height;
 }
 
 .app-top-nav-user {
@@ -310,6 +480,7 @@ onMounted(() => {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
+  z-index: 1;
   transition: color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 
   &::before {
@@ -343,30 +514,14 @@ onMounted(() => {
 }
 
 .app-top-nav-item-active {
-  border-color: var(--glass-border-active);
-  background-color: var(--glass-tint-brand);
-  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
-  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  border-color: transparent;
+  background-color: transparent;
   color: var(--color-text-brand);
-  box-shadow:
-    0 4px 16px rgba(10, 132, 255, 0.12),
-    0 1px 0 var(--glass-highlight-hover) inset;
+  box-shadow: none;
 
   &::before,
   &:hover::before {
     opacity: 0;
-  }
-
-  &::after {
-    position: absolute;
-    right: 0.75rem;
-    bottom: 0.25rem;
-    left: 0.75rem;
-    height: 2px;
-    border-radius: 9999px;
-    content: '';
-    background: linear-gradient(90deg, #0a84ff, #5e5ce6);
-    box-shadow: 0 0 8px rgba(10, 132, 255, 0.5);
   }
 
   .app-top-nav-icon {
@@ -375,16 +530,14 @@ onMounted(() => {
 
   &:hover {
     color: var(--color-text-brand);
-    border-color: var(--glass-border-hover);
+    border-color: transparent;
   }
 
   .dark & {
-    border-color: var(--glass-border-active);
-    background-color: var(--glass-tint-brand);
+    border-color: transparent;
+    background-color: transparent;
     color: var(--color-text-primary);
-    box-shadow:
-      0 6px 20px rgba(0, 0, 0, 0.35),
-      0 1px 0 var(--glass-highlight-hover) inset;
+    box-shadow: none;
 
     &:hover {
       color: var(--color-text-primary);

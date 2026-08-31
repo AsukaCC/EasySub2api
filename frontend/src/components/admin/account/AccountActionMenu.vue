@@ -4,7 +4,7 @@
       <!-- Backdrop: click anywhere outside to close -->
       <div class="components-admin-account-account-action-menu__panel" @click="emit('close')"></div>
       <div
-        class="components-admin-account-account-action-menu__panel-2 action-menu-content"
+        class="components-admin-account-account-action-menu__panel-2 action-menu-content dropdown dropdown--portal"
         :style="{ top: position.top + 'px', left: position.left + 'px' }"
         @click.stop
       >

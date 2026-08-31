@@ -81,6 +81,9 @@ type PaymentRefund func(*sql.Selector)
 // PendingAuthSession is the predicate function for pendingauthsession builders.
 type PendingAuthSession func(*sql.Selector)
 
+// PendingSubscription is the predicate function for pendingsubscription builders.
+type PendingSubscription func(*sql.Selector)
+
 // PromoCode is the predicate function for promocode builders.
 type PromoCode func(*sql.Selector)
 
@@ -93,9 +96,6 @@ type Proxy func(*sql.Selector)
 // RedeemCode is the predicate function for redeemcode builders.
 type RedeemCode func(*sql.Selector)
 
-// RefundTicket is the predicate function for refundticket builders.
-type RefundTicket func(*sql.Selector)
-
 // SecuritySecret is the predicate function for securitysecret builders.
 type SecuritySecret func(*sql.Selector)
 
@@ -104,6 +104,15 @@ type Setting func(*sql.Selector)
 
 // SubscriptionPlan is the predicate function for subscriptionplan builders.
 type SubscriptionPlan func(*sql.Selector)
+
+// SupportTicket is the predicate function for supportticket builders.
+type SupportTicket func(*sql.Selector)
+
+// SupportTicketMessage is the predicate function for supportticketmessage builders.
+type SupportTicketMessage func(*sql.Selector)
+
+// SupportTicketRead is the predicate function for supportticketread builders.
+type SupportTicketRead func(*sql.Selector)
 
 // TLSFingerprintProfile is the predicate function for tlsfingerprintprofile builders.
 type TLSFingerprintProfile func(*sql.Selector)

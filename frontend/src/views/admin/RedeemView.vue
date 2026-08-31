@@ -277,7 +277,7 @@
       <div v-if="showGenerateDialog" class="views-admin-redeem-view__panel-8">
         <div class="views-admin-redeem-view__panel-9" @click="showGenerateDialog = false"></div>
         <div
-          class="views-admin-redeem-view__panel-10"
+          class="views-admin-redeem-view__panel-10 card-body"
         >
           <h2 class="views-admin-redeem-view__heading">
             {{ t('admin.redeem.generateCodesTitle') }}
@@ -421,7 +421,7 @@
       >
         <div class="views-admin-redeem-view__panel-9" @click="closeBatchUpdateDialog"></div>
         <div
-          class="views-admin-redeem-view__panel-15"
+          class="views-admin-redeem-view__panel-15 card-body"
         >
           <h2 class="views-admin-redeem-view__heading-2">
             {{ t('admin.redeem.batchUpdateTitle') }}

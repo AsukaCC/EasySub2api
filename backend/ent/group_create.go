@@ -717,6 +717,20 @@ func (_c *GroupCreate) SetNillableAllowLive(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field.
+func (_c *GroupCreate) SetCcsCodexWsEnabled(v bool) *GroupCreate {
+	_c.mutation.SetCcsCodexWsEnabled(v)
+	return _c
+}
+
+// SetNillableCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableCcsCodexWsEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetCcsCodexWsEnabled(*v)
+	}
+	return _c
+}
+
 // SetRequireOauthOnly sets the "require_oauth_only" field.
 func (_c *GroupCreate) SetRequireOauthOnly(v bool) *GroupCreate {
 	_c.mutation.SetRequireOauthOnly(v)
@@ -1130,6 +1144,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultAllowLive
 		_c.mutation.SetAllowLive(v)
 	}
+	if _, ok := _c.mutation.CcsCodexWsEnabled(); !ok {
+		v := group.DefaultCcsCodexWsEnabled
+		_c.mutation.SetCcsCodexWsEnabled(v)
+	}
 	if _, ok := _c.mutation.RequireOauthOnly(); !ok {
 		v := group.DefaultRequireOauthOnly
 		_c.mutation.SetRequireOauthOnly(v)
@@ -1333,6 +1351,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.AllowLive(); !ok {
 		return &ValidationError{Name: "allow_live", err: errors.New(`ent: missing required field "Group.allow_live"`)}
+	}
+	if _, ok := _c.mutation.CcsCodexWsEnabled(); !ok {
+		return &ValidationError{Name: "ccs_codex_ws_enabled", err: errors.New(`ent: missing required field "Group.ccs_codex_ws_enabled"`)}
 	}
 	if _, ok := _c.mutation.RequireOauthOnly(); !ok {
 		return &ValidationError{Name: "require_oauth_only", err: errors.New(`ent: missing required field "Group.require_oauth_only"`)}
@@ -1624,6 +1645,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AllowLive(); ok {
 		_spec.SetField(group.FieldAllowLive, field.TypeBool, value)
 		_node.AllowLive = value
+	}
+	if value, ok := _c.mutation.CcsCodexWsEnabled(); ok {
+		_spec.SetField(group.FieldCcsCodexWsEnabled, field.TypeBool, value)
+		_node.CcsCodexWsEnabled = value
 	}
 	if value, ok := _c.mutation.RequireOauthOnly(); ok {
 		_spec.SetField(group.FieldRequireOauthOnly, field.TypeBool, value)
@@ -2692,6 +2717,18 @@ func (u *GroupUpsert) SetAllowLive(v bool) *GroupUpsert {
 // UpdateAllowLive sets the "allow_live" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateAllowLive() *GroupUpsert {
 	u.SetExcluded(group.FieldAllowLive)
+	return u
+}
+
+// SetCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field.
+func (u *GroupUpsert) SetCcsCodexWsEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldCcsCodexWsEnabled, v)
+	return u
+}
+
+// UpdateCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateCcsCodexWsEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldCcsCodexWsEnabled)
 	return u
 }
 
@@ -3911,6 +3948,20 @@ func (u *GroupUpsertOne) SetAllowLive(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateAllowLive() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateAllowLive()
+	})
+}
+
+// SetCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field.
+func (u *GroupUpsertOne) SetCcsCodexWsEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetCcsCodexWsEnabled(v)
+	})
+}
+
+// UpdateCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateCcsCodexWsEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateCcsCodexWsEnabled()
 	})
 }
 
@@ -5322,6 +5373,20 @@ func (u *GroupUpsertBulk) SetAllowLive(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateAllowLive() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateAllowLive()
+	})
+}
+
+// SetCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field.
+func (u *GroupUpsertBulk) SetCcsCodexWsEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetCcsCodexWsEnabled(v)
+	})
+}
+
+// UpdateCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateCcsCodexWsEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateCcsCodexWsEnabled()
 	})
 }
 

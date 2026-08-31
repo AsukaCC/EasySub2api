@@ -13,25 +13,61 @@
   margin: 0 auto;
 }
 
-// ============ 侧边栏(材质与右边框由 glass.scss 提供) ============
-.sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 40;
+// 页面顶层区块节奏:flex + gap,不再用 space-y 的兄弟选择器撑间距。
+.page-stack {
   display: flex;
   flex-direction: column;
+  gap: 1.25rem;
+}
+
+.page-stack > section > :is(h1, h2) {
+  margin-bottom: 0.75rem;
+}
+
+.page-stack--narrow {
+  max-width: 56rem;
+  margin-inline: auto;
+}
+
+.page-stack--medium {
+  max-width: 59.375rem;
+  margin-inline: auto;
+}
+
+// ============ 侧边栏(材质由 glass.scss 提供;桌面在 app-layout__main 文档流内,不再悬浮) ============
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 16rem;
   width: 16rem;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    var(--glass-shadow),
+    0 1px 0 var(--glass-highlight) inset;
   transition: width 300ms ease, transform 300ms ease;
 }
 
-@media (min-width: 1024px) {
+.sidebar--collapsed {
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+}
+
+.sidebar--collapsed .sidebar-nav {
+  padding-inline: 0.5rem;
+}
+
+@media (max-width: 1023px) {
   .sidebar {
-    inset: calc(var(--app-shell-height) + 1.5rem) auto 1rem 1rem;
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-xl);
-    box-shadow:
-      var(--glass-shadow),
-      0 1px 0 var(--glass-highlight) inset;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
@@ -46,13 +82,14 @@
 }
 
 .sidebar-nav {
+  position: relative;
   flex: 1;
   overflow-y: auto;
   padding: 1rem 0.75rem;
 }
 
 // 菜单项样式与顶部导航(.app-top-nav-item)保持同一标准:
-// 悬浮为通透微光 + 高斯模糊加深,激活态为拟态厚玻璃 + 边框高亮 + 蓝紫渐变指示条。
+// 悬浮为通透微光 + 高斯模糊加深，激活材质由 GSAP 驱动的共享玻璃高亮层承载。
 .sidebar-link {
   position: relative;
   isolation: isolate;
@@ -66,6 +103,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  z-index: 1;
   transition: color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, padding 200ms ease;
 
   &::before {
@@ -94,44 +132,26 @@
 }
 
 .sidebar-link-active {
-  border-color: var(--glass-border-active);
-  background-color: var(--glass-bg-thick);
-  -webkit-backdrop-filter: blur(var(--glass-blur-thin-hover)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-thin-hover)) saturate(var(--glass-saturate));
+  border-color: transparent;
+  background-color: transparent;
   color: var(--color-text-brand);
-  box-shadow:
-    0 4px 16px rgba(10, 132, 255, 0.12),
-    0 1px 0 var(--glass-highlight-hover) inset;
+  box-shadow: none;
 
   &::before,
   &:hover::before {
     opacity: 0;
   }
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0.375rem;
-    bottom: 0.375rem;
-    left: 0;
-    width: 3px;
-    border-radius: 9999px;
-    background: linear-gradient(180deg, #0a84ff, #5e5ce6);
-    box-shadow: 0 0 8px rgba(10, 132, 255, 0.5);
-  }
-
   &:hover {
     color: var(--color-text-brand);
-    border-color: var(--glass-border-hover);
+    border-color: transparent;
   }
 
   .dark & {
-    border-color: var(--glass-border-active);
-    background-color: var(--glass-bg-thick);
+    border-color: transparent;
+    background-color: transparent;
     color: var(--color-text-primary);
-    box-shadow:
-      0 6px 20px rgba(0, 0, 0, 0.35),
-      0 1px 0 var(--glass-highlight-hover) inset;
+    box-shadow: none;
 
     &:hover {
       color: var(--color-text-primary);

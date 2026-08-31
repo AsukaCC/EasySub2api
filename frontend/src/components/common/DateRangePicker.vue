@@ -26,7 +26,7 @@
         <div
           v-if="isOpen"
           ref="panelRef"
-          class="date-range-dropdown"
+          class="date-range-dropdown dropdown dropdown--portal"
           :style="panelStyle"
           @click.stop
         >

@@ -69,6 +69,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		AliyunCaptchaPrefix:                 settings.AliyunCaptchaPrefix,
 		AliyunCaptchaRegion:                 settings.AliyunCaptchaRegion,
 		SiteName:                            settings.SiteName,
+		ThemeAccent:                         settings.ThemeAccent,
 		SiteLogo:                            settings.SiteLogo,
 		SiteSubtitle:                        settings.SiteSubtitle,
 		APIBaseURL:                          settings.APIBaseURL,
@@ -115,7 +116,10 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
-		RiskControlEnabled: settings.RiskControlEnabled,
+		RiskControlEnabled:          settings.RiskControlEnabled,
+		SupportTicketsEnabled:       settings.SupportTicketsEnabled,
+		SupportTicketAccountEnabled: settings.SupportTicketAccountEnabled,
+		SupportTicketRefundEnabled:  settings.SupportTicketRefundEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	})

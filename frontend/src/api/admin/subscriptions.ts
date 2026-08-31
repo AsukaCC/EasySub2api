@@ -12,6 +12,7 @@ import type {
   ExtendSubscriptionRequest,
   PaginatedResponse
 } from '@/types'
+import type { PendingSubscription, SubscriptionGrantResult } from '@/types'
 
 /**
  * List all subscriptions with pagination
@@ -74,8 +75,13 @@ export async function getProgress(id: string): Promise<SubscriptionProgress> {
  * @param request - Assignment request
  * @returns Created subscription
  */
-export async function assign(request: AssignSubscriptionRequest): Promise<UserSubscription> {
-  const { data } = await apiClient.post<UserSubscription>('/admin/subscriptions/assign', request)
+export async function assign(request: AssignSubscriptionRequest): Promise<SubscriptionGrantResult> {
+  const { data } = await apiClient.post<SubscriptionGrantResult>('/admin/subscriptions/assign', request)
+  return data
+}
+
+export async function listPending(filters?: { user_id?: string; platform?: string; group_id?: string }): Promise<PendingSubscription[]> {
+  const { data } = await apiClient.get<PendingSubscription[]>('/admin/subscriptions/pending', { params: filters })
   return data
 }
 
@@ -192,6 +198,7 @@ export async function listByUser(
 
 export const subscriptionsAPI = {
   list,
+	listPending,
   getById,
   getProgress,
   assign,

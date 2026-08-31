@@ -71,7 +71,7 @@
               </span>
             </div>
 
-            <div class="views-admin-risk-control-view__panel-15">
+            <div class="views-admin-risk-control-view__panel-15 card-body">
               <div data-test="pre-block-metric-grid" class="views-admin-risk-control-view__panel-16">
                 <div
                   v-for="item in preBlockMetricItems"
@@ -100,7 +100,7 @@
               </span>
             </div>
 
-            <div class="views-admin-risk-control-view__panel-15">
+            <div class="views-admin-risk-control-view__panel-15 card-body">
               <div
                 v-if="preBlockAPIKeyLoads.length > 0"
                 data-test="pre-block-api-key-load-list"
@@ -167,7 +167,7 @@
             </div>
           </div>
 
-          <div class="views-admin-risk-control-view__panel-27">
+          <div class="views-admin-risk-control-view__panel-27 card-body">
             <div class="views-admin-risk-control-view__panel-28">
               <div class="views-admin-risk-control-view__panel-29">
                 <div class="views-admin-risk-control-view__panel-30">

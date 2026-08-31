@@ -75,7 +75,17 @@ export default {
       groupPricingDesc: 'Configure group pricing rules',
       systemSettings: 'System Settings',
       configureSystem: 'Configure system settings',
-      failedToLoad: 'Failed to load dashboard statistics'
+      failedToLoad: 'Failed to load dashboard statistics',
+      accountQuotaTitle: 'Account weekly quota',
+      accountQuotaHint: 'Persisted weekly quota by platform and group; the dashboard never probes upstream providers.',
+      quotaAccounts: 'accounts',
+      quotaRateLimited: '429 limited',
+      quotaAvailable: 'Available',
+      quotaUnknown: 'Unknown',
+      quotaRemaining: 'remaining',
+      quotaModelsLimited: 'models limited',
+      quotaNoAccounts: 'No account quota data',
+      quotaLastObserved: 'Last observed'
     },
 
     backup: {
@@ -1171,6 +1181,11 @@ export default {
         unsupportedTitle: 'Current server does not support Live',
         unsupportedMessage: 'This EasySub2api server cannot generate the required Live attestation. Live will not work even if enabled. Continue anyway?',
         enableAnyway: 'Enable anyway'
+      },
+      ccsCodexWebsocket: {
+        title: 'CC-Switch Codex WebSocket',
+        allow: 'Enable WebSocket in exports',
+        hint: 'When enabled, keys in this OpenAI group write supports_websockets and responses_websockets_v2 when imported into CC-Switch. This only affects exported configuration; the gateway must also have Responses WebSocket enabled. Some older CC-Switch versions may discard custom Codex fields.'
       },
       invalidRequestFallback: {
         title: 'Invalid Request Fallback Group',

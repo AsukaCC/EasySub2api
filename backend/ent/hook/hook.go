@@ -309,6 +309,18 @@ func (f PendingAuthSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PendingAuthSessionMutation", m)
 }
 
+// The PendingSubscriptionFunc type is an adapter to allow the use of ordinary
+// function as PendingSubscription mutator.
+type PendingSubscriptionFunc func(context.Context, *ent.PendingSubscriptionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PendingSubscriptionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PendingSubscriptionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PendingSubscriptionMutation", m)
+}
+
 // The PromoCodeFunc type is an adapter to allow the use of ordinary
 // function as PromoCode mutator.
 type PromoCodeFunc func(context.Context, *ent.PromoCodeMutation) (ent.Value, error)
@@ -357,18 +369,6 @@ func (f RedeemCodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RedeemCodeMutation", m)
 }
 
-// The RefundTicketFunc type is an adapter to allow the use of ordinary
-// function as RefundTicket mutator.
-type RefundTicketFunc func(context.Context, *ent.RefundTicketMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f RefundTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.RefundTicketMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RefundTicketMutation", m)
-}
-
 // The SecuritySecretFunc type is an adapter to allow the use of ordinary
 // function as SecuritySecret mutator.
 type SecuritySecretFunc func(context.Context, *ent.SecuritySecretMutation) (ent.Value, error)
@@ -403,6 +403,42 @@ func (f SubscriptionPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionPlanMutation", m)
+}
+
+// The SupportTicketFunc type is an adapter to allow the use of ordinary
+// function as SupportTicket mutator.
+type SupportTicketFunc func(context.Context, *ent.SupportTicketMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupportTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupportTicketMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupportTicketMutation", m)
+}
+
+// The SupportTicketMessageFunc type is an adapter to allow the use of ordinary
+// function as SupportTicketMessage mutator.
+type SupportTicketMessageFunc func(context.Context, *ent.SupportTicketMessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupportTicketMessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupportTicketMessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupportTicketMessageMutation", m)
+}
+
+// The SupportTicketReadFunc type is an adapter to allow the use of ordinary
+// function as SupportTicketRead mutator.
+type SupportTicketReadFunc func(context.Context, *ent.SupportTicketReadMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupportTicketReadFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupportTicketReadMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupportTicketReadMutation", m)
 }
 
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary

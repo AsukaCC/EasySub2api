@@ -50,7 +50,7 @@
           v-if="dropdownOpen"
           ref="panelRef"
           id="app-nav-user-menu"
-          class="components-layout-app-nav-user-module__panel-2 dropdown app-nav-user-dropdown"
+          class="dropdown app-nav-user-dropdown"
           :style="panelStyle"
           role="menu"
           @click.stop
@@ -99,6 +99,46 @@
           >
             <Icon :name="isDark ? 'sun' : 'moon'" size="sm" />
           </button>
+          <div class="theme-accent-picker">
+            <button
+              ref="accentTriggerRef"
+              type="button"
+              class="app-nav-user-tool"
+              :title="t('nav.themeAccent')"
+              :aria-label="t('nav.themeAccent')"
+              :aria-expanded="accentOpen"
+              @click.stop="accentOpen = !accentOpen"
+            >
+              <span class="theme-accent-dot" :style="{ background: currentAccent }" />
+            </button>
+            <Teleport to="body">
+              <div
+                v-if="accentOpen"
+                ref="accentPanelRef"
+                class="theme-accent-menu dropdown"
+                :style="accentPanelStyle"
+                @click.stop
+              >
+                <button
+                  v-for="preset in themeAccentPresets"
+                  :key="preset.id"
+                  type="button"
+                  class="theme-swatch"
+                  :class="{ 'theme-swatch--active': currentAccent === preset.value }"
+                  :style="{ '--swatch': preset.value }"
+                  :aria-label="preset.id"
+                  @click="selectAccent(preset.value)"
+                />
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  @click="resetAccent"
+                >
+                  {{ t('nav.themeAccentReset') }}
+                </button>
+              </div>
+            </Teleport>
+          </div>
           <button
             type="button"
             class="app-nav-user-tool"
@@ -169,26 +209,28 @@
           </div>
         </div>
 
-        <button
-          v-if="showOnboardingButton"
-          type="button"
-          class="components-layout-app-nav-user-module__action dropdown-item"
-          role="menuitem"
-          @click="handleReplayGuide"
-        >
-          <Icon name="questionCircle" size="sm" />
-          {{ t('onboarding.restartTour') }}
-        </button>
+        <div class="app-nav-user-footer">
+          <button
+            v-if="showOnboardingButton"
+            type="button"
+            class="dropdown-item"
+            role="menuitem"
+            @click="handleReplayGuide"
+          >
+            <Icon name="questionCircle" size="sm" />
+            {{ t('onboarding.restartTour') }}
+          </button>
 
-        <button
-          type="button"
-          class="components-layout-app-nav-user-module__action-2 dropdown-item"
-          role="menuitem"
-          @click="handleLogout"
-        >
-          <Icon name="login" size="sm" class="components-layout-app-nav-user-module__icon-3" />
-          {{ t('nav.logout') }}
-        </button>
+          <button
+            type="button"
+            class="dropdown-item app-nav-user-logout"
+            role="menuitem"
+            @click="handleLogout"
+          >
+            <Icon name="login" size="sm" class="components-layout-app-nav-user-module__icon-3" />
+            {{ t('nav.logout') }}
+          </button>
+        </div>
         </div>
       </transition>
     </Teleport>
@@ -212,6 +254,14 @@ import {
   hasCustomBackground,
   setCustomBackground
 } from '@/utils/customBackground'
+import {
+  THEME_ACCENT_PRESETS,
+  applyResolvedThemeAccent,
+  applyThemeAccent,
+  clearStoredThemeAccent,
+  resolveThemeAccent,
+  setStoredThemeAccent,
+} from '@/utils/themeAccent'
 
 const route = useRoute()
 const router = useRouter()
@@ -227,9 +277,23 @@ const triggerRef = ref<HTMLButtonElement | null>(null)
 const { panelRef, style: panelStyle } = useFloatingPanel(triggerRef, dropdownOpen, {
   maxWidth: 288,
   maxHeightRatio: 0.85,
-  minComfortableHeight: 260
+  minComfortableHeight: 260,
+  zIndex: 50
 })
 const isDark = ref(document.documentElement.classList.contains('dark'))
+const accentOpen = ref(false)
+const accentTriggerRef = ref<HTMLButtonElement | null>(null)
+const { panelRef: accentPanelRef, style: accentPanelStyle } = useFloatingPanel(
+  accentTriggerRef,
+  accentOpen,
+  {
+    maxWidth: 148,
+    minComfortableHeight: 96,
+    zIndex: 60
+  }
+)
+const themeAccentPresets = THEME_ACCENT_PRESETS
+const currentAccent = ref(resolveThemeAccent(appStore.cachedPublicSettings?.theme_accent))
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
@@ -256,6 +320,18 @@ function toggleTheme(): void {
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+function selectAccent(value: string): void {
+  currentAccent.value = setStoredThemeAccent(value)
+  applyThemeAccent(currentAccent.value)
+  accentOpen.value = false
+}
+
+function resetAccent(): void {
+  clearStoredThemeAccent()
+  currentAccent.value = applyResolvedThemeAccent(appStore.cachedPublicSettings?.theme_accent)
+  accentOpen.value = false
 }
 
 const backgroundFileInput = ref<HTMLInputElement | null>(null)
@@ -289,6 +365,7 @@ function toggleDropdown(): void {
 
 function closeDropdown(): void {
   dropdownOpen.value = false
+  accentOpen.value = false
 }
 
 async function handleLogout(): Promise<void> {
@@ -308,7 +385,11 @@ function handleReplayGuide(): void {
 
 function handleClickOutside(event: MouseEvent): void {
   const target = event.target as Node
-  if (dropdownRef.value?.contains(target) || panelRef.value?.contains(target)) return
+  if (
+    dropdownRef.value?.contains(target) ||
+    panelRef.value?.contains(target) ||
+    accentPanelRef.value?.contains(target)
+  ) return
   closeDropdown()
 }
 
@@ -353,14 +434,14 @@ onBeforeUnmount(() => {
 }
 
 .app-nav-user-trigger:focus-visible {
-  border-color: rgb(10 132 255 / 0.5);
+  border-color: var(--color-primary-border);
   outline: none;
-  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 18%, transparent);
 }
 
 .app-nav-user-trigger-open {
-  border-color: rgb(10 132 255 / 0.35);
-  background-color: rgb(10 132 255 / 0.1);
+  border-color: var(--color-primary-border);
+  background-color: var(--glass-tint-brand);
 }
 
 .app-nav-user-avatar {
@@ -372,7 +453,7 @@ onBeforeUnmount(() => {
   height: 2rem;
   overflow: hidden;
   border-radius: 999px;
-  background: linear-gradient(180deg, #0a84ff, #007aff);
+  background: linear-gradient(180deg, var(--color-primary), var(--color-primary-hover));
   color: #fff;
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -380,6 +461,19 @@ onBeforeUnmount(() => {
 
 .app-nav-user-dropdown {
   max-width: calc(100vw - 1.5rem);
+  overflow-y: auto;
+}
+
+.app-nav-user-footer {
+  border-top: 1px solid var(--glass-border);
+}
+
+.app-nav-user-logout {
+  color: var(--color-text-danger);
+}
+
+.app-nav-user-logout:hover:not(:disabled) {
+  color: var(--color-text-danger);
 }
 
 .app-nav-user-balance-section {
@@ -436,5 +530,43 @@ onBeforeUnmount(() => {
 .nav-user-dropdown-leave-to {
   opacity: 0;
   transform: translateY(-4px) scale(0.98);
+}
+
+.theme-accent-picker {
+  position: relative;
+}
+
+.theme-accent-dot {
+  display: block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+}
+
+.theme-accent-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1.75rem);
+  gap: 0.5rem;
+  min-width: 8.5rem;
+  padding: 0.5rem;
+}
+
+.theme-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--swatch);
+  cursor: pointer;
+}
+
+.theme-swatch--active {
+  border-color: var(--color-text-primary);
+}
+
+.theme-accent-menu .dropdown-item {
+  grid-column: 1 / -1;
 }
 </style>

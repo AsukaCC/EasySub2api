@@ -4,13 +4,15 @@
  */
 
 import { apiClient } from './client'
-import type { UserSubscription, SubscriptionProgress } from '@/types'
+import type { UserSubscription, SubscriptionProgress, PendingSubscription, SubscriptionGrantResult } from '@/types'
 
 /**
  * Subscription summary for user dashboard
  */
 export interface SubscriptionSummary {
   active_count: number
+  pending_count: number
+  pending: PendingSubscription[]
   subscriptions: Array<{
     id: string
     group_name: string
@@ -36,6 +38,18 @@ export async function getMySubscriptions(): Promise<UserSubscription[]> {
  */
 export async function getActiveSubscriptions(): Promise<UserSubscription[]> {
   const response = await apiClient.get<UserSubscription[]>('/subscriptions/active')
+  return response.data
+}
+
+export async function getPendingSubscriptions(): Promise<PendingSubscription[]> {
+  const response = await apiClient.get<PendingSubscription[]>('/subscriptions/pending')
+  return response.data
+}
+
+export async function activatePendingNow(id: string): Promise<SubscriptionGrantResult> {
+  const response = await apiClient.post<SubscriptionGrantResult>(`/subscriptions/pending/${id}/activate-now`, {
+    confirm_forfeit_current: true,
+  })
   return response.data
 }
 
@@ -70,6 +84,8 @@ export async function getSubscriptionProgress(
 export default {
   getMySubscriptions,
   getActiveSubscriptions,
+	getPendingSubscriptions,
+	activatePendingNow,
   getSubscriptionsProgress,
   getSubscriptionSummary,
   getSubscriptionProgress

@@ -12,9 +12,7 @@ import type {
   CreateOrderRequest,
   CreateOrderResult,
   PaymentOrder,
-  PaymentRefund,
   RefundQuote,
-  RefundTicket
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -87,32 +85,6 @@ export const paymentAPI = {
     return apiClient.get<RefundQuote>(`/payment/orders/${id}/refund-quote`, {
       params: principalAmount == null ? undefined : { principal_amount: principalAmount }
     })
-  },
-
-  /** Start an idempotent self-service refund. */
-  createRefund(
-    id: string,
-    data: { principal_amount?: number; reason: string },
-    idempotencyKey: string
-  ) {
-    return apiClient.post<PaymentRefund>(`/payment/orders/${id}/refunds`, data, {
-      headers: { 'Idempotency-Key': idempotencyKey }
-    })
-  },
-
-  /** Submit an out-of-window refund ticket for manual review. */
-  createRefundTicket(id: string, data: { comment: string }) {
-    return apiClient.post<RefundTicket>(`/payment/orders/${id}/refund-tickets`, data)
-  },
-
-  /** Get the authenticated user's refund tickets. */
-  getMyRefundTickets(params?: { page?: number; page_size?: number }) {
-    return apiClient.get<BasePaginationResponse<RefundTicket>>('/payment/refund-tickets', { params })
-  },
-
-  /** Cancel a pending refund ticket. */
-  cancelRefundTicket(id: string) {
-    return apiClient.post<RefundTicket>(`/payment/refund-tickets/${id}/cancel`)
   },
 
   /** Get provider instances that support direct refunds or reviewed tickets. */

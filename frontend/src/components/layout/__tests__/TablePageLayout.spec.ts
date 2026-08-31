@@ -18,7 +18,8 @@ describe('TablePageLayout responsive table scrolling', () => {
     const baseBlock = tableWrapperBlocks.find(([selector]) => !selector.includes('.mobile-mode'))
     const mobileBlocks = tableWrapperBlocks.filter(([selector]) => selector.includes('.mobile-mode'))
 
-    expect(baseBlock?.[2]).toContain('overflow-x-auto')
+    expect(baseBlock?.[2]).toContain('overflow-x: auto')
+    expect(baseBlock?.[2]).not.toContain('scrollbar-gutter')
     expect(mobileBlocks.every(([, , declarations]) => !declarations.includes('overflow-visible'))).toBe(
       true
     )

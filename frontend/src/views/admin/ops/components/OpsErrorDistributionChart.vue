@@ -106,7 +106,7 @@ const options = computed(() => ({
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-error-distribution-chart__panel">
+  <div class="views-admin-ops-components-ops-error-distribution-chart__panel card-body">
     <div class="views-admin-ops-components-ops-error-distribution-chart__panel-2">
       <h3 class="views-admin-ops-components-ops-error-distribution-chart__heading">
         <svg class="views-admin-ops-components-ops-error-distribution-chart__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">

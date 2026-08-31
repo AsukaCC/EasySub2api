@@ -153,6 +153,34 @@ func (_c *SubscriptionPlanCreate) SetNillableForSale(v *bool) *SubscriptionPlanC
 	return _c
 }
 
+// SetStockQuantity sets the "stock_quantity" field.
+func (_c *SubscriptionPlanCreate) SetStockQuantity(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetStockQuantity(v)
+	return _c
+}
+
+// SetNillableStockQuantity sets the "stock_quantity" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableStockQuantity(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetStockQuantity(*v)
+	}
+	return _c
+}
+
+// SetStockFrozen sets the "stock_frozen" field.
+func (_c *SubscriptionPlanCreate) SetStockFrozen(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetStockFrozen(v)
+	return _c
+}
+
+// SetNillableStockFrozen sets the "stock_frozen" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableStockFrozen(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetStockFrozen(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *SubscriptionPlanCreate) SetSortOrder(v int) *SubscriptionPlanCreate {
 	_c.mutation.SetSortOrder(v)
@@ -272,6 +300,10 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultForSale
 		_c.mutation.SetForSale(v)
 	}
+	if _, ok := _c.mutation.StockFrozen(); !ok {
+		v := subscriptionplan.DefaultStockFrozen
+		_c.mutation.SetStockFrozen(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := subscriptionplan.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -341,6 +373,9 @@ func (_c *SubscriptionPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		return &ValidationError{Name: "for_sale", err: errors.New(`ent: missing required field "SubscriptionPlan.for_sale"`)}
+	}
+	if _, ok := _c.mutation.StockFrozen(); !ok {
+		return &ValidationError{Name: "stock_frozen", err: errors.New(`ent: missing required field "SubscriptionPlan.stock_frozen"`)}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "SubscriptionPlan.sort_order"`)}
@@ -430,6 +465,14 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
 		_node.ForSale = value
+	}
+	if value, ok := _c.mutation.StockQuantity(); ok {
+		_spec.SetField(subscriptionplan.FieldStockQuantity, field.TypeInt, value)
+		_node.StockQuantity = &value
+	}
+	if value, ok := _c.mutation.StockFrozen(); ok {
+		_spec.SetField(subscriptionplan.FieldStockFrozen, field.TypeInt, value)
+		_node.StockFrozen = value
 	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
@@ -648,6 +691,48 @@ func (u *SubscriptionPlanUpsert) SetForSale(v bool) *SubscriptionPlanUpsert {
 // UpdateForSale sets the "for_sale" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateForSale() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldForSale)
+	return u
+}
+
+// SetStockQuantity sets the "stock_quantity" field.
+func (u *SubscriptionPlanUpsert) SetStockQuantity(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldStockQuantity, v)
+	return u
+}
+
+// UpdateStockQuantity sets the "stock_quantity" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateStockQuantity() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldStockQuantity)
+	return u
+}
+
+// AddStockQuantity adds v to the "stock_quantity" field.
+func (u *SubscriptionPlanUpsert) AddStockQuantity(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldStockQuantity, v)
+	return u
+}
+
+// ClearStockQuantity clears the value of the "stock_quantity" field.
+func (u *SubscriptionPlanUpsert) ClearStockQuantity() *SubscriptionPlanUpsert {
+	u.SetNull(subscriptionplan.FieldStockQuantity)
+	return u
+}
+
+// SetStockFrozen sets the "stock_frozen" field.
+func (u *SubscriptionPlanUpsert) SetStockFrozen(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldStockFrozen, v)
+	return u
+}
+
+// UpdateStockFrozen sets the "stock_frozen" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateStockFrozen() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldStockFrozen)
+	return u
+}
+
+// AddStockFrozen adds v to the "stock_frozen" field.
+func (u *SubscriptionPlanUpsert) AddStockFrozen(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldStockFrozen, v)
 	return u
 }
 
@@ -911,6 +996,55 @@ func (u *SubscriptionPlanUpsertOne) SetForSale(v bool) *SubscriptionPlanUpsertOn
 func (u *SubscriptionPlanUpsertOne) UpdateForSale() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateForSale()
+	})
+}
+
+// SetStockQuantity sets the "stock_quantity" field.
+func (u *SubscriptionPlanUpsertOne) SetStockQuantity(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStockQuantity(v)
+	})
+}
+
+// AddStockQuantity adds v to the "stock_quantity" field.
+func (u *SubscriptionPlanUpsertOne) AddStockQuantity(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddStockQuantity(v)
+	})
+}
+
+// UpdateStockQuantity sets the "stock_quantity" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateStockQuantity() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStockQuantity()
+	})
+}
+
+// ClearStockQuantity clears the value of the "stock_quantity" field.
+func (u *SubscriptionPlanUpsertOne) ClearStockQuantity() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearStockQuantity()
+	})
+}
+
+// SetStockFrozen sets the "stock_frozen" field.
+func (u *SubscriptionPlanUpsertOne) SetStockFrozen(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStockFrozen(v)
+	})
+}
+
+// AddStockFrozen adds v to the "stock_frozen" field.
+func (u *SubscriptionPlanUpsertOne) AddStockFrozen(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddStockFrozen(v)
+	})
+}
+
+// UpdateStockFrozen sets the "stock_frozen" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateStockFrozen() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStockFrozen()
 	})
 }
 
@@ -1346,6 +1480,55 @@ func (u *SubscriptionPlanUpsertBulk) SetForSale(v bool) *SubscriptionPlanUpsertB
 func (u *SubscriptionPlanUpsertBulk) UpdateForSale() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateForSale()
+	})
+}
+
+// SetStockQuantity sets the "stock_quantity" field.
+func (u *SubscriptionPlanUpsertBulk) SetStockQuantity(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStockQuantity(v)
+	})
+}
+
+// AddStockQuantity adds v to the "stock_quantity" field.
+func (u *SubscriptionPlanUpsertBulk) AddStockQuantity(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddStockQuantity(v)
+	})
+}
+
+// UpdateStockQuantity sets the "stock_quantity" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateStockQuantity() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStockQuantity()
+	})
+}
+
+// ClearStockQuantity clears the value of the "stock_quantity" field.
+func (u *SubscriptionPlanUpsertBulk) ClearStockQuantity() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearStockQuantity()
+	})
+}
+
+// SetStockFrozen sets the "stock_frozen" field.
+func (u *SubscriptionPlanUpsertBulk) SetStockFrozen(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStockFrozen(v)
+	})
+}
+
+// AddStockFrozen adds v to the "stock_frozen" field.
+func (u *SubscriptionPlanUpsertBulk) AddStockFrozen(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddStockFrozen(v)
+	})
+}
+
+// UpdateStockFrozen sets the "stock_frozen" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateStockFrozen() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStockFrozen()
 	})
 }
 

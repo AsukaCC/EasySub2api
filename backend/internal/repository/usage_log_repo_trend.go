@@ -84,34 +84,72 @@ func (r *usageLogRepository) GetAPIKeyUsageTrend(ctx context.Context, startTime,
 // GetUserUsageTrend returns usage trend data grouped by user and date
 func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, endTime time.Time, granularity string, limit int) (results []UserUsageTrendPoint, err error) {
 	dateFormat := safeDateFormat(granularity)
+	timezoneName := startTime.Location().String()
+	if timezoneName == "" || timezoneName == "Local" {
+		timezoneName = "UTC"
+	}
+	bucketUnit := "day"
+	bucketStep := "1 day"
+	if granularity == "hour" {
+		bucketUnit = "hour"
+		bucketStep = "1 hour"
+	}
 
 	query := fmt.Sprintf(`
 		WITH top_users AS (
 			SELECT user_id
 			FROM usage_logs
 			WHERE created_at >= $1 AND created_at < $2
+			  AND user_id IS NOT NULL
 			GROUP BY user_id
-			ORDER BY SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens) DESC
+			ORDER BY SUM(
+				COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) +
+				COALESCE(cache_creation_tokens, 0) + COALESCE(cache_read_tokens, 0) +
+				COALESCE(image_input_tokens, 0) + COALESCE(image_output_tokens, 0)
+			) DESC
 			LIMIT $3
+		),
+		buckets AS (
+			SELECT generate_series(
+				date_trunc('%s', $1::timestamptz AT TIME ZONE $4),
+				date_trunc('%s', ($2::timestamptz - interval '1 microsecond') AT TIME ZONE $4),
+				interval '%s'
+			) AS bucket
+		),
+		usage_by_bucket AS (
+			SELECT
+				date_trunc('%s', u.created_at AT TIME ZONE $4) AS bucket,
+				u.user_id,
+				COUNT(*) AS requests,
+				COALESCE(SUM(
+					COALESCE(u.input_tokens, 0) + COALESCE(u.output_tokens, 0) +
+					COALESCE(u.cache_creation_tokens, 0) + COALESCE(u.cache_read_tokens, 0) +
+					COALESCE(u.image_input_tokens, 0) + COALESCE(u.image_output_tokens, 0)
+				), 0) AS tokens,
+				COALESCE(SUM(u.total_cost), 0) AS cost,
+				COALESCE(SUM(u.actual_cost), 0) AS actual_cost
+			FROM usage_logs u
+			WHERE u.user_id IN (SELECT user_id FROM top_users)
+			  AND u.created_at >= $1 AND u.created_at < $2
+			GROUP BY bucket, u.user_id
 		)
 		SELECT
-			TO_CHAR(u.created_at, '%s') as date,
-			u.user_id,
+			TO_CHAR(b.bucket, '%s') as date,
+			tu.user_id,
 			COALESCE(us.email, '') as email,
 			COALESCE(us.username, '') as username,
-			COUNT(*) as requests,
-			COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens,
-			COALESCE(SUM(u.total_cost), 0) as cost,
-			COALESCE(SUM(u.actual_cost), 0) as actual_cost
-		FROM usage_logs u
-		LEFT JOIN users us ON u.user_id = us.id
-		WHERE u.user_id IN (SELECT user_id FROM top_users)
-		  AND u.created_at >= $4 AND u.created_at < $5
-		GROUP BY date, u.user_id, us.email, us.username
-		ORDER BY date ASC, tokens DESC
-	`, dateFormat)
+			COALESCE(ub.requests, 0) as requests,
+			COALESCE(ub.tokens, 0) as tokens,
+			COALESCE(ub.cost, 0) as cost,
+			COALESCE(ub.actual_cost, 0) as actual_cost
+		FROM top_users tu
+		CROSS JOIN buckets b
+		LEFT JOIN usage_by_bucket ub ON ub.user_id = tu.user_id AND ub.bucket = b.bucket
+		LEFT JOIN users us ON tu.user_id = us.id
+		ORDER BY b.bucket ASC, tokens DESC, tu.user_id ASC
+	`, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat)
 
-	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, startTime, endTime)
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, timezoneName)
 	if err != nil {
 		return nil, err
 	}

@@ -102,7 +102,7 @@
               <Icon name="refresh" size="md" :class="loading ? 'views-admin-subscriptions-view__icon-8' : ''" />
             </button>
             <!-- Column Settings Dropdown -->
-            <div class="views-admin-subscriptions-view__panel-9" ref="columnDropdownRef">
+            <div class="views-admin-subscriptions-view__panel-9 filter-toolbar" ref="columnDropdownRef">
               <button
                 @click="showColumnDropdown = !showColumnDropdown"
                 class="views-admin-subscriptions-view__action-3 btn btn-secondary"
@@ -116,7 +116,7 @@
               <!-- Dropdown menu -->
               <div
                 v-if="showColumnDropdown"
-                class="views-admin-subscriptions-view__panel-10"
+                class="views-admin-subscriptions-view__panel-10 dropdown dropdown--menu"
               >
                 <div class="views-admin-subscriptions-view__panel-11">
                   <!-- User column mode selection -->
@@ -126,14 +126,14 @@
                     </div>
                     <button
                       @click="setUserColumnMode('email')"
-                      class="views-admin-subscriptions-view__action-4"
+                      class="views-admin-subscriptions-view__action-4 dropdown-item"
                     >
                       <span>{{ t('admin.users.columns.email') }}</span>
                       <Icon v-if="userColumnMode === 'email'" name="check" size="sm" class="views-admin-subscriptions-view__icon-3" />
                     </button>
                     <button
                       @click="setUserColumnMode('username')"
-                      class="views-admin-subscriptions-view__action-4"
+                      class="views-admin-subscriptions-view__action-4 dropdown-item"
                     >
                       <span>{{ t('admin.users.columns.username') }}</span>
                       <Icon v-if="userColumnMode === 'username'" name="check" size="sm" class="views-admin-subscriptions-view__icon-3" />
@@ -144,7 +144,7 @@
                     v-for="col in toggleableColumns"
                     :key="col.key"
                     @click="toggleColumn(col.key)"
-                    class="views-admin-subscriptions-view__action-4"
+                    class="views-admin-subscriptions-view__action-4 dropdown-item"
                   >
                     <span>{{ col.label }}</span>
                     <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="views-admin-subscriptions-view__icon-3" />
@@ -438,6 +438,32 @@
       </template>
     </TablePageLayout>
 
+    <section v-if="pendingSubscriptions.length > 0" class="admin-pending-list card">
+      <div class="admin-pending-list__header">
+        <div>
+          <h2>{{ t('admin.subscriptions.pendingSubscriptions') }}</h2>
+          <p>{{ t('admin.subscriptions.pendingSubscriptionsDesc') }}</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" :disabled="pendingLoading" @click="loadPendingSubscriptions">
+          <Icon name="refresh" size="sm" />
+          {{ t('common.refresh') }}
+        </button>
+      </div>
+      <div class="admin-pending-list__items">
+        <article v-for="pending in pendingSubscriptions" :key="pending.id" class="admin-pending-item">
+          <div>
+            <strong>{{ pending.group?.name || `Group #${pending.group_id}` }}</strong>
+            <span class="badge badge-warning">{{ pending.platform }}</span>
+          </div>
+          <dl>
+            <div><dt>{{ t('admin.subscriptions.form.user') }}</dt><dd>#{{ pending.user_id }}</dd></div>
+            <div><dt>{{ t('admin.subscriptions.pendingSource') }}</dt><dd>{{ pending.source_type }}</dd></div>
+            <div><dt>{{ t('admin.subscriptions.expectedActivation') }}</dt><dd>{{ pending.expected_activation_at ? formatDateTimeToMinute(pending.expected_activation_at) : t('common.unknown') }}</dd></div>
+          </dl>
+        </article>
+      </div>
+    </section>
+
     <!-- Assign Subscription Modal -->
     <BaseDialog
       :show="showAssignModal"
@@ -678,7 +704,7 @@
       <transition name="modal">
         <div v-if="showGuideModal" class="views-admin-subscriptions-view__panel-24" @mousedown.self="showGuideModal = false">
           <div class="views-admin-subscriptions-view__panel-25" @click="showGuideModal = false"></div>
-          <div class="views-admin-subscriptions-view__panel-26">
+          <div class="views-admin-subscriptions-view__panel-26 card-body">
             <button type="button" class="views-admin-subscriptions-view__action-9" @click="showGuideModal = false">
               <svg class="views-admin-subscriptions-view__icon-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -760,7 +786,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
+import type { PendingSubscription, UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
 import { formatDateTimeToMinute, formatPointAmount, formatPoints } from '@/utils/format'
@@ -934,6 +960,8 @@ const statusOptions = computed(() => [
 ])
 
 const subscriptions = ref<UserSubscription[]>([])
+const pendingSubscriptions = ref<PendingSubscription[]>([])
+const pendingLoading = ref(false)
 const groups = ref<Group[]>([])
 const loading = ref(true)
 let abortController: AbortController | null = null
@@ -1025,6 +1053,7 @@ const subscriptionGroupOptions = computed(() =>
 const applyFilters = () => {
   pagination.page = 1
   loadSubscriptions()
+  loadPendingSubscriptions()
 }
 
 const loadSubscriptions = async () => {
@@ -1067,6 +1096,22 @@ const loadSubscriptions = async () => {
       loading.value = false
       abortController = null
     }
+  }
+}
+
+const loadPendingSubscriptions = async () => {
+  pendingLoading.value = true
+  try {
+    pendingSubscriptions.value = await adminAPI.subscriptions.listPending({
+      user_id: filters.user_id || undefined,
+      platform: filters.platform || undefined,
+      group_id: filters.group_id || undefined,
+    })
+  } catch (error) {
+    console.error('Error loading pending subscriptions:', error)
+    appStore.showError(t('admin.subscriptions.failedToLoad'))
+  } finally {
+    pendingLoading.value = false
   }
 }
 
@@ -1179,6 +1224,7 @@ const clearUserSelection = () => {
 const handlePageChange = (page: number) => {
   pagination.page = page
   loadSubscriptions()
+  loadPendingSubscriptions()
 }
 
 const handlePageSizeChange = (pageSize: number) => {
@@ -1222,14 +1268,17 @@ const handleAssignSubscription = async () => {
 
   submitting.value = true
   try {
-    await adminAPI.subscriptions.assign({
+    const grant = await adminAPI.subscriptions.assign({
       user_id: assignForm.user_id,
       group_id: assignForm.group_id,
       validity_days: assignForm.validity_days
     })
-    appStore.showSuccess(t('admin.subscriptions.subscriptionAssigned'))
+    appStore.showSuccess(grant.activation_status === 'pending'
+      ? t('admin.subscriptions.subscriptionQueued')
+      : t('admin.subscriptions.subscriptionAssigned'))
     closeAssignModal()
     loadSubscriptions()
+    loadPendingSubscriptions()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAssign'))
     console.error('Error assigning subscription:', error)
@@ -1459,6 +1508,7 @@ onMounted(() => {
   loadUserColumnMode()
   loadSavedColumns()
   loadSubscriptions()
+  loadPendingSubscriptions()
   loadGroups()
   document.addEventListener('click', handleClickOutside)
 })
@@ -1475,6 +1525,59 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.admin-pending-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.admin-pending-list__header,
+.admin-pending-item > div,
+.admin-pending-item dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-pending-list__header h2 {
+  color: var(--color-text-primary);
+  font-size: var(--type-section-title-size);
+}
+
+.admin-pending-list__header p,
+.admin-pending-item dt {
+  color: var(--color-text-tertiary);
+  font-size: var(--type-caption-size);
+}
+
+.admin-pending-list__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: 0.75rem;
+}
+
+.admin-pending-item {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-layer-inset-bg);
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+}
+
+.admin-pending-item dl {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.admin-pending-item dd {
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
 .usage-row > * + * {
   margin-top: 0.25rem;
 }

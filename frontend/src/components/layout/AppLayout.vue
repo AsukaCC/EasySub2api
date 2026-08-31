@@ -11,15 +11,16 @@
       ></div>
     </div>
 
-    <AppSidebar v-if="isAdmin" admin-menu-only />
-
     <div class="app-layout__content">
       <!-- Primary Navigation -->
       <AppTopNav />
 
       <!-- Main Content -->
       <main class="app-layout__main">
-        <slot />
+        <AppSidebar v-if="isAdmin" admin-menu-only />
+        <div class="app-layout__page">
+          <slot />
+        </div>
       </main>
     </div>
   </div>
@@ -109,16 +110,26 @@ defineExpose({ replayTour })
 }
 
 .app-layout__main {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
   padding: 1.25rem clamp(1rem, 2vw, 2rem) 2.5rem;
+  overflow: hidden;
+}
+
+.app-layout__page {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scrollbar-width: none;
 }
 
-.app-layout__main::-webkit-scrollbar {
+.app-layout__page::-webkit-scrollbar {
   display: none;
 }
 

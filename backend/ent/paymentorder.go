@@ -109,6 +109,14 @@ type PaymentOrder struct {
 	ProviderSnapshot map[string]interface{} `json:"provider_snapshot,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// InventoryStatus holds the value of the "inventory_status" field.
+	InventoryStatus string `json:"inventory_status,omitempty"`
+	// InventoryReservedAt holds the value of the "inventory_reserved_at" field.
+	InventoryReservedAt *time.Time `json:"inventory_reserved_at,omitempty"`
+	// InventoryConsumedAt holds the value of the "inventory_consumed_at" field.
+	InventoryConsumedAt *time.Time `json:"inventory_consumed_at,omitempty"`
+	// InventoryReleasedAt holds the value of the "inventory_released_at" field.
+	InventoryReleasedAt *time.Time `json:"inventory_released_at,omitempty"`
 	// RefundAmount holds the value of the "refund_amount" field.
 	RefundAmount float64 `json:"refund_amount,omitempty"`
 	// RefundReason holds the value of the "refund_reason" field.
@@ -182,9 +190,9 @@ func (*PaymentOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case paymentorder.FieldSubscriptionDays:
 			values[i] = new(sql.NullInt64)
-		case paymentorder.FieldID, paymentorder.FieldUserID, paymentorder.FieldUserEmail, paymentorder.FieldUserName, paymentorder.FieldUserNotes, paymentorder.FieldWalletHoldID, paymentorder.FieldCurrency, paymentorder.FieldBonusGrantID, paymentorder.FieldRechargeCode, paymentorder.FieldOutTradeNo, paymentorder.FieldPaymentType, paymentorder.FieldPaymentTradeNo, paymentorder.FieldPayURL, paymentorder.FieldQrCode, paymentorder.FieldQrCodeImg, paymentorder.FieldOrderType, paymentorder.FieldPlanID, paymentorder.FieldSubscriptionGroupID, paymentorder.FieldProviderInstanceID, paymentorder.FieldProviderKey, paymentorder.FieldStatus, paymentorder.FieldRefundReason, paymentorder.FieldRefundRequestReason, paymentorder.FieldRefundRequestedBy, paymentorder.FieldFailedReason, paymentorder.FieldClientIP, paymentorder.FieldSrcHost, paymentorder.FieldSrcURL:
+		case paymentorder.FieldID, paymentorder.FieldUserID, paymentorder.FieldUserEmail, paymentorder.FieldUserName, paymentorder.FieldUserNotes, paymentorder.FieldWalletHoldID, paymentorder.FieldCurrency, paymentorder.FieldBonusGrantID, paymentorder.FieldRechargeCode, paymentorder.FieldOutTradeNo, paymentorder.FieldPaymentType, paymentorder.FieldPaymentTradeNo, paymentorder.FieldPayURL, paymentorder.FieldQrCode, paymentorder.FieldQrCodeImg, paymentorder.FieldOrderType, paymentorder.FieldPlanID, paymentorder.FieldSubscriptionGroupID, paymentorder.FieldProviderInstanceID, paymentorder.FieldProviderKey, paymentorder.FieldStatus, paymentorder.FieldInventoryStatus, paymentorder.FieldRefundReason, paymentorder.FieldRefundRequestReason, paymentorder.FieldRefundRequestedBy, paymentorder.FieldFailedReason, paymentorder.FieldClientIP, paymentorder.FieldSrcHost, paymentorder.FieldSrcURL:
 			values[i] = new(sql.NullString)
-		case paymentorder.FieldBonusExpiresAt, paymentorder.FieldRefundDeadline, paymentorder.FieldRefundAt, paymentorder.FieldRefundRequestedAt, paymentorder.FieldExpiresAt, paymentorder.FieldPaidAt, paymentorder.FieldCompletedAt, paymentorder.FieldFailedAt, paymentorder.FieldCreatedAt, paymentorder.FieldUpdatedAt:
+		case paymentorder.FieldBonusExpiresAt, paymentorder.FieldRefundDeadline, paymentorder.FieldInventoryReservedAt, paymentorder.FieldInventoryConsumedAt, paymentorder.FieldInventoryReleasedAt, paymentorder.FieldRefundAt, paymentorder.FieldRefundRequestedAt, paymentorder.FieldExpiresAt, paymentorder.FieldPaidAt, paymentorder.FieldCompletedAt, paymentorder.FieldFailedAt, paymentorder.FieldCreatedAt, paymentorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -493,6 +501,33 @@ func (_m *PaymentOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case paymentorder.FieldInventoryStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_status", values[i])
+			} else if value.Valid {
+				_m.InventoryStatus = value.String
+			}
+		case paymentorder.FieldInventoryReservedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_reserved_at", values[i])
+			} else if value.Valid {
+				_m.InventoryReservedAt = new(time.Time)
+				*_m.InventoryReservedAt = value.Time
+			}
+		case paymentorder.FieldInventoryConsumedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_consumed_at", values[i])
+			} else if value.Valid {
+				_m.InventoryConsumedAt = new(time.Time)
+				*_m.InventoryConsumedAt = value.Time
+			}
+		case paymentorder.FieldInventoryReleasedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field inventory_released_at", values[i])
+			} else if value.Valid {
+				_m.InventoryReleasedAt = new(time.Time)
+				*_m.InventoryReleasedAt = value.Time
 			}
 		case paymentorder.FieldRefundAmount:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -807,6 +842,24 @@ func (_m *PaymentOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("inventory_status=")
+	builder.WriteString(_m.InventoryStatus)
+	builder.WriteString(", ")
+	if v := _m.InventoryReservedAt; v != nil {
+		builder.WriteString("inventory_reserved_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.InventoryConsumedAt; v != nil {
+		builder.WriteString("inventory_consumed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.InventoryReleasedAt; v != nil {
+		builder.WriteString("inventory_released_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("refund_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RefundAmount))

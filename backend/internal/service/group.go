@@ -94,6 +94,7 @@ type Group struct {
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
 	AllowMessagesDispatch       bool
 	AllowLive                   bool
+	CcsCodexWSEnabled           bool
 	RequireOAuthOnly            bool // 仅允许非 apikey 类型账号关联
 	RequirePrivacySet           bool // 调度时仅允许 privacy 已成功设置的账号
 	DefaultMappedModel          string

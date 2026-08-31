@@ -3,7 +3,7 @@
     <div class="views-user-channel-status-v2-view__panel">
       <!-- Ops-style elevated shell: title toolbar + filters (mirrors OpsDashboardHeader) -->
       <section
-        class="views-user-channel-status-v2-view__section app-shell-sticky card"
+        class="views-user-channel-status-v2-view__section channel-monitor-shell card"
       >
         <header class="views-user-channel-status-v2-view__header page-header">
           <div class="views-user-channel-status-v2-view__panel-2">
@@ -92,7 +92,7 @@
         <!-- Single compact toolbar row: range · filters · view controls -->
         <div class="views-user-channel-status-v2-view__panel-9 monitor-toolbar">
           <div
-            class="views-user-channel-status-v2-view__panel-10 tabs"
+            class="views-user-channel-status-v2-view__panel-10 tabs monitor-tabs monitor-range-tabs"
             role="group"
             :aria-label="t('channelMonitorV2.timeRange')"
           >
@@ -100,7 +100,7 @@
               v-for="option in ranges"
               :key="option.value"
               type="button"
-              class="views-user-channel-status-v2-view__action-2"
+              class="views-user-channel-status-v2-view__action-2 tab monitor-tabs__tab"
               :class="filter.range === option.value ? 'tab-active' : ''"
               @click="setRange(option.value)"
             >
@@ -206,14 +206,14 @@
       </div>
 
       <section class="views-user-channel-status-v2-view__section-3 card">
-        <div class="views-user-channel-status-v2-view__panel-14">
-          <nav class="views-user-channel-status-v2-view__navigation tabs" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
+        <div class="views-user-channel-status-v2-view__panel-14 monitor-detail-header">
+          <nav class="views-user-channel-status-v2-view__navigation tabs monitor-tabs monitor-detail-tabs" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
             <button
               v-for="item in tabs"
               :key="item.value"
               type="button"
               role="tab"
-              class="views-user-channel-status-v2-view__action-5"
+              class="views-user-channel-status-v2-view__action-5 tab monitor-tabs__tab"
               :aria-selected="activeTab === item.value"
               :class="activeTab === item.value ? 'tab-active' : ''"
               @click="activeTab = item.value"
@@ -223,8 +223,8 @@
           </nav>
         </div>
         <div class="views-user-channel-status-v2-view__panel-15">
-          <div v-if="activeTab === 'models'" class="views-user-channel-status-v2-view__panel-16 table-container">
-            <table class="views-user-channel-status-v2-view__table monitor-table">
+          <div v-if="activeTab === 'models'" class="monitor-table-container table-container">
+            <table class="table monitor-table monitor-table--models">
               <thead>
                 <tr>
                   <th>{{ t('channelMonitorV2.table.platformModel') }}</th>
@@ -239,7 +239,7 @@
                 <tr
                   v-for="row in modelRows"
                   :key="`${row.platform}:${row.model}`"
-                  class="views-user-channel-status-v2-view__row"
+                  class="views-user-channel-status-v2-view__row monitor-table__row--interactive"
                   @click="drillModel(row)"
                 >
                   <td>
@@ -320,8 +320,8 @@
             </div>
           </div>
 
-          <div v-else class="views-user-channel-status-v2-view__panel-16 table-container">
-            <table class="views-user-channel-status-v2-view__table-2 monitor-table">
+          <div v-else class="monitor-table-container table-container">
+            <table class="table monitor-table monitor-table--users">
               <thead>
                 <tr>
                   <th class="views-user-channel-status-v2-view__heading-2">{{ t('channelMonitorV2.table.rank') }}</th>
@@ -785,6 +785,104 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.monitor-toolbar {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.monitor-toolbar :deep(.filter-menu) {
+  flex: 1 1 8.5rem;
+}
+
+.monitor-tabs {
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.monitor-range-tabs {
+  flex: 0 0 auto;
+}
+
+.monitor-tabs__tab {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  white-space: nowrap;
+}
+
+.monitor-detail-header {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.monitor-detail-header::-webkit-scrollbar {
+  display: none;
+}
+
+.monitor-detail-tabs {
+  width: max-content;
+}
+
+.monitor-table-container {
+  isolation: isolate;
+  box-shadow:
+    var(--glass-shadow),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
+.monitor-table {
+  border-spacing: 0;
+  border-collapse: separate;
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-table td {
+  transition:
+    background-color 160ms ease,
+    backdrop-filter 160ms ease;
+}
+
+.monitor-table tbody tr:hover td {
+  background: var(--glass-bg-interactive);
+  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
+}
+
+.monitor-table--models {
+  min-width: 45rem;
+}
+
+.monitor-table--users {
+  min-width: 40rem;
+}
+
+.monitor-table__row--interactive {
+  cursor: pointer;
+}
+
+@media (max-width: 639px) {
+  .monitor-range-tabs {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .monitor-range-tabs .monitor-tabs__tab {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .monitor-toolbar :deep(.filter-menu) {
+    flex-basis: calc(50% - 0.25rem);
+  }
+}
+
+@media (max-width: 420px) {
+  .monitor-toolbar :deep(.filter-menu) {
+    flex-basis: 100%;
+  }
+}
+
 .status-dot {
   display: inline-block;
   height: 0.5rem;

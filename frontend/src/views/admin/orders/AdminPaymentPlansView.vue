@@ -36,6 +36,12 @@
         <template #cell-validity_days="{ value, row }">
           <span class="views-admin-orders-admin-payment-plans-view__text-2">{{ value }} {{ t('payment.admin.' + (row.validity_unit || 'days')) }}</span>
         </template>
+        <template #cell-stock_available="{ row }">
+          <span v-if="!row.stock_enabled" class="views-admin-orders-admin-payment-plans-view__text-5">{{ t('payment.admin.unlimitedStock') }}</span>
+          <span v-else class="views-admin-orders-admin-payment-plans-view__text-2">
+            {{ t('payment.admin.stockSummary', { available: row.stock_available ?? 0, frozen: row.stock_frozen ?? 0, total: row.stock_quantity ?? 0 }) }}
+          </span>
+        </template>
         <template #cell-for_sale="{ value, row }">
           <button
             type="button"
@@ -135,6 +141,7 @@ const planColumns = computed((): Column[] => [
   { key: 'group_id', label: t('payment.admin.group') },
   { key: 'price', label: t('payment.admin.price') },
   { key: 'validity_days', label: t('payment.admin.validity') },
+  { key: 'stock_available', label: t('payment.admin.stockQuantity') },
   { key: 'for_sale', label: t('payment.admin.forSale') },
   { key: 'sort_order', label: t('payment.admin.sortOrder') },
   { key: 'actions', label: t('common.actions') },

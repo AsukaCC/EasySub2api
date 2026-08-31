@@ -23,7 +23,7 @@
 
         <!-- 微信二维码展示 -->
         <template v-if="wechatQrUrl">
-          <div class="views-user-stripe-payment-view__panel-8 card">
+          <div class="views-user-stripe-payment-view__panel-8 card-body card">
             <div class="views-user-stripe-payment-view__panel-9">
               <p class="views-user-stripe-payment-view__heading">{{ t('payment.qr.scanWxpay') }}</p>
               <div class="views-user-stripe-payment-view__panel-10">
@@ -44,7 +44,7 @@
 
         <!-- 支付宝跳转状态 -->
         <template v-else-if="redirecting">
-          <div class="views-user-stripe-payment-view__panel-8 card">
+          <div class="views-user-stripe-payment-view__panel-8 card-body card">
             <div class="views-user-stripe-payment-view__panel-13">
               <div class="views-user-stripe-payment-view__panel-14"></div>
               <p class="views-user-stripe-payment-view__description-5">{{ t('payment.qr.payInNewWindowHint') }}</p>
@@ -54,7 +54,7 @@
 
         <!-- 成功状态 -->
         <template v-else-if="stripeSuccess">
-          <div class="views-user-stripe-payment-view__panel-15 card">
+          <div class="views-user-stripe-payment-view__panel-15 card-body card">
             <div class="views-user-stripe-payment-view__panel-16">
               <div class="views-user-stripe-payment-view__panel-17">
                 <Icon name="check" size="lg" class="views-user-stripe-payment-view__icon-3" />
@@ -67,7 +67,7 @@
 
         <!-- 无指定方式或未知方式时展示完整 Payment Element -->
         <template v-else-if="showPaymentElement">
-          <div class="views-user-stripe-payment-view__panel-8 card">
+          <div class="views-user-stripe-payment-view__panel-8 card-body card">
             <div id="stripe-payment-element" class="views-user-stripe-payment-view__panel-18"></div>
             <p v-if="stripeError" class="views-user-stripe-payment-view__description-7">{{ stripeError }}</p>
             <button class="views-user-stripe-payment-view__action-2 btn btn-stripe" :disabled="stripeSubmitting || !stripeReady" @click="handleGenericPay">

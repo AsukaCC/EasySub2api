@@ -40,4 +40,29 @@ describe('getFloatingPanelPosition', () => {
     expect(position.bottom).toBe(108)
     expect(position.maxHeight).toBe(560)
   })
+
+  it('靠右展开时贴着触发器右侧', () => {
+    const position = getFloatingPanelPosition(
+      { top: 120, left: 16, right: 72, bottom: 164 },
+      1280,
+      800,
+      { placement: 'right', maxWidth: 220 }
+    )
+
+    expect(position.left).toBe(80)
+    expect(position.top).toBe(120)
+    expect(position.width).toBe(220)
+  })
+
+  it('右侧空间不足时改到触发器左侧', () => {
+    const position = getFloatingPanelPosition(
+      { top: 120, left: 1080, right: 1264, bottom: 164 },
+      1280,
+      800,
+      { placement: 'right', maxWidth: 220 }
+    )
+
+    expect(position.left).toBe(852)
+    expect(position.left + position.width).toBeLessThanOrEqual(1080)
+  })
 })

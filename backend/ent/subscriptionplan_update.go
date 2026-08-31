@@ -209,6 +209,54 @@ func (_u *SubscriptionPlanUpdate) SetNillableForSale(v *bool) *SubscriptionPlanU
 	return _u
 }
 
+// SetStockQuantity sets the "stock_quantity" field.
+func (_u *SubscriptionPlanUpdate) SetStockQuantity(v int) *SubscriptionPlanUpdate {
+	_u.mutation.ResetStockQuantity()
+	_u.mutation.SetStockQuantity(v)
+	return _u
+}
+
+// SetNillableStockQuantity sets the "stock_quantity" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableStockQuantity(v *int) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetStockQuantity(*v)
+	}
+	return _u
+}
+
+// AddStockQuantity adds value to the "stock_quantity" field.
+func (_u *SubscriptionPlanUpdate) AddStockQuantity(v int) *SubscriptionPlanUpdate {
+	_u.mutation.AddStockQuantity(v)
+	return _u
+}
+
+// ClearStockQuantity clears the value of the "stock_quantity" field.
+func (_u *SubscriptionPlanUpdate) ClearStockQuantity() *SubscriptionPlanUpdate {
+	_u.mutation.ClearStockQuantity()
+	return _u
+}
+
+// SetStockFrozen sets the "stock_frozen" field.
+func (_u *SubscriptionPlanUpdate) SetStockFrozen(v int) *SubscriptionPlanUpdate {
+	_u.mutation.ResetStockFrozen()
+	_u.mutation.SetStockFrozen(v)
+	return _u
+}
+
+// SetNillableStockFrozen sets the "stock_frozen" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableStockFrozen(v *int) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetStockFrozen(*v)
+	}
+	return _u
+}
+
+// AddStockFrozen adds value to the "stock_frozen" field.
+func (_u *SubscriptionPlanUpdate) AddStockFrozen(v int) *SubscriptionPlanUpdate {
+	_u.mutation.AddStockFrozen(v)
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *SubscriptionPlanUpdate) SetSortOrder(v int) *SubscriptionPlanUpdate {
 	_u.mutation.ResetSortOrder()
@@ -358,6 +406,21 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StockQuantity(); ok {
+		_spec.SetField(subscriptionplan.FieldStockQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStockQuantity(); ok {
+		_spec.AddField(subscriptionplan.FieldStockQuantity, field.TypeInt, value)
+	}
+	if _u.mutation.StockQuantityCleared() {
+		_spec.ClearField(subscriptionplan.FieldStockQuantity, field.TypeInt)
+	}
+	if value, ok := _u.mutation.StockFrozen(); ok {
+		_spec.SetField(subscriptionplan.FieldStockFrozen, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStockFrozen(); ok {
+		_spec.AddField(subscriptionplan.FieldStockFrozen, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
@@ -569,6 +632,54 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableForSale(v *bool) *SubscriptionPl
 	return _u
 }
 
+// SetStockQuantity sets the "stock_quantity" field.
+func (_u *SubscriptionPlanUpdateOne) SetStockQuantity(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetStockQuantity()
+	_u.mutation.SetStockQuantity(v)
+	return _u
+}
+
+// SetNillableStockQuantity sets the "stock_quantity" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableStockQuantity(v *int) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetStockQuantity(*v)
+	}
+	return _u
+}
+
+// AddStockQuantity adds value to the "stock_quantity" field.
+func (_u *SubscriptionPlanUpdateOne) AddStockQuantity(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddStockQuantity(v)
+	return _u
+}
+
+// ClearStockQuantity clears the value of the "stock_quantity" field.
+func (_u *SubscriptionPlanUpdateOne) ClearStockQuantity() *SubscriptionPlanUpdateOne {
+	_u.mutation.ClearStockQuantity()
+	return _u
+}
+
+// SetStockFrozen sets the "stock_frozen" field.
+func (_u *SubscriptionPlanUpdateOne) SetStockFrozen(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetStockFrozen()
+	_u.mutation.SetStockFrozen(v)
+	return _u
+}
+
+// SetNillableStockFrozen sets the "stock_frozen" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableStockFrozen(v *int) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetStockFrozen(*v)
+	}
+	return _u
+}
+
+// AddStockFrozen adds value to the "stock_frozen" field.
+func (_u *SubscriptionPlanUpdateOne) AddStockFrozen(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddStockFrozen(v)
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *SubscriptionPlanUpdateOne) SetSortOrder(v int) *SubscriptionPlanUpdateOne {
 	_u.mutation.ResetSortOrder()
@@ -748,6 +859,21 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StockQuantity(); ok {
+		_spec.SetField(subscriptionplan.FieldStockQuantity, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStockQuantity(); ok {
+		_spec.AddField(subscriptionplan.FieldStockQuantity, field.TypeInt, value)
+	}
+	if _u.mutation.StockQuantityCleared() {
+		_spec.ClearField(subscriptionplan.FieldStockQuantity, field.TypeInt)
+	}
+	if value, ok := _u.mutation.StockFrozen(); ok {
+		_spec.SetField(subscriptionplan.FieldStockFrozen, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStockFrozen(); ok {
+		_spec.AddField(subscriptionplan.FieldStockFrozen, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)

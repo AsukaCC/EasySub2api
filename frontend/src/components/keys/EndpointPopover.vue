@@ -80,7 +80,7 @@ onBeforeUnmount(() => {
 
       <div class="components-keys-endpoint-popover__panel-3">
         <div
-          class="components-keys-endpoint-popover__panel-4"
+          class="components-keys-endpoint-popover__panel-4 glass-popover"
         >
           <p
             v-if="item.description"

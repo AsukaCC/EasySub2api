@@ -37,14 +37,17 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent/paymentproviderinstance"
 	"github.com/AsukaCC/EasySub2api/ent/paymentrefund"
 	"github.com/AsukaCC/EasySub2api/ent/pendingauthsession"
+	"github.com/AsukaCC/EasySub2api/ent/pendingsubscription"
 	"github.com/AsukaCC/EasySub2api/ent/promocode"
 	"github.com/AsukaCC/EasySub2api/ent/promocodeusage"
 	"github.com/AsukaCC/EasySub2api/ent/proxy"
 	"github.com/AsukaCC/EasySub2api/ent/redeemcode"
-	"github.com/AsukaCC/EasySub2api/ent/refundticket"
 	"github.com/AsukaCC/EasySub2api/ent/securitysecret"
 	"github.com/AsukaCC/EasySub2api/ent/setting"
 	"github.com/AsukaCC/EasySub2api/ent/subscriptionplan"
+	"github.com/AsukaCC/EasySub2api/ent/supportticket"
+	"github.com/AsukaCC/EasySub2api/ent/supportticketmessage"
+	"github.com/AsukaCC/EasySub2api/ent/supportticketread"
 	"github.com/AsukaCC/EasySub2api/ent/tlsfingerprintprofile"
 	"github.com/AsukaCC/EasySub2api/ent/usagecleanuptask"
 	"github.com/AsukaCC/EasySub2api/ent/usagelog"
@@ -139,14 +142,17 @@ func checkColumn(t, c string) error {
 			paymentproviderinstance.Table:       paymentproviderinstance.ValidColumn,
 			paymentrefund.Table:                 paymentrefund.ValidColumn,
 			pendingauthsession.Table:            pendingauthsession.ValidColumn,
+			pendingsubscription.Table:           pendingsubscription.ValidColumn,
 			promocode.Table:                     promocode.ValidColumn,
 			promocodeusage.Table:                promocodeusage.ValidColumn,
 			proxy.Table:                         proxy.ValidColumn,
 			redeemcode.Table:                    redeemcode.ValidColumn,
-			refundticket.Table:                  refundticket.ValidColumn,
 			securitysecret.Table:                securitysecret.ValidColumn,
 			setting.Table:                       setting.ValidColumn,
 			subscriptionplan.Table:              subscriptionplan.ValidColumn,
+			supportticket.Table:                 supportticket.ValidColumn,
+			supportticketmessage.Table:          supportticketmessage.ValidColumn,
+			supportticketread.Table:             supportticketread.ValidColumn,
 			tlsfingerprintprofile.Table:         tlsfingerprintprofile.ValidColumn,
 			usagecleanuptask.Table:              usagecleanuptask.ValidColumn,
 			usagelog.Table:                      usagelog.ValidColumn,

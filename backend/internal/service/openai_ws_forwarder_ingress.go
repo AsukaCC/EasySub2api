@@ -853,6 +853,27 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			upstreamMessage, readErr := lease.ReadMessageWithContextTimeout(ctx, s.openAIWSReadTimeout())
 			if readErr != nil {
 				lease.MarkBroken()
+				// Once any response events reached the client, this turn can no
+				// longer be retried safely. End it with a Responses terminal event
+				// before the handler sends the transport close frame.
+				if wroteDownstream && !clientDisconnected && terminalEventCount == 0 {
+					if writeErr := writeOpenAIWSResponseFailed(
+						ctx,
+						clientConn,
+						responseID,
+						"upstream_disconnected",
+						openAIWSFallbackFailureMessage,
+						s.openAIWSWriteTimeout(),
+					); writeErr != nil {
+						logOpenAIWSModeInfo(
+							"ingress_ws_terminal_failure_write_failed account_id=%v turn=%v conn_id=%s cause=%s",
+							account.ID,
+							turn,
+							truncateOpenAIWSLogValue(lease.ConnID(), openAIWSIDValueMaxLen),
+							truncateOpenAIWSLogValue(writeErr.Error(), openAIWSLogValueMaxLen),
+						)
+					}
+				}
 				return nil, wrapOpenAIWSIngressTurnError(
 					"read_upstream",
 					fmt.Errorf("read upstream websocket event: %w", readErr),
@@ -1571,6 +1592,32 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			if retryIngressTurn(relayErr, turn, connID) {
 				continue
+			}
+			// A pre-output failure may have exhausted its transparent retry.
+			// It still needs a semantic terminal event; a close frame by itself
+			// makes strict Responses clients report an unexplained disconnect.
+			var ingressTurnErr *openAIWSIngressTurnError
+			if errors.As(relayErr, &ingressTurnErr) &&
+				ingressTurnErr != nil &&
+				!ingressTurnErr.wroteDownstream &&
+				strings.TrimSpace(ingressTurnErr.stage) != "write_client" &&
+				ctx.Err() == nil {
+				if writeErr := writeOpenAIWSResponseFailed(
+					ctx,
+					clientConn,
+					"",
+					"upstream_unavailable",
+					openAIWSFallbackFailureMessage,
+					s.openAIWSWriteTimeout(),
+				); writeErr != nil {
+					logOpenAIWSModeInfo(
+						"ingress_ws_terminal_failure_write_failed account_id=%v turn=%v conn_id=%s cause=%s",
+						account.ID,
+						turn,
+						truncateOpenAIWSLogValue(connID, openAIWSIDValueMaxLen),
+						truncateOpenAIWSLogValue(writeErr.Error(), openAIWSLogValueMaxLen),
+					)
+				}
 			}
 			finalErr := relayErr
 			if unwrapped := errors.Unwrap(relayErr); unwrapped != nil {

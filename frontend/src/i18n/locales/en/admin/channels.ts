@@ -637,6 +637,10 @@ export default {
     subscriptions: {
       title: 'Subscription Management',
       description: 'Manage user subscriptions and quota limits',
+      pendingSubscriptions: 'Pending Subscriptions',
+      pendingSubscriptionsDesc: 'Read-only view of entitlements queued by platform until the current subscription ends.',
+      pendingSource: 'Source',
+      expectedActivation: 'Expected activation',
       assignSubscription: 'Assign Subscription',
       adjustSubscription: 'Adjust Subscription',
       revokeSubscription: 'Revoke Subscription',
@@ -704,6 +708,7 @@ export default {
       noSubscriptionsYet: 'No subscriptions yet',
       assignFirstSubscription: 'Assign a subscription to get started.',
       subscriptionAssigned: 'Subscription assigned successfully',
+      subscriptionQueued: 'Subscription assigned and queued for activation',
       subscriptionAdjusted: 'Subscription adjusted successfully',
       subscriptionRevoked: 'Subscription revoked successfully',
       subscriptionRestored: 'Subscription restored successfully',

@@ -985,6 +985,7 @@ var (
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "allow_messages_dispatch", Type: field.TypeBool, Default: false},
 		{Name: "allow_live", Type: field.TypeBool, Default: false},
+		{Name: "ccs_codex_ws_enabled", Type: field.TypeBool, Default: false},
 		{Name: "require_oauth_only", Type: field.TypeBool, Default: false},
 		{Name: "require_privacy_set", Type: field.TypeBool, Default: false},
 		{Name: "default_mapped_model", Type: field.TypeString, Size: 100, Default: ""},
@@ -1193,6 +1194,10 @@ var (
 		{Name: "provider_key", Type: field.TypeString, Nullable: true, Size: 30},
 		{Name: "provider_snapshot", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "status", Type: field.TypeString, Size: 30, Default: "PENDING"},
+		{Name: "inventory_status", Type: field.TypeString, Size: 16, Default: "NONE"},
+		{Name: "inventory_reserved_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "inventory_consumed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "inventory_released_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "refund_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
 		{Name: "refund_reason", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "refund_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -1220,7 +1225,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "payment_orders_users_payment_orders",
-				Columns:    []*schema.Column{PaymentOrdersColumns[62]},
+				Columns:    []*schema.Column{PaymentOrdersColumns[66]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1237,7 +1242,7 @@ var (
 			{
 				Name:    "paymentorder_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[62]},
+				Columns: []*schema.Column{PaymentOrdersColumns[66]},
 			},
 			{
 				Name:    "paymentorder_status",
@@ -1247,27 +1252,32 @@ var (
 			{
 				Name:    "paymentorder_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[52]},
+				Columns: []*schema.Column{PaymentOrdersColumns[56]},
 			},
 			{
 				Name:    "paymentorder_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[60]},
+				Columns: []*schema.Column{PaymentOrdersColumns[64]},
 			},
 			{
 				Name:    "paymentorder_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[53]},
+				Columns: []*schema.Column{PaymentOrdersColumns[57]},
 			},
 			{
 				Name:    "paymentorder_payment_type_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[32], PaymentOrdersColumns[53]},
+				Columns: []*schema.Column{PaymentOrdersColumns[32], PaymentOrdersColumns[57]},
 			},
 			{
 				Name:    "paymentorder_order_type",
 				Unique:  false,
 				Columns: []*schema.Column{PaymentOrdersColumns[37]},
+			},
+			{
+				Name:    "paymentorder_plan_id_inventory_status",
+				Unique:  false,
+				Columns: []*schema.Column{PaymentOrdersColumns[38], PaymentOrdersColumns[45]},
 			},
 		},
 	}
@@ -1440,6 +1450,63 @@ var (
 				Name:    "pendingauthsession_completion_code_hash",
 				Unique:  false,
 				Columns: []*schema.Column{PendingAuthSessionsColumns[14]},
+			},
+		},
+	}
+	// PendingSubscriptionsColumns holds the columns for the "pending_subscriptions" table.
+	PendingSubscriptionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "group_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "platform", Type: field.TypeString, Size: 50},
+		{Name: "validity_days", Type: field.TypeInt},
+		{Name: "source_type", Type: field.TypeString, Size: 32},
+		{Name: "source_id", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "blocked_by_subscription_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "expected_activation_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "PENDING"},
+		{Name: "activated_subscription_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "activation_mode", Type: field.TypeString, Size: 16, Default: ""},
+		{Name: "forfeited_subscription_ids", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "activated_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "cancelled_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "last_error", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "assigned_by", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "notes", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// PendingSubscriptionsTable holds the schema information for the "pending_subscriptions" table.
+	PendingSubscriptionsTable = &schema.Table{
+		Name:       "pending_subscriptions",
+		Columns:    PendingSubscriptionsColumns,
+		PrimaryKey: []*schema.Column{PendingSubscriptionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pendingsubscription_user_id_platform",
+				Unique:  true,
+				Columns: []*schema.Column{PendingSubscriptionsColumns[1], PendingSubscriptionsColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'PENDING'",
+				},
+			},
+			{
+				Name:    "pendingsubscription_source_type_source_id",
+				Unique:  true,
+				Columns: []*schema.Column{PendingSubscriptionsColumns[5], PendingSubscriptionsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "source_id <> ''",
+				},
+			},
+			{
+				Name:    "pendingsubscription_status_expected_activation_at",
+				Unique:  false,
+				Columns: []*schema.Column{PendingSubscriptionsColumns[9], PendingSubscriptionsColumns[8]},
+			},
+			{
+				Name:    "pendingsubscription_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{PendingSubscriptionsColumns[2]},
 			},
 		},
 	}
@@ -1632,54 +1699,6 @@ var (
 			},
 		},
 	}
-	// RefundTicketsColumns holds the columns for the "refund_tickets" table.
-	RefundTicketsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
-		{Name: "order_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
-		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
-		{Name: "refund_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
-		{Name: "status", Type: field.TypeString, Size: 24, Default: "PENDING"},
-		{Name: "comment", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
-		{Name: "approved_principal_amount", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
-		{Name: "reviewer_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
-		{Name: "review_note", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
-		{Name: "affiliate_action", Type: field.TypeString, Size: 24, Default: "MANUAL"},
-		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "completed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-	}
-	// RefundTicketsTable holds the schema information for the "refund_tickets" table.
-	RefundTicketsTable = &schema.Table{
-		Name:       "refund_tickets",
-		Columns:    RefundTicketsColumns,
-		PrimaryKey: []*schema.Column{RefundTicketsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "idx_refund_tickets_order",
-				Unique:  false,
-				Columns: []*schema.Column{RefundTicketsColumns[1]},
-			},
-			{
-				Name:    "idx_refund_tickets_one_active_order",
-				Unique:  true,
-				Columns: []*schema.Column{RefundTicketsColumns[1]},
-				Annotation: &entsql.IndexAnnotation{
-					Where: "status IN ('PENDING', 'APPROVED', 'PROCESSING')",
-				},
-			},
-			{
-				Name:    "refundticket_user_id_created_at",
-				Unique:  false,
-				Columns: []*schema.Column{RefundTicketsColumns[2], RefundTicketsColumns[12]},
-			},
-			{
-				Name:    "refundticket_status_created_at",
-				Unique:  false,
-				Columns: []*schema.Column{RefundTicketsColumns[4], RefundTicketsColumns[12]},
-			},
-		},
-	}
 	// SecuritySecretsColumns holds the columns for the "security_secrets" table.
 	SecuritySecretsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
@@ -1721,6 +1740,8 @@ var (
 		{Name: "features", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "product_name", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "for_sale", Type: field.TypeBool, Default: true},
+		{Name: "stock_quantity", Type: field.TypeInt, Nullable: true},
+		{Name: "stock_frozen", Type: field.TypeInt, Default: 0},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -1740,6 +1761,118 @@ var (
 				Name:    "subscriptionplan_for_sale",
 				Unique:  false,
 				Columns: []*schema.Column{SubscriptionPlansColumns[11]},
+			},
+		},
+	}
+	// SupportTicketsColumns holds the columns for the "support_tickets" table.
+	SupportTicketsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "category", Type: field.TypeString, Size: 24},
+		{Name: "status", Type: field.TypeString, Size: 24, Default: "PENDING_ADMIN"},
+		{Name: "origin", Type: field.TypeString, Size: 16, Default: "USER"},
+		{Name: "title", Type: field.TypeString, Size: 120},
+		{Name: "api_key_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "api_key_name_snapshot", Type: field.TypeString, Size: 160, Default: ""},
+		{Name: "group_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "group_name_snapshot", Type: field.TypeString, Size: 160, Default: ""},
+		{Name: "order_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "refund_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "refund_decision", Type: field.TypeString, Size: 16, Default: "NONE"},
+		{Name: "approved_principal_amount", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "reviewer_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "reopen_count", Type: field.TypeInt, Default: 0},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "closed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "last_user_activity_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "last_admin_activity_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// SupportTicketsTable holds the schema information for the "support_tickets" table.
+	SupportTicketsTable = &schema.Table{
+		Name:       "support_tickets",
+		Columns:    SupportTicketsColumns,
+		PrimaryKey: []*schema.Column{SupportTicketsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supportticket_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupportTicketsColumns[1], SupportTicketsColumns[21]},
+			},
+			{
+				Name:    "supportticket_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupportTicketsColumns[3], SupportTicketsColumns[21]},
+			},
+			{
+				Name:    "supportticket_category_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupportTicketsColumns[2], SupportTicketsColumns[21]},
+			},
+			{
+				Name:    "idx_support_tickets_order",
+				Unique:  false,
+				Columns: []*schema.Column{SupportTicketsColumns[10]},
+			},
+			{
+				Name:    "idx_support_tickets_one_active_refund",
+				Unique:  true,
+				Columns: []*schema.Column{SupportTicketsColumns[10]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "category = 'REFUND' AND order_id IS NOT NULL AND status IN ('PENDING_ADMIN', 'PENDING_USER', 'IN_PROGRESS')",
+				},
+			},
+		},
+	}
+	// SupportTicketMessagesColumns holds the columns for the "support_ticket_messages" table.
+	SupportTicketMessagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "ticket_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "author_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "author_role", Type: field.TypeString, Size: 16},
+		{Name: "kind", Type: field.TypeString, Size: 16, Default: "COMMENT"},
+		{Name: "body", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "event_type", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "event_data", Type: field.TypeString, Default: "{}", SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// SupportTicketMessagesTable holds the schema information for the "support_ticket_messages" table.
+	SupportTicketMessagesTable = &schema.Table{
+		Name:       "support_ticket_messages",
+		Columns:    SupportTicketMessagesColumns,
+		PrimaryKey: []*schema.Column{SupportTicketMessagesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supportticketmessage_ticket_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupportTicketMessagesColumns[1], SupportTicketMessagesColumns[8]},
+			},
+		},
+	}
+	// SupportTicketReadsColumns holds the columns for the "support_ticket_reads" table.
+	SupportTicketReadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "ticket_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "reader_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "read_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// SupportTicketReadsTable holds the schema information for the "support_ticket_reads" table.
+	SupportTicketReadsTable = &schema.Table{
+		Name:       "support_ticket_reads",
+		Columns:    SupportTicketReadsColumns,
+		PrimaryKey: []*schema.Column{SupportTicketReadsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supportticketread_ticket_id_reader_id",
+				Unique:  true,
+				Columns: []*schema.Column{SupportTicketReadsColumns[1], SupportTicketReadsColumns[2]},
+			},
+			{
+				Name:    "supportticketread_reader_id_read_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupportTicketReadsColumns[2], SupportTicketReadsColumns[3]},
 			},
 		},
 	}
@@ -2286,14 +2419,17 @@ var (
 		PaymentProviderInstancesTable,
 		PaymentRefundsTable,
 		PendingAuthSessionsTable,
+		PendingSubscriptionsTable,
 		PromoCodesTable,
 		PromoCodeUsagesTable,
 		ProxiesTable,
 		RedeemCodesTable,
-		RefundTicketsTable,
 		SecuritySecretsTable,
 		SettingsTable,
 		SubscriptionPlansTable,
+		SupportTicketsTable,
+		SupportTicketMessagesTable,
+		SupportTicketReadsTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
 		UsageLogsTable,
@@ -2391,7 +2527,8 @@ func init() {
 		Table: "payment_orders",
 	}
 	PaymentOrdersTable.Annotation.Checks = map[string]string{
-		"payment_orders_order_type_valid": "order_type IN ('balance', 'subscription')",
+		"payment_orders_inventory_status_valid": "inventory_status IN ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED')",
+		"payment_orders_order_type_valid":       "order_type IN ('balance', 'subscription')",
 	}
 	PaymentProviderInstancesTable.Annotation = &entsql.Annotation{
 		Table: "payment_provider_instances",
@@ -2412,6 +2549,13 @@ func init() {
 	PendingAuthSessionsTable.Annotation = &entsql.Annotation{
 		Table: "pending_auth_sessions",
 	}
+	PendingSubscriptionsTable.Annotation = &entsql.Annotation{
+		Table: "pending_subscriptions",
+	}
+	PendingSubscriptionsTable.Annotation.Checks = map[string]string{
+		"pending_subscriptions_status_valid":      "status IN ('PENDING', 'ACTIVATED', 'CANCELLED')",
+		"pending_subscriptions_validity_positive": "validity_days > 0",
+	}
 	PromoCodesTable.Annotation = &entsql.Annotation{
 		Table: "promo_codes",
 	}
@@ -2429,14 +2573,6 @@ func init() {
 	RedeemCodesTable.Annotation = &entsql.Annotation{
 		Table: "redeem_codes",
 	}
-	RefundTicketsTable.Annotation = &entsql.Annotation{
-		Table: "refund_tickets",
-	}
-	RefundTicketsTable.Annotation.Checks = map[string]string{
-		"refund_tickets_affiliate_action_valid":         "affiliate_action = 'MANUAL'",
-		"refund_tickets_approved_principal_nonnegative": "approved_principal_amount IS NULL OR approved_principal_amount >= 0",
-		"refund_tickets_status_valid":                   "status IN ('PENDING', 'APPROVED', 'PROCESSING', 'COMPLETED', 'REJECTED', 'CANCELLED', 'FAILED')",
-	}
 	SecuritySecretsTable.Annotation = &entsql.Annotation{
 		Table: "security_secrets",
 	}
@@ -2445,6 +2581,32 @@ func init() {
 	}
 	SubscriptionPlansTable.Annotation = &entsql.Annotation{
 		Table: "subscription_plans",
+	}
+	SubscriptionPlansTable.Annotation.Checks = map[string]string{
+		"subscription_plans_frozen_nonnegative":  "stock_frozen >= 0",
+		"subscription_plans_stock_covers_frozen": "stock_quantity IS NULL OR stock_quantity >= stock_frozen",
+		"subscription_plans_stock_nonnegative":   "stock_quantity IS NULL OR stock_quantity >= 0",
+	}
+	SupportTicketsTable.Annotation = &entsql.Annotation{
+		Table: "support_tickets",
+	}
+	SupportTicketsTable.Annotation.Checks = map[string]string{
+		"support_tickets_approved_nonnegative":  "approved_principal_amount IS NULL OR approved_principal_amount >= 0",
+		"support_tickets_category_valid":        "category IN ('ACCOUNT', 'REFUND')",
+		"support_tickets_origin_valid":          "origin IN ('USER', 'ADMIN', 'MIGRATED')",
+		"support_tickets_refund_decision_valid": "refund_decision IN ('NONE', 'PENDING', 'APPROVED', 'REJECTED')",
+		"support_tickets_reopen_count_valid":    "reopen_count >= 0 AND reopen_count <= 1",
+		"support_tickets_status_valid":          "status IN ('PENDING_ADMIN', 'PENDING_USER', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'CANCELLED')",
+	}
+	SupportTicketMessagesTable.Annotation = &entsql.Annotation{
+		Table: "support_ticket_messages",
+	}
+	SupportTicketMessagesTable.Annotation.Checks = map[string]string{
+		"support_ticket_messages_author_role_valid": "author_role IN ('USER', 'ADMIN', 'SYSTEM')",
+		"support_ticket_messages_kind_valid":        "kind IN ('COMMENT', 'SYSTEM')",
+	}
+	SupportTicketReadsTable.Annotation = &entsql.Annotation{
+		Table: "support_ticket_reads",
 	}
 	TLSFingerprintProfilesTable.Annotation = &entsql.Annotation{
 		Table: "tls_fingerprint_profiles",

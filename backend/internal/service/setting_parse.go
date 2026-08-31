@@ -17,6 +17,38 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 )
 
+const DefaultThemeAccent = "#0a84ff"
+
+func normalizeThemeAccent(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) == 4 && value[0] == '#' {
+		expanded := make([]byte, 7)
+		expanded[0] = '#'
+		for i := 0; i < 3; i++ {
+			ch := value[i+1]
+			if !isHexByte(ch) {
+				return DefaultThemeAccent
+			}
+			expanded[i*2+1] = ch
+			expanded[i*2+2] = ch
+		}
+		value = string(expanded)
+	}
+	if len(value) != 7 || value[0] != '#' {
+		return DefaultThemeAccent
+	}
+	for i := 1; i < 7; i++ {
+		if !isHexByte(value[i]) {
+			return DefaultThemeAccent
+		}
+	}
+	return strings.ToLower(value)
+}
+
+func isHexByte(b byte) bool {
+	return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
+}
+
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// 检查是否已有设置
@@ -67,6 +99,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyForwardedClientIPHeaders:                   string(forwardedClientIPHeadersJSON),
 		settingKeyForwardedClientIPModeV2:                    "true",
 		SettingKeySiteName:                                   "EasySub2api",
+		SettingKeyThemeAccent:                                DefaultThemeAccent,
 		SettingKeySiteLogo:                                   "",
 		SettingKeyPurchaseSubscriptionEnabled:                "false",
 		SettingKeyPurchaseSubscriptionURL:                    "",
@@ -216,7 +249,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 
 		// 风控中心功能（默认关闭，显式启用）
-		SettingKeyRiskControlEnabled: "false",
+		SettingKeyRiskControlEnabled:          "false",
+		SettingKeySupportTicketsEnabled:       "false",
+		SettingKeySupportTicketsUserVisible:   "false",
+		SettingKeySupportTicketAccountEnabled: "true",
+		SettingKeySupportTicketRefundEnabled:  "true",
 
 		// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
 		SettingKeyCyberSessionBlockEnabled:    "false",
@@ -355,6 +392,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		APIKeyACLTrustForwardedIP:              apiKeyACLTrustForwardedIP,
 		ForwardedClientIPHeaders:               forwardedClientIPHeaders,
 		SiteName:                               s.getStringOrDefault(settings, SettingKeySiteName, "EasySub2api"),
+		ThemeAccent:                            normalizeThemeAccent(settings[SettingKeyThemeAccent]),
 		SiteLogo:                               settings[SettingKeySiteLogo],
 		SiteSubtitle:                           s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                             settings[SettingKeyAPIBaseURL],
@@ -794,6 +832,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"
+	result.SupportTicketsEnabled = settings[SettingKeySupportTicketsEnabled] == "true"
+	result.SupportTicketsUserVisible = userVisibilitySetting(settings, SettingKeySupportTicketsUserVisible, result.SupportTicketsEnabled)
+	result.SupportTicketAccountEnabled = !isFalseSettingValue(settings[SettingKeySupportTicketAccountEnabled])
+	result.SupportTicketRefundEnabled = !isFalseSettingValue(settings[SettingKeySupportTicketRefundEnabled])
 
 	// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
 	result.CyberSessionBlockEnabled = settings[SettingKeyCyberSessionBlockEnabled] == "true"

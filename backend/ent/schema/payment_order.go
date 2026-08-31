@@ -29,7 +29,8 @@ func (PaymentOrder) Annotations() []schema.Annotation {
 		entsql.Annotation{
 			Table: "payment_orders",
 			Checks: map[string]string{
-				"payment_orders_order_type_valid": "order_type IN ('balance', 'subscription')",
+				"payment_orders_order_type_valid":       "order_type IN ('balance', 'subscription')",
+				"payment_orders_inventory_status_valid": "inventory_status IN ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED')",
 			},
 		},
 	}
@@ -185,6 +186,21 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(30).
 			Default("PENDING"),
+		field.String("inventory_status").
+			MaxLen(16).
+			Default("NONE"),
+		field.Time("inventory_reserved_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("inventory_consumed_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("inventory_released_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 
 		// 退款信息
 		field.Float("refund_amount").
@@ -277,5 +293,6 @@ func (PaymentOrder) Indexes() []ent.Index {
 		index.Fields("paid_at"),
 		index.Fields("payment_type", "paid_at"),
 		index.Fields("order_type"),
+		index.Fields("plan_id", "inventory_status"),
 	}
 }

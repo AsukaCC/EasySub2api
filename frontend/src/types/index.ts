@@ -239,6 +239,7 @@ export interface PublicSettings {
   aliyun_captcha_prefix?: string
   aliyun_captcha_region?: string
   site_name: string
+  theme_accent?: string
   site_logo: string
   site_subtitle: string
   api_base_url: string
@@ -284,6 +285,9 @@ export interface PublicSettings {
   model_plaza_require_auth: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
+  support_tickets_enabled?: boolean
+  support_ticket_account_enabled?: boolean
+  support_ticket_refund_enabled?: boolean
   allow_user_view_error_requests?: boolean
 }
 
@@ -635,6 +639,8 @@ export interface Group {
   allow_messages_dispatch?: boolean
   // OpenAI Live 接口开关
   allow_live: boolean
+  // CC-Switch Codex 导出是否启用 Responses WebSocket
+  ccs_codex_ws_enabled: boolean
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   require_oauth_only: boolean
@@ -844,6 +850,7 @@ export interface CreateGroupRequest {
   models_list_config?: ModelsListConfig
   allow_messages_dispatch?: boolean
   allow_live?: boolean
+  ccs_codex_ws_enabled?: boolean
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, string[]> | null
@@ -909,6 +916,7 @@ export interface UpdateGroupRequest {
   models_list_config?: ModelsListConfig
   allow_messages_dispatch?: boolean
   allow_live?: boolean
+  ccs_codex_ws_enabled?: boolean
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, string[]> | null
@@ -1992,6 +2000,34 @@ export interface UserSubscription {
   expires_at: string | null
   user?: User
   group?: Group
+}
+
+export interface PendingSubscription {
+  id: string
+  user_id: string
+  group_id: string
+  platform: string
+  validity_days: number
+  source_type: string
+  source_id?: string
+  blocked_by_subscription_id?: string | null
+  expected_activation_at?: string | null
+  status: 'PENDING' | 'ACTIVATED' | 'CANCELLED'
+  activated_subscription_id?: string | null
+  activation_mode?: 'direct' | 'scheduled' | 'immediate' | ''
+  forfeited_subscription_ids?: string[]
+  activated_at?: string | null
+  last_error?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+  group?: Group
+}
+
+export interface SubscriptionGrantResult {
+  activation_status: 'active' | 'pending'
+  subscription?: UserSubscription
+  pending_subscription?: PendingSubscription
 }
 
 export interface SubscriptionProgress {

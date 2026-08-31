@@ -46,6 +46,8 @@ func RegisterAdminRoutes(
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
 
+		registerSupportTicketRoutes(admin, h)
+
 		// OpenAI OAuth
 		registerOpenAIOAuthRoutes(admin, h)
 
@@ -126,6 +128,20 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerSupportTicketRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	tickets := admin.Group("/tickets")
+	{
+		tickets.GET("", h.Admin.SupportTicket.List)
+		tickets.POST("", h.Admin.SupportTicket.CreateRefund)
+		tickets.GET("/summary", h.Admin.SupportTicket.Summary)
+		tickets.GET("/:id", h.Admin.SupportTicket.Detail)
+		tickets.POST("/:id/messages", h.Admin.SupportTicket.Reply)
+		tickets.POST("/:id/read", h.Admin.SupportTicket.MarkRead)
+		tickets.POST("/:id/status", h.Admin.SupportTicket.SetStatus)
+		tickets.POST("/:id/refund/review", h.Admin.SupportTicket.ReviewRefund)
 	}
 }
 
@@ -279,6 +295,8 @@ func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		dashboard.GET("/snapshot-v2", h.Admin.Dashboard.GetSnapshotV2)
 		dashboard.GET("/stats", h.Admin.Dashboard.GetStats)
+		dashboard.GET("/account-quotas", h.Admin.Dashboard.GetAccountQuotas)
+		dashboard.GET("/account-quotas/accounts", h.Admin.Dashboard.GetAccountQuotaAccounts)
 		dashboard.GET("/realtime", h.Admin.Dashboard.GetRealtimeMetrics)
 		dashboard.GET("/trend", h.Admin.Dashboard.GetUsageTrend)
 		dashboard.GET("/models", h.Admin.Dashboard.GetModelStats)
@@ -662,6 +680,7 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	subscriptions := admin.Group("/subscriptions")
 	{
 		subscriptions.GET("", h.Admin.Subscription.List)
+		subscriptions.GET("/pending", h.Admin.Subscription.ListPending)
 		subscriptions.GET("/:id", h.Admin.Subscription.GetByID)
 		subscriptions.GET("/:id/progress", h.Admin.Subscription.GetProgress)
 		subscriptions.POST("/assign", h.Admin.Subscription.Assign)

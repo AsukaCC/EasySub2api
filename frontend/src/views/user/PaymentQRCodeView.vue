@@ -4,7 +4,7 @@
       <h2 class="views-user-payment-qrcode-view__heading">
         {{ qrUrl ? scanTitle : t('payment.qr.payInNewWindow') }}
       </h2>
-      <div v-if="qrUrl" class="views-user-payment-qrcode-view__panel-2">
+      <div v-if="qrUrl" class="views-user-payment-qrcode-view__panel-2 card-body">
         <canvas ref="qrCanvas" class="views-user-payment-qrcode-view__canvas"></canvas>
       </div>
       <!-- Scan prompt for QR code -->

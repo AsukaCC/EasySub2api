@@ -11,8 +11,7 @@ import type {
   SubscriptionPlan,
   ProviderInstance,
   PaymentRefund,
-  RechargeBonusTier,
-  RefundTicket
+  RechargeBonusTier
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -56,11 +55,6 @@ export interface UpdatePaymentConfigRequest {
   product_name_suffix?: string
   help_image_url?: string
   help_text?: string
-}
-
-export interface RefundTicketReviewResult {
-  ticket: RefundTicket
-  refund?: PaymentRefund
 }
 
 export interface AdminPaymentOrderDetail {
@@ -122,38 +116,9 @@ export const adminPaymentAPI = {
     return apiClient.post(`/admin/payment/orders/${id}/retry`)
   },
 
-  /** Process a refund */
-  refundOrder(
-    id: string,
-    data: { principal_amount?: number; reason: string },
-    idempotencyKey: string
-  ) {
-    return apiClient.post<PaymentRefund>(`/admin/payment/orders/${id}/refund`, data, {
-      headers: { 'Idempotency-Key': idempotencyKey }
-    })
-  },
-
   /** Query and finalize a pending refund */
   queryRefund(id: string) {
     return apiClient.post<PaymentRefund>(`/admin/payment/orders/${id}/refund/query`)
-  },
-
-  /** Get refund tickets requiring or awaiting manual review. */
-  getRefundTickets(params?: { status?: string; page?: number; page_size?: number }) {
-    return apiClient.get<BasePaginationResponse<RefundTicket>>('/admin/payment/refund-tickets', { params })
-  },
-
-  /** Approve or reject a refund ticket. Affiliate handling is manual by contract. */
-  reviewRefundTicket(
-    id: string,
-    data: {
-      decision: 'APPROVE' | 'REJECT'
-      approved_principal_amount?: number
-      review_note: string
-      affiliate_action: 'MANUAL'
-    }
-  ) {
-    return apiClient.post<RefundTicketReviewResult>(`/admin/payment/refund-tickets/${id}/review`, data)
   },
 
   // ==================== Channels ====================

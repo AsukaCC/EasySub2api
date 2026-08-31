@@ -359,7 +359,7 @@ const empty = computed(() => events.value.length === 0 && !loading.value)
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-alert-events-card__panel">
+  <div class="views-admin-ops-components-ops-alert-events-card__panel card-body">
     <div class="views-admin-ops-components-ops-alert-events-card__panel-2">
       <div>
         <h3 class="views-admin-ops-components-ops-alert-events-card__heading">{{ t('admin.ops.alertEvents.title') }}</h3>

@@ -330,6 +330,15 @@ func (l *openAIWSPassthroughTurnLifecycle) cancelResponseCreate() {
 	l.mu.Unlock()
 }
 
+func (l *openAIWSPassthroughTurnLifecycle) isInFlight() bool {
+	if l == nil {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.inFlight
+}
+
 func (l *openAIWSPassthroughTurnLifecycle) beginTerminalWrite() {
 	if l != nil {
 		l.mu.Lock()
@@ -1179,6 +1188,32 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			BeforeRelayCancel: func(exit openaiwsv2.RelayExit) {
 				if context.Cause(ctx) != nil {
 					return
+				}
+				// An upstream transport may close cleanly at the WebSocket layer
+				// while the active Responses turn has not emitted a terminal event.
+				// Translate that transport close into response.failed before ending
+				// the client connection. Preserve the zero-output first-turn timeout
+				// path because it can still fail over transparently to another account.
+				var firstOutputTimeoutErr *openAIWSPassthroughFirstOutputTimeoutError
+				canFailOverFirstTurn := errors.As(exit.Err, &firstOutputTimeoutErr) &&
+					completedTurns.Load() == 0 &&
+					!exit.WroteDownstream
+				if exit.Stage == "read_upstream" && turnLifecycle.isInFlight() && !canFailOverFirstTurn {
+					if writeErr := writeOpenAIWSResponseFailed(
+						ctx,
+						clientConn,
+						"",
+						"upstream_disconnected",
+						openAIWSFallbackFailureMessage,
+						s.openAIWSWriteTimeout(),
+					); writeErr != nil {
+						logOpenAIWSV2Passthrough(
+							"relay_terminal_failure_write_failed account_id=%v stage=%s cause=%s",
+							account.ID,
+							truncateOpenAIWSLogValue(exit.Stage, openAIWSLogValueMaxLen),
+							truncateOpenAIWSLogValue(writeErr.Error(), openAIWSLogValueMaxLen),
+						)
+					}
 				}
 				status, reason, ok := openAIWSPassthroughRelayClientClose(exit, int(completedTurns.Load()))
 				if !ok {

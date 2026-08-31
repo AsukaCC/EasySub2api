@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="views-user-usage-view__panel">
+    <div class="page-stack">
       <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
 
       <div class="views-user-usage-view__panel-2">
@@ -128,7 +128,7 @@
             <button type="button" @click="resetFilters" class="btn btn-secondary">
               {{ t('common.reset') }}
             </button>
-            <div class="views-user-usage-view__panel-16" ref="columnDropdownRef">
+            <div class="views-user-usage-view__panel-16 filter-toolbar" ref="columnDropdownRef">
               <button
                 type="button"
                 @click="showColumnDropdown = !showColumnDropdown"
@@ -140,14 +140,14 @@
               </button>
               <div
                 v-if="showColumnDropdown"
-                class="views-user-usage-view__panel-17"
+                class="views-user-usage-view__panel-17 dropdown dropdown--menu"
               >
                 <button
                   v-for="col in currentToggleableColumns"
                   :key="col.key"
                   type="button"
                   @click="toggleCurrentColumn(col.key)"
-                  class="views-user-usage-view__action-2"
+                  class="views-user-usage-view__action-2 dropdown-item"
                 >
                   <span>{{ col.label }}</span>
                   <Icon v-if="isCurrentColumnVisible(col.key)" name="check" size="sm" class="views-user-usage-view__icon" />
@@ -890,79 +890,7 @@ watch(endpointDistributionSource, () => {
 </script>
 
 <style scoped>
-/* 确保筛选卡片高于下方 Tab 栏与表格，避免列设置下拉浮层被遮挡 */
-.views-user-usage-view__panel-9 {
-  position: relative;
-  z-index: 50;
-}
-
-.views-user-usage-view__panel-15 {
-  position: relative;
-  z-index: 55;
-}
-
-.views-user-usage-view__panel-16 {
-  position: relative;
-  z-index: 60;
-}
-
-.views-user-usage-view__panel-17 {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 1000;
-  margin-top: 0.375rem;
-  padding: 0.375rem;
-  min-width: 11.5rem;
-  max-height: 22rem;
-  overflow-y: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg-thick);
-  -webkit-backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
-  box-shadow: var(--shadow-xl), 0 1px 0 var(--glass-highlight) inset;
-}
-
-:global(.dark) .views-user-usage-view__panel-17 {
-  border-color: var(--glass-border-hover);
-  background: var(--glass-bg-thick);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5), 0 1px 0 var(--glass-highlight) inset;
-}
-
-.views-user-usage-view__action-2 {
-  position: relative;
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  text-align: left;
-  cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.views-user-usage-view__action-2:hover {
-  color: var(--color-text-primary);
-  border-color: var(--glass-border);
-  background-color: var(--glass-bg-interactive-hover);
-  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
-  box-shadow: 0 1px 0 var(--glass-highlight) inset;
-}
-
-:global(.dark) .views-user-usage-view__action-2:hover {
-  border-color: var(--glass-border-hover);
-  background-color: var(--glass-bg-interactive-hover);
-}
-
+/* 列设置下拉挂在 panel-16.filter-toolbar 上,筛选卡本身与图表卡一样只做 .card 表面。 */
 .views-user-usage-view__icon {
   color: var(--color-primary);
   flex-shrink: 0;

@@ -1,7 +1,7 @@
 <template>
   <div class="views-auth-wechat-payment-callback-view__panel">
     <div class="views-auth-wechat-payment-callback-view__panel-2">
-      <div class="views-auth-wechat-payment-callback-view__panel-3 card">
+      <div class="views-auth-wechat-payment-callback-view__panel-3 card-body card">
         <h1 class="views-auth-wechat-payment-callback-view__heading">
           {{ callbackTitleText }}
         </h1>

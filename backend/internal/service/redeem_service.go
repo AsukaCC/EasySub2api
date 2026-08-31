@@ -519,13 +519,13 @@ func (s *RedeemService) Redeem(ctx context.Context, userID string, code string) 
 			if validityDays == 0 {
 				validityDays = 30
 			}
-			_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
+			_, err := s.subscriptionService.GrantOrQueueSubscription(txCtx, &SubscriptionGrantInput{AssignSubscriptionInput: AssignSubscriptionInput{
 				UserID:       userID,
 				GroupID:      *redeemCode.GroupID,
 				ValidityDays: validityDays,
 				AssignedBy:   "", // 系统分配
 				Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
-			})
+			}, SourceType: "redeem_code", SourceID: redeemCode.ID})
 			if err != nil {
 				return nil, fmt.Errorf("assign or extend subscription: %w", err)
 			}

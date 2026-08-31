@@ -143,6 +143,7 @@ type SystemSettings struct {
 	GoogleOAuthFrontendRedirectURL    string
 
 	SiteName                    string
+	ThemeAccent                 string
 	SiteLogo                    string
 	SiteSubtitle                string
 	APIBaseURL                  string
@@ -162,6 +163,10 @@ type SystemSettings struct {
 	DefaultBalance                  float64
 	BonusBalanceDefaultValidityDays int
 	RiskControlEnabled              bool
+	SupportTicketsEnabled           bool
+	SupportTicketsUserVisible       bool
+	SupportTicketAccountEnabled     bool
+	SupportTicketRefundEnabled      bool
 	CyberSessionBlockEnabled        bool
 	CyberSessionBlockTTLSeconds     int
 	AffiliateEnabled                bool
@@ -331,6 +336,7 @@ type PublicSettings struct {
 	AliyunCaptchaPrefix                 string
 	AliyunCaptchaRegion                 string
 	SiteName                            string
+	ThemeAccent                         string
 	SiteLogo                            string
 	SiteSubtitle                        string
 	APIBaseURL                          string
@@ -388,7 +394,10 @@ type PublicSettings struct {
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	// 风控中心功能开关
-	RiskControlEnabled bool `json:"risk_control_enabled"`
+	RiskControlEnabled          bool `json:"risk_control_enabled"`
+	SupportTicketsEnabled       bool `json:"support_tickets_enabled"`
+	SupportTicketAccountEnabled bool `json:"support_ticket_account_enabled"`
+	SupportTicketRefundEnabled  bool `json:"support_ticket_refund_enabled"`
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`

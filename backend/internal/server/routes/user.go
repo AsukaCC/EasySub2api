@@ -127,6 +127,21 @@ func RegisterUserRoutes(
 			announcements.POST("/:id/read", h.Announcement.MarkRead)
 		}
 
+		// Unified account and refund support tickets. Feature switches gate only
+		// creation in the service so existing conversations remain accessible.
+		tickets := authenticated.Group("/tickets")
+		{
+			tickets.GET("", h.SupportTicket.List)
+			tickets.GET("/summary", h.SupportTicket.Summary)
+			tickets.POST("", h.SupportTicket.Create)
+			tickets.GET("/:id", h.SupportTicket.Detail)
+			tickets.POST("/:id/messages", h.SupportTicket.Reply)
+			tickets.POST("/:id/read", h.SupportTicket.MarkRead)
+			tickets.POST("/:id/cancel", h.SupportTicket.Cancel)
+			tickets.POST("/:id/close", h.SupportTicket.Close)
+			tickets.POST("/:id/reopen", h.SupportTicket.Reopen)
+		}
+
 		// 卡密兑换
 		redeem := authenticated.Group("/redeem")
 		{
@@ -139,6 +154,8 @@ func RegisterUserRoutes(
 		{
 			subscriptions.GET("", h.Subscription.List)
 			subscriptions.GET("/active", h.Subscription.GetActive)
+			subscriptions.GET("/pending", h.Subscription.ListPending)
+			subscriptions.POST("/pending/:id/activate-now", h.Subscription.ActivatePendingNow)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
 			subscriptions.GET("/summary", h.Subscription.GetSummary)
 		}

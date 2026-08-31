@@ -15,6 +15,8 @@ export interface FloatingPanelOptions {
   minComfortableHeight?: number
   /** Align the panel's start or end edge with the trigger on desktop. */
   align?: 'start' | 'end'
+  /** Bottom is the default dropdown; right is for collapsed sidebar flyouts. */
+  placement?: 'bottom' | 'right'
 }
 
 /**
@@ -33,12 +35,36 @@ export const getFloatingPanelPosition = (
   const mobileBreakpoint = options.mobileBreakpoint ?? 768
   const minComfortableHeight = options.minComfortableHeight ?? 240
   const align = options.align ?? 'end'
+  const placement = options.placement ?? 'bottom'
 
   const availableWidth = Math.max(0, viewportWidth - viewportPadding * 2)
   const width = Math.min(maxWidth, availableWidth)
   const triggerLeft = typeof triggerRect.left === 'number'
     ? triggerRect.left
     : triggerRect.right - width
+
+  if (placement === 'right') {
+    const spaceRight = Math.max(0, viewportWidth - triggerRect.right - gap - viewportPadding)
+    const spaceLeft = Math.max(0, triggerLeft - gap - viewportPadding)
+    const openLeft = spaceRight < width && spaceLeft > spaceRight
+    const left = openLeft
+      ? Math.max(viewportPadding, triggerLeft - width - gap)
+      : Math.min(triggerRect.right + gap, viewportWidth - width - viewportPadding)
+    const spaceBelow = Math.max(0, viewportHeight - triggerRect.top - viewportPadding)
+    const spaceAbove = Math.max(0, triggerRect.bottom - viewportPadding)
+    const preferredMaxHeight = Math.max(0, Math.floor(viewportHeight * maxHeightRatio))
+    const openAbove = spaceBelow < Math.min(minComfortableHeight, preferredMaxHeight) && spaceAbove > spaceBelow
+    const maxHeight = Math.min(preferredMaxHeight, openAbove ? spaceAbove : spaceBelow)
+
+    return {
+      top: openAbove ? null : triggerRect.top,
+      bottom: openAbove ? viewportHeight - triggerRect.bottom : null,
+      left,
+      width,
+      maxHeight
+    }
+  }
+
   const preferredLeft = align === 'start' ? triggerLeft : triggerRect.right - width
   const left = viewportWidth < mobileBreakpoint
     ? viewportPadding

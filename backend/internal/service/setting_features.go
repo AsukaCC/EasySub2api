@@ -61,6 +61,25 @@ func (s *SettingService) IsAffiliateUserAvailable(ctx context.Context) bool {
 	return s.isUserFeatureAvailable(ctx, SettingKeyAffiliateEnabled, SettingKeyAffiliateUserVisible, false)
 }
 
+func (s *SettingService) IsSupportTicketsEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySupportTicketsEnabled)
+	return err == nil && value == "true"
+}
+
+func (s *SettingService) IsSupportTicketsUserAvailable(ctx context.Context) bool {
+	return s.isUserFeatureAvailable(ctx, SettingKeySupportTicketsEnabled, SettingKeySupportTicketsUserVisible, false)
+}
+
+func (s *SettingService) IsSupportTicketAccountEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySupportTicketAccountEnabled)
+	return err != nil || value != "false"
+}
+
+func (s *SettingService) IsSupportTicketRefundEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySupportTicketRefundEnabled)
+	return err != nil || value != "false"
+}
+
 // IsRegistrationEnabled 检查是否开放注册
 func (s *SettingService) IsRegistrationEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationEnabled)

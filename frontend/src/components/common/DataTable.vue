@@ -112,7 +112,7 @@
         </colgroup>
         <thead class="data-table__header table-header">
           <tr>
-            <th v-if="selectable" scope="col" class="data-table__header-cell data-table__selection-cell sticky-header-cell">
+            <th v-if="selectable" scope="col" class="data-table__header-cell data-table__selection-cell sticky-header-cell glass-sticky-cell">
               <input
                 type="checkbox"
                 class="data-table__checkbox"
@@ -130,7 +130,7 @@
               :aria-sort="column.sortable ? getColumnAriaSort(column.key) : undefined"
               :style="getColumnStyle(column)"
               :class="[
-                'data-table__header-cell sticky-header-cell',
+                'data-table__header-cell sticky-header-cell glass-sticky-cell',
                 getAdaptivePaddingClass(),
                 getColumnAlignmentClass(column),
                 getStickyColumnClass(column, index),
@@ -1253,6 +1253,7 @@ defineExpose({
 <style scoped lang="scss">
 .data-table {
   --data-table-select-width: 3.25rem;
+  --data-table-sticky-blur: 140px;
   position: relative;
   display: flex;
   flex: 1;
@@ -1378,6 +1379,12 @@ defineExpose({
     letter-spacing: 0;
     transition: background-color 120ms ease, color 120ms ease;
 
+    &.sticky-col {
+      background: var(--glass-layer-modal-bg);
+      -webkit-backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate, 1.8));
+      backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate, 1.8));
+    }
+
     &.is-being-resized {
       background: var(--color-primary-subtle, #eff6ff);
     }
@@ -1390,6 +1397,12 @@ defineExpose({
         -webkit-backdrop-filter: blur(var(--glass-layer-shell-blur-hover)) saturate(var(--glass-saturate-hover));
         backdrop-filter: blur(var(--glass-layer-shell-blur-hover)) saturate(var(--glass-saturate-hover));
         color: var(--color-text-primary, #121214);
+      }
+
+      &.sticky-col:hover {
+        background: var(--glass-layer-modal-bg);
+        -webkit-backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate-hover));
+        backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate-hover));
       }
     }
   }
@@ -1457,9 +1470,9 @@ defineExpose({
       }
 
       .data-table__body-cell.sticky-col {
-        background: var(--glass-layer-content-bg);
-        -webkit-backdrop-filter: blur(var(--glass-layer-content-blur-hover)) saturate(var(--glass-saturate-hover));
-        backdrop-filter: blur(var(--glass-layer-content-blur-hover)) saturate(var(--glass-saturate-hover));
+        background: var(--glass-layer-modal-bg);
+        -webkit-backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate-hover));
+        backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate-hover));
       }
     }
 
@@ -1473,7 +1486,7 @@ defineExpose({
       }
 
       .data-table__body-cell.sticky-col {
-        background: rgb(228 240 255 / 0.85);
+        background: color-mix(in srgb, var(--glass-layer-modal-bg) 82%, var(--theme-accent));
       }
 
       // 行首主色指示条(与侧边栏激活态同语言)
@@ -1494,12 +1507,11 @@ defineExpose({
     vertical-align: middle;
     white-space: nowrap;
 
-    // sticky 列与玻璃表头同材质:半透明底 + 背景模糊,
-    // 横向滚动时下方内容模糊透过,消除"白色块拼接"感
+    // sticky 列用近不透明磨砂挡住横向滚过的单元格
     &.sticky-col {
-      background: var(--glass-layer-content-bg);
-      -webkit-backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate, 1.8));
-      backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate, 1.8));
+      background: var(--glass-layer-modal-bg);
+      -webkit-backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate, 1.8));
+      backdrop-filter: blur(var(--data-table-sticky-blur)) saturate(var(--glass-saturate, 1.8));
     }
 
     &.is-resized {
@@ -1796,7 +1808,7 @@ defineExpose({
   }
 
   &__row.is-selected .data-table__body-cell.sticky-col {
-    background: rgb(15 38 64 / 0.85);
+    background: color-mix(in srgb, var(--glass-layer-modal-bg) 82%, var(--theme-accent));
   }
 
   &__body-cell {

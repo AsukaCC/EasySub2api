@@ -79,11 +79,18 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		ProductName         string   `json:"product_name"`
 		ForSale             bool     `json:"for_sale"`
 		SortOrder           int      `json:"sort_order"`
+		StockEnabled        bool     `json:"stock_enabled"`
+		StockAvailable      *int     `json:"stock_available"`
 	}
 	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
 	result := make([]planWithPlatform, 0, len(plans))
 	for _, p := range plans {
 		gi := groupInfo[p.GroupID]
+		var stockAvailable *int
+		if p.StockQuantity != nil {
+			available := *p.StockQuantity - p.StockFrozen
+			stockAvailable = &available
+		}
 		result = append(result, planWithPlatform{
 			ID: p.ID, GroupID: p.GroupID,
 			GroupPlatform: gi.Platform, GroupName: gi.Name,
@@ -97,6 +104,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
 			ProductName: p.ProductName, ForSale: p.ForSale, SortOrder: p.SortOrder,
+			StockEnabled: p.StockQuantity != nil, StockAvailable: stockAvailable,
 		})
 	}
 	response.Success(c, result)
@@ -208,6 +216,8 @@ type checkoutPlan struct {
 	ValidityUnit        string   `json:"validity_unit"`
 	Features            []string `json:"features"`
 	ProductName         string   `json:"product_name"`
+	StockEnabled        bool     `json:"stock_enabled"`
+	StockAvailable      *int     `json:"stock_available"`
 }
 
 func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[string]service.PlanGroupInfo) []checkoutPlan {
@@ -217,6 +227,11 @@ func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[str
 			continue
 		}
 		gi := groupInfo[p.GroupID]
+		var stockAvailable *int
+		if p.StockQuantity != nil {
+			available := *p.StockQuantity - p.StockFrozen
+			stockAvailable = &available
+		}
 		result = append(result, checkoutPlan{
 			ID: p.ID, GroupID: p.GroupID,
 			GroupPlatform: gi.Platform, GroupName: gi.Name,
@@ -230,7 +245,7 @@ func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[str
 			OriginalPrice: p.OriginalPrice, OriginalPricePoints: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
-			ProductName: p.ProductName,
+			ProductName: p.ProductName, StockEnabled: p.StockQuantity != nil, StockAvailable: stockAvailable,
 		})
 	}
 	return result
@@ -465,10 +480,6 @@ type CreateRefundBody struct {
 	Reason          string   `json:"reason"`
 }
 
-type CreateRefundTicketBody struct {
-	Comment string `json:"comment"`
-}
-
 // RequestRefund submits a refund request for a completed order.
 // POST /api/v1/payment/orders/:id/refund-request
 func (h *PaymentHandler) RequestRefund(c *gin.Context) {
@@ -552,67 +563,6 @@ func (h *PaymentHandler) CreateRefund(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
-}
-
-// CreateRefundTicket submits a refund request for manual review.
-// POST /api/v1/payment/orders/:id/refund-tickets
-func (h *PaymentHandler) CreateRefundTicket(c *gin.Context) {
-	subject, ok := requireAuth(c)
-	if !ok {
-		return
-	}
-	orderID, err := parseEntityID(c.Param("id"))
-	if err != nil {
-		response.BadRequest(c, "Invalid order ID")
-		return
-	}
-	var req CreateRefundTicketBody
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	ticket, err := h.paymentService.CreateRefundTicket(c.Request.Context(), orderID, subject.UserID, req.Comment)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, ticket)
-}
-
-// ListRefundTickets returns the authenticated user's refund tickets.
-// GET /api/v1/payment/refund-tickets
-func (h *PaymentHandler) ListRefundTickets(c *gin.Context) {
-	subject, ok := requireAuth(c)
-	if !ok {
-		return
-	}
-	page, pageSize := response.ParsePagination(c)
-	result, err := h.paymentService.ListUserRefundTickets(c.Request.Context(), subject.UserID, page, pageSize)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Paginated(c, result.Items, int64(result.Total), page, pageSize)
-}
-
-// CancelRefundTicket cancels a pending refund ticket owned by the user.
-// POST /api/v1/payment/refund-tickets/:id/cancel
-func (h *PaymentHandler) CancelRefundTicket(c *gin.Context) {
-	subject, ok := requireAuth(c)
-	if !ok {
-		return
-	}
-	ticketID, err := parseEntityID(c.Param("id"))
-	if err != nil {
-		response.BadRequest(c, "Invalid refund ticket ID")
-		return
-	}
-	ticket, err := h.paymentService.CancelRefundTicket(c.Request.Context(), ticketID, subject.UserID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, ticket)
 }
 
 // GetRefundEligibleProviders returns both immediate self-service providers and

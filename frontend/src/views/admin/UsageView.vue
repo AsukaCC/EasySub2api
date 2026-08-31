@@ -85,7 +85,7 @@
 
         <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="views-admin-usage-view__usage-filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
-            <div v-if="activeTab !== 'ranking'" class="views-admin-usage-view__panel-10" ref="columnDropdownRef">
+            <div v-if="activeTab !== 'ranking'" class="views-admin-usage-view__panel-10 filter-toolbar" ref="columnDropdownRef">
               <button
                 @click="showColumnDropdown = !showColumnDropdown"
                 class="views-admin-usage-view__action-2 btn btn-secondary"
@@ -98,13 +98,13 @@
               </button>
               <div
                 v-if="showColumnDropdown"
-                class="views-admin-usage-view__panel-11"
+                class="views-admin-usage-view__panel-11 dropdown dropdown--menu"
               >
                 <button
                   v-for="col in currentToggleableColumns"
                   :key="col.key"
                   @click="toggleCurrentColumn(col.key)"
-                  class="views-admin-usage-view__action-3"
+                  class="views-admin-usage-view__action-3 dropdown-item"
                 >
                   <span>{{ col.label }}</span>
                   <Icon
@@ -868,74 +868,6 @@ defineExpose({ requestedModelStats, refreshData })
 </script>
 
 <style scoped>
-/* 确保用量筛选栏及列设置下拉浮层高于下方表格卡片与吸顶表头 */
-.views-admin-usage-view__usage-filters {
-  position: relative;
-  z-index: 300;
-}
-
-.views-admin-usage-view__panel-10 {
-  position: relative;
-  z-index: 310;
-}
-
-.views-admin-usage-view__panel-11 {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 1000;
-  margin-top: 0.375rem;
-  padding: 0.375rem;
-  min-width: 11.5rem;
-  max-height: 22rem;
-  overflow-y: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg-thick);
-  -webkit-backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
-  box-shadow: var(--shadow-xl), 0 1px 0 var(--glass-highlight) inset;
-}
-
-:global(.dark) .views-admin-usage-view__panel-11 {
-  border-color: var(--glass-border-hover);
-  background: var(--glass-bg-thick);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5), 0 1px 0 var(--glass-highlight) inset;
-}
-
-.views-admin-usage-view__action-3 {
-  position: relative;
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  text-align: left;
-  cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.views-admin-usage-view__action-3:hover {
-  color: var(--color-text-primary);
-  border-color: var(--glass-border);
-  background-color: var(--glass-bg-interactive-hover);
-  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
-  box-shadow: 0 1px 0 var(--glass-highlight) inset;
-}
-
-:global(.dark) .views-admin-usage-view__action-3:hover {
-  border-color: var(--glass-border-hover);
-  background-color: var(--glass-bg-interactive-hover);
-}
-
 .views-admin-usage-view__icon-2 {
   color: var(--color-primary);
   flex-shrink: 0;

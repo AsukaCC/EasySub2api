@@ -181,7 +181,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-email-notification-card__panel">
+  <div class="views-admin-ops-components-ops-email-notification-card__panel card-body">
     <div class="views-admin-ops-components-ops-email-notification-card__panel-2">
       <div>
         <h3 class="views-admin-ops-components-ops-email-notification-card__heading">{{ t('admin.ops.email.title') }}</h3>

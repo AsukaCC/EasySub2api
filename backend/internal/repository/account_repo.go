@@ -1094,6 +1094,63 @@ func (r *accountRepository) ListOpsAccountsForStats(ctx context.Context, platfor
 	return r.accountsToService(ctx, accounts)
 }
 
+// ListQuotaDashboardAccounts returns the fields required by the dashboard's
+// persisted quota projection. Credentials are deliberately omitted from the
+// SELECT; this endpoint only needs account status, scheduling state, extra
+// snapshots and group membership.
+func (r *accountRepository) ListQuotaDashboardAccounts(ctx context.Context) ([]service.Account, error) {
+	if r == nil || r.client == nil {
+		return []service.Account{}, nil
+	}
+	accounts, err := r.client.Account.Query().
+		Where(dbaccount.DeletedAtIsNil()).
+		Select(
+			dbaccount.FieldID,
+			dbaccount.FieldName,
+			dbaccount.FieldPlatform,
+			dbaccount.FieldType,
+			dbaccount.FieldExtra,
+			dbaccount.FieldStatus,
+			dbaccount.FieldSchedulable,
+			dbaccount.FieldRateLimitedAt,
+			dbaccount.FieldRateLimitResetAt,
+			dbaccount.FieldOverloadUntil,
+			dbaccount.FieldTempUnschedulableUntil,
+			dbaccount.FieldAutoPauseOnExpired,
+			dbaccount.FieldExpiresAt,
+			dbaccount.FieldUpdatedAt,
+			dbaccount.FieldCreatedAt,
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(accounts) == 0 {
+		return []service.Account{}, nil
+	}
+	ids := make([]string, 0, len(accounts))
+	for _, account := range accounts {
+		ids = append(ids, account.ID)
+	}
+	groupsByAccount, groupIDsByAccount, accountGroupsByAccount, err := r.loadAccountGroups(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]service.Account, 0, len(accounts))
+	for _, entity := range accounts {
+		account := accountEntityToService(entity)
+		if account == nil {
+			continue
+		}
+		account.Credentials = nil
+		account.Groups = groupsByAccount[entity.ID]
+		account.GroupIDs = groupIDsByAccount[entity.ID]
+		account.AccountGroups = accountGroupsByAccount[entity.ID]
+		result = append(result, *account)
+	}
+	return result, nil
+}
+
 func accountListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
 	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
 	sortOrder := params.NormalizedSortOrder(pagination.SortOrderAsc)

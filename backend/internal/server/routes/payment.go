@@ -36,9 +36,6 @@ func RegisterPaymentRoutes(
 		authenticated.GET("/checkout-info", paymentHandler.GetCheckoutInfo)
 		authenticated.GET("/plans", paymentHandler.GetPlans)
 		authenticated.GET("/limits", paymentHandler.GetLimits)
-		authenticated.GET("/refund-tickets", paymentHandler.ListRefundTickets)
-		authenticated.POST("/refund-tickets/:id/cancel", paymentHandler.CancelRefundTicket)
-
 		orders := authenticated.Group("/orders")
 		{
 			orders.POST("", paymentHandler.CreateOrder)
@@ -48,9 +45,6 @@ func RegisterPaymentRoutes(
 			orders.GET("/:id", paymentHandler.GetOrder)
 			orders.POST("/:id/cancel", paymentHandler.CancelOrder)
 			orders.GET("/:id/refund-quote", paymentHandler.GetRefundQuote)
-			orders.POST("/:id/refunds", paymentHandler.CreateRefund)
-			orders.POST("/:id/refund-tickets", paymentHandler.CreateRefundTicket)
-			orders.POST("/:id/refund-request", paymentHandler.RequestRefund)
 		}
 	}
 
@@ -96,12 +90,8 @@ func RegisterPaymentRoutes(
 			adminOrders.GET("/:id", adminPaymentHandler.GetOrderDetail)
 			adminOrders.POST("/:id/cancel", adminPaymentHandler.CancelOrder)
 			adminOrders.POST("/:id/retry", adminPaymentHandler.RetryFulfillment)
-			adminOrders.POST("/:id/refund", adminPaymentHandler.ProcessRefund)
 			adminOrders.POST("/:id/refund/query", adminPaymentHandler.QueryAndFinalizeRefund)
 		}
-
-		adminGroup.GET("/refund-tickets", adminPaymentHandler.ListRefundTickets)
-		adminGroup.POST("/refund-tickets/:id/review", adminPaymentHandler.ReviewRefundTicket)
 
 		// Subscription Plans
 		plans := adminGroup.Group("/plans")

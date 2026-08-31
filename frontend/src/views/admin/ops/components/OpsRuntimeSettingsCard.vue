@@ -236,7 +236,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-runtime-settings-card__panel">
+  <div class="views-admin-ops-components-ops-runtime-settings-card__panel card-body">
     <div class="views-admin-ops-components-ops-runtime-settings-card__panel-2">
       <div>
         <h3 class="views-admin-ops-components-ops-runtime-settings-card__heading">{{ t('admin.ops.runtime.title') }}</h3>

@@ -54,6 +54,7 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
   const modelPlazaEnabled = ref(readCachedBool('model_plaza_enabled_admin_cached', false))
   const riskControlEnabled = ref(readCachedBool('risk_control_enabled_admin_cached', false))
   const affiliateEnabled = ref(readCachedBool('affiliate_enabled_admin_cached', false))
+  const supportTicketsEnabled = ref(readCachedBool('support_tickets_enabled_admin_cached', false))
   const customMenuItems = ref<CustomMenuItem[]>([])
 
   async function fetch(force = false): Promise<void> {
@@ -85,11 +86,13 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
       modelPlazaEnabled.value = settings.model_plaza_enabled ?? false
       riskControlEnabled.value = settings.risk_control_enabled ?? false
       affiliateEnabled.value = settings.affiliate_enabled ?? false
+      supportTicketsEnabled.value = settings.support_tickets_enabled ?? false
       writeCachedBool('channel_monitor_enabled_admin_cached', channelMonitorEnabled.value)
       writeCachedBool('available_channels_enabled_admin_cached', availableChannelsEnabled.value)
       writeCachedBool('model_plaza_enabled_admin_cached', modelPlazaEnabled.value)
       writeCachedBool('risk_control_enabled_admin_cached', riskControlEnabled.value)
       writeCachedBool('affiliate_enabled_admin_cached', affiliateEnabled.value)
+      writeCachedBool('support_tickets_enabled_admin_cached', supportTicketsEnabled.value)
 
       loaded.value = true
     } catch (err) {
@@ -181,6 +184,7 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
     modelPlazaEnabled,
     riskControlEnabled,
     affiliateEnabled,
+    supportTicketsEnabled,
     customMenuItems,
     fetch,
     setOpsMonitoringEnabledLocal,

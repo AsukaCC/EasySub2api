@@ -1,5 +1,5 @@
 <template>
-  <div :class="flat ? 'components-admin-usage-usage-filters__panel-10' : 'components-admin-usage-usage-filters__panel-11 card'">
+  <div :class="flat ? 'components-admin-usage-usage-filters__panel-10 filter-toolbar' : 'components-admin-usage-usage-filters__panel-11 card-body card filter-toolbar'">
     <!-- Toolbar: left filters (multi-line) + right actions -->
     <div class="components-admin-usage-usage-filters__panel">
       <!-- Left: filters (allowed to wrap to multiple rows) -->
@@ -11,7 +11,7 @@
             v-model="userKeyword"
             type="text"
             class="components-admin-usage-usage-filters__field input"
-            :placeholder="t('admin.usage.searchUserPlaceholder')"
+            :placeholder="t('admin.usage.allUsers')"
             @input="debounceUserSearch"
             @focus="showUserDropdown = true"
           />
@@ -25,15 +25,22 @@
             ✕
           </button>
           <div
-            v-if="showUserDropdown && (userResults.length > 0 || userKeyword)"
-            class="components-admin-usage-usage-filters__panel-4"
+            v-if="showUserDropdown"
+            class="components-admin-usage-usage-filters__panel-4 dropdown dropdown--menu"
           >
+            <button
+              type="button"
+              @click="clearUser"
+              class="components-admin-usage-usage-filters__action-2 dropdown-item"
+            >
+              <span class="components-admin-usage-usage-filters__text-3">{{ t('admin.usage.allUsers') }}</span>
+            </button>
             <button
               v-for="u in userResults"
               :key="u.id"
               type="button"
               @click="selectUser(u)"
-              class="components-admin-usage-usage-filters__action-2"
+              class="components-admin-usage-usage-filters__action-2 dropdown-item"
             >
               <span>{{ u.email }}<span v-if="u.deleted" class="components-admin-usage-usage-filters__text">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
               <span class="components-admin-usage-usage-filters__text-2">#{{ u.id }}</span>
@@ -48,7 +55,7 @@
             v-model="apiKeyKeyword"
             type="text"
             class="components-admin-usage-usage-filters__field input"
-            :placeholder="t('admin.usage.searchApiKeyPlaceholder')"
+            :placeholder="t('admin.usage.allApiKeys')"
             @input="debounceApiKeySearch"
             @focus="onApiKeyFocus"
           />
@@ -62,15 +69,22 @@
             ✕
           </button>
           <div
-            v-if="showApiKeyDropdown && apiKeyResults.length > 0"
-            class="components-admin-usage-usage-filters__panel-4"
+            v-if="showApiKeyDropdown"
+            class="components-admin-usage-usage-filters__panel-4 dropdown dropdown--menu"
           >
+            <button
+              type="button"
+              @click="onClearApiKey"
+              class="components-admin-usage-usage-filters__action-2 dropdown-item"
+            >
+              <span class="components-admin-usage-usage-filters__text-3">{{ t('admin.usage.allApiKeys') }}</span>
+            </button>
             <button
               v-for="k in apiKeyResults"
               :key="k.id"
               type="button"
               @click="selectApiKey(k)"
-              class="components-admin-usage-usage-filters__action-2"
+              class="components-admin-usage-usage-filters__action-2 dropdown-item"
             >
               <span class="components-admin-usage-usage-filters__text-3">{{ k.name || `#${k.id}` }}</span>
               <span class="components-admin-usage-usage-filters__text-2">#{{ k.id }}</span>
@@ -81,7 +95,7 @@
         <!-- Model Filter -->
         <div class="components-admin-usage-usage-filters__panel-5">
           <label class="input-label">{{ t('usage.model') }}</label>
-          <Select v-model="filters.model" :options="modelOptions" searchable @change="emitChange" />
+          <Select v-model="filters.model" :options="modelOptions" :placeholder="t('admin.usage.allModels')" searchable @change="emitChange" />
         </div>
 
         <!-- Account Filter -->
@@ -91,7 +105,7 @@
             v-model="accountKeyword"
             type="text"
             class="components-admin-usage-usage-filters__field input"
-            :placeholder="t('admin.usage.searchAccountPlaceholder')"
+            :placeholder="t('admin.usage.allAccounts')"
             @input="debounceAccountSearch"
             @focus="showAccountDropdown = true"
           />
@@ -105,15 +119,22 @@
             ✕
           </button>
           <div
-            v-if="showAccountDropdown && (accountResults.length > 0 || accountKeyword)"
-            class="components-admin-usage-usage-filters__panel-4"
+            v-if="showAccountDropdown"
+            class="components-admin-usage-usage-filters__panel-4 dropdown dropdown--menu"
           >
+            <button
+              type="button"
+              @click="clearAccount"
+              class="components-admin-usage-usage-filters__action-2 dropdown-item"
+            >
+              <span class="components-admin-usage-usage-filters__text-3">{{ t('admin.usage.allAccounts') }}</span>
+            </button>
             <button
               v-for="a in accountResults"
               :key="a.id"
               type="button"
               @click="selectAccount(a)"
-              class="components-admin-usage-usage-filters__action-2"
+              class="components-admin-usage-usage-filters__action-2 dropdown-item"
             >
               <span class="components-admin-usage-usage-filters__text-3">{{ a.name }}</span>
               <span class="components-admin-usage-usage-filters__text-2">#{{ a.id }}</span>
@@ -124,48 +145,48 @@
         <!-- Request Type Filter (usage only) -->
         <div v-if="mode !== 'errors'" class="components-admin-usage-usage-filters__panel-7">
           <label class="input-label">{{ t('usage.type') }}</label>
-          <Select v-model="filters.request_type" :options="requestTypeOptions" @change="emitChange" />
+          <Select v-model="filters.request_type" :options="requestTypeOptions" :placeholder="t('admin.usage.allTypes')" @change="emitChange" />
         </div>
 
         <!-- Billing Type Filter (usage only) -->
         <div v-if="mode !== 'errors'" class="components-admin-usage-usage-filters__panel-8">
           <label class="input-label">{{ t('admin.usage.billingType') }}</label>
-          <Select v-model="filters.billing_type" :options="billingTypeOptions" @change="emitChange" />
+          <Select v-model="filters.billing_type" :options="billingTypeOptions" :placeholder="t('admin.usage.allBillingTypes')" @change="emitChange" />
         </div>
 
         <!-- Billing Mode Filter (usage only；用户排行的 user-breakdown 接口不支持该维度) -->
         <div v-if="mode === 'usage'" class="components-admin-usage-usage-filters__panel-8">
           <label class="input-label">{{ t('admin.usage.billingMode') }}</label>
-          <Select v-model="filters.billing_mode" :options="billingModeOptions" @change="emitChange" />
+          <Select v-model="filters.billing_mode" :options="billingModeOptions" :placeholder="t('admin.usage.allBillingModes')" @change="emitChange" />
         </div>
 
         <div v-if="mode === 'usage'" class="components-admin-usage-usage-filters__panel-5">
           <label class="input-label">{{ t('admin.usage.upstreamModelAudit') }}</label>
-          <Select v-model="filters.upstream_model_mismatch" :options="upstreamModelMismatchOptions" @change="emitChange" />
+          <Select v-model="filters.upstream_model_mismatch" :options="upstreamModelMismatchOptions" :placeholder="t('admin.usage.allUpstreamModelAudit')" @change="emitChange" />
         </div>
 
         <!-- Error Phase Filter (errors only) -->
         <div v-if="mode === 'errors'" class="components-admin-usage-usage-filters__panel-7">
           <label class="input-label">{{ t('admin.ops.errorLog.type') }}</label>
-          <Select v-model="filters.error_phase" :options="errorPhaseOptions" @change="emitChange" />
+          <Select v-model="filters.error_phase" :options="errorPhaseOptions" :placeholder="t('admin.usage.allTypes')" @change="emitChange" />
         </div>
 
         <!-- Error Category Filter (errors only) -->
         <div v-if="mode === 'errors'" class="components-admin-usage-usage-filters__panel-7">
           <label class="input-label">{{ t('usage.errors.category') }}</label>
-          <Select v-model="filters.error_category" :options="errorCategoryOptions" @change="emitChange" />
+          <Select v-model="filters.error_category" :options="errorCategoryOptions" :placeholder="t('usage.errors.allCategories')" @change="emitChange" />
         </div>
 
         <!-- Status Code Filter (errors only) -->
         <div v-if="mode === 'errors'" class="components-admin-usage-usage-filters__panel-7">
           <label class="input-label">{{ t('admin.ops.errorLog.status') }}</label>
-          <Select v-model="filters.status_code" :options="statusCodeOptions" @change="emitChange" />
+          <Select v-model="filters.status_code" :options="statusCodeOptions" :placeholder="t('usage.errors.allStatuses')" @change="emitChange" />
         </div>
 
         <!-- Group Filter -->
         <div class="components-admin-usage-usage-filters__panel-8">
           <label class="input-label">{{ t('admin.usage.group') }}</label>
-          <Select v-model="filters.group_id" :options="groupOptions" searchable @change="emitChange" />
+          <Select v-model="filters.group_id" :options="groupOptions" :placeholder="t('admin.usage.allGroups')" searchable @change="emitChange" />
         </div>
 
       </div>

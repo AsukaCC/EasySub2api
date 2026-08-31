@@ -137,7 +137,7 @@
                 <Icon name="refresh" size="md" :class="loading ? 'views-admin-users-view__icon-14' : ''" />
               </button>
               <!-- Filter Settings Dropdown -->
-              <div class="views-admin-users-view__panel-9" ref="filterDropdownRef">
+              <div class="views-admin-users-view__panel-9 filter-toolbar" ref="filterDropdownRef">
                 <button
                   @click="showFilterDropdown = !showFilterDropdown"
                   class="views-admin-users-view__action btn btn-secondary"
@@ -149,14 +149,14 @@
                 <!-- Dropdown menu -->
                 <div
                   v-if="showFilterDropdown"
-                  class="views-admin-users-view__panel-10"
+                  class="views-admin-users-view__panel-10 dropdown dropdown--menu"
                 >
                   <!-- Built-in filters -->
                   <button
                     v-for="filter in builtInFilters"
                     :key="filter.key"
                     @click="toggleBuiltInFilter(filter.key)"
-                    class="views-admin-users-view__action-2"
+                    class="views-admin-users-view__action-2 dropdown-item"
                   >
                     <span>{{ filter.name }}</span>
                     <Icon
@@ -177,7 +177,7 @@
                     v-for="attr in filterableAttributes"
                     :key="attr.id"
                     @click="toggleAttributeFilter(attr)"
-                    class="views-admin-users-view__action-2"
+                    class="views-admin-users-view__action-2 dropdown-item"
                   >
                     <span>{{ attr.name }}</span>
                     <Icon
@@ -191,7 +191,7 @@
                 </div>
               </div>
               <!-- Column Settings Dropdown -->
-              <div class="views-admin-users-view__panel-9" ref="columnDropdownRef">
+              <div class="views-admin-users-view__panel-9 filter-toolbar" ref="columnDropdownRef">
                 <button
                   @click="showColumnDropdown = !showColumnDropdown"
                   class="views-admin-users-view__action btn btn-secondary"
@@ -205,7 +205,7 @@
                 <!-- Dropdown menu -->
                 <div
                   v-if="showColumnDropdown"
-                  class="views-admin-users-view__panel-12"
+                  class="views-admin-users-view__panel-12 dropdown dropdown--menu"
                 >
                   <button
                     v-for="col in toggleableColumns"
@@ -213,7 +213,7 @@
                     :disabled="isForcedVisibleColumn(col.key)"
                     @click="toggleColumn(col.key)"
                     :class="[
-                      'views-admin-users-view__action-13',
+                      'views-admin-users-view__action-13 dropdown-item',
                       isForcedVisibleColumn(col.key)
                         ? 'views-admin-users-view__action-14'
                         : 'views-admin-users-view__action-15'
@@ -667,7 +667,7 @@
     <Teleport to="body">
       <div
         v-if="activeMenuId !== null && menuPosition"
-        class="views-admin-users-view__panel-32 action-menu-content"
+        class="views-admin-users-view__panel-32 action-menu-content dropdown dropdown--portal"
         :style="{ top: menuPosition.top + 'px', left: menuPosition.left + 'px' }"
       >
         <div class="views-admin-users-view__panel-33">

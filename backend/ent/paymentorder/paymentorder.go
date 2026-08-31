@@ -104,6 +104,14 @@ const (
 	FieldProviderSnapshot = "provider_snapshot"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldInventoryStatus holds the string denoting the inventory_status field in the database.
+	FieldInventoryStatus = "inventory_status"
+	// FieldInventoryReservedAt holds the string denoting the inventory_reserved_at field in the database.
+	FieldInventoryReservedAt = "inventory_reserved_at"
+	// FieldInventoryConsumedAt holds the string denoting the inventory_consumed_at field in the database.
+	FieldInventoryConsumedAt = "inventory_consumed_at"
+	// FieldInventoryReleasedAt holds the string denoting the inventory_released_at field in the database.
+	FieldInventoryReleasedAt = "inventory_released_at"
 	// FieldRefundAmount holds the string denoting the refund_amount field in the database.
 	FieldRefundAmount = "refund_amount"
 	// FieldRefundReason holds the string denoting the refund_reason field in the database.
@@ -199,6 +207,10 @@ var Columns = []string{
 	FieldProviderKey,
 	FieldProviderSnapshot,
 	FieldStatus,
+	FieldInventoryStatus,
+	FieldInventoryReservedAt,
+	FieldInventoryConsumedAt,
+	FieldInventoryReleasedAt,
 	FieldRefundAmount,
 	FieldRefundReason,
 	FieldRefundAt,
@@ -295,6 +307,10 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultInventoryStatus holds the default value on creation for the "inventory_status" field.
+	DefaultInventoryStatus string
+	// InventoryStatusValidator is a validator for the "inventory_status" field. It is called by the builders before save.
+	InventoryStatusValidator func(string) error
 	// DefaultRefundAmount holds the default value on creation for the "refund_amount" field.
 	DefaultRefundAmount float64
 	// DefaultForceRefund holds the default value on creation for the "force_refund" field.
@@ -534,6 +550,26 @@ func ByProviderKey(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByInventoryStatus orders the results by the inventory_status field.
+func ByInventoryStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryStatus, opts...).ToFunc()
+}
+
+// ByInventoryReservedAt orders the results by the inventory_reserved_at field.
+func ByInventoryReservedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryReservedAt, opts...).ToFunc()
+}
+
+// ByInventoryConsumedAt orders the results by the inventory_consumed_at field.
+func ByInventoryConsumedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryConsumedAt, opts...).ToFunc()
+}
+
+// ByInventoryReleasedAt orders the results by the inventory_released_at field.
+func ByInventoryReleasedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInventoryReleasedAt, opts...).ToFunc()
 }
 
 // ByRefundAmount orders the results by the refund_amount field.

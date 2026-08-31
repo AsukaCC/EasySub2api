@@ -3,7 +3,7 @@
     <div class="components-auth-totp-step-up-dialog__panel-2">
       <div class="components-auth-totp-step-up-dialog__panel-3" @click="handleCancel"></div>
 
-      <div class="components-auth-totp-step-up-dialog__panel-4">
+      <div class="components-auth-totp-step-up-dialog__panel-4 card-body">
         <div class="components-auth-totp-step-up-dialog__panel-5">
           <div class="components-auth-totp-step-up-dialog__panel-6">
             <svg class="components-auth-totp-step-up-dialog__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">

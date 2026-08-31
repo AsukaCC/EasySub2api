@@ -24,7 +24,7 @@ html body button:not(.btn):not(.select-trigger):not(.locale-trigger):not(.locale
 html body :where(button, [role='button'], a[href], summary, label[for]):focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 3px rgba(10, 132, 255, 0.22),
+    0 0 0 3px color-mix(in srgb, var(--theme-accent) 22%, transparent),
     0 1px 0 var(--glass-highlight-hover) inset;
 }
 
@@ -55,10 +55,43 @@ input[type='radio'] {
   accent-color: var(--color-primary);
 }
 
-/* 生成样式中的快速浮层：只强化自身，不创建页面遮罩。 */
+html body .dropdown {
+  border-color: var(--glass-border);
+  background-color: var(--glass-layer-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+html.dark .dropdown,
+.dark .dropdown {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-layer-floating-bg);
+}
+
+html body .modal-content,
+html body .dialog-container {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-layer-modal-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-modal-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-modal-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
+}
+
+html.dark .modal-content,
+html.dark .dialog-container,
+.dark .modal-content,
+.dark .dialog-container {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-layer-modal-bg);
+}
+
+/* 生成样式中的快速浮层：只强化自身，不创建页面遮罩。
+   模板应挂 .glass-popover / .modal-overlay / .modal-content，这里保留别名兜底。 */
+html body .glass-popover,
+html body .help-tooltip-popover,
 html body .components-common-help-tooltip__panel-3,
-html body .components-keys-endpoint-popover__panel-4,
-html body .components-common-announcement-bell__panel {
+html body .components-keys-endpoint-popover__panel-4 {
   border-color: var(--glass-border-hover);
   background-color: var(--glass-layer-floating-bg);
   -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
@@ -66,13 +99,20 @@ html body .components-common-announcement-bell__panel {
   box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
 }
 
-/* 公告详情与支付流程属于真正模态层，背景遮罩和本体分别承载。 */
-html body .components-common-announcement-bell__panel-26 {
+/* 公告详情、登录条款与支付流程属于真正模态层，背景遮罩和本体分别承载。 */
+html body .modal-overlay,
+html body .components-common-announcement-bell__panel-26,
+html body .components-auth-login-agreement-prompt__panel-6 {
+  z-index: calc(var(--z-modal-base) + var(--modal-layer-offset, 0));
   background-color: var(--glass-layer-scrim-bg);
   -webkit-backdrop-filter: blur(var(--glass-layer-scrim-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-layer-scrim-blur)) saturate(var(--glass-saturate));
 }
 
+html body .components-auth-login-agreement-prompt__panel-7.modal-content,
+html body .components-common-announcement-bell__panel-27.modal-content,
+html body .views-user-stripe-popup-view__panel-2.modal-content,
+html body .components-auth-login-agreement-prompt__panel-7,
 html body .components-common-announcement-bell__panel-27,
 html body .views-user-stripe-popup-view__panel-2 {
   border-color: var(--glass-border-hover);

@@ -11,7 +11,7 @@ const props = withDefaults(defineProps<Props>(), {
 <template>
   <div class="views-admin-ops-components-ops-dashboard-skeleton__panel">
     <!-- Header (matches OpsDashboardHeader + overview blocks) -->
-    <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-29', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31']">
+    <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-29', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31 card-body']">
       <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-2">
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-3">
           <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-4"></div>
@@ -51,15 +51,15 @@ const props = withDefaults(defineProps<Props>(), {
 
     <!-- Row: Concurrency + Throughput (matches OpsDashboard.vue) -->
     <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-23">
-      <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-32', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31']">
+      <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-32', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31 card-body']">
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-24"></div>
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-25"></div>
       </div>
-      <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-32', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31']">
+      <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-32', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31 card-body']">
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-24"></div>
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-25"></div>
       </div>
-      <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-33', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31']">
+      <div :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-33', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31 card-body']">
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-26"></div>
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-25"></div>
       </div>
@@ -70,7 +70,7 @@ const props = withDefaults(defineProps<Props>(), {
       <div
         v-for="i in 3"
         :key="i"
-        :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-29', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31']"
+        :class="['views-admin-ops-components-ops-dashboard-skeleton__panel-29', props.fullscreen ? 'views-admin-ops-components-ops-dashboard-skeleton__panel-30' : 'views-admin-ops-components-ops-dashboard-skeleton__panel-31 card-body']"
       >
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-24"></div>
         <div class="views-admin-ops-components-ops-dashboard-skeleton__panel-28"></div>

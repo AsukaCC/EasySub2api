@@ -341,7 +341,7 @@ watch(
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-concurrency-card__panel">
+  <div class="views-admin-ops-components-ops-concurrency-card__panel card-body">
     <!-- 头部 -->
     <div class="views-admin-ops-components-ops-concurrency-card__panel-2">
       <h3 class="views-admin-ops-components-ops-concurrency-card__heading">

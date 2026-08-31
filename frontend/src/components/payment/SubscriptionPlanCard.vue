@@ -42,6 +42,19 @@
 
       <!-- Group quota info (compact) -->
       <div class="subscription-plan-card__quota-grid">
+        <div v-if="plan.stock_enabled" class="subscription-plan-card__quota-row">
+          <span class="subscription-plan-card__quota-label">{{ t('payment.planCard.stock') }}</span>
+          <span
+            :class="[
+              'subscription-plan-card__stock',
+              soldOut ? 'subscription-plan-card__stock--sold-out' : 'subscription-plan-card__stock--available'
+            ]"
+          >
+            {{ soldOut
+              ? t('payment.planCard.soldOut')
+              : t('payment.planCard.stockRemaining', { count: plan.stock_available ?? 0 }) }}
+          </span>
+        </div>
         <div class="subscription-plan-card__quota-row">
           <span class="subscription-plan-card__quota-label">{{ t('payment.planCard.rate') }}</span>
           <span class="subscription-plan-card__quota-value">{{ rateDisplay }}</span>
@@ -84,9 +97,14 @@
       <button
         type="button"
         :class="['subscription-plan-card__subscribe', btnClass]"
-        @click="emit('select', plan)"
+        :disabled="unavailable"
+        @click="!unavailable && emit('select', plan)"
       >
-        {{ isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
+        {{ soldOut
+          ? t('payment.planCard.soldOut')
+          : pendingBlocked
+            ? t('payment.planCard.pendingExists')
+            : isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
       </button>
     </div>
   </div>
@@ -118,7 +136,11 @@ import {
   platformLabel,
 } from '@/utils/platformColors'
 
-const props = defineProps<{ plan: SubscriptionPlan; activeSubscriptions?: UserSubscription[] }>()
+const props = defineProps<{
+  plan: SubscriptionPlan
+  activeSubscriptions?: UserSubscription[]
+  pendingPlatforms?: string[]
+}>()
 const emit = defineEmits<{ select: [plan: SubscriptionPlan] }>()
 const { t, locale } = useI18n()
 const localeCode = computed(() => String(locale.value || ''))
@@ -143,6 +165,9 @@ const dailyLimitPoints = computed(() => subscriptionPlanLimitPoints(props.plan, 
 const weeklyLimitPoints = computed(() => subscriptionPlanLimitPoints(props.plan, 'weekly'))
 const monthlyLimitPoints = computed(() => subscriptionPlanLimitPoints(props.plan, 'monthly'))
 const planHasQuota = computed(() => subscriptionPlanHasQuota(props.plan))
+const soldOut = computed(() => props.plan.stock_enabled === true && (props.plan.stock_available ?? 0) <= 0)
+const pendingBlocked = computed(() => props.pendingPlatforms?.includes(platform.value) ?? false)
+const unavailable = computed(() => soldOut.value || pendingBlocked.value)
 
 const discountText = computed(() => {
   if (!planOriginalPricePoints.value || planOriginalPricePoints.value <= 0) return ''
@@ -278,6 +303,24 @@ const validitySuffix = computed(() => planValiditySuffix(props.plan, t))
 .subscription-plan-card__period-row {
   align-items: center;
   gap: 0.25rem;
+}
+
+.subscription-plan-card__stock {
+  font-weight: var(--font-weight-semibold);
+}
+
+.subscription-plan-card__stock--available {
+  color: var(--color-text-success);
+}
+
+.subscription-plan-card__stock--sold-out {
+  color: var(--color-text-danger);
+}
+
+.subscription-plan-card__subscribe:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: saturate(0.5);
 }
 
 .subscription-plan-card__platform {

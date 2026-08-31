@@ -95,6 +95,18 @@ func (h *SubscriptionHandler) List(c *gin.Context) {
 	response.PaginatedWithResult(c, out, toResponsePagination(pagination))
 }
 
+// ListPending returns read-only pending subscription activations for admins.
+func (h *SubscriptionHandler) ListPending(c *gin.Context) {
+	items, err := h.subscriptionService.ListPendingSubscriptionsAdmin(
+		c.Request.Context(), c.Query("user_id"), c.Query("platform"), c.Query("group_id"),
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
 // GetByID handles getting a subscription by ID
 // GET /api/v1/admin/subscriptions/:id
 func (h *SubscriptionHandler) GetByID(c *gin.Context) {
@@ -143,19 +155,19 @@ func (h *SubscriptionHandler) Assign(c *gin.Context) {
 	// Get admin user ID from context
 	adminID := getAdminIDFromContext(c)
 
-	subscription, err := h.subscriptionService.AssignSubscription(c.Request.Context(), &service.AssignSubscriptionInput{
-		UserID:       req.UserID,
-		GroupID:      req.GroupID,
-		ValidityDays: req.ValidityDays,
-		AssignedBy:   adminID,
-		Notes:        req.Notes,
+	grant, err := h.subscriptionService.GrantOrQueueSubscription(c.Request.Context(), &service.SubscriptionGrantInput{
+		AssignSubscriptionInput: service.AssignSubscriptionInput{
+			UserID: req.UserID, GroupID: req.GroupID, ValidityDays: req.ValidityDays,
+			AssignedBy: adminID, Notes: req.Notes,
+		},
+		SourceType: "admin_assignment",
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	response.Success(c, dto.UserSubscriptionFromServiceAdmin(subscription))
+	response.Success(c, grant)
 }
 
 // BulkAssign handles bulk assigning subscriptions to multiple users

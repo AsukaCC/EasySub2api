@@ -109,6 +109,7 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
 		SetAllowLive(groupIn.AllowLive).
+		SetCcsCodexWsEnabled(groupIn.CcsCodexWSEnabled).
 		SetRequireOauthOnly(groupIn.RequireOAuthOnly).
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
@@ -288,6 +289,7 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
 		SetAllowLive(groupIn.AllowLive).
+		SetCcsCodexWsEnabled(groupIn.CcsCodexWSEnabled).
 		SetRequireOauthOnly(groupIn.RequireOAuthOnly).
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).

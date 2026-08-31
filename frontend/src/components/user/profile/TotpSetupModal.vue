@@ -1,9 +1,9 @@
 <template>
-  <div class="components-user-profile-totp-setup-modal__panel" @click.self="$emit('close')">
-    <div class="components-user-profile-totp-setup-modal__panel-2">
+  <div class="components-user-profile-totp-setup-modal__panel modal-overlay" @click.self="$emit('close')">
+    <div class="components-user-profile-totp-setup-modal__panel-2 modal-content">
       <div class="components-user-profile-totp-setup-modal__panel-3" @click="$emit('close')"></div>
 
-      <div class="components-user-profile-totp-setup-modal__panel-4">
+      <div class="components-user-profile-totp-setup-modal__panel-4 card-body">
         <!-- Header -->
         <div class="components-user-profile-totp-setup-modal__panel-5">
           <h3 class="components-user-profile-totp-setup-modal__heading">

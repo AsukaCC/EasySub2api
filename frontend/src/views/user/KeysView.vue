@@ -3,7 +3,7 @@
     <TablePageLayout>
       <!-- 筛选与操作合并为一条标准工具条卡:左筛选、右操作 -->
       <template #filters>
-        <div class="keys-toolbar card">
+        <div class="keys-toolbar card filter-toolbar">
           <div class="keys-toolbar__filters">
             <SearchInput
               v-model="filterSearch"
@@ -38,7 +38,7 @@
           >
             <Icon name="refresh" size="md" :class="loading ? 'views-user-keys-view__icon-7' : ''" />
           </button>
-          <div class="views-user-keys-view__panel-4" ref="columnDropdownRef">
+          <div class="views-user-keys-view__panel-4 filter-toolbar" ref="columnDropdownRef">
             <button
               @click="showColumnDropdown = !showColumnDropdown"
               class="views-user-keys-view__action btn btn-secondary"
@@ -51,13 +51,13 @@
             </button>
             <div
               v-if="showColumnDropdown"
-              class="views-user-keys-view__panel-5"
+              class="views-user-keys-view__panel-5 dropdown dropdown--menu"
             >
               <button
                 v-for="col in toggleableColumns"
                 :key="col.key"
                 @click="toggleColumn(col.key)"
-                class="views-user-keys-view__action-2"
+                class="views-user-keys-view__action-2 dropdown-item"
               >
                 <span>{{ col.label }}</span>
                 <Icon
@@ -132,14 +132,23 @@
           </template>
 
           <template #cell-group="{ row }">
-            <span
+            <div
               v-if="keyGroupOptions(row).length > 0"
-              class="views-user-keys-view__text-4"
+              class="key-groups"
               :title="keyGroupOptions(row).map((group) => group.name).join(', ')"
             >
-              {{ keyGroupOptions(row).slice(0, 2).map((group) => group.name).join('、') }}
-              <span v-if="keyGroupOptions(row).length > 2" class="views-user-keys-view__text-5">+{{ keyGroupOptions(row).length - 2 }}</span>
-            </span>
+              <GroupBadge
+                v-for="group in keyGroupOptions(row)"
+                :key="group.id"
+                :name="group.name"
+                :platform="group.platform"
+                :subscription-type="group.subscription_type"
+                :rate-multiplier="group.rate_multiplier"
+                :user-rate-multiplier="userGroupRates[group.id] ?? null"
+                :effective-rate-multiplier="group.effective_rate_multiplier ?? null"
+                :always-show-rate="true"
+              />
+            </div>
             <span v-else class="views-user-keys-view__text-6">{{ t('keys.noGroup') }}</span>
           </template>
 
@@ -593,7 +602,7 @@
           <div class="views-user-keys-view__panel-23">
             <div>
               <div class="views-user-keys-view__panel-4">
-                <span class="views-user-keys-view__text-9">{{ t('common.points') }}</span>
+                <Icon name="points" size="sm" class="views-user-keys-view__text-9" />
                 <input
                   v-model.number="formData.quota"
                   type="number"
@@ -659,7 +668,7 @@
             <div>
               <label class="input-label">{{ t('keys.rateLimit5h') }}</label>
               <div class="views-user-keys-view__panel-4">
-                <span class="views-user-keys-view__text-9">{{ t('common.points') }}</span>
+                <Icon name="points" size="sm" class="views-user-keys-view__text-9" />
                 <input
                   v-model.number="formData.rate_limit_5h"
                   type="number"
@@ -705,7 +714,7 @@
             <div>
               <label class="input-label">{{ t('keys.rateLimit1d') }}</label>
               <div class="views-user-keys-view__panel-4">
-                <span class="views-user-keys-view__text-9">{{ t('common.points') }}</span>
+                <Icon name="points" size="sm" class="views-user-keys-view__text-9" />
                 <input
                   v-model.number="formData.rate_limit_1d"
                   type="number"
@@ -751,7 +760,7 @@
             <div>
               <label class="input-label">{{ t('keys.rateLimit7d') }}</label>
               <div class="views-user-keys-view__panel-4">
-                <span class="views-user-keys-view__text-9">{{ t('common.points') }}</span>
+                <Icon name="points" size="sm" class="views-user-keys-view__text-9" />
                 <input
                   v-model.number="formData.rate_limit_7d"
                   type="number"
@@ -1026,6 +1035,7 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import UseKeyModal from '@/components/keys/UseKeyModal.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupTransferPicker from '@/components/common/GroupTransferPicker.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
@@ -1758,7 +1768,8 @@ const executeCcsImport = (row: ApiKey) => {
     clientType: 'claude',
     providerName,
     apiKey: row.key,
-    usageScript
+    usageScript,
+    codexWebsocketEnabled: row.group?.ccs_codex_ws_enabled === true
   })
 
   try {
@@ -1830,5 +1841,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.75rem;
   margin-left: auto;
+}
+
+.key-groups {
+  display: flex;
+  max-width: 32rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
 }
 </style>

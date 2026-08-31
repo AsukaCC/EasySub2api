@@ -574,6 +574,62 @@ func (_c *PaymentOrderCreate) SetNillableStatus(v *string) *PaymentOrderCreate {
 	return _c
 }
 
+// SetInventoryStatus sets the "inventory_status" field.
+func (_c *PaymentOrderCreate) SetInventoryStatus(v string) *PaymentOrderCreate {
+	_c.mutation.SetInventoryStatus(v)
+	return _c
+}
+
+// SetNillableInventoryStatus sets the "inventory_status" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableInventoryStatus(v *string) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetInventoryStatus(*v)
+	}
+	return _c
+}
+
+// SetInventoryReservedAt sets the "inventory_reserved_at" field.
+func (_c *PaymentOrderCreate) SetInventoryReservedAt(v time.Time) *PaymentOrderCreate {
+	_c.mutation.SetInventoryReservedAt(v)
+	return _c
+}
+
+// SetNillableInventoryReservedAt sets the "inventory_reserved_at" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableInventoryReservedAt(v *time.Time) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetInventoryReservedAt(*v)
+	}
+	return _c
+}
+
+// SetInventoryConsumedAt sets the "inventory_consumed_at" field.
+func (_c *PaymentOrderCreate) SetInventoryConsumedAt(v time.Time) *PaymentOrderCreate {
+	_c.mutation.SetInventoryConsumedAt(v)
+	return _c
+}
+
+// SetNillableInventoryConsumedAt sets the "inventory_consumed_at" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableInventoryConsumedAt(v *time.Time) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetInventoryConsumedAt(*v)
+	}
+	return _c
+}
+
+// SetInventoryReleasedAt sets the "inventory_released_at" field.
+func (_c *PaymentOrderCreate) SetInventoryReleasedAt(v time.Time) *PaymentOrderCreate {
+	_c.mutation.SetInventoryReleasedAt(v)
+	return _c
+}
+
+// SetNillableInventoryReleasedAt sets the "inventory_released_at" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableInventoryReleasedAt(v *time.Time) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetInventoryReleasedAt(*v)
+	}
+	return _c
+}
+
 // SetRefundAmount sets the "refund_amount" field.
 func (_c *PaymentOrderCreate) SetRefundAmount(v float64) *PaymentOrderCreate {
 	_c.mutation.SetRefundAmount(v)
@@ -930,6 +986,10 @@ func (_c *PaymentOrderCreate) defaults() {
 		v := paymentorder.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.InventoryStatus(); !ok {
+		v := paymentorder.DefaultInventoryStatus
+		_c.mutation.SetInventoryStatus(v)
+	}
 	if _, ok := _c.mutation.RefundAmount(); !ok {
 		v := paymentorder.DefaultRefundAmount
 		_c.mutation.SetRefundAmount(v)
@@ -1097,6 +1157,14 @@ func (_c *PaymentOrderCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := paymentorder.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.InventoryStatus(); !ok {
+		return &ValidationError{Name: "inventory_status", err: errors.New(`ent: missing required field "PaymentOrder.inventory_status"`)}
+	}
+	if v, ok := _c.mutation.InventoryStatus(); ok {
+		if err := paymentorder.InventoryStatusValidator(v); err != nil {
+			return &ValidationError{Name: "inventory_status", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.inventory_status": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.RefundAmount(); !ok {
@@ -1344,6 +1412,22 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.InventoryStatus(); ok {
+		_spec.SetField(paymentorder.FieldInventoryStatus, field.TypeString, value)
+		_node.InventoryStatus = value
+	}
+	if value, ok := _c.mutation.InventoryReservedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryReservedAt, field.TypeTime, value)
+		_node.InventoryReservedAt = &value
+	}
+	if value, ok := _c.mutation.InventoryConsumedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryConsumedAt, field.TypeTime, value)
+		_node.InventoryConsumedAt = &value
+	}
+	if value, ok := _c.mutation.InventoryReleasedAt(); ok {
+		_spec.SetField(paymentorder.FieldInventoryReleasedAt, field.TypeTime, value)
+		_node.InventoryReleasedAt = &value
 	}
 	if value, ok := _c.mutation.RefundAmount(); ok {
 		_spec.SetField(paymentorder.FieldRefundAmount, field.TypeFloat64, value)
@@ -2229,6 +2313,72 @@ func (u *PaymentOrderUpsert) SetStatus(v string) *PaymentOrderUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *PaymentOrderUpsert) UpdateStatus() *PaymentOrderUpsert {
 	u.SetExcluded(paymentorder.FieldStatus)
+	return u
+}
+
+// SetInventoryStatus sets the "inventory_status" field.
+func (u *PaymentOrderUpsert) SetInventoryStatus(v string) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldInventoryStatus, v)
+	return u
+}
+
+// UpdateInventoryStatus sets the "inventory_status" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateInventoryStatus() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldInventoryStatus)
+	return u
+}
+
+// SetInventoryReservedAt sets the "inventory_reserved_at" field.
+func (u *PaymentOrderUpsert) SetInventoryReservedAt(v time.Time) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldInventoryReservedAt, v)
+	return u
+}
+
+// UpdateInventoryReservedAt sets the "inventory_reserved_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateInventoryReservedAt() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldInventoryReservedAt)
+	return u
+}
+
+// ClearInventoryReservedAt clears the value of the "inventory_reserved_at" field.
+func (u *PaymentOrderUpsert) ClearInventoryReservedAt() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldInventoryReservedAt)
+	return u
+}
+
+// SetInventoryConsumedAt sets the "inventory_consumed_at" field.
+func (u *PaymentOrderUpsert) SetInventoryConsumedAt(v time.Time) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldInventoryConsumedAt, v)
+	return u
+}
+
+// UpdateInventoryConsumedAt sets the "inventory_consumed_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateInventoryConsumedAt() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldInventoryConsumedAt)
+	return u
+}
+
+// ClearInventoryConsumedAt clears the value of the "inventory_consumed_at" field.
+func (u *PaymentOrderUpsert) ClearInventoryConsumedAt() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldInventoryConsumedAt)
+	return u
+}
+
+// SetInventoryReleasedAt sets the "inventory_released_at" field.
+func (u *PaymentOrderUpsert) SetInventoryReleasedAt(v time.Time) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldInventoryReleasedAt, v)
+	return u
+}
+
+// UpdateInventoryReleasedAt sets the "inventory_released_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateInventoryReleasedAt() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldInventoryReleasedAt)
+	return u
+}
+
+// ClearInventoryReleasedAt clears the value of the "inventory_released_at" field.
+func (u *PaymentOrderUpsert) ClearInventoryReleasedAt() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldInventoryReleasedAt)
 	return u
 }
 
@@ -3413,6 +3563,83 @@ func (u *PaymentOrderUpsertOne) SetStatus(v string) *PaymentOrderUpsertOne {
 func (u *PaymentOrderUpsertOne) UpdateStatus() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetInventoryStatus sets the "inventory_status" field.
+func (u *PaymentOrderUpsertOne) SetInventoryStatus(v string) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryStatus(v)
+	})
+}
+
+// UpdateInventoryStatus sets the "inventory_status" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateInventoryStatus() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryStatus()
+	})
+}
+
+// SetInventoryReservedAt sets the "inventory_reserved_at" field.
+func (u *PaymentOrderUpsertOne) SetInventoryReservedAt(v time.Time) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryReservedAt(v)
+	})
+}
+
+// UpdateInventoryReservedAt sets the "inventory_reserved_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateInventoryReservedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryReservedAt()
+	})
+}
+
+// ClearInventoryReservedAt clears the value of the "inventory_reserved_at" field.
+func (u *PaymentOrderUpsertOne) ClearInventoryReservedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearInventoryReservedAt()
+	})
+}
+
+// SetInventoryConsumedAt sets the "inventory_consumed_at" field.
+func (u *PaymentOrderUpsertOne) SetInventoryConsumedAt(v time.Time) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryConsumedAt(v)
+	})
+}
+
+// UpdateInventoryConsumedAt sets the "inventory_consumed_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateInventoryConsumedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryConsumedAt()
+	})
+}
+
+// ClearInventoryConsumedAt clears the value of the "inventory_consumed_at" field.
+func (u *PaymentOrderUpsertOne) ClearInventoryConsumedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearInventoryConsumedAt()
+	})
+}
+
+// SetInventoryReleasedAt sets the "inventory_released_at" field.
+func (u *PaymentOrderUpsertOne) SetInventoryReleasedAt(v time.Time) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryReleasedAt(v)
+	})
+}
+
+// UpdateInventoryReleasedAt sets the "inventory_released_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateInventoryReleasedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryReleasedAt()
+	})
+}
+
+// ClearInventoryReleasedAt clears the value of the "inventory_released_at" field.
+func (u *PaymentOrderUpsertOne) ClearInventoryReleasedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearInventoryReleasedAt()
 	})
 }
 
@@ -4807,6 +5034,83 @@ func (u *PaymentOrderUpsertBulk) SetStatus(v string) *PaymentOrderUpsertBulk {
 func (u *PaymentOrderUpsertBulk) UpdateStatus() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetInventoryStatus sets the "inventory_status" field.
+func (u *PaymentOrderUpsertBulk) SetInventoryStatus(v string) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryStatus(v)
+	})
+}
+
+// UpdateInventoryStatus sets the "inventory_status" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateInventoryStatus() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryStatus()
+	})
+}
+
+// SetInventoryReservedAt sets the "inventory_reserved_at" field.
+func (u *PaymentOrderUpsertBulk) SetInventoryReservedAt(v time.Time) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryReservedAt(v)
+	})
+}
+
+// UpdateInventoryReservedAt sets the "inventory_reserved_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateInventoryReservedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryReservedAt()
+	})
+}
+
+// ClearInventoryReservedAt clears the value of the "inventory_reserved_at" field.
+func (u *PaymentOrderUpsertBulk) ClearInventoryReservedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearInventoryReservedAt()
+	})
+}
+
+// SetInventoryConsumedAt sets the "inventory_consumed_at" field.
+func (u *PaymentOrderUpsertBulk) SetInventoryConsumedAt(v time.Time) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryConsumedAt(v)
+	})
+}
+
+// UpdateInventoryConsumedAt sets the "inventory_consumed_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateInventoryConsumedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryConsumedAt()
+	})
+}
+
+// ClearInventoryConsumedAt clears the value of the "inventory_consumed_at" field.
+func (u *PaymentOrderUpsertBulk) ClearInventoryConsumedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearInventoryConsumedAt()
+	})
+}
+
+// SetInventoryReleasedAt sets the "inventory_released_at" field.
+func (u *PaymentOrderUpsertBulk) SetInventoryReleasedAt(v time.Time) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetInventoryReleasedAt(v)
+	})
+}
+
+// UpdateInventoryReleasedAt sets the "inventory_released_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateInventoryReleasedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateInventoryReleasedAt()
+	})
+}
+
+// ClearInventoryReleasedAt clears the value of the "inventory_released_at" field.
+func (u *PaymentOrderUpsertBulk) ClearInventoryReleasedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearInventoryReleasedAt()
 	})
 }
 

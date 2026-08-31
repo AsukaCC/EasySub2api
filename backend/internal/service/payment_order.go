@@ -12,7 +12,10 @@ import (
 	"time"
 
 	dbent "github.com/AsukaCC/EasySub2api/ent"
+	entgroup "github.com/AsukaCC/EasySub2api/ent/group"
 	"github.com/AsukaCC/EasySub2api/ent/paymentorder"
+	"github.com/AsukaCC/EasySub2api/ent/pendingsubscription"
+	entuser "github.com/AsukaCC/EasySub2api/ent/user"
 	"github.com/AsukaCC/EasySub2api/internal/payment"
 	"github.com/AsukaCC/EasySub2api/internal/payment/provider"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
@@ -170,6 +173,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		if completed, getErr := s.entClient.PaymentOrder.Get(ctx, order.ID); getErr == nil {
 			order = completed
 		}
+		activationStatus := SubscriptionActivationActive
+		var pendingResult *PendingSubscription
+		if pending, pendingErr := s.entClient.PendingSubscription.Query().Where(
+			pendingsubscription.SourceTypeEQ("payment_order"), pendingsubscription.SourceIDEQ(order.ID),
+		).Only(ctx); pendingErr == nil && pending.Status == PendingSubscriptionStatusPending {
+			activationStatus = SubscriptionActivationPending
+			pendingResult = pendingSubscriptionFromEnt(pending)
+		}
 		return &CreateOrderResponse{
 			OrderID: order.ID, Amount: order.Amount, PayAmount: 0, WalletAmount: order.WalletAmount,
 			WalletBonusAmount: order.WalletBonusAmount, WalletRechargeAmount: order.WalletRechargeAmount,
@@ -179,6 +190,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 			BonusTierSnapshot: order.BonusTierSnapshot, BonusExpiresAt: order.BonusExpiresAt,
 			BonusGrantID: order.BonusGrantID, AffiliateRebatePoints: order.AffiliateRebatePoints,
 			ResultType: payment.CreatePaymentResultOrderCreated, PaymentType: "wallet", OutTradeNo: order.OutTradeNo, ExpiresAt: order.ExpiresAt,
+			ActivationStatus: activationStatus, PendingSubscription: pendingResult,
 		}, nil
 	}
 	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
@@ -189,6 +201,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
 			SetStatus(OrderStatusFailed).
 			Save(ctx)
+		if releaseErr := s.releaseSubscriptionInventory(ctx, order.ID); releaseErr != nil {
+			slog.Error("release inventory after provider creation failure", "orderID", order.ID, "error", releaseErr)
+		}
 		return nil, err
 	}
 	return resp, nil
@@ -248,7 +263,35 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := s.checkRechargeOrderLimits(ctx, tx, req.OrderType, req.UserID, limitAmount, cfg.MaxPendingOrders, cfg.DailyLimit); err != nil {
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if _, err := tx.User.Query().Where(entuser.IDEQ(req.UserID)).ForUpdate().Only(txCtx); err != nil {
+		return nil, fmt.Errorf("lock order user: %w", err)
+	}
+	inventoryReserved := false
+	if plan != nil {
+		lockedPlan, reserved, reserveErr := reserveSubscriptionInventory(txCtx, tx, plan.ID)
+		if reserveErr != nil {
+			return nil, reserveErr
+		}
+		plan = lockedPlan
+		inventoryReserved = reserved
+		planGroup, platformErr := tx.Group.Query().Where(entgroup.IDEQ(plan.GroupID)).Only(txCtx)
+		if platformErr != nil {
+			return nil, infraerrors.NotFound("GROUP_NOT_FOUND", "subscription group is no longer available")
+		}
+		hasPending, pendingErr := tx.PendingSubscription.Query().Where(
+			pendingsubscription.UserIDEQ(req.UserID),
+			pendingsubscription.PlatformEqualFold(planGroup.Platform),
+			pendingsubscription.StatusEQ(PendingSubscriptionStatusPending),
+		).Exist(txCtx)
+		if pendingErr != nil {
+			return nil, fmt.Errorf("check pending subscription before order creation: %w", pendingErr)
+		}
+		if hasPending {
+			return nil, ErrSubscriptionPlatformPendingExists
+		}
+	}
+	if err := s.checkRechargeOrderLimits(txCtx, tx, req.OrderType, req.UserID, limitAmount, cfg.MaxPendingOrders, cfg.DailyLimit); err != nil {
 		return nil, err
 	}
 	tm := cfg.OrderTimeoutMin
@@ -319,6 +362,9 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	}
 	if plan != nil {
 		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		if inventoryReserved {
+			b.SetInventoryStatus(InventoryStatusReserved).SetInventoryReservedAt(createdAt)
+		}
 	}
 	if walletOnly {
 		b.SetStatus(OrderStatusPaid).SetPaidAt(createdAt)
@@ -333,7 +379,7 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, fmt.Errorf("set recharge code: %w", err)
 	}
 	if walletAmount > 0 {
-		hold, holdErr := s.userRepo.HoldWallet(dbent.NewTxContext(ctx, tx), WalletHoldInput{
+		hold, holdErr := s.userRepo.HoldWallet(txCtx, WalletHoldInput{
 			UserID: req.UserID, Amount: walletAmount, Purpose: "subscription_order", ReferenceID: order.ID,
 			RequestFingerprint: order.OutTradeNo, Notes: "subscription balance offset",
 		})

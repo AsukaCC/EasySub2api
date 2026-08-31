@@ -17,17 +17,23 @@ import (
 
 // DashboardHandler handles admin dashboard statistics
 type DashboardHandler struct {
-	dashboardService   *service.DashboardService
-	aggregationService *service.DashboardAggregationService
-	startTime          time.Time // Server start time for uptime calculation
+	dashboardService    *service.DashboardService
+	aggregationService  *service.DashboardAggregationService
+	accountQuotaService *service.AccountQuotaDashboardService
+	startTime           time.Time // Server start time for uptime calculation
 }
 
 // NewDashboardHandler creates a new admin dashboard handler
-func NewDashboardHandler(dashboardService *service.DashboardService, aggregationService *service.DashboardAggregationService) *DashboardHandler {
+func NewDashboardHandler(dashboardService *service.DashboardService, aggregationService *service.DashboardAggregationService, quotaServices ...*service.AccountQuotaDashboardService) *DashboardHandler {
+	var quotaService *service.AccountQuotaDashboardService
+	if len(quotaServices) > 0 {
+		quotaService = quotaServices[0]
+	}
 	return &DashboardHandler{
-		dashboardService:   dashboardService,
-		aggregationService: aggregationService,
-		startTime:          time.Now(),
+		dashboardService:    dashboardService,
+		aggregationService:  aggregationService,
+		accountQuotaService: quotaService,
+		startTime:           time.Now(),
 	}
 }
 
@@ -138,6 +144,46 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 		"stats_updated_at":    stats.StatsUpdatedAt,
 		"stats_stale":         stats.StatsStale,
 	})
+}
+
+// GetAccountQuotas returns platform/group weekly quota summaries built only
+// from persisted account snapshots. It deliberately does not call providers.
+// GET /api/v1/admin/dashboard/account-quotas
+func (h *DashboardHandler) GetAccountQuotas(c *gin.Context) {
+	if h.accountQuotaService == nil {
+		response.InternalError(c, "Account quota dashboard is not available")
+		return
+	}
+	quotas, err := h.accountQuotaService.GetDashboard(c.Request.Context())
+	if err != nil {
+		response.Error(c, 500, "Failed to get account quota dashboard")
+		return
+	}
+	response.Success(c, quotas)
+}
+
+// GetAccountQuotaAccounts returns sanitized, paginated account rows for a
+// platform/group expansion. group_id=__unassigned__ selects ungrouped rows.
+// GET /api/v1/admin/dashboard/account-quotas/accounts
+func (h *DashboardHandler) GetAccountQuotaAccounts(c *gin.Context) {
+	if h.accountQuotaService == nil {
+		response.InternalError(c, "Account quota dashboard is not available")
+		return
+	}
+	offset := 0
+	limit := 50
+	if value, err := strconv.Atoi(c.Query("offset")); err == nil && value >= 0 {
+		offset = value
+	}
+	if value, err := strconv.Atoi(c.Query("limit")); err == nil && value > 0 && value <= 200 {
+		limit = value
+	}
+	rows, total, err := h.accountQuotaService.ListAccounts(c.Request.Context(), c.Query("platform"), c.Query("group_id"), offset, limit)
+	if err != nil {
+		response.Error(c, 500, "Failed to get account quota accounts")
+		return
+	}
+	response.Success(c, gin.H{"accounts": rows, "total": total, "offset": offset, "limit": limit})
 }
 
 type DashboardAggregationBackfillRequest struct {

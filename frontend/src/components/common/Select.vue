@@ -51,7 +51,7 @@
         <div
           v-if="isOpen"
           ref="dropdownRef"
-          class="select-dropdown-portal"
+          class="select-dropdown-portal dropdown dropdown--portal"
           :class="[instanceId]"
           :style="dropdownStyle"
           role="listbox"
@@ -269,7 +269,10 @@ const isGroupHeaderOption = (option: any): boolean => {
 }
 
 const selectedOption = computed(() => {
-  return props.options.find((opt) => getOptionValue(opt) === props.modelValue) || null
+  return props.options.find((opt) => {
+    const optionValue = getOptionValue(opt)
+    return optionValue === props.modelValue || (optionValue == null && props.modelValue == null)
+  }) || null
 })
 
 const selectedLabel = computed(() => {

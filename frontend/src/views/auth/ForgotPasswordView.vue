@@ -13,7 +13,7 @@
 
       <!-- Success State -->
       <div v-if="isSubmitted" class="views-auth-forgot-password-view__panel">
-        <div class="views-auth-forgot-password-view__panel-3">
+        <div class="views-auth-forgot-password-view__panel-3 card-body">
           <div class="views-auth-forgot-password-view__panel-4">
             <div class="views-auth-forgot-password-view__panel-5">
               <Icon name="checkCircle" size="lg" class="views-auth-forgot-password-view__icon" />

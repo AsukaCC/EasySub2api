@@ -9,29 +9,29 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
-	"github.com/AsukaCC/EasySub2api/ent/refundticket"
+	"github.com/AsukaCC/EasySub2api/ent/supportticket"
 )
 
-// RefundTicketDelete is the builder for deleting a RefundTicket entity.
-type RefundTicketDelete struct {
+// SupportTicketDelete is the builder for deleting a SupportTicket entity.
+type SupportTicketDelete struct {
 	config
 	hooks    []Hook
-	mutation *RefundTicketMutation
+	mutation *SupportTicketMutation
 }
 
-// Where appends a list predicates to the RefundTicketDelete builder.
-func (_d *RefundTicketDelete) Where(ps ...predicate.RefundTicket) *RefundTicketDelete {
+// Where appends a list predicates to the SupportTicketDelete builder.
+func (_d *SupportTicketDelete) Where(ps ...predicate.SupportTicket) *SupportTicketDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *RefundTicketDelete) Exec(ctx context.Context) (int, error) {
+func (_d *SupportTicketDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *RefundTicketDelete) ExecX(ctx context.Context) int {
+func (_d *SupportTicketDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *RefundTicketDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *RefundTicketDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(refundticket.Table, sqlgraph.NewFieldSpec(refundticket.FieldID, field.TypeString))
+func (_d *SupportTicketDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(supportticket.Table, sqlgraph.NewFieldSpec(supportticket.FieldID, field.TypeString))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *RefundTicketDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// RefundTicketDeleteOne is the builder for deleting a single RefundTicket entity.
-type RefundTicketDeleteOne struct {
-	_d *RefundTicketDelete
+// SupportTicketDeleteOne is the builder for deleting a single SupportTicket entity.
+type SupportTicketDeleteOne struct {
+	_d *SupportTicketDelete
 }
 
-// Where appends a list predicates to the RefundTicketDelete builder.
-func (_d *RefundTicketDeleteOne) Where(ps ...predicate.RefundTicket) *RefundTicketDeleteOne {
+// Where appends a list predicates to the SupportTicketDelete builder.
+func (_d *SupportTicketDeleteOne) Where(ps ...predicate.SupportTicket) *SupportTicketDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *RefundTicketDeleteOne) Exec(ctx context.Context) error {
+func (_d *SupportTicketDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{refundticket.Label}
+		return &NotFoundError{supportticket.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *RefundTicketDeleteOne) ExecX(ctx context.Context) {
+func (_d *SupportTicketDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

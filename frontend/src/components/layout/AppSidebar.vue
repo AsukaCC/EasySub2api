@@ -35,11 +35,16 @@
     </div>
 
     <!-- Navigation -->
-    <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide">
+    <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide" @pointerdown="primeSidebarActiveIndicator">
+      <span
+        ref="sidebarActiveIndicatorRef"
+        class="sidebar-active-indicator"
+        aria-hidden="true"
+      ></span>
       <!-- Admin View: Admin menu first, then personal menu -->
       <template v-if="isAdmin">
-        <!-- Admin Section -->
-        <div class="sidebar-section">
+        <!-- Admin sections grouped by responsibility -->
+        <div v-for="section in adminNavSections" :key="section.key" class="sidebar-section">
           <div
             class="sidebar-section-title"
             :class="{ 'sidebar-section-title-collapsed': sidebarCollapsed }"
@@ -49,22 +54,27 @@
               class="sidebar-section-title-text"
               :class="{ 'sidebar-section-title-text-collapsed': sidebarCollapsed }"
             >
-              {{ t('nav.adminMenu') }}
+              {{ section.label }}
             </span>
           </div>
-          <template v-for="item in adminNavItems" :key="item.path">
+          <template v-for="item in section.items" :key="item.path">
             <!-- Collapsible group (has children) -->
             <template v-if="item.children?.length">
               <button
                 type="button"
                 class="components-layout-app-sidebar__action sidebar-link"
                 :class="{
-                  'sidebar-link-active': isGroupActive(item) && !isGroupExpanded(item),
+                  'sidebar-link-active':
+                    isCollapsedFlyoutOpen(item)
+                    || (isGroupActive(item) && !isGroupExpanded(item)),
                   'sidebar-link-collapsed': sidebarCollapsed
                 }"
-                :title="sidebarCollapsed ? item.label : undefined"
                 :id="item.path === '/admin/accounts' ? 'sidebar-channel-manage' : undefined"
-                @click="handleGroupClick(item)"
+                :aria-expanded="sidebarCollapsed ? isCollapsedFlyoutOpen(item) : isGroupExpanded(item)"
+                :aria-haspopup="sidebarCollapsed ? 'menu' : undefined"
+                @click="handleGroupClick(item, $event)"
+                @mouseenter="onCollapsedGroupEnter(item, $event)"
+                @mouseleave="scheduleCloseCollapsedFlyout"
               >
                 <component :is="item.icon" class="components-layout-app-sidebar__component" />
                 <span
@@ -91,6 +101,7 @@
                 >
                   <component :is="child.icon" class="components-layout-app-sidebar__component-2" />
                   <span>{{ child.label }}</span>
+                  <span v-if="child.badge" class="sidebar-badge">{{ child.badge > 99 ? '99+' : child.badge }}</span>
                 </router-link>
               </div>
             </template>
@@ -115,6 +126,7 @@
               <span v-if="item.iconSvg" class="components-layout-app-sidebar__component sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
               <component v-else :is="item.icon" class="components-layout-app-sidebar__component" />
               <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+              <span v-if="item.badge" class="sidebar-badge">{{ item.badge > 99 ? '99+' : item.badge }}</span>
             </router-link>
           </template>
         </div>
@@ -140,6 +152,7 @@
             <span v-if="item.iconSvg" class="components-layout-app-sidebar__component sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
             <component v-else :is="item.icon" class="components-layout-app-sidebar__component" />
             <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            <span v-if="item.badge" class="sidebar-badge">{{ item.badge > 99 ? '99+' : item.badge }}</span>
           </router-link>
         </div>
       </template>
@@ -160,6 +173,7 @@
             <span v-if="item.iconSvg" class="components-layout-app-sidebar__component sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
             <component v-else :is="item.icon" class="components-layout-app-sidebar__component" />
             <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            <span v-if="item.badge" class="sidebar-badge">{{ item.badge > 99 ? '99+' : item.badge }}</span>
           </router-link>
         </div>
       </template>
@@ -194,10 +208,41 @@
       >
         <ChevronDoubleLeftIcon v-if="!sidebarCollapsed" class="components-layout-app-sidebar__component" />
         <ChevronDoubleRightIcon v-else class="components-layout-app-sidebar__component" />
-        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ t('nav.collapse') }}</span>
+        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{
+          sidebarCollapsed ? t('nav.expand') : t('nav.collapse')
+        }}</span>
       </button>
     </div>
   </aside>
+
+  <Teleport to="body">
+    <div
+      v-if="collapsedFlyoutItem?.children?.length"
+      ref="collapsedFlyoutPanelRef"
+      class="dropdown sidebar-collapsed-flyout"
+      :style="collapsedFlyoutStyle"
+      role="menu"
+      :aria-label="collapsedFlyoutItem.label"
+      @mouseenter="clearCollapsedFlyoutLeaveTimer"
+      @mouseleave="scheduleCloseCollapsedFlyout"
+      @click.stop
+    >
+      <p class="sidebar-collapsed-flyout__title">{{ collapsedFlyoutItem.label }}</p>
+      <router-link
+        v-for="child in collapsedFlyoutItem.children"
+        :key="child.path"
+        :to="{ path: child.path, query: child.query }"
+        class="dropdown-item"
+        :class="{ 'sidebar-collapsed-flyout__item--active': route.path === child.path }"
+        role="menuitem"
+        @click="onCollapsedFlyoutChildClick(child.path)"
+      >
+        <component :is="child.icon" class="components-layout-app-sidebar__component-2" />
+        <span>{{ child.label }}</span>
+        <span v-if="child.badge" class="sidebar-badge">{{ child.badge > 99 ? '99+' : child.badge }}</span>
+      </router-link>
+    </div>
+  </Teleport>
 
   <!-- Mobile Overlay -->
   <transition name="fade">
@@ -211,13 +256,20 @@
 
 <script setup lang="ts">
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useFloatingPanel } from '@/composables/useFloatingPanel'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import gsap from 'gsap'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
+import {
+  getNavigationIndicatorGeometry,
+  setNavigationIndicatorGeometry
+} from '@/utils/navigationMotion'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { adminSupportTicketsAPI, supportTicketsAPI } from '@/api/supportTickets'
 
 interface NavItem {
   path: string
@@ -239,6 +291,13 @@ interface NavItem {
    * 开关切换时菜单自动更新。
    */
   featureFlag?: () => boolean | undefined
+  badge?: number
+}
+
+interface NavSection {
+  key: string
+  label: string
+  items: NavItem[]
 }
 
 const { adminMenuOnly = false } = defineProps<{
@@ -268,11 +327,34 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
+const supportUserSummary = ref({ total: 0, unread: 0, featureEnabled: false, loaded: false })
+const supportAdminSummary = ref({ total: 0, unread: 0, featureEnabled: false, loaded: false })
 
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed && !appStore.mobileOpen)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
 const sidebarNavRef = ref<HTMLElement | null>(null)
+const sidebarActiveIndicatorRef = ref<HTMLElement | null>(null)
+let sidebarActiveIndicatorReady = false
+let sidebarResizeObserver: ResizeObserver | null = null
+const collapsedFlyoutPath = ref<string | null>(null)
+const collapsedFlyoutPinned = ref(false)
+const collapsedFlyoutTriggerRef = ref<HTMLElement | null>(null)
+const collapsedFlyoutOpen = computed(() => sidebarCollapsed.value && collapsedFlyoutPath.value !== null)
+const { panelRef: collapsedFlyoutPanelRef, style: collapsedFlyoutStyle, update: updateCollapsedFlyout } = useFloatingPanel(
+  collapsedFlyoutTriggerRef,
+  collapsedFlyoutOpen,
+  {
+    placement: 'right',
+    align: 'start',
+    gap: 8,
+    maxWidth: 220,
+    maxHeightRatio: 0.7,
+    minComfortableHeight: 96,
+    zIndex: 50
+  }
+)
+let collapsedFlyoutLeaveTimer: number | null = null
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
@@ -710,6 +792,7 @@ const flagAdminChannelMonitor = () => adminSettingsStore.channelMonitorEnabled
 const flagAdminModelPlaza = () => adminSettingsStore.modelPlazaEnabled
 const flagAdminRiskControl = () => adminSettingsStore.riskControlEnabled
 const flagAdminAffiliate = () => adminSettingsStore.affiliateEnabled
+const flagSupportTickets = () => !supportUserSummary.value.loaded || supportUserSummary.value.featureEnabled || supportUserSummary.value.total > 0
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
@@ -727,6 +810,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    { path: '/tickets', label: t('nav.supportTickets'), icon: TicketIcon, hideInSimpleMode: true, featureFlag: flagSupportTickets, badge: supportUserSummary.value.unread },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
@@ -770,139 +854,234 @@ const customMenuItemsForAdmin = computed(() => {
     .sort((a, b) => a.sort_order - b.sort_order)
 })
 
-// Admin navigation items
-const adminNavItems = computed((): NavItem[] => {
-  const baseItems: NavItem[] = [
-    { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+// Admin navigation grouped by responsibility. Routes and permission rules stay unchanged.
+const adminNavSections = computed((): NavSection[] => {
+  const sections: NavSection[] = [
     {
-      path: '/admin/ops',
-      label: t('nav.ops'),
-      icon: ChartIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      children: [
-        { path: '/admin/ops', label: t('nav.opsDashboard'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
-        { path: '/admin/ops/settings', label: t('nav.settingsOpsMonitoring'), icon: CogIcon },
+      key: 'overview',
+      label: t('nav.adminOverview'),
+      items: [{ path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon }],
+    },
+    {
+      key: 'resources',
+      label: t('nav.resourceManagement'),
+      items: [
+        {
+          path: '/admin/accounts',
+          label: t('nav.accounts'),
+          icon: GlobeIcon,
+          children: [
+            { path: '/admin/accounts', label: t('nav.accountList'), icon: GlobeIcon },
+            { path: '/admin/accounts/model-rules', label: t('nav.accountModelRules'), icon: ChannelIcon },
+          ],
+        },
+        { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
+        {
+          path: '/admin/channels',
+          label: t('nav.channelManagement'),
+          icon: ChannelIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            { path: '/admin/channels/pricing', label: t('nav.channelPricing'), icon: PriceTagIcon },
+            {
+              path: '/admin/channels/monitor',
+              label: t('nav.channelMonitor'),
+              icon: SignalIcon,
+              featureFlag: flagAdminChannelMonitor,
+            },
+            { path: '/admin/channels/monitor/settings', label: t('nav.settingsChannelMonitor'), icon: CogIcon },
+          ],
+        },
+        { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
+        {
+          path: '/model-plaza',
+          label: t('nav.modelPlaza'),
+          icon: PriceTagIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            {
+              path: '/model-plaza',
+              query: { embedded: '1' },
+              label: t('nav.modelPlaza'),
+              icon: PriceTagIcon,
+              featureFlag: flagAdminModelPlaza,
+            },
+            { path: '/admin/model-plaza/settings', label: t('nav.settingsModelPlaza'), icon: CogIcon },
+          ],
+        },
       ],
     },
     {
-      path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true, expandOnly: true,
-      children: [
-        { path: '/admin/users', label: t('nav.userList'), icon: UsersIcon },
-        { path: '/admin/users/levels', label: t('nav.userLevels'), icon: ChartIcon },
+      key: 'users-business',
+      label: t('nav.userBusinessManagement'),
+      items: [
+        {
+          path: '/admin/users',
+          label: t('nav.users'),
+          icon: UsersIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            { path: '/admin/users', label: t('nav.userList'), icon: UsersIcon },
+            { path: '/admin/users/levels', label: t('nav.userLevels'), icon: ChartIcon },
+          ],
+        },
+        { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
+        { path: '/admin/tickets', label: t('nav.ticketManagement'), icon: TicketIcon, badge: supportAdminSummary.value.unread },
+        {
+          path: '/admin/orders',
+          label: t('nav.orderManagement'),
+          icon: OrderIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            {
+              path: '/admin/orders/dashboard',
+              label: t('nav.paymentDashboard'),
+              icon: ChartIcon,
+              featureFlag: flagAdminPayment,
+            },
+            { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon, featureFlag: flagAdminPayment },
+            {
+              path: '/admin/orders/plans',
+              label: t('nav.paymentPlans'),
+              icon: CreditCardIcon,
+              featureFlag: flagAdminPayment,
+            },
+            { path: '/admin/orders/settings', label: t('nav.settingsPayment'), icon: CogIcon },
+          ],
+        },
+        { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
+        { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
+        {
+          path: '/admin/affiliates',
+          label: t('nav.affiliateManagement'),
+          icon: UsersIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            {
+              path: '/admin/affiliates/invites',
+              label: t('nav.affiliateInviteRecords'),
+              icon: UsersIcon,
+              featureFlag: flagAdminAffiliate,
+            },
+            {
+              path: '/admin/affiliates/rebates',
+              label: t('nav.affiliateRebateRecords'),
+              icon: OrderIcon,
+              featureFlag: flagAdminAffiliate,
+            },
+            {
+              path: '/admin/affiliates/transfers',
+              label: t('nav.affiliateTransferRecords'),
+              icon: CreditCardIcon,
+              featureFlag: flagAdminAffiliate,
+            },
+            { path: '/admin/affiliates/settings', label: t('nav.settingsAffiliate'), icon: CogIcon },
+          ],
+        },
+        { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
       ],
     },
-    { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     {
-      path: '/admin/channels',
-      label: t('nav.channelManagement'),
-      icon: ChannelIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      children: [
-        { path: '/admin/channels/pricing', label: t('nav.channelPricing'), icon: PriceTagIcon },
-        { path: '/admin/channels/monitor', label: t('nav.channelMonitor'), icon: SignalIcon, featureFlag: flagAdminChannelMonitor },
-        { path: '/admin/channels/monitor/settings', label: t('nav.settingsChannelMonitor'), icon: CogIcon },
+      key: 'operations-security',
+      label: t('nav.operationsSecurity'),
+      items: [
+        { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
+        {
+          path: '/admin/ops',
+          label: t('nav.ops'),
+          icon: ChartIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            { path: '/admin/ops', label: t('nav.opsDashboard'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
+            { path: '/admin/ops/settings', label: t('nav.settingsOpsMonitoring'), icon: CogIcon },
+          ],
+        },
+        {
+          path: '/admin/security-audit',
+          label: t('nav.securityAudit'),
+          icon: ShieldIcon,
+          expandOnly: true,
+          children: [
+            { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon },
+            {
+              path: '/admin/prompt-audit',
+              label: t('nav.promptAudit'),
+              icon: ShieldIcon,
+              featureFlag: flagAdminRiskControl,
+            },
+          ],
+        },
+        { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldIcon, hideInSimpleMode: true },
       ],
     },
     {
-      path: '/model-plaza',
-      label: t('nav.modelPlaza'),
-      icon: PriceTagIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      children: [
-        { path: '/model-plaza', query: { embedded: '1' }, label: t('nav.modelPlaza'), icon: PriceTagIcon, featureFlag: flagAdminModelPlaza },
-        { path: '/admin/model-plaza/settings', label: t('nav.settingsModelPlaza'), icon: CogIcon },
+      key: 'system',
+      label: t('nav.systemManagement'),
+      items: [
+        {
+          path: '/admin/settings',
+          label: t('nav.settings'),
+          icon: CogIcon,
+          hideInSimpleMode: true,
+          expandOnly: true,
+          children: [
+            { path: '/admin/settings/platform', label: t('nav.settingsPlatform'), icon: DashboardIcon },
+            { path: '/admin/settings/features', label: t('nav.settingsFeatures'), icon: CogIcon },
+            { path: '/admin/settings/access', label: t('nav.settingsAccess'), icon: UsersIcon },
+            { path: '/admin/settings/gateway', label: t('nav.settingsGateway'), icon: ServerIcon },
+            { path: '/admin/settings/compliance', label: t('nav.settingsCompliance'), icon: ShieldIcon },
+            { path: '/admin/settings/operations', label: t('nav.settingsOperations'), icon: CogIcon },
+            { path: '/admin/settings/updates', label: t('nav.settingsUpdates'), icon: DownloadIcon },
+          ],
+        },
       ],
     },
-    { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
-    {
-      path: '/admin/accounts',
-      label: t('nav.accounts'),
-      icon: GlobeIcon,
-      children: [
-        { path: '/admin/accounts', label: t('nav.accountList'), icon: GlobeIcon },
-        { path: '/admin/accounts/model-rules', label: t('nav.accountModelRules'), icon: ChannelIcon },
-      ],
-    },
-    { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
-    { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
-    {
-      path: '/admin/security-audit',
-      label: t('nav.securityAudit'),
-      icon: ShieldIcon,
-      expandOnly: true,
-      children: [
-        { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon },
-        { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon, featureFlag: flagAdminRiskControl },
-      ],
-    },
-    { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
-    {
-      path: '/admin/affiliates',
-      label: t('nav.affiliateManagement'),
-      icon: UsersIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      children: [
-        { path: '/admin/affiliates/invites', label: t('nav.affiliateInviteRecords'), icon: UsersIcon, featureFlag: flagAdminAffiliate },
-        { path: '/admin/affiliates/rebates', label: t('nav.affiliateRebateRecords'), icon: OrderIcon, featureFlag: flagAdminAffiliate },
-        { path: '/admin/affiliates/transfers', label: t('nav.affiliateTransferRecords'), icon: CreditCardIcon, featureFlag: flagAdminAffiliate },
-        { path: '/admin/affiliates/settings', label: t('nav.settingsAffiliate'), icon: CogIcon },
-      ],
-    },
-    {
-      path: '/admin/orders',
-      label: t('nav.orderManagement'),
-      icon: OrderIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      children: [
-        { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon, featureFlag: flagAdminPayment },
-        { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon, featureFlag: flagAdminPayment },
-        { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon, featureFlag: flagAdminPayment },
-        { path: '/admin/orders/settings', label: t('nav.settingsPayment'), icon: CogIcon },
-      ],
-    },
-    { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
-    { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldIcon, hideInSimpleMode: true },
-    {
-      path: '/admin/settings',
-      label: t('nav.settings'),
-      icon: CogIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      children: [
-        { path: '/admin/settings/features', label: t('nav.settingsFeatures'), icon: CogIcon },
-        { path: '/admin/settings/updates', label: t('nav.settingsUpdates'), icon: DownloadIcon },
-        { path: '/admin/settings/platform', label: t('nav.settingsPlatform'), icon: DashboardIcon },
-        { path: '/admin/settings/compliance', label: t('nav.settingsCompliance'), icon: ShieldIcon },
-        { path: '/admin/settings/access', label: t('nav.settingsAccess'), icon: UsersIcon },
-        { path: '/admin/settings/gateway', label: t('nav.settingsGateway'), icon: ServerIcon },
-        { path: '/admin/settings/operations', label: t('nav.settingsOperations'), icon: CogIcon },
-      ],
-    }
   ]
 
-  const visible = applyFeatureFlags(baseItems)
+  const visibleSections = sections.map((section) => ({
+    ...section,
+    items: applyFeatureFlags(section.items),
+  }))
+  const customItems: NavItem[] = customMenuItemsForAdmin.value.map((item) => ({
+    path: `/custom/${item.id}`,
+    label: item.label,
+    icon: null,
+    iconSvg: item.icon_svg,
+  }))
 
-  // 简单模式下，在系统设置前插入 API密钥
   if (authStore.isSimpleMode) {
-    const filtered = visible.filter(item => !item.hideInSimpleMode)
-    filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
-    filtered.push({ path: '/admin/settings/features', label: t('nav.settings'), icon: CogIcon })
-    for (const cm of customMenuItemsForAdmin.value) {
-      filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
+    const simpleSections = visibleSections.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.hideInSimpleMode),
+    }))
+
+    simpleSections.find((section) => section.key === 'resources')?.items.push({
+      path: '/keys',
+      label: t('nav.apiKeys'),
+      icon: KeyIcon,
+    })
+    simpleSections.find((section) => section.key === 'system')?.items.push({
+      path: '/admin/settings/features',
+      label: t('nav.settings'),
+      icon: CogIcon,
+    })
+
+    if (customItems.length > 0) {
+      simpleSections.push({ key: 'custom', label: t('nav.customPages'), items: customItems })
     }
-    return filtered
+    return simpleSections.filter((section) => section.items.length > 0)
   }
 
-  for (const cm of customMenuItemsForAdmin.value) {
-    visible.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
+  if (customItems.length > 0) {
+    visibleSections.push({ key: 'custom', label: t('nav.customPages'), items: customItems })
   }
-  return visible
+  return visibleSections.filter((section) => section.items.length > 0)
 })
 
 function toggleSidebar() {
@@ -960,6 +1139,91 @@ function isGroupExpanded(item: NavItem): boolean {
   return expandedGroups.value.has(item.path) || isGroupActive(item)
 }
 
+function getSidebarNavigationGeometry(target: HTMLElement) {
+  const nav = sidebarNavRef.value
+  if (!nav) return null
+  const navRect = nav.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  return {
+    x: targetRect.left - navRect.left + nav.scrollLeft,
+    y: targetRect.top - navRect.top + nav.scrollTop,
+    width: targetRect.width,
+    height: targetRect.height
+  }
+}
+
+function primeSidebarActiveIndicator(event: PointerEvent): void {
+  if (event.button !== 0) return
+  const target = (event.target as HTMLElement | null)?.closest<HTMLElement>('.sidebar-link')
+  const indicator = sidebarActiveIndicatorRef.value
+  const geometry = target ? getSidebarNavigationGeometry(target) : null
+  if (!indicator || !geometry) return
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  gsap.to(indicator, {
+    ...geometry,
+    opacity: 1,
+    duration: reduceMotion ? 0 : 0.42,
+    ease: 'power3.out',
+    overwrite: 'auto'
+  })
+  sidebarActiveIndicatorReady = true
+}
+
+function persistCurrentSidebarIndicatorGeometry(): void {
+  const indicator = sidebarActiveIndicatorRef.value
+  if (!indicator || !sidebarActiveIndicatorReady) return
+  const geometry = getSidebarNavigationGeometry(indicator)
+  if (geometry) setNavigationIndicatorGeometry('admin-sidebar', geometry)
+}
+
+function updateSidebarActiveIndicator(animate = true): void {
+  void nextTick(() => {
+    window.requestAnimationFrame(() => {
+      const nav = sidebarNavRef.value
+      const indicator = sidebarActiveIndicatorRef.value
+      const activeItem = nav?.querySelector<HTMLElement>('.sidebar-link-active')
+      if (!nav || !indicator || !activeItem) {
+        if (indicator) gsap.set(indicator, { opacity: 0 })
+        return
+      }
+
+      const navRect = nav.getBoundingClientRect()
+      const itemRect = activeItem.getBoundingClientRect()
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const nextGeometry = {
+        x: itemRect.left - navRect.left + nav.scrollLeft,
+        y: itemRect.top - navRect.top + nav.scrollTop,
+        width: itemRect.width,
+        height: itemRect.height
+      }
+
+      if (!sidebarActiveIndicatorReady && animate && !reduceMotion) {
+        const previousGeometry = getNavigationIndicatorGeometry('admin-sidebar')
+        if (previousGeometry) {
+          gsap.set(indicator, { ...previousGeometry, opacity: 1 })
+          sidebarActiveIndicatorReady = true
+        }
+      }
+      const duration = animate && sidebarActiveIndicatorReady && !reduceMotion ? 0.42 : 0
+
+      gsap.to(indicator, {
+        ...nextGeometry,
+        opacity: 1,
+        duration,
+        ease: 'power3.out',
+        overwrite: 'auto'
+      })
+      setNavigationIndicatorGeometry('admin-sidebar', nextGeometry)
+      sidebarActiveIndicatorReady = true
+    })
+  })
+}
+
+function updateSidebarActiveIndicatorOnResize(): void {
+  updateSidebarActiveIndicator(false)
+}
+
 function toggleGroup(item: NavItem) {
   if (expandedGroups.value.has(item.path)) {
     expandedGroups.value.delete(item.path)
@@ -968,15 +1232,90 @@ function toggleGroup(item: NavItem) {
   }
 }
 
+function findAdminNavItem(path: string): NavItem | null {
+  for (const section of adminNavSections.value) {
+    const found = section.items.find((item) => item.path === path)
+    if (found) return found
+  }
+  return null
+}
+
+const collapsedFlyoutItem = computed(() => (
+  collapsedFlyoutPath.value ? findAdminNavItem(collapsedFlyoutPath.value) : null
+))
+
+function isCollapsedFlyoutOpen(item: NavItem): boolean {
+  return collapsedFlyoutOpen.value && collapsedFlyoutPath.value === item.path
+}
+
+function clearCollapsedFlyoutLeaveTimer() {
+  if (collapsedFlyoutLeaveTimer !== null) {
+    window.clearTimeout(collapsedFlyoutLeaveTimer)
+    collapsedFlyoutLeaveTimer = null
+  }
+}
+
+function closeCollapsedFlyout() {
+  clearCollapsedFlyoutLeaveTimer()
+  collapsedFlyoutPath.value = null
+  collapsedFlyoutPinned.value = false
+  collapsedFlyoutTriggerRef.value = null
+}
+
+function openCollapsedFlyout(item: NavItem, trigger: EventTarget | null) {
+  if (!sidebarCollapsed.value) return
+  clearCollapsedFlyoutLeaveTimer()
+  collapsedFlyoutPath.value = item.path
+  collapsedFlyoutTriggerRef.value = trigger instanceof HTMLElement ? trigger : null
+  void nextTick(updateCollapsedFlyout)
+}
+
+function onCollapsedGroupEnter(item: NavItem, event: MouseEvent) {
+  openCollapsedFlyout(item, event.currentTarget)
+}
+
+function scheduleCloseCollapsedFlyout() {
+  if (collapsedFlyoutPinned.value) return
+  clearCollapsedFlyoutLeaveTimer()
+  collapsedFlyoutLeaveTimer = window.setTimeout(() => {
+    closeCollapsedFlyout()
+  }, 160)
+}
+
+function onCollapsedFlyoutChildClick(path: string) {
+  closeCollapsedFlyout()
+  handleMenuItemClick(path)
+}
+
+function onCollapsedFlyoutPointerDown(event: MouseEvent) {
+  const target = event.target as Node | null
+  if (!target) return
+  if (collapsedFlyoutTriggerRef.value?.contains(target)) return
+  if (collapsedFlyoutPanelRef.value?.contains(target)) return
+  closeCollapsedFlyout()
+}
+
+function onCollapsedFlyoutKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closeCollapsedFlyout()
+}
+
 /**
  * Click handler for collapsible parent items.
- * - When sidebar is collapsed: do nothing (children are not visible).
+ * - When sidebar is collapsed: open a flyout with the secondary menu.
  * - When `expandOnly` is true: only toggle expand state.
  * - Otherwise (default, e.g. /admin/orders): navigate to the parent path
  *   (router-link semantics) and ensure the group is expanded.
  */
-function handleGroupClick(item: NavItem) {
-  if (sidebarCollapsed.value) return
+function handleGroupClick(item: NavItem, event?: MouseEvent) {
+  if (sidebarCollapsed.value) {
+    if (isCollapsedFlyoutOpen(item) && collapsedFlyoutPinned.value) {
+      closeCollapsedFlyout()
+      return
+    }
+    collapsedFlyoutPinned.value = true
+    openCollapsedFlyout(item, event?.currentTarget ?? null)
+    return
+  }
   if (item.expandOnly) {
     toggleGroup(item)
     return
@@ -1012,11 +1351,81 @@ watch(
   { immediate: true }
 )
 
+async function fetchSupportSummary() {
+  try {
+    const [userResponse, adminResponse] = await Promise.all([
+      supportTicketsAPI.summary(),
+      isAdmin.value ? adminSupportTicketsAPI.summary() : Promise.resolve(null),
+    ])
+    supportUserSummary.value = {
+      total: userResponse.data.total || 0,
+      unread: userResponse.data.unread || 0,
+      featureEnabled: userResponse.data.feature_enabled || false,
+      loaded: true,
+    }
+    if (adminResponse) {
+      supportAdminSummary.value = {
+        total: adminResponse.data.total || 0,
+        unread: adminResponse.data.unread || 0,
+        featureEnabled: adminResponse.data.feature_enabled || false,
+        loaded: true,
+      }
+    }
+  } catch {
+    supportUserSummary.value.loaded = true
+    supportAdminSummary.value.loaded = true
+  }
+}
+
+watch(collapsedFlyoutOpen, (open) => {
+  if (open) {
+    document.addEventListener('mousedown', onCollapsedFlyoutPointerDown)
+    document.addEventListener('keydown', onCollapsedFlyoutKeydown)
+  } else {
+    document.removeEventListener('mousedown', onCollapsedFlyoutPointerDown)
+    document.removeEventListener('keydown', onCollapsedFlyoutKeydown)
+  }
+})
+
+watch(sidebarCollapsed, () => {
+  closeCollapsedFlyout()
+  updateSidebarActiveIndicator()
+})
+
+watch(() => route.fullPath, () => {
+  closeCollapsedFlyout()
+  updateSidebarActiveIndicator()
+}, { flush: 'post' })
+
+watch(
+  () => Array.from(expandedGroups.value).sort().join('|'),
+  () => updateSidebarActiveIndicator(),
+  { flush: 'post' }
+)
+
+watch(
+  () => adminNavSections.value.flatMap((section) => section.items.map((item) => item.path)).join('|'),
+  () => updateSidebarActiveIndicator(false),
+  { flush: 'post' }
+)
+
+watch(collapsedFlyoutPath, () => {
+  if (collapsedFlyoutOpen.value) void nextTick(updateCollapsedFlyout)
+})
+
 onMounted(() => {
   window.addEventListener('app:open-admin-menu', revealAdminMenu)
+  window.addEventListener('support-tickets:updated', fetchSupportSummary)
+  void fetchSupportSummary()
   if (isAdmin.value) {
     adminSettingsStore.fetch()
   }
+  updateSidebarActiveIndicator()
+  if (typeof ResizeObserver !== 'undefined') {
+    sidebarResizeObserver = new ResizeObserver(() => updateSidebarActiveIndicator())
+    if (sidebarNavRef.value) sidebarResizeObserver.observe(sidebarNavRef.value)
+  }
+  window.addEventListener('resize', updateSidebarActiveIndicatorOnResize)
   // Restore sidebar scroll position after route change re-mounts the component
   if (appStore.sidebarScrollTop > 0 && sidebarNavRef.value) {
     void nextTick(() => {
@@ -1029,6 +1438,14 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('app:open-admin-menu', revealAdminMenu)
+  window.removeEventListener('support-tickets:updated', fetchSupportSummary)
+  window.removeEventListener('resize', updateSidebarActiveIndicatorOnResize)
+  document.removeEventListener('mousedown', onCollapsedFlyoutPointerDown)
+  document.removeEventListener('keydown', onCollapsedFlyoutKeydown)
+  sidebarResizeObserver?.disconnect()
+  persistCurrentSidebarIndicatorGeometry()
+  if (sidebarActiveIndicatorRef.value) gsap.killTweensOf(sidebarActiveIndicatorRef.value)
+  closeCollapsedFlyout()
   if (sidebarNavRef.value) {
     appStore.sidebarScrollTop = sidebarNavRef.value.scrollTop
   }
@@ -1039,6 +1456,42 @@ onBeforeUnmount(() => {
 .sidebar-logo {
   flex: 0 0 2.25rem;
   min-width: 2.25rem;
+}
+
+.sidebar-active-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  display: block;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  border: 1px solid var(--glass-border-active);
+  border-radius: var(--radius-lg);
+  background-color: var(--glass-tint-brand);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  box-shadow:
+    0 4px 16px rgba(10, 132, 255, 0.12),
+    0 1px 0 var(--glass-highlight-hover) inset;
+  will-change: transform, width, height;
+}
+
+.sidebar-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  border-radius: 999px;
+  background: var(--glass-tint-danger);
+  color: var(--color-danger);
+  font-size: var(--font-size-2xs);
+  line-height: 1;
 }
 
 .sidebar-header-collapsed {
@@ -1074,9 +1527,14 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-link-collapsed {
+  justify-content: center;
   gap: 0;
-  padding-left: 0.875rem;
-  padding-right: 0.875rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.sidebar-link-collapsed .sidebar-badge {
+  display: none;
 }
 
 .sidebar-section-title {
@@ -1161,6 +1619,33 @@ onBeforeUnmount(() => {
   display: block;
   width: 1.25rem;
   height: 1.25rem;
+}
+
+.sidebar-collapsed-flyout {
+  overflow-y: auto;
+  min-width: 11.5rem;
+}
+
+.sidebar-collapsed-flyout__title {
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+}
+
+.sidebar-collapsed-flyout .dropdown-item {
+  justify-content: flex-start;
+}
+
+.sidebar-collapsed-flyout__item--active {
+  color: var(--color-text-brand);
+  background-color: var(--glass-tint-brand);
+}
+
+.sidebar-collapsed-flyout :deep(svg) {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
 }
 
 @media (max-width: 1023px) {

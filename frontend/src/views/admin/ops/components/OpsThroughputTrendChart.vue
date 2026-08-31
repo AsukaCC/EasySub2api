@@ -164,7 +164,7 @@ function downloadChart() {
 </script>
 
 <template>
-  <div class="views-admin-ops-components-ops-throughput-trend-chart__panel">
+  <div class="views-admin-ops-components-ops-throughput-trend-chart__panel card-body">
     <div
       data-testid="throughput-chart-header"
       class="views-admin-ops-components-ops-throughput-trend-chart__panel-2"

@@ -47,9 +47,9 @@ func TestPlatformPointsRefundIndexesAreInEntMigrationSchema(t *testing.T) {
 	assertPartialUniqueIndex(t, entmigrate.PaymentRefundsTable,
 		"idx_payment_refunds_one_active_order",
 		"status IN ('REQUESTED', 'RESERVED', 'SUBMITTING', 'PENDING')")
-	assertPartialUniqueIndex(t, entmigrate.RefundTicketsTable,
-		"idx_refund_tickets_one_active_order",
-		"status IN ('PENDING', 'APPROVED', 'PROCESSING')")
+	assertPartialUniqueIndex(t, entmigrate.SupportTicketsTable,
+		"idx_support_tickets_one_active_refund",
+		"category = 'REFUND' AND order_id IS NOT NULL AND status IN ('PENDING_ADMIN', 'PENDING_USER', 'IN_PROGRESS')")
 
 	require.Equal(t, "currency = 'CNY'", entmigrate.PaymentRefundsTable.Annotation.Checks["payment_refunds_currency_valid"])
 	require.Equal(t, "gateway_amount = principal_amount + fee_amount", entmigrate.PaymentRefundsTable.Annotation.Checks["payment_refunds_gateway_split_valid"])

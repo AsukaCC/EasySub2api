@@ -38,12 +38,12 @@
                 </button>
                 <div
                   v-if="showAutoRefreshDropdown"
-                  class="views-admin-accounts-view__panel-3"
+                    class="views-admin-accounts-view__panel-3 dropdown dropdown--menu"
                 >
                   <div class="views-admin-accounts-view__panel-4">
                     <button
                       @click="setAutoRefreshEnabled(!autoRefreshEnabled)"
-                      class="views-admin-accounts-view__action-2"
+                      class="views-admin-accounts-view__action-2 dropdown-item"
                     >
                       <span>{{ t('admin.accounts.enableAutoRefresh') }}</span>
                       <Icon v-if="autoRefreshEnabled" name="check" size="sm" class="views-admin-accounts-view__icon" />
@@ -53,7 +53,7 @@
                       v-for="sec in autoRefreshIntervals"
                       :key="sec"
                       @click="setAutoRefreshInterval(sec)"
-                      class="views-admin-accounts-view__action-2"
+                      class="views-admin-accounts-view__action-2 dropdown-item"
                     >
                       <span>{{ autoRefreshIntervalLabel(sec) }}</span>
                       <Icon v-if="autoRefreshIntervalSeconds === sec" name="check" size="sm" class="views-admin-accounts-view__icon" />
@@ -78,7 +78,7 @@
                 <Teleport to="body">
                   <div
                     v-if="showAccountToolsDropdown"
-                    class="views-admin-accounts-view__panel-6"
+                    class="views-admin-accounts-view__panel-6 dropdown dropdown--portal"
                     :style="accountToolsDropdownStyle"
                     @click.stop
                   >
@@ -147,7 +147,7 @@
                           v-for="col in toggleableColumns"
                           :key="col.key"
                           @click="toggleColumn(col.key)"
-                          class="views-admin-accounts-view__action-3"
+                          class="views-admin-accounts-view__action-3 dropdown-item"
                         >
                           <span class="views-admin-accounts-view__text-9">{{ col.label }}</span>
                           <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="views-admin-accounts-view__icon" />

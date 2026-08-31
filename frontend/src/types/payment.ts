@@ -75,15 +75,6 @@ export type RefundStatus =
   | 'SUCCEEDED'
   | 'FAILED'
 
-export type RefundTicketStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'REJECTED'
-  | 'CANCELLED'
-
 export interface RefundQuote {
   order_id: string
   currency: 'CNY' | string
@@ -126,23 +117,6 @@ export interface PaymentRefund {
   submitted_at?: string
   settled_at?: string
   created_at: string
-}
-
-export interface RefundTicket {
-  id: string
-  order_id: string
-  user_id: string
-  refund_id?: string
-  status: RefundTicketStatus | string
-  comment: string
-  approved_principal_amount?: number
-  reviewer_id?: string
-  review_note?: string
-  affiliate_action?: 'MANUAL' | string
-  reviewed_at?: string
-  completed_at?: string
-  created_at: string
-  updated_at: string
 }
 
 /** Response from /payment/checkout-info API — single call for the payment page */
@@ -270,6 +244,10 @@ export interface SubscriptionPlan {
   features: string[]
   for_sale: boolean
   sort_order: number
+  stock_enabled?: boolean
+  stock_quantity?: number | null
+  stock_frozen?: number
+  stock_available?: number | null
 }
 
 export interface PaymentChannel {
@@ -368,6 +346,8 @@ export interface CreateOrderResult {
   oauth?: WechatOAuthInfo
   jsapi?: WechatJSAPIPayload
   jsapi_payload?: WechatJSAPIPayload
+  activation_status?: 'active' | 'pending'
+  pending_subscription?: import('./index').PendingSubscription
 }
 
 export type CurrencyAmounts = Record<string, number>

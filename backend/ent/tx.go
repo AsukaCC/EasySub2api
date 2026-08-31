@@ -64,6 +64,8 @@ type Tx struct {
 	PaymentRefund *PaymentRefundClient
 	// PendingAuthSession is the client for interacting with the PendingAuthSession builders.
 	PendingAuthSession *PendingAuthSessionClient
+	// PendingSubscription is the client for interacting with the PendingSubscription builders.
+	PendingSubscription *PendingSubscriptionClient
 	// PromoCode is the client for interacting with the PromoCode builders.
 	PromoCode *PromoCodeClient
 	// PromoCodeUsage is the client for interacting with the PromoCodeUsage builders.
@@ -72,14 +74,18 @@ type Tx struct {
 	Proxy *ProxyClient
 	// RedeemCode is the client for interacting with the RedeemCode builders.
 	RedeemCode *RedeemCodeClient
-	// RefundTicket is the client for interacting with the RefundTicket builders.
-	RefundTicket *RefundTicketClient
 	// SecuritySecret is the client for interacting with the SecuritySecret builders.
 	SecuritySecret *SecuritySecretClient
 	// Setting is the client for interacting with the Setting builders.
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// SupportTicket is the client for interacting with the SupportTicket builders.
+	SupportTicket *SupportTicketClient
+	// SupportTicketMessage is the client for interacting with the SupportTicketMessage builders.
+	SupportTicketMessage *SupportTicketMessageClient
+	// SupportTicketRead is the client for interacting with the SupportTicketRead builders.
+	SupportTicketRead *SupportTicketReadClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
@@ -254,14 +260,17 @@ func (tx *Tx) init() {
 	tx.PaymentProviderInstance = NewPaymentProviderInstanceClient(tx.config)
 	tx.PaymentRefund = NewPaymentRefundClient(tx.config)
 	tx.PendingAuthSession = NewPendingAuthSessionClient(tx.config)
+	tx.PendingSubscription = NewPendingSubscriptionClient(tx.config)
 	tx.PromoCode = NewPromoCodeClient(tx.config)
 	tx.PromoCodeUsage = NewPromoCodeUsageClient(tx.config)
 	tx.Proxy = NewProxyClient(tx.config)
 	tx.RedeemCode = NewRedeemCodeClient(tx.config)
-	tx.RefundTicket = NewRefundTicketClient(tx.config)
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
 	tx.SubscriptionPlan = NewSubscriptionPlanClient(tx.config)
+	tx.SupportTicket = NewSupportTicketClient(tx.config)
+	tx.SupportTicketMessage = NewSupportTicketMessageClient(tx.config)
+	tx.SupportTicketRead = NewSupportTicketReadClient(tx.config)
 	tx.TLSFingerprintProfile = NewTLSFingerprintProfileClient(tx.config)
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)
 	tx.UsageLog = NewUsageLogClient(tx.config)

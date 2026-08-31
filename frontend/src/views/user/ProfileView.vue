@@ -2,7 +2,7 @@
   <AppLayout>
     <div
       data-testid="profile-shell"
-      class="views-user-profile-view__panel"
+      class="page-stack page-stack--medium"
     >
       <ProfileInfoCard
         :user="user"
@@ -16,7 +16,7 @@
 
       <div
         v-if="contactInfo"
-        class="views-user-profile-view__panel-2 card"
+        class="views-user-profile-view__panel-2 card-body card"
       >
         <div class="views-user-profile-view__panel-3">
           <div class="views-user-profile-view__panel-4">

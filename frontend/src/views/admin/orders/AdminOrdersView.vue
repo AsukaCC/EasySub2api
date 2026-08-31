@@ -1,17 +1,6 @@
 <template>
   <AppLayout>
-    <nav class="admin-orders-workspace-tabs" :aria-label="t('payment.admin.workspaceLabel')">
-      <button :class="{ active: activeWorkspace === 'orders' }" @click="activeWorkspace = 'orders'">
-        <Icon name="creditCard" size="sm" />
-        {{ t('payment.admin.ordersWorkspace') }}
-      </button>
-      <button :class="{ active: activeWorkspace === 'refund-tickets' }" @click="activeWorkspace = 'refund-tickets'">
-        <Icon name="clipboard" size="sm" />
-        {{ t('payment.admin.refundTickets.title') }}
-      </button>
-    </nav>
-
-    <div v-if="activeWorkspace === 'orders'" class="views-admin-orders-admin-orders-view__panel">
+    <div class="views-admin-orders-admin-orders-view__panel">
       <!-- Filters -->
       <div class="views-admin-orders-admin-orders-view__panel-2 card">
         <div class="views-admin-orders-admin-orders-view__panel-3">
@@ -69,8 +58,6 @@
       </OrderTable>
       <Pagination v-if="orderPagination.total > 0" :page="orderPagination.page" :total="orderPagination.total" :page-size="orderPagination.page_size" @update:page="handleOrderPageChange" @update:pageSize="handleOrderPageSizeChange" />
     </div>
-
-    <AdminRefundTicketsPanel v-else />
 
     <!-- Order Detail Dialog -->
     <BaseDialog :show="showDetailDialog" :title="t('payment.admin.orderDetail')" width="wide" @close="showDetailDialog = false">
@@ -131,6 +118,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
@@ -142,7 +130,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AdminRefundDialog from '@/components/admin/payment/AdminRefundDialog.vue'
-import AdminRefundTicketsPanel from '@/components/admin/payment/AdminRefundTicketsPanel.vue'
+import { adminSupportTicketsAPI } from '@/api/supportTickets'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
 import { formatCNY, formatPoints } from '@/utils/format'
@@ -156,10 +144,10 @@ interface AuditLog {
 }
 
 const { t } = useI18n()
+const router = useRouter()
 const appStore = useAppStore()
 
 const ordersLoading = ref(true)
-const activeWorkspace = ref<'orders' | 'refund-tickets'>('orders')
 const orders = ref<PaymentOrder[]>([])
 const orderSearch = ref('')
 const orderFilters = reactive({ status: '', payment_type: '', order_type: '' })
@@ -262,20 +250,19 @@ async function handleRefund(data: { principal_amount: number; reason: string; id
   if (!selectedOrder.value) return
   refundSubmitting.value = true
   try {
-    const res = await adminPaymentAPI.refundOrder(
-      selectedOrder.value.id,
-      { principal_amount: data.principal_amount, reason: data.reason },
-      data.idempotency_key,
-    )
-    if (res.data.status === 'FAILED') {
-      appStore.showError(res.data.error_message || t('common.error'))
-      return
-    }
-    appStore.showSuccess(res.data.status === 'SUCCEEDED'
-      ? t('payment.admin.refundSuccess')
-      : t('payment.admin.refundPending'))
+    const res = await adminSupportTicketsAPI.createRefund({
+      order_id: selectedOrder.value.id,
+      approved_principal_amount: data.principal_amount,
+      message: data.reason,
+    })
+    const result = res.data as { ticket?: { id?: string } }
+    appStore.showSuccess(t('payment.admin.refundPending'))
     closeRefundDialog()
-    loadOrders()
+    if (result.ticket?.id) {
+      await router.push({ path: '/admin/tickets', query: { ticket: result.ticket.id } })
+    } else {
+      await loadOrders()
+    }
   } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { refundSubmitting.value = false }
 }

@@ -28,6 +28,7 @@ const (
 // SubscriptionExpiryService periodically updates expired subscription status.
 type SubscriptionExpiryService struct {
 	userSubRepo              UserSubscriptionRepository
+	subscriptionService      *SubscriptionService
 	settingRepo              SettingRepository
 	notificationEmailService *NotificationEmailService
 	interval                 time.Duration
@@ -69,6 +70,10 @@ func (s *SubscriptionExpiryService) SetSettingRepository(settingRepo SettingRepo
 
 func (s *SubscriptionExpiryService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
 	s.notificationEmailService = notificationEmailService
+}
+
+func (s *SubscriptionExpiryService) SetSubscriptionService(subscriptionService *SubscriptionService) {
+	s.subscriptionService = subscriptionService
 }
 
 func (s *SubscriptionExpiryService) Start() {
@@ -114,6 +119,14 @@ func (s *SubscriptionExpiryService) runOnce() {
 	}
 	if updated > 0 {
 		log.Printf("[SubscriptionExpiry] Updated %v expired subscriptions", updated)
+	}
+	if s.subscriptionService != nil {
+		activated, activationErr := s.subscriptionService.ActivateDuePendingSubscriptions(ctx, 100)
+		if activationErr != nil {
+			log.Printf("[SubscriptionExpiry] Activate pending subscriptions failed: %v", activationErr)
+		} else if activated > 0 {
+			log.Printf("[SubscriptionExpiry] Activated %v pending subscriptions", activated)
+		}
 	}
 	s.sendExpiryReminders(ctx)
 }

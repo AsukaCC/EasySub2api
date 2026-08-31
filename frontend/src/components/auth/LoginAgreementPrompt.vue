@@ -61,9 +61,9 @@
     <Transition name="agreement-fade">
       <div
         v-if="dialogVisible"
-        class="components-auth-login-agreement-prompt__panel-6"
+        class="components-auth-login-agreement-prompt__panel-6 modal-overlay"
       >
-        <div class="components-auth-login-agreement-prompt__panel-7">
+        <div class="components-auth-login-agreement-prompt__panel-7 modal-content">
           <div class="components-auth-login-agreement-prompt__panel-8">
             <div class="components-auth-login-agreement-prompt__panel-9">
               <span class="components-auth-login-agreement-prompt__text">

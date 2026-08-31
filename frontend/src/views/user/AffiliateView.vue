@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="views-user-affiliate-view__panel">
+    <div class="page-stack">
       <div v-if="loading" class="views-user-affiliate-view__panel-2">
         <div
           class="views-user-affiliate-view__panel-3"
@@ -44,7 +44,7 @@
           </div>
         </div>
 
-        <div class="views-user-affiliate-view__panel-6 card">
+        <div class="views-user-affiliate-view__panel-6 card-body card">
           <h3 class="views-user-affiliate-view__heading">{{ t('affiliate.title') }}</h3>
           <p class="views-user-affiliate-view__description-8">{{ t('affiliate.description') }}</p>
 
@@ -83,7 +83,7 @@
           </div>
         </div>
 
-        <div class="views-user-affiliate-view__panel-6 card">
+        <div class="views-user-affiliate-view__panel-6 card-body card">
           <div class="views-user-affiliate-view__panel-11">
             <div>
               <h3 class="views-user-affiliate-view__heading">{{ t('affiliate.transfer.title') }}</h3>
@@ -104,9 +104,9 @@
           </p>
         </div>
 
-        <div class="views-user-affiliate-view__panel-6 card">
+        <div class="views-user-affiliate-view__panel-6 card-body card">
           <h3 class="views-user-affiliate-view__heading">{{ t('affiliate.invitees.title') }}</h3>
-          <div v-if="detail.invitees.length === 0" class="views-user-affiliate-view__panel-12">
+          <div v-if="detail.invitees.length === 0" class="views-user-affiliate-view__panel-12 card-body">
             {{ t('affiliate.invitees.empty') }}
           </div>
           <div v-else class="views-user-affiliate-view__panel-13">

@@ -34,6 +34,16 @@ function onLeave() {
   closeTooltip()
 }
 
+function onFocusIn() {
+  if (props.trigger !== 'hover') return
+  openTooltip()
+}
+
+function onFocusOut() {
+  if (props.trigger !== 'hover') return
+  closeTooltip()
+}
+
 function onClick(event: MouseEvent) {
   if (props.trigger !== 'click') return
   event.stopPropagation()
@@ -69,8 +79,8 @@ function updatePosition() {
   if (!el) return
   const rect = el.getBoundingClientRect()
   tooltipStyle.value = {
-    top: `${rect.top + window.scrollY}px`,
-    left: `${rect.left + rect.width / 2 + window.scrollX}px`,
+    top: `${rect.top}px`,
+    left: `${rect.left + rect.width / 2}px`,
   }
 }
 
@@ -93,8 +103,11 @@ onBeforeUnmount(() => {
   <div
     ref="trigger"
     class="help-tooltip"
+    tabindex="0"
     @mouseenter="onEnter"
     @mouseleave="onLeave"
+    @focusin="onFocusIn"
+    @focusout="onFocusOut"
     @click="onClick"
   >
     <!-- Trigger Icon -->
@@ -121,7 +134,7 @@ onBeforeUnmount(() => {
         v-show="show"
         role="tooltip"
         :class="[
-          'help-tooltip-popover',
+          'help-tooltip-popover glass-popover',
           props.widthClass,
         ]"
         :style="{ top: `calc(${tooltipStyle.top} - 8px)`, left: tooltipStyle.left }"

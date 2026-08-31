@@ -14,54 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReviewRefundTicketClaimsApprovalAmountOnce(t *testing.T) {
-	ctx := context.Background()
-	client := newPaymentConfigServiceTestClient(t)
-	ticket, err := client.RefundTicket.Create().
-		SetOrderID("01991f17-b421-7e42-884f-e66c2c6d4331").
-		SetUserID("01991f18-c16b-74fd-8684-22f77d5f9f2a").
-		SetStatus(RefundTicketStatusPending).
-		Save(ctx)
-	require.NoError(t, err)
-
-	svc := &PaymentService{entClient: client}
-	firstAmount := 25.0
-	_, err = svc.ReviewRefundTicket(ctx, ReviewRefundTicketInput{
-		TicketID: ticket.ID, ReviewerID: "01991f1a-e3bd-762b-abfb-0cb600ff4513",
-		Decision: "APPROVE", ApprovedPrincipalAmount: &firstAmount, ReviewNote: "first approval",
-	})
-	require.Error(t, err)
-	require.NotEqual(t, "REFUND_TICKET_APPROVAL_CONFLICT", infraerrors.Reason(err), "the first approval must claim the amount before processing continues")
-
-	claimed, err := client.RefundTicket.Get(ctx, ticket.ID)
-	require.NoError(t, err)
-	require.Equal(t, RefundTicketStatusApproved, claimed.Status)
-	require.NotNil(t, claimed.ApprovedPrincipalAmount)
-	require.Equal(t, firstAmount, *claimed.ApprovedPrincipalAmount)
-	require.Equal(t, "first approval", claimed.ReviewNote)
-
-	conflictingAmount := 30.0
-	_, err = svc.ReviewRefundTicket(ctx, ReviewRefundTicketInput{
-		TicketID: ticket.ID, ReviewerID: "01991f1b-99bc-7651-852e-6f03f6e989ba",
-		Decision: "APPROVE", ApprovedPrincipalAmount: &conflictingAmount, ReviewNote: "second approval",
-	})
-	require.Error(t, err)
-	require.Equal(t, "REFUND_TICKET_APPROVAL_CONFLICT", infraerrors.Reason(err))
-
-	replayed, err := svc.ReviewRefundTicket(ctx, ReviewRefundTicketInput{
-		TicketID: ticket.ID, ReviewerID: "01991f1b-99bc-7651-852e-6f03f6e989ba",
-		Decision: "APPROVE", ApprovedPrincipalAmount: &firstAmount, ReviewNote: "ignored replay note",
-	})
-	require.Nil(t, replayed)
-	require.Error(t, err)
-	require.NotEqual(t, "REFUND_TICKET_APPROVAL_CONFLICT", infraerrors.Reason(err), "same-amount replay must pass approval compatibility and resume processing")
-
-	claimed, err = client.RefundTicket.Get(ctx, ticket.ID)
-	require.NoError(t, err)
-	require.Equal(t, firstAmount, *claimed.ApprovedPrincipalAmount)
-	require.Equal(t, "first approval", claimed.ReviewNote)
-}
-
 func TestFailPaymentRefundKeepsExplicitFailureStatusAfterPartialRefund(t *testing.T) {
 	client := newPaymentConfigServiceTestClient(t)
 	now := time.Now().UTC()
@@ -125,13 +77,6 @@ func TestPreparePaymentRefundValidatesPrincipalBeforeFingerprinting(t *testing.T
 			require.Equal(t, "INVALID_AMOUNT", infraerrors.Reason(err))
 		})
 	}
-}
-
-func TestFailedTicketRefundConvergesFromApprovedOrProcessing(t *testing.T) {
-	require.ElementsMatch(t,
-		[]string{RefundTicketStatusApproved, RefundTicketStatusProcessing},
-		refundTicketFailureSourceStatuses(),
-	)
 }
 
 func TestAdminDirectRefundUsesSameSevenDayWindowAsSelfService(t *testing.T) {

@@ -13,68 +13,68 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
-	"github.com/AsukaCC/EasySub2api/ent/refundticket"
+	"github.com/AsukaCC/EasySub2api/ent/supportticketmessage"
 )
 
-// RefundTicketQuery is the builder for querying RefundTicket entities.
-type RefundTicketQuery struct {
+// SupportTicketMessageQuery is the builder for querying SupportTicketMessage entities.
+type SupportTicketMessageQuery struct {
 	config
 	ctx        *QueryContext
-	order      []refundticket.OrderOption
+	order      []supportticketmessage.OrderOption
 	inters     []Interceptor
-	predicates []predicate.RefundTicket
+	predicates []predicate.SupportTicketMessage
 	modifiers  []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the RefundTicketQuery builder.
-func (_q *RefundTicketQuery) Where(ps ...predicate.RefundTicket) *RefundTicketQuery {
+// Where adds a new predicate for the SupportTicketMessageQuery builder.
+func (_q *SupportTicketMessageQuery) Where(ps ...predicate.SupportTicketMessage) *SupportTicketMessageQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *RefundTicketQuery) Limit(limit int) *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) Limit(limit int) *SupportTicketMessageQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *RefundTicketQuery) Offset(offset int) *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) Offset(offset int) *SupportTicketMessageQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *RefundTicketQuery) Unique(unique bool) *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) Unique(unique bool) *SupportTicketMessageQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *RefundTicketQuery) Order(o ...refundticket.OrderOption) *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) Order(o ...supportticketmessage.OrderOption) *SupportTicketMessageQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// First returns the first RefundTicket entity from the query.
-// Returns a *NotFoundError when no RefundTicket was found.
-func (_q *RefundTicketQuery) First(ctx context.Context) (*RefundTicket, error) {
+// First returns the first SupportTicketMessage entity from the query.
+// Returns a *NotFoundError when no SupportTicketMessage was found.
+func (_q *SupportTicketMessageQuery) First(ctx context.Context) (*SupportTicketMessage, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{refundticket.Label}
+		return nil, &NotFoundError{supportticketmessage.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *RefundTicketQuery) FirstX(ctx context.Context) *RefundTicket {
+func (_q *SupportTicketMessageQuery) FirstX(ctx context.Context) *SupportTicketMessage {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -82,22 +82,22 @@ func (_q *RefundTicketQuery) FirstX(ctx context.Context) *RefundTicket {
 	return node
 }
 
-// FirstID returns the first RefundTicket ID from the query.
-// Returns a *NotFoundError when no RefundTicket ID was found.
-func (_q *RefundTicketQuery) FirstID(ctx context.Context) (id string, err error) {
+// FirstID returns the first SupportTicketMessage ID from the query.
+// Returns a *NotFoundError when no SupportTicketMessage ID was found.
+func (_q *SupportTicketMessageQuery) FirstID(ctx context.Context) (id string, err error) {
 	var ids []string
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{refundticket.Label}
+		err = &NotFoundError{supportticketmessage.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *RefundTicketQuery) FirstIDX(ctx context.Context) string {
+func (_q *SupportTicketMessageQuery) FirstIDX(ctx context.Context) string {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -105,10 +105,10 @@ func (_q *RefundTicketQuery) FirstIDX(ctx context.Context) string {
 	return id
 }
 
-// Only returns a single RefundTicket entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one RefundTicket entity is found.
-// Returns a *NotFoundError when no RefundTicket entities are found.
-func (_q *RefundTicketQuery) Only(ctx context.Context) (*RefundTicket, error) {
+// Only returns a single SupportTicketMessage entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one SupportTicketMessage entity is found.
+// Returns a *NotFoundError when no SupportTicketMessage entities are found.
+func (_q *SupportTicketMessageQuery) Only(ctx context.Context) (*SupportTicketMessage, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -117,14 +117,14 @@ func (_q *RefundTicketQuery) Only(ctx context.Context) (*RefundTicket, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{refundticket.Label}
+		return nil, &NotFoundError{supportticketmessage.Label}
 	default:
-		return nil, &NotSingularError{refundticket.Label}
+		return nil, &NotSingularError{supportticketmessage.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *RefundTicketQuery) OnlyX(ctx context.Context) *RefundTicket {
+func (_q *SupportTicketMessageQuery) OnlyX(ctx context.Context) *SupportTicketMessage {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -132,10 +132,10 @@ func (_q *RefundTicketQuery) OnlyX(ctx context.Context) *RefundTicket {
 	return node
 }
 
-// OnlyID is like Only, but returns the only RefundTicket ID in the query.
-// Returns a *NotSingularError when more than one RefundTicket ID is found.
+// OnlyID is like Only, but returns the only SupportTicketMessage ID in the query.
+// Returns a *NotSingularError when more than one SupportTicketMessage ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *RefundTicketQuery) OnlyID(ctx context.Context) (id string, err error) {
+func (_q *SupportTicketMessageQuery) OnlyID(ctx context.Context) (id string, err error) {
 	var ids []string
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -144,15 +144,15 @@ func (_q *RefundTicketQuery) OnlyID(ctx context.Context) (id string, err error) 
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{refundticket.Label}
+		err = &NotFoundError{supportticketmessage.Label}
 	default:
-		err = &NotSingularError{refundticket.Label}
+		err = &NotSingularError{supportticketmessage.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *RefundTicketQuery) OnlyIDX(ctx context.Context) string {
+func (_q *SupportTicketMessageQuery) OnlyIDX(ctx context.Context) string {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -160,18 +160,18 @@ func (_q *RefundTicketQuery) OnlyIDX(ctx context.Context) string {
 	return id
 }
 
-// All executes the query and returns a list of RefundTickets.
-func (_q *RefundTicketQuery) All(ctx context.Context) ([]*RefundTicket, error) {
+// All executes the query and returns a list of SupportTicketMessages.
+func (_q *SupportTicketMessageQuery) All(ctx context.Context) ([]*SupportTicketMessage, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*RefundTicket, *RefundTicketQuery]()
-	return withInterceptors[[]*RefundTicket](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*SupportTicketMessage, *SupportTicketMessageQuery]()
+	return withInterceptors[[]*SupportTicketMessage](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *RefundTicketQuery) AllX(ctx context.Context) []*RefundTicket {
+func (_q *SupportTicketMessageQuery) AllX(ctx context.Context) []*SupportTicketMessage {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -179,20 +179,20 @@ func (_q *RefundTicketQuery) AllX(ctx context.Context) []*RefundTicket {
 	return nodes
 }
 
-// IDs executes the query and returns a list of RefundTicket IDs.
-func (_q *RefundTicketQuery) IDs(ctx context.Context) (ids []string, err error) {
+// IDs executes the query and returns a list of SupportTicketMessage IDs.
+func (_q *SupportTicketMessageQuery) IDs(ctx context.Context) (ids []string, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(refundticket.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(supportticketmessage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *RefundTicketQuery) IDsX(ctx context.Context) []string {
+func (_q *SupportTicketMessageQuery) IDsX(ctx context.Context) []string {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -201,16 +201,16 @@ func (_q *RefundTicketQuery) IDsX(ctx context.Context) []string {
 }
 
 // Count returns the count of the given query.
-func (_q *RefundTicketQuery) Count(ctx context.Context) (int, error) {
+func (_q *SupportTicketMessageQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*RefundTicketQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*SupportTicketMessageQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *RefundTicketQuery) CountX(ctx context.Context) int {
+func (_q *SupportTicketMessageQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -219,7 +219,7 @@ func (_q *RefundTicketQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *RefundTicketQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *SupportTicketMessageQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -232,7 +232,7 @@ func (_q *RefundTicketQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *RefundTicketQuery) ExistX(ctx context.Context) bool {
+func (_q *SupportTicketMessageQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -240,18 +240,18 @@ func (_q *RefundTicketQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the RefundTicketQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the SupportTicketMessageQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *RefundTicketQuery) Clone() *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) Clone() *SupportTicketMessageQuery {
 	if _q == nil {
 		return nil
 	}
-	return &RefundTicketQuery{
+	return &SupportTicketMessageQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]refundticket.OrderOption{}, _q.order...),
+		order:      append([]supportticketmessage.OrderOption{}, _q.order...),
 		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.RefundTicket{}, _q.predicates...),
+		predicates: append([]predicate.SupportTicketMessage{}, _q.predicates...),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -264,19 +264,19 @@ func (_q *RefundTicketQuery) Clone() *RefundTicketQuery {
 // Example:
 //
 //	var v []struct {
-//		OrderID string `json:"order_id,omitempty"`
+//		TicketID string `json:"ticket_id,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.RefundTicket.Query().
-//		GroupBy(refundticket.FieldOrderID).
+//	client.SupportTicketMessage.Query().
+//		GroupBy(supportticketmessage.FieldTicketID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *RefundTicketQuery) GroupBy(field string, fields ...string) *RefundTicketGroupBy {
+func (_q *SupportTicketMessageQuery) GroupBy(field string, fields ...string) *SupportTicketMessageGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &RefundTicketGroupBy{build: _q}
+	grbuild := &SupportTicketMessageGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = refundticket.Label
+	grbuild.label = supportticketmessage.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -287,26 +287,26 @@ func (_q *RefundTicketQuery) GroupBy(field string, fields ...string) *RefundTick
 // Example:
 //
 //	var v []struct {
-//		OrderID string `json:"order_id,omitempty"`
+//		TicketID string `json:"ticket_id,omitempty"`
 //	}
 //
-//	client.RefundTicket.Query().
-//		Select(refundticket.FieldOrderID).
+//	client.SupportTicketMessage.Query().
+//		Select(supportticketmessage.FieldTicketID).
 //		Scan(ctx, &v)
-func (_q *RefundTicketQuery) Select(fields ...string) *RefundTicketSelect {
+func (_q *SupportTicketMessageQuery) Select(fields ...string) *SupportTicketMessageSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &RefundTicketSelect{RefundTicketQuery: _q}
-	sbuild.label = refundticket.Label
+	sbuild := &SupportTicketMessageSelect{SupportTicketMessageQuery: _q}
+	sbuild.label = supportticketmessage.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a RefundTicketSelect configured with the given aggregations.
-func (_q *RefundTicketQuery) Aggregate(fns ...AggregateFunc) *RefundTicketSelect {
+// Aggregate returns a SupportTicketMessageSelect configured with the given aggregations.
+func (_q *SupportTicketMessageQuery) Aggregate(fns ...AggregateFunc) *SupportTicketMessageSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *RefundTicketQuery) prepareQuery(ctx context.Context) error {
+func (_q *SupportTicketMessageQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -318,7 +318,7 @@ func (_q *RefundTicketQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !refundticket.ValidColumn(f) {
+		if !supportticketmessage.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -332,16 +332,16 @@ func (_q *RefundTicketQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *RefundTicketQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*RefundTicket, error) {
+func (_q *SupportTicketMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*SupportTicketMessage, error) {
 	var (
-		nodes = []*RefundTicket{}
+		nodes = []*SupportTicketMessage{}
 		_spec = _q.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*RefundTicket).scanValues(nil, columns)
+		return (*SupportTicketMessage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &RefundTicket{config: _q.config}
+		node := &SupportTicketMessage{config: _q.config}
 		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
 	}
@@ -360,7 +360,7 @@ func (_q *RefundTicketQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	return nodes, nil
 }
 
-func (_q *RefundTicketQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *SupportTicketMessageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -372,8 +372,8 @@ func (_q *RefundTicketQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *RefundTicketQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(refundticket.Table, refundticket.Columns, sqlgraph.NewFieldSpec(refundticket.FieldID, field.TypeString))
+func (_q *SupportTicketMessageQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(supportticketmessage.Table, supportticketmessage.Columns, sqlgraph.NewFieldSpec(supportticketmessage.FieldID, field.TypeString))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -382,9 +382,9 @@ func (_q *RefundTicketQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, refundticket.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, supportticketmessage.FieldID)
 		for i := range fields {
-			if fields[i] != refundticket.FieldID {
+			if fields[i] != supportticketmessage.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -412,12 +412,12 @@ func (_q *RefundTicketQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *RefundTicketQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *SupportTicketMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(refundticket.Table)
+	t1 := builder.Table(supportticketmessage.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = refundticket.Columns
+		columns = supportticketmessage.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -450,7 +450,7 @@ func (_q *RefundTicketQuery) sqlQuery(ctx context.Context) *sql.Selector {
 // ForUpdate locks the selected rows against concurrent updates, and prevent them from being
 // updated, deleted or "selected ... for update" by other sessions, until the transaction is
 // either committed or rolled-back.
-func (_q *RefundTicketQuery) ForUpdate(opts ...sql.LockOption) *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) ForUpdate(opts ...sql.LockOption) *SupportTicketMessageQuery {
 	if _q.driver.Dialect() == dialect.Postgres {
 		_q.Unique(false)
 	}
@@ -463,7 +463,7 @@ func (_q *RefundTicketQuery) ForUpdate(opts ...sql.LockOption) *RefundTicketQuer
 // ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
 // on any rows that are read. Other sessions can read the rows, but cannot modify them
 // until your transaction commits.
-func (_q *RefundTicketQuery) ForShare(opts ...sql.LockOption) *RefundTicketQuery {
+func (_q *SupportTicketMessageQuery) ForShare(opts ...sql.LockOption) *SupportTicketMessageQuery {
 	if _q.driver.Dialect() == dialect.Postgres {
 		_q.Unique(false)
 	}
@@ -473,28 +473,28 @@ func (_q *RefundTicketQuery) ForShare(opts ...sql.LockOption) *RefundTicketQuery
 	return _q
 }
 
-// RefundTicketGroupBy is the group-by builder for RefundTicket entities.
-type RefundTicketGroupBy struct {
+// SupportTicketMessageGroupBy is the group-by builder for SupportTicketMessage entities.
+type SupportTicketMessageGroupBy struct {
 	selector
-	build *RefundTicketQuery
+	build *SupportTicketMessageQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *RefundTicketGroupBy) Aggregate(fns ...AggregateFunc) *RefundTicketGroupBy {
+func (_g *SupportTicketMessageGroupBy) Aggregate(fns ...AggregateFunc) *SupportTicketMessageGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *RefundTicketGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *SupportTicketMessageGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*RefundTicketQuery, *RefundTicketGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*SupportTicketMessageQuery, *SupportTicketMessageGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *RefundTicketGroupBy) sqlScan(ctx context.Context, root *RefundTicketQuery, v any) error {
+func (_g *SupportTicketMessageGroupBy) sqlScan(ctx context.Context, root *SupportTicketMessageQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -521,28 +521,28 @@ func (_g *RefundTicketGroupBy) sqlScan(ctx context.Context, root *RefundTicketQu
 	return sql.ScanSlice(rows, v)
 }
 
-// RefundTicketSelect is the builder for selecting fields of RefundTicket entities.
-type RefundTicketSelect struct {
-	*RefundTicketQuery
+// SupportTicketMessageSelect is the builder for selecting fields of SupportTicketMessage entities.
+type SupportTicketMessageSelect struct {
+	*SupportTicketMessageQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *RefundTicketSelect) Aggregate(fns ...AggregateFunc) *RefundTicketSelect {
+func (_s *SupportTicketMessageSelect) Aggregate(fns ...AggregateFunc) *SupportTicketMessageSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *RefundTicketSelect) Scan(ctx context.Context, v any) error {
+func (_s *SupportTicketMessageSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*RefundTicketQuery, *RefundTicketSelect](ctx, _s.RefundTicketQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*SupportTicketMessageQuery, *SupportTicketMessageSelect](ctx, _s.SupportTicketMessageQuery, _s, _s.inters, v)
 }
 
-func (_s *RefundTicketSelect) sqlScan(ctx context.Context, root *RefundTicketQuery, v any) error {
+func (_s *SupportTicketMessageSelect) sqlScan(ctx context.Context, root *SupportTicketMessageQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

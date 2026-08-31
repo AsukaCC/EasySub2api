@@ -533,6 +533,8 @@ export default {
       group: 'Group',
       requestId: 'Request ID',
       requestIdCopied: 'Request ID copied',
+      allUsers: 'All Users',
+      allApiKeys: 'All API Keys',
       allModels: 'All Models',
       allAccounts: 'All Accounts',
       allGroups: 'All Groups',

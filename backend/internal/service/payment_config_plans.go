@@ -68,6 +68,12 @@ func validatePlanPatch(req UpdatePlanRequest) error {
 	if req.OriginalPrice != nil && *req.OriginalPrice < 0 {
 		return infraerrors.BadRequest("PLAN_ORIGINAL_PRICE_INVALID", "original price must be >= 0")
 	}
+	if req.StockQuantity != nil && *req.StockQuantity < 0 {
+		return infraerrors.BadRequest("PLAN_STOCK_INVALID", "stock quantity must be a non-negative integer")
+	}
+	if req.StockEnabled != nil && *req.StockEnabled && req.StockQuantity == nil {
+		return infraerrors.BadRequest("PLAN_STOCK_REQUIRED", "stock quantity is required when stock control is enabled")
+	}
 	return nil
 }
 
@@ -138,6 +144,9 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if err != nil {
 		return nil, err
 	}
+	if req.StockEnabled && (req.StockQuantity == nil || *req.StockQuantity < 0) {
+		return nil, infraerrors.BadRequest("PLAN_STOCK_INVALID", "a non-negative stock quantity is required")
+	}
 	b := s.entClient.SubscriptionPlan.Create().
 		SetGroupID(req.GroupID).SetName(req.Name).SetDescription(req.Description).
 		SetPrice(req.Price).SetCurrency(currency).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
@@ -145,6 +154,9 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 		SetForSale(req.ForSale).SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
+	}
+	if req.StockEnabled {
+		b.SetStockQuantity(*req.StockQuantity)
 	}
 	return b.Save(ctx)
 }
@@ -156,7 +168,23 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id string, req Up
 	if err := validatePlanPatch(req); err != nil {
 		return nil, err
 	}
-	u := s.entClient.SubscriptionPlan.UpdateOneID(id)
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin plan update transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	current, err := tx.SubscriptionPlan.Query().Where(subscriptionplan.IDEQ(id)).ForUpdate().Only(txCtx)
+	if err != nil {
+		return nil, infraerrors.NotFound("PLAN_NOT_FOUND", "subscription plan not found")
+	}
+	if req.StockEnabled != nil && *req.StockEnabled && req.StockQuantity != nil && *req.StockQuantity < current.StockFrozen {
+		return nil, infraerrors.Conflict("PLAN_STOCK_BELOW_FROZEN", "stock quantity cannot be lower than frozen stock")
+	}
+	if req.StockEnabled == nil && req.StockQuantity != nil && current.StockQuantity != nil && *req.StockQuantity < current.StockFrozen {
+		return nil, infraerrors.Conflict("PLAN_STOCK_BELOW_FROZEN", "stock quantity cannot be lower than frozen stock")
+	}
+	u := tx.SubscriptionPlan.UpdateOneID(id)
 	if req.GroupID != nil {
 		u.SetGroupID(*req.GroupID)
 	}
@@ -197,7 +225,23 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id string, req Up
 	if req.SortOrder != nil {
 		u.SetSortOrder(*req.SortOrder)
 	}
-	return u.Save(ctx)
+	if req.StockEnabled != nil {
+		if *req.StockEnabled {
+			u.SetStockQuantity(*req.StockQuantity)
+		} else {
+			u.ClearStockQuantity()
+		}
+	} else if req.StockQuantity != nil && current.StockQuantity != nil {
+		u.SetStockQuantity(*req.StockQuantity)
+	}
+	updated, err := u.Save(txCtx)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit plan update transaction: %w", err)
+	}
+	return updated, nil
 }
 
 func (s *PaymentConfigService) DeletePlan(ctx context.Context, id string) error {

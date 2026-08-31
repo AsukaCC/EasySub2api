@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/app'
 import { updateFavicon } from '@/utils/branding'
 import { isIOSDevice } from '@/utils/device'
 import { initCustomBackground } from '@/utils/customBackground'
+import { applyResolvedThemeAccent } from '@/utils/themeAccent'
 import { installPressEffect } from '@/utils/pressEffect'
 import { migrateLegacyBrowserStorage } from '@/utils/migrateLegacyStorage'
 import './styles/main.scss'
@@ -31,6 +32,7 @@ function initThemeClass() {
     savedTheme === 'dark' ||
     (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.classList.toggle('dark', shouldUseDark)
+  applyResolvedThemeAccent()
 }
 
 async function bootstrap() {
