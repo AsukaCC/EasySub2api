@@ -12,6 +12,8 @@ export interface UserLevelDashboard {
   level_multiplier?: number | null
   effective_multiplier?: number | null
   multiplier_group?: string
+  next_level_multiplier?: number | null
+  next_multiplier_group?: string
 }
 
 export async function getCurrent(): Promise<UserLevelDashboard> {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -241,15 +242,14 @@ func (h *UserHandler) List(c *gin.Context) {
 		filters.IncludeSubscriptions = &includeSubscriptions
 	}
 
-	users, total, err := h.adminService.ListUsers(c.Request.Context(), page, pageSize, filters, sortBy, sortOrder)
+	users, total, loadInfo, err := h.listUsersWithRuntimeSort(c.Request.Context(), page, pageSize, filters, sortBy, sortOrder)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
 	// Batch get current concurrency (nil map if unavailable)
-	var loadInfo map[string]*service.UserLoadInfo
-	if len(users) > 0 && h.concurrencyService != nil {
+	if loadInfo == nil && len(users) > 0 && h.concurrencyService != nil {
 		usersConcurrency := make([]service.UserWithConcurrency, len(users))
 		for i := range users {
 			usersConcurrency[i] = service.UserWithConcurrency{
@@ -272,6 +272,97 @@ func (h *UserHandler) List(c *gin.Context) {
 	}
 
 	response.Paginated(c, out, total, page, pageSize)
+}
+
+const userSortCurrentConcurrency = "current_concurrency"
+
+// listUsersWithRuntimeSort handles the one user-list value that does not live
+// in PostgreSQL. Current concurrency is stored in Redis, so sorting a DB page
+// first would produce a locally sorted page with an incorrect global order.
+// Load the filtered ID-ordered population in bounded chunks, fetch Redis loads
+// once, sort it, and only then apply the requested page.
+func (h *UserHandler) listUsersWithRuntimeSort(
+	ctx context.Context,
+	page, pageSize int,
+	filters service.UserListFilters,
+	sortBy, sortOrder string,
+) ([]service.User, int64, map[string]*service.UserLoadInfo, error) {
+	normalizedSortBy := strings.ToLower(strings.TrimSpace(sortBy))
+	// "concurrency" is the public table-column key kept for compatibility. The
+	// cell's primary value is live current concurrency; the configured maximum
+	// remains the secondary value and must not silently drive the ordering.
+	if normalizedSortBy != userSortCurrentConcurrency && normalizedSortBy != "concurrency" {
+		users, total, err := h.adminService.ListUsers(ctx, page, pageSize, filters, sortBy, sortOrder)
+		return users, total, nil, err
+	}
+
+	const chunkSize = 1000
+	allUsers := make([]service.User, 0, chunkSize)
+	for chunkPage := 1; ; chunkPage++ {
+		chunk, total, err := h.adminService.ListUsers(ctx, chunkPage, chunkSize, filters, "id", "asc")
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		allUsers = append(allUsers, chunk...)
+		if len(allUsers) >= int(total) || len(chunk) == 0 {
+			break
+		}
+	}
+
+	loadInfo := make(map[string]*service.UserLoadInfo, len(allUsers))
+	if len(allUsers) > 0 && h.concurrencyService != nil {
+		usersConcurrency := make([]service.UserWithConcurrency, len(allUsers))
+		for i := range allUsers {
+			usersConcurrency[i] = service.UserWithConcurrency{
+				ID:             allUsers[i].ID,
+				MaxConcurrency: allUsers[i].Concurrency,
+			}
+		}
+		if loaded, err := h.concurrencyService.GetUsersLoadBatch(ctx, usersConcurrency); err == nil {
+			loadInfo = loaded
+		}
+	}
+
+	desc := strings.ToLower(strings.TrimSpace(sortOrder)) != "asc"
+	sort.SliceStable(allUsers, func(i, j int) bool {
+		left, right := 0, 0
+		if info := loadInfo[allUsers[i].ID]; info != nil {
+			left = info.CurrentConcurrency
+		}
+		if info := loadInfo[allUsers[j].ID]; info != nil {
+			right = info.CurrentConcurrency
+		}
+		if left == right {
+			if desc {
+				return allUsers[i].ID > allUsers[j].ID
+			}
+			return allUsers[i].ID < allUsers[j].ID
+		}
+		if desc {
+			return left > right
+		}
+		return left < right
+	})
+
+	total := int64(len(allUsers))
+	limit := pageSize
+	if limit < 1 {
+		limit = 20
+	} else if limit > 1000 {
+		limit = 1000
+	}
+	if page < 1 {
+		page = 1
+	}
+	start := (page - 1) * limit
+	if start >= len(allUsers) {
+		return []service.User{}, total, loadInfo, nil
+	}
+	end := start + limit
+	if end > len(allUsers) {
+		end = len(allUsers)
+	}
+	return allUsers[start:end], total, loadInfo, nil
 }
 
 // parseAttributeFilters extracts attribute filters from query params

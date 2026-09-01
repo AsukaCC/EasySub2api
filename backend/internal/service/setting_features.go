@@ -127,13 +127,11 @@ func (s *SettingService) IsPromoCodeEnabled(ctx context.Context) bool {
 	return value != "false"
 }
 
-// IsInvitationCodeEnabled 检查是否启用邀请码注册功能
+// IsInvitationCodeEnabled is retained for old clients. Registration access
+// codes have been retired; affiliate codes are now the only invitation codes.
 func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeEnabled)
-	if err != nil {
-		return false // 默认关闭
-	}
-	return value == "true"
+	_ = ctx
+	return false
 }
 
 // GetCustomMenuItemsRaw returns the raw JSON string of custom_menu_items setting.
@@ -177,6 +175,16 @@ func (s *SettingService) GetAffiliateRebateRatePercent(ctx context.Context) floa
 		return AffiliateRebateRateDefault
 	}
 	return clampAffiliateRebateRate(rate)
+}
+
+// GetAffiliateRebateRecipient returns who receives newly accrued rebates.
+// Historical rebates keep their original recipient in the affiliate ledger.
+func (s *SettingService) GetAffiliateRebateRecipient(ctx context.Context) string {
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateRebateRecipient)
+	if err != nil {
+		return AffiliateRebateRecipientDefault
+	}
+	return NormalizeAffiliateRebateRecipient(raw)
 }
 
 // GetAffiliateRebateFreezeHours keeps the legacy setting accessor while the

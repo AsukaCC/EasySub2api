@@ -40,10 +40,15 @@ SELECT ua.user_id,
 FROM user_affiliates ua
 JOIN users u ON u.id = ua.user_id
 LEFT JOIN (
-    SELECT user_id, COUNT(DISTINCT source_user_id)::integer AS rebated_invitee_count
-    FROM user_affiliate_ledger
-    WHERE action = 'accrue' AND source_user_id IS NOT NULL
-    GROUP BY user_id
+    SELECT source_aff.inviter_id AS user_id,
+           COUNT(DISTINCT ledger.source_user_id)::integer AS rebated_invitee_count
+    FROM user_affiliate_ledger ledger
+    JOIN user_affiliates source_aff ON source_aff.user_id = ledger.source_user_id
+    WHERE ledger.action = 'accrue'
+      AND ledger.source_user_id IS NOT NULL
+      AND source_aff.inviter_id IS NOT NULL
+      AND ledger.user_id IN (source_aff.inviter_id, source_aff.user_id)
+    GROUP BY source_aff.inviter_id
 ) rebated ON rebated.user_id = ua.user_id
 LEFT JOIN (
     SELECT user_id,
@@ -412,8 +417,8 @@ SELECT ua.user_id,
 FROM user_affiliates ua
 LEFT JOIN users u ON u.id = ua.user_id
 LEFT JOIN user_affiliate_ledger ual
-       ON ual.user_id = $1
-      AND ual.source_user_id = ua.user_id
+       ON ual.source_user_id = ua.user_id
+      AND ual.user_id IN ($1, ua.user_id)
       AND ual.action = 'accrue'
 WHERE ua.inviter_id = $1
 GROUP BY ua.user_id, u.email, u.username, ua.created_at
@@ -481,8 +486,8 @@ JOIN users invitee ON invitee.id = ua.user_id
 JOIN users inviter ON inviter.id = ua.inviter_id
 JOIN user_affiliates inviter_aff ON inviter_aff.user_id = ua.inviter_id
 LEFT JOIN user_affiliate_ledger ual
-       ON ual.user_id = ua.inviter_id
-      AND ual.source_user_id = ua.user_id
+       ON ual.source_user_id = ua.user_id
+      AND ual.user_id IN (ua.inviter_id, ua.user_id)
       AND ual.action = 'accrue'
 `+where+`
 GROUP BY ua.inviter_id, inviter.email, inviter.username, ua.user_id, invitee.email, invitee.username, inviter_aff.aff_code, ua.created_at
@@ -520,14 +525,16 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 func (r *affiliateRepository) ListAffiliateRebateRecords(ctx context.Context, filter service.AffiliateRecordFilter) ([]service.AffiliateRebateRecord, int64, error) {
 	client := clientFromContext(ctx, r.client)
 	where, args := buildAffiliateRecordWhere(filter, "ual.created_at", []string{
-		"inviter.email", "inviter.username", "invitee.email", "invitee.username",
+		"inviter.email", "inviter.username", "invitee.email", "invitee.username", "recipient.email", "recipient.username",
 		"po.id::text", "po.out_trade_no", "po.payment_type", "po.status",
 	})
 	baseJoin := `
 FROM user_affiliate_ledger ual
 JOIN payment_orders po ON po.id = ual.source_order_id
 JOIN users invitee ON invitee.id = ual.source_user_id
-JOIN users inviter ON inviter.id = ual.user_id
+LEFT JOIN user_affiliates invitee_affiliate ON invitee_affiliate.user_id = invitee.id
+LEFT JOIN users inviter ON inviter.id = invitee_affiliate.inviter_id
+JOIN users recipient ON recipient.id = ual.user_id
 WHERE ual.action = 'accrue'
   AND ual.source_order_id IS NOT NULL`
 	if where != "" {
@@ -543,6 +550,7 @@ WHERE ual.action = 'accrue'
 		"order":             "po.id",
 		"inviter":           "inviter.email",
 		"invitee":           "invitee.email",
+		"recipient":         "recipient.email",
 		"order_amount":      "po.amount",
 		"pay_amount":        "po.pay_amount",
 		"rebate_amount":     "ual.amount",
@@ -556,12 +564,16 @@ WHERE ual.action = 'accrue'
 	rows, err := client.QueryContext(ctx, `
 SELECT po.id,
        po.out_trade_no,
-       ual.user_id,
+       COALESCE(inviter.id, ual.user_id),
        COALESCE(inviter.email, ''),
        COALESCE(inviter.username, ''),
        ual.source_user_id,
        COALESCE(invitee.email, ''),
        COALESCE(invitee.username, ''),
+       ual.user_id,
+       COALESCE(recipient.email, ''),
+       COALESCE(recipient.username, ''),
+       CASE WHEN ual.user_id = ual.source_user_id THEN 'invitee' ELSE 'inviter' END,
        po.amount::double precision,
        po.pay_amount::double precision,
        ual.amount::double precision,
@@ -591,6 +603,10 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 			&item.InviteeID,
 			&item.InviteeEmail,
 			&item.InviteeUsername,
+			&item.RecipientID,
+			&item.RecipientEmail,
+			&item.RecipientUsername,
+			&item.RebateRecipient,
 			&item.OrderAmount,
 			&item.PayAmount,
 			&item.RebateAmount,
@@ -859,9 +875,11 @@ SELECT user_id,
            ), 0),
            0
        )::double precision,
-       aff_frozen_quota::double precision,
-       aff_history_quota::double precision,
-       created_at,
+	       aff_frozen_quota::double precision,
+	       aff_history_quota::double precision,
+	       aff_code_regeneration_period_start,
+	       aff_code_regeneration_count,
+	       created_at,
        updated_at
 FROM user_affiliates
 WHERE user_id = $1`, userID)
@@ -879,6 +897,7 @@ WHERE user_id = $1`, userID)
 	var out service.AffiliateSummary
 	var inviterID sql.NullString
 	var rebateRate sql.NullFloat64
+	var regenerationPeriodStart sql.NullTime
 	if err := rows.Scan(
 		&out.UserID,
 		&out.AffCode,
@@ -889,6 +908,8 @@ WHERE user_id = $1`, userID)
 		&out.AffQuota,
 		&out.AffFrozenQuota,
 		&out.AffHistoryQuota,
+		&regenerationPeriodStart,
+		&out.AffCodeRegenerationCount,
 		&out.CreatedAt,
 		&out.UpdatedAt,
 	); err != nil {
@@ -900,6 +921,10 @@ WHERE user_id = $1`, userID)
 	if rebateRate.Valid {
 		v := rebateRate.Float64
 		out.AffRebateRatePercent = &v
+	}
+	if regenerationPeriodStart.Valid {
+		v := regenerationPeriodStart.Time
+		out.AffCodeRegenerationPeriodStart = &v
 	}
 	return &out, nil
 }
@@ -920,9 +945,11 @@ SELECT user_id,
            ), 0),
            0
        )::double precision,
-       aff_frozen_quota::double precision,
-       aff_history_quota::double precision,
-       created_at,
+	       aff_frozen_quota::double precision,
+	       aff_history_quota::double precision,
+	       aff_code_regeneration_period_start,
+	       aff_code_regeneration_count,
+	       created_at,
        updated_at
 FROM user_affiliates
 WHERE aff_code = $1
@@ -942,6 +969,7 @@ LIMIT 1`, strings.ToUpper(strings.TrimSpace(code)))
 	var out service.AffiliateSummary
 	var inviterID sql.NullString
 	var rebateRate sql.NullFloat64
+	var regenerationPeriodStart sql.NullTime
 	if err := rows.Scan(
 		&out.UserID,
 		&out.AffCode,
@@ -952,6 +980,8 @@ LIMIT 1`, strings.ToUpper(strings.TrimSpace(code)))
 		&out.AffQuota,
 		&out.AffFrozenQuota,
 		&out.AffHistoryQuota,
+		&regenerationPeriodStart,
+		&out.AffCodeRegenerationCount,
 		&out.CreatedAt,
 		&out.UpdatedAt,
 	); err != nil {
@@ -963,6 +993,10 @@ LIMIT 1`, strings.ToUpper(strings.TrimSpace(code)))
 	if rebateRate.Valid {
 		v := rebateRate.Float64
 		out.AffRebateRatePercent = &v
+	}
+	if regenerationPeriodStart.Valid {
+		v := regenerationPeriodStart.Time
+		out.AffCodeRegenerationPeriodStart = &v
 	}
 	return &out, nil
 }
@@ -1131,6 +1165,88 @@ WHERE user_id = $2`, candidate, userID)
 		return "", err
 	}
 	return newCode, nil
+}
+
+// RegenerateUserAffCode lets a user replace their own system-generated invite
+// code while atomically enforcing a per-period limit. Admin resets use the
+// separate ResetUserAffCode path and therefore do not consume this allowance.
+func (r *affiliateRepository) RegenerateUserAffCode(
+	ctx context.Context,
+	userID string,
+	periodStart time.Time,
+	limit int,
+) (string, int, error) {
+	if userID == "" {
+		return "", 0, service.ErrUserNotFound
+	}
+	if limit <= 0 {
+		return "", 0, service.ErrAffiliateCodeRegenerationLimit
+	}
+
+	var newCode string
+	var used int
+	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		if _, err := ensureUserAffiliateWithClient(txCtx, txClient, userID); err != nil {
+			return err
+		}
+
+		for i := 0; i < affiliateCodeMaxAttempts; i++ {
+			candidate, codeErr := generateAffiliateCode()
+			if codeErr != nil {
+				return codeErr
+			}
+
+			rows, err := txClient.QueryContext(txCtx, `
+UPDATE user_affiliates
+SET aff_code = $1,
+    aff_code_custom = false,
+    aff_code_regeneration_count = CASE
+        WHEN aff_code_regeneration_period_start = $3 THEN aff_code_regeneration_count + 1
+        ELSE 1
+    END,
+    aff_code_regeneration_period_start = $3,
+    updated_at = NOW()
+WHERE user_id = $2
+  AND (
+      aff_code_regeneration_period_start IS DISTINCT FROM $3
+      OR aff_code_regeneration_count < $4
+  )
+RETURNING aff_code_regeneration_count`, candidate, userID, periodStart, limit)
+			if err != nil {
+				if isAffiliateUniqueViolation(err) {
+					continue
+				}
+				return fmt.Errorf("regenerate aff_code: %w", err)
+			}
+
+			hasRow := rows.Next()
+			if hasRow {
+				if err := rows.Scan(&used); err != nil {
+					_ = rows.Close()
+					return fmt.Errorf("scan regenerated aff_code usage: %w", err)
+				}
+			}
+			rowsErr := rows.Err()
+			_ = rows.Close()
+			if rowsErr != nil {
+				if isAffiliateUniqueViolation(rowsErr) {
+					continue
+				}
+				return fmt.Errorf("regenerate aff_code: %w", rowsErr)
+			}
+			if !hasRow {
+				return service.ErrAffiliateCodeRegenerationLimit
+			}
+
+			newCode = candidate
+			return nil
+		}
+		return fmt.Errorf("regenerate aff_code: exhausted attempts")
+	})
+	if err != nil {
+		return "", 0, err
+	}
+	return newCode, used, nil
 }
 
 // SetUserRebateRate 设置或清除用户专属返利比例。ratePercent==nil 表示清除（沿用全局）。

@@ -13,7 +13,8 @@
   h3 { margin: 1.5rem 0 0.75rem; font-size: var(--font-size-xl); }
   h4 { margin: 1.25rem 0 0.5rem; font-size: var(--font-size-lg); }
   p { margin: 0 0 1rem; }
-  a { color: var(--color-primary-hover); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+  a { color: var(--color-text-link); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--color-text-link-hover); }
   ul, ol { margin: 0 0 1rem 1.5rem; }
   li { padding-left: 0.5rem; }
   blockquote { margin: 1.25rem 0; padding: 0.75rem 1rem 0.75rem 1.25rem; border-left: 4px solid var(--color-primary); background: var(--color-primary-subtle); font-style: italic; }

@@ -7,6 +7,82 @@
       </div>
 
       <template v-else-if="stats">
+        <!-- Account weekly quota -->
+        <section class="quota-dashboard card">
+          <div class="quota-dashboard__header">
+            <div>
+              <h2 class="quota-dashboard__title">{{ t('admin.dashboard.accountQuotaTitle') }}</h2>
+              <p class="quota-dashboard__hint">{{ t('admin.dashboard.accountQuotaHint') }}</p>
+            </div>
+            <button type="button" class="btn btn-secondary" :disabled="quotaLoading" @click="loadAccountQuotas">
+              <LoadingSpinner v-if="quotaLoading" size="sm" />
+              <span v-else>{{ t('common.refresh') }}</span>
+            </button>
+          </div>
+          <div v-if="quotaLoading && !quotaDashboard" class="quota-dashboard__loading">
+            <LoadingSpinner />
+          </div>
+          <div v-else-if="quotaDashboard?.platforms.length" class="quota-dashboard__platforms">
+            <article v-for="platform in quotaDashboard.platforms" :key="platform.platform" class="quota-platform">
+              <div class="quota-platform__header">
+                <div>
+                  <h3 class="quota-platform__title">{{ platformLabel(platform.platform) }}</h3>
+                  <span class="quota-platform__meta">
+                    {{ platform.summary.enabled_account_count }} {{ t('admin.dashboard.quotaEnabledAccounts') }} ·
+                    {{ platform.summary.unknown_account_count }} {{ t('admin.dashboard.quotaUnknownAccounts') }}
+                  </span>
+                </div>
+                <div class="quota-platform__total">
+                  <span>{{ quotaEstimateLabel(platform.summary.coverage_complete) }}</span>
+                  <strong>{{ formatQuotaPoints(platform.summary.estimated_total_points) }}</strong>
+                </div>
+              </div>
+              <div v-if="platform.summary.estimated_total_points > 0" class="quota-bar" :aria-label="t('admin.dashboard.accountQuotaTitle')">
+                <span class="quota-bar__used" :style="barStyle(platform.summary.used_percent)" />
+                <span class="quota-bar__available" :style="barStyle(platform.summary.available_percent)" />
+                <span class="quota-bar__limited" :style="barStyle(platform.summary.rate_limited_percent)" />
+              </div>
+              <div v-else class="quota-bar quota-bar--empty" />
+              <div class="quota-legend">
+                <span><i class="quota-legend__dot quota-legend__dot--used" />{{ t('admin.dashboard.quotaUsed') }} {{ formatQuotaPoints(platform.summary.used_points) }}</span>
+                <span><i class="quota-legend__dot quota-legend__dot--available" />{{ t('admin.dashboard.quotaAvailable') }} {{ formatQuotaPoints(platform.summary.available_points) }}</span>
+                <span><i class="quota-legend__dot quota-legend__dot--limited" />{{ t('admin.dashboard.quotaRateLimited') }} {{ formatQuotaPoints(platform.summary.rate_limited_points) }}</span>
+                <span v-if="platform.summary.unknown_account_count" class="quota-legend__unknown">
+                  <i class="quota-legend__dot quota-legend__dot--unknown" />
+                  {{ platform.summary.unknown_account_count }} {{ t('admin.dashboard.quotaUnknownAccounts') }}
+                </span>
+              </div>
+              <div class="quota-groups">
+                <div v-for="group in platform.groups" :key="`${platform.platform}-${group.id}`" class="quota-group">
+                  <div class="quota-group__header">
+                    <span class="quota-group__name">{{ group.name }}</span>
+                    <span class="quota-group__summary">
+                      <template v-if="group.summary.enabled_account_count">
+                        {{ formatQuotaPoints(group.summary.estimated_total_points) }} ·
+                        {{ group.summary.enabled_account_count }} {{ t('admin.dashboard.quotaAccounts') }}
+                      </template>
+                      <template v-else>{{ t('admin.dashboard.quotaEmptyGroup') }}</template>
+                    </span>
+                    <span v-if="group.summary.unknown_account_count" class="quota-group__unknown">
+                      {{ group.summary.unknown_account_count }} {{ t('admin.dashboard.quotaUnknown') }}
+                    </span>
+                  </div>
+                  <div v-if="group.summary.estimated_total_points > 0" class="quota-bar quota-bar--group">
+                    <span class="quota-bar__used" :style="barStyle(group.summary.used_percent)" />
+                    <span class="quota-bar__available" :style="barStyle(group.summary.available_percent)" />
+                    <span class="quota-bar__limited" :style="barStyle(group.summary.rate_limited_percent)" />
+                  </div>
+                  <div v-else class="quota-bar quota-bar--group quota-bar--empty" />
+                </div>
+              </div>
+            </article>
+          </div>
+          <p v-else class="quota-dashboard__empty">{{ t('admin.dashboard.quotaNoGroups') }}</p>
+          <p v-if="quotaDashboard?.latest_observed_at" class="quota-dashboard__updated">
+            {{ t('admin.dashboard.quotaLastObserved') }}: {{ formatQuotaReset(quotaDashboard.latest_observed_at) }}
+          </p>
+        </section>
+
         <!-- Row 1: Core Stats -->
         <div class="views-admin-dashboard-view__panel-3">
           <!-- Total API Keys -->
@@ -94,97 +170,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Account weekly quota -->
-        <section class="quota-dashboard card">
-          <div class="quota-dashboard__header">
-            <div>
-              <h2 class="quota-dashboard__title">{{ t('admin.dashboard.accountQuotaTitle') }}</h2>
-              <p class="quota-dashboard__hint">{{ t('admin.dashboard.accountQuotaHint') }}</p>
-            </div>
-            <button type="button" class="btn btn-secondary" :disabled="quotaLoading" @click="loadAccountQuotas">
-              <LoadingSpinner v-if="quotaLoading" size="sm" />
-              <span v-else>{{ t('common.refresh') }}</span>
-            </button>
-          </div>
-          <div v-if="quotaLoading && !quotaDashboard" class="quota-dashboard__loading">
-            <LoadingSpinner />
-          </div>
-          <div v-else-if="quotaDashboard?.platforms.length" class="quota-dashboard__platforms">
-            <article v-for="platform in quotaDashboard.platforms" :key="platform.platform" class="quota-platform">
-              <div class="quota-platform__header">
-                <div>
-                  <h3 class="quota-platform__title">{{ platformLabel(platform.platform) }}</h3>
-                  <span class="quota-platform__meta">
-                    {{ platform.summary.account_count }} {{ t('admin.dashboard.quotaAccounts') }} ·
-                    {{ platform.summary.rate_limited_count }} {{ t('admin.dashboard.quotaRateLimited') }}
-                  </span>
-                </div>
-                <span class="quota-platform__percent">{{ formatPercent(platform.summary.available_percent) }}</span>
-              </div>
-              <div class="quota-bar" :aria-label="t('admin.dashboard.accountQuotaTitle')">
-                <span class="quota-bar__used" :style="barStyle(platform.summary.used_percent)" />
-                <span class="quota-bar__available" :style="barStyle(platform.summary.available_percent)" />
-                <span class="quota-bar__limited" :style="barStyle(platform.summary.rate_limited_percent)" />
-                <span class="quota-bar__unknown" :style="barStyle(platform.summary.unknown_percent)" />
-                <span class="quota-bar__unavailable" :style="barStyle(platform.summary.unavailable_percent)" />
-              </div>
-              <div class="quota-legend">
-                <span><i class="quota-legend__dot quota-legend__dot--available" />{{ t('admin.dashboard.quotaAvailable') }}</span>
-                <span><i class="quota-legend__dot quota-legend__dot--limited" />{{ t('admin.dashboard.quotaRateLimited') }}</span>
-                <span><i class="quota-legend__dot quota-legend__dot--unknown" />{{ t('admin.dashboard.quotaUnknown') }}</span>
-              </div>
-              <div class="quota-groups">
-                <div v-for="group in platform.groups" :key="`${platform.platform}-${group.id}`" class="quota-group">
-                  <button type="button" class="quota-group__toggle" @click="toggleQuotaGroup(platform.platform, group.id)">
-                    <span class="quota-group__name">{{ group.name }}</span>
-                    <span class="quota-group__summary">
-                      {{ formatPercent(group.summary.available_percent) }} · {{ group.summary.account_count }}
-                    </span>
-                    <Icon :name="isQuotaGroupExpanded(platform.platform, group.id) ? 'chevronUp' : 'chevronDown'" size="sm" />
-                  </button>
-                  <div class="quota-bar quota-bar--group">
-                    <span class="quota-bar__used" :style="barStyle(group.summary.used_percent)" />
-                    <span class="quota-bar__available" :style="barStyle(group.summary.available_percent)" />
-                    <span class="quota-bar__limited" :style="barStyle(group.summary.rate_limited_percent)" />
-                    <span class="quota-bar__unknown" :style="barStyle(group.summary.unknown_percent)" />
-                    <span class="quota-bar__unavailable" :style="barStyle(group.summary.unavailable_percent)" />
-                  </div>
-                  <div v-if="isQuotaGroupExpanded(platform.platform, group.id)" class="quota-accounts">
-                    <div v-if="quotaAccountsLoading[groupKey(platform.platform, group.id)]" class="quota-accounts__loading">
-                      <LoadingSpinner size="sm" />
-                    </div>
-                    <div v-else-if="quotaAccounts[groupKey(platform.platform, group.id)]?.length" class="quota-account-list">
-                      <div v-for="account in quotaAccounts[groupKey(platform.platform, group.id)]" :key="account.id" class="quota-account">
-                        <div class="quota-account__info">
-                          <span class="quota-account__name">{{ account.name }}</span>
-                          <span v-if="account.rate_limited" class="quota-account__badge quota-account__badge--limited">429</span>
-                          <span v-if="account.model_rate_limit_count" class="quota-account__badge quota-account__badge--model">{{ account.model_rate_limit_count }} {{ t('admin.dashboard.quotaModelsLimited') }}</span>
-                        </div>
-                        <div class="quota-account__meta">
-                          <span>{{ account.weekly.known ? `${formatPercent(account.weekly.remaining_percent)} ${t('admin.dashboard.quotaRemaining')}` : t('admin.dashboard.quotaUnknown') }}</span>
-                          <span v-if="account.weekly.reset_at">{{ formatQuotaReset(account.weekly.reset_at) }}</span>
-                        </div>
-                        <div class="quota-bar quota-bar--account">
-                          <span class="quota-bar__used" :style="barStyle(account.weekly.known ? account.weekly.used_percent : 0)" />
-                          <span v-if="account.state === 'available'" class="quota-bar__available" :style="barStyle(account.weekly.remaining_percent)" />
-                          <span v-else-if="account.state === 'rate_limited'" class="quota-bar__limited" :style="barStyle(account.weekly.remaining_percent)" />
-                          <span v-else-if="account.state === 'unavailable'" class="quota-bar__unavailable" :style="barStyle(account.weekly.remaining_percent || 100)" />
-                          <span v-else class="quota-bar__unknown" :style="barStyle(100)" />
-                        </div>
-                      </div>
-                    </div>
-                    <span v-else class="quota-accounts__empty">{{ t('admin.dashboard.quotaNoAccounts') }}</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-          </div>
-          <p v-else class="quota-dashboard__empty">{{ t('admin.dashboard.quotaNoAccounts') }}</p>
-          <p v-if="quotaDashboard?.latest_observed_at" class="quota-dashboard__updated">
-            {{ t('admin.dashboard.quotaLastObserved') }}: {{ formatQuotaReset(quotaDashboard.latest_observed_at) }}
-          </p>
-        </section>
 
         <!-- Row 2: Token Stats -->
         <div class="views-admin-dashboard-view__panel-3">
@@ -389,23 +374,28 @@
           </div>
 
           <!-- User Usage Trend (Full Width) -->
-          <div class="views-admin-dashboard-view__panel-4 card">
-            <h3 class="views-admin-dashboard-view__heading-2">
+          <section class="dashboard-usage-chart card">
+            <h3 class="dashboard-usage-chart__title">
               {{ t('admin.dashboard.recentUsage') }} (Top 12)
             </h3>
-            <div class="views-admin-dashboard-view__panel-23">
-              <div v-if="userTrendLoading" class="views-admin-dashboard-view__panel-24">
+            <div class="dashboard-usage-chart__body">
+              <div v-if="userTrendLoading" class="dashboard-usage-chart__state">
                 <LoadingSpinner size="md" />
               </div>
-              <D3LineChart v-else-if="userTrendChartData" :data="userTrendChartData" :options="lineOptions" />
+              <D3LineChart
+                v-else-if="userTrendChartData"
+                class="dashboard-usage-chart__plot"
+                :data="userTrendChartData"
+                :options="lineOptions"
+              />
               <div
                 v-else
-                class="views-admin-dashboard-view__panel-25"
+                class="dashboard-usage-chart__state"
               >
                 {{ t('admin.dashboard.noDataAvailable') }}
               </div>
             </div>
-          </div>
+          </section>
         </div>
       </template>
     </div>
@@ -427,7 +417,7 @@ import type {
   UserUsageTrendPoint,
   UserSpendingRankingItem
 } from '@/types'
-import type { AccountQuotaAccount, AccountQuotaDashboard } from '@/api/admin/dashboard'
+import type { AccountQuotaDashboard } from '@/api/admin/dashboard'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -436,6 +426,7 @@ import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
+import { useThemeColors } from '@/composables/useThemeColors'
 import { formatPoints } from '@/utils/format'
 
 const appStore = useAppStore()
@@ -448,9 +439,6 @@ const rankingLoading = ref(false)
 const rankingError = ref(false)
 const quotaDashboard = ref<AccountQuotaDashboard | null>(null)
 const quotaLoading = ref(false)
-const quotaAccounts = ref<Record<string, AccountQuotaAccount[]>>({})
-const quotaAccountsLoading = ref<Record<string, boolean>>({})
-const expandedQuotaGroups = ref<Record<string, boolean>>({})
 let quotaRefreshTimer: number | undefined
 
 // Chart data
@@ -481,16 +469,15 @@ const platformLabel = (platform: string): string => {
   return labels[platform] || platform
 }
 
-const formatPercent = (value: number): string => `${Math.round(Math.max(0, Math.min(100, value || 0)))}%`
 const barStyle = (value: number) => ({ width: `${Math.max(0, Math.min(100, value || 0))}%` })
+const formatQuotaPoints = (value: number): string => formatPoints(value)
+const quotaEstimateLabel = (complete: boolean): string =>
+  t(complete ? 'admin.dashboard.quotaEstimatedTotal' : 'admin.dashboard.quotaKnownEstimatedTotal')
 const formatQuotaReset = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString()
 }
-const groupKey = (platform: string, groupId: string): string => `${platform}:${groupId}`
-const isQuotaGroupExpanded = (platform: string, groupId: string): boolean => expandedQuotaGroups.value[groupKey(platform, groupId)] === true
-
 const loadAccountQuotas = async () => {
   quotaLoading.value = true
   try {
@@ -499,22 +486,6 @@ const loadAccountQuotas = async () => {
     console.error('Error loading account quota dashboard:', error)
   } finally {
     quotaLoading.value = false
-  }
-}
-
-const toggleQuotaGroup = async (platform: string, groupId: string) => {
-  const key = groupKey(platform, groupId)
-  expandedQuotaGroups.value[key] = !expandedQuotaGroups.value[key]
-  if (!expandedQuotaGroups.value[key] || quotaAccounts.value[key]) return
-  quotaAccountsLoading.value[key] = true
-  try {
-    const response = await adminAPI.dashboard.getAccountQuotaAccounts({ platform, group_id: groupId, limit: 100 })
-    quotaAccounts.value[key] = response.accounts || []
-  } catch (error) {
-    console.error('Error loading account quota details:', error)
-    quotaAccounts.value[key] = []
-  } finally {
-    quotaAccountsLoading.value[key] = false
   }
 }
 
@@ -544,15 +515,11 @@ const granularityOptions = computed(() => [
   { value: 'hour', label: t('admin.dashboard.hour') }
 ])
 
-// Dark mode detection
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
+const themeColors = useThemeColors()
 
-// Chart colors
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#2e2e33',
-  grid: isDarkMode.value ? '#2e2e33' : '#e5e7eb'
+  text: themeColors.value.textTertiary,
+  grid: themeColors.value.grid
 }))
 
 // Line chart options (for user trend chart)
@@ -881,22 +848,79 @@ onUnmounted(() => {
   border-radius: var(--radius-xl);
 }
 
+.dashboard-usage-chart {
+  min-width: 0;
+  padding: 1rem;
+  overflow: visible;
+}
+
+.dashboard-usage-chart__title {
+  margin: 0 0 1rem;
+  color: var(--color-text-primary);
+  font-size: var(--type-control-size);
+  font-weight: 600;
+  line-height: var(--type-control-line-height);
+}
+
+.dashboard-usage-chart__body {
+  width: 100%;
+  height: 28rem;
+  min-width: 0;
+  padding: 0.25rem 0.5rem 0.75rem 0;
+  overflow: visible;
+}
+
+.dashboard-usage-chart__plot {
+  min-width: 0;
+}
+
+.dashboard-usage-chart__state {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-size: var(--type-control-size);
+}
+
+.dashboard-usage-chart__body :deep(.d3-line-chart__legend) {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  align-items: center;
+  gap: 0.45rem 1rem;
+  padding: 0 0.5rem 0.85rem 3.375rem;
+}
+
+.dashboard-usage-chart__body :deep(.d3-line-chart__legend-item) {
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-usage-chart__body :deep(.d3-line-chart__legend-item > span:last-child) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-usage-chart__body :deep(.d3-line-chart__frame) {
+  min-height: 18rem;
+}
+
 .quota-dashboard {
   padding: 1.25rem;
 }
 
 .quota-dashboard__header,
 .quota-platform__header,
-.quota-group__toggle,
-.quota-account__info,
-.quota-account__meta {
+.quota-group__header {
   display: flex;
   align-items: center;
 }
 
 .quota-dashboard__header,
 .quota-platform__header,
-.quota-group__toggle {
+.quota-group__header {
   justify-content: space-between;
   gap: 1rem;
 }
@@ -917,9 +941,7 @@ onUnmounted(() => {
 
 .quota-dashboard__hint,
 .quota-platform__meta,
-.quota-account__meta,
-.quota-dashboard__updated,
-.quota-accounts__empty {
+.quota-dashboard__updated {
   color: var(--color-text-secondary);
   font-size: var(--type-caption-size);
 }
@@ -942,11 +964,22 @@ onUnmounted(() => {
   background: var(--glass-layer-inset-bg, var(--color-surface-muted));
 }
 
-.quota-platform__percent,
+.quota-platform__total strong,
 .quota-group__summary {
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.quota-platform__total {
+  display: grid;
+  justify-items: end;
+  color: var(--color-text-tertiary);
+  font-size: var(--type-micro-size);
+}
+
+.quota-platform__total strong {
+  font-size: var(--type-control-size);
 }
 
 .quota-bar {
@@ -970,6 +1003,11 @@ onUnmounted(() => {
 .quota-bar__unknown { background: repeating-linear-gradient(135deg, var(--color-text-quaternary) 0 3px, transparent 3px 6px); }
 .quota-bar__unavailable { background: var(--color-text-quaternary); }
 
+.quota-bar--empty {
+  border: 1px dashed var(--color-border-subtle);
+  background: transparent;
+}
+
 .quota-legend {
   display: flex;
   flex-wrap: wrap;
@@ -990,9 +1028,15 @@ onUnmounted(() => {
   height: 0.45rem;
   border-radius: 50%;
 }
+.quota-legend__dot--used { background: var(--color-text-tertiary); }
 .quota-legend__dot--available { background: var(--color-success); }
 .quota-legend__dot--limited { background: var(--color-warning); }
 .quota-legend__dot--unknown { border: 1px dashed var(--color-text-quaternary); }
+
+.quota-legend__unknown,
+.quota-group__unknown {
+  color: var(--color-text-tertiary);
+}
 
 .quota-groups {
   display: grid;
@@ -1000,13 +1044,11 @@ onUnmounted(() => {
   margin-top: 1rem;
 }
 
-.quota-group__toggle {
+.quota-group__header {
   width: 100%;
   padding: 0.4rem 0;
-  border: 0;
   color: var(--color-text-primary);
   background: transparent;
-  cursor: pointer;
   text-align: left;
 }
 
@@ -1017,23 +1059,30 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.quota-group__unknown {
+  flex-shrink: 0;
+  padding: 0.1rem 0.35rem;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: 999px;
+  font-size: var(--type-micro-size);
+}
+
 .quota-bar--group { height: 0.35rem; margin-top: 0; }
-.quota-accounts { padding: 0.25rem 0 0.5rem 0.5rem; }
-.quota-account-list { display: grid; gap: 0.6rem; }
-.quota-account { min-width: 0; }
-.quota-account__info { gap: 0.4rem; min-width: 0; }
-.quota-account__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); font-size: var(--type-control-size); }
-.quota-account__badge { padding: 0.1rem 0.35rem; border-radius: 999px; font-size: var(--type-micro-size); white-space: nowrap; }
-.quota-account__badge--limited { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 14%, transparent); }
-.quota-account__badge--model { color: var(--color-text-secondary); background: var(--color-surface-muted); }
-.quota-account__meta { justify-content: space-between; gap: 0.5rem; margin-top: 0.2rem; }
-.quota-bar--account { height: 0.3rem; margin-top: 0.3rem; }
 .quota-dashboard__updated { margin: 1rem 0 0; }
 .quota-dashboard__loading,
-.quota-dashboard__empty,
-.quota-accounts__loading { display: flex; justify-content: center; padding: 1.5rem; }
+.quota-dashboard__empty { display: flex; justify-content: center; padding: 1.5rem; }
 
 @media (max-width: 640px) {
+  .dashboard-usage-chart__body {
+    height: 32rem;
+    padding-right: 0;
+  }
+
+  .dashboard-usage-chart__body :deep(.d3-line-chart__legend) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 0.5rem;
+  }
+
   .quota-dashboard { padding: 1rem; }
   .quota-dashboard__header { align-items: flex-start; }
   .quota-dashboard__header .btn { flex-shrink: 0; }

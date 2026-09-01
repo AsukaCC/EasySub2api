@@ -15,6 +15,7 @@ import type {
   NotifyEmailEntry,
   UserAuthProvider,
   UserAffiliateDetail,
+  AffiliateCodeRegenerationResponse,
   AffiliateTransferResponse,
   PlatformQuotasResponse,
 } from '@/types'
@@ -186,6 +187,11 @@ export async function transferAffiliateQuota(): Promise<AffiliateTransferRespons
   return data
 }
 
+export async function regenerateAffiliateCode(): Promise<AffiliateCodeRegenerationResponse> {
+  const { data } = await apiClient.post<AffiliateCodeRegenerationResponse>('/user/aff/code/regenerate')
+  return data
+}
+
 /**
  * 获取当前用户的平台限额 + 用量。
  */
@@ -208,6 +214,7 @@ export const userAPI = {
   buildOAuthBindingStartURL,
   startOAuthBinding,
   getAffiliateDetail,
+  regenerateAffiliateCode,
   transferAffiliateQuota,
   getMyPlatformQuotas,
 }

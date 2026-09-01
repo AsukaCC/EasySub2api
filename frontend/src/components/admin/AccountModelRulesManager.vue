@@ -718,7 +718,7 @@ watch(() => form.platform, () => {
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
@@ -737,13 +737,13 @@ watch(() => form.platform, () => {
 .account-model-rules-modal__table th,
 .account-model-rules-modal__table td {
   padding: 0.7rem 0.6rem;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
 }
 
 .account-model-rules-modal__table th {
-  color: var(--text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 600;
 }
@@ -766,7 +766,7 @@ watch(() => form.platform, () => {
   display: block;
   max-width: 20rem;
   overflow: hidden;
-  color: var(--text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -782,7 +782,7 @@ watch(() => form.platform, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--color-border);
   border-radius: 5px;
   background: transparent;
   color: inherit;
@@ -790,11 +790,11 @@ watch(() => form.platform, () => {
 }
 
 .icon-btn:hover:not(:disabled) {
-  background: var(--surface-hover, rgba(127, 127, 127, 0.1));
+  background: var(--color-surface-hover);
 }
 
 .icon-btn--danger {
-  color: var(--danger-color, #dc2626);
+  color: var(--color-text-danger);
 }
 
 .icon-btn:disabled {
@@ -821,7 +821,7 @@ watch(() => form.platform, () => {
 .account-model-rules-modal__mode-toggle {
   gap: 0.5rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .account-model-rules-modal__restriction-panel {
@@ -872,12 +872,12 @@ watch(() => form.platform, () => {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
 .account-model-rules-modal__mapping-import-state--error {
-  color: var(--danger-color, #dc2626);
+  color: var(--color-text-danger);
 }
 
 .account-model-rules-modal__mapping-model-grid {
@@ -887,9 +887,9 @@ watch(() => form.platform, () => {
   max-height: min(26rem, 50vh);
   overflow-y: auto;
   padding: 0.75rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--surface-secondary, rgba(127, 127, 127, 0.05));
+  background: var(--color-surface-muted);
 }
 
 .account-model-rules-modal__mapping-model-option {
@@ -905,8 +905,8 @@ watch(() => form.platform, () => {
 }
 
 .account-model-rules-modal__mapping-model-option:hover {
-  border-color: var(--border-color, #d1d5db);
-  background: var(--surface-hover, rgba(127, 127, 127, 0.1));
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
 }
 
 .account-model-rules-modal__mapping-header .input-label {
@@ -928,7 +928,7 @@ watch(() => form.platform, () => {
 
 .account-model-rules-modal__error {
   margin: 0;
-  color: var(--danger-color, #dc2626);
+  color: var(--color-text-danger);
   font-size: var(--font-size-sm);
 }
 

@@ -869,7 +869,7 @@ defineExpose({ requestedModelStats, refreshData })
 
 <style scoped>
 .views-admin-usage-view__icon-2 {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   flex-shrink: 0;
 }
 

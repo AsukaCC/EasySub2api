@@ -300,9 +300,9 @@ onMounted(() => loadOrders())
   gap: 0.25rem;
   margin-bottom: 1rem;
   padding: 0.25rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  background: var(--card-background);
+  background: var(--color-surface);
 }
 
 .admin-orders-workspace-tabs button {
@@ -313,7 +313,7 @@ onMounted(() => loadOrders())
   min-height: 2.25rem;
   padding: 0.375rem 0.75rem;
   border-radius: 0.375rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }

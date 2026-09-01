@@ -208,8 +208,8 @@
                 </div>
               </div>
             </div>
-            <div v-if="showAccountBilling && row.account_rate_multiplier != null" class="components-admin-usage-usage-table__panel-18">
-              A ${{ accountBilled(row).toFixed(6) }}
+            <div v-if="hasAccountBilledPoints(row)" class="components-admin-usage-usage-table__panel-18">
+              {{ t('usage.accountPointsShort') }} {{ formatUsagePoints(accountBilledPoints(row)) }}
             </div>
           </div>
         </template>
@@ -480,23 +480,19 @@
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.userBilled') }}</span>
             <span class="components-admin-usage-usage-table__text-42">{{ formatUsagePoints(tooltipData?.actual_cost) }}</span>
           </div>
-          <!-- Account billing (separated from user billing) -->
-          <template v-if="showAccountBilling">
+          <!-- Admin-only account pricing details. -->
+          <template v-if="showAccountBilling && tooltipData?.account_rate_multiplier != null">
             <div class="usage-tooltip__summary">
               <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountMultiplier') }}</span>
               <span class="components-admin-usage-usage-table__text-38">{{ formatMultiplier(tooltipData?.account_rate_multiplier ?? 1) }}x</span>
             </div>
-            <div class="usage-tooltip__meta">
-              <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountBilled') }}</span>
-              <span class="components-admin-usage-usage-table__text-42">
-                ${{ accountBilled({
-                  total_cost: tooltipData?.total_cost,
-                  account_stats_cost: tooltipData?.account_stats_cost,
-                  account_rate_multiplier: tooltipData?.account_rate_multiplier,
-                }).toFixed(6) }}
-              </span>
-            </div>
           </template>
+          <div v-if="tooltipData && hasAccountBilledPoints(tooltipData)" class="usage-tooltip__meta">
+            <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountPointsUsed') }}</span>
+            <span class="components-admin-usage-usage-table__text-42">
+              {{ formatUsagePoints(accountBilledPoints(tooltipData)) }}
+            </span>
+          </div>
         </div>
         <div class="usage-tooltip__arrow"></div>
       </div>
@@ -543,11 +539,18 @@ import {
   hasImageInputCost,
 } from '@/utils/imageUsage'
 
-/** Compute the account-billed cost for display: (account_stats_cost ?? total_cost) * rate_multiplier */
-function accountBilled(row: { total_cost?: number | null; account_stats_cost?: number | null; account_rate_multiplier?: number | null }): number {
+/** Prefer the API's safe account-points projection; retain a fallback for older admin responses. */
+function accountBilledPoints(row: { account_billed_points?: number | null; total_cost?: number | null; account_stats_cost?: number | null; account_rate_multiplier?: number | null }): number {
+  if (row.account_billed_points != null && Number.isFinite(row.account_billed_points)) {
+    return row.account_billed_points
+  }
   const base = row.account_stats_cost != null ? row.account_stats_cost : (row.total_cost ?? 0)
   const result = base * (row.account_rate_multiplier ?? 1)
   return Number.isNaN(result) ? 0 : result
+}
+
+function hasAccountBilledPoints(row: { account_billed_points?: number | null; account_rate_multiplier?: number | null }): boolean {
+  return row.account_billed_points != null || (showAccountBilling && row.account_rate_multiplier != null)
 }
 
 
@@ -568,7 +571,7 @@ interface Props {
   defaultSortOrder?: 'asc' | 'desc'
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
-  /** 扣除积分显示精度；用户端使用 6 位，后台保持默认 2 位。 */
+  /** 用户及管理员费用统一使用的积分显示精度。 */
   costFractionDigits?: number
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
@@ -581,7 +584,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   showAccountBilling: true,
   showUpstreamEndpoint: true,
-  costFractionDigits: 2,
+  costFractionDigits: 6,
   flat: false
 })
 const emit = defineEmits<{

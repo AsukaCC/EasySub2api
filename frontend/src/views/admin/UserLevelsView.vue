@@ -63,6 +63,6 @@ onMounted(load)
 .user-levels-view__range div { display: grid; gap: .3rem; padding: 1rem; border-left: 3px solid var(--color-primary); background: var(--color-surface-muted); }
 .user-levels-view__range span { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
 .user-levels-view__actions { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 1.5rem; }
-.user-levels-view__message { color: var(--color-success); font-size: var(--font-size-sm); }
+.user-levels-view__message { color: var(--color-text-success); font-size: var(--font-size-sm); }
 @media (max-width: 700px) { .user-levels-view { padding: 1rem; } .user-levels-view__grid, .user-levels-view__range { grid-template-columns: 1fr; } }
 </style>

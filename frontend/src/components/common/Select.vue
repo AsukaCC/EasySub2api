@@ -547,12 +547,12 @@ onUnmounted(() => {
 .select-trigger:focus {
   border-color: var(--color-primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 20%, transparent);
 }
 
 .select-trigger-open {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 20%, transparent);
 }
 
 .select-trigger-error {
@@ -611,7 +611,7 @@ onUnmounted(() => {
 }
 
 .select-dropdown__check {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
 }
 
 .select-dropdown-portal {

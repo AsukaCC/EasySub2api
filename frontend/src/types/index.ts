@@ -170,7 +170,20 @@ export interface UserAffiliateDetail {
   aff_history_quota: number
   /** 当前用户作为邀请人时实际生效的返利比例（专属覆盖全局）。0-100。 */
   effective_rebate_rate_percent: number
+  rebate_recipient: 'inviter' | 'invitee'
+  code_regeneration_limit: number
+  code_regeneration_used: number
+  code_regeneration_remaining: number
+  code_regeneration_reset_at: string
   invitees: AffiliateInvitee[]
+}
+
+export interface AffiliateCodeRegenerationResponse {
+  aff_code: string
+  limit: number
+  used: number
+  remaining: number
+  reset_at: string
 }
 
 export interface AffiliateTransferResponse {
@@ -1649,6 +1662,8 @@ export interface UsageLog {
   cache_read_cost: number
   total_cost: number
   actual_cost: number
+  // 账号侧实际消耗积分；不包含账号倍率或定价明细
+  account_billed_points?: number
   rate_multiplier: number
   long_context_billing_applied: boolean
   billing_type: number

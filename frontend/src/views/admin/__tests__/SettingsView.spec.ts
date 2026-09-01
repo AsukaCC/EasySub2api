@@ -513,6 +513,7 @@ const baseSettingsResponse = {
   payment_visible_method_alipay_enabled: true,
   payment_visible_method_wxpay_enabled: true,
   affiliate_rebate_rate: 20,
+  affiliate_rebate_recipient: "inviter",
   affiliate_rebate_freeze_hours: 168,
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,

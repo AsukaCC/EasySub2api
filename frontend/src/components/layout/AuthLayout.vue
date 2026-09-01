@@ -83,7 +83,7 @@ onMounted(() => {
 
 <style scoped>
 .text-gradient {
-  background: linear-gradient(90deg, #007aff, #0a84ff);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--theme-accent) 88%, black), var(--theme-accent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

@@ -139,9 +139,9 @@ watch(() => props.disabled, (disabled) => {
 .account-model-rule-selector {
   margin: 0.75rem 0;
   padding: 0.75rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--surface-secondary, rgba(127, 127, 127, 0.05));
+  background: var(--color-surface-muted);
 }
 
 .account-model-rule-selector__header,
@@ -163,7 +163,7 @@ watch(() => props.disabled, (disabled) => {
 
 .account-model-rule-selector__error {
   margin: 0.4rem 0 0;
-  color: var(--danger-color, #dc2626);
+  color: var(--color-text-danger);
   font-size: var(--font-size-xs);
 }
 

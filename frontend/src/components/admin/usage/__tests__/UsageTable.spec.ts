@@ -37,6 +37,8 @@ const messages: Record<string, string> = {
   'usage.original': 'Original',
   'usage.userBilled': 'User billed',
   'usage.accountBilled': 'Account billed',
+  'usage.accountPointsShort': 'Account',
+  'usage.accountPointsUsed': 'Account points used',
   'usage.imageUnit': ' images',
   'usage.imageCount': 'Image count',
   'usage.imageBillingSize': 'Billing size',
@@ -211,7 +213,7 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('1.00x')
     expect(text).toContain('Account rate')
     expect(text).toContain('User billed')
-    expect(text).toContain('Account billed')
+    expect(text).toContain('Account points used')
     expect(text).toContain('0.092883 points')
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')

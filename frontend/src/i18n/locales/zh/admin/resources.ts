@@ -266,7 +266,7 @@ export default {
       concurrency: '并发数',
       subscription: '订阅',
       invitation: '邀请码',
-      invitationHint: '邀请码用于限制用户注册，使用后自动标记为已使用。',
+      invitationHint: '邀请码用于限制用户注册，在有效期内可供多个用户重复使用。',
       allTypes: '全部类型',
       allStatus: '全部状态',
       unused: '未使用',

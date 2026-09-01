@@ -264,8 +264,9 @@
       <!-- Users Table -->
       <template #table>
         <DataTable
+          ref="usersTableRef"
           :columns="columns"
-          :data="sortedUsers"
+          :data="users"
           :loading="loading"
           row-key="id"
           selectable
@@ -468,7 +469,7 @@
 
           <!-- 用量列自定义表头：列名 + 单个排序图标按钮，点击展开"今日/近30天"菜单。
                column.sortable=false，DataTable 内置点击逻辑不会触发；
-               菜单项三态循环：desc → asc → off。 -->
+               菜单项三态循环并由后端对完整筛选结果排序。 -->
           <template
             v-for="usageKey in USAGE_COLUMN_KEYS"
             :key="usageKey"
@@ -539,9 +540,6 @@
                       />
                     </svg>
                   </button>
-                  <div class="views-admin-users-view__panel-30">
-                    {{ t('admin.users.sortCurrentPageOnly') }}
-                  </div>
                 </div>
               </div>
             </div>
@@ -991,15 +989,8 @@ const toggleColumn = (key: string) => {
 // Check if column is visible (not in hidden set)
 const isColumnVisible = (key: string) => !hiddenColumns.has(key)
 // usage 主列或任意 usage_<platform> 子列可见时都需要批量拉取用量数据
-// 列 key → 平台名（'usage' 主列汇总所有平台时为 null）
-// 显式数组取代 Object.keys()：保证迭代顺序（决定列头排序按钮渲染顺序）
-// 不会因 JS 引擎差异或 USAGE_COLUMN_PLATFORMS 属性顺序调整而静默变化。
+// 显式数组保证列头排序按钮的渲染顺序稳定。
 const USAGE_COLUMN_KEYS: readonly string[] = ['usage', 'usage_anthropic', 'usage_openai']
-const USAGE_COLUMN_PLATFORMS: Record<string, string | null> = {
-  usage: null,
-  usage_anthropic: 'anthropic',
-  usage_openai: 'openai'
-}
 const PLATFORM_USAGE_COLUMNS = USAGE_COLUMN_KEYS.filter((k) => k !== 'usage')
 const hasVisibleUsageColumn = computed(
   () => !hiddenColumns.has('usage') || PLATFORM_USAGE_COLUMNS.some((k) => !hiddenColumns.has(k))
@@ -1018,6 +1009,10 @@ const columns = computed<Column[]>(() =>
 )
 
 const users = ref<AdminUser[]>([])
+const usersTableRef = ref<{
+  clearSort?: () => void
+  setSort?: (key: string, order: 'asc' | 'desc') => void
+} | null>(null)
 const loading = ref(true)
 const searchQuery = ref('')
 const USER_SORT_STORAGE_KEY = 'admin-users-table-sort'
@@ -1196,10 +1191,8 @@ const platformQuotaStats = ref<Record<string, PlatformQuotaItem[]>>({})
 const getPlatformUsage = (userId: string, platform: string) =>
   usageStats.value[userId]?.by_platform?.find((p) => p.platform === platform)
 
-// 用量列前端排序：DataTable 工作在 server-side-sort 模式，所有 sortable
-// 字段都会触发后端查询，而用量列数据是异步批量拉取后再合并到当前页，
-// 因此采用独立的前端排序状态对当前页 users 做本地排序。
-// 排序状态独立于后端 sortState 持久化；缺失数据按 0 处理（desc 沉底、asc 置顶）。
+// 用量列使用自定义菜单选择统计口径，但排序本身交给用户列表接口完成，
+// 这样筛选结果会先全局排序再分页，不会出现每一页各自排序的问题。
 type UsageMetric = 'today' | 'total'
 type UsageSortState = { key: string; metric: UsageMetric; order: 'asc' | 'desc' } | null
 const USAGE_SORT_STORAGE_KEY = 'admin-users-usage-sort'
@@ -1220,6 +1213,13 @@ const loadInitialUsageSort = (): UsageSortState => {
   }
 }
 const usageSort = ref<UsageSortState>(loadInitialUsageSort())
+const usageServerSortKey = (key: string, metric: UsageMetric) =>
+  `${key}_${metric}`
+
+if (usageSort.value) {
+  sortState.sort_by = usageServerSortKey(usageSort.value.key, usageSort.value.metric)
+  sortState.sort_order = usageSort.value.order
+}
 const persistUsageSort = () => {
   try {
     if (usageSort.value) {
@@ -1252,8 +1252,19 @@ const toggleUsageSort = (key: string, metric: UsageMetric) => {
   } else {
     usageSort.value = { key, metric, order: 'desc' }
   }
+  if (usageSort.value) {
+    sortState.sort_by = usageServerSortKey(key, metric)
+    sortState.sort_order = usageSort.value.order
+    usersTableRef.value?.clearSort?.()
+  } else {
+    sortState.sort_by = 'created_at'
+    sortState.sort_order = 'desc'
+    usersTableRef.value?.setSort?.('created_at', 'desc')
+  }
   persistUsageSort()
   openUsageSortMenu.value = null
+  pagination.page = 1
+  void loadUsers()
 }
 
 // 点击图标本身不触发排序，仅开关菜单；首次排序由用户在菜单内选择 metric 触发（默认 desc，详见 toggleUsageSort）。
@@ -1261,41 +1272,13 @@ const toggleUsageSortMenu = (key: string) => {
   openUsageSortMenu.value = openUsageSortMenu.value === key ? null : key
 }
 
-const getUsageValue = (userId: string, key: string, metric: UsageMetric): number => {
-  const stats = usageStats.value[userId]
-  if (!stats) return 0
-  const platform = USAGE_COLUMN_PLATFORMS[key]
-  if (platform === null) {
-    return metric === 'today' ? stats.today_actual_cost ?? 0 : stats.total_actual_cost ?? 0
-  }
-  const p = stats.by_platform?.find((x) => x.platform === platform)
-  if (!p) return 0
-  return metric === 'today' ? p.today_actual_cost ?? 0 : p.total_actual_cost ?? 0
-}
-
-// 在 server-side 排序结果之上叠加用量列的本地排序；无 usageSort 时直接透传原数组。
-// 稳定排序：等值按原 index 保序，避免拉取新用量数据时表行抖动。
-const sortedUsers = computed(() => {
-  const s = usageSort.value
-  if (!s) return users.value
-  return [...users.value]
-    .map((row, index) => ({ row, index }))
-    .sort((a, b) => {
-      const av = getUsageValue(a.row.id, s.key, s.metric)
-      const bv = getUsageValue(b.row.id, s.key, s.metric)
-      if (av !== bv) return s.order === 'asc' ? av - bv : bv - av
-      return a.index - b.index
-    })
-    .map((x) => x.row)
-})
-
 const {
   selectedIds,
   selectedCount,
   setSelectedIds,
   clear: clearSelection
 } = useTableSelection<AdminUser>({
-  rows: sortedUsers,
+  rows: users,
   getId: (user) => user.id
 })
 
@@ -1840,6 +1823,9 @@ const handleScroll = () => {
 }
 
 onMounted(async () => {
+  if (usageSort.value) {
+    usersTableRef.value?.clearSort?.()
+  }
   await loadAttributeDefinitions()
   loadSavedFilters()
   loadSavedColumns()

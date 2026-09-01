@@ -44,6 +44,15 @@
               @open="openUserOverview"
             />
           </template>
+          <template #cell-recipient="{ row }">
+            <UserCell
+              :id="row.recipient_id"
+              :email="row.recipient_email"
+              :username="row.recipient_username"
+              :clickable="true"
+              @open="openUserOverview"
+            />
+          </template>
           <template #cell-user="{ row }">
             <UserCell
               :id="row.user_id"
@@ -205,6 +214,7 @@ const columns = computed<Column[]>(() => {
       { key: 'order', label: t('admin.affiliates.records.order'), sortable: true },
       { key: 'inviter', label: t('admin.affiliates.records.inviter'), sortable: true },
       { key: 'invitee', label: t('admin.affiliates.records.invitee'), sortable: true },
+      { key: 'recipient', label: t('admin.affiliates.records.recipient'), sortable: true },
       { key: 'order_amount', label: t('admin.affiliates.records.orderAmount'), sortable: true },
       { key: 'pay_amount', label: t('admin.affiliates.records.payAmount'), sortable: true },
       { key: 'rebate_amount', label: t('admin.affiliates.records.rebateAmount') },

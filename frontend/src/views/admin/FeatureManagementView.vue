@@ -234,13 +234,13 @@ onMounted(load)
 .feature-management__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.5rem; align-items: center; padding: 1.15rem 1.25rem; border-bottom: 1px solid var(--glass-border); }
 .feature-management__row:last-child { border-bottom: 0; }
 .feature-management__identity { display: flex; min-width: 0; gap: .9rem; align-items: flex-start; }
-.feature-management__icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; border-radius: 6px; background: var(--color-surface-muted); color: var(--color-primary); }
+.feature-management__icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; border-radius: 6px; background: var(--color-surface-muted); color: var(--color-text-brand); }
 .feature-management__title-line { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .feature-management__title-line h2 { margin: 0; font-size: var(--font-size-base); }
 .feature-management__identity p { margin: .35rem 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.5; }
 .feature-management__status { padding: .18rem .45rem; border-radius: 4px; font-size: var(--font-size-xs); font-weight: 600; background: var(--color-surface-muted); color: var(--color-text-secondary); }
-.feature-management__status.is-on, .feature-management__status.is-published { color: var(--color-success); }
-.feature-management__status.is-off { color: var(--color-danger); }
+.feature-management__status.is-on, .feature-management__status.is-published { color: var(--color-text-success); }
+.feature-management__status.is-off { color: var(--color-text-danger); }
 .feature-management__controls { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; }
 .feature-management__switch { display: grid; justify-items: center; gap: .35rem; color: var(--color-text-secondary); font-size: var(--font-size-xs); white-space: nowrap; }
 .feature-management__loading { min-height: 18rem; display: grid; place-content: center; justify-items: center; gap: .75rem; color: var(--color-text-secondary); }

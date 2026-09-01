@@ -115,7 +115,11 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const supportSummary = ref({ total: 0, unread: 0, featureEnabled: false, loaded: false })
-const flagSupportTickets = () => !supportSummary.value.loaded || supportSummary.value.featureEnabled || supportSummary.value.total > 0
+const flagSupportTickets = () =>
+  appStore.cachedPublicSettings?.support_tickets_enabled === true ||
+  (supportSummary.value.loaded && (
+    supportSummary.value.featureEnabled || supportSummary.value.total > 0
+  ))
 
 const customMenuItemsForUser = computed(() => {
   const items = appStore.cachedPublicSettings?.custom_menu_items ?? []
@@ -357,7 +361,7 @@ onBeforeUnmount(() => {
   border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
   border-radius: 999px;
   background: var(--glass-tint-danger);
-  color: var(--color-danger);
+  color: var(--color-text-danger);
   font-size: var(--type-micro-size);
 }
 
@@ -455,7 +459,7 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
   backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
   box-shadow:
-    0 4px 16px rgba(10, 132, 255, 0.12),
+    0 4px 16px color-mix(in srgb, var(--theme-accent) 12%, transparent),
     0 1px 0 var(--glass-highlight-hover) inset;
   will-change: transform, width, height;
 }
@@ -499,7 +503,7 @@ onBeforeUnmount(() => {
   &:hover {
     color: var(--color-text-primary);
     border-color: var(--glass-border);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04), 0 1px 0 var(--glass-highlight) inset;
+    box-shadow: 0 2px 8px rgba(9, 9, 11, 0.04), 0 1px 0 var(--glass-highlight) inset;
   }
 
   &:hover::before,
@@ -509,7 +513,7 @@ onBeforeUnmount(() => {
 
   &:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25), 0 1px 0 var(--glass-highlight) inset;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 25%, transparent), 0 1px 0 var(--glass-highlight) inset;
   }
 }
 
@@ -525,7 +529,7 @@ onBeforeUnmount(() => {
   }
 
   .app-top-nav-icon {
-    color: var(--color-primary);
+    color: var(--color-text-brand);
   }
 
   &:hover {

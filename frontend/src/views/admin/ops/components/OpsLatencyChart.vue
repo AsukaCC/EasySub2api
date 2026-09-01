@@ -18,8 +18,8 @@ const { t } = useI18n()
 const isDarkMode = computed(() => document.documentElement.classList.contains('dark'))
 const colors = computed(() => ({
   blue: '#3b82f6',
-  grid: isDarkMode.value ? '#2e2e33' : '#f3f4f6',
-  text: isDarkMode.value ? '#9ca3af' : '#6b7280'
+  grid: isDarkMode.value ? '#2e2e33' : '#e4e4e7',
+  text: isDarkMode.value ? '#9ca3af' : '#71717a'
 }))
 
 const hasData = computed(() => (props.latencyData?.total_requests ?? 0) > 0)

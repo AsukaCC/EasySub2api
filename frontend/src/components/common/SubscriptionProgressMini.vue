@@ -31,7 +31,7 @@
           v-if="tooltipOpen"
           ref="panelRef"
           :style="panelStyle"
-          class="components-common-subscription-progress-mini__panel-5"
+          class="components-common-subscription-progress-mini__panel-5 subscription-progress__popover"
           @click.stop
         >
         <div class="components-common-subscription-progress-mini__panel-6">
@@ -326,6 +326,16 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.subscription-progress__popover {
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-layer-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    var(--glass-shadow-hover),
+    0 1px 0 var(--glass-highlight) inset;
+}
+
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease;

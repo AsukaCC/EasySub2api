@@ -137,7 +137,7 @@ watch(() => props.modelValue, (v) => {
   padding: 0.5rem 0.5rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
+  background: var(--color-surface-muted);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -146,14 +146,14 @@ watch(() => props.modelValue, (v) => {
 }
 
 .amount-btn:hover {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-border-hover, var(--color-primary));
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
 .amount-btn--active {
   border-color: var(--color-primary) !important;
   background: var(--color-primary-subtle, rgba(99, 102, 241, 0.1)) !important;
-  color: var(--color-primary) !important;
+  color: var(--color-text-brand) !important;
   font-weight: 600;
   box-shadow: 0 0 0 1px var(--color-primary);
 }

@@ -9,6 +9,7 @@ const failures = []
 const warnings = []
 const legacyClassPattern = /\b(?:components|views|features|composables|utils)-[a-z0-9-]+__[a-z0-9-]+\b/g
 const numberedElementPattern = /__(?:panel|action|text|field|label|heading|description|icon|state|header|body|footer|main|section|navigation|link|router-link|pre|code)-\d+$/
+const retiredThemeTokenPattern = /var\(--(?:border-color|card-background|color-bg-secondary|color-bg-tertiary|color-border-hover|color-primary-500|danger-color|surface-hover|surface-secondary|text-secondary)\b/g
 
 async function collectFiles(directory, extensions) {
   const entries = await readdir(directory, { withFileTypes: true })
@@ -45,6 +46,12 @@ for (const path of styleFiles) {
   for (const match of content.matchAll(/:hover[^{}]*\{[^{}]*background(?:-color)?\s*:\s*(?:#(?:fff(?:fff)?|000(?:000)?)\b|white\b|black\b|var\(--color-(?:primary|primary-hover|success|danger|warning)\))/gis)) {
     report(path, 'opaque-hover', match)
   }
+
+  if (!path.endsWith(`${join('styles', 'generated', '_component-aliases.scss')}`)) {
+    for (const match of content.matchAll(/(?<![-\w])color\s*:\s*var\(--color-(?:primary|success|warning|danger|info)\)/gi)) {
+      report(path, 'non-semantic-foreground-token', match)
+    }
+  }
 }
 
 const sourceFiles = await collectFiles(sourceRoot, ['.scss', '.vue', '.ts', '.tsx', '.js', '.jsx'])
@@ -59,6 +66,10 @@ const encounteredOwnedClasses = new Set()
 
 for (const path of sourceFiles) {
   const content = await readFile(path, 'utf8')
+
+  for (const match of content.matchAll(retiredThemeTokenPattern)) {
+    report(path, 'retired-theme-token', match)
+  }
 
   for (const match of content.matchAll(legacyClassPattern)) {
     encounteredLegacyClasses.add(match[0])
@@ -104,6 +115,26 @@ const pairedThemeTokens = [
   '--color-text-tertiary',
   '--color-text-quaternary',
   '--color-text-muted',
+  '--color-text-placeholder',
+  '--color-text-disabled',
+  '--color-text-inverse',
+  '--color-text-on-accent',
+  '--color-text-link',
+  '--color-text-link-hover',
+  '--color-text-brand',
+  '--color-text-success',
+  '--color-text-warning',
+  '--color-text-danger',
+  '--color-text-info',
+  '--color-icon-primary',
+  '--color-icon-secondary',
+  '--color-icon-muted',
+  '--color-surface-inverse',
+  '--color-success-border',
+  '--color-warning-border',
+  '--color-danger-border',
+  '--color-info-border',
+  '--custom-background-scrim',
   '--glass-bg-interactive',
   '--glass-field-bg',
   '--glass-saturate',

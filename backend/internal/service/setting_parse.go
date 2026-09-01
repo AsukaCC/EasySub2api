@@ -159,6 +159,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyDefaultBalance:                             strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
 		SettingKeyBonusBalanceDefaultValidityDays:            "90",
 		SettingKeyAffiliateRebateRate:                        strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
+		SettingKeyAffiliateRebateRecipient:                   AffiliateRebateRecipientDefault,
 		SettingKeyAffiliateRebateFreezeHours:                 strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:                strconv.Itoa(AffiliateRebateDurationDaysDefault),
 		SettingKeyAffiliateRebatePerInviteeCap:               strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
@@ -358,7 +359,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		PromoCodeEnabled:                       settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                   emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                            settings[SettingKeyFrontendURL],
-		InvitationCodeEnabled:                  settings[SettingKeyInvitationCodeEnabled] == "true",
+		InvitationCodeEnabled:                  false,
 		TotpEnabled:                            settings[SettingKeyTotpEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭
@@ -445,6 +446,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.AffiliateRebateRate = AffiliateRebateRateDefault
 	}
+	result.AffiliateRebateRecipient = NormalizeAffiliateRebateRecipient(settings[SettingKeyAffiliateRebateRecipient])
 	result.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	if durationDays, err := strconv.Atoi(settings[SettingKeyAffiliateRebateDurationDays]); err == nil && durationDays >= 0 {
 		if durationDays > AffiliateRebateDurationDaysMax {
@@ -997,6 +999,13 @@ func clampAffiliateRebateRate(value float64) float64 {
 		return AffiliateRebateRateMax
 	}
 	return value
+}
+
+func NormalizeAffiliateRebateRecipient(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), AffiliateRebateRecipientInvitee) {
+		return AffiliateRebateRecipientInvitee
+	}
+	return AffiliateRebateRecipientDefault
 }
 
 func isFalseSettingValue(value string) bool {

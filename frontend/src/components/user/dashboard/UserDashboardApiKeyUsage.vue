@@ -201,7 +201,7 @@ const chartData = computed<D3ChartData>(() => ({
 
 const chartOptions = computed<D3ChartOptions>(() => {
   const isDark = document.documentElement.classList.contains('dark')
-  const textColor = isDark ? '#cbd5e1' : '#64748b'
+  const textColor = isDark ? '#cbd5e1' : '#71717a'
   const gridColor = isDark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(148, 163, 184, 0.2)'
 
   return {
@@ -306,7 +306,7 @@ const formatTokens = (value: number) => {
   flex: 0 0 auto;
   align-items: center;
   gap: 0.375rem;
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-size: var(--font-size-sm);
   font-weight: 600;
 }
@@ -412,7 +412,7 @@ const formatTokens = (value: number) => {
   -webkit-backdrop-filter: blur(var(--glass-blur-thin-hover)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur-thin-hover)) saturate(var(--glass-saturate));
   box-shadow:
-    0 2px 8px rgba(10, 132, 255, 0.12),
+    0 2px 8px color-mix(in srgb, var(--theme-accent) 12%, transparent),
     0 1px 0 var(--glass-highlight-hover) inset;
 
   .dark & {

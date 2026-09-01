@@ -253,6 +253,23 @@ func (h *UserHandler) GetAffiliate(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+// RegenerateAffiliateCode replaces the current user's personal affiliate code.
+// POST /api/v1/user/aff/code/regenerate
+func (h *UserHandler) RegenerateAffiliateCode(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	result, err := h.affiliateService.RegenerateAffiliateCode(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 // TransferAffiliateQuota transfers all available affiliate quota into current balance.
 // POST /api/v1/user/aff/transfer
 func (h *UserHandler) TransferAffiliateQuota(c *gin.Context) {

@@ -449,7 +449,7 @@ onUnmounted(() => {
 
 .toc-item.toc-active {
   background: var(--color-primary-subtle);
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-weight: 500;
 }
 
@@ -552,7 +552,7 @@ onUnmounted(() => {
   margin-bottom: 0.25rem;
 }
 .markdown-page-content a {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   text-decoration: underline;
 }
 .markdown-page-content a:hover {

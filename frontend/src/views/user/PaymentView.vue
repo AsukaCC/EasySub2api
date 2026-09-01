@@ -1448,7 +1448,7 @@ defineExpose({
 }
 
 .wallet-summary__available strong {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-size: var(--font-size-2xl);
   font-weight: 700;
 }
@@ -1475,14 +1475,14 @@ defineExpose({
 }
 
 .wallet-summary__row--warning strong {
-  color: var(--color-warning);
+  color: var(--color-text-warning);
 }
 
 .wallet-summary__expiry {
   margin-top: 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--color-border);
-  color: var(--color-warning);
+  color: var(--color-text-warning);
   font-size: var(--font-size-sm);
   line-height: 1.5;
 }
@@ -1507,7 +1507,7 @@ defineExpose({
   justify-content: space-between;
   gap: 1rem;
   padding: 0.625rem 0.875rem;
-  background: var(--color-bg-tertiary);
+  background: var(--color-surface-hover);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
 }
@@ -1535,7 +1535,7 @@ defineExpose({
   padding: 0.375rem 0.625rem;
   border-radius: var(--radius-sm);
   background: var(--color-primary-subtle, rgba(99, 102, 241, 0.08));
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-size: var(--font-size-xs);
   font-weight: 500;
 }
@@ -1550,7 +1550,7 @@ defineExpose({
   gap: 0.5rem;
   padding: 0.875rem 1rem;
   border-radius: var(--radius-lg);
-  background: var(--color-bg-tertiary);
+  background: var(--color-surface-hover);
   border: 1px solid var(--color-border);
 }
 
@@ -1580,7 +1580,7 @@ defineExpose({
 }
 
 .recharge-summary-val--pay {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-weight: 600;
   font-size: var(--font-size-base);
 }
@@ -1591,7 +1591,7 @@ defineExpose({
 }
 
 .recharge-summary-val--bonus {
-  color: var(--color-success, #10b981);
+  color: var(--color-text-success);
   font-weight: 500;
 }
 
@@ -1601,7 +1601,7 @@ defineExpose({
 }
 
 .recharge-summary-val--total {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-size: var(--font-size-lg);
   font-weight: 700;
 }
@@ -1609,7 +1609,7 @@ defineExpose({
 .recharge-error-text {
   margin: 0;
   font-size: var(--font-size-xs);
-  color: var(--color-danger, #ef4444);
+  color: var(--color-text-danger);
 }
 
 .recharge-hint-text {
@@ -1689,7 +1689,7 @@ defineExpose({
   grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
   padding: 0.75rem;
-  background: var(--color-bg-tertiary);
+  background: var(--color-surface-hover);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
 }
@@ -1714,7 +1714,7 @@ defineExpose({
 .subscription-dialog__wallet {
   padding: 0.875rem 1rem;
   border-radius: var(--radius-lg);
-  background: var(--color-bg-secondary);
+  background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
 }
 
@@ -1743,7 +1743,7 @@ defineExpose({
 }
 
 .subscription-dialog__wallet-row--price .subscription-dialog__wallet-val {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-size: var(--font-size-base);
 }
 
@@ -1753,7 +1753,7 @@ defineExpose({
 }
 
 .subscription-dialog__wallet-row--remaining .subscription-dialog__wallet-val {
-  color: var(--color-success, #10b981);
+  color: var(--color-text-success);
 }
 
 .subscription-insufficient-points {
@@ -1768,7 +1768,7 @@ defineExpose({
 .subscription-insufficient-text {
   margin: 0;
   font-size: var(--font-size-xs);
-  color: var(--color-warning, #f59e0b);
+  color: var(--color-text-warning);
   font-weight: 500;
 }
 

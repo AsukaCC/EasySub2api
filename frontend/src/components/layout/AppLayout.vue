@@ -67,9 +67,9 @@ defineExpose({ replayTour })
 
 .app-layout__backdrop {
   background-image:
-    radial-gradient(at 40% 20%, rgba(10, 132, 255, 0.12) 0, transparent 50%),
-    radial-gradient(at 80% 0, rgba(94, 92, 230, 0.08) 0, transparent 50%),
-    radial-gradient(at 0 50%, rgba(10, 132, 255, 0.08) 0, transparent 50%);
+    radial-gradient(at 40% 20%, color-mix(in srgb, var(--theme-accent) 6%, transparent) 0, transparent 50%),
+    radial-gradient(at 80% 0, color-mix(in srgb, var(--theme-accent) 4%, transparent) 0, transparent 50%),
+    radial-gradient(at 0 50%, rgba(255, 255, 255, 0.4) 0, transparent 50%);
 }
 
 .app-layout__decorations {
@@ -87,17 +87,17 @@ defineExpose({ replayTour })
 .app-layout__glow--top {
   top: -8rem;
   right: -8rem;
-  background-color: rgba(58, 162, 255, 0.15);
+  background-color: color-mix(in srgb, var(--theme-accent) 8%, transparent);
 }
 
 :global(.dark) .app-layout__glow--top {
-  background-color: rgba(10, 132, 255, 0.1);
+  background-color: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .app-layout__glow--bottom {
   bottom: -10rem;
   left: -8rem;
-  background-color: rgba(94, 92, 230, 0.1);
+  background-color: color-mix(in srgb, var(--theme-accent) 5%, transparent);
 }
 
 .app-layout__content {
@@ -110,27 +110,44 @@ defineExpose({ replayTour })
 }
 
 .app-layout__main {
+  --app-page-padding-top: 1.25rem;
+  --app-page-padding-bottom: 2.5rem;
+
   display: flex;
   align-items: stretch;
   gap: 1rem;
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
-  padding: 1.25rem clamp(1rem, 2vw, 2rem) 2.5rem;
+  padding: 0 clamp(1rem, 2vw, 2rem);
   overflow: hidden;
+}
+
+.app-layout__main > :global(#admin-sidebar) {
+  align-self: stretch;
+  min-height: 0;
+  margin-block: 1rem;
 }
 
 .app-layout__page {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+  padding-block: var(--app-page-padding-top) var(--app-page-padding-bottom);
   overflow-y: auto;
   overscroll-behavior-y: contain;
+  scroll-padding-block: var(--app-page-padding-top) var(--app-page-padding-bottom);
   scrollbar-width: none;
 }
 
 .app-layout__page::-webkit-scrollbar {
   display: none;
+}
+
+@media (max-width: 1023px) {
+  .app-layout__main > :global(#admin-sidebar) {
+    margin-block: 0;
+  }
 }
 
 </style>

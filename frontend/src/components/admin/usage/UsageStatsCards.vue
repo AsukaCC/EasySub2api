@@ -54,6 +54,12 @@
                   {{ formatTokens(stats?.total_cache_read_tokens || 0) }}
                 </span>
               </span>
+              <span class="components-admin-usage-usage-stats-cards__text-6">
+                <span>{{ t('usage.cacheReadRatio') }}</span>
+                <span class="components-admin-usage-usage-stats-cards__text-5">
+                  {{ cacheReadRatio }}
+                </span>
+              </span>
               </span>
             </HelpTooltip>
           </span>
@@ -116,6 +122,15 @@ const totalAccountCost = computed(() => {
 })
 const showAccountCost = computed(() => props.showAccountCost)
 const strikeStandardCost = computed(() => props.strikeStandardCost)
+
+// 缓存读取占全部输入侧 Token 的比例；口径与 Token 趋势图保持一致。
+const cacheReadRatio = computed(() => {
+  const input = Math.max(0, props.stats?.total_input_tokens || 0)
+  const creation = Math.max(0, props.stats?.total_cache_creation_tokens || 0)
+  const read = Math.max(0, props.stats?.total_cache_read_tokens || 0)
+  const promptTotal = input + creation + read
+  return promptTotal > 0 ? `${((read / promptTotal) * 100).toFixed(2)}%` : '0.00%'
+})
 
 const formatDuration = (ms: number) =>
   ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`

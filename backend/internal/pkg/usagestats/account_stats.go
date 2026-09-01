@@ -1,5 +1,7 @@
 package usagestats
 
+import "time"
+
 // AccountStats 账号使用统计
 //
 // cost: 账号口径费用（使用 total_cost * account_rate_multiplier）
@@ -11,4 +13,14 @@ type AccountStats struct {
 	Cost         float64 `json:"cost"`
 	StandardCost float64 `json:"standard_cost"`
 	UserCost     float64 `json:"user_cost"`
+}
+
+// AccountStatsWindow describes the exact persisted-usage interval that must
+// be matched to an upstream quota observation. Each account can have a
+// different provider reset boundary, so dashboard quota estimation cannot use
+// one shared rolling start time.
+type AccountStatsWindow struct {
+	AccountID string    `json:"account_id"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
 }

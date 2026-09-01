@@ -269,7 +269,7 @@ onMounted(() => {
 }
 
 .redeem-card__icon--primary {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   background: var(--color-primary-subtle);
 }
 
@@ -415,7 +415,7 @@ onMounted(() => {
 .redeem-history__chip--success { color: #059669; background: rgba(16, 185, 129, 0.14); }
 .redeem-history__chip--danger { color: #dc2626; background: rgba(239, 68, 68, 0.14); }
 .redeem-history__chip--purple { color: #7e22ce; background: rgba(168, 85, 247, 0.14); }
-.redeem-history__chip--info { color: var(--color-primary); background: var(--color-primary-subtle); }
+.redeem-history__chip--info { color: var(--color-text-brand); background: var(--color-primary-subtle); }
 .redeem-history__chip--warning { color: #d97706; background: rgba(245, 158, 11, 0.16); }
 
 .dark .redeem-history__chip--success { color: #34d399; background: rgba(6, 95, 70, 0.4); }
@@ -457,7 +457,7 @@ onMounted(() => {
 .redeem-history__value--success { color: #059669; }
 .redeem-history__value--danger { color: #dc2626; }
 .redeem-history__value--purple { color: #7e22ce; }
-.redeem-history__value--info { color: var(--color-primary); }
+.redeem-history__value--info { color: var(--color-text-brand); }
 .redeem-history__value--warning { color: #d97706; }
 
 .dark .redeem-history__value--success { color: #34d399; }

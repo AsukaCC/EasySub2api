@@ -133,7 +133,7 @@ function methodSelectedClass(type: string): string {
   padding: 0.625rem 0.75rem;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
+  background: var(--color-surface-muted);
   cursor: pointer;
   text-align: left;
   transition: all 0.15s ease-in-out;
@@ -141,8 +141,8 @@ function methodSelectedClass(type: string): string {
 }
 
 .payment-method-btn:hover:not(:disabled) {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-border-hover, var(--color-primary));
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
 .payment-method-btn-content {
@@ -187,7 +187,7 @@ function methodSelectedClass(type: string): string {
 .payment-method-btn--disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  background: var(--color-bg-secondary);
+  background: var(--color-surface-muted);
 }
 
 .payment-method-btn--selected {

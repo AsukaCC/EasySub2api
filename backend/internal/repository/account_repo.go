@@ -2606,6 +2606,7 @@ func (r *accountRepository) AutoPauseExpiredAccounts(ctx context.Context, now ti
 }
 
 func (r *accountRepository) UpdateExtra(ctx context.Context, id string, updates map[string]any) error {
+	updates = service.NormalizePassiveWeeklyQuotaUpdate(updates, time.Now())
 	updates = stripCodexFingerprintSeedFromExtraUpdate(updates)
 	if len(updates) == 0 {
 		return nil

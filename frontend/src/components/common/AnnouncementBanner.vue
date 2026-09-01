@@ -109,10 +109,12 @@ function previewFor(announcement: UserAnnouncement): string {
 .announcement-float__card {
   width: min(24rem, 100%);
   overflow: hidden;
-  border: 1px solid rgb(245 158 11 / 0.3);
+  border: 1px solid var(--color-warning-border);
   border-radius: var(--radius-xl);
-  background: rgb(255 248 230 / 0.82);
-  color: #92400e;
+  background:
+    linear-gradient(var(--color-warning-subtle), var(--color-warning-subtle)),
+    var(--color-surface-elevated);
+  color: var(--color-text-warning);
   -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
   backdrop-filter: blur(20px) saturate(var(--glass-saturate));
   box-shadow:
@@ -136,7 +138,7 @@ function previewFor(announcement: UserAnnouncement): string {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: var(--radius-md);
-  background: rgb(245 158 11 / 0.16);
+  background: var(--color-warning-subtle);
 }
 
 .announcement-float__title {
@@ -167,13 +169,13 @@ function previewFor(announcement: UserAnnouncement): string {
 }
 
 .announcement-float__dismiss:hover {
-  background: rgb(245 158 11 / 0.16);
+  background: var(--color-warning-subtle);
   opacity: 1;
 }
 
 .announcement-float__dismiss:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgb(245 158 11 / 0.35);
+  box-shadow: 0 0 0 3px var(--color-warning-border);
   opacity: 1;
 }
 
@@ -214,18 +216,10 @@ function previewFor(announcement: UserAnnouncement): string {
   }
 }
 
-/* 暗色:中性近黑玻璃底 + 琥珀描边与文字 */
-.dark .announcement-float__card {
-  border-color: rgb(251 191 36 / 0.22);
-  background: rgb(23 23 26 / 0.72);
-  color: #fcd34d;
+/* 暗色只调整阴影；表面、描边和文字由语义 token 自动切换。 */
+:global(.dark .announcement-float__card) {
   box-shadow:
     0 14px 32px rgb(0 0 0 / 0.32),
     0 1px 0 rgb(255 255 255 / 0.06) inset;
-}
-
-.dark .announcement-float__badge,
-.dark .announcement-float__dismiss:hover {
-  background: rgb(251 191 36 / 0.14);
 }
 </style>

@@ -70,6 +70,8 @@ type UserLevelDashboard struct {
 	LevelMultiplier     *float64  `json:"level_multiplier,omitempty"`
 	EffectiveMultiplier *float64  `json:"effective_multiplier,omitempty"`
 	MultiplierGroup     string    `json:"multiplier_group,omitempty"`
+	NextLevelMultiplier *float64  `json:"next_level_multiplier,omitempty"`
+	NextMultiplierGroup string    `json:"next_multiplier_group,omitempty"`
 }
 
 type DynamicRateUsageKey struct {
@@ -297,6 +299,17 @@ func (s *UserLevelService) ResolveDashboard(ctx context.Context, userID string, 
 				out.MultiplierGroup = candidate.Group.Name
 			}
 		}
+		if profile.Level < 3 && candidate.Group != nil {
+			nextMultiplier, resolveErr := s.resolveGroupBaseMultiplier(ctx, userID, candidate.Group, profile.Level+1)
+			if resolveErr != nil {
+				return out, resolveErr
+			}
+			if out.NextLevelMultiplier == nil || nextMultiplier < *out.NextLevelMultiplier {
+				value := nextMultiplier
+				out.NextLevelMultiplier = &value
+				out.NextMultiplierGroup = candidate.Group.Name
+			}
+		}
 	}
 	return out, nil
 }
@@ -358,21 +371,9 @@ func dynamicRuleApplies(rule GroupDynamicRateRule, profile UserLevelProfile, at 
 }
 
 func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, group *Group, profile UserLevelProfile, at time.Time) (UserRatePlan, error) {
-	base := group.RateMultiplier
-	source := "group"
-	if levelRate, ok := group.LevelRateMultipliers[strconv.Itoa(profile.Level)]; ok {
-		base = levelRate
-		source = "level"
-	}
-	if s.userRateRepo != nil {
-		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
-		if err != nil {
-			return UserRatePlan{}, err
-		}
-		if userRate != nil {
-			base = *userRate
-			source = "user"
-		}
+	base, source, err := s.resolveGroupBaseRate(ctx, userID, group, profile.Level)
+	if err != nil {
+		return UserRatePlan{}, err
 	}
 
 	candidates := make([]DynamicRateCandidate, 0)
@@ -421,6 +422,35 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 		BaseMultiplier: base, PeakMultiplier: peak, EffectiveMultiplier: selected * peak,
 		Source: source, DynamicCandidates: candidates,
 	}, nil
+}
+
+func (s *UserLevelService) resolveGroupBaseMultiplier(ctx context.Context, userID string, group *Group, level int) (float64, error) {
+	multiplier, _, err := s.resolveGroupBaseRate(ctx, userID, group, level)
+	return multiplier, err
+}
+
+// resolveGroupBaseRate is shared by live scheduling and the dashboard's next
+// level preview. User-specific group rates continue to override level rates,
+// so the preview always matches the rate that would actually be selected after
+// the user advances.
+func (s *UserLevelService) resolveGroupBaseRate(ctx context.Context, userID string, group *Group, level int) (float64, string, error) {
+	base := group.RateMultiplier
+	source := "group"
+	if levelRate, ok := group.LevelRateMultipliers[strconv.Itoa(level)]; ok {
+		base = levelRate
+		source = "level"
+	}
+	if s.userRateRepo != nil {
+		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
+		if err != nil {
+			return 0, "", err
+		}
+		if userRate != nil {
+			base = *userRate
+			source = "user"
+		}
+	}
+	return base, source, nil
 }
 
 func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupIDs []string, at time.Time, platform string) ([]RankedUserGroup, error) {

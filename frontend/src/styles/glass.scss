@@ -138,7 +138,7 @@ html body :is(.card, .stat-card, .glass-card, .card-glass),
   box-shadow: 0 1px 0 var(--glass-highlight) inset;
 
   &:hover:not(:disabled) {
-    color: var(--color-primary);
+    color: var(--color-text-brand);
   }
 
   .dark & {

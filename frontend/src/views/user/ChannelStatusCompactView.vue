@@ -318,7 +318,7 @@ onBeforeUnmount(() => {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: var(--radius-md);
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   background: var(--color-primary-subtle);
 }
 

@@ -75,7 +75,7 @@ const colorClass = computed(() => {
 .loading-spinner--md { width: 2rem; height: 2rem; border-width: 2px; }
 .loading-spinner--lg { width: 3rem; height: 3rem; border-width: 3px; }
 .loading-spinner--xl { width: 4rem; height: 4rem; border-width: 4px; }
-.loading-spinner--primary { color: var(--color-primary); }
+.loading-spinner--primary { color: var(--color-text-brand); }
 .loading-spinner--secondary { color: var(--color-text-secondary); }
 .loading-spinner--white { color: var(--color-text-inverse); }
 .loading-spinner--muted { color: var(--color-text-muted); }

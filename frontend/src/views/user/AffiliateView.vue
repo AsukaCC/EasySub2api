@@ -18,7 +18,9 @@
               {{ formattedRebateRate }}<span class="views-user-affiliate-view__text">%</span>
             </p>
             <p class="views-user-affiliate-view__description-3">
-              {{ t('affiliate.stats.rebateRateHint') }}
+              {{ t(detail.rebate_recipient === 'invitee'
+                ? 'affiliate.stats.rebateRateHintInvitee'
+                : 'affiliate.stats.rebateRateHintInviter') }}
             </p>
           </div>
           <div class="views-user-affiliate-view__panel-5 card">
@@ -57,7 +59,22 @@
                   <Icon name="copy" size="sm" />
                   <span>{{ t('affiliate.copyCode') }}</span>
                 </button>
+                <button
+                  class="views-user-affiliate-view__action btn btn-secondary btn-sm"
+                  :disabled="regenerating || detail.code_regeneration_remaining <= 0"
+                  @click="showRegenerateConfirm = true"
+                >
+                  <Icon name="refresh" size="sm" />
+                  <span>{{ t('affiliate.regenerate.button') }}</span>
+                </button>
               </div>
+              <p class="views-user-affiliate-view__description-3">
+                {{ t('affiliate.regenerate.remaining', {
+                  remaining: detail.code_regeneration_remaining,
+                  limit: detail.code_regeneration_limit,
+                  resetAt: formatDateTime(detail.code_regeneration_reset_at)
+                }) }}
+              </p>
             </div>
 
             <div class="views-user-affiliate-view__panel-8">
@@ -76,7 +93,9 @@
             <p class="views-user-affiliate-view__description-10">{{ t('affiliate.tips.title') }}</p>
             <ul class="views-user-affiliate-view__list">
               <li>1. {{ t('affiliate.tips.line1') }}</li>
-              <li>2. {{ t('affiliate.tips.line2', { rate: `${formattedRebateRate}%` }) }}</li>
+              <li>2. {{ t(detail.rebate_recipient === 'invitee'
+                ? 'affiliate.tips.line2Invitee'
+                : 'affiliate.tips.line2Inviter', { rate: `${formattedRebateRate}%` }) }}</li>
               <li>3. {{ t('affiliate.tips.line3') }}</li>
               <li v-if="detail.aff_frozen_quota > 0">4. {{ t('affiliate.tips.line4') }}</li>
             </ul>
@@ -136,6 +155,18 @@
         </div>
       </template>
     </div>
+
+    <ConfirmDialog
+      :show="showRegenerateConfirm"
+      :title="t('affiliate.regenerate.confirmTitle')"
+      :message="t('affiliate.regenerate.confirmMessage', {
+        remaining: detail?.code_regeneration_remaining ?? 0
+      })"
+      :confirm-text="t('affiliate.regenerate.confirmButton')"
+      danger
+      @confirm="regenerateCode"
+      @cancel="showRegenerateConfirm = false"
+    />
   </AppLayout>
 </template>
 
@@ -143,6 +174,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
 import type { UserAffiliateDetail } from '@/types'
@@ -159,6 +191,8 @@ const { copyToClipboard } = useClipboard()
 
 const loading = ref(true)
 const transferring = ref(false)
+const regenerating = ref(false)
+const showRegenerateConfirm = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
 
 const inviteLink = computed(() => {
@@ -202,6 +236,26 @@ async function copyCode(): Promise<void> {
 async function copyInviteLink(): Promise<void> {
   if (!inviteLink.value) return
   await copyToClipboard(inviteLink.value, t('affiliate.linkCopied'))
+}
+
+async function regenerateCode(): Promise<void> {
+  if (!detail.value || regenerating.value || detail.value.code_regeneration_remaining <= 0) return
+  showRegenerateConfirm.value = false
+  regenerating.value = true
+  try {
+    const result = await userAPI.regenerateAffiliateCode()
+    detail.value.aff_code = result.aff_code
+    detail.value.code_regeneration_limit = result.limit
+    detail.value.code_regeneration_used = result.used
+    detail.value.code_regeneration_remaining = result.remaining
+    detail.value.code_regeneration_reset_at = result.reset_at
+    appStore.showSuccess(t('affiliate.regenerate.success'))
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('affiliate.regenerate.failed')))
+    await loadAffiliateDetail(true)
+  } finally {
+    regenerating.value = false
+  }
 }
 
 async function transferQuota(): Promise<void> {

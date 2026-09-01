@@ -552,10 +552,10 @@ onMounted(async () => {
   font-size: var(--font-size-2xs);
 }
 
-.ticket-status--pending_admin { color: var(--color-warning); }
-.ticket-status--pending_user { color: var(--color-info); }
-.ticket-status--in_progress { color: var(--color-primary); }
-.ticket-status--resolved { color: var(--color-success); }
+.ticket-status--pending_admin { color: var(--color-text-warning); }
+.ticket-status--pending_user { color: var(--color-text-info); }
+.ticket-status--in_progress { color: var(--color-text-brand); }
+.ticket-status--resolved { color: var(--color-text-success); }
 .ticket-status--closed,
 .ticket-status--cancelled { color: var(--color-text-quaternary); }
 

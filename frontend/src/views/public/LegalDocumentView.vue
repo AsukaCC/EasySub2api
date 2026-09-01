@@ -221,7 +221,7 @@ onMounted(async () => {
 }
 
 .legal-document-content :deep(a) {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   text-decoration: underline;
   text-underline-offset: 4px;
 }

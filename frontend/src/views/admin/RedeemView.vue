@@ -288,7 +288,7 @@
               <Select v-model="generateForm.type" :options="typeOptions" />
             </div>
             <!-- 余额/并发类型：显示数值输入 -->
-            <div v-if="generateForm.type !== 'subscription' && generateForm.type !== 'invitation'">
+            <div v-if="generateForm.type !== 'subscription'">
               <label class="input-label">
                 {{
                   generateForm.type === 'balance'
@@ -304,12 +304,6 @@
                 required
                 class="input"
               />
-            </div>
-            <!-- 邀请码类型：显示提示信息 -->
-            <div v-if="generateForm.type === 'invitation'" class="views-admin-redeem-view__panel-11">
-              <p class="views-admin-redeem-view__description">
-                {{ t('admin.redeem.invitationHint') }}
-              </p>
             </div>
             <!-- 订阅类型：显示分组选择和有效天数 -->
             <template v-if="generateForm.type === 'subscription'">
@@ -612,7 +606,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
@@ -738,8 +732,7 @@ const columns = computed<Column[]>(() => [
 const typeOptions = computed(() => [
   { value: 'balance', label: t('admin.redeem.balance') },
   { value: 'concurrency', label: t('admin.redeem.concurrency') },
-  { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'subscription', label: t('admin.redeem.subscription') }
 ])
 
 const filterTypeOptions = computed(() => [
@@ -841,18 +834,6 @@ const generateForm = reactive({
   expiry_option: 'never' as RedeemCodeExpiryOption,
   custom_expiry_days: 7
 })
-
-// 监听类型变化，邀请码类型时自动设置 value 为 0
-watch(
-  () => generateForm.type,
-  (newType) => {
-    if (newType === 'invitation') {
-      generateForm.value = 0
-    } else if (generateForm.value === 0) {
-      generateForm.value = 10
-    }
-  }
-)
 
 const buildRedeemQueryFilters = () => ({
   type: (filters.type || undefined) as RedeemCodeType | undefined,

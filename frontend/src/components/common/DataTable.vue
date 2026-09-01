@@ -8,11 +8,6 @@
     }"
     :aria-busy="loading ? 'true' : undefined"
   >
-    <div v-if="isRefreshing" class="data-table__refresh-state" role="status">
-      <span class="data-table__spinner" aria-hidden="true"></span>
-      <span>{{ t('common.loading') }}</span>
-    </div>
-
     <div v-if="!isDesktopViewport" class="data-table__mobile-list">
       <template v-if="isInitialLoading">
         <div v-for="i in 5" :key="i" class="data-table__mobile-card data-table__mobile-card--skeleton">
@@ -274,6 +269,20 @@
           </template>
         </tbody>
       </table>
+    </div>
+
+    <div
+      v-if="isRefreshing"
+      class="data-table__loading-overlay"
+      :class="isDesktopViewport ? 'data-table__loading-overlay--desktop' : 'data-table__loading-overlay--mobile'"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div class="data-table__loading-state">
+        <span class="data-table__spinner" aria-hidden="true"></span>
+        <span>{{ t('common.loading') }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -813,6 +822,24 @@ const writePersistedSortState = (state: PersistedSortState) => {
   }
 }
 
+const clearSort = () => {
+  sortKey.value = ''
+  sortOrder.value = 'asc'
+  if (!props.sortStorageKey) return
+  try {
+    localStorage.removeItem(props.sortStorageKey)
+  } catch (e) {
+    console.error('[DataTable] Failed to clear persisted sort state:', e)
+  }
+}
+
+const setSort = (key: string, order: 'asc' | 'desc') => {
+  const normalizedKey = normalizeSortKey(key)
+  if (!normalizedKey) return
+  sortKey.value = normalizedKey
+  sortOrder.value = normalizeSortOrder(order)
+}
+
 const resolveInitialSortState = (): PersistedSortState | null => {
   const persisted = readPersistedSortState()
   if (persisted) return persisted
@@ -1247,6 +1274,8 @@ defineExpose({
   tableWrapperEl: tableWrapperRef,
   resetColumnWidth,
   resetColumnWidths,
+  clearSort,
+  setSort,
 })
 </script>
 
@@ -1268,7 +1297,7 @@ defineExpose({
   box-shadow:
     var(--glass-shadow),
     0 1px 0 var(--glass-highlight) inset;
-  color: var(--color-text-primary, #121214);
+  color: var(--color-text-primary);
 
   &--refreshing {
     .data-table__viewport,
@@ -1276,34 +1305,61 @@ defineExpose({
       pointer-events: none;
       user-select: none;
     }
+
+    .data-table__body,
+    .data-table__mobile-card,
+    .data-table__mobile-selection {
+      opacity: 0.48;
+    }
   }
 
-  &__refresh-state {
+  &__loading-overlay {
     position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    z-index: 260;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 250;
+    display: grid;
+    min-height: 6.5rem;
+    place-items: center;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    background-color: var(--glass-layer-content-bg);
+    -webkit-backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
+    cursor: wait;
+  }
+
+  &__loading-overlay--desktop {
+    top: 2.75rem;
+  }
+
+  &__loading-overlay--mobile {
+    top: 0;
+    border-radius: var(--radius-lg, 0.5rem);
+  }
+
+  &__loading-state {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     min-height: 2rem;
     padding: 0.375rem 0.75rem;
-    border: 1px solid var(--color-border, #e5e7eb);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-md, 0.5rem);
-    background: var(--glass-layer-floating-bg);
-    box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
-    color: var(--color-text-secondary, #4b5563);
+    background: var(--glass-layer-inset-bg);
+    box-shadow: var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
+    color: var(--color-text-secondary);
     font-size: var(--type-caption-size);
     line-height: 1;
-    -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
   }
 
   &__spinner {
     width: 0.875rem;
     height: 0.875rem;
     flex: 0 0 auto;
-    border: 2px solid var(--color-border-strong, #9ca3af);
+    border: 2px solid var(--color-border-strong);
     border-top-color: transparent;
     border-radius: 50%;
     animation: data-table-spin 0.7s linear infinite;
@@ -1367,11 +1423,11 @@ defineExpose({
     top: 0;
     z-index: 210;
     height: 2.75rem;
-    border-bottom: 1px solid var(--color-border, #e5e7eb);
+    border-bottom: 1px solid var(--color-border);
     background: var(--glass-layer-shell-bg);
     -webkit-backdrop-filter: blur(var(--glass-layer-shell-blur)) saturate(var(--glass-saturate, 1.8));
     backdrop-filter: blur(var(--glass-layer-shell-blur)) saturate(var(--glass-saturate, 1.8));
-    color: var(--color-text-secondary, #4b5563);
+    color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
     font-weight: 600;
     line-height: 1rem;
@@ -1386,7 +1442,7 @@ defineExpose({
     }
 
     &.is-being-resized {
-      background: var(--color-primary-subtle, #eff6ff);
+      background: var(--color-primary-subtle);
     }
 
     &.is-sortable {
@@ -1396,7 +1452,7 @@ defineExpose({
         background: var(--glass-layer-shell-bg);
         -webkit-backdrop-filter: blur(var(--glass-layer-shell-blur-hover)) saturate(var(--glass-saturate-hover));
         backdrop-filter: blur(var(--glass-layer-shell-blur-hover)) saturate(var(--glass-saturate-hover));
-        color: var(--color-text-primary, #121214);
+        color: var(--color-text-primary);
       }
 
       &.sticky-col:hover {
@@ -1435,7 +1491,7 @@ defineExpose({
       bottom: 0.5rem;
       width: 1px;
       border-radius: 1px;
-      background: var(--color-border-strong, #cbd5e1);
+      background: var(--color-border-strong);
       opacity: 0;
       transition: opacity 120ms ease, background-color 120ms ease;
     }
@@ -1443,12 +1499,12 @@ defineExpose({
     &:hover::before,
     &:focus-visible::before,
     &.is-active::before {
-      background: var(--color-primary, #2563eb);
+      background: color-mix(in srgb, var(--theme-accent) 72%, transparent);
       opacity: 1;
     }
 
     &:focus-visible {
-      outline: 2px solid var(--color-primary, #2563eb);
+      outline: 2px solid var(--color-primary);
       outline-offset: -2px;
     }
   }
@@ -1456,10 +1512,11 @@ defineExpose({
   &__body {
     position: relative;
     z-index: 0;
+    transition: opacity 160ms ease;
   }
 
   &__row {
-    color: var(--color-text-primary, #121214);
+    color: var(--color-text-primary);
     transition: background-color 120ms ease;
 
     &:hover {
@@ -1491,7 +1548,7 @@ defineExpose({
 
       // 行首主色指示条(与侧边栏激活态同语言)
       .data-table__body-cell:first-child {
-        box-shadow: inset 3px 0 0 var(--color-primary, #0a84ff);
+        box-shadow: inset 3px 0 0 var(--color-primary);
       }
     }
   }
@@ -1499,7 +1556,7 @@ defineExpose({
   // 单元格默认透明，让玻璃卡底透出；sticky 列使用 L2 半透明材质遮挡滚动内容。
   &__body-cell {
     height: 3.25rem;
-    border-bottom: 1px solid var(--color-border-subtle, #f3f4f6);
+    border-bottom: 1px solid var(--color-border-subtle);
     background: transparent;
     color: inherit;
       font-size: var(--type-control-size);
@@ -1537,7 +1594,7 @@ defineExpose({
     height: 1rem;
     margin: 0;
     border-radius: 0.25rem;
-    accent-color: var(--color-primary, #2563eb);
+    accent-color: var(--color-primary);
     cursor: pointer;
   }
 
@@ -1582,7 +1639,7 @@ defineExpose({
   &__sort-indicator {
     display: inline-flex;
     flex-direction: column;
-    color: var(--color-text-tertiary, #9ca3af);
+    color: var(--color-text-tertiary);
   }
 
   &__sort-arrow {
@@ -1594,7 +1651,7 @@ defineExpose({
     }
 
     &.is-active {
-      color: var(--color-primary, #2563eb);
+      color: var(--color-text-brand);
     }
   }
 
@@ -1610,7 +1667,7 @@ defineExpose({
     align-items: center;
     flex-direction: column;
     gap: 0.75rem;
-    color: var(--color-text-tertiary, #9ca3af);
+    color: var(--color-text-tertiary);
   }
 
   &__empty-icon {
@@ -1629,7 +1686,7 @@ defineExpose({
   &__skeleton {
     display: inline-block;
     border-radius: 0.375rem;
-    background: var(--color-skeleton, #e5e7eb);
+    background: var(--color-skeleton);
     animation: data-table-pulse 1.4s ease-in-out infinite;
 
     &--cell {
@@ -1669,6 +1726,7 @@ defineExpose({
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg, 0.5rem);
     background: var(--glass-bg-thin);
+    transition: opacity 160ms ease;
   }
 
   &__mobile-card {
@@ -1682,9 +1740,9 @@ defineExpose({
     }
 
     &.is-selected {
-      border-color: var(--color-primary-border, #bfdbfe);
-      background: var(--color-primary-subtle, #eff6ff);
-      box-shadow: inset 3px 0 0 var(--color-primary, #0a84ff);
+      border-color: var(--color-primary-border);
+      background: var(--color-primary-subtle);
+      box-shadow: inset 3px 0 0 var(--color-primary);
     }
   }
 
@@ -1696,7 +1754,7 @@ defineExpose({
     display: inline-flex;
     align-items: center;
     gap: 0.625rem;
-    color: var(--color-text-secondary, #4b5563);
+    color: var(--color-text-secondary);
     font-size: var(--font-size-sm);
   }
 
@@ -1715,14 +1773,14 @@ defineExpose({
 
   &__mobile-label {
     flex: 0 0 auto;
-    color: var(--color-text-tertiary, #6b7280);
+    color: var(--color-text-tertiary);
     font-size: var(--type-caption-size);
     font-weight: 500;
   }
 
   &__mobile-value {
     min-width: 0;
-    color: var(--color-text-primary, #121214);
+    color: var(--color-text-primary);
     font-size: var(--type-control-size);
     text-align: right;
     overflow-wrap: anywhere;
@@ -1732,7 +1790,7 @@ defineExpose({
     display: flex;
     justify-content: flex-end;
     padding-top: 0.75rem;
-    border-top: 1px solid var(--color-border-subtle, #f3f4f6);
+    border-top: 1px solid var(--color-border-subtle);
   }
 }
 
@@ -1785,7 +1843,7 @@ defineExpose({
 }
 
 .dark .data-table {
-  color: var(--color-text-primary, #f3f4f6);
+  color: var(--color-text-primary);
 
   &__viewport::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
@@ -1804,7 +1862,7 @@ defineExpose({
   }
 
   &__header-cell {
-    border-color: var(--color-border, #2e2e33);
+    border-color: var(--color-border);
   }
 
   &__row.is-selected .data-table__body-cell.sticky-col {
@@ -1812,19 +1870,19 @@ defineExpose({
   }
 
   &__body-cell {
-    border-color: var(--color-border, #26262b);
+    border-color: var(--color-border);
   }
 
   &__mobile-actions {
-    border-color: var(--color-border, #2e2e33);
+    border-color: var(--color-border);
   }
 
   &__mobile-value {
-    color: var(--color-text-primary, #f3f4f6);
+    color: var(--color-text-primary);
   }
 
   &__skeleton {
-    background: var(--color-skeleton, #2e2e33);
+    background: var(--color-skeleton);
   }
 
   .is-scrollable {
@@ -1891,10 +1949,19 @@ defineExpose({
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .data-table__spinner,
+  .data-table__spinner {
+    animation: none;
+  }
+
   .data-table__skeleton {
     animation-duration: 1ms;
     animation-iteration-count: 1;
+  }
+
+  .data-table__body,
+  .data-table__mobile-card,
+  .data-table__mobile-selection {
+    transition-duration: 1ms;
   }
 }
 </style>

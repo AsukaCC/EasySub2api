@@ -1252,9 +1252,6 @@ func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 	if h.isForceEmailOnThirdPartySignup(ctx) {
 		return false
 	}
-	if h.settingSvc.IsInvitationCodeEnabled(ctx) {
-		return false
-	}
 	if err := h.ensureBackendModeAllowsNewUserLogin(ctx); err != nil {
 		log.Printf("[OIDC OAuth] verified-email fast path blocked by backend mode: reason=%s", infraerrors.Reason(err))
 		clearOAuthPendingSessionCookie(c, isRequestHTTPS(c))

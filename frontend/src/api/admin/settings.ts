@@ -422,6 +422,7 @@ export interface SystemSettings {
   default_balance: number;
 	bonus_balance_default_validity_days: number;
   affiliate_rebate_rate: number;
+  affiliate_rebate_recipient: "inviter" | "invitee";
   affiliate_rebate_freeze_hours: number;
   affiliate_rebate_duration_days: number;
   affiliate_rebate_per_invitee_cap: number;
@@ -764,6 +765,7 @@ export interface UpdateSettingsRequest {
   default_balance?: number;
 	bonus_balance_default_validity_days?: number;
   affiliate_rebate_rate?: number;
+  affiliate_rebate_recipient?: "inviter" | "invitee";
   affiliate_rebate_freeze_hours?: number;
   affiliate_rebate_duration_days?: number;
   affiliate_rebate_per_invitee_cap?: number;

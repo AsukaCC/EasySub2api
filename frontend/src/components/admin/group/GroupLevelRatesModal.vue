@@ -126,6 +126,6 @@ async function save() {
 .level-rates-modal__empty { color: var(--color-text-muted); margin: 0; }
 .level-rates-modal__footer { justify-content: flex-end; }
 .icon-button { border: 0; background: transparent; cursor: pointer; padding: .35rem; }
-.danger { color: var(--color-danger); }
+.danger { color: var(--color-text-danger); }
 @media (max-width: 900px) { .level-rates-modal__rule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .level-rates-modal__levels { grid-template-columns: 1fr; } .level-rates-modal__context span { margin-left: 0; } }
 </style>

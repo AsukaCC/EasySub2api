@@ -188,7 +188,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
-	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
+	settings.InvitationCodeEnabled = false
+	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(false)
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 	updates[SettingKeyPasskeyEnabled] = strconv.FormatBool(settings.PasskeyEnabled)
 	updates[SettingKeySessionBindingEnabled] = strconv.FormatBool(settings.SessionBindingEnabled)
@@ -377,6 +378,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyBonusBalanceDefaultValidityDays] = strconv.Itoa(settings.BonusBalanceDefaultValidityDays)
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
 	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 8, 64)
+	settings.AffiliateRebateRecipient = NormalizeAffiliateRebateRecipient(settings.AffiliateRebateRecipient)
+	updates[SettingKeyAffiliateRebateRecipient] = settings.AffiliateRebateRecipient
 	settings.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	updates[SettingKeyAffiliateRebateFreezeHours] = strconv.Itoa(settings.AffiliateRebateFreezeHours)
 	if settings.AffiliateRebateDurationDays < 0 {

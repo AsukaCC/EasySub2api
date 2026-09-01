@@ -321,7 +321,7 @@ onBeforeUnmount(() => {
 
 .locale-option-code-active {
   background: var(--glass-tint-brand-active);
-  color: var(--color-primary);
+  color: var(--color-text-brand);
 }
 
 @media (max-width: 639px) {

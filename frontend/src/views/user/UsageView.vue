@@ -651,6 +651,7 @@ const exportToCSV = async () => {
       'Cache Creation Tokens',
       'Rate Multiplier',
       'Billed Points',
+      'Account Points Used',
       'Standard Cost (USD)',
       'First Token (ms)',
       'Duration (ms)',
@@ -670,6 +671,7 @@ const exportToCSV = async () => {
       log.cache_creation_tokens,
       log.rate_multiplier,
       log.actual_cost.toFixed(8),
+      (log.account_billed_points ?? 0).toFixed(8),
       log.total_cost.toFixed(8),
       log.first_token_ms ?? '',
       log.duration_ms ?? '',
@@ -892,7 +894,7 @@ watch(endpointDistributionSource, () => {
 <style scoped>
 /* 列设置下拉挂在 panel-16.filter-toolbar 上,筛选卡本身与图表卡一样只做 .card 表面。 */
 .views-user-usage-view__icon {
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   flex-shrink: 0;
 }
 </style>

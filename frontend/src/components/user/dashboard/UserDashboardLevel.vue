@@ -42,6 +42,22 @@
         </template>
         <template v-else>{{ t('dashboard.level.maxLevel') }}</template>
       </p>
+      <div
+        v-if="nextLevel && profile.next_level_multiplier != null"
+        class="dashboard-level__next-rate"
+      >
+        <div class="dashboard-level__next-rate-copy">
+          <span class="dashboard-level__label">
+            {{ t('dashboard.level.nextMultiplier', { level: `L${nextLevel.level}` }) }}
+          </span>
+          <small v-if="profile.next_multiplier_group" class="dashboard-level__group">
+            {{ profile.next_multiplier_group }}
+          </small>
+        </div>
+        <strong class="dashboard-level__next-rate-value">
+          ×{{ formatMultiplier(profile.next_level_multiplier) }}
+        </strong>
+      </div>
     </div>
     <div v-else class="dashboard-level__state dashboard-level__muted">
       {{ t('dashboard.level.unavailable') }}
@@ -73,6 +89,13 @@
             <span class="dashboard-level__label">{{ t('dashboard.level.effectiveMultiplier') }}</span>
             <strong class="dashboard-level__value">×{{ formatMultiplier(profile.effective_multiplier) }}</strong>
             <small v-if="profile.multiplier_group" class="dashboard-level__group">{{ profile.multiplier_group }}</small>
+          </div>
+          <div v-if="nextLevel && profile.next_level_multiplier != null">
+            <span class="dashboard-level__label">
+              {{ t('dashboard.level.nextMultiplier', { level: `L${nextLevel.level}` }) }}
+            </span>
+            <strong class="dashboard-level__value">×{{ formatMultiplier(profile.next_level_multiplier) }}</strong>
+            <small v-if="profile.next_multiplier_group" class="dashboard-level__group">{{ profile.next_multiplier_group }}</small>
           </div>
         </div>
 
@@ -186,10 +209,10 @@ const sameMultiplier = computed(() => {
 .dashboard-level__header { justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border-subtle); }
 .dashboard-level__title-group { min-width: 0; gap: .75rem; }
 .dashboard-level__header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .5rem; }
-.dashboard-level__icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: var(--radius-md); color: var(--color-primary); background: var(--color-primary-subtle); }
+.dashboard-level__icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: var(--radius-md); color: var(--color-text-brand); background: var(--color-primary-subtle); }
 .dashboard-level__title { margin: 0; color: var(--color-text-primary); font-size: var(--font-size-base); font-weight: 650; }
 .dashboard-level__description { margin: .125rem 0 0; color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
-.dashboard-level__badge { flex: 0 0 auto; padding: .3rem .7rem; border-radius: 999px; color: var(--color-primary); background: var(--color-primary-subtle); font-size: var(--font-size-xs); font-weight: 700; }
+.dashboard-level__badge { flex: 0 0 auto; padding: .3rem .7rem; border-radius: 999px; color: var(--color-text-brand); background: var(--color-primary-subtle); font-size: var(--font-size-xs); font-weight: 700; }
 .dashboard-level__view-full {
   flex: 0 0 auto;
   padding: .3rem .7rem;
@@ -203,8 +226,8 @@ const sameMultiplier = computed(() => {
   transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
 .dashboard-level__view-full:hover {
-  border-color: rgb(10 132 255 / 0.35);
-  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+  color: var(--color-text-brand);
   background: var(--color-primary-subtle);
 }
 .dashboard-level__state { min-height: 5rem; display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -215,9 +238,12 @@ const sameMultiplier = computed(() => {
 .dashboard-level__muted { color: var(--color-text-tertiary); }
 .dashboard-level__group { overflow: hidden; color: var(--color-text-tertiary); font-size: var(--font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-level__caption { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: 500; }
+.dashboard-level__next-rate { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .625rem .75rem; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: var(--glass-layer-inset-bg); box-shadow: 0 1px 0 var(--glass-highlight) inset; -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate)); backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate)); }
+.dashboard-level__next-rate-copy { display: grid; min-width: 0; gap: .125rem; }
+.dashboard-level__next-rate-value { flex: 0 0 auto; color: var(--color-text-brand); font-size: var(--font-size-lg); font-weight: 700; }
 .dashboard-level__progress { display: grid; gap: .4rem; }
 .dashboard-level__progress-track { height: .4rem; overflow: hidden; border-radius: 999px; background: var(--color-surface-muted); }
-.dashboard-level__progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0a84ff, #5ac8fa); transition: width .25s ease; }
+.dashboard-level__progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--theme-accent), color-mix(in srgb, var(--theme-accent) 55%, white)); transition: width .25s ease; }
 .dashboard-level__progress-labels { display: flex; justify-content: space-between; gap: .75rem; color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
 
 /* ---- 弹窗内容 ---- */
@@ -232,7 +258,7 @@ const sameMultiplier = computed(() => {
 .dashboard-level__tier-threshold { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
 .dashboard-level__tier-status { margin-left: auto; padding: .125rem .5rem; border-radius: 999px; font-size: var(--font-size-xs); font-weight: 600; }
 .dashboard-level__tier-status--achieved { color: #059669; background: rgba(16, 185, 129, 0.14); }
-.dashboard-level__tier-status--inProgress { color: var(--color-primary); background: var(--color-primary-subtle); }
+.dashboard-level__tier-status--inProgress { color: var(--color-text-brand); background: var(--color-primary-subtle); }
 .dashboard-level__tier-status--locked { color: var(--color-text-tertiary); background: rgba(120, 120, 128, 0.14); }
 .dark .dashboard-level__tier-status--achieved { color: #34d399; background: rgba(6, 95, 70, 0.4); }
 </style>

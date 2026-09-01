@@ -170,6 +170,7 @@ type UpdateSettingsRequest struct {
 	DefaultBalance                             float64                           `json:"default_balance"`
 	BonusBalanceDefaultValidityDays            int                               `json:"bonus_balance_default_validity_days"`
 	AffiliateRebateRate                        *float64                          `json:"affiliate_rebate_rate"`
+	AffiliateRebateRecipient                   *string                           `json:"affiliate_rebate_recipient"`
 	AffiliateRebateFreezeHours                 *int                              `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays                *int                              `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap               *float64                          `json:"affiliate_rebate_per_invitee_cap"`
@@ -638,6 +639,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if affiliateRebateRate > service.AffiliateRebateRateMax {
 		affiliateRebateRate = service.AffiliateRebateRateMax
 	}
+	affiliateRebateRecipient := previousSettings.AffiliateRebateRecipient
+	if req.AffiliateRebateRecipient != nil {
+		affiliateRebateRecipient = *req.AffiliateRebateRecipient
+	}
+	affiliateRebateRecipient = service.NormalizeAffiliateRebateRecipient(affiliateRebateRecipient)
 	affiliateRebateFreezeHours := service.AffiliateRebateFreezeHoursDefault
 	affiliateRebateDurationDays := previousSettings.AffiliateRebateDurationDays
 	if req.AffiliateRebateDurationDays != nil {
@@ -1529,7 +1535,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PromoCodeEnabled:                    req.PromoCodeEnabled,
 		PasswordResetEnabled:                req.PasswordResetEnabled,
 		FrontendURL:                         req.FrontendURL,
-		InvitationCodeEnabled:               req.InvitationCodeEnabled,
+		InvitationCodeEnabled:               false,
 		TotpEnabled:                         req.TotpEnabled,
 		PasskeyEnabled:                      passkeyEnabled,
 		SessionBindingEnabled:               sessionBindingEnabled,
@@ -1652,6 +1658,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DefaultBalance:                         req.DefaultBalance,
 		BonusBalanceDefaultValidityDays:        req.BonusBalanceDefaultValidityDays,
 		AffiliateRebateRate:                    affiliateRebateRate,
+		AffiliateRebateRecipient:               affiliateRebateRecipient,
 		AffiliateEnabled:                       affiliateEnabled,
 		AffiliateUserVisible:                   affiliateUserVisible,
 		PaymentUserVisible:                     paymentUserVisible,
@@ -2271,6 +2278,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DefaultBalance:                                         updatedSettings.DefaultBalance,
 		BonusBalanceDefaultValidityDays:                        updatedSettings.BonusBalanceDefaultValidityDays,
 		AffiliateRebateRate:                                    updatedSettings.AffiliateRebateRate,
+		AffiliateRebateRecipient:                               updatedSettings.AffiliateRebateRecipient,
 		AffiliateRebateFreezeHours:                             updatedSettings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:                            updatedSettings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           updatedSettings.AffiliateRebatePerInviteeCap,

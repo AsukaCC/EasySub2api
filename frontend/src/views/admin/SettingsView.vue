@@ -1539,20 +1539,6 @@
                 <Toggle v-model="form.promo_code_enabled" />
               </div>
 
-              <!-- Invitation Code -->
-              <div
-                class="views-admin-settings-view__panel-31"
-              >
-                <div>
-                  <label class="views-admin-settings-view__label-2">{{
-                    t("admin.settings.registration.invitationCode")
-                  }}</label>
-                  <p class="views-admin-settings-view__description-5">
-                    {{ t("admin.settings.registration.invitationCodeHint") }}
-                  </p>
-                </div>
-                <Toggle v-model="form.invitation_code_enabled" />
-              </div>
               <!-- Password Reset - Only show when email verification is enabled -->
               <div
                 v-if="form.email_verify_enabled"
@@ -7013,6 +6999,22 @@
             <div class="views-admin-settings-view__form">
               <div>
                 <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.recipient') }}
+                </label>
+                <Select
+                  v-model="form.affiliate_rebate_recipient"
+                  :options="[
+                    { value: 'inviter', label: t('admin.settings.features.affiliate.recipientInviter') },
+                    { value: 'invitee', label: t('admin.settings.features.affiliate.recipientInvitee') }
+                  ]"
+                />
+                <p class="views-admin-settings-view__description-31">
+                  {{ t('admin.settings.features.affiliate.recipientHint') }}
+                </p>
+              </div>
+
+              <div>
+                <label class="input-label">
                   {{ t('admin.settings.features.affiliate.rebateRate') }}
                 </label>
                 <div class="views-admin-settings-view__panel-103">
@@ -8593,7 +8595,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
     "model_plaza_require_auth", "model_plaza_description",
   ]),
   "feature-affiliate": new Set([
-    "affiliate_rebate_rate", "affiliate_rebate_freeze_hours",
+    "affiliate_rebate_rate", "affiliate_rebate_recipient", "affiliate_rebate_freeze_hours",
     "affiliate_rebate_duration_days", "affiliate_rebate_per_invitee_cap",
     "affiliate_admin_recharge_enabled",
   ]),
@@ -9320,6 +9322,7 @@ const form = reactive<SettingsForm>({
   default_platform_quotas: normalizePlatformQuotasMap() as DefaultPlatformQuotasMap,
   account_scheduling_thresholds: normalizeAccountSchedulingThresholdsMap(),
   affiliate_rebate_rate: 20,
+  affiliate_rebate_recipient: "inviter",
   affiliate_rebate_freeze_hours: 168,
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,
@@ -11028,7 +11031,7 @@ async function saveSettings(section?: SettingsSection) {
       registration_email_domain_quota_enabled:
         form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
-      invitation_code_enabled: form.invitation_code_enabled,
+      invitation_code_enabled: false,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       passkey_enabled: form.passkey_enabled,
@@ -11049,6 +11052,7 @@ async function saveSettings(section?: SettingsSection) {
         100,
         Math.max(0, Number(form.affiliate_rebate_rate) || 0),
       ),
+      affiliate_rebate_recipient: form.affiliate_rebate_recipient === "invitee" ? "invitee" : "inviter",
       affiliate_rebate_freeze_hours: 168,
       affiliate_rebate_duration_days: Math.max(0, Math.min(3650, Math.floor(Number(form.affiliate_rebate_duration_days) || 0))),
       affiliate_rebate_per_invitee_cap: Math.max(0, Number(form.affiliate_rebate_per_invitee_cap) || 0),
@@ -12973,7 +12977,7 @@ watch(
 
 .settings-tab-active .settings-tab-icon {
   background: rgba(10, 132, 255, 0.1);
-  color: var(--color-primary);
+  color: var(--color-text-brand);
 }
 
 .settings-tab-label {
@@ -13018,7 +13022,7 @@ watch(
   border: 1px solid rgb(10 132 255 / 0.2);
   border-radius: var(--radius-md);
   background: rgb(10 132 255 / 0.08);
-  color: var(--color-primary);
+  color: var(--color-text-brand);
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0;
@@ -13124,7 +13128,7 @@ watch(
   min-height: 2.5rem;
   margin-top: 0.375rem;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: rgb(127 127 127 / 0.06);
 }
@@ -13157,7 +13161,7 @@ watch(
   flex: 1;
   gap: 0.25rem;
   min-width: 0;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
 }
 
@@ -13170,9 +13174,9 @@ watch(
 .payment-bonus-tiers__empty {
   margin-top: 0.75rem;
   padding: 0.75rem;
-  border: 1px dashed var(--border-color);
+  border: 1px dashed var(--color-border);
   border-radius: 0.5rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   text-align: center;
 }

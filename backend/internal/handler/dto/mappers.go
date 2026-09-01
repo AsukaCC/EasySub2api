@@ -642,7 +642,7 @@ func AccountSummaryFromService(a *service.Account) *AccountSummary {
 }
 
 func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
-	// 普通用户 DTO：严禁包含管理员字段（例如 account_rate_multiplier、account、upstream_model）。
+	// 普通用户 DTO：仅暴露汇总后的账号消耗积分，不包含账号倍率、定价基数、账号或上游详情。
 	requestType := l.EffectiveRequestType()
 	stream, openAIWSMode := service.ApplyLegacyRequestFields(requestType, l.Stream, l.OpenAIWSMode)
 	requestedModel := l.RequestedModel
@@ -673,6 +673,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		CacheReadCost:             l.CacheReadCost,
 		TotalCost:                 l.TotalCost,
 		ActualCost:                l.ActualCost,
+		AccountBilledPoints:       usageLogAccountBilledPoints(l),
 		RateMultiplier:            l.RateMultiplier,
 		LongContextBillingApplied: l.LongContextBillingApplied,
 		BillingType:               l.BillingType,
@@ -703,6 +704,18 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		Group:                     GroupFromServiceShallow(l.Group),
 		Subscription:              UserSubscriptionFromService(l.Subscription),
 	}
+}
+
+func usageLogAccountBilledPoints(l *service.UsageLog) float64 {
+	baseCost := l.TotalCost
+	if l.AccountStatsCost != nil {
+		baseCost = *l.AccountStatsCost
+	}
+	accountMultiplier := 1.0
+	if l.AccountRateMultiplier != nil {
+		accountMultiplier = *l.AccountRateMultiplier
+	}
+	return baseCost * accountMultiplier
 }
 
 // UsageLogFromService converts a service UsageLog to DTO for regular users.

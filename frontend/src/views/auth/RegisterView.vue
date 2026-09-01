@@ -87,57 +87,10 @@
           </p>
         </div>
 
-        <!-- Invitation Code Input (Required when enabled) -->
-        <div v-if="invitationCodeEnabled">
-          <label for="invitation_code" class="input-label">
-            {{ t('auth.invitationCodeLabel') }}
-          </label>
-          <div class="views-auth-register-view__panel-6">
-            <div class="views-auth-register-view__panel-7">
-              <Icon name="key" size="md" :class="invitationValidation.valid ? 'views-auth-register-view__icon-4' : 'views-auth-register-view__icon-2'" />
-            </div>
-            <input
-              id="invitation_code"
-              v-model="formData.invitation_code"
-              type="text"
-              :disabled="registrationActionDisabled"
-              class="views-auth-register-view__field-3 input"
-              :class="{
-                'views-auth-register-view__field-4': invitationValidation.valid,
-                'views-auth-register-view__field-5': invitationValidation.invalid || errors.invitation_code
-              }"
-              :placeholder="t('auth.invitationCodePlaceholder')"
-              @input="handleInvitationCodeInput"
-            />
-            <!-- Validation indicator -->
-            <div v-if="invitationValidating" class="views-auth-register-view__panel-8">
-              <svg class="views-auth-register-view__icon-3" fill="none" viewBox="0 0 24 24">
-                <circle class="views-auth-register-view__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="views-auth-register-view__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-            <div v-else-if="invitationValidation.valid" class="views-auth-register-view__panel-8">
-              <Icon name="checkCircle" size="md" class="views-auth-register-view__icon-4" />
-            </div>
-            <div v-else-if="invitationValidation.invalid || errors.invitation_code" class="views-auth-register-view__panel-8">
-              <Icon name="exclamationCircle" size="md" class="views-auth-register-view__icon-5" />
-            </div>
-          </div>
-          <!-- Invitation code validation result -->
-          <transition name="fade">
-            <div v-if="invitationValidation.valid" class="views-auth-register-view__panel-9">
-              <Icon name="checkCircle" size="sm" class="views-auth-register-view__icon-6" />
-              <span class="views-auth-register-view__text">
-                {{ t('auth.invitationCodeValid') }}
-              </span>
-            </div>
-          </transition>
-        </div>
-
-        <!-- Affiliate Invitation Code Input (Optional) -->
-        <div v-else-if="affiliateEnabled" data-testid="affiliate-invitation-field">
+        <!-- The affiliate referral code is the only invitation code. -->
+        <div v-if="affiliateEnabled" data-testid="affiliate-invitation-field">
           <label for="affiliate_code" class="input-label">
-            {{ t('auth.invitationCodeLabel') }}
+            {{ t('auth.affiliateCodeLabel') }}
             <span class="views-auth-register-view__text-2">({{ t('common.optional') }})</span>
           </label>
           <div class="views-auth-register-view__panel-6">
@@ -150,7 +103,7 @@
               type="text"
               :disabled="registrationActionDisabled"
               class="views-auth-register-view__field input"
-              :placeholder="t('auth.invitationCodePlaceholder')"
+              :placeholder="t('auth.affiliateCodePlaceholder')"
             />
           </div>
         </div>
@@ -341,8 +294,7 @@ import {
   isWeChatWebOAuthEnabled,
   startOAuthLogin,
   type OAuthLoginStart,
-  validatePromoCode,
-  validateInvitationCode
+  validatePromoCode
 } from '@/api/auth'
 import { buildAuthErrorMessage } from '@/utils/authError'
 import { extractApiErrorCode, extractI18nErrorMessage } from '@/utils/apiError'
@@ -380,7 +332,6 @@ const showPassword = ref<boolean>(false)
 const registrationEnabled = ref<boolean>(true)
 const emailVerifyEnabled = ref<boolean>(false)
 const promoCodeEnabled = ref<boolean>(true)
-const invitationCodeEnabled = ref<boolean>(false)
 const affiliateEnabled = ref<boolean>(false)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
@@ -439,35 +390,22 @@ const promoValidation = reactive({
 })
 let promoValidateTimeout: ReturnType<typeof setTimeout> | null = null
 
-// Invitation code validation
-const invitationValidating = ref<boolean>(false)
-const invitationValidation = reactive({
-  valid: false,
-  invalid: false,
-  message: ''
-})
-let invitationValidateTimeout: ReturnType<typeof setTimeout> | null = null
-
 const formData = reactive({
   email: '',
   password: '',
   promo_code: '',
-  invitation_code: '',
   aff_code: ''
 })
 
 const errors = reactive({
   email: '',
   password: '',
-  turnstile: '',
-  invitation_code: ''
+  turnstile: ''
 })
 
 const validationToastMessage = computed(() =>
   errors.email ||
   errors.password ||
-  (invitationValidation.invalid ? invitationValidation.message : '') ||
-  errors.invitation_code ||
   (promoValidation.invalid ? promoValidation.message : '') ||
   errors.turnstile ||
   ''
@@ -513,7 +451,6 @@ onMounted(async () => {
     registrationEnabled.value = settings.registration_enabled
     emailVerifyEnabled.value = settings.email_verify_enabled
     promoCodeEnabled.value = settings.promo_code_enabled
-    invitationCodeEnabled.value = settings.invitation_code_enabled
     affiliateEnabled.value = settings.affiliate_enabled
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
@@ -565,9 +502,6 @@ watch(
 onUnmounted(() => {
   if (promoValidateTimeout) {
     clearTimeout(promoValidateTimeout)
-  }
-  if (invitationValidateTimeout) {
-    clearTimeout(invitationValidateTimeout)
   }
 })
 
@@ -706,70 +640,6 @@ function getPromoErrorMessage(errorCode?: string): string {
   }
 }
 
-// ==================== Invitation Code Validation ====================
-
-function handleInvitationCodeInput(): void {
-  const code = formData.invitation_code.trim()
-
-  // Clear previous validation
-  invitationValidation.valid = false
-  invitationValidation.invalid = false
-  invitationValidation.message = ''
-  errors.invitation_code = ''
-
-  if (!code) {
-    return
-  }
-
-  // Debounce validation
-  if (invitationValidateTimeout) {
-    clearTimeout(invitationValidateTimeout)
-  }
-
-  invitationValidateTimeout = setTimeout(() => {
-    validateInvitationCodeDebounced(code)
-  }, 500)
-}
-
-async function validateInvitationCodeDebounced(code: string): Promise<void> {
-  invitationValidating.value = true
-
-  try {
-    const result = await validateInvitationCode(code)
-
-    if (result.valid) {
-      invitationValidation.valid = true
-      invitationValidation.invalid = false
-      invitationValidation.message = ''
-    } else {
-      invitationValidation.valid = false
-      invitationValidation.invalid = true
-      invitationValidation.message = getInvitationErrorMessage(result.error_code)
-    }
-  } catch {
-    invitationValidation.valid = false
-    invitationValidation.invalid = true
-    invitationValidation.message = t('auth.invitationCodeInvalid')
-  } finally {
-    invitationValidating.value = false
-  }
-}
-
-function getInvitationErrorMessage(errorCode?: string): string {
-  switch (errorCode) {
-    case 'INVITATION_CODE_NOT_FOUND':
-      return t('auth.invitationCodeInvalid')
-    case 'INVITATION_CODE_INVALID':
-      return t('auth.invitationCodeInvalid')
-    case 'INVITATION_CODE_USED':
-      return t('auth.invitationCodeInvalid')
-    case 'INVITATION_CODE_DISABLED':
-      return t('auth.invitationCodeInvalid')
-    default:
-      return t('auth.invitationCodeInvalid')
-  }
-}
-
 // ==================== Turnstile Handlers ====================
 
 function onTurnstileVerify(token: string, randstr = ''): void {
@@ -873,7 +743,6 @@ function validateForm(): boolean {
   errors.email = ''
   errors.password = ''
   errors.turnstile = ''
-  errors.invitation_code = ''
 
   let isValid = true
 
@@ -910,14 +779,6 @@ function validateForm(): boolean {
     isValid = false
   }
 
-  // Invitation code validation (required when enabled)
-  if (invitationCodeEnabled.value) {
-    if (!formData.invitation_code.trim()) {
-      errors.invitation_code = t('auth.invitationCodeRequired')
-      isValid = false
-    }
-  }
-
   // Turnstile validation
   if (turnstileEnabled.value && !turnstileToken.value) {
     errors.turnstile = t('auth.completeVerification')
@@ -952,30 +813,6 @@ async function handleRegister(): Promise<void> {
     }
   }
 
-  // Check invitation code validation status (if enabled and code provided)
-  if (invitationCodeEnabled.value) {
-    // If still validating, wait
-    if (invitationValidating.value) {
-      errorMessage.value = t('auth.invitationCodeValidating')
-      return
-    }
-    // If invitation code is invalid, block submission
-    if (invitationValidation.invalid) {
-      errorMessage.value = t('auth.invitationCodeInvalidCannotRegister')
-      return
-    }
-    // If invitation code is required but not validated yet
-    if (formData.invitation_code.trim() && !invitationValidation.valid) {
-      errorMessage.value = t('auth.invitationCodeValidating')
-      // Trigger validation
-      await validateInvitationCodeDebounced(formData.invitation_code.trim())
-      if (!invitationValidation.valid) {
-        errorMessage.value = t('auth.invitationCodeInvalidCannotRegister')
-        return
-      }
-    }
-  }
-
   if (!(await acquireActionProof())) {
     return
   }
@@ -1001,7 +838,6 @@ async function handleRegister(): Promise<void> {
           tencent_captcha_ticket: tencentCaptchaEnabled.value ? turnstileToken.value : undefined,
           tencent_captcha_randstr: tencentCaptchaEnabled.value ? tencentCaptchaRandstr.value : undefined,
           promo_code: formData.promo_code || undefined,
-          invitation_code: formData.invitation_code || undefined,
           ...(affCode ? { aff_code: affCode } : {})
         })
       )
@@ -1020,7 +856,6 @@ async function handleRegister(): Promise<void> {
       tencent_captcha_ticket: tencentCaptchaEnabled.value ? turnstileToken.value : undefined,
       tencent_captcha_randstr: tencentCaptchaEnabled.value ? tencentCaptchaRandstr.value : undefined,
       promo_code: formData.promo_code || undefined,
-      invitation_code: formData.invitation_code || undefined,
       ...(affCode ? { aff_code: affCode } : {})
     })
     clearAffiliateReferralCode()

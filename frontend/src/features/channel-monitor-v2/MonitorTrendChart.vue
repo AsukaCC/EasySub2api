@@ -63,6 +63,7 @@ import { computed, ref, watch } from 'vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useThemeColors } from '@/composables/useThemeColors'
 import type { MonitorCoverage, MonitorMetric, MonitorHealth } from '@/api/channelMonitorV2'
 import { formatMonitorMs, formatMonitorPercent } from '@/features/channel-monitor-v2/monitorFormat'
 import {
@@ -85,10 +86,7 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement | null>(null)
 const zoom = ref<ZoomState>(resetZoom())
 const zoomed = computed(() => isZoomed(zoom.value))
-
-const isDark = computed(() =>
-  typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-)
+const themeColors = useThemeColors()
 
 const bucketLabel = computed(() => {
   const seconds = props.coverage?.bucket_seconds || 60
@@ -193,11 +191,13 @@ function smoothTrend(values: Array<number | null>): Array<number | null> {
 }
 
 const chartOptions = computed(() => {
-  const text = isDark.value ? '#9ca3af' : '#6b7280'
-  const grid = isDark.value ? '#2e2e33' : '#f3f4f6'
-  const tooltipBg = isDark.value ? '#1b1b1f' : '#ffffff'
-  const tooltipTitle = isDark.value ? '#f3f4f6' : '#121214'
-  const tooltipBody = isDark.value ? '#d1d5db' : '#4b5563'
+  const {
+    textPrimary: tooltipTitle,
+    textSecondary: tooltipBody,
+    textTertiary: text,
+    grid,
+    elevatedSurface: tooltipBg
+  } = themeColors.value
   return {
     responsive: true,
     maintainAspectRatio: false,

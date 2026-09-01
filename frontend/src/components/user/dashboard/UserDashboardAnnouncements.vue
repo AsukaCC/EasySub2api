@@ -109,8 +109,8 @@ onMounted(() => {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: var(--radius-md);
-  color: #d97706;
-  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-text-warning);
+  background: var(--color-warning-subtle);
 }
 
 .dashboard-announcements__title {
@@ -131,8 +131,8 @@ onMounted(() => {
   flex: 0 0 auto;
   padding: 0.25rem 0.625rem;
   border-radius: 999px;
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-text-warning);
+  background: var(--color-warning-subtle);
   font-size: var(--font-size-xs);
   font-weight: 600;
 }
@@ -176,7 +176,7 @@ onMounted(() => {
   height: 0.5rem;
   border-radius: 50%;
   background: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
 
 .dashboard-announcements__item-main {

@@ -552,7 +552,7 @@ function formatBucketRange(value: string) {
 }
 .pulse-cell.has-data:hover,
 .pulse-cell.has-data:focus-visible {
-  outline: 2px solid rgb(var(--color-primary-500, 99 102 241) / 0.55);
+  outline: 2px solid color-mix(in srgb, var(--theme-accent) 55%, transparent);
   outline-offset: 1px;
   z-index: 5;
 }

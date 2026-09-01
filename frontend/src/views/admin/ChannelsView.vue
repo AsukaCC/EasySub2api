@@ -1674,7 +1674,7 @@ onUnmounted(() => {
 
 .channel-tab-active {
   border-bottom-color: var(--color-primary);
-  color: var(--color-primary);
+  color: var(--color-text-brand);
 }
 
 .channel-tab-inactive {

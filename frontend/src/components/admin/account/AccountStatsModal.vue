@@ -456,6 +456,7 @@ import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useThemeColors } from '@/composables/useThemeColors'
 import { adminAPI } from '@/api/admin'
 import type { Account, AccountUsageStatsResponse } from '@/types'
 import { formatPoints, formatUSD } from '@/utils/format'
@@ -474,15 +475,11 @@ const emit = defineEmits<{
 const loading = ref(false)
 const stats = ref<AccountUsageStatsResponse | null>(null)
 
-// Dark mode detection
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
+const themeColors = useThemeColors()
 
-// Chart colors
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#2e2e33',
-  grid: isDarkMode.value ? '#2e2e33' : '#e5e7eb'
+  text: themeColors.value.textTertiary,
+  grid: themeColors.value.grid
 }))
 
 // Line chart data

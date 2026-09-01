@@ -168,13 +168,8 @@ onBeforeUnmount(() => {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: var(--radius-lg);
-  color: #d97706;
-  background: rgba(245, 158, 11, 0.16);
-}
-
-.dark .announcement-popup__badge {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.14);
+  color: var(--color-text-warning);
+  background: var(--color-warning-subtle);
 }
 
 .announcement-popup__meta-text {
@@ -196,15 +191,10 @@ onBeforeUnmount(() => {
   gap: 0.3rem;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.16);
+  color: var(--color-text-warning);
+  background: var(--color-warning-subtle);
   font-size: var(--font-size-xs);
   font-weight: 600;
-}
-
-.dark .announcement-popup__unread {
-  color: #fbbf24;
-  background: rgba(120, 53, 15, 0.4);
 }
 
 .announcement-popup__unread-dot {

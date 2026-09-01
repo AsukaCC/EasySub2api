@@ -23,6 +23,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
+import { useThemeColors } from '@/composables/useThemeColors'
 import type { TrendDataPoint } from '@/types'
 import { formatPoints } from '@/utils/format'
 
@@ -33,13 +34,11 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
+const themeColors = useThemeColors()
 
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#2e2e33',
-  grid: isDarkMode.value ? '#2e2e33' : '#e5e7eb',
+  text: themeColors.value.textTertiary,
+  grid: themeColors.value.grid,
   input: '#3b82f6',
   output: '#10b981',
   cacheCreation: '#f59e0b',

@@ -37,6 +37,7 @@ func RegisterUserRoutes(
 				affiliate.Use(userFeatureGate(settingService.IsAffiliateUserAvailable))
 			}
 			affiliate.GET("", h.User.GetAffiliate)
+			affiliate.POST("/code/regenerate", h.User.RegenerateAffiliateCode)
 			affiliate.POST("/transfer", h.User.TransferAffiliateQuota)
 			user.POST("/account-bindings/email/send-code", h.User.SendEmailBindingCode)
 			user.POST("/account-bindings/email", h.User.BindEmailIdentity)

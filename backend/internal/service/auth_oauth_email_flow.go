@@ -68,7 +68,7 @@ func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, i
 
 	invitationCode = strings.TrimSpace(invitationCode)
 	if invitationCode == "" {
-		return nil, ErrInvitationCodeRequired
+		return nil, nil
 	}
 
 	redeemCode, err := s.loadOAuthRegistrationInvitation(ctx, invitationCode)
@@ -271,8 +271,9 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	return tokenPair, user, nil
 }
 
-// FinalizeOAuthEmailAccount applies invitation usage and normal signup bootstrap
-// only after the pending OAuth flow has fully reached its last reversible step.
+// FinalizeOAuthEmailAccount revalidates the reusable invitation code and applies
+// normal signup bootstrap only after the pending OAuth flow reaches its last
+// reversible step.
 func (s *AuthService) FinalizeOAuthEmailAccount(
 	ctx context.Context,
 	user *User,
@@ -304,8 +305,9 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	return nil
 }
 
-// RollbackOAuthEmailAccountCreation removes a partially-created local account
-// and restores any invitation code already consumed by that account.
+// RollbackOAuthEmailAccountCreation removes a partially-created local account.
+// The restore helper remains for compatibility with invitation rows consumed by
+// older versions; current reusable invitation codes are never consumed.
 func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, userID string, invitationCode string) error {
 	if s == nil || s.userRepo == nil || userID == "" {
 		return ErrServiceUnavailable
@@ -394,12 +396,11 @@ func (s *AuthService) useOAuthRegistrationInvitation(ctx context.Context, invita
 		affected, err := client.RedeemCode.Update().
 			Where(
 				redeemcode.IDEQ(invitationID),
+				redeemcode.TypeEQ(RedeemTypeInvitation),
 				redeemcode.StatusEQ(StatusUnused),
 				redeemcode.Or(redeemcode.ExpiresAtIsNil(), redeemcode.ExpiresAtGT(time.Now().UTC())),
 			).
-			SetStatus(StatusUsed).
-			SetUsedBy(userID).
-			SetUsedAt(time.Now().UTC()).
+			SetStatus(StatusUnused).
 			Save(ctx)
 		if err != nil {
 			return err

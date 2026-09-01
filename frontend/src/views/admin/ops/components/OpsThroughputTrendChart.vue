@@ -43,8 +43,8 @@ const colors = computed(() => ({
   blueAlpha: '#3b82f620',
   green: '#10b981',
   greenAlpha: '#10b98120',
-  grid: isDarkMode.value ? '#2e2e33' : '#f3f4f6',
-  text: isDarkMode.value ? '#9ca3af' : '#6b7280'
+  grid: isDarkMode.value ? '#2e2e33' : '#e4e4e7',
+  text: isDarkMode.value ? '#9ca3af' : '#71717a'
 }))
 
 const totalRequests = computed(() => sumNumbers(props.points.map((p) => p.request_count)))
@@ -99,8 +99,8 @@ const options = computed(() => {
       },
       tooltip: {
         backgroundColor: isDarkMode.value ? '#1b1b1f' : '#ffffff',
-        titleColor: isDarkMode.value ? '#f3f4f6' : '#121214',
-        bodyColor: isDarkMode.value ? '#d1d5db' : '#4b5563',
+        titleColor: isDarkMode.value ? '#f3f4f6' : '#09090b',
+        bodyColor: isDarkMode.value ? '#d1d5db' : '#3f3f46',
         borderColor: c.grid,
         borderWidth: 1,
         padding: 10,

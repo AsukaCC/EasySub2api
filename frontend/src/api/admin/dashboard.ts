@@ -29,6 +29,11 @@ export interface AccountWeeklyQuotaSnapshot {
   known: boolean
   used_percent: number
   remaining_percent: number
+  used_points: number
+  estimated_total_points: number
+  estimated_remaining_points: number
+  window_start?: string
+  window_end?: string
   reset_at?: string
   observed_at?: string
   source?: string
@@ -45,20 +50,22 @@ export interface AccountQuotaAccount {
   rate_limited: boolean
   rate_limit_reset_at?: string
   model_rate_limit_count?: number
-  state: 'available' | 'rate_limited' | 'used' | 'unknown' | 'unavailable'
+  state: 'available' | 'rate_limited' | 'temporarily_unavailable' | 'unknown'
 }
 
 export interface AccountQuotaAggregate {
-  account_count: number
-  known_count: number
-  unknown_count: number
+  enabled_account_count: number
+  known_account_count: number
+  unknown_account_count: number
   rate_limited_count: number
-  unavailable_count: number
+  estimated_total_points: number
+  used_points: number
+  available_points: number
+  rate_limited_points: number
   available_percent: number
   rate_limited_percent: number
   used_percent: number
-  unknown_percent: number
-  unavailable_percent: number
+  coverage_complete: boolean
 }
 
 export interface AccountQuotaGroup {

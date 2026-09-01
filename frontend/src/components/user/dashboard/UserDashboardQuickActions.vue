@@ -105,7 +105,7 @@ const actions = [
 }
 
 .quick-actions__item:hover {
-  border-color: rgb(10 132 255 / 0.22);
+  border-color: color-mix(in srgb, var(--theme-accent) 22%, transparent);
   background: var(--glass-bg-thick);
   box-shadow:
     0 8px 18px rgb(12 12 14 / 0.08),
@@ -120,7 +120,7 @@ const actions = [
 }
 
 .quick-actions__item:focus-visible {
-  outline: 2px solid rgb(10 132 255 / 0.5);
+  outline: 2px solid color-mix(in srgb, var(--theme-accent) 50%, transparent);
   outline-offset: 2px;
 }
 
@@ -141,9 +141,9 @@ const actions = [
 }
 
 .quick-actions__item--blue .quick-actions__icon-box {
-  border-color: rgb(10 132 255 / 0.18);
-  background: rgb(10 132 255 / 0.1);
-  color: rgb(10 132 255);
+  border-color: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  color: var(--theme-accent);
 }
 
 .quick-actions__item--green .quick-actions__icon-box {
@@ -197,7 +197,7 @@ const actions = [
 }
 
 .quick-actions__item--blue:hover .quick-actions__chevron {
-  color: rgb(10 132 255);
+  color: var(--theme-accent);
 }
 
 .quick-actions__item--green:hover .quick-actions__chevron {
@@ -213,16 +213,16 @@ const actions = [
 /* 暗色覆盖放在非 scoped 块:Vue scoped 编译器在生产构建中会丢弃
    `:global(.dark) ...` 规则(与 SettingsView 中的处理一致)。 */
 .dark .quick-actions__item:hover {
-  border-color: rgb(10 132 255 / 0.35);
+  border-color: color-mix(in srgb, var(--theme-accent) 35%, transparent);
   box-shadow:
     0 12px 26px rgb(0 0 0 / 0.22),
     0 1px 0 var(--glass-highlight) inset;
 }
 
 .dark .quick-actions__item--blue .quick-actions__icon-box {
-  border-color: rgb(58 162 255 / 0.22);
-  background: rgb(58 162 255 / 0.12);
-  color: rgb(58 162 255);
+  border-color: color-mix(in srgb, var(--theme-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 12%, transparent);
+  color: color-mix(in srgb, var(--theme-accent) 78%, white);
 }
 
 .dark .quick-actions__item--green .quick-actions__icon-box {
@@ -238,7 +238,7 @@ const actions = [
 }
 
 .dark .quick-actions__item--blue:hover .quick-actions__chevron {
-  color: rgb(58 162 255);
+  color: color-mix(in srgb, var(--theme-accent) 78%, white);
 }
 
 .dark .quick-actions__item--green:hover .quick-actions__chevron {

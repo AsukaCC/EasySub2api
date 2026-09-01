@@ -48,7 +48,7 @@ onUnmounted(() => {
 .table-page-layout {
   position: relative;
   isolation: isolate;
-  height: calc(100vh - var(--app-shell-height) - 3.25rem);
+  height: 100%;
 }
 
 /* 层级只在当前页面布局内生效:工具栏下拉高于表格,但低于应用导航和浮层。 */

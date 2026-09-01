@@ -564,19 +564,11 @@ func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
 		return
 	}
 
-	// 检查类型和状态
-	if redeemCode.Type != service.RedeemTypeInvitation {
+	// 注册邀请码可以重复使用，但仍需处于可用状态且未过期。
+	if redeemCode.Type != service.RedeemTypeInvitation || !redeemCode.CanUse() {
 		response.Success(c, ValidateInvitationCodeResponse{
 			Valid:     false,
 			ErrorCode: "INVITATION_CODE_INVALID",
-		})
-		return
-	}
-
-	if redeemCode.Status != service.StatusUnused {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_USED",
 		})
 		return
 	}

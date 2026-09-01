@@ -608,6 +608,12 @@ onMounted(() => {
   }
 }
 
+/* Feature icons sit on transparent glass, so they need a theme-aware brand foreground. */
+.views-home-view__icon-4,
+.views-home-view__icon-5 {
+  color: var(--color-text-brand);
+}
+
 /* Terminal Container */
 .terminal-container {
   position: relative;
@@ -631,12 +637,14 @@ onMounted(() => {
 }
 
 .views-home-view__plaza-button:hover {
-  border-color: rgba(96, 165, 250, 0.75);
-  color: #60a5fa;
+  border-color: var(--color-primary-border);
+  color: var(--color-text-link-hover);
 }
 
 /* Terminal Window */
 .terminal-window {
+  --terminal-text-muted: color-mix(in srgb, var(--color-text-inverse) 68%, transparent);
+
   width: 420px;
   background: linear-gradient(145deg, #17171a 0%, #0c0c0e 100%);
   border-radius: 14px;
@@ -688,7 +696,7 @@ onMounted(() => {
   text-align: center;
   font-size: var(--font-size-xs);
   font-family: ui-monospace, monospace;
-  color: #64748b;
+  color: var(--terminal-text-muted);
   margin-right: 52px;
 }
 
@@ -747,7 +755,7 @@ onMounted(() => {
   color: #0a84ff;
 }
 .code-comment {
-  color: #64748b;
+  color: var(--terminal-text-muted);
   font-style: italic;
 }
 .code-success {
@@ -782,7 +790,9 @@ onMounted(() => {
 }
 
 /* Dark mode adjustments */
-:deep(.dark) .terminal-window {
+:global(.dark .terminal-window) {
+  --terminal-text-muted: var(--color-text-tertiary);
+
   box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(10, 132, 255, 0.2),

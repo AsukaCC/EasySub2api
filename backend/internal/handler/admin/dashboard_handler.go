@@ -162,8 +162,8 @@ func (h *DashboardHandler) GetAccountQuotas(c *gin.Context) {
 	response.Success(c, quotas)
 }
 
-// GetAccountQuotaAccounts returns sanitized, paginated account rows for a
-// platform/group expansion. group_id=__unassigned__ selects ungrouped rows.
+// GetAccountQuotaAccounts returns sanitized, paginated enabled account rows
+// for one active, persisted group. Synthetic unassigned groups are excluded.
 // GET /api/v1/admin/dashboard/account-quotas/accounts
 func (h *DashboardHandler) GetAccountQuotaAccounts(c *gin.Context) {
 	if h.accountQuotaService == nil {

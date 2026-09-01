@@ -173,6 +173,7 @@ type SystemSettings struct {
 	AffiliateUserVisible            bool
 	PaymentUserVisible              bool
 	AffiliateRebateRate             float64
+	AffiliateRebateRecipient        string
 	AffiliateRebateFreezeHours      int
 	AffiliateRebateDurationDays     int
 	AffiliateRebatePerInviteeCap    float64

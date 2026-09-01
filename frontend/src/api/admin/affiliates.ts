@@ -55,6 +55,10 @@ export interface AffiliateRebateRecord {
   invitee_id: string
   invitee_email: string
   invitee_username: string
+  recipient_id: string
+  recipient_email: string
+  recipient_username: string
+  rebate_recipient: 'inviter' | 'invitee'
   order_amount: number
   pay_amount: number
   rebate_amount: number

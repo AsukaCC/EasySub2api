@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -382,6 +383,78 @@ func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, acc
 	for _, accountID := range accountIDs {
 		if _, ok := result[accountID]; !ok {
 			result[accountID] = &usagestats.AccountStats{}
+		}
+	}
+	return result, nil
+}
+
+// GetAccountWindowStatsByWindows aggregates account-cost points for multiple
+// accounts whose provider quota windows do not share the same boundaries.
+// The JSON recordset keeps the query to one round trip without constructing
+// dynamic SQL or issuing one query per account.
+func (r *usageLogRepository) GetAccountWindowStatsByWindows(ctx context.Context, windows []usagestats.AccountStatsWindow) (map[string]*usagestats.AccountStats, error) {
+	result := make(map[string]*usagestats.AccountStats, len(windows))
+	if len(windows) == 0 {
+		return result, nil
+	}
+
+	payload, err := json.Marshal(windows)
+	if err != nil {
+		return nil, err
+	}
+	query := `
+		WITH quota_windows AS (
+			SELECT
+				account_id::uuid AS account_id,
+				start_time,
+				end_time
+			FROM jsonb_to_recordset($1::jsonb) AS window_rows(
+				account_id text,
+				start_time timestamptz,
+				end_time timestamptz
+			)
+		)
+		SELECT
+			quota_windows.account_id,
+			COUNT(usage_logs.id) AS requests,
+			COALESCE(SUM(usage_logs.input_tokens + usage_logs.output_tokens + usage_logs.cache_creation_tokens + usage_logs.cache_read_tokens), 0) AS tokens,
+			COALESCE(SUM(COALESCE(usage_logs.account_stats_cost, usage_logs.total_cost) * COALESCE(usage_logs.account_rate_multiplier, 1)), 0) AS cost,
+			COALESCE(SUM(usage_logs.total_cost), 0) AS standard_cost,
+			COALESCE(SUM(usage_logs.actual_cost), 0) AS user_cost
+		FROM quota_windows
+		LEFT JOIN usage_logs
+			ON usage_logs.account_id = quota_windows.account_id
+			AND usage_logs.created_at >= quota_windows.start_time
+			AND usage_logs.created_at <= quota_windows.end_time
+		GROUP BY quota_windows.account_id
+	`
+	rows, err := r.sql.QueryContext(ctx, query, string(payload))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var accountID string
+		stats := &usagestats.AccountStats{}
+		if err := rows.Scan(
+			&accountID,
+			&stats.Requests,
+			&stats.Tokens,
+			&stats.Cost,
+			&stats.StandardCost,
+			&stats.UserCost,
+		); err != nil {
+			return nil, err
+		}
+		result[accountID] = stats
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for _, window := range windows {
+		if _, ok := result[window.AccountID]; !ok {
+			result[window.AccountID] = &usagestats.AccountStats{}
 		}
 	}
 	return result, nil

@@ -164,6 +164,7 @@ type SystemSettings struct {
 	DefaultBalance                  float64                      `json:"default_balance"`
 	BonusBalanceDefaultValidityDays int                          `json:"bonus_balance_default_validity_days"`
 	AffiliateRebateRate             float64                      `json:"affiliate_rebate_rate"`
+	AffiliateRebateRecipient        string                       `json:"affiliate_rebate_recipient"`
 	AffiliateRebateFreezeHours      int                          `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays     int                          `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap    float64                      `json:"affiliate_rebate_per_invitee_cap"`

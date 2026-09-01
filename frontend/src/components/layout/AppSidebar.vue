@@ -792,7 +792,14 @@ const flagAdminChannelMonitor = () => adminSettingsStore.channelMonitorEnabled
 const flagAdminModelPlaza = () => adminSettingsStore.modelPlazaEnabled
 const flagAdminRiskControl = () => adminSettingsStore.riskControlEnabled
 const flagAdminAffiliate = () => adminSettingsStore.affiliateEnabled
-const flagSupportTickets = () => !supportUserSummary.value.loaded || supportUserSummary.value.featureEnabled || supportUserSummary.value.total > 0
+// Ticket navigation is fail-closed while its summary is loading. Public settings are
+// injected before the shell renders, so an enabled feature still appears immediately;
+// disabled users only see the entry after the summary confirms historical tickets.
+const flagSupportTickets = () =>
+  appStore.cachedPublicSettings?.support_tickets_enabled === true ||
+  (supportUserSummary.value.loaded && (
+    supportUserSummary.value.featureEnabled || supportUserSummary.value.total > 0
+  ))
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
@@ -1474,7 +1481,7 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
   backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
   box-shadow:
-    0 4px 16px rgba(10, 132, 255, 0.12),
+    0 4px 16px color-mix(in srgb, var(--theme-accent) 12%, transparent),
     0 1px 0 var(--glass-highlight-hover) inset;
   will-change: transform, width, height;
 }
@@ -1489,7 +1496,7 @@ onBeforeUnmount(() => {
   border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
   border-radius: 999px;
   background: var(--glass-tint-danger);
-  color: var(--color-danger);
+  color: var(--color-text-danger);
   font-size: var(--font-size-2xs);
   line-height: 1;
 }
@@ -1563,7 +1570,7 @@ onBeforeUnmount(() => {
   right: 0.75rem;
   top: 50%;
   height: 1px;
-  background: rgb(229 231 235);
+  background: var(--color-border);
   opacity: 0;
   transform: translateY(-50%);
   transition: opacity 0.18s ease;

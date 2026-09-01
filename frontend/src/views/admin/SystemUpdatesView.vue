@@ -269,15 +269,15 @@ onMounted(() => checkForUpdates(false))
 .system-updates__summary, .system-updates__release, .system-updates__rollback, .system-updates__restart { border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); padding: 1.25rem; margin-bottom: 1rem; }
 .system-updates__summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; }
 .system-updates__summary.is-update { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--glass-border)); }
-.system-updates__summary-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 8px; color: var(--color-success); background: color-mix(in srgb, var(--color-success) 12%, transparent); }
-.system-updates__summary.is-update .system-updates__summary-icon { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.system-updates__summary-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 8px; color: var(--color-text-success); background: color-mix(in srgb, var(--color-success) 12%, transparent); }
+.system-updates__summary.is-update .system-updates__summary-icon { color: var(--color-text-brand); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
 .system-updates__status-line { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
 .system-updates__status-line h2, .system-updates__section-heading h2, .system-updates__restart h2 { margin: 0; font-size: var(--font-size-base); }
 .system-updates__build-tag { border-radius: 4px; padding: .2rem .45rem; color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-xs); }
 .system-updates__versions { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: .55rem; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
 .system-updates__versions strong { color: var(--color-text-primary); font-weight: 600; }
 .system-updates__hint, .system-updates__section-heading p, .system-updates__restart p { margin: .55rem 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.5; }
-.system-updates__hint.is-warning, .system-updates__error { color: var(--color-danger); }
+.system-updates__hint.is-warning, .system-updates__error { color: var(--color-text-danger); }
 .system-updates__section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .system-updates__published { margin: .25rem 0 .75rem; color: var(--color-text-secondary); font-size: var(--font-size-xs); }
 .system-updates__release-body { max-height: 360px; overflow: auto; margin: 0; padding: .9rem; border-radius: 6px; background: var(--color-surface-muted); color: var(--color-text-secondary); font: inherit; font-size: var(--font-size-sm); line-height: 1.6; white-space: pre-wrap; }
