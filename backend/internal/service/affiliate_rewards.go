@@ -158,7 +158,10 @@ func (s *AffiliateService) AdminStartRewardBackfill(ctx context.Context, actorID
 	if preview.PreviewToken != previewToken {
 		return nil, ErrAffiliateBackfillPreviewStale
 	}
-	repo := s.repo.(affiliateRewardRepository)
+	repo, ok := s.repo.(affiliateRewardRepository)
+	if !ok {
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate reward repository unavailable")
+	}
 	run, err := repo.CreateRewardBackfillRun(ctx, actorID, previewToken, preview.Config, preview.EligibleRelations)
 	if err != nil {
 		return nil, err
