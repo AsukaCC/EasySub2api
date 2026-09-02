@@ -76,8 +76,12 @@ const (
 	FieldAccountRateMultiplier = "account_rate_multiplier"
 	// FieldBillingType holds the string denoting the billing_type field in the database.
 	FieldBillingType = "billing_type"
+	// FieldRequestedReasoningEffort holds the string denoting the requested_reasoning_effort field in the database.
+	FieldRequestedReasoningEffort = "requested_reasoning_effort"
 	// FieldStream holds the string denoting the stream field in the database.
 	FieldStream = "stream"
+	// FieldNativeCompactionV2 holds the string denoting the native_compaction_v2 field in the database.
+	FieldNativeCompactionV2 = "native_compaction_v2"
 	// FieldDurationMs holds the string denoting the duration_ms field in the database.
 	FieldDurationMs = "duration_ms"
 	// FieldFirstTokenMs holds the string denoting the first_token_ms field in the database.
@@ -191,7 +195,9 @@ var Columns = []string{
 	FieldLongContextBillingApplied,
 	FieldAccountRateMultiplier,
 	FieldBillingType,
+	FieldRequestedReasoningEffort,
 	FieldStream,
+	FieldNativeCompactionV2,
 	FieldDurationMs,
 	FieldFirstTokenMs,
 	FieldUserAgent,
@@ -266,8 +272,12 @@ var (
 	DefaultLongContextBillingApplied bool
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
 	DefaultBillingType int8
+	// RequestedReasoningEffortValidator is a validator for the "requested_reasoning_effort" field. It is called by the builders before save.
+	RequestedReasoningEffortValidator func(string) error
 	// DefaultStream holds the default value on creation for the "stream" field.
 	DefaultStream bool
+	// DefaultNativeCompactionV2 holds the default value on creation for the "native_compaction_v2" field.
+	DefaultNativeCompactionV2 bool
 	// UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	UserAgentValidator func(string) error
 	// IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
@@ -457,9 +467,19 @@ func ByBillingType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBillingType, opts...).ToFunc()
 }
 
+// ByRequestedReasoningEffort orders the results by the requested_reasoning_effort field.
+func ByRequestedReasoningEffort(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestedReasoningEffort, opts...).ToFunc()
+}
+
 // ByStream orders the results by the stream field.
 func ByStream(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStream, opts...).ToFunc()
+}
+
+// ByNativeCompactionV2 orders the results by the native_compaction_v2 field.
+func ByNativeCompactionV2(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNativeCompactionV2, opts...).ToFunc()
 }
 
 // ByDurationMs orders the results by the duration_ms field.

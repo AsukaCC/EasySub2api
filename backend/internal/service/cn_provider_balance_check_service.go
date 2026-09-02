@@ -113,6 +113,11 @@ func (s *CNProviderBalanceCheckService) runOnce() {
 			if !account.IsActive() {
 				continue
 			}
+			// Ollama Cloud uses its own shared-usage snapshot. Do not run the
+			// provider-specific quota/balance probes against the Ollama endpoint.
+			if IsOllamaCloudUsageAccount(account) {
+				continue
+			}
 			// coding 账号：探测滚动窗口并落快照（不要求 Schedulable——已被
 			// 阈值停调的账号也需要新鲜快照决定是否续停）。
 			if account.IsCodingPlan() {

@@ -34,7 +34,8 @@
                 </div>
                 <div class="quota-platform__total">
                   <span>{{ quotaEstimateLabel(platform.summary.coverage_complete) }}</span>
-                  <strong>{{ formatQuotaPoints(platform.summary.estimated_total_points) }}</strong>
+                  <strong>{{ formatQuotaUSD(platform.summary.estimated_total_points) }}</strong>
+                  <em>{{ t('admin.dashboard.quotaAvailablePercent', { percent: formatQuotaPercent(platform.summary.available_percent) }) }}</em>
                 </div>
               </div>
               <div v-if="platform.summary.estimated_total_points > 0" class="quota-bar" :aria-label="t('admin.dashboard.accountQuotaTitle')">
@@ -44,9 +45,9 @@
               </div>
               <div v-else class="quota-bar quota-bar--empty" />
               <div class="quota-legend">
-                <span><i class="quota-legend__dot quota-legend__dot--used" />{{ t('admin.dashboard.quotaUsed') }} {{ formatQuotaPoints(platform.summary.used_points) }}</span>
-                <span><i class="quota-legend__dot quota-legend__dot--available" />{{ t('admin.dashboard.quotaAvailable') }} {{ formatQuotaPoints(platform.summary.available_points) }}</span>
-                <span><i class="quota-legend__dot quota-legend__dot--limited" />{{ t('admin.dashboard.quotaRateLimited') }} {{ formatQuotaPoints(platform.summary.rate_limited_points) }}</span>
+                <span><i class="quota-legend__dot quota-legend__dot--used" />{{ t('admin.dashboard.quotaUsed') }} {{ formatQuotaUSD(platform.summary.used_points) }}</span>
+                <span><i class="quota-legend__dot quota-legend__dot--available" />{{ t('admin.dashboard.quotaAvailable') }} {{ formatQuotaUSD(platform.summary.available_points) }} ({{ formatQuotaPercent(platform.summary.available_percent) }}%)</span>
+                <span><i class="quota-legend__dot quota-legend__dot--limited" />{{ t('admin.dashboard.quotaRateLimited') }} {{ formatQuotaUSD(platform.summary.rate_limited_points) }}</span>
                 <span v-if="platform.summary.unknown_account_count" class="quota-legend__unknown">
                   <i class="quota-legend__dot quota-legend__dot--unknown" />
                   {{ platform.summary.unknown_account_count }} {{ t('admin.dashboard.quotaUnknownAccounts') }}
@@ -58,7 +59,8 @@
                     <span class="quota-group__name">{{ group.name }}</span>
                     <span class="quota-group__summary">
                       <template v-if="group.summary.enabled_account_count">
-                        {{ formatQuotaPoints(group.summary.estimated_total_points) }} ·
+                        {{ formatQuotaUSD(group.summary.estimated_total_points) }} ·
+                        {{ t('admin.dashboard.quotaAvailablePercent', { percent: formatQuotaPercent(group.summary.available_percent) }) }} ·
                         {{ group.summary.enabled_account_count }} {{ t('admin.dashboard.quotaAccounts') }}
                       </template>
                       <template v-else>{{ t('admin.dashboard.quotaEmptyGroup') }}</template>
@@ -125,6 +127,13 @@
                   <span v-if="stats.error_accounts > 0" class="views-admin-dashboard-view__text-2"
                     >{{ stats.error_accounts }} {{ t('common.error') }}</span
                   >
+                </p>
+                <p class="ws-pool-stat">
+                  <span>{{ t('admin.dashboard.wsPoolConnections') }}</span>
+                  <strong>
+                    {{ formatNumber(realtimeMetrics?.ws_pool_connections ?? 0) }} /
+                    {{ formatNumber(realtimeMetrics?.ws_pool_max_connections ?? 0) }}
+                  </strong>
                 </p>
               </div>
             </div>
@@ -417,7 +426,7 @@ import type {
   UserUsageTrendPoint,
   UserSpendingRankingItem
 } from '@/types'
-import type { AccountQuotaDashboard } from '@/api/admin/dashboard'
+import type { AccountQuotaDashboard, DashboardRealtimeMetrics } from '@/api/admin/dashboard'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -427,7 +436,7 @@ import ModelDistributionChart from '@/components/charts/ModelDistributionChart.v
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import { useThemeColors } from '@/composables/useThemeColors'
-import { formatPoints } from '@/utils/format'
+import { formatPoints, formatUSD } from '@/utils/format'
 
 const appStore = useAppStore()
 const router = useRouter()
@@ -438,8 +447,10 @@ const userTrendLoading = ref(false)
 const rankingLoading = ref(false)
 const rankingError = ref(false)
 const quotaDashboard = ref<AccountQuotaDashboard | null>(null)
+const realtimeMetrics = ref<DashboardRealtimeMetrics | null>(null)
 const quotaLoading = ref(false)
 let quotaRefreshTimer: number | undefined
+let realtimeRefreshTimer: number | undefined
 
 // Chart data
 const trendData = ref<TrendDataPoint[]>([])
@@ -470,7 +481,11 @@ const platformLabel = (platform: string): string => {
 }
 
 const barStyle = (value: number) => ({ width: `${Math.max(0, Math.min(100, value || 0))}%` })
-const formatQuotaPoints = (value: number): string => formatPoints(value)
+const formatQuotaUSD = (value: number): string => formatUSD(value)
+const formatQuotaPercent = (value: number): string => new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+}).format(Math.max(0, Math.min(100, value || 0)))
 const quotaEstimateLabel = (complete: boolean): string =>
   t(complete ? 'admin.dashboard.quotaEstimatedTotal' : 'admin.dashboard.quotaKnownEstimatedTotal')
 const formatQuotaReset = (value: string): string => {
@@ -818,6 +833,14 @@ const loadDashboardStats = async () => {
   ])
 }
 
+const loadRealtimeMetrics = async () => {
+  try {
+    realtimeMetrics.value = await adminAPI.dashboard.getRealtimeMetrics()
+  } catch (error) {
+    console.error('Error loading dashboard realtime metrics:', error)
+  }
+}
+
 const loadChartData = async () => {
   await Promise.all([
     loadDashboardSnapshot(false),
@@ -829,16 +852,25 @@ const loadChartData = async () => {
 onMounted(() => {
   loadDashboardStats()
   loadAccountQuotas()
+  loadRealtimeMetrics()
   quotaRefreshTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
       loadAccountQuotas()
     }
   }, 30_000)
+  realtimeRefreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      loadRealtimeMetrics()
+    }
+  }, 10_000)
 })
 
 onUnmounted(() => {
   if (quotaRefreshTimer !== undefined) {
     window.clearInterval(quotaRefreshTimer)
+  }
+  if (realtimeRefreshTimer !== undefined) {
+    window.clearInterval(realtimeRefreshTimer)
   }
 })
 </script>
@@ -846,6 +878,23 @@ onUnmounted(() => {
 <style scoped>
 .views-admin-dashboard-view__panel-4 {
   border-radius: var(--radius-xl);
+}
+
+.ws-pool-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.3rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--type-micro-size);
+  white-space: nowrap;
+}
+
+.ws-pool-stat strong {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .dashboard-usage-chart {
@@ -980,6 +1029,13 @@ onUnmounted(() => {
 
 .quota-platform__total strong {
   font-size: var(--type-control-size);
+}
+
+.quota-platform__total em {
+  color: var(--color-text-success);
+  font-size: var(--type-caption-size);
+  font-style: normal;
+  font-weight: 600;
 }
 
 .quota-bar {

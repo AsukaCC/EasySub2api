@@ -43,6 +43,10 @@ type PaymentRefund struct {
 	PrincipalAmount float64 `json:"principal_amount,omitempty"`
 	// FeeAmount holds the value of the "fee_amount" field.
 	FeeAmount float64 `json:"fee_amount,omitempty"`
+	// RefundFeeRate holds the value of the "refund_fee_rate" field.
+	RefundFeeRate float64 `json:"refund_fee_rate,omitempty"`
+	// RefundFeeAmount holds the value of the "refund_fee_amount" field.
+	RefundFeeAmount float64 `json:"refund_fee_amount,omitempty"`
 	// GatewayAmount holds the value of the "gateway_amount" field.
 	GatewayAmount float64 `json:"gateway_amount,omitempty"`
 	// BasePoints holds the value of the "base_points" field.
@@ -57,6 +61,8 @@ type PaymentRefund struct {
 	TargetPrincipalAmount float64 `json:"target_principal_amount,omitempty"`
 	// TargetFeeAmount holds the value of the "target_fee_amount" field.
 	TargetFeeAmount float64 `json:"target_fee_amount,omitempty"`
+	// TargetRefundFeeAmount holds the value of the "target_refund_fee_amount" field.
+	TargetRefundFeeAmount float64 `json:"target_refund_fee_amount,omitempty"`
 	// TargetBasePoints holds the value of the "target_base_points" field.
 	TargetBasePoints float64 `json:"target_base_points,omitempty"`
 	// TargetBonusPoints holds the value of the "target_bonus_points" field.
@@ -89,7 +95,7 @@ func (*PaymentRefund) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case paymentrefund.FieldRequestedPrincipalAmount, paymentrefund.FieldPrincipalAmount, paymentrefund.FieldFeeAmount, paymentrefund.FieldGatewayAmount, paymentrefund.FieldBasePoints, paymentrefund.FieldBonusPoints, paymentrefund.FieldAffiliateRebatePoints, paymentrefund.FieldBonusExpiredOffset, paymentrefund.FieldTargetPrincipalAmount, paymentrefund.FieldTargetFeeAmount, paymentrefund.FieldTargetBasePoints, paymentrefund.FieldTargetBonusPoints, paymentrefund.FieldTargetAffiliatePoints:
+		case paymentrefund.FieldRequestedPrincipalAmount, paymentrefund.FieldPrincipalAmount, paymentrefund.FieldFeeAmount, paymentrefund.FieldRefundFeeRate, paymentrefund.FieldRefundFeeAmount, paymentrefund.FieldGatewayAmount, paymentrefund.FieldBasePoints, paymentrefund.FieldBonusPoints, paymentrefund.FieldAffiliateRebatePoints, paymentrefund.FieldBonusExpiredOffset, paymentrefund.FieldTargetPrincipalAmount, paymentrefund.FieldTargetFeeAmount, paymentrefund.FieldTargetRefundFeeAmount, paymentrefund.FieldTargetBasePoints, paymentrefund.FieldTargetBonusPoints, paymentrefund.FieldTargetAffiliatePoints:
 			values[i] = new(sql.NullFloat64)
 		case paymentrefund.FieldID, paymentrefund.FieldOrderID, paymentrefund.FieldUserID, paymentrefund.FieldTicketID, paymentrefund.FieldSource, paymentrefund.FieldStatus, paymentrefund.FieldIdempotencyKey, paymentrefund.FieldRequestFingerprint, paymentrefund.FieldProviderRequestID, paymentrefund.FieldProviderRefundID, paymentrefund.FieldCurrency, paymentrefund.FieldWalletHoldID, paymentrefund.FieldRequestedBy, paymentrefund.FieldReason, paymentrefund.FieldErrorCode, paymentrefund.FieldErrorMessage:
 			values[i] = new(sql.NullString)
@@ -196,6 +202,18 @@ func (_m *PaymentRefund) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.FeeAmount = value.Float64
 			}
+		case paymentrefund.FieldRefundFeeRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field refund_fee_rate", values[i])
+			} else if value.Valid {
+				_m.RefundFeeRate = value.Float64
+			}
+		case paymentrefund.FieldRefundFeeAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field refund_fee_amount", values[i])
+			} else if value.Valid {
+				_m.RefundFeeAmount = value.Float64
+			}
 		case paymentrefund.FieldGatewayAmount:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field gateway_amount", values[i])
@@ -237,6 +255,12 @@ func (_m *PaymentRefund) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field target_fee_amount", values[i])
 			} else if value.Valid {
 				_m.TargetFeeAmount = value.Float64
+			}
+		case paymentrefund.FieldTargetRefundFeeAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field target_refund_fee_amount", values[i])
+			} else if value.Valid {
+				_m.TargetRefundFeeAmount = value.Float64
 			}
 		case paymentrefund.FieldTargetBasePoints:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -393,6 +417,12 @@ func (_m *PaymentRefund) String() string {
 	builder.WriteString("fee_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FeeAmount))
 	builder.WriteString(", ")
+	builder.WriteString("refund_fee_rate=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RefundFeeRate))
+	builder.WriteString(", ")
+	builder.WriteString("refund_fee_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RefundFeeAmount))
+	builder.WriteString(", ")
 	builder.WriteString("gateway_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GatewayAmount))
 	builder.WriteString(", ")
@@ -413,6 +443,9 @@ func (_m *PaymentRefund) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("target_fee_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TargetFeeAmount))
+	builder.WriteString(", ")
+	builder.WriteString("target_refund_fee_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetRefundFeeAmount))
 	builder.WriteString(", ")
 	builder.WriteString("target_base_points=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TargetBasePoints))

@@ -72,8 +72,9 @@ const (
 )
 
 const (
-	cacheTTLTarget5m = "5m"
-	cacheTTLTarget1h = "1h"
+	cacheTTLTarget5m                   = "5m"
+	cacheTTLTarget1h                   = "1h"
+	compositeModelOwnershipCachePrefix = "composite-owner|"
 )
 
 // ForceCacheBillingContextKey 强制缓存计费上下文键
@@ -515,6 +516,10 @@ func modelsListCacheKey(groupID *string, platform string) string {
 	return fmt.Sprintf("%v|%s", derefGroupID(groupID), strings.TrimSpace(platform))
 }
 
+func compositeModelOwnershipCacheKey(groupID, model string) string {
+	return fmt.Sprintf("%s%s|%s", compositeModelOwnershipCachePrefix, strings.TrimSpace(groupID), strings.TrimSpace(model))
+}
+
 func prefetchedStickyGroupIDFromContext(ctx context.Context) (string, bool) {
 	return PrefetchedStickyGroupIDFromContext(ctx)
 }
@@ -571,6 +576,21 @@ type AccountSelectionResult struct {
 	RatePlan            *UserRatePlan
 }
 
+// APIKeyForAccountSelection returns a request-local API key view whose group
+// matches the group that actually won multi-group scheduling. Authentication
+// cache entries are shared across requests, so callers must never mutate the
+// original APIKey in place.
+func APIKeyForAccountSelection(apiKey *APIKey, selection *AccountSelectionResult) *APIKey {
+	if apiKey == nil || selection == nil || !IsGroupContextValid(selection.BillingGroup) {
+		return apiKey
+	}
+	cloned := *apiKey
+	groupID := selection.BillingGroup.ID
+	cloned.GroupID = &groupID
+	cloned.Group = selection.BillingGroup
+	return &cloned
+}
+
 // ProfitGateActive 报告本次选号是否处于利润门之下。
 func (r *AccountSelectionResult) ProfitGateActive() bool {
 	return r != nil && r.profitGate != nil
@@ -609,6 +629,8 @@ type ForwardResult struct {
 	FirstTokenMs                  *int // 首字时间（流式请求）
 	ClientDisconnect              bool // 客户端是否在流式传输过程中断开
 	ReasoningEffort               *string
+	// RequestedReasoningEffort is the client-requested effort before mapping.
+	RequestedReasoningEffort *string
 
 	// 图片生成计费字段（图片生成模型使用）
 	ImageCount         int    // 生成的图片数量
@@ -883,6 +905,9 @@ func NewGatewayServiceWithUserLevel(
 		balanceNotifyService:  balanceNotifyService,
 		userPlatformQuotaRepo: userPlatformQuotaRepo,
 		userLevelService:      userLevelService,
+	}
+	if compositeResolver != nil {
+		compositeResolver.SetModelOwnershipResolver(svc.resolveCompositeModelOwnership)
 	}
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		userGroupRateRepo,
@@ -1484,6 +1509,61 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *string
 	return cloneStringSlice(models)
 }
 
+func (s *GatewayService) resolveCompositeModelOwnership(ctx context.Context, groupID, model string) (CompositeModelOwnership, error) {
+	groupID = strings.TrimSpace(groupID)
+	model = strings.TrimSpace(model)
+	if s == nil || s.accountRepo == nil || groupID == "" || model == "" {
+		return CompositeModelOwnership{}, nil
+	}
+
+	cacheKey := compositeModelOwnershipCacheKey(groupID, model)
+	if s.modelsListCache != nil {
+		if cached, found := s.modelsListCache.Get(cacheKey); found {
+			if ownership, ok := cached.(CompositeModelOwnership); ok {
+				return ownership, nil
+			}
+		}
+	}
+
+	accounts, err := s.accountRepo.ListSchedulableByGroupID(ctx, groupID)
+	if err != nil {
+		return CompositeModelOwnership{}, err
+	}
+
+	platforms := make(map[string]struct{})
+	for i := range accounts {
+		account := &accounts[i]
+		platform := strings.TrimSpace(account.Platform)
+		if !isConcreteRequestPlatform(platform) || !explicitModelMappingClaims(account, model) {
+			continue
+		}
+		platforms[platform] = struct{}{}
+	}
+
+	ownership := CompositeModelOwnership{}
+	if len(platforms) == 1 {
+		for platform := range platforms {
+			ownership.TargetPlatform = platform
+		}
+		ownership.Matched = true
+	} else if len(platforms) > 1 {
+		ownership.Ambiguous = true
+	}
+
+	if s.modelsListCache != nil {
+		s.modelsListCache.Set(cacheKey, ownership, s.modelsListCacheTTL)
+	}
+	return ownership, nil
+}
+
+func explicitModelMappingClaims(account *Account, model string) bool {
+	if account == nil || account.Credentials == nil || model == "" {
+		return false
+	}
+	mapped, ok := stringMappingFromRaw(account.Credentials["model_mapping"])[model]
+	return ok && strings.TrimSpace(mapped) != ""
+}
+
 // GetSchedulablePlatforms returns the concrete platforms that currently have
 // schedulable accounts in the target group.
 func (s *GatewayService) GetSchedulablePlatforms(ctx context.Context, groupID *string) map[string]struct{} {
@@ -1516,6 +1596,7 @@ func (s *GatewayService) InvalidateAvailableModelsCache(groupID *string, platfor
 	if s == nil || s.modelsListCache == nil {
 		return
 	}
+	s.invalidateCompositeModelOwnershipCache(groupID)
 
 	normalizedPlatform := strings.TrimSpace(platform)
 	// 完整匹配时精准失效；否则按维度批量失效。
@@ -1538,6 +1619,18 @@ func (s *GatewayService) InvalidateAvailableModelsCache(groupID *string, platfor
 			continue
 		}
 		s.modelsListCache.Delete(key)
+	}
+}
+
+func (s *GatewayService) invalidateCompositeModelOwnershipCache(groupID *string) {
+	prefix := compositeModelOwnershipCachePrefix
+	if groupID != nil {
+		prefix += strings.TrimSpace(*groupID) + "|"
+	}
+	for key := range s.modelsListCache.Items() {
+		if strings.HasPrefix(key, prefix) {
+			s.modelsListCache.Delete(key)
+		}
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/AsukaCC/EasySub2api/internal/domain"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -885,9 +886,9 @@ const anthropicBetaContextManagementToken = "context-management-2025-06-27"
 //   - 若两侧不一致上游 Pydantic schema 拒收：
 //     "context_management: Extra inputs are not permitted"
 //
-// 本函数按最终发送的 anthropic-beta header 决定是否保留 body 中的
-// context_management 字段：缺 beta token → strip。这将限制完全建立在
-// "能力维度" 上，与 model 名 / token type / mimicry 子路径无关。
+// fallbacks 和 fallback_credit_token 同样属于 beta Messages API 字段；缺少
+// 对应 beta 时上游会将其作为额外字段拒绝。本函数只按最终发送的 beta header
+// 决定保留或剥离，绝不为了保留字段而自动启用 server-side fallback。
 //
 // 调用约束：必须在 CCH 签名之前调用，否则签名 hash 与最终 body
 // 不一致，上游会以 third-party 拒收。
@@ -898,23 +899,46 @@ func sanitizeAnthropicBodyForBetaTokens(body []byte, anthropicBetaHeader string)
 	if len(body) == 0 {
 		return body, false
 	}
-	if !gjson.GetBytes(body, "context_management").Exists() {
+
+	changed := false
+	if sanitized, deleted := stripAnthropicBodyFieldUnlessBeta(
+		body, "context_management", anthropicBetaHeader, anthropicBetaContextManagementToken,
+	); deleted {
+		body, changed = sanitized, true
+	}
+	if sanitized, deleted := stripAnthropicBodyFieldUnlessBeta(
+		body, "fallbacks", anthropicBetaHeader, claude.BetaServerSideFallback,
+	); deleted {
+		body, changed = sanitized, true
+	}
+	if sanitized, deleted := stripAnthropicBodyFieldUnlessBeta(
+		body, "fallback_credit_token", anthropicBetaHeader,
+		claude.BetaServerSideFallback, claude.BetaFallbackCredit, claude.BetaFallbackCreditLegacy,
+	); deleted {
+		body, changed = sanitized, true
+	}
+	return body, changed
+}
+
+// stripAnthropicBodyFieldUnlessBeta removes field unless the final beta header
+// contains at least one accepted token. It never mutates the beta header.
+func stripAnthropicBodyFieldUnlessBeta(body []byte, field, anthropicBetaHeader string, acceptedTokens ...string) ([]byte, bool) {
+	if !gjson.GetBytes(body, field).Exists() {
 		return body, false
 	}
-	if anthropicBetaTokensContains(anthropicBetaHeader, anthropicBetaContextManagementToken) {
-		return body, false
+	for _, token := range acceptedTokens {
+		if anthropicBetaTokensContains(anthropicBetaHeader, token) {
+			return body, false
+		}
 	}
-	if b, err := sjson.DeleteBytes(body, "context_management"); err == nil {
-		return b, true
-	} else {
-		// 不应发生：gjson 刚验证过字段存在 + body 是合法 JSON。如果 sjson 仍报错，
-		// 调用方会拿到 (body, false)，但此前 computeFinalAnthropicBeta 已按“strip 后”
-		// 计算了 finalBeta——两侧会不一致。记录 warning 最小限度提醒运维。
+	sanitized, err := sjson.DeleteBytes(body, field)
+	if err != nil {
 		logger.LegacyPrintf("service.gateway",
-			"[CtxMgmtSanitize] sjson.DeleteBytes failed unexpectedly: %v (body len=%v). "+
-				"body and final anthropic-beta header may be out of sync.", err, len(body))
+			"[BetaFieldSanitize] sjson.DeleteBytes(%s) failed unexpectedly: %v (body len=%d). "+
+				"body and final anthropic-beta header may be out of sync.", field, err, len(body))
+		return body, false
 	}
-	return body, false
+	return sanitized, true
 }
 
 // anthropicBetaTokensContains 检测逗号分隔的 anthropic-beta header 是否含指定 token。

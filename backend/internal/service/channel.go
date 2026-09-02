@@ -87,22 +87,23 @@ type AccountStatsPricingRule struct {
 
 // ChannelModelPricing 渠道模型定价条目
 type ChannelModelPricing struct {
-	ID               string              `json:"id,omitempty"`
-	ChannelID        string              `json:"channel_id,omitempty"`
-	Platform         string              `json:"platform"` // 所属平台
-	Models           []string            `json:"models"`
-	BillingMode      BillingMode         `json:"billing_mode"`
-	InputPrice       *float64            `json:"input_price"`
-	OutputPrice      *float64            `json:"output_price"`
-	CacheWritePrice  *float64            `json:"cache_write_price"`
-	CacheReadPrice   *float64            `json:"cache_read_price"`
-	ImageInputPrice  *float64            `json:"image_input_price"`
-	ImageOutputPrice *float64            `json:"image_output_price"`
-	PerRequestPrice  *float64            `json:"per_request_price"`
-	Intervals        []PricingInterval   `json:"intervals"`
-	TimePricing      *ChannelTimePricing `json:"time_pricing,omitempty"`
-	CreatedAt        time.Time           `json:"created_at,omitempty"`
-	UpdatedAt        time.Time           `json:"updated_at,omitempty"`
+	ID                string              `json:"id,omitempty"`
+	ChannelID         string              `json:"channel_id,omitempty"`
+	Platform          string              `json:"platform"` // 所属平台
+	Models            []string            `json:"models"`
+	BillingMode       BillingMode         `json:"billing_mode"`
+	InputPrice        *float64            `json:"input_price"`
+	OutputPrice       *float64            `json:"output_price"`
+	CacheWritePrice   *float64            `json:"cache_write_price"`
+	CacheWrite1hPrice *float64            `json:"cache_write_1h_price"`
+	CacheReadPrice    *float64            `json:"cache_read_price"`
+	ImageInputPrice   *float64            `json:"image_input_price"`
+	ImageOutputPrice  *float64            `json:"image_output_price"`
+	PerRequestPrice   *float64            `json:"per_request_price"`
+	Intervals         []PricingInterval   `json:"intervals"`
+	TimePricing       *ChannelTimePricing `json:"time_pricing,omitempty"`
+	CreatedAt         time.Time           `json:"created_at,omitempty"`
+	UpdatedAt         time.Time           `json:"updated_at,omitempty"`
 }
 
 // ChannelTimePricing 渠道模型定价的分时倍率配置。
@@ -120,19 +121,20 @@ type ChannelTimePricingPeriod struct {
 
 // PricingInterval 定价区间（token 区间 / 按次分层 / 图片分辨率分层）
 type PricingInterval struct {
-	ID              string    `json:"id,omitempty"`
-	PricingID       string    `json:"pricing_id,omitempty"`
-	MinTokens       int       `json:"min_tokens"`
-	MaxTokens       *int      `json:"max_tokens"`
-	TierLabel       string    `json:"tier_label"`
-	InputPrice      *float64  `json:"input_price"`
-	OutputPrice     *float64  `json:"output_price"`
-	CacheWritePrice *float64  `json:"cache_write_price"`
-	CacheReadPrice  *float64  `json:"cache_read_price"`
-	PerRequestPrice *float64  `json:"per_request_price"`
-	SortOrder       int       `json:"sort_order"`
-	CreatedAt       time.Time `json:"created_at,omitempty"`
-	UpdatedAt       time.Time `json:"updated_at,omitempty"`
+	ID                string    `json:"id,omitempty"`
+	PricingID         string    `json:"pricing_id,omitempty"`
+	MinTokens         int       `json:"min_tokens"`
+	MaxTokens         *int      `json:"max_tokens"`
+	TierLabel         string    `json:"tier_label"`
+	InputPrice        *float64  `json:"input_price"`
+	OutputPrice       *float64  `json:"output_price"`
+	CacheWritePrice   *float64  `json:"cache_write_price"`
+	CacheWrite1hPrice *float64  `json:"cache_write_1h_price"`
+	CacheReadPrice    *float64  `json:"cache_read_price"`
+	PerRequestPrice   *float64  `json:"per_request_price"`
+	SortOrder         int       `json:"sort_order"`
+	CreatedAt         time.Time `json:"created_at,omitempty"`
+	UpdatedAt         time.Time `json:"updated_at,omitempty"`
 }
 
 // IsActive 判断渠道是否启用
@@ -367,6 +369,7 @@ func validateIntervalPrices(iv *PricingInterval, idx int) error {
 		{"input_price", iv.InputPrice},
 		{"output_price", iv.OutputPrice},
 		{"cache_write_price", iv.CacheWritePrice},
+		{"cache_write_1h_price", iv.CacheWrite1hPrice},
 		{"cache_read_price", iv.CacheReadPrice},
 		{"per_request_price", iv.PerRequestPrice},
 	}

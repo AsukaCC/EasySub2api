@@ -395,6 +395,61 @@
             </div>
           </div>
 
+          <!-- OpenAI Images OAuth unavailable cooldown -->
+          <div class="card">
+            <div class="views-admin-settings-view__panel-4">
+              <h2 class="views-admin-settings-view__heading">
+                {{ t("admin.settings.imageOAuthCooldown.title") }}
+              </h2>
+              <p class="views-admin-settings-view__description">
+                {{ t("admin.settings.imageOAuthCooldown.description") }}
+              </p>
+            </div>
+            <div class="views-admin-settings-view__panel-15 card-body">
+              <div
+                v-if="imageOAuthCooldownLoading"
+                class="views-admin-settings-view__panel-8"
+                role="status"
+              >
+                <div class="views-admin-settings-view__panel-9" aria-hidden="true"></div>
+                {{ t("common.loading") }}
+              </div>
+
+              <template v-else>
+                <div class="views-admin-settings-view__panel-16">
+                  <div>
+                    <label for="image-oauth-cooldown-minutes" class="views-admin-settings-view__label-3">
+                      {{ t("admin.settings.imageOAuthCooldown.cooldownMinutes") }}
+                    </label>
+                    <input
+                      id="image-oauth-cooldown-minutes"
+                      v-model.number="imageOAuthCooldownForm.cooldown_minutes"
+                      type="number"
+                      min="1"
+                      max="120"
+                      step="1"
+                      class="views-admin-settings-view__field input"
+                    />
+                    <p class="views-admin-settings-view__description-6">
+                      {{ t("admin.settings.imageOAuthCooldown.cooldownMinutesHint") }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="views-admin-settings-view__panel-17">
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    :disabled="imageOAuthCooldownSaving"
+                    @click="saveImageOAuthCooldownSettings"
+                  >
+                    {{ imageOAuthCooldownSaving ? t("common.saving") : t("common.save") }}
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+
           <!-- Stream Timeout Settings -->
           <div class="card">
             <div
@@ -1537,6 +1592,24 @@
                   </p>
                 </div>
                 <Toggle v-model="form.promo_code_enabled" />
+              </div>
+
+              <!-- Registration invitation requirement -->
+              <div
+                class="views-admin-settings-view__panel-31"
+              >
+                <div>
+                  <label class="views-admin-settings-view__label-2">{{
+                    t("admin.settings.registration.invitationCode")
+                  }}</label>
+                  <p class="views-admin-settings-view__description-5">
+                    {{ t("admin.settings.registration.invitationCodeHint") }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="form.invitation_code_enabled"
+                  :disabled="!form.affiliate_enabled || !form.affiliate_user_visible"
+                />
               </div>
 
               <!-- Password Reset - Only show when email verification is enabled -->
@@ -5113,6 +5186,29 @@
                   </p>
                 </div>
 
+                <div class="views-admin-settings-view__panel-48">
+                  <label
+                    for="openai-ttft-mode"
+                    class="views-admin-settings-view__label-4"
+                  >
+                    {{ t("admin.settings.gatewayForwarding.openaiTTFTMode") }}
+                  </label>
+                  <Select
+                    id="openai-ttft-mode"
+                    v-model="form.openai_ttft_mode"
+                    class="views-admin-settings-view__field-18"
+                    data-testid="openai-ttft-mode"
+                    :searchable="false"
+                    :options="[
+                      { value: 'visible', label: t('admin.settings.gatewayForwarding.openaiTTFTModeVisible') },
+                      { value: 'semantic', label: t('admin.settings.gatewayForwarding.openaiTTFTModeSemantic') }
+                    ]"
+                  />
+                  <p class="views-admin-settings-view__description-6">
+                    {{ t("admin.settings.gatewayForwarding.openaiTTFTModeHint") }}
+                  </p>
+                </div>
+
               <!-- Fingerprint Unification -->
               <div class="views-admin-settings-view__panel-10">
                 <div>
@@ -6997,19 +7093,86 @@
           </div>
           <div class="views-admin-settings-view__panel-15 card-body">
             <div class="views-admin-settings-view__form">
-              <div>
-                <label class="input-label">
-                  {{ t('admin.settings.features.affiliate.recipient') }}
-                </label>
-                <Select
-                  v-model="form.affiliate_rebate_recipient"
-                  :options="[
-                    { value: 'inviter', label: t('admin.settings.features.affiliate.recipientInviter') },
-                    { value: 'invitee', label: t('admin.settings.features.affiliate.recipientInvitee') }
-                  ]"
-                />
+              <section class="affiliate-settings__section">
+                <div>
+                  <h3 class="views-admin-settings-view__heading-2">
+                    {{ t('admin.settings.features.affiliate.bindingRewards.title') }}
+                  </h3>
+                  <p class="views-admin-settings-view__description-21">
+                    {{ t('admin.settings.features.affiliate.bindingRewards.description') }}
+                  </p>
+                </div>
+
+                <div class="affiliate-settings__reward-grid">
+                  <div class="affiliate-settings__reward-group">
+                    <h4 class="affiliate-settings__subtitle">
+                      {{ t('admin.settings.features.affiliate.bindingRewards.inviterTitle') }}
+                    </h4>
+                    <label class="input-label">
+                      {{ t('admin.settings.features.affiliate.bindingRewards.points') }}
+                    </label>
+                    <input
+                      v-model.number="form.affiliate_inviter_binding_reward_points"
+                      type="number"
+                      step="0.00000001"
+                      min="0"
+                      max="1000000000"
+                      class="input"
+                    />
+                    <label class="input-label">
+                      {{ t('admin.settings.features.affiliate.bindingRewards.validityDays') }}
+                    </label>
+                    <input
+                      v-model.number="form.affiliate_inviter_binding_reward_validity_days"
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="3650"
+                      class="input"
+                      :disabled="form.affiliate_inviter_binding_reward_points <= 0"
+                    />
+                  </div>
+
+                  <div class="affiliate-settings__reward-group">
+                    <h4 class="affiliate-settings__subtitle">
+                      {{ t('admin.settings.features.affiliate.bindingRewards.inviteeTitle') }}
+                    </h4>
+                    <label class="input-label">
+                      {{ t('admin.settings.features.affiliate.bindingRewards.points') }}
+                    </label>
+                    <input
+                      v-model.number="form.affiliate_invitee_binding_reward_points"
+                      type="number"
+                      step="0.00000001"
+                      min="0"
+                      max="1000000000"
+                      class="input"
+                    />
+                    <label class="input-label">
+                      {{ t('admin.settings.features.affiliate.bindingRewards.validityDays') }}
+                    </label>
+                    <input
+                      v-model.number="form.affiliate_invitee_binding_reward_validity_days"
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="3650"
+                      class="input"
+                      :disabled="form.affiliate_invitee_binding_reward_points <= 0"
+                    />
+                  </div>
+                </div>
                 <p class="views-admin-settings-view__description-31">
-                  {{ t('admin.settings.features.affiliate.recipientHint') }}
+                  {{ t('admin.settings.features.affiliate.bindingRewards.hint') }}
+                </p>
+              </section>
+
+              <div class="affiliate-settings__section-heading">
+                <h3 class="views-admin-settings-view__heading-2">
+                  {{ t('admin.settings.features.affiliate.rechargeRebate.title') }}
+                </h3>
+                <p class="views-admin-settings-view__description-21">
+                  {{ t('admin.settings.features.affiliate.rechargeRebate.description') }}
                 </p>
               </div>
 
@@ -7079,6 +7242,69 @@
                   {{ t('admin.settings.features.affiliate.perInviteeCapDesc') }}
                 </p>
               </div>
+
+              <div class="views-admin-settings-view__panel-10">
+                <div>
+                  <label class="views-admin-settings-view__label-4">
+                    {{ t('admin.settings.features.affiliate.adminRechargeEnabled') }}
+                  </label>
+                  <p class="views-admin-settings-view__description-21">
+                    {{ t('admin.settings.features.affiliate.adminRechargeEnabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.affiliate_admin_recharge_enabled" />
+              </div>
+
+              <section class="affiliate-settings__section">
+                <div class="views-admin-settings-view__panel-28">
+                  <div>
+                    <h3 class="views-admin-settings-view__heading-2">
+                      {{ t('admin.settings.features.affiliate.backfill.title') }}
+                    </h3>
+                    <p class="views-admin-settings-view__description-21">
+                      {{ t('admin.settings.features.affiliate.backfill.description') }}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    :disabled="affiliateBackfill.loading || affiliateBackfillActive"
+                    @click="previewAffiliateBackfill"
+                  >
+                    <Icon name="refresh" size="sm" />
+                    {{ t('admin.settings.features.affiliate.backfill.preview') }}
+                  </button>
+                </div>
+
+                <div v-if="affiliateBackfill.preview" class="affiliate-settings__backfill-summary">
+                  <span>{{ t('admin.settings.features.affiliate.backfill.relations', { count: affiliateBackfill.preview.eligible_relations }) }}</span>
+                  <span>{{ t('admin.settings.features.affiliate.backfill.inviterTotal', { count: affiliateBackfill.preview.estimated_inviter_grants, points: affiliateBackfill.preview.estimated_inviter_points }) }}</span>
+                  <span>{{ t('admin.settings.features.affiliate.backfill.inviteeTotal', { count: affiliateBackfill.preview.estimated_invitee_grants, points: affiliateBackfill.preview.estimated_invitee_points }) }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    :disabled="affiliateBackfill.preview.eligible_relations <= 0 || affiliateBackfillActive"
+                    @click="confirmAffiliateBackfill"
+                  >
+                    {{ t('admin.settings.features.affiliate.backfill.start') }}
+                  </button>
+                </div>
+
+                <div v-if="affiliateBackfill.run" class="affiliate-settings__backfill-progress" role="status" aria-live="polite">
+                  <div class="affiliate-settings__progress-row">
+                    <span>{{ t(`admin.settings.features.affiliate.backfill.status.${affiliateBackfill.run.status}`) }}</span>
+                    <span>{{ affiliateBackfill.run.processed_relations }} / {{ affiliateBackfill.run.eligible_relations }}</span>
+                  </div>
+                  <progress
+                    :value="affiliateBackfill.run.processed_relations"
+                    :max="Math.max(affiliateBackfill.run.eligible_relations, 1)"
+                    class="affiliate-settings__progress"
+                  ></progress>
+                  <p v-if="affiliateBackfill.run.error_message" class="affiliate-settings__error">
+                    {{ affiliateBackfill.run.error_message }}
+                  </p>
+                </div>
+              </section>
 
               <!-- 专属用户管理 -->
               <div class="views-admin-settings-view__panel-130">
@@ -7630,6 +7856,51 @@
                         t("admin.settings.payment.rechargeFeePreview", {
                           fee: (
                             Number(form.payment_recharge_fee_rate) || 0
+                          ).toFixed(2),
+                        })
+                      }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="input-label">{{
+                      t("admin.settings.payment.refundFeeRate")
+                    }}</label>
+                    <div class="views-admin-settings-view__panel-103">
+                      <input
+                        :value="form.payment_refund_fee_rate ?? ''"
+                        @input="
+                          form.payment_refund_fee_rate = Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              Math.round(
+                                parseFloat(
+                                  ($event.target as HTMLInputElement).value ||
+                                    '0',
+                                ) * 100,
+                              ) / 100,
+                            ),
+                          )
+                        "
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        class="views-admin-settings-view__field-16 input"
+                      />
+                      <span class="views-admin-settings-view__text-25">%</span>
+                    </div>
+                    <p class="views-admin-settings-view__description-25">
+                      {{ t("admin.settings.payment.refundFeeRateHint") }}
+                    </p>
+                    <p
+                      v-if="(Number(form.payment_refund_fee_rate) || 0) > 0"
+                      class="views-admin-settings-view__description-35"
+                    >
+                      {{
+                        t("admin.settings.payment.refundFeePreview", {
+                          fee: (
+                            Number(form.payment_refund_fee_rate) || 0
                           ).toFixed(2),
                         })
                       }}
@@ -8424,7 +8695,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import { adminAPI } from "@/api";
@@ -8449,6 +8720,7 @@ import type {
   DefaultSubscriptionSetting,
   DefaultPlatformQuotasMap,
   OpenAIFastPolicyRule,
+  OpenAITTFTMode,
   WeChatConnectMode,
   WebSearchEmulationConfig,
   WebSearchProviderConfig,
@@ -8483,7 +8755,13 @@ import {
   stepUpBlockReason,
 } from "@/composables/useStepUp";
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
-import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
+import {
+  affiliatesAPI,
+  type AffiliateAdminEntry,
+  type AffiliateRewardBackfillPreview,
+  type AffiliateRewardBackfillRun,
+  type SimpleUser as AffiliateSimpleUser,
+} from "@/api/admin/affiliates";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { THEME_ACCENT_PRESETS } from "@/utils/themeAccent";
 import { useAppStore } from "@/stores";
@@ -8597,6 +8875,8 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
   "feature-affiliate": new Set([
     "affiliate_rebate_rate", "affiliate_rebate_recipient", "affiliate_rebate_freeze_hours",
     "affiliate_rebate_duration_days", "affiliate_rebate_per_invitee_cap",
+    "affiliate_inviter_binding_reward_points", "affiliate_inviter_binding_reward_validity_days",
+    "affiliate_invitee_binding_reward_points", "affiliate_invitee_binding_reward_validity_days",
     "affiliate_admin_recharge_enabled",
   ]),
   compliance: new Set([
@@ -8649,6 +8929,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
     "enable_model_fallback", "fallback_model_anthropic", "fallback_model_openai",
     "grok_default_text_model",
     "grok_cross_client_model_map_enabled", "grok_default_base_url_mode",
+    "openai_ttft_mode",
     "min_claude_code_version",
     "max_claude_code_version", "allow_ungrouped_key_scheduling", "enable_fingerprint_unification",
     "enable_metadata_passthrough", "enable_cch_signing", "enable_claude_oauth_system_prompt_injection",
@@ -8668,7 +8949,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
     "payment_min_amount", "payment_max_amount",
     "payment_daily_limit", "payment_order_timeout_minutes", "payment_max_pending_orders",
     "payment_enabled_types", "payment_balance_disabled", "payment_recharge_bonus_tiers",
-    "payment_recharge_fee_rate",
+    "payment_recharge_fee_rate", "payment_refund_fee_rate",
     "payment_load_balance_strategy", "payment_product_name_prefix", "payment_product_name_suffix",
     "payment_help_image_url", "payment_help_text", "payment_cancel_rate_limit_enabled",
     "payment_cancel_rate_limit_max", "payment_cancel_rate_limit_window",
@@ -8752,6 +9033,12 @@ const rateLimit429CooldownSaving = ref(false);
 const rateLimit429CooldownForm = reactive({
   enabled: true,
   cooldown_seconds: 5,
+});
+
+const imageOAuthCooldownLoading = ref(true);
+const imageOAuthCooldownSaving = ref(false);
+const imageOAuthCooldownForm = reactive({
+  cooldown_minutes: 30,
 });
 
 // Panel API Rate Limit 状态
@@ -9327,6 +9614,10 @@ const form = reactive<SettingsForm>({
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,
   affiliate_admin_recharge_enabled: false,
+  affiliate_inviter_binding_reward_points: 0,
+  affiliate_inviter_binding_reward_validity_days: 90,
+  affiliate_invitee_binding_reward_points: 0,
+  affiliate_invitee_binding_reward_validity_days: 90,
   default_concurrency: 1,
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
@@ -9361,6 +9652,7 @@ const form = reactive<SettingsForm>({
   payment_recharge_bonus_tiers: [],
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
+  payment_refund_fee_rate: 3,
   payment_enabled_types: [],
   payment_help_image_url: "",
   payment_help_text: "",
@@ -9530,6 +9822,7 @@ const form = reactive<SettingsForm>({
   openai_advanced_scheduler_weight_previous_response: "",
   openai_advanced_scheduler_weight_session_sticky: "",
   // Gateway forwarding behavior
+  openai_ttft_mode: "visible" as OpenAITTFTMode,
   enable_fingerprint_unification: true,
   enable_metadata_passthrough: false,
   enable_cch_signing: false,
@@ -10610,6 +10903,9 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    form.openai_ttft_mode = settings.openai_ttft_mode === "semantic"
+      ? "semantic"
+      : "visible";
     form.affiliate_rebate_freeze_hours = 168;
     form.payment_balance_recharge_multiplier = 1;
     form.payment_subscription_usd_to_cny_rate = 0;
@@ -11031,7 +11327,10 @@ async function saveSettings(section?: SettingsSection) {
       registration_email_domain_quota_enabled:
         form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
-      invitation_code_enabled: false,
+      invitation_code_enabled:
+        form.invitation_code_enabled &&
+        form.affiliate_enabled &&
+        form.affiliate_user_visible,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       passkey_enabled: form.passkey_enabled,
@@ -11052,11 +11351,15 @@ async function saveSettings(section?: SettingsSection) {
         100,
         Math.max(0, Number(form.affiliate_rebate_rate) || 0),
       ),
-      affiliate_rebate_recipient: form.affiliate_rebate_recipient === "invitee" ? "invitee" : "inviter",
+      affiliate_rebate_recipient: "inviter",
       affiliate_rebate_freeze_hours: 168,
       affiliate_rebate_duration_days: Math.max(0, Math.min(3650, Math.floor(Number(form.affiliate_rebate_duration_days) || 0))),
       affiliate_rebate_per_invitee_cap: Math.max(0, Number(form.affiliate_rebate_per_invitee_cap) || 0),
       affiliate_admin_recharge_enabled: form.affiliate_admin_recharge_enabled,
+      affiliate_inviter_binding_reward_points: Math.min(1_000_000_000, Math.max(0, Number(form.affiliate_inviter_binding_reward_points) || 0)),
+      affiliate_inviter_binding_reward_validity_days: Math.max(1, Math.min(3650, Math.floor(Number(form.affiliate_inviter_binding_reward_validity_days) || 90))),
+      affiliate_invitee_binding_reward_points: Math.min(1_000_000_000, Math.max(0, Number(form.affiliate_invitee_binding_reward_points) || 0)),
+      affiliate_invitee_binding_reward_validity_days: Math.max(1, Math.min(3650, Math.floor(Number(form.affiliate_invitee_binding_reward_validity_days) || 90))),
       default_concurrency: form.default_concurrency,
       default_subscriptions: normalizedDefaultSubscriptions,
       force_email_on_third_party_signup: form.force_email_on_third_party_signup,
@@ -11195,6 +11498,8 @@ async function saveSettings(section?: SettingsSection) {
       grok_cross_client_model_map_enabled:
         form.grok_cross_client_model_map_enabled,
       grok_default_base_url_mode: form.grok_default_base_url_mode,
+      openai_ttft_mode:
+        form.openai_ttft_mode === "semantic" ? "semantic" : "visible",
       min_claude_code_version: form.min_claude_code_version,
       max_claude_code_version: form.max_claude_code_version,
       allow_ungrouped_key_scheduling: form.allow_ungrouped_key_scheduling,
@@ -11246,6 +11551,7 @@ async function saveSettings(section?: SettingsSection) {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_recharge_bonus_tiers: normalizedRechargeBonusTiers,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
+      payment_refund_fee_rate: Number(form.payment_refund_fee_rate) || 0,
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,
       payment_product_name_prefix: form.payment_product_name_prefix,
@@ -11769,6 +12075,44 @@ async function saveRateLimit429CooldownSettings() {
     );
   } finally {
     rateLimit429CooldownSaving.value = false;
+  }
+}
+
+async function loadImageOAuthCooldownSettings() {
+  imageOAuthCooldownLoading.value = true;
+  try {
+    const settings = await adminAPI.settings.getOpenAIImagesOAuthUnavailableCooldownSettings();
+    Object.assign(imageOAuthCooldownForm, settings);
+  } catch (_error: unknown) {
+    // Keep the documented 30-minute default if the optional endpoint is unavailable.
+  } finally {
+    imageOAuthCooldownLoading.value = false;
+  }
+}
+
+async function saveImageOAuthCooldownSettings() {
+  const cooldownMinutes = Number(imageOAuthCooldownForm.cooldown_minutes);
+  if (!Number.isInteger(cooldownMinutes) || cooldownMinutes < 1 || cooldownMinutes > 120) {
+    appStore.showError(t("admin.settings.imageOAuthCooldown.invalidRange"));
+    return;
+  }
+
+  imageOAuthCooldownSaving.value = true;
+  try {
+    const updated = await adminAPI.settings.updateOpenAIImagesOAuthUnavailableCooldownSettings({
+      cooldown_minutes: cooldownMinutes,
+    });
+    Object.assign(imageOAuthCooldownForm, updated);
+    appStore.showSuccess(t("admin.settings.imageOAuthCooldown.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.imageOAuthCooldown.saveFailed"),
+      ),
+    );
+  } finally {
+    imageOAuthCooldownSaving.value = false;
   }
 }
 
@@ -12410,6 +12754,7 @@ onMounted(() => {
   void loadSettings().then(() => {
     if (settingsSection.value === "feature-affiliate") {
       loadAffiliateUsers();
+      restoreAffiliateBackfill();
     }
   });
   loadSubscriptionGroups();
@@ -12418,6 +12763,7 @@ onMounted(() => {
   loadOllamaCloudUsageSettings();
   loadOverloadCooldownSettings();
   loadRateLimit429CooldownSettings();
+  loadImageOAuthCooldownSettings();
   loadPanelRateLimitSettings();
   loadStreamTimeoutSettings();
   loadRectifierSettings();
@@ -12449,6 +12795,83 @@ const affiliateState = reactive<AffiliateState>({
   search: "",
   selected: [],
   searchTimer: null,
+});
+
+const affiliateBackfill = reactive<{
+  loading: boolean;
+  preview: AffiliateRewardBackfillPreview | null;
+  run: AffiliateRewardBackfillRun | null;
+}>({
+  loading: false,
+  preview: null,
+  run: null,
+});
+const affiliateBackfillActive = computed(() =>
+  affiliateBackfill.run?.status === "pending" || affiliateBackfill.run?.status === "running",
+);
+const affiliateBackfillStorageKey = "easysub2api.affiliateRewardBackfillRun";
+let affiliateBackfillPollTimer: number | null = null;
+
+function scheduleAffiliateBackfillPoll(): void {
+  if (affiliateBackfillPollTimer != null) window.clearTimeout(affiliateBackfillPollTimer);
+  if (!affiliateBackfillActive.value || !affiliateBackfill.run) return;
+  affiliateBackfillPollTimer = window.setTimeout(() => {
+    void loadAffiliateBackfillRun(affiliateBackfill.run!.id);
+  }, 1500);
+}
+
+async function loadAffiliateBackfillRun(id: string): Promise<void> {
+  try {
+    affiliateBackfill.run = await affiliatesAPI.getRewardBackfill(id);
+    if (affiliateBackfillActive.value) {
+      window.localStorage.setItem(affiliateBackfillStorageKey, id);
+    } else {
+      window.localStorage.removeItem(affiliateBackfillStorageKey);
+    }
+    scheduleAffiliateBackfillPoll();
+  } catch (err) {
+    window.localStorage.removeItem(affiliateBackfillStorageKey);
+    appStore.showError(extractApiErrorMessage(err, t("admin.settings.features.affiliate.backfill.loadFailed")));
+  }
+}
+
+function restoreAffiliateBackfill(): void {
+  const id = window.localStorage.getItem(affiliateBackfillStorageKey);
+  if (id) void loadAffiliateBackfillRun(id);
+}
+
+async function previewAffiliateBackfill(): Promise<void> {
+  affiliateBackfill.loading = true;
+  try {
+    affiliateBackfill.preview = await affiliatesAPI.previewRewardBackfill();
+  } catch (err) {
+    appStore.showError(extractApiErrorMessage(err, t("admin.settings.features.affiliate.backfill.previewFailed")));
+  } finally {
+    affiliateBackfill.loading = false;
+  }
+}
+
+function confirmAffiliateBackfill(): void {
+  const preview = affiliateBackfill.preview;
+  if (!preview || preview.eligible_relations <= 0 || affiliateBackfillActive.value) return;
+  openAffiliateConfirm(
+    t("admin.settings.features.affiliate.backfill.confirmTitle"),
+    t("admin.settings.features.affiliate.backfill.confirmMessage", {
+      count: preview.eligible_relations,
+      points: preview.estimated_inviter_points + preview.estimated_invitee_points,
+    }),
+    t("admin.settings.features.affiliate.backfill.confirmButton"),
+    async () => {
+      affiliateBackfill.run = await affiliatesAPI.startRewardBackfill(preview.preview_token);
+      affiliateBackfill.preview = null;
+      window.localStorage.setItem(affiliateBackfillStorageKey, affiliateBackfill.run.id);
+      scheduleAffiliateBackfillPoll();
+    },
+  );
+}
+
+onBeforeUnmount(() => {
+  if (affiliateBackfillPollTimer != null) window.clearTimeout(affiliateBackfillPollTimer);
 });
 
 // `rate` is typed as string|number because <input type="number"> makes Vue's
@@ -12769,6 +13192,16 @@ async function submitAffiliateBatchModal() {
 // 立即把相关字段重置为 false，避免保存请求里残留旧值。后端 admin handler 与
 // 配置加载层都有 coerce 兜底，这里是 UX 层的同步而非安全防线。
 watch(
+  () => [form.affiliate_enabled, form.affiliate_user_visible],
+  ([enabled, visible]) => {
+    if (!enabled || !visible) {
+      form.invitation_code_enabled = false;
+    }
+  },
+  { flush: "sync" },
+);
+
+watch(
   () => form.dingtalk_connect_corp_restriction_policy,
   (policy) => {
     if (policy !== "internal_only") {
@@ -12782,6 +13215,89 @@ watch(
 </script>
 
 <style scoped>
+.affiliate-settings__section {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-layer-content-bg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
+}
+
+.affiliate-settings__section-heading {
+  grid-column: 1 / -1;
+  padding-top: 0.5rem;
+}
+
+.affiliate-settings__reward-grid,
+.affiliate-settings__field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.affiliate-settings__reward-group {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--glass-layer-inset-bg);
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+}
+
+.affiliate-settings__subtitle {
+  color: var(--color-text-primary);
+  font-size: var(--type-card-size);
+  line-height: var(--type-card-line-height);
+  font-weight: var(--font-weight-semibold);
+}
+
+.affiliate-settings__backfill-summary,
+.affiliate-settings__backfill-progress {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--glass-layer-inset-bg);
+  color: var(--color-text-secondary);
+  font-size: var(--type-control-size);
+  line-height: var(--type-control-line-height);
+}
+
+.affiliate-settings__backfill-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: center;
+}
+
+.affiliate-settings__progress-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.affiliate-settings__progress {
+  width: 100%;
+  height: 0.5rem;
+  accent-color: var(--color-primary);
+}
+
+.affiliate-settings__error {
+  color: var(--color-text-danger);
+}
+
+@media (max-width: 760px) {
+  .affiliate-settings__reward-grid,
+  .affiliate-settings__field-grid,
+  .affiliate-settings__backfill-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 .default-sub-group-select :deep(.select-trigger) {
   min-height: 42px;
 }

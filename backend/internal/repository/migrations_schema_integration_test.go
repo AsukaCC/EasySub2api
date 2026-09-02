@@ -55,8 +55,11 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "accounts", "session_window_status", "character varying", 20, true)
 	requireIndex(t, tx, "accounts", "idx_accounts_autopause_expiry_due")
 
-	// groups: OpenAI Live 默认关闭，管理员显式开启后才可访问。
+	// groups: OpenAI Live/Fast 默认关闭；推理超限保持历史自动降档行为。
 	requireColumn(t, tx, "groups", "allow_live", "boolean", 0, false)
+	requireColumn(t, tx, "groups", "force_openai_fast", "boolean", 0, false)
+	requireColumn(t, tx, "groups", "free_openai_fast", "boolean", 0, false)
+	requireColumn(t, tx, "groups", "max_reasoning_effort_over_limit", "character varying", 20, false)
 
 	// api_keys: key length should be 128
 	requireColumn(t, tx, "api_keys", "key", "character varying", 128, false)
@@ -78,6 +81,8 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "usage_logs", "video_duration_seconds", "integer", 0, true)
 	requireColumn(t, tx, "usage_logs", "upstream_response_model", "character varying", 200, true)
 	requireColumn(t, tx, "usage_logs", "upstream_model_mismatch", "boolean", 0, true)
+	requireColumn(t, tx, "usage_logs", "requested_reasoning_effort", "character varying", 20, true)
+	requireColumn(t, tx, "usage_logs", "native_compaction_v2", "boolean", 0, false)
 	requireIndex(t, tx, "usage_logs", usageLogsUpstreamModelMismatchIndex)
 
 	var mismatchIndexDef string

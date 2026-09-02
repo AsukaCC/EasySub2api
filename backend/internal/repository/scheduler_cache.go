@@ -996,6 +996,10 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		"openai_ws_force_http",
 		"openai_responses_mode",
 		"openai_responses_supported",
+		// Candidate filtering reads this trimmed projection. Preserve passthrough
+		// flags so model_mapping is not mistaken for a whitelist on passthrough accounts.
+		"openai_passthrough",
+		"openai_oauth_passthrough",
 		"codex_fingerprint_mode",
 		"codex_fingerprint_seed",
 		"codex_5h_used_percent",

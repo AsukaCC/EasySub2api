@@ -628,6 +628,32 @@
         </div>
       </div>
 
+      <!-- Zhipu team Coding Plan context. Empty values keep the personal-plan endpoint. -->
+      <div
+        v-if="form.platform === 'zhipu' && accountMode === 'coding'"
+        class="components-account-create-account-modal__panel-23"
+      >
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.organization') }}</label>
+          <input
+            v-model="zhipuOrganization"
+            type="text"
+            class="input"
+            :placeholder="t('admin.accounts.cnProviders.zhipuTeam.organizationPlaceholder')"
+          />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.project') }}</label>
+          <input
+            v-model="zhipuProject"
+            type="text"
+            class="input"
+            :placeholder="t('admin.accounts.cnProviders.zhipuTeam.projectPlaceholder')"
+          />
+        </div>
+        <p class="input-hint">{{ t('admin.accounts.cnProviders.zhipuTeam.hint') }}</p>
+      </div>
+
       <!-- Vertex Service Account -->
       <div v-if="(form.platform === 'anthropic' || form.platform === 'gemini') && accountCategory === 'service_account'" class="components-account-create-account-modal__panel-23">
         <div>
@@ -863,7 +889,7 @@
 
             <!-- Whitelist Mode -->
             <div v-if="modelRestrictionMode === 'whitelist'">
-              <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" :sync-credentials="syncPreviewCredentials" />
+              <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" :sync-credentials="syncPreviewCredentials" @upstream-synced="upstreamModelsPreviewed = true" />
               <p class="components-account-create-account-modal__text-3">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
                 <span v-if="allowedModels.length === 0">{{
@@ -1316,7 +1342,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" :sync-credentials="syncPreviewCredentials" />
+            <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" :sync-credentials="syncPreviewCredentials" @upstream-synced="upstreamModelsPreviewed = true" />
             <p class="components-account-create-account-modal__text-3">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0">{{ t('admin.accounts.supportsAllModels') }}</span>
@@ -1658,7 +1684,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" :sync-credentials="syncPreviewCredentials" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" :sync-credentials="syncPreviewCredentials" @upstream-synced="upstreamModelsPreviewed = true" />
             <p class="components-account-create-account-modal__text-3">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0">{{
@@ -2345,7 +2371,10 @@
       <div class="components-account-create-account-modal__panel-30">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
         <input v-model="expiresAtInput" type="datetime-local" class="input" />
-        <p class="input-hint">{{ t('admin.accounts.expiresAtHint') }}</p>
+        <p class="input-hint">
+          {{ t('admin.accounts.expiresAtHint') }}
+          {{ t('admin.accounts.expiresAtTimezoneHint', { timezone: browserTimeZone }) }}
+        </p>
       </div>
 
       <!-- OpenAI 自动透传开关（OAuth/API Key） -->
@@ -2908,6 +2937,7 @@ import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import {
   applyHeaderOverride,
   applyInterceptWarmup,
+  cnSupportsNativeResponses,
   defaultCNBaseUrl,
   isHeaderOverrideCapable,
   validateHeaderOverrideRows,
@@ -2915,7 +2945,11 @@ import {
   type CnApiProtocol,
   type HeaderOverrideRow
 } from '@/components/account/credentialsBuilder'
-import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
+import {
+  formatDateTimeLocalInput,
+  getBrowserTimeZone,
+  parseDateTimeLocalInput
+} from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import { VERTEX_LOCATION_SELECT_OPTIONS } from '@/constants/account'
 import {
@@ -2947,6 +2981,7 @@ interface OAuthFlowExposed {
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const browserTimeZone = getBrowserTimeZone()
 
 const oauthStepTitle = computed(() => {
   if (form.platform === 'openai') return t('admin.accounts.oauth.openai.title')
@@ -3091,8 +3126,10 @@ const upstreamBillingAutoProbeEnabled = ref(true)
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
 const accountMode = ref<CnAccountMode>('payg')
 // API 协议决定转发端点与格式：cc=现有转换链，anthropic=原生直通（Claude Code），
-// responses=deepseek 原生 Responses 端点（Codex）。与账号类型正交。
+// responses=deepseek / kimi 原生 Responses 端点（Codex）。与账号类型正交。
 const apiProtocol = ref<CnApiProtocol>('chat_completions')
+const zhipuOrganization = ref('')
+const zhipuProject = ref('')
 const isCNPlatform = computed(
   () => form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek'
 )
@@ -3104,13 +3141,13 @@ const cnPresetPlatform = computed<'kimi' | 'zhipu' | 'deepseek'>(() => {
   }
   return 'kimi'
 })
-// 当前平台可选的协议档（responses 仅 deepseek）。
+// 当前平台可选的协议档（responses 仅 deepseek / kimi）。
 const cnProtocolOptions = computed<Array<{ value: CnApiProtocol; labelKey: string }>>(() => {
   const opts: Array<{ value: CnApiProtocol; labelKey: string }> = [
     { value: 'chat_completions', labelKey: 'chatCompletions' },
     { value: 'anthropic', labelKey: 'anthropic' }
   ]
-  if (form.platform === 'deepseek') {
+  if (cnSupportsNativeResponses(form.platform)) {
     opts.push({ value: 'responses', labelKey: 'responses' })
   }
   return opts
@@ -3168,13 +3205,15 @@ function onCnPresetSelect(preset: { mode: CnAccountMode; protocol: CnApiProtocol
   apiKeyBaseUrl.value = preset.url
 }
 
+const upstreamModelsPreviewed = ref(false)
 const syncPreviewCredentials = computed(() => {
   if (!apiKeyValue.value) return undefined
   return {
     platform: form.platform,
     type: form.type,
     base_url: apiKeyBaseUrl.value || undefined,
-    api_key: apiKeyValue.value
+    api_key: apiKeyValue.value,
+    model_mapping: buildCurrentModelRestrictionMapping() || undefined
   }
 })
 
@@ -3904,6 +3943,13 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
     const account = await adminAPI.accounts.create(payload)
+    if (payload.type === 'apikey' && upstreamModelsPreviewed.value) {
+      try {
+        await adminAPI.accounts.syncUpstreamModels(account.id)
+      } catch {
+        appStore.showWarning(t('admin.accounts.syncUpstreamModelsFailed'))
+      }
+    }
     if (
       payload.type === 'apikey' &&
       payload.upstream_billing_probe_enabled === true
@@ -3931,6 +3977,7 @@ const resetForm = () => {
   form.notes = ''
   form.platform = 'anthropic'
   form.type = 'oauth'
+  upstreamModelsPreviewed.value = false
   form.credentials = {}
   form.proxy_id = null
   form.concurrency = 10
@@ -3943,6 +3990,8 @@ const resetForm = () => {
   addMethod.value = 'oauth'
   accountMode.value = 'payg'
   apiProtocol.value = 'chat_completions'
+  zhipuOrganization.value = ''
+  zhipuProject.value = ''
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
   upstreamBillingAutoProbeEnabled.value = true
@@ -4330,6 +4379,14 @@ const handleSubmit = async () => {
     ).trim()
     if (resolvedCNBase) {
       credentials.base_url = resolvedCNBase
+    }
+    if (form.platform === 'zhipu' && accountMode.value === 'coding') {
+      const organization = zhipuOrganization.value.trim()
+      const project = zhipuProject.value.trim()
+      if (organization) {
+        credentials.zhipu_organization = organization
+        if (project) credentials.zhipu_project = project
+      }
     }
   }
 

@@ -160,17 +160,21 @@ type SystemSettings struct {
 	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
 	CustomEndpoints             []CustomEndpoint `json:"custom_endpoints"`
 
-	DefaultConcurrency              int                          `json:"default_concurrency"`
-	DefaultBalance                  float64                      `json:"default_balance"`
-	BonusBalanceDefaultValidityDays int                          `json:"bonus_balance_default_validity_days"`
-	AffiliateRebateRate             float64                      `json:"affiliate_rebate_rate"`
-	AffiliateRebateRecipient        string                       `json:"affiliate_rebate_recipient"`
-	AffiliateRebateFreezeHours      int                          `json:"affiliate_rebate_freeze_hours"`
-	AffiliateRebateDurationDays     int                          `json:"affiliate_rebate_duration_days"`
-	AffiliateRebatePerInviteeCap    float64                      `json:"affiliate_rebate_per_invitee_cap"`
-	AdminRechargeRebateEnabled      bool                         `json:"affiliate_admin_recharge_enabled"`
-	DefaultUserRPMLimit             int                          `json:"default_user_rpm_limit"`
-	DefaultSubscriptions            []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	DefaultConcurrency                        int                          `json:"default_concurrency"`
+	DefaultBalance                            float64                      `json:"default_balance"`
+	BonusBalanceDefaultValidityDays           int                          `json:"bonus_balance_default_validity_days"`
+	AffiliateRebateRate                       float64                      `json:"affiliate_rebate_rate"`
+	AffiliateRebateRecipient                  string                       `json:"affiliate_rebate_recipient"`
+	AffiliateRebateFreezeHours                int                          `json:"affiliate_rebate_freeze_hours"`
+	AffiliateRebateDurationDays               int                          `json:"affiliate_rebate_duration_days"`
+	AffiliateRebatePerInviteeCap              float64                      `json:"affiliate_rebate_per_invitee_cap"`
+	AdminRechargeRebateEnabled                bool                         `json:"affiliate_admin_recharge_enabled"`
+	AffiliateInviterBindingRewardPoints       float64                      `json:"affiliate_inviter_binding_reward_points"`
+	AffiliateInviterBindingRewardValidityDays int                          `json:"affiliate_inviter_binding_reward_validity_days"`
+	AffiliateInviteeBindingRewardPoints       float64                      `json:"affiliate_invitee_binding_reward_points"`
+	AffiliateInviteeBindingRewardValidityDays int                          `json:"affiliate_invitee_binding_reward_validity_days"`
+	DefaultUserRPMLimit                       int                          `json:"default_user_rpm_limit"`
+	DefaultSubscriptions                      []DefaultSubscriptionSetting `json:"default_subscriptions"`
 
 	// Model fallback configuration
 	EnableModelFallback    bool   `json:"enable_model_fallback"`
@@ -193,6 +197,7 @@ type SystemSettings struct {
 	BackendModeEnabled bool `json:"backend_mode_enabled"`
 
 	// Gateway forwarding behavior
+	OpenAITTFTMode                         string `json:"openai_ttft_mode"`
 	EnableFingerprintUnification           bool   `json:"enable_fingerprint_unification"`
 	EnableMetadataPassthrough              bool   `json:"enable_metadata_passthrough"`
 	EnableCCHSigning                       bool   `json:"enable_cch_signing"`
@@ -267,6 +272,7 @@ type SystemSettings struct {
 	PaymentRechargeBonusTiers        []service.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
 	PaymentSubscriptionUSDToCNYRate  float64                     `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate           float64                     `json:"payment_recharge_fee_rate"`
+	PaymentRefundFeeRate             float64                     `json:"payment_refund_fee_rate"`
 	PaymentLoadBalanceStrat          string                      `json:"payment_load_balance_strategy"`
 	PaymentProductNamePrefix         string                      `json:"payment_product_name_prefix"`
 	PaymentProductNameSuffix         string                      `json:"payment_product_name_suffix"`
@@ -449,6 +455,10 @@ type OverloadCooldownSettings struct {
 type RateLimit429CooldownSettings struct {
 	Enabled         bool `json:"enabled"`
 	CooldownSeconds int  `json:"cooldown_seconds"`
+}
+
+type OpenAIImagesOAuthUnavailableCooldownSettings struct {
+	CooldownMinutes int `json:"cooldown_minutes"`
 }
 
 // PanelRateLimitSettings 面板 API 限流配置 DTO

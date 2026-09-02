@@ -1,15 +1,18 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,18 +25,20 @@ import (
 )
 
 var (
-	openAIModelDatePattern     = regexp.MustCompile(`-\d{8}$`)
-	openAIModelBasePattern     = regexp.MustCompile(`^(gpt-\d+(?:\.\d+)?)(?:-|$)`)
+	openAIModelDatePattern = regexp.MustCompile(`-\d{8}$`)
+	openAIModelBasePattern = regexp.MustCompile(`^(gpt-\d+(?:\.\d+)?)(?:-|$)`)
+	// aboveTierPricePattern matches LiteLLM's absolute long-context price fields.
+	aboveTierPricePattern = regexp.MustCompile(`^(input|output)_cost_per_token_above_(\d+)k_tokens$`)
+	// cacheTierPricePattern is used only as a catalog-contract guard. Cache tiers
+	// follow the input multiplier during billing and therefore require a base price.
+	cacheTierPricePattern      = regexp.MustCompile(`^(cache_(?:creation|read)_input_token_cost)(_above_1hr)?_above_\d+k_tokens((?:_[a-z]+)?)$`)
 	openAIGPT54FallbackPricing = &LiteLLMModelPricing{
-		InputCostPerToken:               2.5e-06, // $2.5 per MTok
-		OutputCostPerToken:              1.5e-05, // $15 per MTok
-		CacheReadInputTokenCost:         2.5e-07, // $0.25 per MTok
-		LongContextInputTokenThreshold:  272000,
-		LongContextInputCostMultiplier:  2.0,
-		LongContextOutputCostMultiplier: 1.5,
-		LiteLLMProvider:                 "openai",
-		Mode:                            "chat",
-		SupportsPromptCaching:           true,
+		InputCostPerToken:       2.5e-06, // $2.5 per MTok
+		OutputCostPerToken:      1.5e-05, // $15 per MTok
+		CacheReadInputTokenCost: 2.5e-07, // $0.25 per MTok
+		LiteLLMProvider:         "openai",
+		Mode:                    "chat",
+		SupportsPromptCaching:   true,
 	}
 	openAIGPT56SolFallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:                   5e-06,
@@ -44,9 +49,6 @@ var (
 		CacheCreationInputTokenCostPriority: 1.25e-05,
 		CacheReadInputTokenCost:             5e-07,
 		CacheReadInputTokenCostPriority:     1e-06,
-		LongContextInputTokenThreshold:      openAIGPT54LongContextInputThreshold,
-		LongContextInputCostMultiplier:      openAIGPT54LongContextInputMultiplier,
-		LongContextOutputCostMultiplier:     openAIGPT54LongContextOutputMultiplier,
 		SupportsServiceTier:                 true,
 		LiteLLMProvider:                     "openai",
 		Mode:                                "chat",
@@ -61,9 +63,6 @@ var (
 		CacheCreationInputTokenCostPriority: 5e-06,
 		CacheReadInputTokenCost:             2e-07,
 		CacheReadInputTokenCostPriority:     4e-07,
-		LongContextInputTokenThreshold:      openAIGPT54LongContextInputThreshold,
-		LongContextInputCostMultiplier:      openAIGPT54LongContextInputMultiplier,
-		LongContextOutputCostMultiplier:     openAIGPT54LongContextOutputMultiplier,
 		SupportsServiceTier:                 true,
 		LiteLLMProvider:                     "openai",
 		Mode:                                "chat",
@@ -78,9 +77,6 @@ var (
 		CacheCreationInputTokenCostPriority: 5e-07,
 		CacheReadInputTokenCost:             2e-08,
 		CacheReadInputTokenCostPriority:     4e-08,
-		LongContextInputTokenThreshold:      openAIGPT54LongContextInputThreshold,
-		LongContextInputCostMultiplier:      openAIGPT54LongContextInputMultiplier,
-		LongContextOutputCostMultiplier:     openAIGPT54LongContextOutputMultiplier,
 		SupportsServiceTier:                 true,
 		LiteLLMProvider:                     "openai",
 		Mode:                                "chat",
@@ -388,6 +384,7 @@ func (s *PricingService) downloadPricingData() error {
 		return fmt.Errorf("parse pricing data: %w", err)
 	}
 	data = s.mergeFallbackPricingData(data)
+	data = s.mergeOverrideOnlyModels(data)
 
 	// 保存到本地文件
 	pricingFile := s.getPricingFilePath()
@@ -408,6 +405,7 @@ func (s *PricingService) downloadPricingData() error {
 
 	// 更新内存数据
 	s.mu.Lock()
+	warnDroppedLongContextLadders(s.pricingData, data)
 	s.pricingData = data
 	s.lastUpdated = time.Now()
 	s.localHash = syncHash
@@ -424,9 +422,11 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("parse raw JSON: %w", err)
 	}
+	rawData = s.applyPricingOverrides(rawData)
 
 	result := make(map[string]*LiteLLMModelPricing)
 	skipped := 0
+	var orphanCacheTiers, lopsidedLadders []string
 
 	for modelName, rawEntry := range rawData {
 		// 跳过 sample_spec 等文档条目
@@ -500,18 +500,271 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			pricing.InputCostPerImageToken = *entry.InputCostPerImageToken
 		}
 
+		hasExplicitLongContext := entry.LongContextInputTokenThreshold != nil ||
+			entry.LongContextInputCostMultiplier != nil ||
+			entry.LongContextOutputCostMultiplier != nil
+		if !hasExplicitLongContext {
+			deriveLongContextFromAboveTierFields(rawEntry, pricing)
+			if isLopsidedLongContextLadder(pricing) {
+				lopsidedLadders = append(lopsidedLadders, fmt.Sprintf("%s(input x%.2f, output x%.2f)", modelName,
+					pricing.LongContextInputCostMultiplier, pricing.LongContextOutputCostMultiplier))
+			}
+		}
+		if orphans := orphanCacheTierFields(rawEntry); len(orphans) > 0 {
+			orphanCacheTiers = append(orphanCacheTiers, modelName+"("+strings.Join(orphans, ",")+")")
+		}
+
 		result[modelName] = pricing
 	}
 
 	if skipped > 0 {
 		logger.LegacyPrintf("service.pricing", "[Pricing] Skipped %v invalid entries", skipped)
 	}
+	warnOrphanCacheTierFields(orphanCacheTiers)
+	warnLopsidedLongContextLadders(lopsidedLadders)
 
 	if len(result) == 0 {
 		return nil, fmt.Errorf("no valid pricing entries found")
 	}
 
 	return result, nil
+}
+
+// deriveLongContextFromAboveTierFields converts LiteLLM's absolute
+// *_above_XXXk_tokens prices into the threshold-and-multiplier representation
+// used internally. Explicit long_context_* fields, including zero values, take
+// precedence and are handled by the caller.
+func deriveLongContextFromAboveTierFields(rawEntry json.RawMessage, pricing *LiteLLMModelPricing) {
+	if pricing == nil ||
+		pricing.LongContextInputTokenThreshold > 0 ||
+		pricing.LongContextInputCostMultiplier > 0 ||
+		pricing.LongContextOutputCostMultiplier > 0 {
+		return
+	}
+	if !bytes.Contains(rawEntry, []byte("_above_")) {
+		return
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(rawEntry, &fields); err != nil {
+		return
+	}
+	type tierPrices struct{ input, output float64 }
+	tiers := make(map[int]*tierPrices)
+	for key, value := range fields {
+		match := aboveTierPricePattern.FindStringSubmatch(key)
+		if match == nil {
+			continue
+		}
+		price, ok := value.(float64)
+		if !ok || price <= 0 {
+			continue
+		}
+		thousands, err := strconv.Atoi(match[2])
+		if err != nil || thousands <= 0 {
+			continue
+		}
+		threshold := thousands * 1000
+		tier := tiers[threshold]
+		if tier == nil {
+			tier = &tierPrices{}
+			tiers[threshold] = tier
+		}
+		if match[1] == "input" {
+			tier.input = price
+		} else {
+			tier.output = price
+		}
+	}
+	if len(tiers) == 0 {
+		return
+	}
+	threshold := 0
+	for candidate := range tiers {
+		if threshold == 0 || candidate < threshold {
+			threshold = candidate
+		}
+	}
+	tier := tiers[threshold]
+	inputMultiplier, outputMultiplier := 1.0, 1.0
+	if tier.input > 0 && pricing.InputCostPerToken > 0 {
+		inputMultiplier = tier.input / pricing.InputCostPerToken
+	}
+	if tier.output > 0 && pricing.OutputCostPerToken > 0 {
+		outputMultiplier = tier.output / pricing.OutputCostPerToken
+	}
+	if inputMultiplier <= 1 && outputMultiplier <= 1 {
+		return
+	}
+	pricing.LongContextInputTokenThreshold = threshold
+	pricing.LongContextInputCostMultiplier = inputMultiplier
+	pricing.LongContextOutputCostMultiplier = outputMultiplier
+}
+
+func isLopsidedLongContextLadder(pricing *LiteLLMModelPricing) bool {
+	if pricing == nil || pricing.LongContextInputTokenThreshold <= 0 {
+		return false
+	}
+	return (pricing.LongContextInputCostMultiplier > 1) != (pricing.LongContextOutputCostMultiplier > 1)
+}
+
+func warnLopsidedLongContextLadders(entries []string) {
+	if len(entries) == 0 {
+		return
+	}
+	sort.Strings(entries)
+	total := len(entries)
+	if total > 20 {
+		entries = append(entries[:20], "...")
+	}
+	logger.LegacyPrintf("service.pricing", "[Pricing] Warning: %d model(s) derive a one-sided long-context ladder; base and above-tier prices may come from different revisions: %s", total, strings.Join(entries, ", "))
+}
+
+// orphanCacheTierFields returns cache above-tier fields that cannot fall back
+// to a positive base price. Such fields cannot participate in billing because
+// cache tiers follow the input multiplier instead of being read independently.
+func orphanCacheTierFields(rawEntry json.RawMessage) []string {
+	if !bytes.Contains(rawEntry, []byte("_above_")) {
+		return nil
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(rawEntry, &fields); err != nil {
+		return nil
+	}
+	positive := func(key string) bool {
+		price, ok := fields[key].(float64)
+		return ok && price > 0
+	}
+	var orphans []string
+	for key := range fields {
+		match := cacheTierPricePattern.FindStringSubmatch(key)
+		if match == nil || !positive(key) {
+			continue
+		}
+		stem, hourly, tier := match[1], match[2], match[3]
+		if positive(stem+hourly+tier) || positive(stem+hourly) || positive(stem+tier) || positive(stem) {
+			continue
+		}
+		orphans = append(orphans, key)
+	}
+	sort.Strings(orphans)
+	return orphans
+}
+
+func warnOrphanCacheTierFields(entries []string) {
+	if len(entries) == 0 {
+		return
+	}
+	sort.Strings(entries)
+	total := len(entries)
+	if total > 20 {
+		entries = append(entries[:20], "...")
+	}
+	logger.LegacyPrintf("service.pricing", "[Pricing] Warning: %d model(s) carry cache above-tier prices without a base cache price; that cache item bills at $0 until the catalog/override supplies the base: %s", total, strings.Join(entries, ", "))
+}
+
+// applyPricingOverrides shallow-merges override fields into entries already
+// present in a catalog or fallback file. New entries are added only after both
+// sources have been merged, so a sparse patch cannot shadow a complete fallback.
+func (s *PricingService) applyPricingOverrides(rawData map[string]json.RawMessage) map[string]json.RawMessage {
+	overrides := s.loadPricingOverrideEntries()
+	if len(overrides) == 0 {
+		return rawData
+	}
+	for name, patch := range overrides {
+		base, ok := rawData[name]
+		if !ok {
+			continue
+		}
+		merged, valid := mergePricingOverrideEntry(base, patch)
+		if !valid {
+			logger.LegacyPrintf("service.pricing", "[Pricing] Warning: override entry %q skipped: not a JSON object", name)
+			continue
+		}
+		rawData[name] = merged
+	}
+	return rawData
+}
+
+func (s *PricingService) loadPricingOverrideEntries() map[string]json.RawMessage {
+	if s == nil || s.cfg == nil {
+		return nil
+	}
+	path := strings.TrimSpace(s.cfg.Pricing.OverrideFile)
+	if path == "" {
+		return nil
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		logger.LegacyPrintf("service.pricing", "[Pricing] Warning: override merge skipped: %v", err)
+		return nil
+	}
+	var entries map[string]json.RawMessage
+	if err := json.Unmarshal(body, &entries); err != nil {
+		logger.LegacyPrintf("service.pricing", "[Pricing] Warning: override merge skipped: %v", err)
+		return nil
+	}
+	return entries
+}
+
+func mergePricingOverrideEntry(base, patch json.RawMessage) (json.RawMessage, bool) {
+	var patchFields map[string]any
+	if err := json.Unmarshal(patch, &patchFields); err != nil || patchFields == nil {
+		return nil, false
+	}
+	merged := make(map[string]any, len(patchFields))
+	if len(base) > 0 {
+		if err := json.Unmarshal(base, &merged); err != nil {
+			merged = make(map[string]any, len(patchFields))
+		}
+	}
+	for key, value := range patchFields {
+		if value == nil {
+			delete(merged, key)
+			continue
+		}
+		merged[key] = value
+	}
+	out, err := json.Marshal(merged)
+	if err != nil {
+		return nil, false
+	}
+	return out, true
+}
+
+func (s *PricingService) mergeOverrideOnlyModels(data map[string]*LiteLLMModelPricing) map[string]*LiteLLMModelPricing {
+	overrides := s.loadPricingOverrideEntries()
+	if len(overrides) == 0 {
+		return data
+	}
+	if data == nil {
+		data = make(map[string]*LiteLLMModelPricing)
+	}
+	leftover := make(map[string]json.RawMessage)
+	for name, patch := range overrides {
+		if _, ok := data[name]; !ok {
+			leftover[name] = patch
+		}
+	}
+	if len(leftover) == 0 {
+		return data
+	}
+	if body, err := json.Marshal(leftover); err == nil {
+		if parsed, err := s.parsePricingData(body); err == nil {
+			maps.Copy(data, parsed)
+		}
+	}
+	var missing []string
+	for name := range leftover {
+		if _, ok := data[name]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 0 {
+		return data
+	}
+	sort.Strings(missing)
+	logger.LegacyPrintf("service.pricing", "[Pricing] Warning: override had no effect for %d model(s): %s (unknown model name, or patch-only entry without price fields)", len(missing), strings.Join(missing, ", "))
+	return data
 }
 
 // loadPricingData 从本地文件加载价格数据
@@ -527,12 +780,14 @@ func (s *PricingService) loadPricingData(filePath string) error {
 		return fmt.Errorf("parse pricing data: %w", err)
 	}
 	pricingData = s.mergeFallbackPricingData(pricingData)
+	pricingData = s.mergeOverrideOnlyModels(pricingData)
 
 	// 计算哈希
 	hash := sha256.Sum256(data)
 	hashStr := hex.EncodeToString(hash[:])
 
 	s.mu.Lock()
+	warnDroppedLongContextLadders(s.pricingData, pricingData)
 	s.pricingData = pricingData
 	s.localHash = hashStr
 
@@ -577,6 +832,34 @@ func (s *PricingService) mergeFallbackPricingData(data map[string]*LiteLLMModelP
 		logger.LegacyPrintf("service.pricing", "[Pricing] Merged %v fallback-only models", merged)
 	}
 	return data
+}
+
+// warnDroppedLongContextLadders reports an unexpected catalog regression. A
+// deliberate removal can still be expressed through override_file; the warning
+// makes that operational change visible instead of silently underbilling.
+// The caller holds s.mu for writing.
+func warnDroppedLongContextLadders(old, next map[string]*LiteLLMModelPricing) {
+	if len(old) == 0 {
+		return
+	}
+	var dropped []string
+	for name, previous := range old {
+		if previous == nil || previous.LongContextInputTokenThreshold <= 0 {
+			continue
+		}
+		if current, ok := next[name]; ok && (current == nil || current.LongContextInputTokenThreshold <= 0) {
+			dropped = append(dropped, name)
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	sort.Strings(dropped)
+	total := len(dropped)
+	if total > 20 {
+		dropped = append(dropped[:20], "...")
+	}
+	logger.LegacyPrintf("service.pricing", "[Pricing] Long-context ladder dropped for %d model(s) after reload: %s (verify catalog/override data if unintended)", total, strings.Join(dropped, ", "))
 }
 
 // useFallbackPricing 使用回退价格文件
@@ -737,8 +1020,14 @@ func (s *PricingService) buildModelLookupCandidates(modelLower string) []string 
 	}
 	normalized := normalizeModelNameForPricing(modelLower)
 
-	// Prefer canonical model names while preserving exact aliases as fallbacks.
-	candidates := append([]string{normalized}, rawCandidates...)
+	// Preserve a future exact tier-specific Gemini entry before falling back to
+	// the shared base rate. Other aliases prefer their canonical model name.
+	candidates := rawCandidates
+	if normalizeGeminiThinkingTierAlias(lastSegment(modelLower)) != lastSegment(modelLower) {
+		candidates = append(candidates, normalized)
+	} else {
+		candidates = append([]string{normalized}, candidates...)
+	}
 
 	seen := make(map[string]struct{}, len(candidates))
 	out := make([]string, 0, len(candidates))
@@ -760,9 +1049,15 @@ func (s *PricingService) buildModelLookupCandidates(modelLower string) []string 
 }
 
 func normalizeModelNameForPricing(model string) string {
+	// Common Gemini/VertexAI forms include models/<id>,
+	// publishers/google/models/<id>, and full project resource names.
 	model = strings.TrimSpace(model)
 	model = strings.TrimLeft(model, "/")
 	model = strings.TrimPrefix(model, "models/")
+	model = strings.TrimPrefix(model, "publishers/google/models/")
+	if idx := strings.LastIndex(model, "/publishers/google/models/"); idx != -1 {
+		model = model[idx+len("/publishers/google/models/"):]
+	}
 	if idx := strings.LastIndex(model, "/models/"); idx != -1 {
 		model = model[idx+len("/models/"):]
 	}
@@ -776,6 +1071,18 @@ func normalizeModelNameForPricing(model string) string {
 			return "gpt-5.6-sol"
 		}
 		return canonical
+	}
+	return normalizeGeminiThinkingTierAlias(model)
+}
+
+// Gemini 3.6 Flash thinking-tier suffixes describe reasoning behavior rather
+// than a distinct published token rate, so they share the base price card.
+func normalizeGeminiThinkingTierAlias(model string) string {
+	const baseModel = "gemini-3.6-flash"
+	for _, tier := range []string{"-high", "-low", "-medium", "-tiered"} {
+		if model == baseModel+tier {
+			return baseModel
+		}
 	}
 	return model
 }

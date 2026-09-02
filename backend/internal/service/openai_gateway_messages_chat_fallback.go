@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -80,17 +81,36 @@ func (s *OpenAIGatewayService) forwardAnthropicViaRawChatCompletions(
 		chatBody = normalizedBody
 	}
 	if account.Platform == PlatformOpenAI {
-		if policyBody, changed := ApplyOpenAIReasoningEffortPolicyFromContext(ctx, chatBody); changed {
+		policyBody, changed, policyErr := ApplyOpenAIReasoningEffortPolicyFromContext(ctx, chatBody)
+		if policyErr != nil {
+			var overLimit *ReasoningEffortOverLimitError
+			if errors.As(policyErr, &overLimit) {
+				MarkOpsClientBusinessLimited(c, OpsClientBusinessLimitedReasonLocalPolicyDenied)
+				writeAnthropicError(c, http.StatusForbidden, "forbidden_error", overLimit.Error())
+			}
+			return nil, policyErr
+		}
+		if changed {
 			chatBody = policyBody
 			if effectiveEffort := strings.TrimSpace(gjson.GetBytes(chatBody, "reasoning_effort").String()); effectiveEffort != "" {
 				reasoningEffort = &effectiveEffort
 			}
 		}
 	}
-	// Unlike forwardResponsesViaRawChatCompletions, applyOpenAIFastPolicyToBody
-	// is intentionally skipped: Anthropic Messages bodies carry no service_tier,
-	// so the converted Chat Completions body never contains one and the policy
-	// would always be a no-op on this path.
+	// Normal Messages requests do not carry service_tier, but a group-level
+	// ForceOpenAIFast policy must still inject priority before the global policy
+	// is evaluated on this direct Chat Completions fallback path.
+	updatedBody, fastPolicyErr := s.applyOpenAIFastPolicyToBody(ctx, account, upstreamModel, chatBody)
+	if fastPolicyErr != nil {
+		var blocked *OpenAIFastBlockedError
+		if errors.As(fastPolicyErr, &blocked) {
+			MarkOpsClientBusinessLimited(c, OpsClientBusinessLimitedReasonLocalPolicyDenied)
+			writeAnthropicError(c, http.StatusForbidden, "forbidden_error", blocked.Message)
+		}
+		return nil, fastPolicyErr
+	}
+	chatBody = updatedBody
+	serviceTier = extractOpenAIServiceTierFromBody(chatBody)
 
 	logger.L().Debug("openai messages: forwarding via raw chat completions",
 		zap.String("account_id", account.ID),

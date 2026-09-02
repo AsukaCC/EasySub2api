@@ -163,6 +163,10 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateRebateFreezeHours:                 strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:                strconv.Itoa(AffiliateRebateDurationDaysDefault),
 		SettingKeyAffiliateRebatePerInviteeCap:               strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
+		SettingKeyAffiliateInviterBindingRewardPoints:        "0",
+		SettingKeyAffiliateInviterBindingRewardValidityDays:  strconv.Itoa(AffiliateBindingRewardValidityDefault),
+		SettingKeyAffiliateInviteeBindingRewardPoints:        "0",
+		SettingKeyAffiliateInviteeBindingRewardValidityDays:  strconv.Itoa(AffiliateBindingRewardValidityDefault),
 		SettingKeyDefaultUserRPMLimit:                        "0",
 		SettingKeyDefaultSubscriptions:                       "[]",
 		SettingKeyAuthSourceDefaultEmailBalance:              "0",
@@ -359,7 +363,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		PromoCodeEnabled:                       settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                   emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                            settings[SettingKeyFrontendURL],
-		InvitationCodeEnabled:                  false,
+		InvitationCodeEnabled:                  settings[SettingKeyInvitationCodeEnabled] == "true",
 		TotpEnabled:                            settings[SettingKeyTotpEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭
@@ -446,7 +450,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.AffiliateRebateRate = AffiliateRebateRateDefault
 	}
-	result.AffiliateRebateRecipient = NormalizeAffiliateRebateRecipient(settings[SettingKeyAffiliateRebateRecipient])
+	result.AffiliateRebateRecipient = AffiliateRebateRecipientInviter
 	result.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	if durationDays, err := strconv.Atoi(settings[SettingKeyAffiliateRebateDurationDays]); err == nil && durationDays >= 0 {
 		if durationDays > AffiliateRebateDurationDaysMax {
@@ -458,6 +462,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.AffiliateRebatePerInviteeCap = perInviteeCap
 	}
 	result.AdminRechargeRebateEnabled = settings[SettingKeyAffiliateAdminRechargeEnabled] == "true"
+	result.AffiliateInviterBindingRewardPoints = parseAffiliateBindingRewardPoints(settings[SettingKeyAffiliateInviterBindingRewardPoints])
+	result.AffiliateInviterBindingRewardValidityDays = parseAffiliateBindingRewardValidity(settings[SettingKeyAffiliateInviterBindingRewardValidityDays])
+	result.AffiliateInviteeBindingRewardPoints = parseAffiliateBindingRewardPoints(settings[SettingKeyAffiliateInviteeBindingRewardPoints])
+	result.AffiliateInviteeBindingRewardValidityDays = parseAffiliateBindingRewardValidity(settings[SettingKeyAffiliateInviteeBindingRewardValidityDays])
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
 
 	// 敏感信息直接返回，方便测试连接时使用
@@ -830,6 +838,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
 	result.AffiliateUserVisible = userVisibilitySetting(settings, SettingKeyAffiliateUserVisible, result.AffiliateEnabled)
+	result.InvitationCodeEnabled = result.InvitationCodeEnabled && result.AffiliateEnabled && result.AffiliateUserVisible
 	result.PaymentUserVisible = userVisibilitySetting(settings, SettingPaymentUserVisible, settings[SettingPaymentEnabled] == "true")
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
@@ -856,6 +865,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Gateway forwarding behavior (defaults: fingerprint=true, metadata_passthrough=false,
 	// cch_signing=false, claude_oauth_system_prompt_injection=true)
+	result.OpenAITTFTMode = normalizeOpenAITTFTMode(settings[SettingKeyOpenAITTFTMode])
 	if v, ok := settings[SettingKeyEnableFingerprintUnification]; ok && v != "" {
 		result.EnableFingerprintUnification = v == "true"
 	} else {
@@ -986,6 +996,13 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	})
 
 	return result
+}
+
+func normalizeOpenAITTFTMode(mode string) string {
+	if strings.EqualFold(strings.TrimSpace(mode), OpenAITTFTModeSemantic) {
+		return OpenAITTFTModeSemantic
+	}
+	return OpenAITTFTModeVisible
 }
 
 func clampAffiliateRebateRate(value float64) float64 {

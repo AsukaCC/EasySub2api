@@ -470,6 +470,26 @@ func (h *PaymentHandler) CancelOrder(c *gin.Context) {
 	response.Success(c, gin.H{"message": msg})
 }
 
+// DeleteOrder removes a cancelled order from the authenticated user's order list.
+// DELETE /api/v1/payment/orders/:id
+func (h *PaymentHandler) DeleteOrder(c *gin.Context) {
+	subject, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
+	orderID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid order ID")
+		return
+	}
+	if err := h.paymentService.DeleteCancelledOrder(c.Request.Context(), orderID, subject.UserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "order deleted"})
+}
+
 // RefundRequestBody is the request body for requesting a refund.
 type RefundRequestBody struct {
 	Reason string `json:"reason"`

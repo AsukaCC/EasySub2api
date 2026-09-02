@@ -164,7 +164,9 @@ type Group struct {
 	RPMLimit int `json:"rpm_limit"`
 	// MaxReasoningEffort OpenAI/Codex 请求的推理强度上限，空字符串表示不限制。
 	MaxReasoningEffort string `json:"max_reasoning_effort"`
-	// ReasoningEffortMappings OpenAI/Codex 推理强度精确映射。
+	// MaxReasoningEffortOverLimit 超过上限时的访问控制：downgrade（默认）或 deny。
+	MaxReasoningEffortOverLimit string `json:"max_reasoning_effort_over_limit"`
+	// ReasoningEffortMappings OpenAI/Codex 推理强度映射。
 	ReasoningEffortMappings []domain.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 
 	CreatedAt time.Time `json:"created_at"`
@@ -175,6 +177,8 @@ type Group struct {
 // 注意：普通用户接口不得返回 model_routing/account_count/account_groups 等内部信息。
 type AdminGroup struct {
 	Group
+	ForceOpenAIFast bool `json:"force_openai_fast"`
+	FreeOpenAIFast  bool `json:"free_openai_fast"`
 
 	// 分组利润控制（五个 token 平台分组可启用；margin/buffer 为小数存储）。
 	// 仅管理员可见：这三个字段与同响应中的 rate_multiplier 相乘即可反推出
@@ -496,9 +500,11 @@ type UsageLog struct {
 	Model     string `json:"model"`
 	// ServiceTier records the OpenAI service tier used for billing, e.g. "priority" / "flex".
 	ServiceTier *string `json:"service_tier,omitempty"`
-	// ReasoningEffort is the request's reasoning effort level.
+	// ReasoningEffort is the effective effort after group policy / model-family remapping.
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
 	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	// RequestedReasoningEffort is the client-requested effort before mapping.
+	RequestedReasoningEffort *string `json:"requested_reasoning_effort,omitempty"`
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.
 	InboundEndpoint *string `json:"inbound_endpoint,omitempty"`
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.
@@ -521,8 +527,8 @@ type UsageLog struct {
 	CacheReadCost     float64 `json:"cache_read_cost"`
 	TotalCost         float64 `json:"total_cost"`
 	ActualCost        float64 `json:"actual_cost"`
-	// AccountBilledPoints is the account-side points consumed by this request.
-	// It is safe for the usage owner to view and does not expose account pricing details.
+	// AccountBilledPoints is the legacy JSON field name for the upstream account
+	// billing amount in USD. It does not expose account pricing details.
 	AccountBilledPoints       float64 `json:"account_billed_points"`
 	RateMultiplier            float64 `json:"rate_multiplier"`
 	LongContextBillingApplied bool    `json:"long_context_billing_applied"`
@@ -531,8 +537,11 @@ type UsageLog struct {
 	RequestType  string `json:"request_type"`
 	Stream       bool   `json:"stream"`
 	OpenAIWSMode bool   `json:"openai_ws_mode"`
-	DurationMs   *int   `json:"duration_ms"`
-	FirstTokenMs *int   `json:"first_token_ms"`
+	// NativeCompactionV2 is true only for requests positively identified at
+	// runtime as the native OpenAI remote compaction v2 wire.
+	NativeCompactionV2 bool `json:"native_compaction_v2"`
+	DurationMs         *int `json:"duration_ms"`
+	FirstTokenMs       *int `json:"first_token_ms"`
 
 	// 图片生成字段
 	ImageCount         int            `json:"image_count"`

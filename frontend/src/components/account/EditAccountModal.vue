@@ -104,6 +104,30 @@
           </div>
           <p class="input-hint">{{ t(`admin.accounts.cnProviders.apiProtocol.${cnProtocolDescKey}Desc`) }}</p>
         </div>
+        <div
+          v-if="account.platform === 'zhipu' && editAccountMode === 'coding'"
+          class="components-account-edit-account-modal__panel-3"
+        >
+          <div>
+            <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.organization') }}</label>
+            <input
+              v-model="editZhipuOrganization"
+              type="text"
+              class="components-account-edit-account-modal__field input"
+              :placeholder="t('admin.accounts.cnProviders.zhipuTeam.organizationPlaceholder')"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.project') }}</label>
+            <input
+              v-model="editZhipuProject"
+              type="text"
+              class="components-account-edit-account-modal__field input"
+              :placeholder="t('admin.accounts.cnProviders.zhipuTeam.projectPlaceholder')"
+            />
+          </div>
+          <p class="input-hint">{{ t('admin.accounts.cnProviders.zhipuTeam.hint') }}</p>
+        </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKey') }}</label>
           <input
@@ -205,7 +229,7 @@
 
             <!-- Whitelist Mode -->
             <div v-if="modelRestrictionMode === 'whitelist'">
-              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
+              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" @upstream-synced="handleUpstreamSynced" />
               <p class="components-account-edit-account-modal__description-2">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
                 <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -640,7 +664,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -844,7 +868,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -1461,7 +1485,10 @@
       <div class="components-account-edit-account-modal__panel-3">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
         <input v-model="expiresAtInput" type="datetime-local" class="input" />
-        <p class="input-hint">{{ t('admin.accounts.expiresAtHint') }}</p>
+        <p class="input-hint">
+          {{ t('admin.accounts.expiresAtHint') }}
+          {{ t('admin.accounts.expiresAtTimezoneHint', { timezone: browserTimeZone }) }}
+        </p>
       </div>
 
       <!-- OpenAI 自动透传开关（OAuth/API Key） -->
@@ -2616,6 +2643,7 @@ import {
   applyInterceptWarmup,
   applyPlanType,
   buildPlanTypeOptions,
+  cnSupportsNativeResponses,
   readPlanType,
   isCustomGrokBaseUrl,
   isHeaderOverrideCapable,
@@ -2628,7 +2656,12 @@ import {
   type CnApiProtocol,
   type HeaderOverrideRow
 } from '@/components/account/credentialsBuilder'
-import { formatDateTime, formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
+import {
+  formatDateTime,
+  formatDateTimeLocalInput,
+  getBrowserTimeZone,
+  parseDateTimeLocalInput
+} from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import { VERTEX_LOCATION_SELECT_OPTIONS } from '@/constants/account'
 import {
@@ -2664,6 +2697,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const browserTimeZone = getBrowserTimeZone()
 
 // Spark 影子账号(parent_account_id 非空):代理恒继承母账号,不可独立编辑(外审 B/P1),
 // 故隐藏代理选择器。
@@ -2722,6 +2756,8 @@ const cnPresetPlatform = computed<'kimi' | 'zhipu' | 'deepseek'>(() => {
 })
 const editApiProtocol = ref<CnApiProtocol>('chat_completions')
 const editAccountMode = ref<CnAccountMode>('payg')
+const editZhipuOrganization = ref('')
+const editZhipuProject = ref('')
 // 回填窗口标志：syncFormFromAccount 会同步改写 editAccountMode / editApiProtocol，
 // 而 watcher（pre-flush）在同步代码执行完之后才触发——若不抑制，会把刚恢复的
 // 存储版 base_url（可能是用户自定义/中转地址）覆盖为官方预设并在下次保存时持久化。
@@ -2744,7 +2780,7 @@ const cnProtocolOptions = computed<Array<{ value: CnApiProtocol; labelKey: strin
     { value: 'chat_completions', labelKey: 'chatCompletions' },
     { value: 'anthropic', labelKey: 'anthropic' }
   ]
-  if (props.account?.platform === 'deepseek') {
+  if (cnSupportsNativeResponses(props.account?.platform ?? '')) {
     opts.push({ value: 'responses', labelKey: 'responses' })
   }
   return opts
@@ -3338,6 +3374,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   editVertexProjectId.value = ''
   editVertexClientEmail.value = ''
   editVertexLocation.value = 'us-central1'
+  editZhipuOrganization.value = ''
+  editZhipuProject.value = ''
 	const extra = newAccount.extra as Record<string, unknown> | undefined
 	autoPause5hThreshold.value = typeof extra?.auto_pause_5h_threshold === 'number' ? extra.auto_pause_5h_threshold * 100 : null
 	autoPause7dThreshold.value = typeof extra?.auto_pause_7d_threshold === 'number' ? extra.auto_pause_7d_threshold * 100 : null
@@ -3517,8 +3555,14 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       const storedProtocol = credentials.api_protocol
       editApiProtocol.value =
         storedProtocol === 'anthropic' || storedProtocol === 'responses' ? storedProtocol : 'chat_completions'
-      if (newAccount.platform !== 'deepseek' && editApiProtocol.value === 'responses') {
+      if (!cnSupportsNativeResponses(newAccount.platform) && editApiProtocol.value === 'responses') {
         editApiProtocol.value = 'chat_completions'
+      }
+      if (newAccount.platform === 'zhipu') {
+        editZhipuOrganization.value =
+          typeof credentials.zhipu_organization === 'string' ? credentials.zhipu_organization : ''
+        editZhipuProject.value =
+          typeof credentials.zhipu_project === 'string' ? credentials.zhipu_project : ''
       }
     }
     const platformDefaultUrl =
@@ -4004,6 +4048,16 @@ const handleClose = () => {
   emit('close')
 }
 
+const handleUpstreamSynced = async () => {
+  if (!props.account) return
+  try {
+    const refreshedAccount = await adminAPI.accounts.getById(props.account.id)
+    emit('updated', refreshedAccount)
+  } catch {
+    // The sync itself succeeded; the parent will receive the persisted snapshot on its next refresh.
+  }
+}
+
 const submitUpdateAccount = async (accountID: string, updatePayload: Record<string, unknown>) => {
   submitting.value = true
   try {
@@ -4063,6 +4117,18 @@ const handleSubmit = async () => {
       if (isCNApiKeyAccount.value) {
         newCredentials.account_mode = editAccountMode.value
         newCredentials.api_protocol = editApiProtocol.value
+        if (props.account.platform === 'zhipu') {
+          const organization = editZhipuOrganization.value.trim()
+          const project = editZhipuProject.value.trim()
+          if (organization) {
+            newCredentials.zhipu_organization = organization
+            if (project) newCredentials.zhipu_project = project
+            else delete newCredentials.zhipu_project
+          } else {
+            delete newCredentials.zhipu_organization
+            delete newCredentials.zhipu_project
+          }
+        }
       }
 
       // Handle API key

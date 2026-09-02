@@ -173,6 +173,34 @@ func (_c *PaymentRefundCreate) SetNillableFeeAmount(v *float64) *PaymentRefundCr
 	return _c
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (_c *PaymentRefundCreate) SetRefundFeeRate(v float64) *PaymentRefundCreate {
+	_c.mutation.SetRefundFeeRate(v)
+	return _c
+}
+
+// SetNillableRefundFeeRate sets the "refund_fee_rate" field if the given value is not nil.
+func (_c *PaymentRefundCreate) SetNillableRefundFeeRate(v *float64) *PaymentRefundCreate {
+	if v != nil {
+		_c.SetRefundFeeRate(*v)
+	}
+	return _c
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (_c *PaymentRefundCreate) SetRefundFeeAmount(v float64) *PaymentRefundCreate {
+	_c.mutation.SetRefundFeeAmount(v)
+	return _c
+}
+
+// SetNillableRefundFeeAmount sets the "refund_fee_amount" field if the given value is not nil.
+func (_c *PaymentRefundCreate) SetNillableRefundFeeAmount(v *float64) *PaymentRefundCreate {
+	if v != nil {
+		_c.SetRefundFeeAmount(*v)
+	}
+	return _c
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (_c *PaymentRefundCreate) SetGatewayAmount(v float64) *PaymentRefundCreate {
 	_c.mutation.SetGatewayAmount(v)
@@ -267,6 +295,20 @@ func (_c *PaymentRefundCreate) SetTargetFeeAmount(v float64) *PaymentRefundCreat
 func (_c *PaymentRefundCreate) SetNillableTargetFeeAmount(v *float64) *PaymentRefundCreate {
 	if v != nil {
 		_c.SetTargetFeeAmount(*v)
+	}
+	return _c
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (_c *PaymentRefundCreate) SetTargetRefundFeeAmount(v float64) *PaymentRefundCreate {
+	_c.mutation.SetTargetRefundFeeAmount(v)
+	return _c
+}
+
+// SetNillableTargetRefundFeeAmount sets the "target_refund_fee_amount" field if the given value is not nil.
+func (_c *PaymentRefundCreate) SetNillableTargetRefundFeeAmount(v *float64) *PaymentRefundCreate {
+	if v != nil {
+		_c.SetTargetRefundFeeAmount(*v)
 	}
 	return _c
 }
@@ -516,6 +558,14 @@ func (_c *PaymentRefundCreate) defaults() {
 		v := paymentrefund.DefaultFeeAmount
 		_c.mutation.SetFeeAmount(v)
 	}
+	if _, ok := _c.mutation.RefundFeeRate(); !ok {
+		v := paymentrefund.DefaultRefundFeeRate
+		_c.mutation.SetRefundFeeRate(v)
+	}
+	if _, ok := _c.mutation.RefundFeeAmount(); !ok {
+		v := paymentrefund.DefaultRefundFeeAmount
+		_c.mutation.SetRefundFeeAmount(v)
+	}
 	if _, ok := _c.mutation.GatewayAmount(); !ok {
 		v := paymentrefund.DefaultGatewayAmount
 		_c.mutation.SetGatewayAmount(v)
@@ -543,6 +593,10 @@ func (_c *PaymentRefundCreate) defaults() {
 	if _, ok := _c.mutation.TargetFeeAmount(); !ok {
 		v := paymentrefund.DefaultTargetFeeAmount
 		_c.mutation.SetTargetFeeAmount(v)
+	}
+	if _, ok := _c.mutation.TargetRefundFeeAmount(); !ok {
+		v := paymentrefund.DefaultTargetRefundFeeAmount
+		_c.mutation.SetTargetRefundFeeAmount(v)
 	}
 	if _, ok := _c.mutation.TargetBasePoints(); !ok {
 		v := paymentrefund.DefaultTargetBasePoints
@@ -652,6 +706,12 @@ func (_c *PaymentRefundCreate) check() error {
 	if _, ok := _c.mutation.FeeAmount(); !ok {
 		return &ValidationError{Name: "fee_amount", err: errors.New(`ent: missing required field "PaymentRefund.fee_amount"`)}
 	}
+	if _, ok := _c.mutation.RefundFeeRate(); !ok {
+		return &ValidationError{Name: "refund_fee_rate", err: errors.New(`ent: missing required field "PaymentRefund.refund_fee_rate"`)}
+	}
+	if _, ok := _c.mutation.RefundFeeAmount(); !ok {
+		return &ValidationError{Name: "refund_fee_amount", err: errors.New(`ent: missing required field "PaymentRefund.refund_fee_amount"`)}
+	}
 	if _, ok := _c.mutation.GatewayAmount(); !ok {
 		return &ValidationError{Name: "gateway_amount", err: errors.New(`ent: missing required field "PaymentRefund.gateway_amount"`)}
 	}
@@ -672,6 +732,9 @@ func (_c *PaymentRefundCreate) check() error {
 	}
 	if _, ok := _c.mutation.TargetFeeAmount(); !ok {
 		return &ValidationError{Name: "target_fee_amount", err: errors.New(`ent: missing required field "PaymentRefund.target_fee_amount"`)}
+	}
+	if _, ok := _c.mutation.TargetRefundFeeAmount(); !ok {
+		return &ValidationError{Name: "target_refund_fee_amount", err: errors.New(`ent: missing required field "PaymentRefund.target_refund_fee_amount"`)}
 	}
 	if _, ok := _c.mutation.TargetBasePoints(); !ok {
 		return &ValidationError{Name: "target_base_points", err: errors.New(`ent: missing required field "PaymentRefund.target_base_points"`)}
@@ -790,6 +853,14 @@ func (_c *PaymentRefundCreate) createSpec() (*PaymentRefund, *sqlgraph.CreateSpe
 		_spec.SetField(paymentrefund.FieldFeeAmount, field.TypeFloat64, value)
 		_node.FeeAmount = value
 	}
+	if value, ok := _c.mutation.RefundFeeRate(); ok {
+		_spec.SetField(paymentrefund.FieldRefundFeeRate, field.TypeFloat64, value)
+		_node.RefundFeeRate = value
+	}
+	if value, ok := _c.mutation.RefundFeeAmount(); ok {
+		_spec.SetField(paymentrefund.FieldRefundFeeAmount, field.TypeFloat64, value)
+		_node.RefundFeeAmount = value
+	}
 	if value, ok := _c.mutation.GatewayAmount(); ok {
 		_spec.SetField(paymentrefund.FieldGatewayAmount, field.TypeFloat64, value)
 		_node.GatewayAmount = value
@@ -817,6 +888,10 @@ func (_c *PaymentRefundCreate) createSpec() (*PaymentRefund, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.TargetFeeAmount(); ok {
 		_spec.SetField(paymentrefund.FieldTargetFeeAmount, field.TypeFloat64, value)
 		_node.TargetFeeAmount = value
+	}
+	if value, ok := _c.mutation.TargetRefundFeeAmount(); ok {
+		_spec.SetField(paymentrefund.FieldTargetRefundFeeAmount, field.TypeFloat64, value)
+		_node.TargetRefundFeeAmount = value
 	}
 	if value, ok := _c.mutation.TargetBasePoints(); ok {
 		_spec.SetField(paymentrefund.FieldTargetBasePoints, field.TypeFloat64, value)
@@ -1104,6 +1179,42 @@ func (u *PaymentRefundUpsert) AddFeeAmount(v float64) *PaymentRefundUpsert {
 	return u
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (u *PaymentRefundUpsert) SetRefundFeeRate(v float64) *PaymentRefundUpsert {
+	u.Set(paymentrefund.FieldRefundFeeRate, v)
+	return u
+}
+
+// UpdateRefundFeeRate sets the "refund_fee_rate" field to the value that was provided on create.
+func (u *PaymentRefundUpsert) UpdateRefundFeeRate() *PaymentRefundUpsert {
+	u.SetExcluded(paymentrefund.FieldRefundFeeRate)
+	return u
+}
+
+// AddRefundFeeRate adds v to the "refund_fee_rate" field.
+func (u *PaymentRefundUpsert) AddRefundFeeRate(v float64) *PaymentRefundUpsert {
+	u.Add(paymentrefund.FieldRefundFeeRate, v)
+	return u
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (u *PaymentRefundUpsert) SetRefundFeeAmount(v float64) *PaymentRefundUpsert {
+	u.Set(paymentrefund.FieldRefundFeeAmount, v)
+	return u
+}
+
+// UpdateRefundFeeAmount sets the "refund_fee_amount" field to the value that was provided on create.
+func (u *PaymentRefundUpsert) UpdateRefundFeeAmount() *PaymentRefundUpsert {
+	u.SetExcluded(paymentrefund.FieldRefundFeeAmount)
+	return u
+}
+
+// AddRefundFeeAmount adds v to the "refund_fee_amount" field.
+func (u *PaymentRefundUpsert) AddRefundFeeAmount(v float64) *PaymentRefundUpsert {
+	u.Add(paymentrefund.FieldRefundFeeAmount, v)
+	return u
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (u *PaymentRefundUpsert) SetGatewayAmount(v float64) *PaymentRefundUpsert {
 	u.Set(paymentrefund.FieldGatewayAmount, v)
@@ -1227,6 +1338,24 @@ func (u *PaymentRefundUpsert) UpdateTargetFeeAmount() *PaymentRefundUpsert {
 // AddTargetFeeAmount adds v to the "target_fee_amount" field.
 func (u *PaymentRefundUpsert) AddTargetFeeAmount(v float64) *PaymentRefundUpsert {
 	u.Add(paymentrefund.FieldTargetFeeAmount, v)
+	return u
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (u *PaymentRefundUpsert) SetTargetRefundFeeAmount(v float64) *PaymentRefundUpsert {
+	u.Set(paymentrefund.FieldTargetRefundFeeAmount, v)
+	return u
+}
+
+// UpdateTargetRefundFeeAmount sets the "target_refund_fee_amount" field to the value that was provided on create.
+func (u *PaymentRefundUpsert) UpdateTargetRefundFeeAmount() *PaymentRefundUpsert {
+	u.SetExcluded(paymentrefund.FieldTargetRefundFeeAmount)
+	return u
+}
+
+// AddTargetRefundFeeAmount adds v to the "target_refund_fee_amount" field.
+func (u *PaymentRefundUpsert) AddTargetRefundFeeAmount(v float64) *PaymentRefundUpsert {
+	u.Add(paymentrefund.FieldTargetRefundFeeAmount, v)
 	return u
 }
 
@@ -1672,6 +1801,48 @@ func (u *PaymentRefundUpsertOne) UpdateFeeAmount() *PaymentRefundUpsertOne {
 	})
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (u *PaymentRefundUpsertOne) SetRefundFeeRate(v float64) *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.SetRefundFeeRate(v)
+	})
+}
+
+// AddRefundFeeRate adds v to the "refund_fee_rate" field.
+func (u *PaymentRefundUpsertOne) AddRefundFeeRate(v float64) *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.AddRefundFeeRate(v)
+	})
+}
+
+// UpdateRefundFeeRate sets the "refund_fee_rate" field to the value that was provided on create.
+func (u *PaymentRefundUpsertOne) UpdateRefundFeeRate() *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.UpdateRefundFeeRate()
+	})
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (u *PaymentRefundUpsertOne) SetRefundFeeAmount(v float64) *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.SetRefundFeeAmount(v)
+	})
+}
+
+// AddRefundFeeAmount adds v to the "refund_fee_amount" field.
+func (u *PaymentRefundUpsertOne) AddRefundFeeAmount(v float64) *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.AddRefundFeeAmount(v)
+	})
+}
+
+// UpdateRefundFeeAmount sets the "refund_fee_amount" field to the value that was provided on create.
+func (u *PaymentRefundUpsertOne) UpdateRefundFeeAmount() *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.UpdateRefundFeeAmount()
+	})
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (u *PaymentRefundUpsertOne) SetGatewayAmount(v float64) *PaymentRefundUpsertOne {
 	return u.Update(func(s *PaymentRefundUpsert) {
@@ -1816,6 +1987,27 @@ func (u *PaymentRefundUpsertOne) AddTargetFeeAmount(v float64) *PaymentRefundUps
 func (u *PaymentRefundUpsertOne) UpdateTargetFeeAmount() *PaymentRefundUpsertOne {
 	return u.Update(func(s *PaymentRefundUpsert) {
 		s.UpdateTargetFeeAmount()
+	})
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (u *PaymentRefundUpsertOne) SetTargetRefundFeeAmount(v float64) *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.SetTargetRefundFeeAmount(v)
+	})
+}
+
+// AddTargetRefundFeeAmount adds v to the "target_refund_fee_amount" field.
+func (u *PaymentRefundUpsertOne) AddTargetRefundFeeAmount(v float64) *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.AddTargetRefundFeeAmount(v)
+	})
+}
+
+// UpdateTargetRefundFeeAmount sets the "target_refund_fee_amount" field to the value that was provided on create.
+func (u *PaymentRefundUpsertOne) UpdateTargetRefundFeeAmount() *PaymentRefundUpsertOne {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.UpdateTargetRefundFeeAmount()
 	})
 }
 
@@ -2457,6 +2649,48 @@ func (u *PaymentRefundUpsertBulk) UpdateFeeAmount() *PaymentRefundUpsertBulk {
 	})
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (u *PaymentRefundUpsertBulk) SetRefundFeeRate(v float64) *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.SetRefundFeeRate(v)
+	})
+}
+
+// AddRefundFeeRate adds v to the "refund_fee_rate" field.
+func (u *PaymentRefundUpsertBulk) AddRefundFeeRate(v float64) *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.AddRefundFeeRate(v)
+	})
+}
+
+// UpdateRefundFeeRate sets the "refund_fee_rate" field to the value that was provided on create.
+func (u *PaymentRefundUpsertBulk) UpdateRefundFeeRate() *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.UpdateRefundFeeRate()
+	})
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (u *PaymentRefundUpsertBulk) SetRefundFeeAmount(v float64) *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.SetRefundFeeAmount(v)
+	})
+}
+
+// AddRefundFeeAmount adds v to the "refund_fee_amount" field.
+func (u *PaymentRefundUpsertBulk) AddRefundFeeAmount(v float64) *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.AddRefundFeeAmount(v)
+	})
+}
+
+// UpdateRefundFeeAmount sets the "refund_fee_amount" field to the value that was provided on create.
+func (u *PaymentRefundUpsertBulk) UpdateRefundFeeAmount() *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.UpdateRefundFeeAmount()
+	})
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (u *PaymentRefundUpsertBulk) SetGatewayAmount(v float64) *PaymentRefundUpsertBulk {
 	return u.Update(func(s *PaymentRefundUpsert) {
@@ -2601,6 +2835,27 @@ func (u *PaymentRefundUpsertBulk) AddTargetFeeAmount(v float64) *PaymentRefundUp
 func (u *PaymentRefundUpsertBulk) UpdateTargetFeeAmount() *PaymentRefundUpsertBulk {
 	return u.Update(func(s *PaymentRefundUpsert) {
 		s.UpdateTargetFeeAmount()
+	})
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (u *PaymentRefundUpsertBulk) SetTargetRefundFeeAmount(v float64) *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.SetTargetRefundFeeAmount(v)
+	})
+}
+
+// AddTargetRefundFeeAmount adds v to the "target_refund_fee_amount" field.
+func (u *PaymentRefundUpsertBulk) AddTargetRefundFeeAmount(v float64) *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.AddTargetRefundFeeAmount(v)
+	})
+}
+
+// UpdateTargetRefundFeeAmount sets the "target_refund_fee_amount" field to the value that was provided on create.
+func (u *PaymentRefundUpsertBulk) UpdateTargetRefundFeeAmount() *PaymentRefundUpsertBulk {
+	return u.Update(func(s *PaymentRefundUpsert) {
+		s.UpdateTargetRefundFeeAmount()
 	})
 }
 

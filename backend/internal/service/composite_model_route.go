@@ -23,7 +23,18 @@ const (
 
 	CompositeRouteSourceExplicit = "route"
 	CompositeRouteSourceDetector = "detector"
+	CompositeRouteSourceAccount  = "account_model"
 )
+
+// CompositeModelOwnership identifies the provider that exposes a public model
+// through one or more account-level exact mappings in a composite group.
+type CompositeModelOwnership struct {
+	TargetPlatform string
+	Matched        bool
+	Ambiguous      bool
+}
+
+type CompositeModelOwnershipResolver func(context.Context, string, string) (CompositeModelOwnership, error)
 
 var (
 	ErrCompositeRouteNotFound = infraerrors.NotFound("COMPOSITE_ROUTE_NOT_FOUND", "composite route not found")

@@ -422,6 +422,20 @@ func (_c *UsageLogCreate) SetNillableBillingType(v *int8) *UsageLogCreate {
 	return _c
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (_c *UsageLogCreate) SetRequestedReasoningEffort(v string) *UsageLogCreate {
+	_c.mutation.SetRequestedReasoningEffort(v)
+	return _c
+}
+
+// SetNillableRequestedReasoningEffort sets the "requested_reasoning_effort" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableRequestedReasoningEffort(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetRequestedReasoningEffort(*v)
+	}
+	return _c
+}
+
 // SetStream sets the "stream" field.
 func (_c *UsageLogCreate) SetStream(v bool) *UsageLogCreate {
 	_c.mutation.SetStream(v)
@@ -432,6 +446,20 @@ func (_c *UsageLogCreate) SetStream(v bool) *UsageLogCreate {
 func (_c *UsageLogCreate) SetNillableStream(v *bool) *UsageLogCreate {
 	if v != nil {
 		_c.SetStream(*v)
+	}
+	return _c
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (_c *UsageLogCreate) SetNativeCompactionV2(v bool) *UsageLogCreate {
+	_c.mutation.SetNativeCompactionV2(v)
+	return _c
+}
+
+// SetNillableNativeCompactionV2 sets the "native_compaction_v2" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableNativeCompactionV2(v *bool) *UsageLogCreate {
+	if v != nil {
+		_c.SetNativeCompactionV2(*v)
 	}
 	return _c
 }
@@ -776,6 +804,10 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultStream
 		_c.mutation.SetStream(v)
 	}
+	if _, ok := _c.mutation.NativeCompactionV2(); !ok {
+		v := usagelog.DefaultNativeCompactionV2
+		_c.mutation.SetNativeCompactionV2(v)
+	}
 	if _, ok := _c.mutation.ImageCount(); !ok {
 		v := usagelog.DefaultImageCount
 		_c.mutation.SetImageCount(v)
@@ -900,8 +932,16 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.BillingType(); !ok {
 		return &ValidationError{Name: "billing_type", err: errors.New(`ent: missing required field "UsageLog.billing_type"`)}
 	}
+	if v, ok := _c.mutation.RequestedReasoningEffort(); ok {
+		if err := usagelog.RequestedReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "requested_reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "UsageLog.requested_reasoning_effort": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Stream(); !ok {
 		return &ValidationError{Name: "stream", err: errors.New(`ent: missing required field "UsageLog.stream"`)}
+	}
+	if _, ok := _c.mutation.NativeCompactionV2(); !ok {
+		return &ValidationError{Name: "native_compaction_v2", err: errors.New(`ent: missing required field "UsageLog.native_compaction_v2"`)}
 	}
 	if v, ok := _c.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
@@ -1099,9 +1139,17 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
 		_node.BillingType = value
 	}
+	if value, ok := _c.mutation.RequestedReasoningEffort(); ok {
+		_spec.SetField(usagelog.FieldRequestedReasoningEffort, field.TypeString, value)
+		_node.RequestedReasoningEffort = &value
+	}
 	if value, ok := _c.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
 		_node.Stream = value
+	}
+	if value, ok := _c.mutation.NativeCompactionV2(); ok {
+		_spec.SetField(usagelog.FieldNativeCompactionV2, field.TypeBool, value)
+		_node.NativeCompactionV2 = value
 	}
 	if value, ok := _c.mutation.DurationMs(); ok {
 		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)
@@ -1828,6 +1876,24 @@ func (u *UsageLogUpsert) AddBillingType(v int8) *UsageLogUpsert {
 	return u
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (u *UsageLogUpsert) SetRequestedReasoningEffort(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldRequestedReasoningEffort, v)
+	return u
+}
+
+// UpdateRequestedReasoningEffort sets the "requested_reasoning_effort" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateRequestedReasoningEffort() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldRequestedReasoningEffort)
+	return u
+}
+
+// ClearRequestedReasoningEffort clears the value of the "requested_reasoning_effort" field.
+func (u *UsageLogUpsert) ClearRequestedReasoningEffort() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldRequestedReasoningEffort)
+	return u
+}
+
 // SetStream sets the "stream" field.
 func (u *UsageLogUpsert) SetStream(v bool) *UsageLogUpsert {
 	u.Set(usagelog.FieldStream, v)
@@ -1837,6 +1903,18 @@ func (u *UsageLogUpsert) SetStream(v bool) *UsageLogUpsert {
 // UpdateStream sets the "stream" field to the value that was provided on create.
 func (u *UsageLogUpsert) UpdateStream() *UsageLogUpsert {
 	u.SetExcluded(usagelog.FieldStream)
+	return u
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (u *UsageLogUpsert) SetNativeCompactionV2(v bool) *UsageLogUpsert {
+	u.Set(usagelog.FieldNativeCompactionV2, v)
+	return u
+}
+
+// UpdateNativeCompactionV2 sets the "native_compaction_v2" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateNativeCompactionV2() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldNativeCompactionV2)
 	return u
 }
 
@@ -2771,6 +2849,27 @@ func (u *UsageLogUpsertOne) UpdateBillingType() *UsageLogUpsertOne {
 	})
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (u *UsageLogUpsertOne) SetRequestedReasoningEffort(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetRequestedReasoningEffort(v)
+	})
+}
+
+// UpdateRequestedReasoningEffort sets the "requested_reasoning_effort" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateRequestedReasoningEffort() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateRequestedReasoningEffort()
+	})
+}
+
+// ClearRequestedReasoningEffort clears the value of the "requested_reasoning_effort" field.
+func (u *UsageLogUpsertOne) ClearRequestedReasoningEffort() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearRequestedReasoningEffort()
+	})
+}
+
 // SetStream sets the "stream" field.
 func (u *UsageLogUpsertOne) SetStream(v bool) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -2782,6 +2881,20 @@ func (u *UsageLogUpsertOne) SetStream(v bool) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateStream() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateStream()
+	})
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (u *UsageLogUpsertOne) SetNativeCompactionV2(v bool) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetNativeCompactionV2(v)
+	})
+}
+
+// UpdateNativeCompactionV2 sets the "native_compaction_v2" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateNativeCompactionV2() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateNativeCompactionV2()
 	})
 }
 
@@ -3927,6 +4040,27 @@ func (u *UsageLogUpsertBulk) UpdateBillingType() *UsageLogUpsertBulk {
 	})
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (u *UsageLogUpsertBulk) SetRequestedReasoningEffort(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetRequestedReasoningEffort(v)
+	})
+}
+
+// UpdateRequestedReasoningEffort sets the "requested_reasoning_effort" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateRequestedReasoningEffort() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateRequestedReasoningEffort()
+	})
+}
+
+// ClearRequestedReasoningEffort clears the value of the "requested_reasoning_effort" field.
+func (u *UsageLogUpsertBulk) ClearRequestedReasoningEffort() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearRequestedReasoningEffort()
+	})
+}
+
 // SetStream sets the "stream" field.
 func (u *UsageLogUpsertBulk) SetStream(v bool) *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -3938,6 +4072,20 @@ func (u *UsageLogUpsertBulk) SetStream(v bool) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateStream() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateStream()
+	})
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (u *UsageLogUpsertBulk) SetNativeCompactionV2(v bool) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetNativeCompactionV2(v)
+	})
+}
+
+// UpdateNativeCompactionV2 sets the "native_compaction_v2" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateNativeCompactionV2() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateNativeCompactionV2()
 	})
 }
 

@@ -24,8 +24,13 @@
           type="number" step="any" min="0" class="components-admin-channel-interval-row__field input" />
       </div>
       <div class="components-admin-channel-interval-row__panel-3">
-        <label class="components-admin-channel-interval-row__label">{{ t('admin.channels.form.cacheWritePriceShort') }} <span class="components-admin-channel-interval-row__text">$/M</span></label>
+        <label class="components-admin-channel-interval-row__label">{{ t('admin.channels.form.cacheWrite5mPriceShort') }} <span class="components-admin-channel-interval-row__text">$/M</span></label>
         <input :value="interval.cache_write_price" @input="emitField('cache_write_price', ($event.target as HTMLInputElement).value)"
+          type="number" step="any" min="0" class="components-admin-channel-interval-row__field input" />
+      </div>
+      <div class="components-admin-channel-interval-row__panel-3">
+        <label class="components-admin-channel-interval-row__label">{{ t('admin.channels.form.cacheWrite1hPriceShort') }} <span class="components-admin-channel-interval-row__text">$/M</span></label>
+        <input :value="interval.cache_write_1h_price" @input="emitField('cache_write_1h_price', ($event.target as HTMLInputElement).value)"
           type="number" step="any" min="0" class="components-admin-channel-interval-row__field input" />
       </div>
       <div class="components-admin-channel-interval-row__panel-3">
@@ -92,6 +97,7 @@ const isEmpty = computed(() => {
   return (iv.input_price == null || iv.input_price === '') &&
     (iv.output_price == null || iv.output_price === '') &&
     (iv.cache_write_price == null || iv.cache_write_price === '') &&
+    (iv.cache_write_1h_price == null || iv.cache_write_1h_price === '') &&
     (iv.cache_read_price == null || iv.cache_read_price === '') &&
     (iv.per_request_price == null || iv.per_request_price === '')
 })

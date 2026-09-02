@@ -105,18 +105,17 @@ export async function getAccountQuotaAccounts(params: {
  * Get real-time metrics
  * @returns Real-time system metrics
  */
-export async function getRealtimeMetrics(): Promise<{
+export interface DashboardRealtimeMetrics {
   active_requests: number
   requests_per_minute: number
   average_response_time: number
   error_rate: number
-}> {
-  const { data } = await apiClient.get<{
-    active_requests: number
-    requests_per_minute: number
-    average_response_time: number
-    error_rate: number
-  }>('/admin/dashboard/realtime')
+  ws_pool_connections: number
+  ws_pool_max_connections: number
+}
+
+export async function getRealtimeMetrics(): Promise<DashboardRealtimeMetrics> {
+  const { data } = await apiClient.get<DashboardRealtimeMetrics>('/admin/dashboard/realtime')
   return data
 }
 
@@ -132,8 +131,10 @@ export interface TrendParams {
   group_id?: string
   request_type?: UsageRequestType
   stream?: boolean
+  native_compaction_v2?: boolean | null
   billing_type?: number | null
-	upstream_model_mismatch?: boolean
+  billing_mode?: string | null
+  upstream_model_mismatch?: boolean
 }
 
 export interface TrendResponse {
@@ -164,8 +165,10 @@ export interface ModelStatsParams {
   group_id?: string
   request_type?: UsageRequestType
   stream?: boolean
+  native_compaction_v2?: boolean | null
   billing_type?: number | null
-	upstream_model_mismatch?: boolean
+  billing_mode?: string | null
+  upstream_model_mismatch?: boolean
 }
 
 export interface ModelStatsResponse {
@@ -193,8 +196,10 @@ export interface GroupStatsParams {
   group_id?: string
   request_type?: UsageRequestType
   stream?: boolean
+  native_compaction_v2?: boolean | null
   billing_type?: number | null
-	upstream_model_mismatch?: boolean
+  billing_mode?: string | null
+  upstream_model_mismatch?: boolean
 }
 
 export interface GroupStatsResponse {
@@ -255,7 +260,9 @@ export interface UserBreakdownParams {
   account_id?: string
   request_type?: UsageRequestType
   stream?: boolean
+  native_compaction_v2?: boolean | null
   billing_type?: number | null
+  billing_mode?: string | null
 }
 
 export interface UserBreakdownResponse {

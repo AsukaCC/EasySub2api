@@ -844,6 +844,20 @@ func (_c *PaymentOrderCreate) SetNillableUpdatedAt(v *time.Time) *PaymentOrderCr
 	return _c
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *PaymentOrderCreate) SetDeletedAt(v time.Time) *PaymentOrderCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableDeletedAt(v *time.Time) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *PaymentOrderCreate) SetID(v string) *PaymentOrderCreate {
 	_c.mutation.SetID(v)
@@ -1496,6 +1510,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(paymentorder.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(paymentorder.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -2637,6 +2655,24 @@ func (u *PaymentOrderUpsert) SetUpdatedAt(v time.Time) *PaymentOrderUpsert {
 // UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
 func (u *PaymentOrderUpsert) UpdateUpdatedAt() *PaymentOrderUpsert {
 	u.SetExcluded(paymentorder.FieldUpdatedAt)
+	return u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *PaymentOrderUpsert) SetDeletedAt(v time.Time) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldDeletedAt, v)
+	return u
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateDeletedAt() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldDeletedAt)
+	return u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *PaymentOrderUpsert) ClearDeletedAt() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldDeletedAt)
 	return u
 }
 
@@ -3941,6 +3977,27 @@ func (u *PaymentOrderUpsertOne) SetUpdatedAt(v time.Time) *PaymentOrderUpsertOne
 func (u *PaymentOrderUpsertOne) UpdateUpdatedAt() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *PaymentOrderUpsertOne) SetDeletedAt(v time.Time) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateDeletedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *PaymentOrderUpsertOne) ClearDeletedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearDeletedAt()
 	})
 }
 
@@ -5412,6 +5469,27 @@ func (u *PaymentOrderUpsertBulk) SetUpdatedAt(v time.Time) *PaymentOrderUpsertBu
 func (u *PaymentOrderUpsertBulk) UpdateUpdatedAt() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *PaymentOrderUpsertBulk) SetDeletedAt(v time.Time) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateDeletedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *PaymentOrderUpsertBulk) ClearDeletedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearDeletedAt()
 	})
 }
 

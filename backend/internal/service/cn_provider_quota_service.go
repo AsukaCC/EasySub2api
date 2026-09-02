@@ -132,8 +132,10 @@ func (s *CNProviderQuotaService) queryUsage(ctx context.Context, accountID strin
 
 	baseURL := account.GetOpenAIBaseURL()
 	var (
-		targetURL  string
-		authHeader string
+		targetURL         string
+		authHeader        string
+		zhipuOrganization string
+		zhipuProject      string
 	)
 	switch provider {
 	case PlatformKimi:
@@ -142,6 +144,11 @@ func (s *CNProviderQuotaService) queryUsage(ctx context.Context, accountID strin
 	case PlatformZhipu:
 		targetURL = zhipuQuotaURL(baseURL)
 		authHeader = apiKey // 智谱额度端点鉴权不加 Bearer 前缀
+		zhipuOrganization = strings.TrimSpace(account.GetCredential("zhipu_organization"))
+		zhipuProject = strings.TrimSpace(account.GetCredential("zhipu_project"))
+		if zhipuOrganization != "" {
+			targetURL += "?type=2"
+		}
 	}
 
 	// 探测发起前过出站 URL 安全策略（与网关转发/Grok 探测同一套校验）：
@@ -164,6 +171,12 @@ func (s *CNProviderQuotaService) queryUsage(ctx context.Context, accountID strin
 	if provider == PlatformZhipu {
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept-Language", "en-US,en")
+		if zhipuOrganization != "" {
+			req.Header.Set("bigmodel-organization", zhipuOrganization)
+			if zhipuProject != "" {
+				req.Header.Set("bigmodel-project", zhipuProject)
+			}
+		}
 	}
 	// 探测与真实转发保持同一套账号级请求头覆写，避免探测通过但转发失败。
 	account.ApplyHeaderOverrides(req.Header)

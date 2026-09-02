@@ -39,6 +39,10 @@ const (
 	FieldPrincipalAmount = "principal_amount"
 	// FieldFeeAmount holds the string denoting the fee_amount field in the database.
 	FieldFeeAmount = "fee_amount"
+	// FieldRefundFeeRate holds the string denoting the refund_fee_rate field in the database.
+	FieldRefundFeeRate = "refund_fee_rate"
+	// FieldRefundFeeAmount holds the string denoting the refund_fee_amount field in the database.
+	FieldRefundFeeAmount = "refund_fee_amount"
 	// FieldGatewayAmount holds the string denoting the gateway_amount field in the database.
 	FieldGatewayAmount = "gateway_amount"
 	// FieldBasePoints holds the string denoting the base_points field in the database.
@@ -53,6 +57,8 @@ const (
 	FieldTargetPrincipalAmount = "target_principal_amount"
 	// FieldTargetFeeAmount holds the string denoting the target_fee_amount field in the database.
 	FieldTargetFeeAmount = "target_fee_amount"
+	// FieldTargetRefundFeeAmount holds the string denoting the target_refund_fee_amount field in the database.
+	FieldTargetRefundFeeAmount = "target_refund_fee_amount"
 	// FieldTargetBasePoints holds the string denoting the target_base_points field in the database.
 	FieldTargetBasePoints = "target_base_points"
 	// FieldTargetBonusPoints holds the string denoting the target_bonus_points field in the database.
@@ -97,6 +103,8 @@ var Columns = []string{
 	FieldRequestedPrincipalAmount,
 	FieldPrincipalAmount,
 	FieldFeeAmount,
+	FieldRefundFeeRate,
+	FieldRefundFeeAmount,
 	FieldGatewayAmount,
 	FieldBasePoints,
 	FieldBonusPoints,
@@ -104,6 +112,7 @@ var Columns = []string{
 	FieldBonusExpiredOffset,
 	FieldTargetPrincipalAmount,
 	FieldTargetFeeAmount,
+	FieldTargetRefundFeeAmount,
 	FieldTargetBasePoints,
 	FieldTargetBonusPoints,
 	FieldTargetAffiliatePoints,
@@ -157,6 +166,10 @@ var (
 	DefaultPrincipalAmount float64
 	// DefaultFeeAmount holds the default value on creation for the "fee_amount" field.
 	DefaultFeeAmount float64
+	// DefaultRefundFeeRate holds the default value on creation for the "refund_fee_rate" field.
+	DefaultRefundFeeRate float64
+	// DefaultRefundFeeAmount holds the default value on creation for the "refund_fee_amount" field.
+	DefaultRefundFeeAmount float64
 	// DefaultGatewayAmount holds the default value on creation for the "gateway_amount" field.
 	DefaultGatewayAmount float64
 	// DefaultBasePoints holds the default value on creation for the "base_points" field.
@@ -171,6 +184,8 @@ var (
 	DefaultTargetPrincipalAmount float64
 	// DefaultTargetFeeAmount holds the default value on creation for the "target_fee_amount" field.
 	DefaultTargetFeeAmount float64
+	// DefaultTargetRefundFeeAmount holds the default value on creation for the "target_refund_fee_amount" field.
+	DefaultTargetRefundFeeAmount float64
 	// DefaultTargetBasePoints holds the default value on creation for the "target_base_points" field.
 	DefaultTargetBasePoints float64
 	// DefaultTargetBonusPoints holds the default value on creation for the "target_bonus_points" field.
@@ -268,6 +283,16 @@ func ByFeeAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFeeAmount, opts...).ToFunc()
 }
 
+// ByRefundFeeRate orders the results by the refund_fee_rate field.
+func ByRefundFeeRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefundFeeRate, opts...).ToFunc()
+}
+
+// ByRefundFeeAmount orders the results by the refund_fee_amount field.
+func ByRefundFeeAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefundFeeAmount, opts...).ToFunc()
+}
+
 // ByGatewayAmount orders the results by the gateway_amount field.
 func ByGatewayAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGatewayAmount, opts...).ToFunc()
@@ -301,6 +326,11 @@ func ByTargetPrincipalAmount(opts ...sql.OrderTermOption) OrderOption {
 // ByTargetFeeAmount orders the results by the target_fee_amount field.
 func ByTargetFeeAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTargetFeeAmount, opts...).ToFunc()
+}
+
+// ByTargetRefundFeeAmount orders the results by the target_refund_fee_amount field.
+func ByTargetRefundFeeAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetRefundFeeAmount, opts...).ToFunc()
 }
 
 // ByTargetBasePoints orders the results by the target_base_points field.

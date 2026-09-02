@@ -34,6 +34,7 @@ const (
 	// setting. Subscription checkout is points-only and never reads this rate.
 	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
 	SettingRechargeFeeRate               = "RECHARGE_FEE_RATE"
+	SettingRefundFeeRate                 = "REFUND_FEE_RATE"
 	SettingProductNamePrefix             = "PRODUCT_NAME_PREFIX"
 	SettingProductNameSuffix             = "PRODUCT_NAME_SUFFIX"
 	SettingHelpImageURL                  = "PAYMENT_HELP_IMAGE_URL"
@@ -51,6 +52,7 @@ const (
 const (
 	defaultOrderTimeoutMin  = 30
 	defaultMaxPendingOrders = 3
+	defaultRefundFeeRate    = 3.0
 )
 
 // PaymentConfig holds the payment system configuration.
@@ -68,6 +70,7 @@ type PaymentConfig struct {
 	// SubscriptionUSDToCNYRate is exposed for API compatibility only.
 	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
+	RefundFeeRate            float64 `json:"refund_fee_rate"`
 	LoadBalanceStrategy      string  `json:"load_balance_strategy"`
 	ProductNamePrefix        string  `json:"product_name_prefix"`
 	ProductNameSuffix        string  `json:"product_name_suffix"`
@@ -160,6 +163,7 @@ type UpdatePaymentConfigRequest struct {
 	RechargeBonusTiers        []RechargeBonusTier `json:"recharge_bonus_tiers"`
 	SubscriptionUSDToCNYRate  *float64            `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate           *float64            `json:"recharge_fee_rate"`
+	RefundFeeRate             *float64            `json:"refund_fee_rate"`
 	LoadBalanceStrategy       *string             `json:"load_balance_strategy"`
 	ProductNamePrefix         *string             `json:"product_name_prefix"`
 	ProductNameSuffix         *string             `json:"product_name_suffix"`
@@ -288,7 +292,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingRechargeBonusTiers, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingRechargeBonusTiers, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingRefundFeeRate, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -322,6 +326,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		RechargeBonusTiers:        parseRechargeBonusTiers(vals[SettingRechargeBonusTiers]),
 		SubscriptionUSDToCNYRate:  normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
+		RefundFeeRate:             pcParseFloat(vals[SettingRefundFeeRate], defaultRefundFeeRate),
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
 		ProductNamePrefix:         vals[SettingProductNamePrefix],
 		ProductNameSuffix:         vals[SettingProductNameSuffix],
@@ -419,6 +424,15 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate allows at most 2 decimal places")
 		}
 	}
+	if req.RefundFeeRate != nil {
+		v := *req.RefundFeeRate
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 100 {
+			return infraerrors.BadRequest("INVALID_REFUND_FEE_RATE", "refund fee rate must be between 0 and 100")
+		}
+		if !hasAtMostDecimalPlaces(v, 2) {
+			return infraerrors.BadRequest("INVALID_REFUND_FEE_RATE", "refund fee rate allows at most 2 decimal places")
+		}
+	}
 	m := make(map[string]string)
 	if req.Enabled != nil {
 		m[SettingPaymentEnabled] = formatBoolOrEmpty(req.Enabled)
@@ -459,6 +473,9 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 	}
 	if req.RechargeFeeRate != nil {
 		m[SettingRechargeFeeRate] = formatNonNegativeFloat(req.RechargeFeeRate)
+	}
+	if req.RefundFeeRate != nil {
+		m[SettingRefundFeeRate] = formatNonNegativeFloat(req.RefundFeeRate)
 	}
 	if req.LoadBalanceStrategy != nil {
 		m[SettingLoadBalanceStrategy] = derefStr(req.LoadBalanceStrategy)

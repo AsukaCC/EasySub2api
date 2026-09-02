@@ -158,7 +158,8 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return nil, ErrRegDisabled
 	}
-	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
+	registrationAffiliateCode := normalizeRegistrationAffiliateCode(invitationCode, affiliateCode)
+	requiredAffiliateCode, err := s.requiredRegistrationAffiliateCode(ctx, invitationCode, affiliateCode)
 	if err != nil {
 		if errors.Is(err, ErrInvitationCodeRequired) {
 			return nil, ErrOAuthInvitationRequired
@@ -191,7 +192,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		Status:                   StatusActive,
 		SignupSource:             providerType,
 	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.createOAuthUserWithRequiredAffiliate(ctx, user, requiredAffiliateCode); err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			existing, loadErr := s.userRepo.GetByEmail(ctx, email)
 			if loadErr != nil {
@@ -205,12 +206,8 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
-	if invitationRedeemCode != nil {
-		if err := s.useOAuthRegistrationInvitation(ctx, invitationRedeemCode.ID, user.ID); err != nil {
-			_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, invitationCode)
-			return nil, ErrInvitationCodeInvalid
-		}
+	if requiredAffiliateCode == "" {
+		s.bindOAuthAffiliate(ctx, user.ID, registrationAffiliateCode)
 	}
 	return user, nil
 }

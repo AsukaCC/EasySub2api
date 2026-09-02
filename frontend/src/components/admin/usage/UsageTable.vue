@@ -91,8 +91,17 @@
         </template>
 
         <template #cell-reasoning_effort="{ row }">
-          <span class="components-admin-usage-usage-table__text-5">
-            {{ formatReasoningEffort(row.reasoning_effort) }}
+          <div v-if="showReasoningMapping && hasReasoningEffortMapping(row)" class="usage-reasoning">
+            <span class="usage-reasoning__requested">
+              {{ formatReasoningEffort(requestedReasoningEffort(row)) }}
+            </span>
+            <span class="usage-reasoning__actual">
+              <span aria-hidden="true">→</span>
+              {{ formatReasoningEffort(row.reasoning_effort) }}
+            </span>
+          </div>
+          <span v-else class="components-admin-usage-usage-table__text-5">
+            {{ formatReasoningEffort(requestedReasoningEffort(row)) }}
           </span>
         </template>
 
@@ -117,9 +126,14 @@
         </template>
 
         <template #cell-stream="{ row }">
-          <span class="components-admin-usage-usage-table__text-13" :class="getRequestTypeBadgeClass(row)">
-            {{ getRequestTypeLabel(row) }}
-          </span>
+          <div class="usage-request-badges">
+            <span class="components-admin-usage-usage-table__text-13" :class="getRequestTypeBadgeClass(row)">
+              {{ getRequestTypeLabel(row) }}
+            </span>
+            <span v-if="row.native_compaction_v2" class="usage-request-badges__compaction">
+              {{ t('usage.nativeCompactionV2') }}
+            </span>
+          </div>
         </template>
 
         <template #cell-billing_mode="{ row }">
@@ -209,7 +223,7 @@
               </div>
             </div>
             <div v-if="hasAccountBilledPoints(row)" class="components-admin-usage-usage-table__panel-18">
-              {{ t('usage.accountPointsShort') }} {{ formatUsagePoints(accountBilledPoints(row)) }}
+              {{ t('usage.accountPointsShort') }} {{ formatUsageUSD(accountBilledUSD(row)) }}
             </div>
           </div>
         </template>
@@ -488,9 +502,9 @@
             </div>
           </template>
           <div v-if="tooltipData && hasAccountBilledPoints(tooltipData)" class="usage-tooltip__meta">
-            <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountPointsUsed') }}</span>
+            <span class="components-admin-usage-usage-table__text-14">{{ t('usage.accountBilled') }}</span>
             <span class="components-admin-usage-usage-table__text-42">
-              {{ formatUsagePoints(accountBilledPoints(tooltipData)) }}
+              {{ formatUsageUSD(accountBilledUSD(tooltipData)) }}
             </span>
           </div>
         </div>
@@ -504,7 +518,12 @@
 import { computed, nextTick, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
-import { formatDateTime, formatPointsFixed, formatReasoningEffort } from '@/utils/format'
+import {
+  formatDateTime,
+  formatPointsFixed,
+  formatReasoningEffort,
+  reasoningEffortValuesEqual,
+} from '@/utils/format'
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
@@ -539,8 +558,8 @@ import {
   hasImageInputCost,
 } from '@/utils/imageUsage'
 
-/** Prefer the API's safe account-points projection; retain a fallback for older admin responses. */
-function accountBilledPoints(row: { account_billed_points?: number | null; total_cost?: number | null; account_stats_cost?: number | null; account_rate_multiplier?: number | null }): number {
+/** Prefer the API's safe upstream billing projection; retain a fallback for older admin responses. */
+function accountBilledUSD(row: { account_billed_points?: number | null; total_cost?: number | null; account_stats_cost?: number | null; account_rate_multiplier?: number | null }): number {
   if (row.account_billed_points != null && Number.isFinite(row.account_billed_points)) {
     return row.account_billed_points
   }
@@ -571,6 +590,8 @@ interface Props {
   defaultSortOrder?: 'asc' | 'desc'
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
+  /** Admins see requested-to-actual reasoning mappings; users only see the requested value. */
+  showReasoningMapping?: boolean
   /** 用户及管理员费用统一使用的积分显示精度。 */
   costFractionDigits?: number
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
@@ -584,6 +605,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   showAccountBilling: true,
   showUpstreamEndpoint: true,
+  showReasoningMapping: true,
   costFractionDigits: 6,
   flat: false
 })
@@ -597,12 +619,28 @@ const appStore = useAppStore()
 const copiedRequestId = ref<string | null>(null)
 const showAccountBilling = props.showAccountBilling
 const showUpstreamEndpoint = props.showUpstreamEndpoint
+const showReasoningMapping = props.showReasoningMapping
 const ipGeoBatchLoading = ref(false)
 
 const formatUsagePoints = (amount: number | null | undefined) =>
   formatPointsFixed(amount, props.costFractionDigits)
 
+const formatUsageUSD = (amount: number | null | undefined) => {
+  const value = Number(amount ?? 0)
+  return `$${(Number.isFinite(value) ? value : 0).toFixed(props.costFractionDigits)}`
+}
+
 const showIpGeoToolbar = computed(() => props.columns.some((col) => col.key === 'ip_address'))
+
+const requestedReasoningEffort = (row: AdminUsageLog): string | null | undefined =>
+  row.requested_reasoning_effort?.trim()
+  || (showReasoningMapping ? row.reasoning_effort : null)
+
+const hasReasoningEffortMapping = (row: AdminUsageLog): boolean => {
+  const requested = row.requested_reasoning_effort?.trim() || ''
+  const actual = row.reasoning_effort?.trim() || ''
+  return requested !== '' && actual !== '' && !reasoningEffortValuesEqual(requested, actual)
+}
 
 const sentUpstreamModel = (row: AdminUsageLog): string => row.upstream_model?.trim() || row.model?.trim() || ''
 
@@ -785,6 +823,48 @@ const hideTokenTooltip = () => {
 </script>
 
 <style lang="scss">
+.usage-reasoning {
+  display: grid;
+  gap: 0.125rem;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line-height);
+}
+
+.usage-reasoning__requested {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.usage-reasoning__actual {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-tertiary);
+}
+
+.usage-request-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.usage-request-badges__compaction {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.375rem;
+  padding-inline: 0.5rem;
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-success);
+  background: var(--glass-tint-success);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line-height);
+  font-weight: var(--font-weight-medium);
+}
+
 .usage-tooltip {
   position: fixed;
   z-index: 9999;

@@ -36,6 +36,9 @@ func (s *SystemSettings) normalizeUserFeatureVisibility() {
 	if !s.AffiliateEnabled {
 		s.AffiliateUserVisible = false
 	}
+	if !s.AffiliateEnabled || !s.AffiliateUserVisible {
+		s.InvitationCodeEnabled = false
+	}
 }
 
 func (o OmittedSettingKeys) dropFrom(updates map[string]string) {
@@ -188,8 +191,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
-	settings.InvitationCodeEnabled = false
-	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(false)
+	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 	updates[SettingKeyPasskeyEnabled] = strconv.FormatBool(settings.PasskeyEnabled)
 	updates[SettingKeySessionBindingEnabled] = strconv.FormatBool(settings.SessionBindingEnabled)
@@ -378,7 +380,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyBonusBalanceDefaultValidityDays] = strconv.Itoa(settings.BonusBalanceDefaultValidityDays)
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
 	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 8, 64)
-	settings.AffiliateRebateRecipient = NormalizeAffiliateRebateRecipient(settings.AffiliateRebateRecipient)
+	settings.AffiliateRebateRecipient = AffiliateRebateRecipientInviter
 	updates[SettingKeyAffiliateRebateRecipient] = settings.AffiliateRebateRecipient
 	settings.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	updates[SettingKeyAffiliateRebateFreezeHours] = strconv.Itoa(settings.AffiliateRebateFreezeHours)
@@ -394,6 +396,14 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyAffiliateRebatePerInviteeCap] = strconv.FormatFloat(settings.AffiliateRebatePerInviteeCap, 'f', 8, 64)
 	updates[SettingKeyAffiliateAdminRechargeEnabled] = strconv.FormatBool(settings.AdminRechargeRebateEnabled)
+	settings.AffiliateInviterBindingRewardPoints = ClampAffiliateBindingRewardPoints(settings.AffiliateInviterBindingRewardPoints)
+	settings.AffiliateInviterBindingRewardValidityDays = ClampAffiliateBindingRewardValidity(settings.AffiliateInviterBindingRewardValidityDays)
+	settings.AffiliateInviteeBindingRewardPoints = ClampAffiliateBindingRewardPoints(settings.AffiliateInviteeBindingRewardPoints)
+	settings.AffiliateInviteeBindingRewardValidityDays = ClampAffiliateBindingRewardValidity(settings.AffiliateInviteeBindingRewardValidityDays)
+	updates[SettingKeyAffiliateInviterBindingRewardPoints] = strconv.FormatFloat(settings.AffiliateInviterBindingRewardPoints, 'f', 8, 64)
+	updates[SettingKeyAffiliateInviterBindingRewardValidityDays] = strconv.Itoa(settings.AffiliateInviterBindingRewardValidityDays)
+	updates[SettingKeyAffiliateInviteeBindingRewardPoints] = strconv.FormatFloat(settings.AffiliateInviteeBindingRewardPoints, 'f', 8, 64)
+	updates[SettingKeyAffiliateInviteeBindingRewardValidityDays] = strconv.Itoa(settings.AffiliateInviteeBindingRewardValidityDays)
 	updates[SettingKeyDefaultUserRPMLimit] = strconv.Itoa(settings.DefaultUserRPMLimit)
 	defaultSubsJSON, err := json.Marshal(settings.DefaultSubscriptions)
 	if err != nil {
@@ -472,6 +482,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 
 	// Gateway forwarding behavior
+	trimmedTTFTMode := strings.ToLower(strings.TrimSpace(settings.OpenAITTFTMode))
+	if trimmedTTFTMode != "" && trimmedTTFTMode != OpenAITTFTModeVisible && trimmedTTFTMode != OpenAITTFTModeSemantic {
+		return nil, fmt.Errorf("%s must be one of: %s/%s", SettingKeyOpenAITTFTMode, OpenAITTFTModeVisible, OpenAITTFTModeSemantic)
+	}
+	updates[SettingKeyOpenAITTFTMode] = normalizeOpenAITTFTMode(trimmedTTFTMode)
 	updates[SettingKeyEnableFingerprintUnification] = strconv.FormatBool(settings.EnableFingerprintUnification)
 	updates[SettingKeyEnableMetadataPassthrough] = strconv.FormatBool(settings.EnableMetadataPassthrough)
 	updates[SettingKeyEnableCCHSigning] = strconv.FormatBool(settings.EnableCCHSigning)
@@ -708,6 +723,7 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 	})
 	gatewayForwardingSF.Forget("gateway_forwarding")
 	gatewayForwardingCache.Store(&cachedGatewayForwardingSettings{
+		openAITTFTMode:                   normalizeOpenAITTFTMode(settings.OpenAITTFTMode),
 		fingerprintUnification:           settings.EnableFingerprintUnification,
 		metadataPassthrough:              settings.EnableMetadataPassthrough,
 		cchSigning:                       settings.EnableCCHSigning,

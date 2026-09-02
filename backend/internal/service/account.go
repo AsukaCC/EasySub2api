@@ -1234,6 +1234,14 @@ func (a *Account) IsOpenAIOAuth() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeOAuth
 }
 
+// UsesOpenAICodexProtocol reports credentials that require the ChatGPT/Codex
+// request contract. API-key and other Responses-native accounts must keep the
+// client payload unchanged instead of receiving synthesized Codex fields.
+func (a *Account) UsesOpenAICodexProtocol() bool {
+	return a != nil && (a.Type == AccountTypeOAuth ||
+		(a.IsOpenAI() && a.Type == AccountTypeSetupToken))
+}
+
 func (a *Account) IsOpenAIChatGPTSubscription() bool {
 	if !a.IsOpenAIOAuth() {
 		return false
@@ -1309,8 +1317,8 @@ func (a *Account) IsCodingPlan() bool {
 
 // GetAPIProtocol 返回国产供应商账号的上游 API 协议。存储于
 // credentials["api_protocol"]；缺失或与平台不匹配时回退 chat_completions
-// （与既有行为完全一致）。responses 协议仅 deepseek 支持（官方原生 /responses
-// 端点，适配 Codex）；kimi/zhipu 无此端点。
+// （与既有行为完全一致）。responses 协议仅 deepseek / kimi 支持（官方原生
+// Responses 端点，适配 Codex）；zhipu 无此端点。
 func (a *Account) GetAPIProtocol() string {
 	if a == nil || !a.IsCNProvider() {
 		return APIProtocolChatCompletions
@@ -1319,13 +1327,28 @@ func (a *Account) GetAPIProtocol() string {
 	case APIProtocolAnthropic:
 		return APIProtocolAnthropic
 	case APIProtocolResponses:
-		if a.Platform == PlatformDeepseek {
+		if a.SupportsNativeCNResponses() {
 			return APIProtocolResponses
 		}
 	case APIProtocolChatCompletions:
 		return APIProtocolChatCompletions
 	}
 	return APIProtocolChatCompletions
+}
+
+// SupportsNativeCNResponses reports whether a CN provider exposes a native
+// Responses endpoint. DeepSeek uses /responses while Kimi uses /v1/responses.
+func (a *Account) SupportsNativeCNResponses() bool {
+	if a == nil {
+		return false
+	}
+	return a.Platform == PlatformDeepseek || a.Platform == PlatformKimi
+}
+
+// UsesNativeCNResponses reports whether this account is explicitly configured
+// to forward through its provider's native Responses endpoint.
+func (a *Account) UsesNativeCNResponses() bool {
+	return a != nil && a.SupportsNativeCNResponses() && a.GetAPIProtocol() == APIProtocolResponses
 }
 
 // IsAnthropicProtocol 报告账号是否以原生 Anthropic 协议接入上游

@@ -202,7 +202,30 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 	if req.IsMobile && resp.PayURL2 != "" {
 		payURL = resp.PayURL2
 	}
-	return &payment.CreatePaymentResponse{TradeNo: resp.TradeNo, PayURL: payURL, QRCode: resp.QRCode}, nil
+	base := e.apiBase()
+	return &payment.CreatePaymentResponse{
+		TradeNo: resp.TradeNo,
+		PayURL:  resolveEasyPayReturnedRef(base, payURL),
+		QRCode:  resolveEasyPayReturnedRef(base, resp.QRCode),
+	}, nil
+}
+
+// resolveEasyPayReturnedRef resolves only site-root-relative references. Full
+// URLs, app deep links, and opaque QR payloads must remain byte-for-byte intact.
+func resolveEasyPayReturnedRef(apiBase, ref string) string {
+	trimmed := strings.TrimSpace(ref)
+	if !strings.HasPrefix(trimmed, "/") {
+		return ref
+	}
+	base, err := url.Parse(strings.TrimSpace(apiBase))
+	if err != nil || base.Scheme == "" || base.Host == "" {
+		return ref
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme != "" {
+		return ref
+	}
+	return base.ResolveReference(parsed).String()
 }
 
 // resolveURLs returns (notifyURL, returnURL) preferring request values,

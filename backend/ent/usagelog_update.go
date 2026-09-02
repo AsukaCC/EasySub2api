@@ -637,6 +637,26 @@ func (_u *UsageLogUpdate) AddBillingType(v int8) *UsageLogUpdate {
 	return _u
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (_u *UsageLogUpdate) SetRequestedReasoningEffort(v string) *UsageLogUpdate {
+	_u.mutation.SetRequestedReasoningEffort(v)
+	return _u
+}
+
+// SetNillableRequestedReasoningEffort sets the "requested_reasoning_effort" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableRequestedReasoningEffort(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetRequestedReasoningEffort(*v)
+	}
+	return _u
+}
+
+// ClearRequestedReasoningEffort clears the value of the "requested_reasoning_effort" field.
+func (_u *UsageLogUpdate) ClearRequestedReasoningEffort() *UsageLogUpdate {
+	_u.mutation.ClearRequestedReasoningEffort()
+	return _u
+}
+
 // SetStream sets the "stream" field.
 func (_u *UsageLogUpdate) SetStream(v bool) *UsageLogUpdate {
 	_u.mutation.SetStream(v)
@@ -647,6 +667,20 @@ func (_u *UsageLogUpdate) SetStream(v bool) *UsageLogUpdate {
 func (_u *UsageLogUpdate) SetNillableStream(v *bool) *UsageLogUpdate {
 	if v != nil {
 		_u.SetStream(*v)
+	}
+	return _u
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (_u *UsageLogUpdate) SetNativeCompactionV2(v bool) *UsageLogUpdate {
+	_u.mutation.SetNativeCompactionV2(v)
+	return _u
+}
+
+// SetNillableNativeCompactionV2 sets the "native_compaction_v2" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableNativeCompactionV2(v *bool) *UsageLogUpdate {
+	if v != nil {
+		_u.SetNativeCompactionV2(*v)
 	}
 	return _u
 }
@@ -1069,6 +1103,11 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequestedReasoningEffort(); ok {
+		if err := usagelog.RequestedReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "requested_reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "UsageLog.requested_reasoning_effort": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -1278,8 +1317,17 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedBillingType(); ok {
 		_spec.AddField(usagelog.FieldBillingType, field.TypeInt8, value)
 	}
+	if value, ok := _u.mutation.RequestedReasoningEffort(); ok {
+		_spec.SetField(usagelog.FieldRequestedReasoningEffort, field.TypeString, value)
+	}
+	if _u.mutation.RequestedReasoningEffortCleared() {
+		_spec.ClearField(usagelog.FieldRequestedReasoningEffort, field.TypeString)
+	}
 	if value, ok := _u.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.NativeCompactionV2(); ok {
+		_spec.SetField(usagelog.FieldNativeCompactionV2, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DurationMs(); ok {
 		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)
@@ -2141,6 +2189,26 @@ func (_u *UsageLogUpdateOne) AddBillingType(v int8) *UsageLogUpdateOne {
 	return _u
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (_u *UsageLogUpdateOne) SetRequestedReasoningEffort(v string) *UsageLogUpdateOne {
+	_u.mutation.SetRequestedReasoningEffort(v)
+	return _u
+}
+
+// SetNillableRequestedReasoningEffort sets the "requested_reasoning_effort" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableRequestedReasoningEffort(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetRequestedReasoningEffort(*v)
+	}
+	return _u
+}
+
+// ClearRequestedReasoningEffort clears the value of the "requested_reasoning_effort" field.
+func (_u *UsageLogUpdateOne) ClearRequestedReasoningEffort() *UsageLogUpdateOne {
+	_u.mutation.ClearRequestedReasoningEffort()
+	return _u
+}
+
 // SetStream sets the "stream" field.
 func (_u *UsageLogUpdateOne) SetStream(v bool) *UsageLogUpdateOne {
 	_u.mutation.SetStream(v)
@@ -2151,6 +2219,20 @@ func (_u *UsageLogUpdateOne) SetStream(v bool) *UsageLogUpdateOne {
 func (_u *UsageLogUpdateOne) SetNillableStream(v *bool) *UsageLogUpdateOne {
 	if v != nil {
 		_u.SetStream(*v)
+	}
+	return _u
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (_u *UsageLogUpdateOne) SetNativeCompactionV2(v bool) *UsageLogUpdateOne {
+	_u.mutation.SetNativeCompactionV2(v)
+	return _u
+}
+
+// SetNillableNativeCompactionV2 sets the "native_compaction_v2" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableNativeCompactionV2(v *bool) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetNativeCompactionV2(*v)
 	}
 	return _u
 }
@@ -2586,6 +2668,11 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequestedReasoningEffort(); ok {
+		if err := usagelog.RequestedReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "requested_reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "UsageLog.requested_reasoning_effort": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -2812,8 +2899,17 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	if value, ok := _u.mutation.AddedBillingType(); ok {
 		_spec.AddField(usagelog.FieldBillingType, field.TypeInt8, value)
 	}
+	if value, ok := _u.mutation.RequestedReasoningEffort(); ok {
+		_spec.SetField(usagelog.FieldRequestedReasoningEffort, field.TypeString, value)
+	}
+	if _u.mutation.RequestedReasoningEffortCleared() {
+		_spec.ClearField(usagelog.FieldRequestedReasoningEffort, field.TypeString)
+	}
 	if value, ok := _u.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.NativeCompactionV2(); ok {
+		_spec.SetField(usagelog.FieldNativeCompactionV2, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DurationMs(); ok {
 		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)

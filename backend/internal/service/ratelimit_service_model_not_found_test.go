@@ -14,7 +14,7 @@ import (
 )
 
 type modelNotFoundRateLimitCall struct {
-	accountID int64
+	accountID string
 	scope     string
 	resetAt   time.Time
 	reason    string
@@ -27,12 +27,12 @@ type modelNotFoundAccountRepoStub struct {
 	modelRateLimitErr   error
 }
 
-func (r *modelNotFoundAccountRepoStub) SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error {
+func (r *modelNotFoundAccountRepoStub) SetTempUnschedulable(ctx context.Context, id string, until time.Time, reason string) error {
 	r.tempCalls++
 	return nil
 }
 
-func (r *modelNotFoundAccountRepoStub) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time, reason ...string) error {
+func (r *modelNotFoundAccountRepoStub) SetModelRateLimit(ctx context.Context, id string, scope string, resetAt time.Time, reason ...string) error {
 	call := modelNotFoundRateLimitCall{
 		accountID: id,
 		scope:     scope,
@@ -301,7 +301,7 @@ func TestRateLimitService_ModelTempUnschedulableIsolatesSchedulerByModel(t *test
 
 func openAIModelNotFoundTempAccount() *Account {
 	return &Account{
-		ID:          101,
+		ID:          "account_model_not_found",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -427,7 +427,7 @@ func TestRateLimitService_HandleUpstreamError_CodexPlanGatedTextModelStillCoolsD
 
 func openAICodexPlanGatedOAuthAccount() *Account {
 	return &Account{
-		ID:          202,
+		ID:          "account_model_not_found_temp",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,

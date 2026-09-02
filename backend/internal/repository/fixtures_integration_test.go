@@ -90,11 +90,22 @@ func mustCreateGroup(t *testing.T, client *dbent.Client, g *service.Group) *serv
 		SetSubscriptionType(g.SubscriptionType).
 		SetRateMultiplier(g.RateMultiplier).
 		SetIsExclusive(g.IsExclusive).
+		SetForceOpenaiFast(g.ForceOpenAIFast).
+		SetFreeOpenaiFast(g.FreeOpenAIFast).
 		SetProfitControlEnabled(g.ProfitControlEnabled).
 		SetProfitMinMargin(g.ProfitMinMargin).
 		SetProfitSafetyBuffer(g.ProfitSafetyBuffer)
 	if g.Description != "" {
 		create.SetDescription(g.Description)
+	}
+	if g.MaxReasoningEffort != "" {
+		create.SetMaxReasoningEffort(g.MaxReasoningEffort)
+	}
+	if g.MaxReasoningEffortOverLimit != "" {
+		create.SetMaxReasoningEffortOverLimit(g.MaxReasoningEffortOverLimit)
+	}
+	if len(g.ReasoningEffortMappings) > 0 {
+		create.SetReasoningEffortMappings(g.ReasoningEffortMappings)
 	}
 	if g.DailyLimitUSD != nil {
 		create.SetDailyLimitUsd(*g.DailyLimitUSD)

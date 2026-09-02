@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -175,6 +176,10 @@ type UpdateSettingsRequest struct {
 	AffiliateRebateDurationDays                *int                              `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap               *float64                          `json:"affiliate_rebate_per_invitee_cap"`
 	AdminRechargeRebateEnabled                 *bool                             `json:"affiliate_admin_recharge_enabled"`
+	AffiliateInviterBindingRewardPoints        *float64                          `json:"affiliate_inviter_binding_reward_points"`
+	AffiliateInviterBindingRewardValidityDays  *int                              `json:"affiliate_inviter_binding_reward_validity_days"`
+	AffiliateInviteeBindingRewardPoints        *float64                          `json:"affiliate_invitee_binding_reward_points"`
+	AffiliateInviteeBindingRewardValidityDays  *int                              `json:"affiliate_invitee_binding_reward_validity_days"`
 	DefaultUserRPMLimit                        int                               `json:"default_user_rpm_limit"`
 	DefaultSubscriptions                       []dto.DefaultSubscriptionSetting  `json:"default_subscriptions"`
 	AuthSourceDefaultEmailBalance              *float64                          `json:"auth_source_default_email_balance"`
@@ -236,6 +241,7 @@ type UpdateSettingsRequest struct {
 	BackendModeEnabled bool `json:"backend_mode_enabled"`
 
 	// Gateway forwarding behavior
+	OpenAITTFTMode                         *string `json:"openai_ttft_mode"`
 	EnableFingerprintUnification           *bool   `json:"enable_fingerprint_unification"`
 	EnableMetadataPassthrough              *bool   `json:"enable_metadata_passthrough"`
 	EnableCCHSigning                       *bool   `json:"enable_cch_signing"`
@@ -303,6 +309,7 @@ type UpdateSettingsRequest struct {
 	PaymentRechargeBonusTiers        []service.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
 	PaymentSubscriptionUSDToCNYRate  *float64                    `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate           *float64                    `json:"payment_recharge_fee_rate"`
+	PaymentRefundFeeRate             *float64                    `json:"payment_refund_fee_rate"`
 	PaymentLoadBalanceStrat          *string                     `json:"payment_load_balance_strategy"`
 	PaymentProductNamePrefix         *string                     `json:"payment_product_name_prefix"`
 	PaymentProductNameSuffix         *string                     `json:"payment_product_name_suffix"`
@@ -549,6 +556,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
+	invitationCodeEnabled := previousSettings.InvitationCodeEnabled
+	if _, provided := sentFields[service.SettingKeyInvitationCodeEnabled]; provided {
+		invitationCodeEnabled = req.InvitationCodeEnabled
+	}
+	if !affiliateEnabled || !affiliateUserVisible {
+		invitationCodeEnabled = false
+		// Feature-management updates omit registration fields. Persist the
+		// dependent switch-off instead of leaving a stale true value in storage.
+		delete(omitted, service.SettingKeyInvitationCodeEnabled)
+	}
 	paymentUserVisible, err := resolveUserFeatureVisibility(paymentEnabled, req.PaymentUserVisible, previousSettings.PaymentUserVisible)
 	if err != nil {
 		response.BadRequest(c, err.Error())
@@ -639,11 +656,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if affiliateRebateRate > service.AffiliateRebateRateMax {
 		affiliateRebateRate = service.AffiliateRebateRateMax
 	}
-	affiliateRebateRecipient := previousSettings.AffiliateRebateRecipient
-	if req.AffiliateRebateRecipient != nil {
-		affiliateRebateRecipient = *req.AffiliateRebateRecipient
-	}
-	affiliateRebateRecipient = service.NormalizeAffiliateRebateRecipient(affiliateRebateRecipient)
+	affiliateRebateRecipient := service.AffiliateRebateRecipientInviter
 	affiliateRebateFreezeHours := service.AffiliateRebateFreezeHoursDefault
 	affiliateRebateDurationDays := previousSettings.AffiliateRebateDurationDays
 	if req.AffiliateRebateDurationDays != nil {
@@ -665,6 +678,40 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	adminRechargeRebateEnabled := previousSettings.AdminRechargeRebateEnabled
 	if req.AdminRechargeRebateEnabled != nil {
 		adminRechargeRebateEnabled = *req.AdminRechargeRebateEnabled
+	}
+	inviterBindingRewardPoints := service.ClampAffiliateBindingRewardPoints(previousSettings.AffiliateInviterBindingRewardPoints)
+	if req.AffiliateInviterBindingRewardPoints != nil {
+		if math.IsNaN(*req.AffiliateInviterBindingRewardPoints) || math.IsInf(*req.AffiliateInviterBindingRewardPoints, 0) ||
+			*req.AffiliateInviterBindingRewardPoints < 0 || *req.AffiliateInviterBindingRewardPoints > service.AffiliateBindingRewardPointsMax {
+			response.BadRequest(c, "Inviter binding reward points must be between 0 and 1000000000")
+			return
+		}
+		inviterBindingRewardPoints = service.ClampAffiliateBindingRewardPoints(*req.AffiliateInviterBindingRewardPoints)
+	}
+	inviterBindingRewardValidityDays := service.ClampAffiliateBindingRewardValidity(previousSettings.AffiliateInviterBindingRewardValidityDays)
+	if req.AffiliateInviterBindingRewardValidityDays != nil {
+		if inviterBindingRewardPoints > 0 && (*req.AffiliateInviterBindingRewardValidityDays < 1 || *req.AffiliateInviterBindingRewardValidityDays > service.AffiliateBindingRewardValidityMax) {
+			response.BadRequest(c, "Inviter binding reward validity must be between 1 and 3650 days")
+			return
+		}
+		inviterBindingRewardValidityDays = service.ClampAffiliateBindingRewardValidity(*req.AffiliateInviterBindingRewardValidityDays)
+	}
+	inviteeBindingRewardPoints := service.ClampAffiliateBindingRewardPoints(previousSettings.AffiliateInviteeBindingRewardPoints)
+	if req.AffiliateInviteeBindingRewardPoints != nil {
+		if math.IsNaN(*req.AffiliateInviteeBindingRewardPoints) || math.IsInf(*req.AffiliateInviteeBindingRewardPoints, 0) ||
+			*req.AffiliateInviteeBindingRewardPoints < 0 || *req.AffiliateInviteeBindingRewardPoints > service.AffiliateBindingRewardPointsMax {
+			response.BadRequest(c, "Invitee binding reward points must be between 0 and 1000000000")
+			return
+		}
+		inviteeBindingRewardPoints = service.ClampAffiliateBindingRewardPoints(*req.AffiliateInviteeBindingRewardPoints)
+	}
+	inviteeBindingRewardValidityDays := service.ClampAffiliateBindingRewardValidity(previousSettings.AffiliateInviteeBindingRewardValidityDays)
+	if req.AffiliateInviteeBindingRewardValidityDays != nil {
+		if inviteeBindingRewardPoints > 0 && (*req.AffiliateInviteeBindingRewardValidityDays < 1 || *req.AffiliateInviteeBindingRewardValidityDays > service.AffiliateBindingRewardValidityMax) {
+			response.BadRequest(c, "Invitee binding reward validity must be between 1 and 3650 days")
+			return
+		}
+		inviteeBindingRewardValidityDays = service.ClampAffiliateBindingRewardValidity(*req.AffiliateInviteeBindingRewardValidityDays)
 	}
 	// 通用表格配置：兼容旧客户端未传字段时保留当前值。
 	if req.TableDefaultPageSize <= 0 {
@@ -1535,7 +1582,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PromoCodeEnabled:                    req.PromoCodeEnabled,
 		PasswordResetEnabled:                req.PasswordResetEnabled,
 		FrontendURL:                         req.FrontendURL,
-		InvitationCodeEnabled:               false,
+		InvitationCodeEnabled:               invitationCodeEnabled,
 		TotpEnabled:                         req.TotpEnabled,
 		PasskeyEnabled:                      passkeyEnabled,
 		SessionBindingEnabled:               sessionBindingEnabled,
@@ -1573,108 +1620,112 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.APIKeyACLTrustForwardedIP
 		}(),
-		ForwardedClientIPHeaders:               forwardedClientIPHeaders,
-		DingTalkConnectEnabled:                 req.DingTalkConnectEnabled,
-		DingTalkConnectClientID:                req.DingTalkConnectClientID,
-		DingTalkConnectClientSecret:            req.DingTalkConnectClientSecret,
-		DingTalkConnectRedirectURL:             req.DingTalkConnectRedirectURL,
-		DingTalkConnectCorpRestrictionPolicy:   req.DingTalkConnectCorpRestrictionPolicy,
-		DingTalkConnectInternalCorpID:          req.DingTalkConnectInternalCorpID,
-		DingTalkConnectBypassRegistration:      req.DingTalkConnectBypassRegistration,
-		DingTalkConnectSyncCorpEmail:           req.DingTalkConnectSyncCorpEmail,
-		DingTalkConnectSyncDisplayName:         req.DingTalkConnectSyncDisplayName,
-		DingTalkConnectSyncDept:                req.DingTalkConnectSyncDept,
-		DingTalkConnectSyncCorpEmailAttrKey:    req.DingTalkConnectSyncCorpEmailAttrKey,
-		DingTalkConnectSyncDisplayNameAttrKey:  req.DingTalkConnectSyncDisplayNameAttrKey,
-		DingTalkConnectSyncDeptAttrKey:         req.DingTalkConnectSyncDeptAttrKey,
-		DingTalkConnectSyncCorpEmailAttrName:   req.DingTalkConnectSyncCorpEmailAttrName,
-		DingTalkConnectSyncDisplayNameAttrName: req.DingTalkConnectSyncDisplayNameAttrName,
-		DingTalkConnectSyncDeptAttrName:        req.DingTalkConnectSyncDeptAttrName,
-		WeChatConnectEnabled:                   req.WeChatConnectEnabled,
-		WeChatConnectAppID:                     req.WeChatConnectAppID,
-		WeChatConnectAppSecret:                 req.WeChatConnectAppSecret,
-		WeChatConnectOpenAppID:                 req.WeChatConnectOpenAppID,
-		WeChatConnectOpenAppSecret:             req.WeChatConnectOpenAppSecret,
-		WeChatConnectMPAppID:                   req.WeChatConnectMPAppID,
-		WeChatConnectMPAppSecret:               req.WeChatConnectMPAppSecret,
-		WeChatConnectMobileAppID:               req.WeChatConnectMobileAppID,
-		WeChatConnectMobileAppSecret:           req.WeChatConnectMobileAppSecret,
-		WeChatConnectOpenEnabled:               req.WeChatConnectOpenEnabled,
-		WeChatConnectMPEnabled:                 req.WeChatConnectMPEnabled,
-		WeChatConnectMobileEnabled:             req.WeChatConnectMobileEnabled,
-		WeChatConnectMode:                      req.WeChatConnectMode,
-		WeChatConnectScopes:                    req.WeChatConnectScopes,
-		WeChatConnectRedirectURL:               req.WeChatConnectRedirectURL,
-		WeChatConnectFrontendRedirectURL:       req.WeChatConnectFrontendRedirectURL,
-		OIDCConnectEnabled:                     req.OIDCConnectEnabled,
-		OIDCConnectProviderName:                req.OIDCConnectProviderName,
-		OIDCConnectClientID:                    req.OIDCConnectClientID,
-		OIDCConnectClientSecret:                req.OIDCConnectClientSecret,
-		OIDCConnectIssuerURL:                   req.OIDCConnectIssuerURL,
-		OIDCConnectDiscoveryURL:                req.OIDCConnectDiscoveryURL,
-		OIDCConnectAuthorizeURL:                req.OIDCConnectAuthorizeURL,
-		OIDCConnectTokenURL:                    req.OIDCConnectTokenURL,
-		OIDCConnectUserInfoURL:                 req.OIDCConnectUserInfoURL,
-		OIDCConnectJWKSURL:                     req.OIDCConnectJWKSURL,
-		OIDCConnectScopes:                      req.OIDCConnectScopes,
-		OIDCConnectRedirectURL:                 req.OIDCConnectRedirectURL,
-		OIDCConnectFrontendRedirectURL:         req.OIDCConnectFrontendRedirectURL,
-		OIDCConnectTokenAuthMethod:             req.OIDCConnectTokenAuthMethod,
-		OIDCConnectUsePKCE:                     oidcUsePKCE,
-		OIDCConnectValidateIDToken:             oidcValidateIDToken,
-		OIDCConnectAllowedSigningAlgs:          req.OIDCConnectAllowedSigningAlgs,
-		OIDCConnectClockSkewSeconds:            req.OIDCConnectClockSkewSeconds,
-		OIDCConnectRequireEmailVerified:        req.OIDCConnectRequireEmailVerified,
-		OIDCConnectUserInfoEmailPath:           req.OIDCConnectUserInfoEmailPath,
-		OIDCConnectUserInfoIDPath:              req.OIDCConnectUserInfoIDPath,
-		OIDCConnectUserInfoUsernamePath:        req.OIDCConnectUserInfoUsernamePath,
-		GitHubOAuthEnabled:                     req.GitHubOAuthEnabled,
-		GitHubOAuthClientID:                    req.GitHubOAuthClientID,
-		GitHubOAuthClientSecret:                req.GitHubOAuthClientSecret,
-		GitHubOAuthRedirectURL:                 req.GitHubOAuthRedirectURL,
-		GitHubOAuthFrontendRedirectURL:         req.GitHubOAuthFrontendRedirectURL,
-		GoogleOAuthEnabled:                     req.GoogleOAuthEnabled,
-		GoogleOAuthClientID:                    req.GoogleOAuthClientID,
-		GoogleOAuthClientSecret:                req.GoogleOAuthClientSecret,
-		GoogleOAuthRedirectURL:                 req.GoogleOAuthRedirectURL,
-		GoogleOAuthFrontendRedirectURL:         req.GoogleOAuthFrontendRedirectURL,
-		SiteName:                               req.SiteName,
-		ThemeAccent:                            req.ThemeAccent,
-		SiteLogo:                               req.SiteLogo,
-		SiteSubtitle:                           req.SiteSubtitle,
-		APIBaseURL:                             req.APIBaseURL,
-		ContactInfo:                            req.ContactInfo,
-		DocURL:                                 req.DocURL,
-		HomeContent:                            req.HomeContent,
-		CompactHomeEnabled:                     req.CompactHomeEnabled,
-		HideCcsImportButton:                    req.HideCcsImportButton,
-		PurchaseSubscriptionEnabled:            purchaseEnabled,
-		PurchaseSubscriptionURL:                purchaseURL,
-		TableDefaultPageSize:                   req.TableDefaultPageSize,
-		TablePageSizeOptions:                   req.TablePageSizeOptions,
-		CustomMenuItems:                        customMenuJSON,
-		CustomEndpoints:                        customEndpointsJSON,
-		DefaultConcurrency:                     req.DefaultConcurrency,
-		DefaultBalance:                         req.DefaultBalance,
-		BonusBalanceDefaultValidityDays:        req.BonusBalanceDefaultValidityDays,
-		AffiliateRebateRate:                    affiliateRebateRate,
-		AffiliateRebateRecipient:               affiliateRebateRecipient,
-		AffiliateEnabled:                       affiliateEnabled,
-		AffiliateUserVisible:                   affiliateUserVisible,
-		PaymentUserVisible:                     paymentUserVisible,
-		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
-		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
-		AffiliateRebatePerInviteeCap:           affiliateRebatePerInviteeCap,
-		AdminRechargeRebateEnabled:             adminRechargeRebateEnabled,
-		DefaultUserRPMLimit:                    req.DefaultUserRPMLimit,
-		DefaultSubscriptions:                   defaultSubscriptions,
-		EnableModelFallback:                    req.EnableModelFallback,
-		FallbackModelAnthropic:                 req.FallbackModelAnthropic,
-		FallbackModelOpenAI:                    req.FallbackModelOpenAI,
-		MinClaudeCodeVersion:                   req.MinClaudeCodeVersion,
-		MaxClaudeCodeVersion:                   req.MaxClaudeCodeVersion,
-		AllowUngroupedKeyScheduling:            req.AllowUngroupedKeyScheduling,
-		BackendModeEnabled:                     req.BackendModeEnabled,
+		ForwardedClientIPHeaders:                  forwardedClientIPHeaders,
+		DingTalkConnectEnabled:                    req.DingTalkConnectEnabled,
+		DingTalkConnectClientID:                   req.DingTalkConnectClientID,
+		DingTalkConnectClientSecret:               req.DingTalkConnectClientSecret,
+		DingTalkConnectRedirectURL:                req.DingTalkConnectRedirectURL,
+		DingTalkConnectCorpRestrictionPolicy:      req.DingTalkConnectCorpRestrictionPolicy,
+		DingTalkConnectInternalCorpID:             req.DingTalkConnectInternalCorpID,
+		DingTalkConnectBypassRegistration:         req.DingTalkConnectBypassRegistration,
+		DingTalkConnectSyncCorpEmail:              req.DingTalkConnectSyncCorpEmail,
+		DingTalkConnectSyncDisplayName:            req.DingTalkConnectSyncDisplayName,
+		DingTalkConnectSyncDept:                   req.DingTalkConnectSyncDept,
+		DingTalkConnectSyncCorpEmailAttrKey:       req.DingTalkConnectSyncCorpEmailAttrKey,
+		DingTalkConnectSyncDisplayNameAttrKey:     req.DingTalkConnectSyncDisplayNameAttrKey,
+		DingTalkConnectSyncDeptAttrKey:            req.DingTalkConnectSyncDeptAttrKey,
+		DingTalkConnectSyncCorpEmailAttrName:      req.DingTalkConnectSyncCorpEmailAttrName,
+		DingTalkConnectSyncDisplayNameAttrName:    req.DingTalkConnectSyncDisplayNameAttrName,
+		DingTalkConnectSyncDeptAttrName:           req.DingTalkConnectSyncDeptAttrName,
+		WeChatConnectEnabled:                      req.WeChatConnectEnabled,
+		WeChatConnectAppID:                        req.WeChatConnectAppID,
+		WeChatConnectAppSecret:                    req.WeChatConnectAppSecret,
+		WeChatConnectOpenAppID:                    req.WeChatConnectOpenAppID,
+		WeChatConnectOpenAppSecret:                req.WeChatConnectOpenAppSecret,
+		WeChatConnectMPAppID:                      req.WeChatConnectMPAppID,
+		WeChatConnectMPAppSecret:                  req.WeChatConnectMPAppSecret,
+		WeChatConnectMobileAppID:                  req.WeChatConnectMobileAppID,
+		WeChatConnectMobileAppSecret:              req.WeChatConnectMobileAppSecret,
+		WeChatConnectOpenEnabled:                  req.WeChatConnectOpenEnabled,
+		WeChatConnectMPEnabled:                    req.WeChatConnectMPEnabled,
+		WeChatConnectMobileEnabled:                req.WeChatConnectMobileEnabled,
+		WeChatConnectMode:                         req.WeChatConnectMode,
+		WeChatConnectScopes:                       req.WeChatConnectScopes,
+		WeChatConnectRedirectURL:                  req.WeChatConnectRedirectURL,
+		WeChatConnectFrontendRedirectURL:          req.WeChatConnectFrontendRedirectURL,
+		OIDCConnectEnabled:                        req.OIDCConnectEnabled,
+		OIDCConnectProviderName:                   req.OIDCConnectProviderName,
+		OIDCConnectClientID:                       req.OIDCConnectClientID,
+		OIDCConnectClientSecret:                   req.OIDCConnectClientSecret,
+		OIDCConnectIssuerURL:                      req.OIDCConnectIssuerURL,
+		OIDCConnectDiscoveryURL:                   req.OIDCConnectDiscoveryURL,
+		OIDCConnectAuthorizeURL:                   req.OIDCConnectAuthorizeURL,
+		OIDCConnectTokenURL:                       req.OIDCConnectTokenURL,
+		OIDCConnectUserInfoURL:                    req.OIDCConnectUserInfoURL,
+		OIDCConnectJWKSURL:                        req.OIDCConnectJWKSURL,
+		OIDCConnectScopes:                         req.OIDCConnectScopes,
+		OIDCConnectRedirectURL:                    req.OIDCConnectRedirectURL,
+		OIDCConnectFrontendRedirectURL:            req.OIDCConnectFrontendRedirectURL,
+		OIDCConnectTokenAuthMethod:                req.OIDCConnectTokenAuthMethod,
+		OIDCConnectUsePKCE:                        oidcUsePKCE,
+		OIDCConnectValidateIDToken:                oidcValidateIDToken,
+		OIDCConnectAllowedSigningAlgs:             req.OIDCConnectAllowedSigningAlgs,
+		OIDCConnectClockSkewSeconds:               req.OIDCConnectClockSkewSeconds,
+		OIDCConnectRequireEmailVerified:           req.OIDCConnectRequireEmailVerified,
+		OIDCConnectUserInfoEmailPath:              req.OIDCConnectUserInfoEmailPath,
+		OIDCConnectUserInfoIDPath:                 req.OIDCConnectUserInfoIDPath,
+		OIDCConnectUserInfoUsernamePath:           req.OIDCConnectUserInfoUsernamePath,
+		GitHubOAuthEnabled:                        req.GitHubOAuthEnabled,
+		GitHubOAuthClientID:                       req.GitHubOAuthClientID,
+		GitHubOAuthClientSecret:                   req.GitHubOAuthClientSecret,
+		GitHubOAuthRedirectURL:                    req.GitHubOAuthRedirectURL,
+		GitHubOAuthFrontendRedirectURL:            req.GitHubOAuthFrontendRedirectURL,
+		GoogleOAuthEnabled:                        req.GoogleOAuthEnabled,
+		GoogleOAuthClientID:                       req.GoogleOAuthClientID,
+		GoogleOAuthClientSecret:                   req.GoogleOAuthClientSecret,
+		GoogleOAuthRedirectURL:                    req.GoogleOAuthRedirectURL,
+		GoogleOAuthFrontendRedirectURL:            req.GoogleOAuthFrontendRedirectURL,
+		SiteName:                                  req.SiteName,
+		ThemeAccent:                               req.ThemeAccent,
+		SiteLogo:                                  req.SiteLogo,
+		SiteSubtitle:                              req.SiteSubtitle,
+		APIBaseURL:                                req.APIBaseURL,
+		ContactInfo:                               req.ContactInfo,
+		DocURL:                                    req.DocURL,
+		HomeContent:                               req.HomeContent,
+		CompactHomeEnabled:                        req.CompactHomeEnabled,
+		HideCcsImportButton:                       req.HideCcsImportButton,
+		PurchaseSubscriptionEnabled:               purchaseEnabled,
+		PurchaseSubscriptionURL:                   purchaseURL,
+		TableDefaultPageSize:                      req.TableDefaultPageSize,
+		TablePageSizeOptions:                      req.TablePageSizeOptions,
+		CustomMenuItems:                           customMenuJSON,
+		CustomEndpoints:                           customEndpointsJSON,
+		DefaultConcurrency:                        req.DefaultConcurrency,
+		DefaultBalance:                            req.DefaultBalance,
+		BonusBalanceDefaultValidityDays:           req.BonusBalanceDefaultValidityDays,
+		AffiliateRebateRate:                       affiliateRebateRate,
+		AffiliateRebateRecipient:                  affiliateRebateRecipient,
+		AffiliateEnabled:                          affiliateEnabled,
+		AffiliateUserVisible:                      affiliateUserVisible,
+		PaymentUserVisible:                        paymentUserVisible,
+		AffiliateRebateFreezeHours:                affiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:               affiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap:              affiliateRebatePerInviteeCap,
+		AdminRechargeRebateEnabled:                adminRechargeRebateEnabled,
+		AffiliateInviterBindingRewardPoints:       inviterBindingRewardPoints,
+		AffiliateInviterBindingRewardValidityDays: inviterBindingRewardValidityDays,
+		AffiliateInviteeBindingRewardPoints:       inviteeBindingRewardPoints,
+		AffiliateInviteeBindingRewardValidityDays: inviteeBindingRewardValidityDays,
+		DefaultUserRPMLimit:                       req.DefaultUserRPMLimit,
+		DefaultSubscriptions:                      defaultSubscriptions,
+		EnableModelFallback:                       req.EnableModelFallback,
+		FallbackModelAnthropic:                    req.FallbackModelAnthropic,
+		FallbackModelOpenAI:                       req.FallbackModelOpenAI,
+		MinClaudeCodeVersion:                      req.MinClaudeCodeVersion,
+		MaxClaudeCodeVersion:                      req.MaxClaudeCodeVersion,
+		AllowUngroupedKeyScheduling:               req.AllowUngroupedKeyScheduling,
+		BackendModeEnabled:                        req.BackendModeEnabled,
 		AllowUserViewErrorRequests: func() bool {
 			if req.AllowUserViewErrorRequests != nil {
 				return *req.AllowUserViewErrorRequests
@@ -1710,6 +1761,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.EnableFingerprintUnification
 			}
 			return previousSettings.EnableFingerprintUnification
+		}(),
+		OpenAITTFTMode: func() string {
+			if req.OpenAITTFTMode != nil {
+				return *req.OpenAITTFTMode
+			}
+			return previousSettings.OpenAITTFTMode
 		}(),
 		EnableMetadataPassthrough: func() bool {
 			if req.EnableMetadataPassthrough != nil {
@@ -2093,6 +2150,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			RechargeBonusTiers:            req.PaymentRechargeBonusTiers,
 			SubscriptionUSDToCNYRate:      req.PaymentSubscriptionUSDToCNYRate,
 			RechargeFeeRate:               req.PaymentRechargeFeeRate,
+			RefundFeeRate:                 req.PaymentRefundFeeRate,
 			LoadBalanceStrategy:           req.PaymentLoadBalanceStrat,
 			ProductNamePrefix:             req.PaymentProductNamePrefix,
 			ProductNameSuffix:             req.PaymentProductNameSuffix,
@@ -2283,6 +2341,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateRebateDurationDays:                            updatedSettings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           updatedSettings.AffiliateRebatePerInviteeCap,
 		AdminRechargeRebateEnabled:                             updatedSettings.AdminRechargeRebateEnabled,
+		AffiliateInviterBindingRewardPoints:                    updatedSettings.AffiliateInviterBindingRewardPoints,
+		AffiliateInviterBindingRewardValidityDays:              updatedSettings.AffiliateInviterBindingRewardValidityDays,
+		AffiliateInviteeBindingRewardPoints:                    updatedSettings.AffiliateInviteeBindingRewardPoints,
+		AffiliateInviteeBindingRewardValidityDays:              updatedSettings.AffiliateInviteeBindingRewardValidityDays,
 		DefaultUserRPMLimit:                                    updatedSettings.DefaultUserRPMLimit,
 		DefaultSubscriptions:                                   updatedDefaultSubscriptions,
 		EnableModelFallback:                                    updatedSettings.EnableModelFallback,
@@ -2296,6 +2358,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		MaxClaudeCodeVersion:                                   updatedSettings.MaxClaudeCodeVersion,
 		AllowUngroupedKeyScheduling:                            updatedSettings.AllowUngroupedKeyScheduling,
 		BackendModeEnabled:                                     updatedSettings.BackendModeEnabled,
+		OpenAITTFTMode:                                         updatedSettings.OpenAITTFTMode,
 		EnableFingerprintUnification:                           updatedSettings.EnableFingerprintUnification,
 		EnableMetadataPassthrough:                              updatedSettings.EnableMetadataPassthrough,
 		EnableCCHSigning:                                       updatedSettings.EnableCCHSigning,
@@ -2365,6 +2428,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentRechargeBonusTiers:                              updatedPaymentCfg.RechargeBonusTiers,
 		PaymentSubscriptionUSDToCNYRate:                        updatedPaymentCfg.SubscriptionUSDToCNYRate,
 		PaymentRechargeFeeRate:                                 updatedPaymentCfg.RechargeFeeRate,
+		PaymentRefundFeeRate:                                   updatedPaymentCfg.RefundFeeRate,
 		PaymentLoadBalanceStrat:                                updatedPaymentCfg.LoadBalanceStrategy,
 		PaymentProductNamePrefix:                               updatedPaymentCfg.ProductNamePrefix,
 		PaymentProductNameSuffix:                               updatedPaymentCfg.ProductNameSuffix,
@@ -2445,6 +2509,7 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
 		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentRechargeBonusTiers != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
 		req.PaymentRechargeFeeRate != nil ||
+		req.PaymentRefundFeeRate != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||
 		req.PaymentProductNameSuffix != nil || req.PaymentHelpImageURL != nil ||
 		req.PaymentHelpText != nil || req.PaymentCancelRateLimitEnabled != nil ||

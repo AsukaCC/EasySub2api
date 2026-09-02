@@ -2052,6 +2052,11 @@ func TestValidateConfig_OpenAIWSRules(t *testing.T) {
 		wantErr string
 	}{
 		{
+			name:    "max_total_conns 必须为正数",
+			mutate:  func(c *Config) { c.Gateway.OpenAIWS.MaxTotalConns = 0 },
+			wantErr: "gateway.openai_ws.max_total_conns",
+		},
+		{
 			name:    "max_conns_per_account 必须为正数",
 			mutate:  func(c *Config) { c.Gateway.OpenAIWS.MaxConnsPerAccount = 0 },
 			wantErr: "gateway.openai_ws.max_conns_per_account",

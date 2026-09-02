@@ -127,11 +127,22 @@ func (s *SettingService) IsPromoCodeEnabled(ctx context.Context) bool {
 	return value != "false"
 }
 
-// IsInvitationCodeEnabled is retained for old clients. Registration access
-// codes have been retired; affiliate codes are now the only invitation codes.
+// IsInvitationCodeEnabled reports whether new registrations must bind an
+// affiliate invitation code. The requirement is only effective while the
+// user-facing affiliate feature is available.
 func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
-	_ = ctx
-	return false
+	if s == nil || s.settingRepo == nil {
+		return false
+	}
+	values, err := s.settingRepo.GetMultiple(ctx, []string{
+		SettingKeyInvitationCodeEnabled,
+		SettingKeyAffiliateEnabled,
+		SettingKeyAffiliateUserVisible,
+	})
+	if err != nil || values[SettingKeyInvitationCodeEnabled] != "true" {
+		return false
+	}
+	return userFeatureAvailable(values, SettingKeyAffiliateEnabled, SettingKeyAffiliateUserVisible, false)
 }
 
 // GetCustomMenuItemsRaw returns the raw JSON string of custom_menu_items setting.
@@ -180,11 +191,8 @@ func (s *SettingService) GetAffiliateRebateRatePercent(ctx context.Context) floa
 // GetAffiliateRebateRecipient returns who receives newly accrued rebates.
 // Historical rebates keep their original recipient in the affiliate ledger.
 func (s *SettingService) GetAffiliateRebateRecipient(ctx context.Context) string {
-	raw, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateRebateRecipient)
-	if err != nil {
-		return AffiliateRebateRecipientDefault
-	}
-	return NormalizeAffiliateRebateRecipient(raw)
+	_ = ctx
+	return AffiliateRebateRecipientInviter
 }
 
 // GetAffiliateRebateFreezeHours keeps the legacy setting accessor while the
@@ -223,6 +231,63 @@ func (s *SettingService) GetAffiliateRebatePerInviteeCap(ctx context.Context) fl
 		return AffiliateRebatePerInviteeCapDefault
 	}
 	return cap
+}
+
+func ClampAffiliateBindingRewardPoints(value float64) float64 {
+	if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		return 0
+	}
+	if value > AffiliateBindingRewardPointsMax {
+		return AffiliateBindingRewardPointsMax
+	}
+	return QuantizeUsageBillingAmount(value)
+}
+
+func ClampAffiliateBindingRewardValidity(days int) int {
+	if days < 1 {
+		return AffiliateBindingRewardValidityDefault
+	}
+	if days > AffiliateBindingRewardValidityMax {
+		return AffiliateBindingRewardValidityMax
+	}
+	return days
+}
+
+func parseAffiliateBindingRewardPoints(raw string) float64 {
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil {
+		return 0
+	}
+	return ClampAffiliateBindingRewardPoints(value)
+}
+
+func parseAffiliateBindingRewardValidity(raw string) int {
+	days, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return AffiliateBindingRewardValidityDefault
+	}
+	return ClampAffiliateBindingRewardValidity(days)
+}
+
+func (s *SettingService) GetAffiliateBindingRewardConfig(ctx context.Context) AffiliateBindingRewardConfig {
+	if s == nil || s.settingRepo == nil {
+		return DefaultAffiliateBindingRewardConfig()
+	}
+	values, err := s.settingRepo.GetMultiple(ctx, []string{
+		SettingKeyAffiliateInviterBindingRewardPoints,
+		SettingKeyAffiliateInviterBindingRewardValidityDays,
+		SettingKeyAffiliateInviteeBindingRewardPoints,
+		SettingKeyAffiliateInviteeBindingRewardValidityDays,
+	})
+	if err != nil {
+		return DefaultAffiliateBindingRewardConfig()
+	}
+	return AffiliateBindingRewardConfig{
+		InviterPoints:       parseAffiliateBindingRewardPoints(values[SettingKeyAffiliateInviterBindingRewardPoints]),
+		InviterValidityDays: parseAffiliateBindingRewardValidity(values[SettingKeyAffiliateInviterBindingRewardValidityDays]),
+		InviteePoints:       parseAffiliateBindingRewardPoints(values[SettingKeyAffiliateInviteeBindingRewardPoints]),
+		InviteeValidityDays: parseAffiliateBindingRewardValidity(values[SettingKeyAffiliateInviteeBindingRewardValidityDays]),
+	}
 }
 
 // IsPasswordResetEnabled 检查是否启用密码重置功能
@@ -835,6 +900,40 @@ func (s *SettingService) SetRateLimit429CooldownSettings(ctx context.Context, se
 	}
 
 	return s.settingRepo.Set(ctx, SettingKeyRateLimit429CooldownSettings, string(data))
+}
+
+func (s *SettingService) GetOpenAIImagesOAuthUnavailableCooldownSettings(ctx context.Context) (*OpenAIImagesOAuthUnavailableCooldownSettings, error) {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyOpenAIImagesOAuthUnavailableCooldownSettings)
+	if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
+			return DefaultOpenAIImagesOAuthUnavailableCooldownSettings(), nil
+		}
+		return nil, fmt.Errorf("get OpenAI images OAuth unavailable cooldown settings: %w", err)
+	}
+	if value == "" {
+		return DefaultOpenAIImagesOAuthUnavailableCooldownSettings(), nil
+	}
+
+	var settings OpenAIImagesOAuthUnavailableCooldownSettings
+	if err := json.Unmarshal([]byte(value), &settings); err != nil ||
+		settings.CooldownMinutes < 1 || settings.CooldownMinutes > openAIImagesOAuthUnavailableMaxCooldownMinutes {
+		return DefaultOpenAIImagesOAuthUnavailableCooldownSettings(), nil
+	}
+	return &settings, nil
+}
+
+func (s *SettingService) SetOpenAIImagesOAuthUnavailableCooldownSettings(ctx context.Context, settings *OpenAIImagesOAuthUnavailableCooldownSettings) error {
+	if settings == nil {
+		return fmt.Errorf("settings cannot be nil")
+	}
+	if settings.CooldownMinutes < 1 || settings.CooldownMinutes > openAIImagesOAuthUnavailableMaxCooldownMinutes {
+		return fmt.Errorf("cooldown_minutes must be between 1-%d", openAIImagesOAuthUnavailableMaxCooldownMinutes)
+	}
+	data, err := json.Marshal(settings)
+	if err != nil {
+		return fmt.Errorf("marshal OpenAI images OAuth unavailable cooldown settings: %w", err)
+	}
+	return s.settingRepo.Set(ctx, SettingKeyOpenAIImagesOAuthUnavailableCooldownSettings, string(data))
 }
 
 // GetStreamTimeoutSettings 获取流超时处理配置

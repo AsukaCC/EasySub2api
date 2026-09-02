@@ -1749,6 +1749,41 @@ func TestOpenAIWSConnPool_UtilityBranches(t *testing.T) {
 	require.False(t, pool.shouldHealthCheckConn(unsafeConn))
 }
 
+func TestOpenAIWSConnPool_GlobalConnectionLimit(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Gateway.OpenAIWS.MaxTotalConns = 1
+	cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 2
+	cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 1
+	pool := newOpenAIWSConnPool(cfg)
+	defer pool.Close()
+	pool.setClientDialerForTest(&openAIWSFakeDialer{})
+
+	firstLease, err := pool.Acquire(context.Background(), openAIWSAcquireRequest{
+		Account: &Account{ID: "ws-global-1"},
+		WSURL:   "wss://example.com/v1/responses",
+	})
+	require.NoError(t, err)
+	require.Equal(t, OpenAIWSPoolCapacitySnapshot{CurrentConnections: 1, MaxConnections: 1}, pool.SnapshotCapacity())
+
+	_, err = pool.Acquire(context.Background(), openAIWSAcquireRequest{
+		Account: &Account{ID: "ws-global-2"},
+		WSURL:   "wss://example.com/v1/responses",
+	})
+	require.ErrorIs(t, err, errOpenAIWSConnQueueFull)
+
+	firstLease.MarkBroken()
+	firstLease.Release()
+	require.Equal(t, int64(0), pool.SnapshotCapacity().CurrentConnections)
+
+	secondLease, err := pool.Acquire(context.Background(), openAIWSAcquireRequest{
+		Account: &Account{ID: "ws-global-2"},
+		WSURL:   "wss://example.com/v1/responses",
+	})
+	require.NoError(t, err)
+	secondLease.MarkBroken()
+	secondLease.Release()
+}
+
 func TestOpenAIWSConn_LeaseAndTimeHelpers_NilAndClosedBranches(t *testing.T) {
 	var nilConn *openAIWSConn
 	nilConn.touch()

@@ -102,6 +102,20 @@ func (h *PaymentHandler) CancelOrder(c *gin.Context) {
 	response.Success(c, gin.H{"message": msg})
 }
 
+// DeleteOrder removes a cancelled order from order lists while retaining it for reconciliation.
+// DELETE /api/v1/admin/payment/orders/:id
+func (h *PaymentHandler) DeleteOrder(c *gin.Context) {
+	orderID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.paymentService.AdminDeleteCancelledOrder(c.Request.Context(), orderID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "order deleted"})
+}
+
 // RetryFulfillment retries fulfillment for a paid order.
 // POST /api/v1/admin/payment/orders/:id/retry
 func (h *PaymentHandler) RetryFulfillment(c *gin.Context) {

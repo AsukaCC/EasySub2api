@@ -129,6 +129,16 @@ func FeeAmount(v float64) predicate.PaymentRefund {
 	return predicate.PaymentRefund(sql.FieldEQ(FieldFeeAmount, v))
 }
 
+// RefundFeeRate applies equality check predicate on the "refund_fee_rate" field. It's identical to RefundFeeRateEQ.
+func RefundFeeRate(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldEQ(FieldRefundFeeRate, v))
+}
+
+// RefundFeeAmount applies equality check predicate on the "refund_fee_amount" field. It's identical to RefundFeeAmountEQ.
+func RefundFeeAmount(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldEQ(FieldRefundFeeAmount, v))
+}
+
 // GatewayAmount applies equality check predicate on the "gateway_amount" field. It's identical to GatewayAmountEQ.
 func GatewayAmount(v float64) predicate.PaymentRefund {
 	return predicate.PaymentRefund(sql.FieldEQ(FieldGatewayAmount, v))
@@ -162,6 +172,11 @@ func TargetPrincipalAmount(v float64) predicate.PaymentRefund {
 // TargetFeeAmount applies equality check predicate on the "target_fee_amount" field. It's identical to TargetFeeAmountEQ.
 func TargetFeeAmount(v float64) predicate.PaymentRefund {
 	return predicate.PaymentRefund(sql.FieldEQ(FieldTargetFeeAmount, v))
+}
+
+// TargetRefundFeeAmount applies equality check predicate on the "target_refund_fee_amount" field. It's identical to TargetRefundFeeAmountEQ.
+func TargetRefundFeeAmount(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldEQ(FieldTargetRefundFeeAmount, v))
 }
 
 // TargetBasePoints applies equality check predicate on the "target_base_points" field. It's identical to TargetBasePointsEQ.
@@ -1014,6 +1029,86 @@ func FeeAmountLTE(v float64) predicate.PaymentRefund {
 	return predicate.PaymentRefund(sql.FieldLTE(FieldFeeAmount, v))
 }
 
+// RefundFeeRateEQ applies the EQ predicate on the "refund_fee_rate" field.
+func RefundFeeRateEQ(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldEQ(FieldRefundFeeRate, v))
+}
+
+// RefundFeeRateNEQ applies the NEQ predicate on the "refund_fee_rate" field.
+func RefundFeeRateNEQ(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldNEQ(FieldRefundFeeRate, v))
+}
+
+// RefundFeeRateIn applies the In predicate on the "refund_fee_rate" field.
+func RefundFeeRateIn(vs ...float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldIn(FieldRefundFeeRate, vs...))
+}
+
+// RefundFeeRateNotIn applies the NotIn predicate on the "refund_fee_rate" field.
+func RefundFeeRateNotIn(vs ...float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldNotIn(FieldRefundFeeRate, vs...))
+}
+
+// RefundFeeRateGT applies the GT predicate on the "refund_fee_rate" field.
+func RefundFeeRateGT(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldGT(FieldRefundFeeRate, v))
+}
+
+// RefundFeeRateGTE applies the GTE predicate on the "refund_fee_rate" field.
+func RefundFeeRateGTE(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldGTE(FieldRefundFeeRate, v))
+}
+
+// RefundFeeRateLT applies the LT predicate on the "refund_fee_rate" field.
+func RefundFeeRateLT(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldLT(FieldRefundFeeRate, v))
+}
+
+// RefundFeeRateLTE applies the LTE predicate on the "refund_fee_rate" field.
+func RefundFeeRateLTE(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldLTE(FieldRefundFeeRate, v))
+}
+
+// RefundFeeAmountEQ applies the EQ predicate on the "refund_fee_amount" field.
+func RefundFeeAmountEQ(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldEQ(FieldRefundFeeAmount, v))
+}
+
+// RefundFeeAmountNEQ applies the NEQ predicate on the "refund_fee_amount" field.
+func RefundFeeAmountNEQ(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldNEQ(FieldRefundFeeAmount, v))
+}
+
+// RefundFeeAmountIn applies the In predicate on the "refund_fee_amount" field.
+func RefundFeeAmountIn(vs ...float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldIn(FieldRefundFeeAmount, vs...))
+}
+
+// RefundFeeAmountNotIn applies the NotIn predicate on the "refund_fee_amount" field.
+func RefundFeeAmountNotIn(vs ...float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldNotIn(FieldRefundFeeAmount, vs...))
+}
+
+// RefundFeeAmountGT applies the GT predicate on the "refund_fee_amount" field.
+func RefundFeeAmountGT(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldGT(FieldRefundFeeAmount, v))
+}
+
+// RefundFeeAmountGTE applies the GTE predicate on the "refund_fee_amount" field.
+func RefundFeeAmountGTE(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldGTE(FieldRefundFeeAmount, v))
+}
+
+// RefundFeeAmountLT applies the LT predicate on the "refund_fee_amount" field.
+func RefundFeeAmountLT(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldLT(FieldRefundFeeAmount, v))
+}
+
+// RefundFeeAmountLTE applies the LTE predicate on the "refund_fee_amount" field.
+func RefundFeeAmountLTE(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldLTE(FieldRefundFeeAmount, v))
+}
+
 // GatewayAmountEQ applies the EQ predicate on the "gateway_amount" field.
 func GatewayAmountEQ(v float64) predicate.PaymentRefund {
 	return predicate.PaymentRefund(sql.FieldEQ(FieldGatewayAmount, v))
@@ -1292,6 +1387,46 @@ func TargetFeeAmountLT(v float64) predicate.PaymentRefund {
 // TargetFeeAmountLTE applies the LTE predicate on the "target_fee_amount" field.
 func TargetFeeAmountLTE(v float64) predicate.PaymentRefund {
 	return predicate.PaymentRefund(sql.FieldLTE(FieldTargetFeeAmount, v))
+}
+
+// TargetRefundFeeAmountEQ applies the EQ predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountEQ(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldEQ(FieldTargetRefundFeeAmount, v))
+}
+
+// TargetRefundFeeAmountNEQ applies the NEQ predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountNEQ(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldNEQ(FieldTargetRefundFeeAmount, v))
+}
+
+// TargetRefundFeeAmountIn applies the In predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountIn(vs ...float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldIn(FieldTargetRefundFeeAmount, vs...))
+}
+
+// TargetRefundFeeAmountNotIn applies the NotIn predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountNotIn(vs ...float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldNotIn(FieldTargetRefundFeeAmount, vs...))
+}
+
+// TargetRefundFeeAmountGT applies the GT predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountGT(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldGT(FieldTargetRefundFeeAmount, v))
+}
+
+// TargetRefundFeeAmountGTE applies the GTE predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountGTE(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldGTE(FieldTargetRefundFeeAmount, v))
+}
+
+// TargetRefundFeeAmountLT applies the LT predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountLT(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldLT(FieldTargetRefundFeeAmount, v))
+}
+
+// TargetRefundFeeAmountLTE applies the LTE predicate on the "target_refund_fee_amount" field.
+func TargetRefundFeeAmountLTE(v float64) predicate.PaymentRefund {
+	return predicate.PaymentRefund(sql.FieldLTE(FieldTargetRefundFeeAmount, v))
 }
 
 // TargetBasePointsEQ applies the EQ predicate on the "target_base_points" field.

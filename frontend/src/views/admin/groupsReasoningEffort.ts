@@ -1,4 +1,9 @@
-import type { GroupPlatform, ReasoningEffortMapping } from "@/types";
+import type {
+  GroupPlatform,
+  ReasoningEffortMapping,
+  ReasoningEffortMatchType,
+  ReasoningEffortOverLimitPolicy,
+} from "@/types";
 
 const openAIReasoningEffortValues = [
   "minimal",
@@ -8,6 +13,19 @@ const openAIReasoningEffortValues = [
   "xhigh",
   "max",
 ] as const;
+
+export const MAX_REASONING_EFFORT_MAPPINGS = 64;
+export const MAX_REASONING_EFFORT_MODEL_LENGTH = 200;
+const reasoningEffortMatchTypes: readonly ReasoningEffortMatchType[] = [
+  "exact",
+  "prefix",
+  "suffix",
+];
+
+export const reasoningEffortOverLimitDowngrade: ReasoningEffortOverLimitPolicy =
+  "downgrade";
+export const reasoningEffortOverLimitDeny: ReasoningEffortOverLimitPolicy =
+  "deny";
 
 const reasoningEffortValuesForPlatform = (
   platform: GroupPlatform,
@@ -41,6 +59,23 @@ export function normalizeReasoningEffortForPlatform(
     : "";
 }
 
+export function normalizeReasoningEffortMatchType(
+  value: string | null | undefined,
+): ReasoningEffortMatchType | "" {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return reasoningEffortMatchTypes.includes(normalized as ReasoningEffortMatchType)
+    ? (normalized as ReasoningEffortMatchType)
+    : "";
+}
+
+export function normalizeReasoningEffortOverLimit(
+  value: string | null | undefined,
+): ReasoningEffortOverLimitPolicy {
+  return value?.trim().toLowerCase() === reasoningEffortOverLimitDeny
+    ? reasoningEffortOverLimitDeny
+    : reasoningEffortOverLimitDowngrade;
+}
+
 export interface ReasoningEffortMappingRow extends ReasoningEffortMapping {
   id: string;
 }
@@ -50,11 +85,20 @@ export type ReasoningEffortMappingErrorCode =
   | "toRequired"
   | "duplicateFrom"
   | "unsupportedFrom"
-  | "unsupportedTo";
+  | "unsupportedTo"
+  | "unsupportedMatchType"
+  | "modelRequired"
+  | "modelTooLong"
+  | "mappingLimit";
 
 export type ReasoningEffortMappingErrors = Record<
   string,
-  Partial<Record<"from" | "to", ReasoningEffortMappingErrorCode>>
+  Partial<
+    Record<
+      "from" | "to" | "match_type" | "model" | "limit",
+      ReasoningEffortMappingErrorCode
+    >
+  >
 >;
 
 let nextMappingRowID = 0;
@@ -67,6 +111,8 @@ export function createReasoningEffortMappingRow(
     id: `reasoning-effort-mapping-${nextMappingRowID}`,
     from: mapping.from ?? "",
     to: mapping.to ?? "",
+    match_type: normalizeReasoningEffortMatchType(mapping.match_type) || undefined,
+    model: mapping.model?.trim() ?? "",
   };
 }
 
@@ -77,8 +123,10 @@ export function reasoningEffortMappingsToRows(
   return (mappings ?? []).flatMap((mapping) => {
     const from = normalizeReasoningEffortForPlatform(platform, mapping.from);
     const to = normalizeReasoningEffortForPlatform(platform, mapping.to);
+    const model = mapping.model?.trim() ?? "";
+    const matchType = normalizeReasoningEffortMatchType(mapping.match_type);
     return from && to
-      ? [createReasoningEffortMappingRow({ from, to })]
+      ? [createReasoningEffortMappingRow({ from, to, model, match_type: matchType || undefined })]
       : [];
   });
 }
@@ -89,6 +137,12 @@ export function reasoningEffortMappingsToAPI(
   return rows.map((row) => ({
     from: row.from.trim(),
     to: row.to.trim(),
+    ...(row.model?.trim()
+      ? {
+          model: row.model.trim(),
+          match_type: normalizeReasoningEffortMatchType(row.match_type) || "exact",
+        }
+      : {}),
   }));
 }
 
@@ -99,15 +153,34 @@ export function validateReasoningEffortMappings(
   const errors: ReasoningEffortMappingErrors = {};
   const sourceRows = new Map<string, ReasoningEffortMappingRow[]>();
 
+  if (rows.length > MAX_REASONING_EFFORT_MAPPINGS) {
+    rows.forEach((row) => {
+      errors[row.id] = { ...errors[row.id], limit: "mappingLimit" };
+    });
+  }
+
   rows.forEach((row) => {
     const from = row.from.trim();
     const to = row.to.trim();
+    const model = row.model?.trim() ?? "";
+    const rawMatchType = row.match_type?.trim().toLowerCase() ?? "";
+    const matchType = normalizeReasoningEffortMatchType(row.match_type);
+    if (rawMatchType && !matchType) {
+      errors[row.id] = { ...errors[row.id], match_type: "unsupportedMatchType" };
+    }
+    if (matchType && !model) {
+      errors[row.id] = { ...errors[row.id], model: "modelRequired" };
+    }
+    if (model.length > MAX_REASONING_EFFORT_MODEL_LENGTH) {
+      errors[row.id] = { ...errors[row.id], model: "modelTooLong" };
+    }
+    const scopeKey = `${model.toLowerCase()}\0${model ? matchType || "exact" : ""}`;
     if (!from) {
       errors[row.id] = { ...errors[row.id], from: "fromRequired" };
     } else if (!normalizeReasoningEffortForPlatform(platform, from)) {
       errors[row.id] = { ...errors[row.id], from: "unsupportedFrom" };
     } else {
-      const key = from.toLowerCase();
+      const key = `${scopeKey}\0${from.toLowerCase()}`;
       sourceRows.set(key, [...(sourceRows.get(key) ?? []), row]);
     }
     if (!to) {

@@ -18,11 +18,13 @@ const (
 type CumulativeRefundInput struct {
 	PrincipalAmount decimal.Decimal
 	FeeAmount       decimal.Decimal
+	RefundFeeRate   decimal.Decimal
 	RechargePoints  decimal.Decimal
 	BonusPoints     decimal.Decimal
 
 	PreviousPrincipal      decimal.Decimal
 	PreviousFee            decimal.Decimal
+	PreviousRefundFee      decimal.Decimal
 	PreviousGateway        decimal.Decimal
 	PreviousRechargePoints decimal.Decimal
 	PreviousBonusPoints    decimal.Decimal
@@ -34,12 +36,14 @@ type CumulativeRefundInput struct {
 type CumulativeRefundAmounts struct {
 	TargetPrincipal      decimal.Decimal
 	TargetFee            decimal.Decimal
+	TargetRefundFee      decimal.Decimal
 	TargetGateway        decimal.Decimal
 	TargetRechargePoints decimal.Decimal
 	TargetBonusPoints    decimal.Decimal
 
 	PrincipalDelta      decimal.Decimal
 	FeeDelta            decimal.Decimal
+	RefundFeeDelta      decimal.Decimal
 	GatewayDelta        decimal.Decimal
 	RechargePointsDelta decimal.Decimal
 	BonusPointsDelta    decimal.Decimal
@@ -56,25 +60,29 @@ func CalculateCumulativeRefundAmounts(input CumulativeRefundInput) (CumulativeRe
 
 	targetPrincipal := input.PreviousPrincipal.Add(input.RequestedPrincipal)
 	targetFee := proportionalRefundTarget(input.FeeAmount, targetPrincipal, input.PrincipalAmount, refundMoneyScale)
+	refundFeeDelta := input.RequestedPrincipal.Mul(input.RefundFeeRate).Div(decimal.NewFromInt(100)).Round(refundMoneyScale)
+	targetRefundFee := input.PreviousRefundFee.Add(refundFeeDelta).Round(refundMoneyScale)
 	targetRecharge := proportionalRefundTarget(input.RechargePoints, targetPrincipal, input.PrincipalAmount, refundPointsScale)
 	targetBonus := proportionalRefundTarget(input.BonusPoints, targetPrincipal, input.PrincipalAmount, refundPointsScale)
-	targetGateway := targetPrincipal.Add(targetFee).Round(refundMoneyScale)
+	targetGateway := targetPrincipal.Add(targetFee).Sub(targetRefundFee).Round(refundMoneyScale)
 
 	result := CumulativeRefundAmounts{
 		TargetPrincipal:      targetPrincipal,
 		TargetFee:            targetFee,
+		TargetRefundFee:      targetRefundFee,
 		TargetGateway:        targetGateway,
 		TargetRechargePoints: targetRecharge,
 		TargetBonusPoints:    targetBonus,
 		PrincipalDelta:       input.RequestedPrincipal,
 		FeeDelta:             targetFee.Sub(input.PreviousFee),
+		RefundFeeDelta:       refundFeeDelta,
 		GatewayDelta:         targetGateway.Sub(input.PreviousGateway),
 		RechargePointsDelta:  targetRecharge.Sub(input.PreviousRechargePoints),
 		BonusPointsDelta:     targetBonus.Sub(input.PreviousBonusPoints),
 	}
 	result.PointsDelta = result.RechargePointsDelta.Add(result.BonusPointsDelta).Round(refundPointsScale)
 
-	if result.FeeDelta.IsNegative() || result.GatewayDelta.IsNegative() ||
+	if result.FeeDelta.IsNegative() || result.RefundFeeDelta.IsNegative() || !result.GatewayDelta.IsPositive() ||
 		result.RechargePointsDelta.IsNegative() || result.BonusPointsDelta.IsNegative() {
 		return CumulativeRefundAmounts{}, fmt.Errorf("cumulative refund state exceeds the requested target")
 	}
@@ -90,10 +98,12 @@ func validateCumulativeRefundInput(input CumulativeRefundInput) error {
 	}
 	for name, value := range map[string]decimal.Decimal{
 		"fee amount":               input.FeeAmount,
+		"refund fee rate":          input.RefundFeeRate,
 		"recharge points":          input.RechargePoints,
 		"bonus points":             input.BonusPoints,
 		"previous principal":       input.PreviousPrincipal,
 		"previous fee":             input.PreviousFee,
+		"previous refund fee":      input.PreviousRefundFee,
 		"previous gateway":         input.PreviousGateway,
 		"previous recharge points": input.PreviousRechargePoints,
 		"previous bonus points":    input.PreviousBonusPoints,
@@ -104,11 +114,16 @@ func validateCumulativeRefundInput(input CumulativeRefundInput) error {
 	}
 	if !hasAtMostScale(input.PrincipalAmount, refundMoneyScale) ||
 		!hasAtMostScale(input.FeeAmount, refundMoneyScale) ||
+		!hasAtMostScale(input.RefundFeeRate, 2) ||
 		!hasAtMostScale(input.PreviousPrincipal, refundMoneyScale) ||
 		!hasAtMostScale(input.PreviousFee, refundMoneyScale) ||
+		!hasAtMostScale(input.PreviousRefundFee, refundMoneyScale) ||
 		!hasAtMostScale(input.PreviousGateway, refundMoneyScale) ||
 		!hasAtMostScale(input.RequestedPrincipal, refundMoneyScale) {
 		return fmt.Errorf("money amounts allow at most %d decimal places", refundMoneyScale)
+	}
+	if input.RefundFeeRate.GreaterThan(decimal.NewFromInt(100)) {
+		return fmt.Errorf("refund fee rate must be between 0 and 100")
 	}
 	if !hasAtMostScale(input.RechargePoints, refundPointsScale) ||
 		!hasAtMostScale(input.BonusPoints, refundPointsScale) ||
@@ -122,7 +137,7 @@ func validateCumulativeRefundInput(input CumulativeRefundInput) error {
 	}
 
 	expectedPreviousFee := proportionalRefundTarget(input.FeeAmount, input.PreviousPrincipal, input.PrincipalAmount, refundMoneyScale)
-	expectedPreviousGateway := input.PreviousPrincipal.Add(expectedPreviousFee).Round(refundMoneyScale)
+	expectedPreviousGateway := input.PreviousPrincipal.Add(expectedPreviousFee).Sub(input.PreviousRefundFee).Round(refundMoneyScale)
 	expectedPreviousRecharge := proportionalRefundTarget(input.RechargePoints, input.PreviousPrincipal, input.PrincipalAmount, refundPointsScale)
 	expectedPreviousBonus := proportionalRefundTarget(input.BonusPoints, input.PreviousPrincipal, input.PrincipalAmount, refundPointsScale)
 	if !input.PreviousFee.Equal(expectedPreviousFee) ||

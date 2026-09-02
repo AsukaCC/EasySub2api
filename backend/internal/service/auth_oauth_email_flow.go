@@ -62,23 +62,13 @@ func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, i
 	if s == nil || s.settingService == nil || !s.settingService.IsInvitationCodeEnabled(ctx) {
 		return nil, nil
 	}
-	if s.redeemRepo == nil && s.oauthEmailFlowClient(ctx) == nil {
-		return nil, ErrServiceUnavailable
-	}
-
 	invitationCode = strings.TrimSpace(invitationCode)
 	if invitationCode == "" {
-		return nil, nil
+		return nil, ErrInvitationCodeRequired
 	}
-
-	redeemCode, err := s.loadOAuthRegistrationInvitation(ctx, invitationCode)
-	if err != nil {
-		return nil, ErrInvitationCodeInvalid
-	}
-	if redeemCode.Type != RedeemTypeInvitation || !redeemCode.CanUse() {
-		return nil, ErrInvitationCodeInvalid
-	}
-	return redeemCode, nil
+	// Registration access redeem codes were retired. The shared affiliate code
+	// is validated atomically when the new account is bound to its inviter.
+	return nil, nil
 }
 
 // VerifyOAuthEmailCode verifies the locally entered email verification code for
@@ -286,12 +276,13 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
+	registrationAffiliateCode := normalizeRegistrationAffiliateCode(invitationCode, affiliateCode)
+	requiredAffiliateCode, err := s.requiredRegistrationAffiliateCode(ctx, invitationCode, affiliateCode)
 	if err != nil {
 		return err
 	}
-	if invitationRedeemCode != nil {
-		if err := s.useOAuthRegistrationInvitation(ctx, invitationRedeemCode.ID, user.ID); err != nil {
+	if requiredAffiliateCode != "" {
+		if _, err := s.affiliateService.BindInviterByCodeWithResult(ctx, user.ID, requiredAffiliateCode); err != nil {
 			return ErrInvitationCodeInvalid
 		}
 	}
@@ -301,7 +292,9 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+	if requiredAffiliateCode == "" {
+		s.bindOAuthAffiliate(ctx, user.ID, registrationAffiliateCode)
+	}
 	return nil
 }
 

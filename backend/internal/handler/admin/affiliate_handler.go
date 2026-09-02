@@ -6,6 +6,7 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
+	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,61 @@ import (
 type AffiliateHandler struct {
 	affiliateService *service.AffiliateService
 	adminService     service.AdminService
+}
+
+// PreviewRewardBackfill summarizes legacy inviter relationships without mutating balances.
+func (h *AffiliateHandler) PreviewRewardBackfill(c *gin.Context) {
+	preview, err := h.affiliateService.AdminPreviewRewardBackfill(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	middleware.SetAuditExtra(c, map[string]any{"eligible_relations": preview.EligibleRelations})
+	response.Success(c, preview)
+}
+
+type StartRewardBackfillRequest struct {
+	PreviewToken string `json:"preview_token" binding:"required"`
+	Confirm      bool   `json:"confirm" binding:"required"`
+}
+
+// StartRewardBackfill starts an idempotent persisted legacy reward job.
+func (h *AffiliateHandler) StartRewardBackfill(c *gin.Context) {
+	var req StartRewardBackfillRequest
+	if err := c.ShouldBindJSON(&req); err != nil || !req.Confirm {
+		response.BadRequest(c, "preview_token and explicit confirmation are required")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "Admin not authenticated")
+		return
+	}
+	run, err := h.affiliateService.AdminStartRewardBackfill(c.Request.Context(), subject.UserID, req.PreviewToken)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	middleware.SetAuditExtra(c, map[string]any{
+		"run_id":             run.ID,
+		"eligible_relations": run.EligibleRelations,
+	})
+	response.Success(c, run)
+}
+
+// GetRewardBackfill returns progress and lazily resumes interrupted work.
+func (h *AffiliateHandler) GetRewardBackfill(c *gin.Context) {
+	runID := strings.TrimSpace(c.Param("id"))
+	if runID == "" {
+		response.BadRequest(c, "Invalid backfill id")
+		return
+	}
+	run, err := h.affiliateService.AdminGetRewardBackfill(c.Request.Context(), runID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, run)
 }
 
 // NewAffiliateHandler creates a new admin affiliate handler.

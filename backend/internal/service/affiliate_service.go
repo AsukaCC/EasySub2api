@@ -100,13 +100,16 @@ type AffiliateDetail struct {
 	// EffectiveRebateRatePercent 是当前用户作为邀请人时实际生效的返利比例：
 	// 优先用户自己的专属比例（aff_rebate_rate_percent），否则回退到全局比例。
 	// 用于在用户的 /affiliate 页面直观展示「分享后能拿到多少」。
-	EffectiveRebateRatePercent float64            `json:"effective_rebate_rate_percent"`
-	RebateRecipient            string             `json:"rebate_recipient"`
-	CodeRegenerationLimit      int                `json:"code_regeneration_limit"`
-	CodeRegenerationUsed       int                `json:"code_regeneration_used"`
-	CodeRegenerationRemaining  int                `json:"code_regeneration_remaining"`
-	CodeRegenerationResetAt    time.Time          `json:"code_regeneration_reset_at"`
-	Invitees                   []AffiliateInvitee `json:"invitees"`
+	EffectiveRebateRatePercent       float64            `json:"effective_rebate_rate_percent"`
+	RebateRecipient                  string             `json:"rebate_recipient"`
+	CodeRegenerationLimit            int                `json:"code_regeneration_limit"`
+	CodeRegenerationUsed             int                `json:"code_regeneration_used"`
+	CodeRegenerationRemaining        int                `json:"code_regeneration_remaining"`
+	CodeRegenerationResetAt          time.Time          `json:"code_regeneration_reset_at"`
+	Invitees                         []AffiliateInvitee `json:"invitees"`
+	CanBindInviter                   bool               `json:"can_bind_inviter"`
+	InviteeBindingRewardPoints       float64            `json:"invitee_binding_reward_points"`
+	InviteeBindingRewardValidityDays int                `json:"invitee_binding_reward_validity_days"`
 }
 
 type AffiliateCodeRegenerationResult struct {
@@ -243,12 +246,14 @@ type AffiliateService struct {
 }
 
 func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AffiliateService {
-	return &AffiliateService{
+	service := &AffiliateService{
 		repo:                 repo,
 		settingService:       settingService,
 		authCacheInvalidator: authCacheInvalidator,
 		billingCacheService:  billingCacheService,
 	}
+	go service.resumePersistedRewardBackfill()
+	return service
 }
 
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.
@@ -292,21 +297,25 @@ func (s *AffiliateService) GetAffiliateDetail(ctx context.Context, userID string
 		return nil, err
 	}
 	regenerationUsed, regenerationResetAt := affiliateCodeRegenerationUsage(summary, appTimezone.Now())
+	bindingRewards := s.bindingRewardConfig(ctx)
 	return &AffiliateDetail{
-		UserID:                     summary.UserID,
-		AffCode:                    summary.AffCode,
-		InviterID:                  summary.InviterID,
-		AffCount:                   summary.AffCount,
-		AffQuota:                   summary.AffQuota,
-		AffFrozenQuota:             summary.AffFrozenQuota,
-		AffHistoryQuota:            summary.AffHistoryQuota,
-		EffectiveRebateRatePercent: s.resolveRebateRatePercent(ctx, summary),
-		RebateRecipient:            s.rebateRecipient(ctx),
-		CodeRegenerationLimit:      AffiliateCodeRegenerationMonthlyLimit,
-		CodeRegenerationUsed:       regenerationUsed,
-		CodeRegenerationRemaining:  max(AffiliateCodeRegenerationMonthlyLimit-regenerationUsed, 0),
-		CodeRegenerationResetAt:    regenerationResetAt,
-		Invitees:                   invitees,
+		UserID:                           summary.UserID,
+		AffCode:                          summary.AffCode,
+		InviterID:                        summary.InviterID,
+		AffCount:                         summary.AffCount,
+		AffQuota:                         summary.AffQuota,
+		AffFrozenQuota:                   summary.AffFrozenQuota,
+		AffHistoryQuota:                  summary.AffHistoryQuota,
+		EffectiveRebateRatePercent:       s.resolveRebateRatePercent(ctx, summary),
+		RebateRecipient:                  s.rebateRecipient(ctx),
+		CodeRegenerationLimit:            AffiliateCodeRegenerationMonthlyLimit,
+		CodeRegenerationUsed:             regenerationUsed,
+		CodeRegenerationRemaining:        max(AffiliateCodeRegenerationMonthlyLimit-regenerationUsed, 0),
+		CodeRegenerationResetAt:          regenerationResetAt,
+		Invitees:                         invitees,
+		CanBindInviter:                   summary.InviterID == nil,
+		InviteeBindingRewardPoints:       bindingRewards.InviteePoints,
+		InviteeBindingRewardValidityDays: bindingRewards.InviteeValidityDays,
 	}, nil
 }
 
@@ -363,48 +372,48 @@ func affiliateCodeRegenerationUsage(summary *AffiliateSummary, now time.Time) (i
 }
 
 func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID string, rawCode string) error {
+	_, err := s.BindInviterByCodeWithResult(ctx, userID, rawCode)
+	return err
+}
+
+func (s *AffiliateService) resolveEligibleInviter(ctx context.Context, userID string, rawCode string) (*AffiliateSummary, error) {
 	code := strings.ToUpper(strings.TrimSpace(rawCode))
 	if code == "" {
-		return nil
+		return nil, nil
 	}
 	if s == nil || s.repo == nil {
-		return infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
 	// 总开关关闭时，注册阶段静默忽略 aff 参数（不报错，避免阻断注册流程）
 	if !s.IsUserAvailable(ctx) {
-		return nil
+		return nil, infraerrors.NotFound("FEATURE_DISABLED", "feature is disabled")
 	}
 	if !isValidAffiliateCodeFormat(code) {
-		return ErrAffiliateCodeInvalid
+		return nil, ErrAffiliateCodeInvalid
 	}
 
 	selfSummary, err := s.repo.EnsureUserAffiliate(ctx, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if selfSummary.InviterID != nil {
-		return nil
+		if existing, lookupErr := s.repo.GetAffiliateByCode(ctx, code); lookupErr == nil && existing.UserID == *selfSummary.InviterID {
+			return existing, nil
+		}
+		return nil, ErrAffiliateAlreadyBound
 	}
 
 	inviterSummary, err := s.repo.GetAffiliateByCode(ctx, code)
 	if err != nil {
 		if errors.Is(err, ErrAffiliateProfileNotFound) {
-			return ErrAffiliateCodeInvalid
+			return nil, ErrAffiliateCodeInvalid
 		}
-		return err
+		return nil, err
 	}
 	if inviterSummary == nil || inviterSummary.UserID == "" || inviterSummary.UserID == userID {
-		return ErrAffiliateCodeInvalid
+		return nil, ErrAffiliateCodeInvalid
 	}
-
-	bound, err := s.repo.BindInviter(ctx, userID, inviterSummary.UserID)
-	if err != nil {
-		return err
-	}
-	if !bound {
-		return ErrAffiliateAlreadyBound
-	}
-	return nil
+	return inviterSummary, nil
 }
 
 func (s *AffiliateService) AccrueInviteRebate(ctx context.Context, inviteeUserID string, baseRechargeAmount float64) (float64, error) {

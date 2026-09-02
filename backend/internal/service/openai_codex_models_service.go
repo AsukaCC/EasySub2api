@@ -37,10 +37,12 @@ const (
 
 // CodexModelsManifest carries the client representation plus caching metadata.
 type CodexModelsManifest struct {
-	Body         []byte
-	ETag         string
-	upstreamETag string
-	NotModified  bool
+	Body                         []byte
+	ETag                         string
+	upstreamETag                 string
+	upstreamSourceBody           []byte
+	convertedFromOpenAIModelList bool
+	NotModified                  bool
 }
 
 type codexModelsManifestUpstreamError struct {
@@ -67,6 +69,13 @@ func (e *codexModelsManifestUpstreamError) Unwrap() error { return e.err }
 func IsRetryableCodexModelsManifestError(err error) bool {
 	var upstreamErr *codexModelsManifestUpstreamError
 	return errors.As(err, &upstreamErr) && upstreamErr.retryable
+}
+
+func isRetryableCodexModelsManifestStatus(statusCode int, useAPIKeyUpstream bool) bool {
+	return (useAPIKeyUpstream && (statusCode == http.StatusNotFound || statusCode == http.StatusMethodNotAllowed)) ||
+		(statusCode == http.StatusUnauthorized && !useAPIKeyUpstream) ||
+		statusCode == http.StatusTooManyRequests ||
+		(statusCode >= http.StatusInternalServerError && statusCode < 600)
 }
 
 func isRetryableCodexModelsManifestTransportError(err error) bool {
@@ -185,9 +194,9 @@ func (c *codexModelsManifestCache) get(key string, now time.Time) (*CodexModelsM
 		return nil, codexModelsManifestCacheMiss
 	}
 	if now.Before(entry.expiresAt) {
-		return entry.manifest, codexModelsManifestCacheFresh
+		return cloneCodexModelsManifest(entry.manifest), codexModelsManifestCacheFresh
 	}
-	return entry.manifest, codexModelsManifestCacheStale
+	return cloneCodexModelsManifest(entry.manifest), codexModelsManifestCacheStale
 }
 
 func (c *codexModelsManifestCache) set(key string, manifest *CodexModelsManifest, now time.Time) {
@@ -218,7 +227,7 @@ func (c *codexModelsManifestCache) set(key string, manifest *CodexModelsManifest
 	}
 	c.nextOrder++
 	c.entries[key] = codexModelsManifestCacheEntry{
-		manifest:   manifest,
+		manifest:   cloneCodexModelsManifest(manifest),
 		order:      c.nextOrder,
 		expiresAt:  now.Add(codexModelsManifestCacheTTL),
 		staleUntil: now.Add(codexModelsManifestCacheStaleTTL),
@@ -503,9 +512,7 @@ func (s *OpenAIGatewayService) fetchCodexModelsManifestUpstream(ctx context.Cont
 			statusCode: resp.StatusCode,
 			headers:    resp.Header.Clone(),
 			body:       body,
-			retryable: (resp.StatusCode == http.StatusUnauthorized && !request.useAPIKeyUpstream) ||
-				resp.StatusCode == http.StatusTooManyRequests ||
-				(resp.StatusCode >= http.StatusInternalServerError && resp.StatusCode < 600),
+			retryable:  isRetryableCodexModelsManifestStatus(resp.StatusCode, request.useAPIKeyUpstream),
 		}
 	}
 
@@ -517,8 +524,11 @@ func (s *OpenAIGatewayService) fetchCodexModelsManifestUpstream(ctx context.Cont
 		}
 	}
 	upstreamBody := body
+	convertedFromOpenAIModelList := false
 	if request.useAPIKeyUpstream {
-		body = convertOpenAIModelListToCodexManifest(body)
+		convertedBody := convertOpenAIModelListToCodexManifestForAccount(body, request.credentialAccount)
+		convertedFromOpenAIModelList = !bytes.Equal(convertedBody, body)
+		body = convertedBody
 	}
 	if err := validateCodexModelsManifestEnvelope(body); err != nil {
 		return nil, &codexModelsManifestUpstreamError{
@@ -546,7 +556,12 @@ func (s *OpenAIGatewayService) fetchCodexModelsManifestUpstream(ctx context.Cont
 		}
 	}
 	etag := resp.Header.Get("ETag")
-	manifest := &CodexModelsManifest{Body: body, ETag: etag}
+	manifest := &CodexModelsManifest{
+		Body:                         body,
+		ETag:                         etag,
+		upstreamSourceBody:           append([]byte(nil), upstreamBody...),
+		convertedFromOpenAIModelList: convertedFromOpenAIModelList,
+	}
 	if request.useAPIKeyUpstream {
 		manifest.upstreamETag = etag
 		if !bytes.Equal(body, upstreamBody) {
@@ -630,6 +645,10 @@ func adjustAPIKeyCodexModelsManifest(body []byte) ([]byte, error) {
 // standard list shape, or yield no usable model IDs are returned unchanged so
 // envelope validation reports the original payload.
 func convertOpenAIModelListToCodexManifest(body []byte) []byte {
+	return convertOpenAIModelListToCodexManifestForAccount(body, nil)
+}
+
+func convertOpenAIModelListToCodexManifestForAccount(body []byte, account *Account) []byte {
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(body, &envelope); err != nil || envelope == nil {
 		return body
@@ -647,21 +666,24 @@ func convertOpenAIModelListToCodexManifest(body []byte) []byte {
 	if err := json.Unmarshal(data, &entries); err != nil {
 		return body
 	}
-	type codexModelEntry struct {
-		Slug string `json:"slug"`
-	}
-	models := make([]codexModelEntry, 0, len(entries))
+	modelIDs := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		id := strings.TrimSpace(entry.ID)
 		if id == "" {
 			continue
 		}
-		models = append(models, codexModelEntry{Slug: id})
+		modelIDs = append(modelIDs, id)
 	}
-	if len(models) == 0 {
+	if len(modelIDs) == 0 {
 		return body
 	}
-	converted, err := json.Marshal(map[string][]codexModelEntry{"models": models})
+	imageInputModels := make(map[string]bool, len(modelIDs))
+	for _, modelID := range modelIDs {
+		if accountCodexModelSupportsImageInput(account, modelID) {
+			imageInputModels[modelID] = true
+		}
+	}
+	converted, err := buildCodexModelsManifest(modelIDs, imageInputModels, nil, nil)
 	if err != nil {
 		return body
 	}
@@ -715,7 +737,17 @@ func codexModelsManifestForClient(manifest *CodexModelsManifest, ifNoneMatch str
 	if codexModelsManifestETagMatches(ifNoneMatch, manifest.ETag) {
 		return &CodexModelsManifest{ETag: manifest.ETag, NotModified: true}
 	}
-	return manifest
+	return cloneCodexModelsManifest(manifest)
+}
+
+func cloneCodexModelsManifest(manifest *CodexModelsManifest) *CodexModelsManifest {
+	if manifest == nil {
+		return nil
+	}
+	clone := *manifest
+	clone.Body = append([]byte(nil), manifest.Body...)
+	clone.upstreamSourceBody = append([]byte(nil), manifest.upstreamSourceBody...)
+	return &clone
 }
 
 func codexModelsManifestETagMatches(ifNoneMatch, etag string) bool {

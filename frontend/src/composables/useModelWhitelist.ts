@@ -35,6 +35,7 @@ export const claudeModels = [
   'claude-opus-5',
   'claude-sonnet-4-6',
   'claude-sonnet-5',
+  'claude-fable-5-1',
   'claude-fable-5'
 ]
 
@@ -52,6 +53,7 @@ const geminiModels = [
 
 // Antigravity supports both Claude and Gemini model families.
 const antigravityModels = [
+  'claude-fable-5-1',
   'claude-fable-5',
   'claude-opus-4-5-thinking',
   'claude-opus-4-6',
@@ -255,6 +257,7 @@ export const allModels = allModelsList.map(m => ({ value: m, label: m }))
 // =====================
 
 const anthropicPresetMappings = [
+  { label: 'Fable 5.1', from: 'claude-fable-5-1', to: 'claude-fable-5-1', color: 'composables-use-model-whitelist__state' },
   { label: 'Fable 5', from: 'claude-fable-5', to: 'claude-fable-5', color: 'composables-use-model-whitelist__state' },
   { label: 'Sonnet 5', from: 'claude-sonnet-5', to: 'claude-sonnet-5', color: 'composables-use-model-whitelist__state-2' },
   { label: 'Sonnet 4', from: 'claude-sonnet-4-20250514', to: 'claude-sonnet-4-20250514', color: 'composables-use-model-whitelist__state-3' },
@@ -298,6 +301,8 @@ const geminiPresetMappings = [
 
 const antigravityPresetMappings = [
   { label: 'Claude -> Sonnet', from: 'claude-*', to: 'claude-sonnet-4-6', color: 'composables-use-model-whitelist__state-2' },
+  { label: 'Fable 5.1', from: 'claude-fable-5-1', to: 'claude-fable-5-1', color: 'composables-use-model-whitelist__state' },
+  { label: 'Fable 5', from: 'claude-fable-5', to: 'claude-fable-5', color: 'composables-use-model-whitelist__state' },
   { label: 'Opus -> Opus', from: 'claude-opus-*', to: 'claude-opus-4-6-thinking', color: 'composables-use-model-whitelist__state-4' },
   { label: 'Gemini 3 -> Flash', from: 'gemini-3*', to: 'gemini-3-flash', color: 'composables-use-model-whitelist__state-6' },
   { label: 'Gemini 2.5 -> Flash', from: 'gemini-2.5*', to: 'gemini-2.5-flash', color: 'composables-use-model-whitelist__state-5' }
@@ -322,6 +327,7 @@ const grokPresetMappings = [
 
 // Bedrock 预设映射（与后端 DefaultBedrockModelMapping 保持一致）
 const bedrockPresetMappings = [
+  { label: 'Fable 5.1', from: 'claude-fable-5-1', to: 'anthropic.claude-fable-5-1', color: 'composables-use-model-whitelist__state' },
   { label: 'Fable 5', from: 'claude-fable-5', to: 'anthropic.claude-fable-5', color: 'composables-use-model-whitelist__state' },
   { label: 'Opus 4.6', from: 'claude-opus-4-6', to: 'us.anthropic.claude-opus-4-6-v1', color: 'composables-use-model-whitelist__state-17' },
   { label: 'Opus 4.7', from: 'claude-opus-4-7', to: 'us.anthropic.claude-opus-4-7-v1', color: 'composables-use-model-whitelist__state-17' },

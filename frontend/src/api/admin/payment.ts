@@ -111,6 +111,11 @@ export const adminPaymentAPI = {
     return apiClient.post(`/admin/payment/orders/${id}/cancel`)
   },
 
+  /** Remove a cancelled order from the order lists */
+  deleteOrder(id: string) {
+    return apiClient.delete(`/admin/payment/orders/${id}`)
+  },
+
   /** Retry recharge for a failed order */
   retryRecharge(id: string) {
     return apiClient.post(`/admin/payment/orders/${id}/retry`)

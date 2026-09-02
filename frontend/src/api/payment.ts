@@ -65,6 +65,11 @@ export const paymentAPI = {
     return apiClient.post(`/payment/orders/${id}/cancel`)
   },
 
+  /** Remove a cancelled order from the order list */
+  deleteOrder(id: string) {
+    return apiClient.delete(`/payment/orders/${id}`)
+  },
+
   /** Verify order payment status with upstream provider */
   verifyOrder(outTradeNo: string) {
     return apiClient.post<PaymentOrder>('/payment/orders/verify', { out_trade_no: outTradeNo })

@@ -81,6 +81,8 @@ export interface RefundQuote {
   requested_principal_amount: number
   principal_amount: number
   fee_amount: number
+  refund_fee_rate: number
+  refund_fee_amount: number
   gateway_amount: number
   base_points: number
   bonus_points: number
@@ -105,6 +107,8 @@ export interface PaymentRefund {
   requested_principal_amount: number
   principal_amount: number
   fee_amount: number
+  refund_fee_rate: number
+  refund_fee_amount: number
   gateway_amount: number
   base_points: number
   bonus_points: number

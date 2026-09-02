@@ -31,6 +31,16 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Codex models manifest is only available for OpenAI groups")
 		return
 	}
+	clientETag := c.GetHeader("If-None-Match")
+	configuredManifest, configured, err := h.gatewayService.BuildGroupConfiguredCodexModelsManifest(c.Request.Context(), apiKey.Group, clientETag)
+	if err != nil {
+		h.errorResponse(c, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	if configured {
+		writeCodexModelsManifest(c, configuredManifest)
+		return
+	}
 
 	maxAccountSwitches := h.maxAccountSwitches
 	if maxAccountSwitches <= 0 {
@@ -56,7 +66,9 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		// 让 ops 错误日志携带实际选中的上游账号，便于定位失效账号（#4544）。
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), c.GetHeader("If-None-Match"))
+		// Client validators apply only after account completion and group filtering.
+		// Never forward them as a shared upstream cache validator.
+		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), "")
 		if err != nil {
 			if c.Request.Context().Err() != nil {
 				return
@@ -73,15 +85,31 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		if c.Request.Context().Err() != nil {
 			return
 		}
-
-		if manifest.ETag != "" {
-			c.Header("ETag", manifest.ETag)
-		}
-		if manifest.NotModified {
-			c.Status(http.StatusNotModified)
+		if err := h.gatewayService.CompleteAPIKeyCodexModelsManifestForClient(manifest, account); err != nil {
+			h.errorResponse(c, http.StatusBadGateway, "upstream_error", err.Error())
 			return
 		}
-		c.Data(http.StatusOK, "application/json", manifest.Body)
+
+		if err := h.gatewayService.MergeGroupConfiguredCodexModels(c.Request.Context(), apiKey.Group, manifest, clientETag); err != nil {
+			h.errorResponse(c, http.StatusInternalServerError, "internal_error", err.Error())
+			return
+		}
+		writeCodexModelsManifest(c, manifest)
 		return
 	}
+}
+
+func writeCodexModelsManifest(c *gin.Context, manifest *service.CodexModelsManifest) {
+	if manifest == nil {
+		c.Status(http.StatusNoContent)
+		return
+	}
+	if manifest.ETag != "" {
+		c.Header("ETag", manifest.ETag)
+	}
+	if manifest.NotModified {
+		c.Status(http.StatusNotModified)
+		return
+	}
+	c.Data(http.StatusOK, "application/json", manifest.Body)
 }

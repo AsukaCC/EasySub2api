@@ -84,6 +84,10 @@ type postUsageBillingParams struct {
 	APIKeyService         APIKeyQuotaUpdater
 	Platform              string // 来自 APIKey 关联 Group 的平台标识
 	RatePlan              *UserRatePlan
+	// DynamicRateStandardCost overrides the token base used by dynamic-rate
+	// allocation. Free Fast sets this to the Standard-tier base while TotalCost
+	// intentionally remains the real Priority upstream/account cost.
+	DynamicRateStandardCost *float64
 }
 
 // PlatformFromAPIKey 从 APIKey 关联的 Group 推导 platform 名称。
@@ -332,7 +336,11 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	// (notably for long-context fallback calculations). Keep dynamic rates on
 	// that path as well; per-request/image/video calculators always set an
 	// explicit non-token mode.
-	if p.RatePlan != nil && p.Cost.TotalCost > 0 &&
+	dynamicRateStandardCost := p.Cost.TotalCost
+	if p.DynamicRateStandardCost != nil {
+		dynamicRateStandardCost = *p.DynamicRateStandardCost
+	}
+	if p.RatePlan != nil && dynamicRateStandardCost > 0 &&
 		(p.Cost.BillingMode == "" || p.Cost.BillingMode == string(BillingModeToken)) &&
 		len(p.RatePlan.DynamicCandidates) > 0 {
 		fallbackMultiplier := p.RatePlan.BaseMultiplier * p.RatePlan.PeakMultiplier
@@ -349,7 +357,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		}
 		if len(rules) > 0 {
 			cmd.DynamicRatePlan = &UsageDynamicRatePlan{
-				GroupID: p.RatePlan.GroupID, StandardCost: p.Cost.TotalCost,
+				GroupID: p.RatePlan.GroupID, StandardCost: dynamicRateStandardCost,
 				FallbackMultiplier: fallbackMultiplier, Rules: rules,
 			}
 		}
@@ -683,15 +691,14 @@ type recordUsageCoreInput struct {
 }
 
 func applySelectionBillingSnapshot(apiKey *APIKey, subscription *UserSubscription, selection *AccountSelectionResult) (*APIKey, *UserSubscription, *UserRatePlan) {
-	if apiKey == nil || selection == nil || selection.BillingGroup == nil || selection.RatePlan == nil {
+	if apiKey == nil || selection == nil || !IsGroupContextValid(selection.BillingGroup) {
 		return apiKey, subscription, nil
 	}
-	cloned := *apiKey
-	groupID := selection.BillingGroup.ID
-	cloned.GroupID = &groupID
-	cloned.GroupIDs = []string{groupID}
-	cloned.Group = selection.BillingGroup
-	return &cloned, selection.BillingSubscription, selection.RatePlan
+	selectedAPIKey := APIKeyForAccountSelection(apiKey, selection)
+	if selection.RatePlan == nil {
+		return selectedAPIKey, subscription, nil
+	}
+	return selectedAPIKey, selection.BillingSubscription, selection.RatePlan
 }
 
 // responseModelBillingCostEpsilon 吸收两次成本计算之间的浮点末位误差，
@@ -1211,47 +1218,48 @@ func (s *GatewayService) buildRecordUsageLog(
 		)
 	}
 	usageLog := &UsageLog{
-		UserID:                user.ID,
-		APIKeyID:              apiKey.ID,
-		AccountID:             account.ID,
-		RequestID:             requestID,
-		Model:                 result.Model,
-		RequestedModel:        requestedModel,
-		UpstreamModel:         optionalTrimmedStringPtr(result.UpstreamModel),
-		UpstreamResponseModel: optionalTrimmedStringPtr(result.UpstreamResponseModel),
-		UpstreamModelMismatch: upstreamModelMismatch(sentModel, result.UpstreamResponseModel),
-		ReasoningEffort:       result.ReasoningEffort,
-		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		InputTokens:           result.Usage.InputTokens,
-		OutputTokens:          result.Usage.OutputTokens,
-		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:       result.Usage.CacheReadInputTokens,
-		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
-		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
-		ImageOutputTokens:     result.Usage.ImageOutputTokens,
-		RateMultiplier:        multiplier,
-		AccountRateMultiplier: &accountRateMultiplier,
-		BillingType:           billingType,
-		BillingMode:           resolveBillingMode(result, cost),
-		Stream:                result.Stream,
-		DurationMs:            &durationMs,
-		FirstTokenMs:          result.FirstTokenMs,
-		ImageCount:            result.ImageCount,
-		ImageSize:             optionalTrimmedStringPtr(result.ImageSize),
-		ImageInputSize:        optionalTrimmedStringPtr(result.ImageInputSize),
-		ImageOutputSize:       optionalTrimmedStringPtr(result.ImageOutputSize),
-		ImageSizeSource:       optionalTrimmedStringPtr(result.ImageSizeSource),
-		ImageSizeBreakdown:    result.ImageSizeBreakdown,
-		CacheTTLOverridden:    cacheTTLOverridden,
-		ChannelID:             optionalTrimmedStringPtr(input.ChannelID),
-		ModelMappingChain:     optionalTrimmedStringPtr(input.ModelMappingChain),
-		UserAgent:             optionalTrimmedStringPtr(input.UserAgent),
-		IPAddress:             optionalTrimmedStringPtr(input.IPAddress),
-		SessionID:             optionalTrimmedStringPtr(input.SessionID),
-		GroupID:               apiKey.GroupID,
-		SubscriptionID:        optionalSubscriptionID(subscription),
-		CreatedAt:             time.Now(),
+		UserID:                   user.ID,
+		APIKeyID:                 apiKey.ID,
+		AccountID:                account.ID,
+		RequestID:                requestID,
+		Model:                    result.Model,
+		RequestedModel:           requestedModel,
+		UpstreamModel:            optionalTrimmedStringPtr(result.UpstreamModel),
+		UpstreamResponseModel:    optionalTrimmedStringPtr(result.UpstreamResponseModel),
+		UpstreamModelMismatch:    upstreamModelMismatch(sentModel, result.UpstreamResponseModel),
+		ReasoningEffort:          result.ReasoningEffort,
+		RequestedReasoningEffort: coalesceRequestedReasoningEffort(result.RequestedReasoningEffort, result.ReasoningEffort),
+		InboundEndpoint:          optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:         optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:              result.Usage.InputTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:          result.Usage.CacheReadInputTokens,
+		CacheCreation5mTokens:    result.Usage.CacheCreation5mTokens,
+		CacheCreation1hTokens:    result.Usage.CacheCreation1hTokens,
+		ImageOutputTokens:        result.Usage.ImageOutputTokens,
+		RateMultiplier:           multiplier,
+		AccountRateMultiplier:    &accountRateMultiplier,
+		BillingType:              billingType,
+		BillingMode:              resolveBillingMode(result, cost),
+		Stream:                   result.Stream,
+		DurationMs:               &durationMs,
+		FirstTokenMs:             result.FirstTokenMs,
+		ImageCount:               result.ImageCount,
+		ImageSize:                optionalTrimmedStringPtr(result.ImageSize),
+		ImageInputSize:           optionalTrimmedStringPtr(result.ImageInputSize),
+		ImageOutputSize:          optionalTrimmedStringPtr(result.ImageOutputSize),
+		ImageSizeSource:          optionalTrimmedStringPtr(result.ImageSizeSource),
+		ImageSizeBreakdown:       result.ImageSizeBreakdown,
+		CacheTTLOverridden:       cacheTTLOverridden,
+		ChannelID:                optionalTrimmedStringPtr(input.ChannelID),
+		ModelMappingChain:        optionalTrimmedStringPtr(input.ModelMappingChain),
+		UserAgent:                optionalTrimmedStringPtr(input.UserAgent),
+		IPAddress:                optionalTrimmedStringPtr(input.IPAddress),
+		SessionID:                optionalTrimmedStringPtr(input.SessionID),
+		GroupID:                  apiKey.GroupID,
+		SubscriptionID:           optionalSubscriptionID(subscription),
+		CreatedAt:                time.Now(),
 	}
 	if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier

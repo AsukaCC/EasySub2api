@@ -101,7 +101,7 @@ func runSyntheticVisibleTTFTStream(t *testing.T, passthrough bool, visibleDelay 
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: reader}
-	account := &Account{ID: 1, Name: "account_test", Platform: PlatformOpenAI}
+	account := &Account{ID: "account_test", Name: "account_test", Platform: PlatformOpenAI}
 	started := time.Now()
 
 	var result *openaiStreamingResult

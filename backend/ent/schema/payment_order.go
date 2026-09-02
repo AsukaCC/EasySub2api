@@ -15,11 +15,8 @@ import (
 
 // PaymentOrder holds the schema definition for the PaymentOrder entity.
 //
-// 删除策略：硬删除
-// PaymentOrder 使用硬删除而非软删除，原因如下：
-//   - 订单通过 status 字段追踪完整生命周期，无需依赖软删除
-//   - 订单审计通过 PaymentAuditLog 表记录，删除前可归档
-//   - 减少查询复杂度，避免软删除过滤开销
+// 已取消订单允许用户或管理员从订单列表中归档。记录本身继续保留，
+// 以便支付渠道的延迟成功回调仍能恢复订单并完成履约。
 type PaymentOrder struct {
 	ent.Schema
 }
@@ -267,6 +264,10 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now).
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("deleted_at").
+			Optional().
+			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 	}
 }

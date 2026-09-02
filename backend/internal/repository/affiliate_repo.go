@@ -412,7 +412,7 @@ func (r *affiliateRepository) ListInvitees(ctx context.Context, inviterID string
 SELECT ua.user_id,
        COALESCE(u.email, ''),
        COALESCE(u.username, ''),
-       ua.created_at,
+       COALESCE(ua.inviter_bound_at, ua.created_at),
        COALESCE(SUM(ual.amount), 0)::double precision AS total_rebate
 FROM user_affiliates ua
 LEFT JOIN users u ON u.id = ua.user_id
@@ -421,8 +421,8 @@ LEFT JOIN user_affiliate_ledger ual
       AND ual.user_id IN ($1, ua.user_id)
       AND ual.action = 'accrue'
 WHERE ua.inviter_id = $1
-GROUP BY ua.user_id, u.email, u.username, ua.created_at
-ORDER BY ua.created_at DESC
+GROUP BY ua.user_id, u.email, u.username, ua.inviter_bound_at, ua.created_at
+ORDER BY COALESCE(ua.inviter_bound_at, ua.created_at) DESC
 LIMIT $2`, inviterID, limit)
 	if err != nil {
 		return nil, err
@@ -447,7 +447,7 @@ LIMIT $2`, inviterID, limit)
 
 func (r *affiliateRepository) ListAffiliateInviteRecords(ctx context.Context, filter service.AffiliateRecordFilter) ([]service.AffiliateInviteRecord, int64, error) {
 	client := clientFromContext(ctx, r.client)
-	where, args := buildAffiliateRecordWhere(filter, "ua.created_at", []string{
+	where, args := buildAffiliateRecordWhere(filter, "COALESCE(ua.inviter_bound_at, ua.created_at)", []string{
 		"inviter.email", "inviter.username", "invitee.email", "invitee.username",
 		"ua.inviter_id::text", "ua.user_id::text", "inviter_aff.aff_code",
 	})
@@ -468,8 +468,8 @@ JOIN user_affiliates inviter_aff ON inviter_aff.user_id = ua.inviter_id
 		"invitee":      "invitee.email",
 		"aff_code":     "inviter_aff.aff_code",
 		"total_rebate": "total_rebate",
-		"created_at":   "ua.created_at",
-	}, "ua.created_at")
+		"created_at":   "COALESCE(ua.inviter_bound_at, ua.created_at)",
+	}, "COALESCE(ua.inviter_bound_at, ua.created_at)")
 	args = append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)
 	rows, err := client.QueryContext(ctx, `
 SELECT ua.inviter_id,
@@ -480,7 +480,7 @@ SELECT ua.inviter_id,
        COALESCE(invitee.username, ''),
        COALESCE(inviter_aff.aff_code, ''),
        COALESCE(SUM(ual.amount), 0)::double precision AS total_rebate,
-       ua.created_at
+       COALESCE(ua.inviter_bound_at, ua.created_at)
 FROM user_affiliates ua
 JOIN users invitee ON invitee.id = ua.user_id
 JOIN users inviter ON inviter.id = ua.inviter_id
@@ -490,7 +490,7 @@ LEFT JOIN user_affiliate_ledger ual
       AND ual.user_id IN (ua.inviter_id, ua.user_id)
       AND ual.action = 'accrue'
 `+where+`
-GROUP BY ua.inviter_id, inviter.email, inviter.username, ua.user_id, invitee.email, invitee.username, inviter_aff.aff_code, ua.created_at
+GROUP BY ua.inviter_id, inviter.email, inviter.username, ua.user_id, invitee.email, invitee.username, inviter_aff.aff_code, ua.inviter_bound_at, ua.created_at
 `+orderBy+`
 LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 	if err != nil {

@@ -67,6 +67,7 @@ const AntigravityGemini31ProAgentModel = "gemini-pro-agent"
 // DefaultAntigravityModelMapping is used when an Antigravity account does not
 // provide an explicit model mapping.
 var DefaultAntigravityModelMapping = map[string]string{
+	"claude-fable-5-1":               "claude-fable-5-1",
 	"claude-fable-5":                 "claude-fable-5",
 	"claude-opus-4-8":                "claude-opus-4-8",
 	"claude-opus-4-7":                "claude-opus-4-7",
@@ -115,7 +116,7 @@ var DefaultAntigravityModelMapping = map[string]string{
 const (
 	APIProtocolChatCompletions = "chat_completions" // OpenAI Chat Completions（默认）
 	APIProtocolAnthropic       = "anthropic"        // 原生 Anthropic /v1/messages（适配 Claude Code）
-	APIProtocolResponses       = "responses"        // OpenAI Responses（仅 deepseek，适配 Codex）
+	APIProtocolResponses       = "responses"        // OpenAI Responses（deepseek / kimi 原生端点，适配 Codex）
 )
 
 // Account type constants
@@ -167,7 +168,8 @@ const (
 // aws_region 自动调整为匹配的区域前缀（如 eu.、apac.、jp. 等）
 var DefaultBedrockModelMapping = map[string]string{
 	// Claude Fable
-	"claude-fable-5": "anthropic.claude-fable-5",
+	"claude-fable-5-1": "anthropic.claude-fable-5-1",
+	"claude-fable-5":   "anthropic.claude-fable-5",
 	// Claude Opus
 	"claude-opus-5":            "us.anthropic.claude-opus-5-v1",
 	"claude-opus-4-8":          "us.anthropic.claude-opus-4-8-v1",

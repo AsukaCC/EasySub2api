@@ -113,13 +113,37 @@
               <template v-else>{{ paidPerMillion(m.pricing?.output_price) }}</template>
             </td>
             <td class="components-model-plaza-plaza-model-pricing-table__cell-3 pz-cell">
+              <template v-if="hasTierCachePricing(tokenIntervals(m))">
+                <div
+                  v-for="(iv, idx) in tokenIntervals(m)"
+                  :key="idx"
+                  class="components-model-plaza-plaza-model-pricing-table__panel-5"
+                >
+                  <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ tierLabel(iv) }}</span>
+                  <template v-if="iv.cache_write_price != null || iv.cache_write_1h_price != null || iv.cache_read_price != null">
+                    <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheWrite') }}</span>
+                    {{ paidPerMillion(iv.cache_write_price)
+                    }}<template v-if="iv.cache_write_1h_price != null"
+                      ><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (1h </span>{{ paidPerMillion(iv.cache_write_1h_price)
+                      }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template
+                    >
+                    <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheRead') }}</span>
+                    {{ paidPerMillion(iv.cache_read_price) }}
+                  </template>
+                  <span v-else class="components-model-plaza-plaza-model-pricing-table__text-6">-</span>
+                </div>
+              </template>
               <div
-                v-if="hasCachePricing(m)"
+                v-else-if="hasCachePricing(m)"
                 class="components-model-plaza-plaza-model-pricing-table__panel-6"
               >
                 <div>
                   <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheWrite') }}</span>
-                  {{ paidPerMillion(m.pricing?.cache_write_price) }}
+                  {{ paidPerMillion(m.pricing?.cache_write_price)
+                  }}<template v-if="m.pricing?.cache_write_1h_price != null"
+                    ><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (1h </span>{{ paidPerMillion(m.pricing.cache_write_1h_price)
+                    }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template
+                  >
                 </div>
                 <div>
                   <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheRead') }}</span>
@@ -316,7 +340,7 @@ function perUnitSuffix(m: PlazaModel): string {
 }
 
 function hasCachePricing(m: PlazaModel): boolean {
-  return m.pricing?.cache_write_price != null || m.pricing?.cache_read_price != null
+  return m.pricing?.cache_write_price != null || m.pricing?.cache_write_1h_price != null || m.pricing?.cache_read_price != null
 }
 
 function hasOfficialCache(o: NonNullable<PlazaModel['official_pricing']>): boolean {
@@ -326,6 +350,14 @@ function hasOfficialCache(o: NonNullable<PlazaModel['official_pricing']>): boole
 /** token 模式的阶梯定价(内联进输入/输出列)。 */
 function tokenIntervals(m: PlazaModel): UserPricingInterval[] {
   return m.pricing?.intervals ?? []
+}
+
+function hasTierCachePricing(intervals: UserPricingInterval[]): boolean {
+  return intervals.some((interval) =>
+    interval.cache_write_price != null ||
+    interval.cache_write_1h_price != null ||
+    interval.cache_read_price != null
+  )
 }
 
 /** 按次/按图模式的阶梯定价(仅保留配了按次价的档位)。 */

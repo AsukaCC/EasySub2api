@@ -299,8 +299,18 @@
             </div>
           </template>
           <template #cell-schedulable="{ row }">
-            <button @click="handleToggleSchedulable(row)" :disabled="togglingSchedulable === row.id" class="views-admin-accounts-view__action-5" :class="[row.schedulable ? 'views-admin-accounts-view__action-10' : 'views-admin-accounts-view__action-11']" :title="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')">
-              <span class="views-admin-accounts-view__text-15" :class="[row.schedulable ? 'toggle-thumb--on' : 'views-admin-accounts-view__text-31']" />
+            <button
+              type="button"
+              class="account-schedule-toggle"
+              :class="{ 'account-schedule-toggle--enabled': row.schedulable }"
+              :disabled="togglingSchedulable === row.id"
+              :aria-pressed="row.schedulable"
+              :aria-busy="togglingSchedulable === row.id"
+              :aria-label="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')"
+              :title="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')"
+              @click="handleToggleSchedulable(row)"
+            >
+              <span class="account-schedule-toggle__thumb" aria-hidden="true" />
             </button>
           </template>
           <template #cell-today_stats="{ row }">
@@ -2476,6 +2486,113 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.account-schedule-toggle {
+  --schedule-track-bg: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  --schedule-track-border: color-mix(in srgb, var(--color-text-primary) 22%, transparent);
+  --schedule-thumb-bg: rgba(255, 255, 255, 0.82);
+  --schedule-thumb-border: color-mix(in srgb, var(--color-text-primary) 24%, transparent);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 1.5rem;
+  padding: 0.1875rem;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--schedule-track-border);
+  border-radius: 9999px;
+  background-color: var(--schedule-track-bg);
+  box-shadow:
+    0 1px 0 var(--glass-highlight) inset,
+    0 1px 3px color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    backdrop-filter 180ms ease,
+    -webkit-backdrop-filter 180ms ease;
+}
+
+.account-schedule-toggle:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--schedule-track-border) 82%, var(--color-text-primary));
+  box-shadow:
+    0 4px 16px rgba(15, 23, 42, 0.08),
+    0 1px 0 var(--glass-highlight-hover) inset;
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
+}
+
+.account-schedule-toggle--enabled,
+.account-schedule-toggle--enabled:hover:not(:disabled) {
+  --schedule-track-bg: color-mix(in srgb, var(--theme-accent) 24%, transparent);
+  --schedule-track-border: color-mix(in srgb, var(--theme-accent) 52%, transparent);
+  --schedule-thumb-border: color-mix(in srgb, var(--theme-accent) 38%, transparent);
+
+  border-color: var(--schedule-track-border);
+  background-color: var(--schedule-track-bg);
+}
+
+.account-schedule-toggle:focus-visible {
+  outline: none;
+  border-color: var(--glass-border-active);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--theme-accent) 22%, transparent),
+    0 1px 0 var(--glass-highlight-hover) inset;
+}
+
+.account-schedule-toggle:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.account-schedule-toggle__thumb {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--schedule-thumb-border);
+  border-radius: 50%;
+  background-color: var(--schedule-thumb-bg);
+  box-shadow:
+    0 2px 6px color-mix(in srgb, var(--color-text-primary) 24%, transparent),
+    0 1px 0 var(--glass-highlight-hover) inset;
+  transform: translateX(0);
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.account-schedule-toggle--enabled .account-schedule-toggle__thumb {
+  box-shadow:
+    0 2px 7px color-mix(in srgb, var(--theme-accent) 34%, transparent),
+    0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  transform: translateX(1rem);
+}
+
+:global(.dark) .account-schedule-toggle {
+  --schedule-track-bg: rgba(255, 255, 255, 0.08);
+  --schedule-track-border: rgba(255, 255, 255, 0.2);
+  --schedule-thumb-bg: rgba(244, 244, 245, 0.78);
+  --schedule-thumb-border: rgba(255, 255, 255, 0.3);
+}
+
+:global(.dark) .account-schedule-toggle--enabled {
+  --schedule-track-bg: color-mix(in srgb, var(--theme-accent) 34%, transparent);
+  --schedule-track-border: color-mix(in srgb, var(--theme-accent) 62%, transparent);
+  --schedule-thumb-border: rgba(255, 255, 255, 0.38);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-schedule-toggle,
+  .account-schedule-toggle__thumb {
+    transition-duration: 0.01ms;
+  }
+}
+
 .account-tools-menu-item {
   display: flex;
   align-items: center;

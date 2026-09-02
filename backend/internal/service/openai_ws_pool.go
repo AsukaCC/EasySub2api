@@ -18,8 +18,11 @@ import (
 )
 
 const (
-	openAIWSConnMaxAge             = 60 * time.Minute
-	openAIWSConnHealthCheckIdle    = 90 * time.Second
+	openAIWSConnMaxAge          = 60 * time.Minute
+	openAIWSConnHealthCheckIdle = 90 * time.Second
+	// coder/websocket cannot consume pong frames without a reader. Recycle
+	// unsupported idle sockets before the upstream keepalive window expires.
+	openAIWSConnIdleRecycleAfter   = 90 * time.Second
 	openAIWSConnHealthCheckTO      = 2 * time.Second
 	openAIWSConnPrewarmExtraDelay  = 2 * time.Second
 	openAIWSAcquireCleanupInterval = 3 * time.Second
@@ -247,8 +250,9 @@ func (l *openAIWSConnLease) Release() {
 }
 
 type openAIWSConn struct {
-	id string
-	ws openAIWSClientConn
+	id      string
+	ws      openAIWSClientConn
+	onClose func()
 
 	handshakeHeaders       http.Header
 	handshakeCompatibility openAIWSHandshakeCompatibilityKey
@@ -354,6 +358,9 @@ func (c *openAIWSConn) close() {
 		close(c.closedCh)
 		if c.ws != nil {
 			_ = c.ws.Close()
+		}
+		if c.onClose != nil {
+			c.onClose()
 		}
 		select {
 		case c.leaseCh <- struct{}{}:
@@ -610,6 +617,11 @@ type OpenAIWSPoolMetricsSnapshot struct {
 	ScaleDownTotal          int64
 }
 
+type OpenAIWSPoolCapacitySnapshot struct {
+	CurrentConnections int64 `json:"current_connections"`
+	MaxConnections     int   `json:"max_connections"`
+}
+
 type openAIWSPoolMetrics struct {
 	acquireTotal          atomic.Int64
 	acquireReuseTotal     atomic.Int64
@@ -627,8 +639,10 @@ type openAIWSConnPool struct {
 	// 通过接口解耦底层 WS 客户端实现，默认使用 coder/websocket。
 	clientDialer openAIWSClientDialer
 
-	accounts sync.Map // key: int64(accountID), value: *openAIWSAccountPool
-	seq      atomic.Uint64
+	accounts       sync.Map // key: int64(accountID), value: *openAIWSAccountPool
+	seq            atomic.Uint64
+	totalConnSlots atomic.Int64
+	openConns      atomic.Int64
 
 	metrics openAIWSPoolMetrics
 
@@ -661,6 +675,16 @@ func (p *openAIWSConnPool) SnapshotMetrics() OpenAIWSPoolMetricsSnapshot {
 		ConnPickMsTotal:         p.metrics.connPickMs.Load(),
 		ScaleUpTotal:            p.metrics.scaleUpTotal.Load(),
 		ScaleDownTotal:          p.metrics.scaleDownTotal.Load(),
+	}
+}
+
+func (p *openAIWSConnPool) SnapshotCapacity() OpenAIWSPoolCapacitySnapshot {
+	if p == nil {
+		return OpenAIWSPoolCapacitySnapshot{}
+	}
+	return OpenAIWSPoolCapacitySnapshot{
+		CurrentConnections: p.openConns.Load(),
+		MaxConnections:     p.maxTotalConns(),
 	}
 }
 
@@ -1353,6 +1377,17 @@ func (p *openAIWSConnPool) cleanupAccountLocked(ap *openAIWSAccountPool, now tim
 		if p.isConnPinnedLocked(ap, id) {
 			continue
 		}
+		if !conn.isLeased() && conn.waiters.Load() == 0 &&
+			!conn.supportsIdlePingWithoutReader() &&
+			conn.idleDuration(now) >= openAIWSConnIdleRecycleAfter {
+			delete(ap.conns, id)
+			if len(ap.pinnedConns) > 0 {
+				delete(ap.pinnedConns, id)
+			}
+			evicted = append(evicted, conn)
+			p.metrics.scaleDownTotal.Add(1)
+			continue
+		}
 		if maxAge > 0 && !conn.isLeased() && conn.age(now) > maxAge {
 			delete(ap.conns, id)
 			if len(ap.pinnedConns) > 0 {
@@ -1776,6 +1811,15 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 	if p == nil || p.clientDialer == nil {
 		return nil, errors.New("openai ws client dialer is nil")
 	}
+	if !p.tryReserveGlobalConnSlot() {
+		return nil, errOpenAIWSConnQueueFull
+	}
+	reserved := true
+	defer func() {
+		if reserved {
+			p.totalConnSlots.Add(-1)
+		}
+	}()
 	headers := cloneHeader(req.Headers)
 	var err error
 	if req.HeadersFactory != nil {
@@ -1807,6 +1851,12 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 	}
 	id := p.nextConnID(req.Account.ID)
 	pooledConn := newOpenAIWSConn(id, req.Account.ID, conn, handshakeHeaders)
+	p.openConns.Add(1)
+	pooledConn.onClose = func() {
+		p.openConns.Add(-1)
+		p.totalConnSlots.Add(-1)
+	}
+	reserved = false
 	pooledConn.handshakeCompatibility = normalizeOpenAIWSHandshakeCompatibility(req.Account, req.Headers)
 	pooledConn.routingAffinity = normalizeOpenAIWSRoutingAffinity(req.Headers)
 	return pooledConn, nil
@@ -1834,6 +1884,29 @@ func (p *openAIWSConnPool) maxConnsHardCap() int {
 		return p.cfg.Gateway.OpenAIWS.MaxConnsPerAccount
 	}
 	return 8
+}
+
+func (p *openAIWSConnPool) maxTotalConns() int {
+	if p != nil && p.cfg != nil && p.cfg.Gateway.OpenAIWS.MaxTotalConns > 0 {
+		return p.cfg.Gateway.OpenAIWS.MaxTotalConns
+	}
+	return 512
+}
+
+func (p *openAIWSConnPool) tryReserveGlobalConnSlot() bool {
+	if p == nil {
+		return false
+	}
+	maxConns := int64(p.maxTotalConns())
+	for {
+		current := p.totalConnSlots.Load()
+		if current >= maxConns {
+			return false
+		}
+		if p.totalConnSlots.CompareAndSwap(current, current+1) {
+			return true
+		}
+	}
 }
 
 func (p *openAIWSConnPool) dynamicMaxConnsEnabled() bool {

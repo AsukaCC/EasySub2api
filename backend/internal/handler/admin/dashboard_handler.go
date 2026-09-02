@@ -17,23 +17,25 @@ import (
 
 // DashboardHandler handles admin dashboard statistics
 type DashboardHandler struct {
-	dashboardService    *service.DashboardService
-	aggregationService  *service.DashboardAggregationService
-	accountQuotaService *service.AccountQuotaDashboardService
-	startTime           time.Time // Server start time for uptime calculation
+	dashboardService     *service.DashboardService
+	aggregationService   *service.DashboardAggregationService
+	openAIGatewayService *service.OpenAIGatewayService
+	accountQuotaService  *service.AccountQuotaDashboardService
+	startTime            time.Time // Server start time for uptime calculation
 }
 
 // NewDashboardHandler creates a new admin dashboard handler
-func NewDashboardHandler(dashboardService *service.DashboardService, aggregationService *service.DashboardAggregationService, quotaServices ...*service.AccountQuotaDashboardService) *DashboardHandler {
+func NewDashboardHandler(dashboardService *service.DashboardService, aggregationService *service.DashboardAggregationService, openAIGatewayService *service.OpenAIGatewayService, quotaServices ...*service.AccountQuotaDashboardService) *DashboardHandler {
 	var quotaService *service.AccountQuotaDashboardService
 	if len(quotaServices) > 0 {
 		quotaService = quotaServices[0]
 	}
 	return &DashboardHandler{
-		dashboardService:    dashboardService,
-		aggregationService:  aggregationService,
-		accountQuotaService: quotaService,
-		startTime:           time.Now(),
+		dashboardService:     dashboardService,
+		aggregationService:   aggregationService,
+		openAIGatewayService: openAIGatewayService,
+		accountQuotaService:  quotaService,
+		startTime:            time.Now(),
 	}
 }
 
@@ -80,6 +82,17 @@ func parseOptionalBoolDashboardFilter(c *gin.Context, name string) (*bool, error
 		return nil, err
 	}
 	return &value, nil
+}
+
+func parseOptionalBillingModeDashboardFilter(c *gin.Context) (string, error) {
+	mode := strings.TrimSpace(c.Query("billing_mode"))
+	if mode == "" {
+		return "", nil
+	}
+	if !service.BillingMode(mode).IsValidUsageFilter() {
+		return "", errors.New("invalid billing_mode")
+	}
+	return mode, nil
 }
 
 // GetStats handles getting dashboard statistics
@@ -236,18 +249,23 @@ func (h *DashboardHandler) BackfillAggregation(c *gin.Context) {
 // GetRealtimeMetrics handles getting real-time system metrics
 // GET /api/v1/admin/dashboard/realtime
 func (h *DashboardHandler) GetRealtimeMetrics(c *gin.Context) {
-	// Return mock data for now
+	wsPool := service.OpenAIWSPoolCapacitySnapshot{}
+	if h.openAIGatewayService != nil {
+		wsPool = h.openAIGatewayService.SnapshotOpenAIWSPoolCapacity()
+	}
 	response.Success(c, gin.H{
-		"active_requests":       0,
-		"requests_per_minute":   0,
-		"average_response_time": 0,
-		"error_rate":            0.0,
+		"active_requests":         0,
+		"requests_per_minute":     0,
+		"average_response_time":   0,
+		"error_rate":              0.0,
+		"ws_pool_connections":     wsPool.CurrentConnections,
+		"ws_pool_max_connections": wsPool.MaxConnections,
 	})
 }
 
 // GetUsageTrend handles getting usage trend data
 // GET /api/v1/admin/dashboard/trend
-// Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), user_id, api_key_id, model, account_id, group_id, request_type, stream, billing_type
+// Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), user_id, api_key_id, model, account_id, group_id, request_type, stream, billing_type, billing_mode
 func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
@@ -308,13 +326,23 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 			return
 		}
 	}
-	upstreamModelMismatch, err := parseOptionalBoolDashboardFilter(c, "upstream_model_mismatch")
+	billingMode, err := parseOptionalBillingModeDashboardFilter(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	nativeCompactionV2, err := parseOptionalBoolDashboardFilter(c, "native_compaction_v2")
+	if err != nil {
+		response.BadRequest(c, "Invalid native_compaction_v2 value, use true or false")
+		return
+	}
+	upstreamModelMismatch, err = parseOptionalBoolDashboardFilter(c, "upstream_model_mismatch")
 	if err != nil {
 		response.BadRequest(c, "Invalid upstream_model_mismatch value, use true or false")
 		return
 	}
 
-	trend, hit, err := h.getUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, billingType, upstreamModelMismatch)
+	trend, hit, err := h.getUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch)
 	if err != nil {
 		response.Error(c, 500, "Failed to get usage trend")
 		return
@@ -331,7 +359,7 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 
 // GetModelStats handles getting model usage statistics
 // GET /api/v1/admin/dashboard/models
-// Query params: start_date, end_date (YYYY-MM-DD), user_id, api_key_id, account_id, group_id, request_type, stream, billing_type
+// Query params: start_date, end_date (YYYY-MM-DD), user_id, api_key_id, account_id, group_id, request_type, stream, billing_type, billing_mode
 func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 
@@ -395,13 +423,23 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 			return
 		}
 	}
-	upstreamModelMismatch, err := parseOptionalBoolDashboardFilter(c, "upstream_model_mismatch")
+	billingMode, err := parseOptionalBillingModeDashboardFilter(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	nativeCompactionV2, err := parseOptionalBoolDashboardFilter(c, "native_compaction_v2")
+	if err != nil {
+		response.BadRequest(c, "Invalid native_compaction_v2 value, use true or false")
+		return
+	}
+	upstreamModelMismatch, err = parseOptionalBoolDashboardFilter(c, "upstream_model_mismatch")
 	if err != nil {
 		response.BadRequest(c, "Invalid upstream_model_mismatch value, use true or false")
 		return
 	}
 
-	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, billingType, upstreamModelMismatch)
+	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch)
 	if err != nil {
 		response.Error(c, 500, "Failed to get model statistics")
 		return
@@ -417,7 +455,7 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 
 // GetGroupStats handles getting group usage statistics
 // GET /api/v1/admin/dashboard/groups
-// Query params: start_date, end_date (YYYY-MM-DD), user_id, api_key_id, account_id, group_id, request_type, stream, billing_type
+// Query params: start_date, end_date (YYYY-MM-DD), user_id, api_key_id, account_id, group_id, request_type, stream, billing_type, billing_mode
 func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 
@@ -472,13 +510,23 @@ func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 			return
 		}
 	}
-	upstreamModelMismatch, err := parseOptionalBoolDashboardFilter(c, "upstream_model_mismatch")
+	billingMode, err := parseOptionalBillingModeDashboardFilter(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	nativeCompactionV2, err := parseOptionalBoolDashboardFilter(c, "native_compaction_v2")
+	if err != nil {
+		response.BadRequest(c, "Invalid native_compaction_v2 value, use true or false")
+		return
+	}
+	upstreamModelMismatch, err = parseOptionalBoolDashboardFilter(c, "upstream_model_mismatch")
 	if err != nil {
 		response.BadRequest(c, "Invalid upstream_model_mismatch value, use true or false")
 		return
 	}
 
-	stats, hit, err := h.getGroupStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, billingType, upstreamModelMismatch)
+	stats, hit, err := h.getGroupStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch)
 	if err != nil {
 		response.Error(c, 500, "Failed to get group statistics")
 		return
@@ -747,12 +795,26 @@ func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 			dim.Stream = &s
 		}
 	}
+	if v := strings.TrimSpace(c.Query("native_compaction_v2")); v != "" {
+		value, err := strconv.ParseBool(v)
+		if err != nil {
+			response.BadRequest(c, "Invalid native_compaction_v2 value, use true or false")
+			return
+		}
+		dim.NativeCompactionV2 = &value
+	}
 	if v := c.Query("billing_type"); v != "" {
 		if bt, err := strconv.ParseInt(v, 10, 8); err == nil {
 			btVal := int8(bt)
 			dim.BillingType = &btVal
 		}
 	}
+	billingMode, err := parseOptionalBillingModeDashboardFilter(c)
+	if err != nil {
+		response.BadRequest(c, "Invalid billing_mode")
+		return
+	}
+	dim.BillingMode = billingMode
 
 	// sort_by 由 repo 层 allowlist 校验;非法值静默回退默认排序(actual_cost)。
 	dim.SortBy = strings.TrimSpace(c.Query("sort_by"))

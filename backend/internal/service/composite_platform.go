@@ -84,6 +84,18 @@ func CompositeRouteSourceFromContext(ctx context.Context) (string, bool) {
 	return source, true
 }
 
+func compositeAccountOwnsRequestedAlias(ctx context.Context, account *Account) bool {
+	source, ok := CompositeRouteSourceFromContext(ctx)
+	if !ok || source != CompositeRouteSourceAccount {
+		return true
+	}
+	publicModel, ok := RequestedPublicModelFromContext(ctx)
+	if !ok {
+		return false
+	}
+	return explicitModelMappingClaims(account, publicModel)
+}
+
 // DetectModelPlatform maps common public model IDs to the concrete provider
 // platform used by sub2api. It intentionally returns false for ambiguous model
 // names so composite groups fail closed instead of guessing.
@@ -146,20 +158,24 @@ func (s *GatewayService) resolveCompositeRouteDecision(ctx context.Context, grou
 	if group == nil || group.Platform != PlatformComposite {
 		return CompositeRouteDecision{}, false, nil
 	}
-	if platform, ok := ResolvedTargetPlatformFromContext(ctx); ok {
+	if source, sourceOK := CompositeRouteSourceFromContext(ctx); sourceOK {
+		platform, platformOK := ResolvedTargetPlatformFromContext(ctx)
+		if !platformOK {
+			return CompositeRouteDecision{}, false, nil
+		}
 		upstreamModel := requestedModel
 		if resolvedModel, modelOK := ResolvedUpstreamModelFromContext(ctx); modelOK {
 			upstreamModel = resolvedModel
 		}
-		source := CompositeRouteSourceDetector
-		if resolvedSource, sourceOK := CompositeRouteSourceFromContext(ctx); sourceOK {
-			source = resolvedSource
+		publicModel := requestedModel
+		if resolvedModel, modelOK := RequestedPublicModelFromContext(ctx); modelOK {
+			publicModel = resolvedModel
 		}
 		return CompositeRouteDecision{
 			Matched:        true,
 			Source:         source,
 			GroupID:        group.ID,
-			PublicModel:    requestedModel,
+			PublicModel:    publicModel,
 			TargetPlatform: platform,
 			UpstreamModel:  upstreamModel,
 			Endpoint:       normalizeCompositeRouteEndpoint(endpoint),
@@ -174,7 +190,8 @@ func (s *GatewayService) resolveCompositeRouteDecision(ctx context.Context, grou
 
 func isConcreteRequestPlatform(platform string) bool {
 	switch platform {
-	case PlatformAnthropic, PlatformOpenAI, PlatformGrok:
+	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformGrok,
+		PlatformKimi, PlatformZhipu, PlatformDeepseek:
 		return true
 	default:
 		return false

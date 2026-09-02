@@ -243,6 +243,48 @@ func (_u *PaymentRefundUpdate) AddFeeAmount(v float64) *PaymentRefundUpdate {
 	return _u
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (_u *PaymentRefundUpdate) SetRefundFeeRate(v float64) *PaymentRefundUpdate {
+	_u.mutation.ResetRefundFeeRate()
+	_u.mutation.SetRefundFeeRate(v)
+	return _u
+}
+
+// SetNillableRefundFeeRate sets the "refund_fee_rate" field if the given value is not nil.
+func (_u *PaymentRefundUpdate) SetNillableRefundFeeRate(v *float64) *PaymentRefundUpdate {
+	if v != nil {
+		_u.SetRefundFeeRate(*v)
+	}
+	return _u
+}
+
+// AddRefundFeeRate adds value to the "refund_fee_rate" field.
+func (_u *PaymentRefundUpdate) AddRefundFeeRate(v float64) *PaymentRefundUpdate {
+	_u.mutation.AddRefundFeeRate(v)
+	return _u
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (_u *PaymentRefundUpdate) SetRefundFeeAmount(v float64) *PaymentRefundUpdate {
+	_u.mutation.ResetRefundFeeAmount()
+	_u.mutation.SetRefundFeeAmount(v)
+	return _u
+}
+
+// SetNillableRefundFeeAmount sets the "refund_fee_amount" field if the given value is not nil.
+func (_u *PaymentRefundUpdate) SetNillableRefundFeeAmount(v *float64) *PaymentRefundUpdate {
+	if v != nil {
+		_u.SetRefundFeeAmount(*v)
+	}
+	return _u
+}
+
+// AddRefundFeeAmount adds value to the "refund_fee_amount" field.
+func (_u *PaymentRefundUpdate) AddRefundFeeAmount(v float64) *PaymentRefundUpdate {
+	_u.mutation.AddRefundFeeAmount(v)
+	return _u
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (_u *PaymentRefundUpdate) SetGatewayAmount(v float64) *PaymentRefundUpdate {
 	_u.mutation.ResetGatewayAmount()
@@ -387,6 +429,27 @@ func (_u *PaymentRefundUpdate) SetNillableTargetFeeAmount(v *float64) *PaymentRe
 // AddTargetFeeAmount adds value to the "target_fee_amount" field.
 func (_u *PaymentRefundUpdate) AddTargetFeeAmount(v float64) *PaymentRefundUpdate {
 	_u.mutation.AddTargetFeeAmount(v)
+	return _u
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (_u *PaymentRefundUpdate) SetTargetRefundFeeAmount(v float64) *PaymentRefundUpdate {
+	_u.mutation.ResetTargetRefundFeeAmount()
+	_u.mutation.SetTargetRefundFeeAmount(v)
+	return _u
+}
+
+// SetNillableTargetRefundFeeAmount sets the "target_refund_fee_amount" field if the given value is not nil.
+func (_u *PaymentRefundUpdate) SetNillableTargetRefundFeeAmount(v *float64) *PaymentRefundUpdate {
+	if v != nil {
+		_u.SetTargetRefundFeeAmount(*v)
+	}
+	return _u
+}
+
+// AddTargetRefundFeeAmount adds value to the "target_refund_fee_amount" field.
+func (_u *PaymentRefundUpdate) AddTargetRefundFeeAmount(v float64) *PaymentRefundUpdate {
+	_u.mutation.AddTargetRefundFeeAmount(v)
 	return _u
 }
 
@@ -733,6 +796,18 @@ func (_u *PaymentRefundUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.AddedFeeAmount(); ok {
 		_spec.AddField(paymentrefund.FieldFeeAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.RefundFeeRate(); ok {
+		_spec.SetField(paymentrefund.FieldRefundFeeRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRefundFeeRate(); ok {
+		_spec.AddField(paymentrefund.FieldRefundFeeRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.RefundFeeAmount(); ok {
+		_spec.SetField(paymentrefund.FieldRefundFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRefundFeeAmount(); ok {
+		_spec.AddField(paymentrefund.FieldRefundFeeAmount, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.GatewayAmount(); ok {
 		_spec.SetField(paymentrefund.FieldGatewayAmount, field.TypeFloat64, value)
 	}
@@ -774,6 +849,12 @@ func (_u *PaymentRefundUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.AddedTargetFeeAmount(); ok {
 		_spec.AddField(paymentrefund.FieldTargetFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TargetRefundFeeAmount(); ok {
+		_spec.SetField(paymentrefund.FieldTargetRefundFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTargetRefundFeeAmount(); ok {
+		_spec.AddField(paymentrefund.FieldTargetRefundFeeAmount, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.TargetBasePoints(); ok {
 		_spec.SetField(paymentrefund.FieldTargetBasePoints, field.TypeFloat64, value)
@@ -1064,6 +1145,48 @@ func (_u *PaymentRefundUpdateOne) AddFeeAmount(v float64) *PaymentRefundUpdateOn
 	return _u
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (_u *PaymentRefundUpdateOne) SetRefundFeeRate(v float64) *PaymentRefundUpdateOne {
+	_u.mutation.ResetRefundFeeRate()
+	_u.mutation.SetRefundFeeRate(v)
+	return _u
+}
+
+// SetNillableRefundFeeRate sets the "refund_fee_rate" field if the given value is not nil.
+func (_u *PaymentRefundUpdateOne) SetNillableRefundFeeRate(v *float64) *PaymentRefundUpdateOne {
+	if v != nil {
+		_u.SetRefundFeeRate(*v)
+	}
+	return _u
+}
+
+// AddRefundFeeRate adds value to the "refund_fee_rate" field.
+func (_u *PaymentRefundUpdateOne) AddRefundFeeRate(v float64) *PaymentRefundUpdateOne {
+	_u.mutation.AddRefundFeeRate(v)
+	return _u
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (_u *PaymentRefundUpdateOne) SetRefundFeeAmount(v float64) *PaymentRefundUpdateOne {
+	_u.mutation.ResetRefundFeeAmount()
+	_u.mutation.SetRefundFeeAmount(v)
+	return _u
+}
+
+// SetNillableRefundFeeAmount sets the "refund_fee_amount" field if the given value is not nil.
+func (_u *PaymentRefundUpdateOne) SetNillableRefundFeeAmount(v *float64) *PaymentRefundUpdateOne {
+	if v != nil {
+		_u.SetRefundFeeAmount(*v)
+	}
+	return _u
+}
+
+// AddRefundFeeAmount adds value to the "refund_fee_amount" field.
+func (_u *PaymentRefundUpdateOne) AddRefundFeeAmount(v float64) *PaymentRefundUpdateOne {
+	_u.mutation.AddRefundFeeAmount(v)
+	return _u
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (_u *PaymentRefundUpdateOne) SetGatewayAmount(v float64) *PaymentRefundUpdateOne {
 	_u.mutation.ResetGatewayAmount()
@@ -1208,6 +1331,27 @@ func (_u *PaymentRefundUpdateOne) SetNillableTargetFeeAmount(v *float64) *Paymen
 // AddTargetFeeAmount adds value to the "target_fee_amount" field.
 func (_u *PaymentRefundUpdateOne) AddTargetFeeAmount(v float64) *PaymentRefundUpdateOne {
 	_u.mutation.AddTargetFeeAmount(v)
+	return _u
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (_u *PaymentRefundUpdateOne) SetTargetRefundFeeAmount(v float64) *PaymentRefundUpdateOne {
+	_u.mutation.ResetTargetRefundFeeAmount()
+	_u.mutation.SetTargetRefundFeeAmount(v)
+	return _u
+}
+
+// SetNillableTargetRefundFeeAmount sets the "target_refund_fee_amount" field if the given value is not nil.
+func (_u *PaymentRefundUpdateOne) SetNillableTargetRefundFeeAmount(v *float64) *PaymentRefundUpdateOne {
+	if v != nil {
+		_u.SetTargetRefundFeeAmount(*v)
+	}
+	return _u
+}
+
+// AddTargetRefundFeeAmount adds value to the "target_refund_fee_amount" field.
+func (_u *PaymentRefundUpdateOne) AddTargetRefundFeeAmount(v float64) *PaymentRefundUpdateOne {
+	_u.mutation.AddTargetRefundFeeAmount(v)
 	return _u
 }
 
@@ -1584,6 +1728,18 @@ func (_u *PaymentRefundUpdateOne) sqlSave(ctx context.Context) (_node *PaymentRe
 	if value, ok := _u.mutation.AddedFeeAmount(); ok {
 		_spec.AddField(paymentrefund.FieldFeeAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.RefundFeeRate(); ok {
+		_spec.SetField(paymentrefund.FieldRefundFeeRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRefundFeeRate(); ok {
+		_spec.AddField(paymentrefund.FieldRefundFeeRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.RefundFeeAmount(); ok {
+		_spec.SetField(paymentrefund.FieldRefundFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRefundFeeAmount(); ok {
+		_spec.AddField(paymentrefund.FieldRefundFeeAmount, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.GatewayAmount(); ok {
 		_spec.SetField(paymentrefund.FieldGatewayAmount, field.TypeFloat64, value)
 	}
@@ -1625,6 +1781,12 @@ func (_u *PaymentRefundUpdateOne) sqlSave(ctx context.Context) (_node *PaymentRe
 	}
 	if value, ok := _u.mutation.AddedTargetFeeAmount(); ok {
 		_spec.AddField(paymentrefund.FieldTargetFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.TargetRefundFeeAmount(); ok {
+		_spec.SetField(paymentrefund.FieldTargetRefundFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTargetRefundFeeAmount(); ok {
+		_spec.AddField(paymentrefund.FieldTargetRefundFeeAmount, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.TargetBasePoints(); ok {
 		_spec.SetField(paymentrefund.FieldTargetBasePoints, field.TypeFloat64, value)

@@ -127,11 +127,11 @@ export default {
         },
         affiliate: {
           title: '邀请返利',
-          description: '用户通过返利邀请码建立邀请关系，充值完成后按到账积分比例产生返利。默认关闭。',
+          description: '用户通过邀请码建立邀请关系，充值完成后按到账积分比例产生返利。默认关闭。',
           enabled: '启用邀请返利',
           enabledHint: '关闭后用户菜单中的邀请页面入口隐藏、注册时忽略邀请码、新充值订单不再产生返利。已有返利积分仍可转入平台积分。',
           rebateRate: '全局返利比例',
-          rebateRateHint: '充值后按所选接收方发放的默认比例（0-100%，例如填写 10 表示返利 10%）。',
+          rebateRateHint: '受邀请用户充值后，邀请人获得的默认比例（0-100%，例如填写 10 表示返利 10%）。',
           recipient: '返利接收方',
           recipientInviter: '邀请方',
           recipientInvitee: '受邀请方',
@@ -143,6 +143,41 @@ export default {
           durationDaysDesc: '被邀请用户注册后多少天内的充值产生返利。0 = 永久有效。',
           perInviteeCap: '单人返利积分上限',
           perInviteeCapDesc: '每个被邀请用户最多产生的返利积分。0 = 无上限。',
+          adminRechargeEnabled: '管理员充值参与返利',
+          adminRechargeEnabledHint: '开启后，管理员为受邀请用户增加的充值积分也会给邀请人产生返利。',
+          bindingRewards: {
+            title: '邀请关系奖励',
+            description: '邀请码成功绑定时，分别向邀请人和受邀请人即时发放赠送积分。',
+            inviterTitle: '邀请人奖励',
+            inviteeTitle: '受邀请人奖励',
+            points: '即时奖励积分',
+            validityDays: '有效期（天）',
+            hint: '积分为 0 时不发放该角色奖励；奖励不计入充值积分，有效期从实际到账时间开始计算。'
+          },
+          rechargeRebate: {
+            title: '受邀请人充值返利',
+            description: '充值返利固定发放给邀请人，冻结 168 小时后由邀请人手动转入赠送积分。'
+          },
+          backfill: {
+            title: '历史邀请关系补发',
+            description: '按当前邀请关系奖励配置，为尚未处理的历史关系补发一次。请先预览，再二次确认执行。',
+            preview: '预览补发',
+            start: '执行补发',
+            relations: '待处理关系：{count}',
+            inviterTotal: '邀请人：{count} 人 / {points} 积分',
+            inviteeTotal: '受邀请人：{count} 人 / {points} 积分',
+            confirmTitle: '确认执行历史奖励补发',
+            confirmMessage: '将处理 {count} 条历史邀请关系，预计发放 {points} 积分。任务启动后会在后台幂等执行，是否继续？',
+            confirmButton: '确认执行',
+            previewFailed: '历史奖励补发预览失败',
+            loadFailed: '读取历史奖励补发进度失败',
+            status: {
+              pending: '等待执行',
+              running: '补发中',
+              completed: '补发完成',
+              failed: '补发失败'
+            }
+          },
           customUsers: {
             title: '专属用户配置',
             description: '为指定用户设置专属邀请码或专属返利比例。仅展示已设置过专属配置的用户。',
@@ -205,8 +240,8 @@ export default {
           '开启后，白名单非空时，其他可注册主域名各限注册一个账户；关闭时非白名单域名直接拒绝注册。白名单为空时本开关无效果',
         promoCode: '优惠码',
         promoCodeHint: '允许用户在注册时使用优惠码',
-        invitationCode: '邀请码注册',
-        invitationCodeHint: '开启后显示可选的注册准入邀请码；用户填写时必须有效，留空不影响注册',
+        invitationCode: '注册强制邀请码',
+        invitationCodeHint: '开启后，新用户注册必须填写有效的邀请码；需要先启用邀请返利并向用户展示',
         passwordReset: '忘记密码',
         passwordResetHint: '允许用户通过邮箱重置密码',
         frontendUrl: '前端地址',
@@ -509,6 +544,10 @@ export default {
         grokBaseURLModeUSEast1: '区域 API（us-east-1）',
         grokBaseURLModeUSWest2: '区域 API（us-west-2）',
         grokBaseURLModeEUWest1: '区域 API（eu-west-1）',
+        openaiTTFTMode: 'OpenAI Responses 首 Token 统计口径',
+        openaiTTFTModeVisible: '真实可见输出（推荐）',
+        openaiTTFTModeSemantic: '语义事件（旧口径）',
+        openaiTTFTModeHint: '真实可见输出仅在首个非空文本、工具参数或图片内容到达时记录 first_token_ms；语义事件模式保留旧的事件口径。',
         fingerprintUnification: '指纹统一化',
         fingerprintUnificationHint: '统一共享同一 OAuth 账号的用户的 X-Stainless-* 请求头。关闭后透传客户端原始请求头。',
         metadataPassthrough: 'Metadata 透传',
@@ -779,6 +818,9 @@ export default {
         rechargeFeeRate: '充值手续费率',
         rechargeFeeRateHint: '用户充值时额外收取的手续费百分比，0 表示不收取手续费',
         rechargeFeePreview: '预览：充值 100 元，手续费 {fee} 元',
+        refundFeeRate: '退款手续费率',
+        refundFeeRateHint: '退款时从实际原路退回金额中扣除的手续费百分比，默认 3%',
+        refundFeePreview: '预览：退款本金 100 元，扣除手续费 {fee} 元',
         orderTimeout: '订单超时时间',
         orderTimeoutHint: '单位：分钟，至少 1 分钟',
         maxPendingOrders: '最大待支付订单数',
@@ -1168,6 +1210,15 @@ export default {
         cooldownSecondsHint: '默认回避持续时间（1-7200 秒）；上游返回明确 reset 时仍优先使用上游时间',
         saved: '429 默认回避设置保存成功',
         saveFailed: '保存 429 默认回避设置失败'
+      },
+      imageOAuthCooldown: {
+        title: 'OpenAI 图片 OAuth 不可用冷却',
+        description: '当上游明确返回图片工具不可用时，设置该 OAuth 账号暂停参与图片请求调度的时长。',
+        cooldownMinutes: '冷却时长（分钟）',
+        cooldownMinutesHint: '范围 1-120 分钟；模型只返回文本时不会触发该冷却。',
+        invalidRange: '冷却时长必须是 1 到 120 之间的整数分钟',
+        saved: 'OpenAI 图片 OAuth 冷却设置已保存',
+        saveFailed: '保存 OpenAI 图片 OAuth 冷却设置失败'
       },
       streamTimeout: {
         title: '流超时处理',

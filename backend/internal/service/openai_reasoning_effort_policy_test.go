@@ -89,14 +89,16 @@ func TestNormalizeMaxReasoningEffortForPlatform(t *testing.T) {
 func TestOpenAIReasoningEffortPolicyContext(t *testing.T) {
 	body := []byte(`{"reasoning":{"effort":"max"}}`)
 
-	unbound, changed := ApplyOpenAIReasoningEffortPolicyFromContext(context.Background(), body)
+	unbound, changed, err := ApplyOpenAIReasoningEffortPolicyFromContext(context.Background(), body)
+	require.NoError(t, err)
 	require.False(t, changed)
 	require.Equal(t, body, unbound)
 
 	mappings := []ReasoningEffortMapping{{From: "max", To: "xhigh"}}
-	ctx := WithOpenAIReasoningEffortPolicy(context.Background(), "medium", mappings)
+	ctx := WithOpenAIReasoningEffortPolicy(context.Background(), "medium", mappings, ReasoningEffortOverLimitDowngrade)
 	mappings[0].To = "low"
-	got, changed := ApplyOpenAIReasoningEffortPolicyFromContext(ctx, body)
+	got, changed, err := ApplyOpenAIReasoningEffortPolicyFromContext(ctx, body)
+	require.NoError(t, err)
 	require.True(t, changed)
 	require.Equal(t, "medium", gjson.GetBytes(got, "reasoning.effort").String())
 }
@@ -127,7 +129,8 @@ func TestApplyOpenAIReasoningEffortPolicy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, changed := ApplyOpenAIReasoningEffortPolicy([]byte(tt.body), tt.max, tt.mappings)
+			got, changed, err := ApplyOpenAIReasoningEffortPolicy([]byte(tt.body), tt.max, tt.mappings, ReasoningEffortOverLimitDowngrade)
+			require.NoError(t, err)
 			require.Equal(t, tt.changed, changed)
 			if tt.path != "" {
 				require.Equal(t, tt.want, gjson.GetBytes(got, tt.path).String())

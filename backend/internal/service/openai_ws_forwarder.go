@@ -219,6 +219,9 @@ type OpenAIWSIngressHooks struct {
 	InitialTurnStartedAt time.Time
 	// MaxReasoningEffort limits explicit reasoning effort values for this WS session.
 	MaxReasoningEffort string
+	// MaxReasoningEffortOverLimit controls whether values above the ceiling are
+	// downgraded (the legacy default) or rejected with a policy close.
+	MaxReasoningEffortOverLimit string
 	// ReasoningEffortMappings rewrites explicit effort values for this WS session.
 	ReasoningEffortMappings []ReasoningEffortMapping
 	TurnStarted             func(turn int, startedAt time.Time)
@@ -260,6 +263,14 @@ func (s *OpenAIGatewayService) SnapshotOpenAIWSPoolMetrics() OpenAIWSPoolMetrics
 		return OpenAIWSPoolMetricsSnapshot{}
 	}
 	return pool.SnapshotMetrics()
+}
+
+func (s *OpenAIGatewayService) SnapshotOpenAIWSPoolCapacity() OpenAIWSPoolCapacitySnapshot {
+	pool := s.getOpenAIWSConnPool()
+	if pool == nil {
+		return OpenAIWSPoolCapacitySnapshot{}
+	}
+	return pool.SnapshotCapacity()
 }
 
 type OpenAIWSPerformanceMetricsSnapshot struct {

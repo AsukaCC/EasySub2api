@@ -38,6 +38,7 @@ import { resolveAffiliateReferralCode, storeOAuthAffiliateCode } from '@/utils/o
 const props = withDefaults(defineProps<{
   disabled?: boolean
   affCode?: string
+  promoCode?: string
   showDivider?: boolean
 }>(), {
   showDivider: true,
@@ -91,9 +92,14 @@ function startLogin(): void {
   const redirectTo = (route.query.redirect as string) || '/dashboard'
   storeOAuthAffiliateCode(resolveAffiliateReferralCode(props.affCode, route.query.aff, route.query.aff_code))
   const mode = resolvedStart.value.mode
+  const params: Record<string, string> = { mode, redirect: redirectTo }
+  const promoCode = props.promoCode?.trim()
+  if (promoCode) {
+    params.promo_code = promoCode
+  }
   emit('start', {
     provider: 'wechat',
-    params: { mode, redirect: redirectTo }
+    params
   })
 }
 </script>

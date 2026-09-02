@@ -72,6 +72,7 @@ type RelayOptions struct {
 	FirstMessageSent                bool
 	StartClientAfterFirstDownstream bool
 	OnUsageParseFailure             func(eventType string, usageRaw string)
+	FirstTokenPredicate             func(payload []byte, eventType string) bool
 	OnTurnComplete                  func(turn RelayTurnResult)
 	BeforeWriteClient               func(msgType coderws.MessageType, payload []byte, wroteDownstream bool) error
 	BeforeClientWrite               func(msgType coderws.MessageType, payload []byte)
@@ -93,17 +94,18 @@ type RelayTraceEvent struct {
 }
 
 type relayState struct {
-	usage             Usage
-	requestModelMu    sync.RWMutex
-	requestModel      string
-	pendingTurnStart  atomic.Pointer[time.Time]
-	lastResponseID    string
-	lastResponseModel string
-	responseConflict  bool
-	terminalEventType string
-	firstTokenMs      *int
-	turnTimingByID    map[string]*relayTurnTiming
-	activeTurn        *relayTurnTiming
+	usage               Usage
+	requestModelMu      sync.RWMutex
+	requestModel        string
+	pendingTurnStart    atomic.Pointer[time.Time]
+	lastResponseID      string
+	lastResponseModel   string
+	responseConflict    bool
+	terminalEventType   string
+	firstTokenMs        *int
+	firstTokenPredicate func(payload []byte, eventType string) bool
+	turnTimingByID      map[string]*relayTurnTiming
+	activeTurn          *relayTurnTiming
 }
 
 type relayExitSignal struct {
@@ -165,7 +167,10 @@ func Relay(
 		firstMessageType = coderws.MessageText
 	}
 	startAt := nowFn()
-	state := &relayState{requestModel: result.RequestModel}
+	state := &relayState{
+		requestModel:        result.RequestModel,
+		firstTokenPredicate: options.FirstTokenPredicate,
+	}
 	if isClientResponseCreateFrame(firstMessageType, firstClientMessage) {
 		firstTurnStartedAt := options.FirstTurnStartedAt
 		if firstTurnStartedAt.IsZero() {
@@ -509,17 +514,25 @@ func runUpstreamToClient(
 	for {
 		msgType, payload, err := upstreamConn.ReadFrame(ctx)
 		if err != nil {
+			graceful := isDisconnectError(err)
+			// A clean WebSocket close only completes the transport handshake. Once
+			// the upstream has started a Responses turn, the protocol still requires
+			// an explicit terminal event before that turn can be treated as complete.
+			if graceful && openAIWSRelayActiveTurnID(state) != "" {
+				graceful = false
+				err = errors.New("upstream websocket closed before terminal event: " + err.Error())
+			}
 			emitRelayTrace(onTrace, RelayTraceEvent{
 				Stage:           "read_upstream_failed",
 				Direction:       "upstream_to_client",
 				Error:           err.Error(),
-				Graceful:        isDisconnectError(err),
+				Graceful:        graceful,
 				WroteDownstream: wroteDownstream,
 			})
 			exitCh <- relayExitSignal{
 				stage:           "read_upstream",
 				err:             err,
-				graceful:        isDisconnectError(err),
+				graceful:        graceful,
 				wroteDownstream: wroteDownstream,
 			}
 			return
@@ -704,7 +717,8 @@ func observeUpstreamMessage(
 	}
 	now := nowFn()
 
-	if state.firstTokenMs == nil && isTokenEvent(eventType) {
+	startsTTFT := relayEventStartsTTFT(state, message, eventType)
+	if state.firstTokenMs == nil && startsTTFT {
 		ms := int(now.Sub(startAt).Milliseconds())
 		if ms >= 0 {
 			state.firstTokenMs = &ms
@@ -725,7 +739,7 @@ func observeUpstreamMessage(
 	var turnTiming *relayTurnTiming
 	if responseID != "" {
 		turnTiming = openAIWSRelayGetOrInitTurnTiming(state, responseID, now)
-		if turnTiming != nil && turnTiming.firstTokenMs == nil && isTokenEvent(eventType) {
+		if turnTiming != nil && turnTiming.firstTokenMs == nil && startsTTFT {
 			ms := int(now.Sub(turnTiming.startAt).Milliseconds())
 			if ms >= 0 {
 				turnTiming.firstTokenMs = &ms
@@ -888,6 +902,18 @@ func openAIWSRelayDeleteTurnTiming(state *relayState, responseID string) (relayT
 		state.activeTurn = nil
 	}
 	return *timing, true
+}
+
+func openAIWSRelayActiveTurnID(state *relayState) string {
+	if state == nil || state.activeTurn == nil {
+		return ""
+	}
+	for responseID, timing := range state.turnTimingByID {
+		if timing == state.activeTurn {
+			return responseID
+		}
+	}
+	return ""
 }
 
 func openAIWSRelayCloneIntPtr(v *int) *int {
@@ -1079,6 +1105,13 @@ func isTokenEvent(eventType string) bool {
 	return strings.HasSuffix(eventType, ".delta") ||
 		eventType == "response.output_text.done" ||
 		eventType == "response.function_call_arguments.done"
+}
+
+func relayEventStartsTTFT(state *relayState, payload []byte, eventType string) bool {
+	if state != nil && state.firstTokenPredicate != nil {
+		return state.firstTokenPredicate(payload, eventType)
+	}
+	return isTokenEvent(eventType)
 }
 
 func minDuration(a, b time.Duration) time.Duration {

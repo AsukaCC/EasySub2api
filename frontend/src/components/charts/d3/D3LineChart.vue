@@ -9,7 +9,7 @@ import {
   scaleLinear,
   scalePoint,
 } from 'd3'
-import { computed, ref, watch, type CSSProperties } from 'vue'
+import { computed, getCurrentInstance, ref, watch, type CSSProperties } from 'vue'
 import type { ScaleLinear } from 'd3'
 import type {
   D3ChartData,
@@ -104,8 +104,7 @@ const props = withDefaults(defineProps<{
 })
 
 const palette = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777']
-let chartSequence = 0
-const clipId = `d3-line-clip-${++chartSequence}`
+const clipId = `d3-line-clip-${getCurrentInstance()!.uid}`
 const frameRef = ref<HTMLElement | null>(null)
 const svgRef = ref<SVGSVGElement | null>(null)
 const { width, height } = useChartSize(frameRef)

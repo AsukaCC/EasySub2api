@@ -331,15 +331,22 @@
     <!-- CN providers (Kimi / Zhipu / DeepSeek): coding-plan quota or payg balance -->
     <template v-else-if="account.platform === 'kimi' || account.platform === 'zhipu' || account.platform === 'deepseek'">
       <div class="components-account-account-usage-cell__panel-6">
-        <!-- 子单元格各自按 模式×平台 判定可见；两者都不可见时（智谱 payg 无公开
-             余额端点、coding 探测也不适用）才回落到占位符。 -->
-        <div
-          v-if="!cnQuotaCellVisible && !cnBalanceCellVisible"
-          class="components-account-account-usage-cell__panel-9"
-          :title="t('admin.accounts.cnProviders.noBalanceEndpoint')"
-        >-</div>
-        <CNProviderQuotaCell :account="account" />
-        <CNProviderBalanceCell :account="account" />
+        <OllamaCloudUsageCell
+          v-if="account.ollama_cloud_usage?.eligible"
+          :account="account"
+          @updated="handleOllamaCloudUsageUpdated"
+        />
+        <template v-else>
+          <!-- 子单元格各自按 模式×平台 判定可见；两者都不可见时（智谱 payg 无公开
+               余额端点、coding 探测也不适用）才回落到占位符。 -->
+          <div
+            v-if="!cnQuotaCellVisible && !cnBalanceCellVisible"
+            class="components-account-account-usage-cell__panel-9"
+            :title="t('admin.accounts.cnProviders.noBalanceEndpoint')"
+          >-</div>
+          <CNProviderQuotaCell :account="account" />
+          <CNProviderBalanceCell :account="account" />
+        </template>
       </div>
     </template>
 

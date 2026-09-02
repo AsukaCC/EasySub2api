@@ -129,7 +129,13 @@ func (UsageLog) Fields() []ent.Field {
 		// 其他字段
 		field.Int8("billing_type").
 			Default(0),
+		field.String("requested_reasoning_effort").
+			MaxLen(20).
+			Optional().
+			Nillable(),
 		field.Bool("stream").
+			Default(false),
+		field.Bool("native_compaction_v2").
 			Default(false),
 		field.Int("duration_ms").
 			Optional().

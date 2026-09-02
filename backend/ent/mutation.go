@@ -22674,6 +22674,8 @@ type GroupMutation struct {
 	allow_messages_dispatch              *bool
 	allow_live                           *bool
 	ccs_codex_ws_enabled                 *bool
+	force_openai_fast                    *bool
+	free_openai_fast                     *bool
 	require_oauth_only                   *bool
 	require_privacy_set                  *bool
 	default_mapped_model                 *string
@@ -22682,6 +22684,7 @@ type GroupMutation struct {
 	rpm_limit                            *int
 	addrpm_limit                         *int
 	max_reasoning_effort                 *string
+	max_reasoning_effort_over_limit      *string
 	reasoning_effort_mappings            *[]domain.ReasoningEffortMapping
 	appendreasoning_effort_mappings      []domain.ReasoningEffortMapping
 	profit_control_enabled               *bool
@@ -25547,6 +25550,78 @@ func (m *GroupMutation) ResetCcsCodexWsEnabled() {
 	m.ccs_codex_ws_enabled = nil
 }
 
+// SetForceOpenaiFast sets the "force_openai_fast" field.
+func (m *GroupMutation) SetForceOpenaiFast(b bool) {
+	m.force_openai_fast = &b
+}
+
+// ForceOpenaiFast returns the value of the "force_openai_fast" field in the mutation.
+func (m *GroupMutation) ForceOpenaiFast() (r bool, exists bool) {
+	v := m.force_openai_fast
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldForceOpenaiFast returns the old "force_openai_fast" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldForceOpenaiFast(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldForceOpenaiFast is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldForceOpenaiFast requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldForceOpenaiFast: %w", err)
+	}
+	return oldValue.ForceOpenaiFast, nil
+}
+
+// ResetForceOpenaiFast resets all changes to the "force_openai_fast" field.
+func (m *GroupMutation) ResetForceOpenaiFast() {
+	m.force_openai_fast = nil
+}
+
+// SetFreeOpenaiFast sets the "free_openai_fast" field.
+func (m *GroupMutation) SetFreeOpenaiFast(b bool) {
+	m.free_openai_fast = &b
+}
+
+// FreeOpenaiFast returns the value of the "free_openai_fast" field in the mutation.
+func (m *GroupMutation) FreeOpenaiFast() (r bool, exists bool) {
+	v := m.free_openai_fast
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFreeOpenaiFast returns the old "free_openai_fast" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldFreeOpenaiFast(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFreeOpenaiFast is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFreeOpenaiFast requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFreeOpenaiFast: %w", err)
+	}
+	return oldValue.FreeOpenaiFast, nil
+}
+
+// ResetFreeOpenaiFast resets all changes to the "free_openai_fast" field.
+func (m *GroupMutation) ResetFreeOpenaiFast() {
+	m.free_openai_fast = nil
+}
+
 // SetRequireOauthOnly sets the "require_oauth_only" field.
 func (m *GroupMutation) SetRequireOauthOnly(b bool) {
 	m.require_oauth_only = &b
@@ -25817,6 +25892,42 @@ func (m *GroupMutation) OldMaxReasoningEffort(ctx context.Context) (v string, er
 // ResetMaxReasoningEffort resets all changes to the "max_reasoning_effort" field.
 func (m *GroupMutation) ResetMaxReasoningEffort() {
 	m.max_reasoning_effort = nil
+}
+
+// SetMaxReasoningEffortOverLimit sets the "max_reasoning_effort_over_limit" field.
+func (m *GroupMutation) SetMaxReasoningEffortOverLimit(s string) {
+	m.max_reasoning_effort_over_limit = &s
+}
+
+// MaxReasoningEffortOverLimit returns the value of the "max_reasoning_effort_over_limit" field in the mutation.
+func (m *GroupMutation) MaxReasoningEffortOverLimit() (r string, exists bool) {
+	v := m.max_reasoning_effort_over_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxReasoningEffortOverLimit returns the old "max_reasoning_effort_over_limit" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldMaxReasoningEffortOverLimit(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxReasoningEffortOverLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxReasoningEffortOverLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxReasoningEffortOverLimit: %w", err)
+	}
+	return oldValue.MaxReasoningEffortOverLimit, nil
+}
+
+// ResetMaxReasoningEffortOverLimit resets all changes to the "max_reasoning_effort_over_limit" field.
+func (m *GroupMutation) ResetMaxReasoningEffortOverLimit() {
+	m.max_reasoning_effort_over_limit = nil
 }
 
 // SetReasoningEffortMappings sets the "reasoning_effort_mappings" field.
@@ -26376,7 +26487,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 65)
+	fields := make([]string, 0, 68)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26539,6 +26650,12 @@ func (m *GroupMutation) Fields() []string {
 	if m.ccs_codex_ws_enabled != nil {
 		fields = append(fields, group.FieldCcsCodexWsEnabled)
 	}
+	if m.force_openai_fast != nil {
+		fields = append(fields, group.FieldForceOpenaiFast)
+	}
+	if m.free_openai_fast != nil {
+		fields = append(fields, group.FieldFreeOpenaiFast)
+	}
 	if m.require_oauth_only != nil {
 		fields = append(fields, group.FieldRequireOauthOnly)
 	}
@@ -26559,6 +26676,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.max_reasoning_effort != nil {
 		fields = append(fields, group.FieldMaxReasoningEffort)
+	}
+	if m.max_reasoning_effort_over_limit != nil {
+		fields = append(fields, group.FieldMaxReasoningEffortOverLimit)
 	}
 	if m.reasoning_effort_mappings != nil {
 		fields = append(fields, group.FieldReasoningEffortMappings)
@@ -26688,6 +26808,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.AllowLive()
 	case group.FieldCcsCodexWsEnabled:
 		return m.CcsCodexWsEnabled()
+	case group.FieldForceOpenaiFast:
+		return m.ForceOpenaiFast()
+	case group.FieldFreeOpenaiFast:
+		return m.FreeOpenaiFast()
 	case group.FieldRequireOauthOnly:
 		return m.RequireOauthOnly()
 	case group.FieldRequirePrivacySet:
@@ -26702,6 +26826,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.RpmLimit()
 	case group.FieldMaxReasoningEffort:
 		return m.MaxReasoningEffort()
+	case group.FieldMaxReasoningEffortOverLimit:
+		return m.MaxReasoningEffortOverLimit()
 	case group.FieldReasoningEffortMappings:
 		return m.ReasoningEffortMappings()
 	case group.FieldProfitControlEnabled:
@@ -26827,6 +26953,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldAllowLive(ctx)
 	case group.FieldCcsCodexWsEnabled:
 		return m.OldCcsCodexWsEnabled(ctx)
+	case group.FieldForceOpenaiFast:
+		return m.OldForceOpenaiFast(ctx)
+	case group.FieldFreeOpenaiFast:
+		return m.OldFreeOpenaiFast(ctx)
 	case group.FieldRequireOauthOnly:
 		return m.OldRequireOauthOnly(ctx)
 	case group.FieldRequirePrivacySet:
@@ -26841,6 +26971,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldRpmLimit(ctx)
 	case group.FieldMaxReasoningEffort:
 		return m.OldMaxReasoningEffort(ctx)
+	case group.FieldMaxReasoningEffortOverLimit:
+		return m.OldMaxReasoningEffortOverLimit(ctx)
 	case group.FieldReasoningEffortMappings:
 		return m.OldReasoningEffortMappings(ctx)
 	case group.FieldProfitControlEnabled:
@@ -27236,6 +27368,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCcsCodexWsEnabled(v)
 		return nil
+	case group.FieldForceOpenaiFast:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetForceOpenaiFast(v)
+		return nil
+	case group.FieldFreeOpenaiFast:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFreeOpenaiFast(v)
+		return nil
 	case group.FieldRequireOauthOnly:
 		v, ok := value.(bool)
 		if !ok {
@@ -27284,6 +27430,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMaxReasoningEffort(v)
+		return nil
+	case group.FieldMaxReasoningEffortOverLimit:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxReasoningEffortOverLimit(v)
 		return nil
 	case group.FieldReasoningEffortMappings:
 		v, ok := value.([]domain.ReasoningEffortMapping)
@@ -27962,6 +28115,12 @@ func (m *GroupMutation) ResetField(name string) error {
 	case group.FieldCcsCodexWsEnabled:
 		m.ResetCcsCodexWsEnabled()
 		return nil
+	case group.FieldForceOpenaiFast:
+		m.ResetForceOpenaiFast()
+		return nil
+	case group.FieldFreeOpenaiFast:
+		m.ResetFreeOpenaiFast()
+		return nil
 	case group.FieldRequireOauthOnly:
 		m.ResetRequireOauthOnly()
 		return nil
@@ -27982,6 +28141,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldMaxReasoningEffort:
 		m.ResetMaxReasoningEffort()
+		return nil
+	case group.FieldMaxReasoningEffortOverLimit:
+		m.ResetMaxReasoningEffortOverLimit()
 		return nil
 	case group.FieldReasoningEffortMappings:
 		m.ResetReasoningEffortMappings()
@@ -30619,6 +30781,7 @@ type PaymentOrderMutation struct {
 	src_url                      *string
 	created_at                   *time.Time
 	updated_at                   *time.Time
+	deleted_at                   *time.Time
 	clearedFields                map[string]struct{}
 	user                         *string
 	cleareduser                  bool
@@ -33892,6 +34055,55 @@ func (m *PaymentOrderMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (m *PaymentOrderMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *PaymentOrderMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *PaymentOrderMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[paymentorder.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *PaymentOrderMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[paymentorder.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *PaymentOrderMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, paymentorder.FieldDeletedAt)
+}
+
 // ClearUser clears the "user" edge to the User entity.
 func (m *PaymentOrderMutation) ClearUser() {
 	m.cleareduser = true
@@ -33953,7 +34165,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 66)
+	fields := make([]string, 0, 67)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -34152,6 +34364,9 @@ func (m *PaymentOrderMutation) Fields() []string {
 	if m.updated_at != nil {
 		fields = append(fields, paymentorder.FieldUpdatedAt)
 	}
+	if m.deleted_at != nil {
+		fields = append(fields, paymentorder.FieldDeletedAt)
+	}
 	return fields
 }
 
@@ -34292,6 +34507,8 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case paymentorder.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case paymentorder.FieldDeletedAt:
+		return m.DeletedAt()
 	}
 	return nil, false
 }
@@ -34433,6 +34650,8 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCreatedAt(ctx)
 	case paymentorder.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case paymentorder.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown PaymentOrder field %s", name)
 }
@@ -34904,6 +35123,13 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedAt(v)
 		return nil
+	case paymentorder.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown PaymentOrder field %s", name)
 }
@@ -35273,6 +35499,9 @@ func (m *PaymentOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(paymentorder.FieldSrcURL) {
 		fields = append(fields, paymentorder.FieldSrcURL)
 	}
+	if m.FieldCleared(paymentorder.FieldDeletedAt) {
+		fields = append(fields, paymentorder.FieldDeletedAt)
+	}
 	return fields
 }
 
@@ -35370,6 +35599,9 @@ func (m *PaymentOrderMutation) ClearField(name string) error {
 		return nil
 	case paymentorder.FieldSrcURL:
 		m.ClearSrcURL()
+		return nil
+	case paymentorder.FieldDeletedAt:
+		m.ClearDeletedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown PaymentOrder nullable field %s", name)
@@ -35576,6 +35808,9 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case paymentorder.FieldDeletedAt:
+		m.ResetDeletedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown PaymentOrder field %s", name)
@@ -36639,6 +36874,10 @@ type PaymentRefundMutation struct {
 	addprincipal_amount           *float64
 	fee_amount                    *float64
 	addfee_amount                 *float64
+	refund_fee_rate               *float64
+	addrefund_fee_rate            *float64
+	refund_fee_amount             *float64
+	addrefund_fee_amount          *float64
 	gateway_amount                *float64
 	addgateway_amount             *float64
 	base_points                   *float64
@@ -36653,6 +36892,8 @@ type PaymentRefundMutation struct {
 	addtarget_principal_amount    *float64
 	target_fee_amount             *float64
 	addtarget_fee_amount          *float64
+	target_refund_fee_amount      *float64
+	addtarget_refund_fee_amount   *float64
 	target_base_points            *float64
 	addtarget_base_points         *float64
 	target_bonus_points           *float64
@@ -37332,6 +37573,118 @@ func (m *PaymentRefundMutation) ResetFeeAmount() {
 	m.addfee_amount = nil
 }
 
+// SetRefundFeeRate sets the "refund_fee_rate" field.
+func (m *PaymentRefundMutation) SetRefundFeeRate(f float64) {
+	m.refund_fee_rate = &f
+	m.addrefund_fee_rate = nil
+}
+
+// RefundFeeRate returns the value of the "refund_fee_rate" field in the mutation.
+func (m *PaymentRefundMutation) RefundFeeRate() (r float64, exists bool) {
+	v := m.refund_fee_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefundFeeRate returns the old "refund_fee_rate" field's value of the PaymentRefund entity.
+// If the PaymentRefund object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentRefundMutation) OldRefundFeeRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefundFeeRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefundFeeRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefundFeeRate: %w", err)
+	}
+	return oldValue.RefundFeeRate, nil
+}
+
+// AddRefundFeeRate adds f to the "refund_fee_rate" field.
+func (m *PaymentRefundMutation) AddRefundFeeRate(f float64) {
+	if m.addrefund_fee_rate != nil {
+		*m.addrefund_fee_rate += f
+	} else {
+		m.addrefund_fee_rate = &f
+	}
+}
+
+// AddedRefundFeeRate returns the value that was added to the "refund_fee_rate" field in this mutation.
+func (m *PaymentRefundMutation) AddedRefundFeeRate() (r float64, exists bool) {
+	v := m.addrefund_fee_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRefundFeeRate resets all changes to the "refund_fee_rate" field.
+func (m *PaymentRefundMutation) ResetRefundFeeRate() {
+	m.refund_fee_rate = nil
+	m.addrefund_fee_rate = nil
+}
+
+// SetRefundFeeAmount sets the "refund_fee_amount" field.
+func (m *PaymentRefundMutation) SetRefundFeeAmount(f float64) {
+	m.refund_fee_amount = &f
+	m.addrefund_fee_amount = nil
+}
+
+// RefundFeeAmount returns the value of the "refund_fee_amount" field in the mutation.
+func (m *PaymentRefundMutation) RefundFeeAmount() (r float64, exists bool) {
+	v := m.refund_fee_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefundFeeAmount returns the old "refund_fee_amount" field's value of the PaymentRefund entity.
+// If the PaymentRefund object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentRefundMutation) OldRefundFeeAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefundFeeAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefundFeeAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefundFeeAmount: %w", err)
+	}
+	return oldValue.RefundFeeAmount, nil
+}
+
+// AddRefundFeeAmount adds f to the "refund_fee_amount" field.
+func (m *PaymentRefundMutation) AddRefundFeeAmount(f float64) {
+	if m.addrefund_fee_amount != nil {
+		*m.addrefund_fee_amount += f
+	} else {
+		m.addrefund_fee_amount = &f
+	}
+}
+
+// AddedRefundFeeAmount returns the value that was added to the "refund_fee_amount" field in this mutation.
+func (m *PaymentRefundMutation) AddedRefundFeeAmount() (r float64, exists bool) {
+	v := m.addrefund_fee_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRefundFeeAmount resets all changes to the "refund_fee_amount" field.
+func (m *PaymentRefundMutation) ResetRefundFeeAmount() {
+	m.refund_fee_amount = nil
+	m.addrefund_fee_amount = nil
+}
+
 // SetGatewayAmount sets the "gateway_amount" field.
 func (m *PaymentRefundMutation) SetGatewayAmount(f float64) {
 	m.gateway_amount = &f
@@ -37722,6 +38075,62 @@ func (m *PaymentRefundMutation) AddedTargetFeeAmount() (r float64, exists bool) 
 func (m *PaymentRefundMutation) ResetTargetFeeAmount() {
 	m.target_fee_amount = nil
 	m.addtarget_fee_amount = nil
+}
+
+// SetTargetRefundFeeAmount sets the "target_refund_fee_amount" field.
+func (m *PaymentRefundMutation) SetTargetRefundFeeAmount(f float64) {
+	m.target_refund_fee_amount = &f
+	m.addtarget_refund_fee_amount = nil
+}
+
+// TargetRefundFeeAmount returns the value of the "target_refund_fee_amount" field in the mutation.
+func (m *PaymentRefundMutation) TargetRefundFeeAmount() (r float64, exists bool) {
+	v := m.target_refund_fee_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetRefundFeeAmount returns the old "target_refund_fee_amount" field's value of the PaymentRefund entity.
+// If the PaymentRefund object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentRefundMutation) OldTargetRefundFeeAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetRefundFeeAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetRefundFeeAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetRefundFeeAmount: %w", err)
+	}
+	return oldValue.TargetRefundFeeAmount, nil
+}
+
+// AddTargetRefundFeeAmount adds f to the "target_refund_fee_amount" field.
+func (m *PaymentRefundMutation) AddTargetRefundFeeAmount(f float64) {
+	if m.addtarget_refund_fee_amount != nil {
+		*m.addtarget_refund_fee_amount += f
+	} else {
+		m.addtarget_refund_fee_amount = &f
+	}
+}
+
+// AddedTargetRefundFeeAmount returns the value that was added to the "target_refund_fee_amount" field in this mutation.
+func (m *PaymentRefundMutation) AddedTargetRefundFeeAmount() (r float64, exists bool) {
+	v := m.addtarget_refund_fee_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTargetRefundFeeAmount resets all changes to the "target_refund_fee_amount" field.
+func (m *PaymentRefundMutation) ResetTargetRefundFeeAmount() {
+	m.target_refund_fee_amount = nil
+	m.addtarget_refund_fee_amount = nil
 }
 
 // SetTargetBasePoints sets the "target_base_points" field.
@@ -38302,7 +38711,7 @@ func (m *PaymentRefundMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentRefundMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 35)
 	if m.order_id != nil {
 		fields = append(fields, paymentrefund.FieldOrderID)
 	}
@@ -38342,6 +38751,12 @@ func (m *PaymentRefundMutation) Fields() []string {
 	if m.fee_amount != nil {
 		fields = append(fields, paymentrefund.FieldFeeAmount)
 	}
+	if m.refund_fee_rate != nil {
+		fields = append(fields, paymentrefund.FieldRefundFeeRate)
+	}
+	if m.refund_fee_amount != nil {
+		fields = append(fields, paymentrefund.FieldRefundFeeAmount)
+	}
 	if m.gateway_amount != nil {
 		fields = append(fields, paymentrefund.FieldGatewayAmount)
 	}
@@ -38362,6 +38777,9 @@ func (m *PaymentRefundMutation) Fields() []string {
 	}
 	if m.target_fee_amount != nil {
 		fields = append(fields, paymentrefund.FieldTargetFeeAmount)
+	}
+	if m.target_refund_fee_amount != nil {
+		fields = append(fields, paymentrefund.FieldTargetRefundFeeAmount)
 	}
 	if m.target_base_points != nil {
 		fields = append(fields, paymentrefund.FieldTargetBasePoints)
@@ -38433,6 +38851,10 @@ func (m *PaymentRefundMutation) Field(name string) (ent.Value, bool) {
 		return m.PrincipalAmount()
 	case paymentrefund.FieldFeeAmount:
 		return m.FeeAmount()
+	case paymentrefund.FieldRefundFeeRate:
+		return m.RefundFeeRate()
+	case paymentrefund.FieldRefundFeeAmount:
+		return m.RefundFeeAmount()
 	case paymentrefund.FieldGatewayAmount:
 		return m.GatewayAmount()
 	case paymentrefund.FieldBasePoints:
@@ -38447,6 +38869,8 @@ func (m *PaymentRefundMutation) Field(name string) (ent.Value, bool) {
 		return m.TargetPrincipalAmount()
 	case paymentrefund.FieldTargetFeeAmount:
 		return m.TargetFeeAmount()
+	case paymentrefund.FieldTargetRefundFeeAmount:
+		return m.TargetRefundFeeAmount()
 	case paymentrefund.FieldTargetBasePoints:
 		return m.TargetBasePoints()
 	case paymentrefund.FieldTargetBonusPoints:
@@ -38506,6 +38930,10 @@ func (m *PaymentRefundMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldPrincipalAmount(ctx)
 	case paymentrefund.FieldFeeAmount:
 		return m.OldFeeAmount(ctx)
+	case paymentrefund.FieldRefundFeeRate:
+		return m.OldRefundFeeRate(ctx)
+	case paymentrefund.FieldRefundFeeAmount:
+		return m.OldRefundFeeAmount(ctx)
 	case paymentrefund.FieldGatewayAmount:
 		return m.OldGatewayAmount(ctx)
 	case paymentrefund.FieldBasePoints:
@@ -38520,6 +38948,8 @@ func (m *PaymentRefundMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldTargetPrincipalAmount(ctx)
 	case paymentrefund.FieldTargetFeeAmount:
 		return m.OldTargetFeeAmount(ctx)
+	case paymentrefund.FieldTargetRefundFeeAmount:
+		return m.OldTargetRefundFeeAmount(ctx)
 	case paymentrefund.FieldTargetBasePoints:
 		return m.OldTargetBasePoints(ctx)
 	case paymentrefund.FieldTargetBonusPoints:
@@ -38644,6 +39074,20 @@ func (m *PaymentRefundMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFeeAmount(v)
 		return nil
+	case paymentrefund.FieldRefundFeeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefundFeeRate(v)
+		return nil
+	case paymentrefund.FieldRefundFeeAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefundFeeAmount(v)
+		return nil
 	case paymentrefund.FieldGatewayAmount:
 		v, ok := value.(float64)
 		if !ok {
@@ -38692,6 +39136,13 @@ func (m *PaymentRefundMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTargetFeeAmount(v)
+		return nil
+	case paymentrefund.FieldTargetRefundFeeAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetRefundFeeAmount(v)
 		return nil
 	case paymentrefund.FieldTargetBasePoints:
 		v, ok := value.(float64)
@@ -38794,6 +39245,12 @@ func (m *PaymentRefundMutation) AddedFields() []string {
 	if m.addfee_amount != nil {
 		fields = append(fields, paymentrefund.FieldFeeAmount)
 	}
+	if m.addrefund_fee_rate != nil {
+		fields = append(fields, paymentrefund.FieldRefundFeeRate)
+	}
+	if m.addrefund_fee_amount != nil {
+		fields = append(fields, paymentrefund.FieldRefundFeeAmount)
+	}
 	if m.addgateway_amount != nil {
 		fields = append(fields, paymentrefund.FieldGatewayAmount)
 	}
@@ -38814,6 +39271,9 @@ func (m *PaymentRefundMutation) AddedFields() []string {
 	}
 	if m.addtarget_fee_amount != nil {
 		fields = append(fields, paymentrefund.FieldTargetFeeAmount)
+	}
+	if m.addtarget_refund_fee_amount != nil {
+		fields = append(fields, paymentrefund.FieldTargetRefundFeeAmount)
 	}
 	if m.addtarget_base_points != nil {
 		fields = append(fields, paymentrefund.FieldTargetBasePoints)
@@ -38838,6 +39298,10 @@ func (m *PaymentRefundMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedPrincipalAmount()
 	case paymentrefund.FieldFeeAmount:
 		return m.AddedFeeAmount()
+	case paymentrefund.FieldRefundFeeRate:
+		return m.AddedRefundFeeRate()
+	case paymentrefund.FieldRefundFeeAmount:
+		return m.AddedRefundFeeAmount()
 	case paymentrefund.FieldGatewayAmount:
 		return m.AddedGatewayAmount()
 	case paymentrefund.FieldBasePoints:
@@ -38852,6 +39316,8 @@ func (m *PaymentRefundMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTargetPrincipalAmount()
 	case paymentrefund.FieldTargetFeeAmount:
 		return m.AddedTargetFeeAmount()
+	case paymentrefund.FieldTargetRefundFeeAmount:
+		return m.AddedTargetRefundFeeAmount()
 	case paymentrefund.FieldTargetBasePoints:
 		return m.AddedTargetBasePoints()
 	case paymentrefund.FieldTargetBonusPoints:
@@ -38887,6 +39353,20 @@ func (m *PaymentRefundMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddFeeAmount(v)
+		return nil
+	case paymentrefund.FieldRefundFeeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRefundFeeRate(v)
+		return nil
+	case paymentrefund.FieldRefundFeeAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRefundFeeAmount(v)
 		return nil
 	case paymentrefund.FieldGatewayAmount:
 		v, ok := value.(float64)
@@ -38936,6 +39416,13 @@ func (m *PaymentRefundMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTargetFeeAmount(v)
+		return nil
+	case paymentrefund.FieldTargetRefundFeeAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTargetRefundFeeAmount(v)
 		return nil
 	case paymentrefund.FieldTargetBasePoints:
 		v, ok := value.(float64)
@@ -39063,6 +39550,12 @@ func (m *PaymentRefundMutation) ResetField(name string) error {
 	case paymentrefund.FieldFeeAmount:
 		m.ResetFeeAmount()
 		return nil
+	case paymentrefund.FieldRefundFeeRate:
+		m.ResetRefundFeeRate()
+		return nil
+	case paymentrefund.FieldRefundFeeAmount:
+		m.ResetRefundFeeAmount()
+		return nil
 	case paymentrefund.FieldGatewayAmount:
 		m.ResetGatewayAmount()
 		return nil
@@ -39083,6 +39576,9 @@ func (m *PaymentRefundMutation) ResetField(name string) error {
 		return nil
 	case paymentrefund.FieldTargetFeeAmount:
 		m.ResetTargetFeeAmount()
+		return nil
+	case paymentrefund.FieldTargetRefundFeeAmount:
+		m.ResetTargetRefundFeeAmount()
 		return nil
 	case paymentrefund.FieldTargetBasePoints:
 		m.ResetTargetBasePoints()
@@ -54292,7 +54788,9 @@ type UsageLogMutation struct {
 	addaccount_rate_multiplier   *float64
 	billing_type                 *int8
 	addbilling_type              *int8
+	requested_reasoning_effort   *string
 	stream                       *bool
+	native_compaction_v2         *bool
 	duration_ms                  *int
 	addduration_ms               *int
 	first_token_ms               *int
@@ -55993,6 +56491,55 @@ func (m *UsageLogMutation) ResetBillingType() {
 	m.addbilling_type = nil
 }
 
+// SetRequestedReasoningEffort sets the "requested_reasoning_effort" field.
+func (m *UsageLogMutation) SetRequestedReasoningEffort(s string) {
+	m.requested_reasoning_effort = &s
+}
+
+// RequestedReasoningEffort returns the value of the "requested_reasoning_effort" field in the mutation.
+func (m *UsageLogMutation) RequestedReasoningEffort() (r string, exists bool) {
+	v := m.requested_reasoning_effort
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedReasoningEffort returns the old "requested_reasoning_effort" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldRequestedReasoningEffort(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedReasoningEffort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedReasoningEffort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedReasoningEffort: %w", err)
+	}
+	return oldValue.RequestedReasoningEffort, nil
+}
+
+// ClearRequestedReasoningEffort clears the value of the "requested_reasoning_effort" field.
+func (m *UsageLogMutation) ClearRequestedReasoningEffort() {
+	m.requested_reasoning_effort = nil
+	m.clearedFields[usagelog.FieldRequestedReasoningEffort] = struct{}{}
+}
+
+// RequestedReasoningEffortCleared returns if the "requested_reasoning_effort" field was cleared in this mutation.
+func (m *UsageLogMutation) RequestedReasoningEffortCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldRequestedReasoningEffort]
+	return ok
+}
+
+// ResetRequestedReasoningEffort resets all changes to the "requested_reasoning_effort" field.
+func (m *UsageLogMutation) ResetRequestedReasoningEffort() {
+	m.requested_reasoning_effort = nil
+	delete(m.clearedFields, usagelog.FieldRequestedReasoningEffort)
+}
+
 // SetStream sets the "stream" field.
 func (m *UsageLogMutation) SetStream(b bool) {
 	m.stream = &b
@@ -56027,6 +56574,42 @@ func (m *UsageLogMutation) OldStream(ctx context.Context) (v bool, err error) {
 // ResetStream resets all changes to the "stream" field.
 func (m *UsageLogMutation) ResetStream() {
 	m.stream = nil
+}
+
+// SetNativeCompactionV2 sets the "native_compaction_v2" field.
+func (m *UsageLogMutation) SetNativeCompactionV2(b bool) {
+	m.native_compaction_v2 = &b
+}
+
+// NativeCompactionV2 returns the value of the "native_compaction_v2" field in the mutation.
+func (m *UsageLogMutation) NativeCompactionV2() (r bool, exists bool) {
+	v := m.native_compaction_v2
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNativeCompactionV2 returns the old "native_compaction_v2" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldNativeCompactionV2(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNativeCompactionV2 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNativeCompactionV2 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNativeCompactionV2: %w", err)
+	}
+	return oldValue.NativeCompactionV2, nil
+}
+
+// ResetNativeCompactionV2 resets all changes to the "native_compaction_v2" field.
+func (m *UsageLogMutation) ResetNativeCompactionV2() {
+	m.native_compaction_v2 = nil
 }
 
 // SetDurationMs sets the "duration_ms" field.
@@ -56984,7 +57567,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 47)
+	fields := make([]string, 0, 49)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -57078,8 +57661,14 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.billing_type != nil {
 		fields = append(fields, usagelog.FieldBillingType)
 	}
+	if m.requested_reasoning_effort != nil {
+		fields = append(fields, usagelog.FieldRequestedReasoningEffort)
+	}
 	if m.stream != nil {
 		fields = append(fields, usagelog.FieldStream)
+	}
+	if m.native_compaction_v2 != nil {
+		fields = append(fields, usagelog.FieldNativeCompactionV2)
 	}
 	if m.duration_ms != nil {
 		fields = append(fields, usagelog.FieldDurationMs)
@@ -57196,8 +57785,12 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.AccountRateMultiplier()
 	case usagelog.FieldBillingType:
 		return m.BillingType()
+	case usagelog.FieldRequestedReasoningEffort:
+		return m.RequestedReasoningEffort()
 	case usagelog.FieldStream:
 		return m.Stream()
+	case usagelog.FieldNativeCompactionV2:
+		return m.NativeCompactionV2()
 	case usagelog.FieldDurationMs:
 		return m.DurationMs()
 	case usagelog.FieldFirstTokenMs:
@@ -57299,8 +57892,12 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldAccountRateMultiplier(ctx)
 	case usagelog.FieldBillingType:
 		return m.OldBillingType(ctx)
+	case usagelog.FieldRequestedReasoningEffort:
+		return m.OldRequestedReasoningEffort(ctx)
 	case usagelog.FieldStream:
 		return m.OldStream(ctx)
+	case usagelog.FieldNativeCompactionV2:
+		return m.OldNativeCompactionV2(ctx)
 	case usagelog.FieldDurationMs:
 		return m.OldDurationMs(ctx)
 	case usagelog.FieldFirstTokenMs:
@@ -57557,12 +58154,26 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetBillingType(v)
 		return nil
+	case usagelog.FieldRequestedReasoningEffort:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedReasoningEffort(v)
+		return nil
 	case usagelog.FieldStream:
 		v, ok := value.(bool)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStream(v)
+		return nil
+	case usagelog.FieldNativeCompactionV2:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNativeCompactionV2(v)
 		return nil
 	case usagelog.FieldDurationMs:
 		v, ok := value.(int)
@@ -57975,6 +58586,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldAccountRateMultiplier) {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
+	if m.FieldCleared(usagelog.FieldRequestedReasoningEffort) {
+		fields = append(fields, usagelog.FieldRequestedReasoningEffort)
+	}
 	if m.FieldCleared(usagelog.FieldDurationMs) {
 		fields = append(fields, usagelog.FieldDurationMs)
 	}
@@ -58054,6 +58668,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ClearAccountRateMultiplier()
+		return nil
+	case usagelog.FieldRequestedReasoningEffort:
+		m.ClearRequestedReasoningEffort()
 		return nil
 	case usagelog.FieldDurationMs:
 		m.ClearDurationMs()
@@ -58189,8 +58806,14 @@ func (m *UsageLogMutation) ResetField(name string) error {
 	case usagelog.FieldBillingType:
 		m.ResetBillingType()
 		return nil
+	case usagelog.FieldRequestedReasoningEffort:
+		m.ResetRequestedReasoningEffort()
+		return nil
 	case usagelog.FieldStream:
 		m.ResetStream()
+		return nil
+	case usagelog.FieldNativeCompactionV2:
+		m.ResetNativeCompactionV2()
 		return nil
 	case usagelog.FieldDurationMs:
 		m.ResetDurationMs()

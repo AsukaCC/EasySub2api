@@ -283,12 +283,30 @@ func attachSelectionProfitGate(ctx context.Context, sel *AccountSelectionResult)
 	return sel
 }
 
-// ContextWithSelectionProfitGate 把选号时真实生效的利润门重放到 ctx 上。
-// handler 在拿到选号结果后必须用返回的 ctx 做抢槽后终检
-// （ProfitControlVetoLatest / GatewayProfitControlVetoLatest）与准入后粘性
-// 绑定，否则这两步会因为看不到调度栈内安装的门而退化为空操作。
+// ContextWithSelectionProfitGate 把选号时真实生效的计费分组和利润门重放到
+// ctx 上。handler 在拿到选号结果后必须用返回的 ctx 做分组策略改写、抢槽后
+// 终检（ProfitControlVetoLatest / GatewayProfitControlVetoLatest）与准入后粘性
+// 绑定，否则多分组密钥会继续使用认证时的主分组策略。
 func ContextWithSelectionProfitGate(ctx context.Context, sel *AccountSelectionResult) context.Context {
-	if sel == nil || sel.profitGate == nil {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if sel == nil {
+		return ctx
+	}
+	hasBillingGroup := IsGroupContextValid(sel.BillingGroup)
+	if hasBillingGroup {
+		if existing, ok := ctx.Value(ctxkey.Group).(*Group); !ok || existing == nil || existing.ID != sel.BillingGroup.ID {
+			ctx = context.WithValue(ctx, ctxkey.Group, sel.BillingGroup)
+		}
+	}
+	if sel.profitGate == nil {
+		if !hasBillingGroup {
+			return ctx
+		}
+		if existing, ok := ctx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate); ok && existing != nil {
+			return context.WithValue(ctx, openAIProfitControlGateCtxKey{}, (*openAIProfitControlGate)(nil))
+		}
 		return ctx
 	}
 	if existing, ok := ctx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate); ok && existing == sel.profitGate {

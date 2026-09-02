@@ -392,6 +392,8 @@ export function deriveWeChatConnectStoredMode(
   return normalizeWeChatConnectMode(legacyMode);
 }
 
+export type OpenAITTFTMode = "visible" | "semantic";
+
 /**
  * System settings interface
  */
@@ -427,6 +429,10 @@ export interface SystemSettings {
   affiliate_rebate_duration_days: number;
   affiliate_rebate_per_invitee_cap: number;
   affiliate_admin_recharge_enabled: boolean;
+  affiliate_inviter_binding_reward_points: number;
+  affiliate_inviter_binding_reward_validity_days: number;
+  affiliate_invitee_binding_reward_points: number;
+  affiliate_invitee_binding_reward_validity_days: number;
   default_concurrency: number;
   default_user_rpm_limit: number;
   default_subscriptions: DefaultSubscriptionSetting[];
@@ -613,6 +619,7 @@ export interface SystemSettings {
   allow_ungrouped_key_scheduling: boolean;
 
   // Gateway forwarding behavior
+  openai_ttft_mode: OpenAITTFTMode;
   enable_fingerprint_unification: boolean;
   enable_metadata_passthrough: boolean;
   enable_cch_signing: boolean;
@@ -657,6 +664,7 @@ export interface SystemSettings {
   /** Legacy read-only compatibility value. Subscription prices are point-denominated. */
   payment_subscription_usd_to_cny_rate: number;
   payment_recharge_fee_rate: number;
+  payment_refund_fee_rate: number;
   payment_load_balance_strategy: string;
   payment_product_name_prefix: string;
   payment_product_name_suffix: string;
@@ -770,6 +778,10 @@ export interface UpdateSettingsRequest {
   affiliate_rebate_duration_days?: number;
   affiliate_rebate_per_invitee_cap?: number;
   affiliate_admin_recharge_enabled?: boolean;
+  affiliate_inviter_binding_reward_points?: number;
+  affiliate_inviter_binding_reward_validity_days?: number;
+  affiliate_invitee_binding_reward_points?: number;
+  affiliate_invitee_binding_reward_validity_days?: number;
   default_concurrency?: number;
   default_user_rpm_limit?: number;
   default_subscriptions?: DefaultSubscriptionSetting[];
@@ -935,6 +947,7 @@ export interface UpdateSettingsRequest {
   min_claude_code_version?: string;
   max_claude_code_version?: string;
   allow_ungrouped_key_scheduling?: boolean;
+  openai_ttft_mode?: OpenAITTFTMode;
   enable_fingerprint_unification?: boolean;
   enable_metadata_passthrough?: boolean;
   enable_cch_signing?: boolean;
@@ -972,6 +985,7 @@ export interface UpdateSettingsRequest {
   payment_balance_disabled?: boolean;
   payment_recharge_bonus_tiers?: RechargeBonusTier[];
   payment_recharge_fee_rate?: number;
+  payment_refund_fee_rate?: number;
   payment_load_balance_strategy?: string;
   payment_product_name_prefix?: string;
   payment_product_name_suffix?: string;
@@ -1317,6 +1331,29 @@ export async function updateRateLimit429CooldownSettings(
   return data;
 }
 
+// ==================== OpenAI Images OAuth Unavailable Cooldown ====================
+
+export interface OpenAIImagesOAuthUnavailableCooldownSettings {
+  cooldown_minutes: number;
+}
+
+export async function getOpenAIImagesOAuthUnavailableCooldownSettings(): Promise<OpenAIImagesOAuthUnavailableCooldownSettings> {
+  const { data } = await apiClient.get<OpenAIImagesOAuthUnavailableCooldownSettings>(
+    "/admin/settings/openai-images-oauth-unavailable-cooldown",
+  );
+  return data;
+}
+
+export async function updateOpenAIImagesOAuthUnavailableCooldownSettings(
+  settings: OpenAIImagesOAuthUnavailableCooldownSettings,
+): Promise<OpenAIImagesOAuthUnavailableCooldownSettings> {
+  const { data } = await apiClient.put<OpenAIImagesOAuthUnavailableCooldownSettings>(
+    "/admin/settings/openai-images-oauth-unavailable-cooldown",
+    settings,
+  );
+  return data;
+}
+
 // ==================== Panel Rate Limit Settings ====================
 
 /**
@@ -1576,6 +1613,8 @@ export const settingsAPI = {
   updateOverloadCooldownSettings,
   getRateLimit429CooldownSettings,
   updateRateLimit429CooldownSettings,
+  getOpenAIImagesOAuthUnavailableCooldownSettings,
+  updateOpenAIImagesOAuthUnavailableCooldownSettings,
   getPanelRateLimitSettings,
   updatePanelRateLimitSettings,
   getStreamTimeoutSettings,

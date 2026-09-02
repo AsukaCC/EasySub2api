@@ -253,6 +253,36 @@ func (h *UserHandler) GetAffiliate(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+type BindAffiliateCodeRequest struct {
+	AffCode string `json:"aff_code" binding:"required"`
+}
+
+// BindAffiliateCode establishes the current user's inviter relationship once.
+// POST /api/v1/user/aff/bind
+func (h *UserHandler) BindAffiliateCode(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req BindAffiliateCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.affiliateService.BindInviterByCodeWithResult(c.Request.Context(), subject.UserID, req.AffCode)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	detail, err := h.affiliateService.GetAffiliateDetail(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"binding": result, "detail": detail})
+}
+
 // RegenerateAffiliateCode replaces the current user's personal affiliate code.
 // POST /api/v1/user/aff/code/regenerate
 func (h *UserHandler) RegenerateAffiliateCode(c *gin.Context) {

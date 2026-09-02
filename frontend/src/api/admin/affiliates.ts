@@ -116,6 +116,40 @@ export interface SimpleUser {
   username: string
 }
 
+export interface AffiliateBindingRewardConfig {
+  inviter_points: number
+  inviter_validity_days: number
+  invitee_points: number
+  invitee_validity_days: number
+}
+
+export interface AffiliateRewardBackfillPreview {
+  config: AffiliateBindingRewardConfig
+  eligible_relations: number
+  estimated_inviter_grants: number
+  estimated_invitee_grants: number
+  estimated_inviter_points: number
+  estimated_invitee_points: number
+  preview_token: string
+}
+
+export interface AffiliateRewardBackfillRun {
+  id: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  config: AffiliateBindingRewardConfig
+  eligible_relations: number
+  processed_relations: number
+  inviter_grants: number
+  invitee_grants: number
+  inviter_points_granted: number
+  invitee_points_granted: number
+  error_message?: string
+  created_at: string
+  started_at?: string
+  completed_at?: string
+  updated_at: string
+}
+
 export async function listUsers(
   params: ListAffiliateUsersParams = {},
 ): Promise<PaginatedResponse<AffiliateAdminEntry>> {
@@ -222,6 +256,30 @@ export async function getUserOverview(
   return data
 }
 
+export async function previewRewardBackfill(): Promise<AffiliateRewardBackfillPreview> {
+  const { data } = await apiClient.get<AffiliateRewardBackfillPreview>(
+    '/admin/affiliates/reward-backfill/preview',
+  )
+  return data
+}
+
+export async function startRewardBackfill(
+  previewToken: string,
+): Promise<AffiliateRewardBackfillRun> {
+  const { data } = await apiClient.post<AffiliateRewardBackfillRun>(
+    '/admin/affiliates/reward-backfill',
+    { preview_token: previewToken, confirm: true },
+  )
+  return data
+}
+
+export async function getRewardBackfill(id: string): Promise<AffiliateRewardBackfillRun> {
+  const { data } = await apiClient.get<AffiliateRewardBackfillRun>(
+    `/admin/affiliates/reward-backfill/${id}`,
+  )
+  return data
+}
+
 export const affiliatesAPI = {
   listUsers,
   lookupUsers,
@@ -232,6 +290,9 @@ export const affiliatesAPI = {
   listRebateRecords,
   listTransferRecords,
   getUserOverview,
+  previewRewardBackfill,
+  startRewardBackfill,
+  getRewardBackfill,
 }
 
 export default affiliatesAPI

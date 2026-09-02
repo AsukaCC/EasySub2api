@@ -204,6 +204,12 @@ func (s *OpenAIGatewayService) buildOpenAIWSCreatePayload(reqBody map[string]any
 	if account != nil && account.Type == AccountTypeOAuth && !s.isOpenAIWSStoreRecoveryAllowed(account) {
 		payload["store"] = false
 	}
+	// DeepSeek / Kimi native Responses endpoints are stateless for both HTTP
+	// and WebSocket transports.
+	if account != nil && account.UsesNativeCNResponses() {
+		payload["store"] = false
+		delete(payload, "previous_response_id")
+	}
 	return payload
 }
 

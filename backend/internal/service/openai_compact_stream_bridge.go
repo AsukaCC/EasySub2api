@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -115,10 +116,11 @@ func writeOpenAICompactSSEFailureMessage(c *gin.Context, statusCode int, errType
 	payload, err := json.Marshal(map[string]any{
 		"type": "response.failed",
 		"response": map[string]any{
-			"id":     "resp_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
-			"object": "response",
-			"status": "failed",
-			"output": []any{},
+			"id":         "resp_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
+			"object":     "response",
+			"created_at": time.Now().Unix(),
+			"status":     "failed",
+			"output":     []any{},
 			"error": map[string]any{
 				"code":    errType,
 				"message": message,
@@ -157,6 +159,34 @@ func buildOpenAICompactSSEPayload(finalResponse []byte) ([]byte, bool) {
 	root := gjson.ParseBytes(response)
 	if strings.TrimSpace(root.Get("id").String()) == "" {
 		next, err := sjson.SetBytes(response, "id", "resp_"+strings.ReplaceAll(uuid.NewString(), "-", ""))
+		if err != nil {
+			return nil, false
+		}
+		response = next
+	}
+	if object := gjson.GetBytes(response, "object"); object.Type != gjson.String || object.String() != "response" {
+		next, err := sjson.SetBytes(response, "object", "response")
+		if err != nil {
+			return nil, false
+		}
+		response = next
+	}
+	if createdAt := gjson.GetBytes(response, "created_at"); createdAt.Type != gjson.Number || createdAt.Int() <= 0 {
+		next, err := sjson.SetBytes(response, "created_at", time.Now().Unix())
+		if err != nil {
+			return nil, false
+		}
+		response = next
+	}
+	if status := gjson.GetBytes(response, "status"); status.Type != gjson.String || strings.TrimSpace(status.String()) == "" {
+		next, err := sjson.SetBytes(response, "status", "completed")
+		if err != nil {
+			return nil, false
+		}
+		response = next
+	}
+	if output := gjson.GetBytes(response, "output"); !output.IsArray() {
+		next, err := sjson.SetRawBytes(response, "output", []byte(`[]`))
 		if err != nil {
 			return nil, false
 		}

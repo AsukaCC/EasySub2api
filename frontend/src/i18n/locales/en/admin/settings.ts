@@ -131,7 +131,7 @@ export default {
           enabled: 'Enable Affiliate',
           enabledHint: 'When off, the affiliate menu is hidden, the aff parameter is ignored at signup, and new recharge orders generate no rebate. Existing rebate points can still be transferred to platform points.',
           rebateRate: 'Global Rebate Rate',
-          rebateRateHint: 'Default percentage credited to the selected recipient after a recharge (0-100, e.g. 10 = 10%).',
+          rebateRateHint: 'Default percentage credited to the inviter after an invitee recharge (0-100, e.g. 10 = 10%).',
           recipient: 'Rebate Recipient',
           recipientInviter: 'Inviter',
           recipientInvitee: 'Invitee',
@@ -143,6 +143,41 @@ export default {
           durationDaysDesc: 'Rebate relationship expires after this many days since invitee registration. 0 = permanent.',
           perInviteeCap: 'Per-Invitee Rebate Point Cap',
           perInviteeCapDesc: 'Maximum rebate points from a single invitee. 0 = no limit.',
+          adminRechargeEnabled: 'Include Admin Recharges',
+          adminRechargeEnabledHint: 'When enabled, points added to an invitee by an administrator also generate a rebate for the inviter.',
+          bindingRewards: {
+            title: 'Invitation Relationship Rewards',
+            description: 'Immediately grant bonus points to the inviter and invitee when an invite code is successfully linked.',
+            inviterTitle: 'Inviter Reward',
+            inviteeTitle: 'Invitee Reward',
+            points: 'Immediate Reward Points',
+            validityDays: 'Validity (days)',
+            hint: 'Set points to 0 to skip that role. Rewards do not count as recharged points, and validity starts when points are granted.'
+          },
+          rechargeRebate: {
+            title: 'Invitee Recharge Rebate',
+            description: 'Recharge rebates always go to the inviter, remain frozen for 168 hours, and are transferred manually into bonus points.'
+          },
+          backfill: {
+            title: 'Historical Relationship Backfill',
+            description: 'Apply the current relationship reward settings once to historical relationships that have not been processed. Preview and confirm before starting.',
+            preview: 'Preview Backfill',
+            start: 'Start Backfill',
+            relations: 'Relationships pending: {count}',
+            inviterTotal: 'Inviters: {count} / {points} points',
+            inviteeTotal: 'Invitees: {count} / {points} points',
+            confirmTitle: 'Confirm Historical Reward Backfill',
+            confirmMessage: 'This will process {count} historical relationships and is expected to grant {points} points. The idempotent task will continue in the background. Continue?',
+            confirmButton: 'Start Backfill',
+            previewFailed: 'Failed to preview the historical reward backfill',
+            loadFailed: 'Failed to load historical reward backfill progress',
+            status: {
+              pending: 'Pending',
+              running: 'Running',
+              completed: 'Completed',
+              failed: 'Failed'
+            }
+          },
           customUsers: {
             title: 'Per-User Overrides',
             description: 'Set a custom invite code or exclusive rebate rate for specific users. Lists only users that have an override applied.',
@@ -205,8 +240,8 @@ export default {
           'When enabled and the allowlist is not empty, every other registrable domain can register one account. When disabled, non-allowlist domains are rejected. Has no effect while the allowlist is empty',
         promoCode: 'Promo Code',
         promoCodeHint: 'Allow users to use promo codes during registration',
-        invitationCode: 'Invitation Code Registration',
-        invitationCodeHint: 'Show an optional registration access code; entered codes must be valid, while an empty value does not block registration',
+        invitationCode: 'Require Invitation Code',
+        invitationCodeHint: 'Require every new registration to bind a valid invitation code. Affiliate rewards and user visibility must be enabled first',
         passwordReset: 'Password Reset',
         passwordResetHint: 'Allow users to reset their password via email',
         frontendUrl: 'Frontend URL',
@@ -515,6 +550,10 @@ export default {
         grokBaseURLModeUSEast1: 'Regional API (us-east-1)',
         grokBaseURLModeUSWest2: 'Regional API (us-west-2)',
         grokBaseURLModeEUWest1: 'Regional API (eu-west-1)',
+        openaiTTFTMode: 'OpenAI Responses first-token metric',
+        openaiTTFTModeVisible: 'Visible output (recommended)',
+        openaiTTFTModeSemantic: 'Semantic event (legacy)',
+        openaiTTFTModeHint: 'Visible output records first_token_ms when non-empty text, tool arguments, or image content first arrives. Semantic mode keeps the earlier event-based metric.',
         fingerprintUnification: 'Fingerprint Unification',
         fingerprintUnificationHint: 'Unify X-Stainless-* headers across users sharing the same OAuth account. Disabling passes through each client\'s original headers.',
         metadataPassthrough: 'Metadata Passthrough',
@@ -783,6 +822,9 @@ export default {
         rechargeFeeRate: 'Recharge Fee Rate',
         rechargeFeeRateHint: 'Percentage of service fee charged on top of recharge amount, 0 means no fee',
         rechargeFeePreview: 'Preview: Recharge 100, fee {fee}',
+        refundFeeRate: 'Refund Fee Rate',
+        refundFeeRateHint: 'Percentage deducted from the actual gateway refund amount, defaults to 3%',
+        refundFeePreview: 'Preview: Refund 100 principal, deduct {fee} as fee',
         orderTimeout: 'Order Timeout',
         orderTimeoutHint: 'In minutes, minimum 1',
         maxPendingOrders: 'Max Pending Orders',
@@ -1173,6 +1215,15 @@ export default {
         cooldownSecondsHint: 'Default cooldown duration (1-7200 seconds); explicit upstream reset times still take precedence',
         saved: '429 default cooldown settings saved',
         saveFailed: 'Failed to save 429 default cooldown settings'
+      },
+      imageOAuthCooldown: {
+        title: 'OpenAI Images OAuth Unavailable Cooldown',
+        description: 'Set how long an OAuth account is excluded from image requests after upstream explicitly reports that the image tool is unavailable.',
+        cooldownMinutes: 'Cooldown Duration (minutes)',
+        cooldownMinutesHint: 'Range: 1-120 minutes. Text-only responses do not trigger this cooldown.',
+        invalidRange: 'Cooldown duration must be an integer from 1 to 120 minutes',
+        saved: 'OpenAI Images OAuth cooldown saved',
+        saveFailed: 'Failed to save OpenAI Images OAuth cooldown'
       },
       streamTimeout: {
         title: 'Stream Timeout Handling',

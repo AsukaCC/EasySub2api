@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -24,13 +23,16 @@ const (
 	UpstreamModelSyncErrorUnsupported UpstreamModelSyncErrorKind = "unsupported"
 	// UpstreamModelSyncErrorUpstream means the configured upstream failed or returned an unusable response.
 	UpstreamModelSyncErrorUpstream UpstreamModelSyncErrorKind = "upstream"
+	// UpstreamModelSyncErrorInternal means local persistence failed after a valid upstream response.
+	UpstreamModelSyncErrorInternal UpstreamModelSyncErrorKind = "internal"
 )
 
 // UpstreamModelSyncError keeps internal failure details wrapped while exposing a safe client message.
 type UpstreamModelSyncError struct {
-	Kind    UpstreamModelSyncErrorKind
-	Message string
-	Err     error
+	Kind       UpstreamModelSyncErrorKind
+	Message    string
+	StatusCode int
+	Err        error
 }
 
 func (e *UpstreamModelSyncError) Error() string {
@@ -70,59 +72,14 @@ func newUpstreamModelSyncUpstreamError(message string, err error) error {
 	return &UpstreamModelSyncError{Kind: UpstreamModelSyncErrorUpstream, Message: message, Err: err}
 }
 
+func newUpstreamModelSyncInternalError(message string, err error) error {
+	return &UpstreamModelSyncError{Kind: UpstreamModelSyncErrorInternal, Message: message, Err: err}
+}
+
 // FetchUpstreamSupportedModels fetches the live model list from the account's upstream API format.
 func (s *AccountTestService) FetchUpstreamSupportedModels(ctx context.Context, account *Account) ([]string, error) {
-	if s == nil {
-		return nil, newUpstreamModelSyncConfigError("Account test service is not configured", nil)
-	}
-	if account == nil {
-		return nil, newUpstreamModelSyncConfigError("Account is required", nil)
-	}
-
-	if s.httpUpstream == nil {
-		return nil, newUpstreamModelSyncConfigError("Upstream HTTP client is not configured", nil)
-	}
-
-	req, err := s.buildUpstreamModelsRequest(ctx, account)
-	if err != nil {
-		return nil, err
-	}
-
-	proxyURL := upstreamModelsProxyURL(account)
-	resp, err := s.doUpstreamModelsRequest(req, proxyURL, account)
-	if err != nil {
-		return nil, newUpstreamModelSyncUpstreamError("Failed to request upstream model list", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, upstreamModelsBodyLimit+1))
-	if err != nil {
-		return nil, newUpstreamModelSyncUpstreamError("Failed to read upstream model list", err)
-	}
-	if int64(len(body)) > upstreamModelsBodyLimit {
-		return nil, newUpstreamModelSyncUpstreamError("Upstream model list response is too large", fmt.Errorf("response exceeds %v bytes", upstreamModelsBodyLimit))
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, newUpstreamModelSyncUpstreamError(
-			fmt.Sprintf("Upstream model list request failed with HTTP %v", resp.StatusCode),
-			fmt.Errorf("upstream model list returned HTTP %v", resp.StatusCode),
-		)
-	}
-
-	extractModels := extractUpstreamModelIDs
-	if account.IsGrok() {
-		extractModels = extractGrokUpstreamModelIDs
-	}
-	models, err := extractModels(body)
-	if err != nil {
-		return nil, newUpstreamModelSyncUpstreamError("Upstream model list response was not valid JSON", err)
-	}
-	if len(models) == 0 {
-		return nil, newUpstreamModelSyncUpstreamError("Upstream returned no supported models", nil)
-	}
-
-	return models, nil
+	models, _, err := s.fetchUpstreamModelList(ctx, account)
+	return models, err
 }
 
 func (s *AccountTestService) buildUpstreamModelsRequest(ctx context.Context, account *Account) (*http.Request, error) {
@@ -356,6 +313,7 @@ func buildOpenAIModelsURL(base string) string {
 
 type upstreamModelEntry struct {
 	ID           string          `json:"id"`
+	Slug         string          `json:"slug"`
 	Model        string          `json:"model"`
 	ModelID      string          `json:"modelId"`
 	ModelIDSnake string          `json:"model_id"`
@@ -365,6 +323,7 @@ type upstreamModelEntry struct {
 
 type upstreamModelEntryMetadata struct {
 	ID           string `json:"id"`
+	Slug         string `json:"slug"`
 	Model        string `json:"model"`
 	ModelID      string `json:"modelId"`
 	ModelIDSnake string `json:"model_id"`
@@ -420,6 +379,9 @@ func extractUpstreamModelIDsWithSelector(body []byte, selectID func(upstreamMode
 func upstreamModelEntryID(entry upstreamModelEntry) string {
 	modelID := strings.TrimSpace(entry.ID)
 	if modelID == "" {
+		modelID = strings.TrimSpace(entry.Slug)
+	}
+	if modelID == "" {
 		modelID = strings.TrimSpace(entry.Name)
 	}
 	return strings.TrimPrefix(modelID, "models/")
@@ -431,6 +393,7 @@ func grokUpstreamModelEntryID(entry upstreamModelEntry) string {
 		entry.ModelID,
 		entry.ModelIDSnake,
 		entry.ID,
+		entry.Slug,
 	}
 	if len(entry.Meta) > 0 {
 		var meta upstreamModelEntryMetadata
@@ -440,6 +403,7 @@ func grokUpstreamModelEntryID(entry upstreamModelEntry) string {
 				meta.ModelID,
 				meta.ModelIDSnake,
 				meta.ID,
+				meta.Slug,
 				meta.Name,
 			)
 		}

@@ -34,6 +34,10 @@
               <Icon name="refresh" size="sm" />
               {{ t('payment.admin.retry') }}
             </button>
+            <button v-if="row.status === 'CANCELLED'" class="btn btn-danger btn-xs" @click="deleteTarget = row">
+              <Icon name="trash" size="sm" />
+              {{ t('common.delete') }}
+            </button>
             <template v-if="row.status === 'REFUND_REQUESTED' && canDirectRefund(row)">
               <span v-if="row.refund_amount" class="views-admin-orders-admin-orders-view__text">{{ formatCNY(row.refund_amount) }}</span>
               <button @click="openRefundDialog(row)" class="views-admin-orders-admin-orders-view__action-4">
@@ -112,6 +116,18 @@
     </BaseDialog>
 
     <AdminRefundDialog :show="showRefundDialog" :order="selectedOrder" :submitting="refundSubmitting" @confirm="handleRefund" @cancel="closeRefundDialog" />
+
+    <BaseDialog :show="!!deleteTarget" :title="t('payment.deleteOrder')" width="narrow" @close="deleteTarget = null">
+      <p>{{ t('payment.confirmDeleteOrder') }}</p>
+      <template #footer>
+        <div class="order-delete-dialog__actions">
+          <button class="btn btn-secondary" :disabled="deleteSubmitting" @click="deleteTarget = null">{{ t('common.cancel') }}</button>
+          <button class="btn btn-danger" :disabled="deleteSubmitting" @click="confirmDeleteOrder">
+            {{ deleteSubmitting ? t('common.processing') : t('common.delete') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -157,6 +173,8 @@ const showDetailDialog = ref(false)
 const showRefundDialog = ref(false)
 const refundSubmitting = ref(false)
 const refundQueryingIds = ref(new Set<string>())
+const deleteTarget = ref<PaymentOrder | null>(null)
+const deleteSubmitting = ref(false)
 const orderAuditLogs = ref<AuditLog[]>([])
 function orderPoints(order: PaymentOrder): number {
   if (order.order_type === 'balance') return order.credited_points ?? order.amount
@@ -237,6 +255,22 @@ async function handleRetryOrder(order: PaymentOrder) {
   catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
 }
 
+async function confirmDeleteOrder() {
+  if (!deleteTarget.value) return
+  deleteSubmitting.value = true
+  try {
+    await adminPaymentAPI.deleteOrder(deleteTarget.value.id)
+    appStore.showSuccess(t('payment.orderDeleted'))
+    deleteTarget.value = null
+    if (orders.value.length === 1 && orderPagination.page > 1) orderPagination.page -= 1
+    await loadOrders()
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+  } finally {
+    deleteSubmitting.value = false
+  }
+}
+
 function openRefundDialog(order: PaymentOrder) {
   selectedOrder.value = order
   showRefundDialog.value = true
@@ -294,6 +328,12 @@ onMounted(() => loadOrders())
 </script>
 
 <style scoped>
+.order-delete-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 .admin-orders-workspace-tabs {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -121,6 +121,81 @@ func (s *PaymentService) AdminCancelOrder(ctx context.Context, orderID string) (
 	return s.cancelCore(ctx, o, OrderStatusCancelled, "admin", "admin cancelled order")
 }
 
+// DeleteCancelledOrder removes a cancelled order from the owning user's order list.
+// The payment record is retained so a delayed successful provider callback can recover it.
+func (s *PaymentService) DeleteCancelledOrder(ctx context.Context, orderID, userID string) error {
+	o, err := s.entClient.PaymentOrder.Query().
+		Where(paymentorder.IDEQ(orderID), paymentorder.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		return infraerrors.NotFound("NOT_FOUND", "order not found")
+	}
+	if o.UserID != userID {
+		return infraerrors.Forbidden("FORBIDDEN", "no permission for this order")
+	}
+	return s.archiveCancelledOrder(ctx, o, fmt.Sprintf("user:%v", userID))
+}
+
+// AdminDeleteCancelledOrder removes a cancelled order from the shared order lists.
+func (s *PaymentService) AdminDeleteCancelledOrder(ctx context.Context, orderID string) error {
+	o, err := s.entClient.PaymentOrder.Query().
+		Where(paymentorder.IDEQ(orderID), paymentorder.DeletedAtIsNil()).
+		Only(ctx)
+	if err != nil {
+		return infraerrors.NotFound("NOT_FOUND", "order not found")
+	}
+	return s.archiveCancelledOrder(ctx, o, "admin")
+}
+
+func (s *PaymentService) archiveCancelledOrder(ctx context.Context, o *dbent.PaymentOrder, operator string) error {
+	if o.Status != OrderStatusCancelled {
+		return infraerrors.BadRequest("INVALID_STATUS", "only cancelled orders can be deleted")
+	}
+	if o.InventoryStatus == InventoryStatusReserved {
+		return infraerrors.Conflict("ORDER_CANCELLATION_INCOMPLETE", "order inventory is still reserved")
+	}
+	if o.WalletHoldID != nil && strings.TrimSpace(*o.WalletHoldID) != "" {
+		released, err := s.isWalletHoldReleased(ctx, *o.WalletHoldID)
+		if err != nil {
+			return fmt.Errorf("check wallet hold before deleting order: %w", err)
+		}
+		if !released {
+			return infraerrors.Conflict("ORDER_CANCELLATION_INCOMPLETE", "order wallet hold has not been released")
+		}
+	}
+
+	now := time.Now().UTC()
+	updated, err := s.entClient.PaymentOrder.Update().Where(
+		paymentorder.IDEQ(o.ID),
+		paymentorder.StatusEQ(OrderStatusCancelled),
+		paymentorder.DeletedAtIsNil(),
+	).SetDeletedAt(now).Save(ctx)
+	if err != nil {
+		return fmt.Errorf("delete cancelled order: %w", err)
+	}
+	if updated == 0 {
+		return infraerrors.Conflict("CONFLICT", "order status changed; refresh and try again")
+	}
+	s.writeAuditLog(ctx, o.ID, "ORDER_ARCHIVED", operator, map[string]any{"deleted_at": now})
+	return nil
+}
+
+func (s *PaymentService) isWalletHoldReleased(ctx context.Context, holdID string) (bool, error) {
+	rows, err := s.entClient.QueryContext(ctx, `SELECT status FROM wallet_holds WHERE id = $1`, holdID)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		return false, rows.Err()
+	}
+	var status string
+	if err := rows.Scan(&status); err != nil {
+		return false, err
+	}
+	return status == "released", rows.Err()
+}
+
 func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, fs, op, ad string) (string, error) {
 	if o.PaymentTradeNo != "" || o.PaymentType != "" {
 		if s.checkPaid(ctx, o) == checkPaidResultAlreadyPaid {

@@ -176,6 +176,25 @@ export interface UserAffiliateDetail {
   code_regeneration_remaining: number
   code_regeneration_reset_at: string
   invitees: AffiliateInvitee[]
+  can_bind_inviter: boolean
+  invitee_binding_reward_points: number
+  invitee_binding_reward_validity_days: number
+}
+
+export interface AffiliateBindingRewardResult {
+  points: number
+  expires_at?: string
+  applied: boolean
+}
+
+export interface BindAffiliateCodeResponse {
+  binding: {
+    bound: boolean
+    already_bound: boolean
+    inviter_reward: AffiliateBindingRewardResult
+    invitee_reward: AffiliateBindingRewardResult
+  }
+  detail: UserAffiliateDetail
 }
 
 export interface AffiliateCodeRegenerationResponse {
@@ -581,7 +600,14 @@ export interface OpenAIMessagesDispatchModelConfig {
 export interface ReasoningEffortMapping {
   from: string
   to: string
+  /** Optional model scope. Empty/omitted means all models. */
+  model?: string
+  /** How the model scope is matched. Defaults to exact when model is set. */
+  match_type?: ReasoningEffortMatchType
 }
+
+export type ReasoningEffortMatchType = 'exact' | 'prefix' | 'suffix'
+export type ReasoningEffortOverLimitPolicy = 'downgrade' | 'deny'
 
 export interface GroupDynamicRateRule {
 	id: string
@@ -607,6 +633,7 @@ export interface Group {
 	dynamic_rate_rules: GroupDynamicRateRule[]
   rpm_limit?: number // Group-level RPM cap (0 = unlimited); overrides user-level rpm_limit when set
   max_reasoning_effort?: string // OpenAI/Codex reasoning ceiling; empty means unlimited
+  max_reasoning_effort_over_limit?: ReasoningEffortOverLimitPolicy
   reasoning_effort_mappings?: ReasoningEffortMapping[]
   is_exclusive: boolean
   status: 'active' | 'inactive'
@@ -663,6 +690,8 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  force_openai_fast?: boolean
+  free_openai_fast?: boolean
   model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
   // 分组利润控制（token 平台可启用；margin/buffer 为小数存储）。
   // 仅管理员可见：与 rate_multiplier 相乘即可反推上游成本上限，不得下放到 Group。
@@ -869,7 +898,10 @@ export interface CreateGroupRequest {
   model_routing?: Record<string, string[]> | null
   model_routing_enabled?: boolean
   rpm_limit?: number
+  force_openai_fast?: boolean
+  free_openai_fast?: boolean
   max_reasoning_effort?: string
+  max_reasoning_effort_over_limit?: ReasoningEffortOverLimitPolicy
   reasoning_effort_mappings?: ReasoningEffortMapping[]
   require_oauth_only?: boolean
   require_privacy_set?: boolean
@@ -935,7 +967,10 @@ export interface UpdateGroupRequest {
   model_routing?: Record<string, string[]> | null
   model_routing_enabled?: boolean
   rpm_limit?: number
+  force_openai_fast?: boolean
+  free_openai_fast?: boolean
   max_reasoning_effort?: string
+  max_reasoning_effort_over_limit?: ReasoningEffortOverLimitPolicy
   reasoning_effort_mappings?: ReasoningEffortMapping[]
   require_oauth_only?: boolean
   require_privacy_set?: boolean
@@ -1642,6 +1677,7 @@ export interface UsageLog {
   request_id: string
   model: string
   service_tier?: string | null
+  requested_reasoning_effort?: string | null
   reasoning_effort?: string | null
   inbound_endpoint?: string | null
   upstream_endpoint?: string | null
@@ -1662,7 +1698,7 @@ export interface UsageLog {
   cache_read_cost: number
   total_cost: number
   actual_cost: number
-  // 账号侧实际消耗积分；不包含账号倍率或定价明细
+  // 兼容字段名：账号侧上游计费金额（USD），不包含定价明细
   account_billed_points?: number
   rate_multiplier: number
   long_context_billing_applied: boolean
@@ -1671,6 +1707,7 @@ export interface UsageLog {
   request_type?: UsageRequestType
   stream: boolean
   openai_ws_mode?: boolean
+  native_compaction_v2?: boolean
   duration_ms: number | null
   first_token_ms: number | null
 
@@ -2144,6 +2181,7 @@ export interface UsageQueryParams {
   model?: string
   request_type?: UsageRequestType
   stream?: boolean
+  native_compaction_v2?: boolean | null
   billing_type?: number | null
   billing_mode?: string | null
   start_date?: string

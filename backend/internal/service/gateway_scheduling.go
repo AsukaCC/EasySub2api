@@ -152,6 +152,18 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 		return nil, err
 	}
 	ctx = s.withGroupContext(ctx, group)
+	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
+	if group != nil && group.Platform == PlatformComposite && (!hasForcePlatform || strings.TrimSpace(forcePlatform) == "") {
+		decision, ok, resolveErr := s.resolveCompositeRouteDecision(ctx, group, requestedModel, CompositeRouteEndpointAny)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		if !ok {
+			return nil, fmt.Errorf("%w supporting model: %s (composite target platform unknown)", ErrNoAvailableAccounts, requestedModel)
+		}
+		requestedModel = decision.UpstreamModel
+		ctx = WithCompositeRouteDecision(ctx, decision)
+	}
 	ctx = s.withGatewayProfitControlGate(ctx, groupID)
 
 	// Claude Code 限制可能已将 groupID 解析为 fallback group，
@@ -2285,7 +2297,9 @@ func summarizeSelectionFailureStats(stats selectionFailureStats) string {
 
 // isModelSupportedByAccountWithContext 根据账户平台检查模型支持（带 context）。
 func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Context, account *Account, requestedModel string) bool {
-	_ = ctx
+	if !compositeAccountOwnsRequestedAlias(ctx, account) {
+		return false
+	}
 	return s.isModelSupportedByAccount(account, requestedModel)
 }
 

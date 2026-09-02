@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -27,6 +28,12 @@ func isOpenAINativeCompactionV2(c *gin.Context) bool {
 		return false
 	}
 	return c.GetBool(openAINativeCompactionV2Key)
+}
+
+// IsOpenAINativeCompactionV2 exposes the request-scoped marker without
+// retaining or re-reading the request payload.
+func IsOpenAINativeCompactionV2(c *gin.Context) bool {
+	return isOpenAINativeCompactionV2(c)
 }
 
 // ensureOpenAIRemoteCompactionV2BetaFeature 确保出站 x-codex-beta-features
@@ -131,4 +138,21 @@ func HasCompactionTriggerInInput(body []byte) bool {
 		return true
 	})
 	return found
+}
+
+func hasCompactionTriggerInRequestMap(body map[string]any) bool {
+	if body == nil {
+		return false
+	}
+	items, ok := body["input"].([]any)
+	if !ok {
+		return false
+	}
+	for _, item := range items {
+		entry, ok := item.(map[string]any)
+		if ok && strings.TrimSpace(fmt.Sprint(entry["type"])) == "compaction_trigger" {
+			return true
+		}
+	}
+	return false
 }

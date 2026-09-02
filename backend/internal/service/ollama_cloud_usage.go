@@ -63,7 +63,7 @@ var (
 		"OLLAMA_CLOUD_USAGE_UNAVAILABLE", "Ollama Cloud usage is unavailable",
 	)
 	ErrOllamaCloudUsageAccountInvalid = infraerrors.BadRequest(
-		"OLLAMA_CLOUD_USAGE_ACCOUNT_INVALID", "account must be an OpenAI or Anthropic API key account using https://ollama.com",
+		"OLLAMA_CLOUD_USAGE_ACCOUNT_INVALID", "account must be a supported API key account using https://ollama.com",
 	)
 	ErrOllamaCloudUsageSessionRequired = infraerrors.BadRequest(
 		"OLLAMA_CLOUD_USAGE_SESSION_REQUIRED", "an Ollama web session must be configured first",
@@ -1008,11 +1008,20 @@ func OllamaCloudUsageStateFromAccount(account *Account) *OllamaCloudUsageState {
 }
 
 func IsOllamaCloudUsageAccount(account *Account) bool {
-	if account == nil || account.Type != AccountTypeAPIKey || (account.Platform != PlatformOpenAI && account.Platform != PlatformAnthropic) {
+	if account == nil || account.Type != AccountTypeAPIKey || !isOllamaCloudUsagePlatform(account.Platform) {
 		return false
 	}
 	baseURL, _ := account.Credentials["base_url"].(string)
 	return isOllamaCloudBaseURL(baseURL)
+}
+
+func isOllamaCloudUsagePlatform(platform string) bool {
+	switch platform {
+	case PlatformOpenAI, PlatformAnthropic, PlatformKimi, PlatformZhipu, PlatformDeepseek:
+		return true
+	default:
+		return false
+	}
 }
 
 func isOllamaCloudBaseURL(raw string) bool {

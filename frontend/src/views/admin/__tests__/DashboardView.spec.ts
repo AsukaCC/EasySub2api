@@ -5,10 +5,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import type { DashboardStats } from '@/types'
 import DashboardView from '../DashboardView.vue'
 
-const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking } = vi.hoisted(() => ({
+const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking, getRealtimeMetrics } = vi.hoisted(() => ({
   getSnapshotV2: vi.fn(),
   getUserUsageTrend: vi.fn(),
-  getUserSpendingRanking: vi.fn()
+  getUserSpendingRanking: vi.fn(),
+  getRealtimeMetrics: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -16,7 +17,8 @@ vi.mock('@/api/admin', () => ({
     dashboard: {
       getSnapshotV2,
       getUserUsageTrend,
-      getUserSpendingRanking
+      getUserSpendingRanking,
+      getRealtimeMetrics
     }
   }
 }))
@@ -93,6 +95,7 @@ describe('admin DashboardView', () => {
     getSnapshotV2.mockReset()
     getUserUsageTrend.mockReset()
     getUserSpendingRanking.mockReset()
+    getRealtimeMetrics.mockReset()
 
     getSnapshotV2.mockResolvedValue({
       stats: createDashboardStats(),
@@ -112,6 +115,14 @@ describe('admin DashboardView', () => {
       total_tokens: 0,
       start_date: '',
       end_date: ''
+    })
+    getRealtimeMetrics.mockResolvedValue({
+      active_requests: 0,
+      requests_per_minute: 0,
+      average_response_time: 0,
+      error_rate: 0,
+      ws_pool_connections: 12,
+      ws_pool_max_connections: 512
     })
   })
 

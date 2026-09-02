@@ -88,24 +88,37 @@
         </div>
 
         <!-- The affiliate referral code is the only invitation code. -->
-        <div v-if="affiliateEnabled" data-testid="affiliate-invitation-field">
-          <label for="affiliate_code" class="input-label">
-            {{ t('auth.affiliateCodeLabel') }}
-            <span class="views-auth-register-view__text-2">({{ t('common.optional') }})</span>
+        <div
+          v-if="affiliateEnabled || invitationCodeRequired"
+          :data-testid="
+            invitationCodeRequired ? 'invitation-code-field' : 'affiliate-invitation-field'
+          "
+        >
+          <label :for="invitationCodeRequired ? 'invitation_code' : 'affiliate_code'" class="input-label">
+            {{ t('auth.invitationCodeLabel') }}
+            <span v-if="!invitationCodeRequired" class="views-auth-register-view__text-2">
+              ({{ t('common.optional') }})
+            </span>
           </label>
           <div class="views-auth-register-view__panel-6">
             <div class="views-auth-register-view__panel-7">
               <Icon name="key" size="md" class="views-auth-register-view__icon-2" />
             </div>
             <input
-              id="affiliate_code"
+              :id="invitationCodeRequired ? 'invitation_code' : 'affiliate_code'"
               v-model="formData.aff_code"
               type="text"
+              :required="invitationCodeRequired"
               :disabled="registrationActionDisabled"
               class="views-auth-register-view__field input"
-              :placeholder="t('auth.affiliateCodePlaceholder')"
+              :class="{ 'input-error': errors.affCode }"
+              :aria-invalid="Boolean(errors.affCode)"
+              :placeholder="t('auth.invitationCodePlaceholder')"
             />
           </div>
+          <p v-if="errors.affCode" class="input-error-message" role="alert">
+            {{ errors.affCode }}
+          </p>
         </div>
 
         <!-- Promo Code Input (Optional) -->
@@ -237,6 +250,7 @@
         <EmailOAuthButtons
           :disabled="registrationActionDisabled"
           :aff-code="formData.aff_code"
+          :promo-code="formData.promo_code"
           :github-enabled="githubOAuthEnabled"
           :google-enabled="googleOAuthEnabled"
           :show-divider="false"
@@ -247,6 +261,7 @@
           v-if="wechatOAuthEnabled"
           :disabled="registrationActionDisabled"
           :aff-code="formData.aff_code"
+          :promo-code="formData.promo_code"
           :show-divider="false"
           @start="handleOAuthStart"
         />
@@ -255,6 +270,7 @@
           :disabled="registrationActionDisabled"
           :provider-name="oidcOAuthProviderName"
           :aff-code="formData.aff_code"
+          :promo-code="formData.promo_code"
           :show-divider="false"
           @start="handleOAuthStart"
         />
@@ -333,6 +349,7 @@ const registrationEnabled = ref<boolean>(true)
 const emailVerifyEnabled = ref<boolean>(false)
 const promoCodeEnabled = ref<boolean>(true)
 const affiliateEnabled = ref<boolean>(false)
+const invitationCodeRequired = ref<boolean>(false)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
 const tencentCaptchaEnabled = ref<boolean>(false)
@@ -400,12 +417,14 @@ const formData = reactive({
 const errors = reactive({
   email: '',
   password: '',
+  affCode: '',
   turnstile: ''
 })
 
 const validationToastMessage = computed(() =>
   errors.email ||
   errors.password ||
+  errors.affCode ||
   (promoValidation.invalid ? promoValidation.message : '') ||
   errors.turnstile ||
   ''
@@ -452,6 +471,7 @@ onMounted(async () => {
     emailVerifyEnabled.value = settings.email_verify_enabled
     promoCodeEnabled.value = settings.promo_code_enabled
     affiliateEnabled.value = settings.affiliate_enabled
+    invitationCodeRequired.value = settings.invitation_code_enabled === true
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     tencentCaptchaEnabled.value = settings.tencent_captcha_enabled === true
@@ -681,6 +701,12 @@ async function acquireActionProof(): Promise<boolean> {
 async function handleOAuthStart(request: OAuthLoginStart): Promise<void> {
   if (registrationActionDisabled.value) return
 
+  if (invitationCodeRequired.value && !formData.aff_code.trim()) {
+    errors.affCode = t('auth.invitationCodeRequired')
+    appStore.showError(errors.affCode)
+    return
+  }
+
   if (!actionCaptchaEnabled.value) {
     window.location.href = buildOAuthLoginStartURL(request)
     return
@@ -742,6 +768,7 @@ function validateForm(): boolean {
   // Reset errors
   errors.email = ''
   errors.password = ''
+  errors.affCode = ''
   errors.turnstile = ''
 
   let isValid = true
@@ -777,6 +804,14 @@ function validateForm(): boolean {
   } else if (formData.password.length < 6) {
     errors.password = t('auth.passwordMinLength')
     isValid = false
+  }
+
+  if (invitationCodeRequired.value) {
+    const affiliateCode = formData.aff_code.trim() || loadAffiliateReferralCode()
+    if (!affiliateCode) {
+      errors.affCode = t('auth.invitationCodeRequired')
+      isValid = false
+    }
   }
 
   // Turnstile validation
@@ -880,8 +915,19 @@ async function handleRegister(): Promise<void> {
 }
 
 function buildRegistrationErrorMessage(error: unknown, fallback: string): string {
-  if (extractApiErrorCode(error) === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
+  const code = extractApiErrorCode(error)
+  if (code === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
     return t('auth.emailDomainRegistrationLimit')
+  }
+  if (code === 'INVITATION_CODE_REQUIRED') {
+    return t('auth.invitationCodeRequired')
+  }
+  if (
+    code === 'INVITATION_CODE_INVALID' ||
+    code === 'AFFILIATE_CODE_INVALID' ||
+    code === 'AFFILIATE_INVITER_UNAVAILABLE'
+  ) {
+    return t('auth.invitationCodeInvalidCannotRegister')
   }
   return buildAuthErrorMessage(error, { fallback })
 }

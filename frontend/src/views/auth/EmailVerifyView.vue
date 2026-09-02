@@ -781,8 +781,19 @@ function buildEmailSuffixNotAllowedMessage(): string {
 }
 
 function buildRegistrationErrorMessage(error: unknown, fallback: string): string {
-  if (extractApiErrorCode(error) === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
+  const code = extractApiErrorCode(error)
+  if (code === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
     return t('auth.emailDomainRegistrationLimit')
+  }
+  if (code === 'INVITATION_CODE_REQUIRED') {
+    return t('auth.invitationCodeRequired')
+  }
+  if (
+    code === 'INVITATION_CODE_INVALID' ||
+    code === 'AFFILIATE_CODE_INVALID' ||
+    code === 'AFFILIATE_INVITER_UNAVAILABLE'
+  ) {
+    return t('auth.invitationCodeInvalidCannotRegister')
   }
   return buildAuthErrorMessage(error, { fallback })
 }

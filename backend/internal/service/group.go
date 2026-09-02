@@ -95,6 +95,8 @@ type Group struct {
 	AllowMessagesDispatch       bool
 	AllowLive                   bool
 	CcsCodexWSEnabled           bool
+	ForceOpenAIFast             bool // 强制 OpenAI 网关请求使用 service_tier=priority
+	FreeOpenAIFast              bool // OpenAI Fast 请求按 Standard 价格向用户计费
 	RequireOAuthOnly            bool // 仅允许非 apikey 类型账号关联
 	RequirePrivacySet           bool // 调度时仅允许 privacy 已成功设置的账号
 	DefaultMappedModel          string
@@ -108,6 +110,9 @@ type Group struct {
 	// MaxReasoningEffort limits the effective OpenAI/Codex reasoning effort.
 	// Empty means unlimited; supported values are minimal/low/medium/high/xhigh/max.
 	MaxReasoningEffort string
+	// MaxReasoningEffortOverLimit controls requests above the ceiling:
+	// downgrade (default) or deny.
+	MaxReasoningEffortOverLimit string
 	// ReasoningEffortMappings rewrites explicit request values before applying the ceiling.
 	ReasoningEffortMappings []ReasoningEffortMapping
 

@@ -65,6 +65,10 @@ func (s *OpenAIGatewayService) shouldBridgeOpenAIWSHTTP(account *Account, payloa
 }
 
 func prepareOpenAIWSHTTPBridgeBody(payload []byte) ([]byte, error) {
+	return prepareOpenAIWSHTTPBridgeBodyForAccount(nil, payload)
+}
+
+func prepareOpenAIWSHTTPBridgeBodyForAccount(account *Account, payload []byte) ([]byte, error) {
 	var body map[string]any
 	if err := json.Unmarshal(payload, &body); err != nil {
 		return nil, err
@@ -75,6 +79,7 @@ func prepareOpenAIWSHTTPBridgeBody(payload []byte) ([]byte, error) {
 	delete(body, "type")
 	delete(body, "generate")
 	delete(body, "previous_response_id")
+	deleteOpenAIResponsesNoneReasoningEffortFromObject(account, body)
 	body["stream"] = true
 	return json.Marshal(body)
 }
@@ -183,7 +188,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 	responseModelObserver := &upstreamResponseModelObserver{}
 
-	body, err := prepareOpenAIWSHTTPBridgeBody(payload)
+	body, err := prepareOpenAIWSHTTPBridgeBodyForAccount(account, payload)
 	if err != nil {
 		return nil, fmt.Errorf("prepare http bridge body: %w", err)
 	}
@@ -280,6 +285,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	usage := OpenAIUsage{}
 	imageCounter := newOpenAIImageOutputCounter()
 	var firstTokenMs *int
+	ttftMode := s.openAITTFTMode(ctx)
 	reqStream := openAIWSPayloadBoolFromRaw(body, "stream", true)
 	eventCount := 0
 	tokenEventCount := 0
@@ -316,6 +322,8 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			UpstreamResponseModelConflict: responseModelObserver.Conflict(),
 			ServiceTier:                   extractOpenAIServiceTierFromBody(body),
 			ReasoningEffort:               ApplyThinkingEnabledFallback(extractOpenAIReasoningEffortFromBody(body, mappedModel, originalModel), body, mappedModel),
+			RequestedReasoningEffort:      CanonicalRequestedReasoningEffort(body, originalModel, mappedModel),
+			NativeCompactionV2:            HasCompactionTriggerInInput(body),
 			Stream:                        reqStream,
 			OpenAIWSMode:                  true,
 			UpstreamTerminalEvent:         upstreamTerminalEvent,
@@ -382,10 +390,10 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		}
 		if isOpenAIWSTokenEvent(eventType) {
 			tokenEventCount++
-			if firstTokenMs == nil {
-				ms := int(time.Since(turnStart).Milliseconds())
-				firstTokenMs = &ms
-			}
+		}
+		if firstTokenMs == nil && openAIWSMessageStartsTTFT(upstreamMessage, eventType, ttftMode) {
+			ms := int(time.Since(turnStart).Milliseconds())
+			firstTokenMs = &ms
 		}
 		if openAIWSEventShouldParseUsage(eventType) {
 			parseOpenAIWSResponseUsageFromCompletedEvent(upstreamMessage, &usage)
@@ -516,7 +524,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 }
 
 func resolveGrokWSCacheIdentity(c *gin.Context, account *Account, seedPayload, currentPayload []byte, originalModel string) (string, error) {
-	body, err := prepareOpenAIWSHTTPBridgeBody(seedPayload)
+	body, err := prepareOpenAIWSHTTPBridgeBodyForAccount(account, seedPayload)
 	if err != nil {
 		return "", err
 	}

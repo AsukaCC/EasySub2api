@@ -111,6 +111,10 @@
               <label class="input-label">{{ t('usage.type') }}</label>
               <Select v-model="filters.request_type" :options="requestTypeOptions" @change="applyFilters" />
             </div>
+            <div class="views-user-usage-view__panel-14">
+              <label class="input-label">{{ t('usage.compactionFilter') }}</label>
+              <Select v-model="filters.native_compaction_v2" :options="compactionOptions" @change="applyFilters" />
+            </div>
             <div class="views-user-usage-view__panel-13">
               <label class="input-label">{{ t('admin.usage.billingType') }}</label>
               <Select v-model="filters.billing_type" :options="billingTypeOptions" @change="applyFilters" />
@@ -176,8 +180,9 @@
           :loading="loading"
           :columns="visibleColumns"
           :server-side-sort="true"
-          :show-account-billing="false"
+          :show-account-billing="true"
           :show-upstream-endpoint="false"
+          :show-reasoning-mapping="false"
           :cost-fraction-digits="6"
           default-sort-key="created_at"
           default-sort-order="desc"
@@ -356,6 +361,7 @@ const filters = ref<UsageQueryParams>({
   start_date: startDate.value,
   end_date: endDate.value,
   request_type: undefined,
+  native_compaction_v2: null,
   billing_type: null,
   billing_mode: null,
 })
@@ -380,6 +386,10 @@ const requestTypeOptions = computed<SelectOption[]>(() => [
   { value: 'live', label: t('usage.live') },
   { value: 'stream', label: t('usage.stream') },
   { value: 'sync', label: t('usage.sync') },
+])
+const compactionOptions = computed<SelectOption[]>(() => [
+  { value: null, label: t('usage.allCompactionTypes') },
+  { value: true, label: t('usage.compactionOnly') },
 ])
 const billingTypeOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('admin.usage.allBillingTypes') },
@@ -552,6 +562,7 @@ const resetFilters = () => {
     start_date: range.start,
     end_date: range.end,
     request_type: undefined,
+    native_compaction_v2: null,
     billing_type: null,
     billing_mode: null,
   }
@@ -640,10 +651,11 @@ const exportToCSV = async () => {
       'Time',
       'API Key Name',
       'Model',
-      'Reasoning Effort',
+      t('usage.requestedReasoningEffort'),
       'Inbound Endpoint',
       'IP Address',
       'Type',
+      t('usage.nativeCompactionV2'),
       'Billing Mode',
       'Input Tokens',
       'Output Tokens',
@@ -651,7 +663,7 @@ const exportToCSV = async () => {
       'Cache Creation Tokens',
       'Rate Multiplier',
       'Billed Points',
-      'Account Points Used',
+      'Upstream Billing (USD)',
       'Standard Cost (USD)',
       'First Token (ms)',
       'Duration (ms)',
@@ -660,10 +672,11 @@ const exportToCSV = async () => {
       log.created_at,
       log.api_key?.name || '',
       log.model,
-      formatReasoningEffort(log.reasoning_effort),
+      formatReasoningEffort(log.requested_reasoning_effort),
       log.inbound_endpoint || '',
       log.ip_address || '',
       getRequestTypeExportText(log),
+      t(log.native_compaction_v2 ? 'common.yes' : 'common.no'),
       getBillingModeLabel(getDisplayBillingMode(log), t),
       log.input_tokens,
       log.output_tokens,
@@ -703,14 +716,14 @@ const HIDDEN_COLUMNS_KEY = 'user-usage-hidden-columns'
 const allColumns = computed<Column[]>(() => [
   { key: 'api_key', label: t('usage.apiKeyFilter'), sortable: false },
   { key: 'model', label: t('usage.model'), sortable: true },
-  { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
+  { key: 'reasoning_effort', label: t('usage.requestedReasoningEffort'), sortable: false },
   { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
   { key: 'ip_address', label: 'IP', sortable: false },
   { key: 'group', label: t('admin.usage.group'), sortable: false },
   { key: 'stream', label: t('usage.type'), sortable: false },
   { key: 'billing_mode', label: t('admin.usage.billingMode'), sortable: false },
   { key: 'tokens', label: t('usage.tokens'), sortable: false },
-  { key: 'cost', label: t('usage.cost'), sortable: false },
+  { key: 'cost', label: t('usage.costWithUpstream'), sortable: false },
   { key: 'latency', label: t('usage.latency'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'user_agent', label: t('usage.userAgent'), sortable: false },

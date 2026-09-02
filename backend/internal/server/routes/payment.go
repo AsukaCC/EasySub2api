@@ -44,6 +44,7 @@ func RegisterPaymentRoutes(
 			orders.GET("/refund-eligible-providers", paymentHandler.GetRefundEligibleProviders)
 			orders.GET("/:id", paymentHandler.GetOrder)
 			orders.POST("/:id/cancel", paymentHandler.CancelOrder)
+			orders.DELETE("/:id", paymentHandler.DeleteOrder)
 			orders.GET("/:id/refund-quote", paymentHandler.GetRefundQuote)
 		}
 	}
@@ -89,6 +90,7 @@ func RegisterPaymentRoutes(
 			adminOrders.GET("", adminPaymentHandler.ListOrders)
 			adminOrders.GET("/:id", adminPaymentHandler.GetOrderDetail)
 			adminOrders.POST("/:id/cancel", adminPaymentHandler.CancelOrder)
+			adminOrders.DELETE("/:id", adminPaymentHandler.DeleteOrder)
 			adminOrders.POST("/:id/retry", adminPaymentHandler.RetryFulfillment)
 			adminOrders.POST("/:id/refund/query", adminPaymentHandler.QueryAndFinalizeRefund)
 		}

@@ -144,7 +144,7 @@
         </div>
         <div class="recharge-dialog-form__section">
           <p class="recharge-rate-preview" data-testid="recharge-points-conversion">
-            {{ t('payment.rechargeRatePreview') }}
+            {{ t('payment.rechargeRatePreview', { currency: selectedCurrency }) }}
           </p>
           <AmountInput
             v-model="amount"

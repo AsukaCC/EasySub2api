@@ -359,6 +359,18 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.AdminRechargeRebateEnabled != after.AdminRechargeRebateEnabled {
 		changed = append(changed, "affiliate_admin_recharge_enabled")
 	}
+	if before.AffiliateInviterBindingRewardPoints != after.AffiliateInviterBindingRewardPoints {
+		changed = append(changed, "affiliate_inviter_binding_reward_points")
+	}
+	if before.AffiliateInviterBindingRewardValidityDays != after.AffiliateInviterBindingRewardValidityDays {
+		changed = append(changed, "affiliate_inviter_binding_reward_validity_days")
+	}
+	if before.AffiliateInviteeBindingRewardPoints != after.AffiliateInviteeBindingRewardPoints {
+		changed = append(changed, "affiliate_invitee_binding_reward_points")
+	}
+	if before.AffiliateInviteeBindingRewardValidityDays != after.AffiliateInviteeBindingRewardValidityDays {
+		changed = append(changed, "affiliate_invitee_binding_reward_validity_days")
+	}
 	if !equalDefaultSubscriptions(before.DefaultSubscriptions, after.DefaultSubscriptions) {
 		changed = append(changed, "default_subscriptions")
 	}
@@ -433,6 +445,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.EnableFingerprintUnification != after.EnableFingerprintUnification {
 		changed = append(changed, "enable_fingerprint_unification")
+	}
+	if before.OpenAITTFTMode != after.OpenAITTFTMode {
+		changed = append(changed, "openai_ttft_mode")
 	}
 	if before.EnableMetadataPassthrough != after.EnableMetadataPassthrough {
 		changed = append(changed, "enable_metadata_passthrough")

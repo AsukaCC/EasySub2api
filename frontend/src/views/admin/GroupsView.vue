@@ -629,12 +629,19 @@
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
+        <OpenAIFastPolicyFields
+          v-if="supportsGroupOpenAIFast(createForm.platform)"
+          id-prefix="create-group-fast"
+          v-model:force="createForm.force_openai_fast"
+          v-model:free="createForm.free_openai_fast"
+        />
         <ReasoningEffortPolicyFields
           v-if="supportsReasoningEffortPolicyPlatform(createForm.platform)"
           ref="createReasoningEffortPolicyRef"
           id-prefix="create-group-reasoning"
           :platform="createForm.platform"
           v-model:max-effort="createForm.max_reasoning_effort"
+          v-model:over-limit="createForm.max_reasoning_effort_over_limit"
           v-model:mappings="createForm.reasoning_effort_mappings"
         />
         <div
@@ -2186,12 +2193,19 @@
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
+        <OpenAIFastPolicyFields
+          v-if="supportsGroupOpenAIFast(editForm.platform)"
+          id-prefix="edit-group-fast"
+          v-model:force="editForm.force_openai_fast"
+          v-model:free="editForm.free_openai_fast"
+        />
         <ReasoningEffortPolicyFields
           v-if="supportsReasoningEffortPolicyPlatform(editForm.platform)"
           ref="editReasoningEffortPolicyRef"
           id-prefix="edit-group-reasoning"
           :platform="editForm.platform"
           v-model:max-effort="editForm.max_reasoning_effort"
+          v-model:over-limit="editForm.max_reasoning_effort_over_limit"
           v-model:mappings="editForm.reasoning_effort_mappings"
         />
         <div v-if="editForm.subscription_type !== 'subscription'">
@@ -4075,6 +4089,7 @@ import GroupLevelRatesModal from "@/components/admin/group/GroupLevelRatesModal.
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
+import OpenAIFastPolicyFields from "@/components/admin/group/OpenAIFastPolicyFields.vue";
 import PricingEntryCard from "@/components/admin/channel/PricingEntryCard.vue";
 import type { PricingFormEntry } from "@/components/admin/channel/types";
 import {
@@ -4116,12 +4131,18 @@ import {
   type ProfitControlFormState,
 } from "./groupsProfitControl";
 import {
+  normalizeReasoningEffortOverLimit,
   normalizeReasoningEffortForPlatform,
   reasoningEffortMappingsToAPI,
   reasoningEffortMappingsToRows,
+  reasoningEffortOverLimitDowngrade,
   supportsReasoningEffortPolicyPlatform,
   type ReasoningEffortMappingRow,
 } from "./groupsReasoningEffort";
+import {
+  normalizeGroupOpenAIFast,
+  supportsGroupOpenAIFast,
+} from "./groupsOpenAIFast";
 import {
   getDefaultImagePreviewPrice,
   getDefaultVideoPreviewPrice,
@@ -4145,6 +4166,7 @@ const emptyGroupPricing = (): PricingFormEntry => ({
   input_price: null,
   output_price: null,
   cache_write_price: null,
+  cache_write_1h_price: null,
   cache_read_price: null,
   image_input_price: null,
   image_output_price: null,
@@ -4165,6 +4187,7 @@ const groupPricingFromAPI = (
     input_price: perTokenToMTok(entry.input_price),
     output_price: perTokenToMTok(entry.output_price),
     cache_write_price: perTokenToMTok(entry.cache_write_price),
+    cache_write_1h_price: perTokenToMTok(entry.cache_write_1h_price),
     cache_read_price: perTokenToMTok(entry.cache_read_price),
     image_input_price: perTokenToMTok(entry.image_input_price),
     image_output_price: perTokenToMTok(entry.image_output_price),
@@ -4186,6 +4209,7 @@ const groupPricingToAPI = (
       input_price: mTokToPerToken(entry.input_price),
       output_price: mTokToPerToken(entry.output_price),
       cache_write_price: mTokToPerToken(entry.cache_write_price),
+      cache_write_1h_price: mTokToPerToken(entry.cache_write_1h_price),
       cache_read_price: mTokToPerToken(entry.cache_read_price),
       image_input_price: mTokToPerToken(entry.image_input_price),
       image_output_price: mTokToPerToken(entry.image_output_price),
@@ -4746,7 +4770,10 @@ const createForm = reactive({
   copy_accounts_from_group_ids: [] as string[],
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
   rpm_limit: 0 as number,
+  force_openai_fast: false,
+  free_openai_fast: false,
   max_reasoning_effort: "",
+  max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
 
@@ -5082,7 +5109,10 @@ const editForm = reactive({
   copy_accounts_from_group_ids: [] as string[],
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
   rpm_limit: 0 as number,
+  force_openai_fast: false,
+  free_openai_fast: false,
   max_reasoning_effort: "",
+  max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
 
@@ -5504,7 +5534,10 @@ const closeCreateModal = () => {
   createForm.require_privacy_set = false;
   createForm.copy_accounts_from_group_ids = [];
   createForm.rpm_limit = 0;
+  createForm.force_openai_fast = false;
+  createForm.free_openai_fast = false;
   createForm.max_reasoning_effort = "";
+  createForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   createForm.reasoning_effort_mappings = [];
   createReasoningEffortPolicyRef.value?.resetValidation();
   resetModelsListState(createModelsListState);
@@ -5580,6 +5613,17 @@ const handleCreateGroup = async () => {
     // 构建请求数据，包含模型路由配置
     const requestData = {
       ...createGroupForm,
+      force_openai_fast: normalizeGroupOpenAIFast(
+        createForm.platform,
+        createForm.force_openai_fast,
+      ),
+      free_openai_fast: normalizeGroupOpenAIFast(
+        createForm.platform,
+        createForm.free_openai_fast,
+      ),
+      max_reasoning_effort_over_limit: normalizeReasoningEffortOverLimit(
+        createForm.max_reasoning_effort_over_limit,
+      ),
       model_pricing: groupPricingToAPI(
         createForm.model_pricing,
         createForm.platform,
@@ -5750,9 +5794,18 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.model_routing_enabled = group.model_routing_enabled || false;
   editForm.copy_accounts_from_group_ids = []; // 复制账号字段每次编辑时重置为空
   editForm.rpm_limit = group.rpm_limit ?? 0;
+  editForm.force_openai_fast = supportsGroupOpenAIFast(group.platform)
+    ? group.force_openai_fast ?? false
+    : false;
+  editForm.free_openai_fast = supportsGroupOpenAIFast(group.platform)
+    ? group.free_openai_fast ?? false
+    : false;
   editForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
     group.platform,
     group.max_reasoning_effort,
+  );
+  editForm.max_reasoning_effort_over_limit = normalizeReasoningEffortOverLimit(
+    group.max_reasoning_effort_over_limit,
   );
   editForm.reasoning_effort_mappings = reasoningEffortMappingsToRows(
     group.reasoning_effort_mappings,
@@ -5775,6 +5828,7 @@ const closeEditModal = () => {
   showEditModal.value = false;
   editingGroup.value = null;
   editForm.max_reasoning_effort = "";
+  editForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   editForm.reasoning_effort_mappings = [];
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
@@ -5793,6 +5847,8 @@ const closeEditModal = () => {
   editForm.video_price_1080p = null;
   editForm.video_model_prices = createVideoModelPricesForm();
   editForm.long_context_pricing_enabled = true;
+  editForm.force_openai_fast = false;
+  editForm.free_openai_fast = false;
   editForm.model_pricing = [];
   editForm.web_search_price_per_call = null;
   editForm.search_price_per_1k = null;
@@ -5826,6 +5882,17 @@ const handleUpdateGroup = async () => {
   try {
     const payload = {
       ...editForm,
+      force_openai_fast: normalizeGroupOpenAIFast(
+        editForm.platform,
+        editForm.force_openai_fast,
+      ),
+      free_openai_fast: normalizeGroupOpenAIFast(
+        editForm.platform,
+        editForm.free_openai_fast,
+      ),
+      max_reasoning_effort_over_limit: normalizeReasoningEffortOverLimit(
+        editForm.max_reasoning_effort_over_limit,
+      ),
       model_pricing: groupPricingToAPI(
         editForm.model_pricing,
         editForm.platform,
@@ -6236,10 +6303,21 @@ watch(
       createForm.profit_min_margin_percent = 0;
       createForm.profit_safety_buffer_percent = 0;
     }
+    if (!supportsGroupOpenAIFast(newVal)) {
+      createForm.force_openai_fast = false;
+      createForm.free_openai_fast = false;
+    }
     createForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
       newVal,
       createForm.max_reasoning_effort,
     );
+    createForm.max_reasoning_effort_over_limit = supportsReasoningEffortPolicyPlatform(
+      newVal,
+    )
+      ? normalizeReasoningEffortOverLimit(
+          createForm.max_reasoning_effort_over_limit,
+        )
+      : reasoningEffortOverLimitDowngrade;
     createForm.reasoning_effort_mappings = reasoningEffortMappingsToRows(
       reasoningEffortMappingsToAPI(createForm.reasoning_effort_mappings),
       newVal,
@@ -6270,10 +6348,21 @@ watch(
       editForm.profit_min_margin_percent = 0;
       editForm.profit_safety_buffer_percent = 0;
     }
+    if (!supportsGroupOpenAIFast(newVal)) {
+      editForm.force_openai_fast = false;
+      editForm.free_openai_fast = false;
+    }
     editForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
       newVal,
       editForm.max_reasoning_effort,
     );
+    editForm.max_reasoning_effort_over_limit = supportsReasoningEffortPolicyPlatform(
+      newVal,
+    )
+      ? normalizeReasoningEffortOverLimit(
+          editForm.max_reasoning_effort_over_limit,
+        )
+      : reasoningEffortOverLimitDowngrade;
     editForm.reasoning_effort_mappings = reasoningEffortMappingsToRows(
       reasoningEffortMappingsToAPI(editForm.reasoning_effort_mappings),
       newVal,

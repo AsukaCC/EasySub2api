@@ -1331,52 +1331,66 @@ func init() {
 	groupDescCcsCodexWsEnabled := groupFields[50].Descriptor()
 	// group.DefaultCcsCodexWsEnabled holds the default value on creation for the ccs_codex_ws_enabled field.
 	group.DefaultCcsCodexWsEnabled = groupDescCcsCodexWsEnabled.Default.(bool)
+	// groupDescForceOpenaiFast is the schema descriptor for force_openai_fast field.
+	groupDescForceOpenaiFast := groupFields[51].Descriptor()
+	// group.DefaultForceOpenaiFast holds the default value on creation for the force_openai_fast field.
+	group.DefaultForceOpenaiFast = groupDescForceOpenaiFast.Default.(bool)
+	// groupDescFreeOpenaiFast is the schema descriptor for free_openai_fast field.
+	groupDescFreeOpenaiFast := groupFields[52].Descriptor()
+	// group.DefaultFreeOpenaiFast holds the default value on creation for the free_openai_fast field.
+	group.DefaultFreeOpenaiFast = groupDescFreeOpenaiFast.Default.(bool)
 	// groupDescRequireOauthOnly is the schema descriptor for require_oauth_only field.
-	groupDescRequireOauthOnly := groupFields[51].Descriptor()
+	groupDescRequireOauthOnly := groupFields[53].Descriptor()
 	// group.DefaultRequireOauthOnly holds the default value on creation for the require_oauth_only field.
 	group.DefaultRequireOauthOnly = groupDescRequireOauthOnly.Default.(bool)
 	// groupDescRequirePrivacySet is the schema descriptor for require_privacy_set field.
-	groupDescRequirePrivacySet := groupFields[52].Descriptor()
+	groupDescRequirePrivacySet := groupFields[54].Descriptor()
 	// group.DefaultRequirePrivacySet holds the default value on creation for the require_privacy_set field.
 	group.DefaultRequirePrivacySet = groupDescRequirePrivacySet.Default.(bool)
 	// groupDescDefaultMappedModel is the schema descriptor for default_mapped_model field.
-	groupDescDefaultMappedModel := groupFields[53].Descriptor()
+	groupDescDefaultMappedModel := groupFields[55].Descriptor()
 	// group.DefaultDefaultMappedModel holds the default value on creation for the default_mapped_model field.
 	group.DefaultDefaultMappedModel = groupDescDefaultMappedModel.Default.(string)
 	// group.DefaultMappedModelValidator is a validator for the "default_mapped_model" field. It is called by the builders before save.
 	group.DefaultMappedModelValidator = groupDescDefaultMappedModel.Validators[0].(func(string) error)
 	// groupDescMessagesDispatchModelConfig is the schema descriptor for messages_dispatch_model_config field.
-	groupDescMessagesDispatchModelConfig := groupFields[54].Descriptor()
+	groupDescMessagesDispatchModelConfig := groupFields[56].Descriptor()
 	// group.DefaultMessagesDispatchModelConfig holds the default value on creation for the messages_dispatch_model_config field.
 	group.DefaultMessagesDispatchModelConfig = groupDescMessagesDispatchModelConfig.Default.(domain.OpenAIMessagesDispatchModelConfig)
 	// groupDescModelsListConfig is the schema descriptor for models_list_config field.
-	groupDescModelsListConfig := groupFields[55].Descriptor()
+	groupDescModelsListConfig := groupFields[57].Descriptor()
 	// group.DefaultModelsListConfig holds the default value on creation for the models_list_config field.
 	group.DefaultModelsListConfig = groupDescModelsListConfig.Default.(domain.GroupModelsListConfig)
 	// groupDescRpmLimit is the schema descriptor for rpm_limit field.
-	groupDescRpmLimit := groupFields[56].Descriptor()
+	groupDescRpmLimit := groupFields[58].Descriptor()
 	// group.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
 	group.DefaultRpmLimit = groupDescRpmLimit.Default.(int)
 	// groupDescMaxReasoningEffort is the schema descriptor for max_reasoning_effort field.
-	groupDescMaxReasoningEffort := groupFields[57].Descriptor()
+	groupDescMaxReasoningEffort := groupFields[59].Descriptor()
 	// group.DefaultMaxReasoningEffort holds the default value on creation for the max_reasoning_effort field.
 	group.DefaultMaxReasoningEffort = groupDescMaxReasoningEffort.Default.(string)
 	// group.MaxReasoningEffortValidator is a validator for the "max_reasoning_effort" field. It is called by the builders before save.
 	group.MaxReasoningEffortValidator = groupDescMaxReasoningEffort.Validators[0].(func(string) error)
+	// groupDescMaxReasoningEffortOverLimit is the schema descriptor for max_reasoning_effort_over_limit field.
+	groupDescMaxReasoningEffortOverLimit := groupFields[60].Descriptor()
+	// group.DefaultMaxReasoningEffortOverLimit holds the default value on creation for the max_reasoning_effort_over_limit field.
+	group.DefaultMaxReasoningEffortOverLimit = groupDescMaxReasoningEffortOverLimit.Default.(string)
+	// group.MaxReasoningEffortOverLimitValidator is a validator for the "max_reasoning_effort_over_limit" field. It is called by the builders before save.
+	group.MaxReasoningEffortOverLimitValidator = groupDescMaxReasoningEffortOverLimit.Validators[0].(func(string) error)
 	// groupDescReasoningEffortMappings is the schema descriptor for reasoning_effort_mappings field.
-	groupDescReasoningEffortMappings := groupFields[58].Descriptor()
+	groupDescReasoningEffortMappings := groupFields[61].Descriptor()
 	// group.DefaultReasoningEffortMappings holds the default value on creation for the reasoning_effort_mappings field.
 	group.DefaultReasoningEffortMappings = groupDescReasoningEffortMappings.Default.([]domain.ReasoningEffortMapping)
 	// groupDescProfitControlEnabled is the schema descriptor for profit_control_enabled field.
-	groupDescProfitControlEnabled := groupFields[59].Descriptor()
+	groupDescProfitControlEnabled := groupFields[62].Descriptor()
 	// group.DefaultProfitControlEnabled holds the default value on creation for the profit_control_enabled field.
 	group.DefaultProfitControlEnabled = groupDescProfitControlEnabled.Default.(bool)
 	// groupDescProfitMinMargin is the schema descriptor for profit_min_margin field.
-	groupDescProfitMinMargin := groupFields[60].Descriptor()
+	groupDescProfitMinMargin := groupFields[63].Descriptor()
 	// group.DefaultProfitMinMargin holds the default value on creation for the profit_min_margin field.
 	group.DefaultProfitMinMargin = groupDescProfitMinMargin.Default.(float64)
 	// groupDescProfitSafetyBuffer is the schema descriptor for profit_safety_buffer field.
-	groupDescProfitSafetyBuffer := groupFields[61].Descriptor()
+	groupDescProfitSafetyBuffer := groupFields[64].Descriptor()
 	// group.DefaultProfitSafetyBuffer holds the default value on creation for the profit_safety_buffer field.
 	group.DefaultProfitSafetyBuffer = groupDescProfitSafetyBuffer.Default.(float64)
 	// groupDescID is the schema descriptor for id field.
@@ -1781,66 +1795,78 @@ func init() {
 	paymentrefundDescFeeAmount := paymentrefundFields[12].Descriptor()
 	// paymentrefund.DefaultFeeAmount holds the default value on creation for the fee_amount field.
 	paymentrefund.DefaultFeeAmount = paymentrefundDescFeeAmount.Default.(float64)
+	// paymentrefundDescRefundFeeRate is the schema descriptor for refund_fee_rate field.
+	paymentrefundDescRefundFeeRate := paymentrefundFields[13].Descriptor()
+	// paymentrefund.DefaultRefundFeeRate holds the default value on creation for the refund_fee_rate field.
+	paymentrefund.DefaultRefundFeeRate = paymentrefundDescRefundFeeRate.Default.(float64)
+	// paymentrefundDescRefundFeeAmount is the schema descriptor for refund_fee_amount field.
+	paymentrefundDescRefundFeeAmount := paymentrefundFields[14].Descriptor()
+	// paymentrefund.DefaultRefundFeeAmount holds the default value on creation for the refund_fee_amount field.
+	paymentrefund.DefaultRefundFeeAmount = paymentrefundDescRefundFeeAmount.Default.(float64)
 	// paymentrefundDescGatewayAmount is the schema descriptor for gateway_amount field.
-	paymentrefundDescGatewayAmount := paymentrefundFields[13].Descriptor()
+	paymentrefundDescGatewayAmount := paymentrefundFields[15].Descriptor()
 	// paymentrefund.DefaultGatewayAmount holds the default value on creation for the gateway_amount field.
 	paymentrefund.DefaultGatewayAmount = paymentrefundDescGatewayAmount.Default.(float64)
 	// paymentrefundDescBasePoints is the schema descriptor for base_points field.
-	paymentrefundDescBasePoints := paymentrefundFields[14].Descriptor()
+	paymentrefundDescBasePoints := paymentrefundFields[16].Descriptor()
 	// paymentrefund.DefaultBasePoints holds the default value on creation for the base_points field.
 	paymentrefund.DefaultBasePoints = paymentrefundDescBasePoints.Default.(float64)
 	// paymentrefundDescBonusPoints is the schema descriptor for bonus_points field.
-	paymentrefundDescBonusPoints := paymentrefundFields[15].Descriptor()
+	paymentrefundDescBonusPoints := paymentrefundFields[17].Descriptor()
 	// paymentrefund.DefaultBonusPoints holds the default value on creation for the bonus_points field.
 	paymentrefund.DefaultBonusPoints = paymentrefundDescBonusPoints.Default.(float64)
 	// paymentrefundDescAffiliateRebatePoints is the schema descriptor for affiliate_rebate_points field.
-	paymentrefundDescAffiliateRebatePoints := paymentrefundFields[16].Descriptor()
+	paymentrefundDescAffiliateRebatePoints := paymentrefundFields[18].Descriptor()
 	// paymentrefund.DefaultAffiliateRebatePoints holds the default value on creation for the affiliate_rebate_points field.
 	paymentrefund.DefaultAffiliateRebatePoints = paymentrefundDescAffiliateRebatePoints.Default.(float64)
 	// paymentrefundDescBonusExpiredOffset is the schema descriptor for bonus_expired_offset field.
-	paymentrefundDescBonusExpiredOffset := paymentrefundFields[17].Descriptor()
+	paymentrefundDescBonusExpiredOffset := paymentrefundFields[19].Descriptor()
 	// paymentrefund.DefaultBonusExpiredOffset holds the default value on creation for the bonus_expired_offset field.
 	paymentrefund.DefaultBonusExpiredOffset = paymentrefundDescBonusExpiredOffset.Default.(float64)
 	// paymentrefundDescTargetPrincipalAmount is the schema descriptor for target_principal_amount field.
-	paymentrefundDescTargetPrincipalAmount := paymentrefundFields[18].Descriptor()
+	paymentrefundDescTargetPrincipalAmount := paymentrefundFields[20].Descriptor()
 	// paymentrefund.DefaultTargetPrincipalAmount holds the default value on creation for the target_principal_amount field.
 	paymentrefund.DefaultTargetPrincipalAmount = paymentrefundDescTargetPrincipalAmount.Default.(float64)
 	// paymentrefundDescTargetFeeAmount is the schema descriptor for target_fee_amount field.
-	paymentrefundDescTargetFeeAmount := paymentrefundFields[19].Descriptor()
+	paymentrefundDescTargetFeeAmount := paymentrefundFields[21].Descriptor()
 	// paymentrefund.DefaultTargetFeeAmount holds the default value on creation for the target_fee_amount field.
 	paymentrefund.DefaultTargetFeeAmount = paymentrefundDescTargetFeeAmount.Default.(float64)
+	// paymentrefundDescTargetRefundFeeAmount is the schema descriptor for target_refund_fee_amount field.
+	paymentrefundDescTargetRefundFeeAmount := paymentrefundFields[22].Descriptor()
+	// paymentrefund.DefaultTargetRefundFeeAmount holds the default value on creation for the target_refund_fee_amount field.
+	paymentrefund.DefaultTargetRefundFeeAmount = paymentrefundDescTargetRefundFeeAmount.Default.(float64)
 	// paymentrefundDescTargetBasePoints is the schema descriptor for target_base_points field.
-	paymentrefundDescTargetBasePoints := paymentrefundFields[20].Descriptor()
+	paymentrefundDescTargetBasePoints := paymentrefundFields[23].Descriptor()
 	// paymentrefund.DefaultTargetBasePoints holds the default value on creation for the target_base_points field.
 	paymentrefund.DefaultTargetBasePoints = paymentrefundDescTargetBasePoints.Default.(float64)
 	// paymentrefundDescTargetBonusPoints is the schema descriptor for target_bonus_points field.
-	paymentrefundDescTargetBonusPoints := paymentrefundFields[21].Descriptor()
+	paymentrefundDescTargetBonusPoints := paymentrefundFields[24].Descriptor()
 	// paymentrefund.DefaultTargetBonusPoints holds the default value on creation for the target_bonus_points field.
 	paymentrefund.DefaultTargetBonusPoints = paymentrefundDescTargetBonusPoints.Default.(float64)
 	// paymentrefundDescTargetAffiliatePoints is the schema descriptor for target_affiliate_points field.
-	paymentrefundDescTargetAffiliatePoints := paymentrefundFields[22].Descriptor()
+	paymentrefundDescTargetAffiliatePoints := paymentrefundFields[25].Descriptor()
 	// paymentrefund.DefaultTargetAffiliatePoints holds the default value on creation for the target_affiliate_points field.
 	paymentrefund.DefaultTargetAffiliatePoints = paymentrefundDescTargetAffiliatePoints.Default.(float64)
 	// paymentrefundDescReason is the schema descriptor for reason field.
-	paymentrefundDescReason := paymentrefundFields[25].Descriptor()
+	paymentrefundDescReason := paymentrefundFields[28].Descriptor()
 	// paymentrefund.DefaultReason holds the default value on creation for the reason field.
 	paymentrefund.DefaultReason = paymentrefundDescReason.Default.(string)
 	// paymentrefundDescErrorCode is the schema descriptor for error_code field.
-	paymentrefundDescErrorCode := paymentrefundFields[26].Descriptor()
+	paymentrefundDescErrorCode := paymentrefundFields[29].Descriptor()
 	// paymentrefund.DefaultErrorCode holds the default value on creation for the error_code field.
 	paymentrefund.DefaultErrorCode = paymentrefundDescErrorCode.Default.(string)
 	// paymentrefund.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
 	paymentrefund.ErrorCodeValidator = paymentrefundDescErrorCode.Validators[0].(func(string) error)
 	// paymentrefundDescErrorMessage is the schema descriptor for error_message field.
-	paymentrefundDescErrorMessage := paymentrefundFields[27].Descriptor()
+	paymentrefundDescErrorMessage := paymentrefundFields[30].Descriptor()
 	// paymentrefund.DefaultErrorMessage holds the default value on creation for the error_message field.
 	paymentrefund.DefaultErrorMessage = paymentrefundDescErrorMessage.Default.(string)
 	// paymentrefundDescCreatedAt is the schema descriptor for created_at field.
-	paymentrefundDescCreatedAt := paymentrefundFields[30].Descriptor()
+	paymentrefundDescCreatedAt := paymentrefundFields[33].Descriptor()
 	// paymentrefund.DefaultCreatedAt holds the default value on creation for the created_at field.
 	paymentrefund.DefaultCreatedAt = paymentrefundDescCreatedAt.Default.(func() time.Time)
 	// paymentrefundDescUpdatedAt is the schema descriptor for updated_at field.
-	paymentrefundDescUpdatedAt := paymentrefundFields[31].Descriptor()
+	paymentrefundDescUpdatedAt := paymentrefundFields[34].Descriptor()
 	// paymentrefund.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	paymentrefund.DefaultUpdatedAt = paymentrefundDescUpdatedAt.Default.(func() time.Time)
 	// paymentrefund.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2724,52 +2750,60 @@ func init() {
 	usagelogDescBillingType := usagelogFields[30].Descriptor()
 	// usagelog.DefaultBillingType holds the default value on creation for the billing_type field.
 	usagelog.DefaultBillingType = usagelogDescBillingType.Default.(int8)
+	// usagelogDescRequestedReasoningEffort is the schema descriptor for requested_reasoning_effort field.
+	usagelogDescRequestedReasoningEffort := usagelogFields[31].Descriptor()
+	// usagelog.RequestedReasoningEffortValidator is a validator for the "requested_reasoning_effort" field. It is called by the builders before save.
+	usagelog.RequestedReasoningEffortValidator = usagelogDescRequestedReasoningEffort.Validators[0].(func(string) error)
 	// usagelogDescStream is the schema descriptor for stream field.
-	usagelogDescStream := usagelogFields[31].Descriptor()
+	usagelogDescStream := usagelogFields[32].Descriptor()
 	// usagelog.DefaultStream holds the default value on creation for the stream field.
 	usagelog.DefaultStream = usagelogDescStream.Default.(bool)
+	// usagelogDescNativeCompactionV2 is the schema descriptor for native_compaction_v2 field.
+	usagelogDescNativeCompactionV2 := usagelogFields[33].Descriptor()
+	// usagelog.DefaultNativeCompactionV2 holds the default value on creation for the native_compaction_v2 field.
+	usagelog.DefaultNativeCompactionV2 = usagelogDescNativeCompactionV2.Default.(bool)
 	// usagelogDescUserAgent is the schema descriptor for user_agent field.
-	usagelogDescUserAgent := usagelogFields[34].Descriptor()
+	usagelogDescUserAgent := usagelogFields[36].Descriptor()
 	// usagelog.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	usagelog.UserAgentValidator = usagelogDescUserAgent.Validators[0].(func(string) error)
 	// usagelogDescIPAddress is the schema descriptor for ip_address field.
-	usagelogDescIPAddress := usagelogFields[35].Descriptor()
+	usagelogDescIPAddress := usagelogFields[37].Descriptor()
 	// usagelog.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
 	usagelog.IPAddressValidator = usagelogDescIPAddress.Validators[0].(func(string) error)
 	// usagelogDescImageCount is the schema descriptor for image_count field.
-	usagelogDescImageCount := usagelogFields[36].Descriptor()
+	usagelogDescImageCount := usagelogFields[38].Descriptor()
 	// usagelog.DefaultImageCount holds the default value on creation for the image_count field.
 	usagelog.DefaultImageCount = usagelogDescImageCount.Default.(int)
 	// usagelogDescImageSize is the schema descriptor for image_size field.
-	usagelogDescImageSize := usagelogFields[37].Descriptor()
+	usagelogDescImageSize := usagelogFields[39].Descriptor()
 	// usagelog.ImageSizeValidator is a validator for the "image_size" field. It is called by the builders before save.
 	usagelog.ImageSizeValidator = usagelogDescImageSize.Validators[0].(func(string) error)
 	// usagelogDescImageInputSize is the schema descriptor for image_input_size field.
-	usagelogDescImageInputSize := usagelogFields[38].Descriptor()
+	usagelogDescImageInputSize := usagelogFields[40].Descriptor()
 	// usagelog.ImageInputSizeValidator is a validator for the "image_input_size" field. It is called by the builders before save.
 	usagelog.ImageInputSizeValidator = usagelogDescImageInputSize.Validators[0].(func(string) error)
 	// usagelogDescImageOutputSize is the schema descriptor for image_output_size field.
-	usagelogDescImageOutputSize := usagelogFields[39].Descriptor()
+	usagelogDescImageOutputSize := usagelogFields[41].Descriptor()
 	// usagelog.ImageOutputSizeValidator is a validator for the "image_output_size" field. It is called by the builders before save.
 	usagelog.ImageOutputSizeValidator = usagelogDescImageOutputSize.Validators[0].(func(string) error)
 	// usagelogDescImageSizeSource is the schema descriptor for image_size_source field.
-	usagelogDescImageSizeSource := usagelogFields[40].Descriptor()
+	usagelogDescImageSizeSource := usagelogFields[42].Descriptor()
 	// usagelog.ImageSizeSourceValidator is a validator for the "image_size_source" field. It is called by the builders before save.
 	usagelog.ImageSizeSourceValidator = usagelogDescImageSizeSource.Validators[0].(func(string) error)
 	// usagelogDescVideoCount is the schema descriptor for video_count field.
-	usagelogDescVideoCount := usagelogFields[42].Descriptor()
+	usagelogDescVideoCount := usagelogFields[44].Descriptor()
 	// usagelog.DefaultVideoCount holds the default value on creation for the video_count field.
 	usagelog.DefaultVideoCount = usagelogDescVideoCount.Default.(int)
 	// usagelogDescVideoResolution is the schema descriptor for video_resolution field.
-	usagelogDescVideoResolution := usagelogFields[43].Descriptor()
+	usagelogDescVideoResolution := usagelogFields[45].Descriptor()
 	// usagelog.VideoResolutionValidator is a validator for the "video_resolution" field. It is called by the builders before save.
 	usagelog.VideoResolutionValidator = usagelogDescVideoResolution.Validators[0].(func(string) error)
 	// usagelogDescCacheTTLOverridden is the schema descriptor for cache_ttl_overridden field.
-	usagelogDescCacheTTLOverridden := usagelogFields[45].Descriptor()
+	usagelogDescCacheTTLOverridden := usagelogFields[47].Descriptor()
 	// usagelog.DefaultCacheTTLOverridden holds the default value on creation for the cache_ttl_overridden field.
 	usagelog.DefaultCacheTTLOverridden = usagelogDescCacheTTLOverridden.Default.(bool)
 	// usagelogDescCreatedAt is the schema descriptor for created_at field.
-	usagelogDescCreatedAt := usagelogFields[46].Descriptor()
+	usagelogDescCreatedAt := usagelogFields[48].Descriptor()
 	// usagelog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagelog.DefaultCreatedAt = usagelogDescCreatedAt.Default.(func() time.Time)
 	// usagelogDescID is the schema descriptor for id field.

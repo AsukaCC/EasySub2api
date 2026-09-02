@@ -10,6 +10,22 @@ func optionalTrimmedStringPtr(raw string) *string {
 	return &trimmed
 }
 
+// coalesceRequestedReasoningEffort prefers the client-requested value and
+// falls back to the effective effort for historical or unmapped requests.
+func coalesceRequestedReasoningEffort(requested, forwarded *string) *string {
+	if requested != nil {
+		if value := strings.TrimSpace(*requested); value != "" {
+			return &value
+		}
+	}
+	if forwarded != nil {
+		if value := strings.TrimSpace(*forwarded); value != "" {
+			return &value
+		}
+	}
+	return nil
+}
+
 func forwardResultBillingModel(requestedModel, upstreamModel string) string {
 	if trimmed := strings.TrimSpace(requestedModel); trimmed != "" {
 		return trimmed

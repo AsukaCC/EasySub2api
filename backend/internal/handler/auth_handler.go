@@ -56,7 +56,7 @@ type RegisterRequest struct {
 	TencentCaptchaRandstr string `json:"tencent_captcha_randstr"`
 	PromoCode             string `json:"promo_code"`      // 注册优惠码
 	InvitationCode        string `json:"invitation_code"` // 邀请码
-	AffCode               string `json:"aff_code"`        // 邀请返利码
+	AffCode               string `json:"aff_code"`        // 邀请码
 }
 
 // SendVerifyCodeRequest 发送验证码请求

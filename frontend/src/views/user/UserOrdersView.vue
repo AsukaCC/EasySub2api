@@ -22,6 +22,10 @@
               <Icon name="x" size="sm" />
               <span>{{ t('payment.orders.cancel') }}</span>
             </button>
+            <button v-if="row.status === 'CANCELLED'" class="btn btn-danger btn-xs" @click="deleteTargetId = row.id">
+              <Icon name="trash" size="sm" />
+              <span>{{ t('common.delete') }}</span>
+            </button>
             <button v-if="canRequestRefund(row)" @click="openRefundTicket(row)" class="views-user-user-orders-view__action-2">
               <Icon name="dollar" size="sm" />
               <span>{{ t('payment.orders.requestRefund') }}</span>
@@ -49,6 +53,18 @@
         <div class="views-user-user-orders-view__panel-6">
           <button class="btn btn-secondary" @click="cancelTargetId = null">{{ t('common.cancel') }}</button>
           <button class="btn btn-danger" :disabled="actionLoading" @click="confirmCancel">{{ actionLoading ? t('common.processing') : t('payment.orders.cancel') }}</button>
+        </div>
+      </template>
+    </BaseDialog>
+
+    <BaseDialog :show="!!deleteTargetId" :title="t('payment.deleteOrder')" width="narrow" @close="deleteTargetId = null">
+      <p class="views-user-user-orders-view__description">{{ t('payment.confirmDeleteOrder') }}</p>
+      <template #footer>
+        <div class="views-user-user-orders-view__panel-6">
+          <button class="btn btn-secondary" :disabled="actionLoading" @click="deleteTargetId = null">{{ t('common.cancel') }}</button>
+          <button class="btn btn-danger" :disabled="actionLoading" @click="confirmDelete">
+            {{ actionLoading ? t('common.processing') : t('common.delete') }}
+          </button>
         </div>
       </template>
     </BaseDialog>
@@ -81,11 +97,13 @@ const orders = ref<PaymentOrder[]>([])
 const refundCapableProviders = ref<Set<string>>(new Set())
 const currentFilter = ref('')
 const cancelTargetId = ref<string | null>(null)
+const deleteTargetId = ref<string | null>(null)
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 
 const statusFilters = computed(() => [
   { value: '', label: t('common.all') },
   { value: 'PENDING', label: t('payment.status.pending') },
+  { value: 'CANCELLED', label: t('payment.status.cancelled') },
   { value: 'COMPLETED', label: t('payment.status.completed') },
   { value: 'FAILED', label: t('payment.status.failed') },
   { value: 'REFUNDED', label: t('payment.status.refunded') },
@@ -120,6 +138,22 @@ async function confirmCancel() {
     await paymentAPI.cancelOrder(cancelTargetId.value)
     appStore.showSuccess(t('common.success'))
     cancelTargetId.value = null
+    await fetchOrders()
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function confirmDelete() {
+  if (!deleteTargetId.value) return
+  actionLoading.value = true
+  try {
+    await paymentAPI.deleteOrder(deleteTargetId.value)
+    appStore.showSuccess(t('payment.orderDeleted'))
+    deleteTargetId.value = null
+    if (orders.value.length === 1 && pagination.page > 1) pagination.page -= 1
     await fetchOrders()
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))

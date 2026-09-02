@@ -45,6 +45,8 @@ type RefundQuote struct {
 	RequestedPrincipalAmount     float64    `json:"requested_principal_amount"`
 	PrincipalAmount              float64    `json:"principal_amount"`
 	FeeAmount                    float64    `json:"fee_amount"`
+	RefundFeeRate                float64    `json:"refund_fee_rate"`
+	RefundFeeAmount              float64    `json:"refund_fee_amount"`
 	GatewayAmount                float64    `json:"gateway_amount"`
 	BasePoints                   float64    `json:"base_points"`
 	BonusPoints                  float64    `json:"bonus_points"`
@@ -81,6 +83,8 @@ type PaymentRefundResponse struct {
 	RequestedPrincipal    float64    `json:"requested_principal_amount"`
 	PrincipalAmount       float64    `json:"principal_amount"`
 	FeeAmount             float64    `json:"fee_amount"`
+	RefundFeeRate         float64    `json:"refund_fee_rate"`
+	RefundFeeAmount       float64    `json:"refund_fee_amount"`
 	GatewayAmount         float64    `json:"gateway_amount"`
 	BasePoints            float64    `json:"base_points"`
 	BonusPoints           float64    `json:"bonus_points"`
@@ -111,6 +115,7 @@ func paymentRefundResponse(refund *dbent.PaymentRefund) *PaymentRefundResponse {
 		Source: refund.Source, Status: refund.Status, Currency: refund.Currency,
 		RequestedPrincipal: refund.RequestedPrincipalAmount,
 		PrincipalAmount:    refund.PrincipalAmount, FeeAmount: refund.FeeAmount,
+		RefundFeeRate: refund.RefundFeeRate, RefundFeeAmount: refund.RefundFeeAmount,
 		GatewayAmount: refund.GatewayAmount, BasePoints: refund.BasePoints,
 		BonusPoints: refund.BonusPoints, BonusExpiredOffset: refund.BonusExpiredOffset,
 		AffiliateRebatePoints: refund.AffiliateRebatePoints,
@@ -313,6 +318,8 @@ func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreateP
 		SetRequestedPrincipalAmount(requestedPrincipal).
 		SetPrincipalAmount(decimalFloat(calculation.amounts.PrincipalDelta, refundMoneyScale)).
 		SetFeeAmount(decimalFloat(calculation.amounts.FeeDelta, refundMoneyScale)).
+		SetRefundFeeRate(calculation.quote.RefundFeeRate).
+		SetRefundFeeAmount(decimalFloat(calculation.amounts.RefundFeeDelta, refundMoneyScale)).
 		SetGatewayAmount(decimalFloat(calculation.amounts.GatewayDelta, refundMoneyScale)).
 		SetBasePoints(decimalFloat(calculation.amounts.RechargePointsDelta, refundPointsScale)).
 		SetBonusPoints(decimalFloat(calculation.amounts.BonusPointsDelta, refundPointsScale)).
@@ -320,6 +327,7 @@ func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreateP
 		SetBonusExpiredOffset(calculation.quote.BonusExpiredOffset).
 		SetTargetPrincipalAmount(decimalFloat(calculation.amounts.TargetPrincipal, refundMoneyScale)).
 		SetTargetFeeAmount(decimalFloat(calculation.amounts.TargetFee, refundMoneyScale)).
+		SetTargetRefundFeeAmount(decimalFloat(calculation.amounts.TargetRefundFee, refundMoneyScale)).
 		SetTargetBasePoints(decimalFloat(calculation.amounts.TargetRechargePoints, refundPointsScale)).
 		SetTargetBonusPoints(decimalFloat(calculation.amounts.TargetBonusPoints, refundPointsScale)).
 		SetTargetAffiliatePoints(decimalFloat(calculation.affTarget, refundPointsScale)).
@@ -411,6 +419,15 @@ func (s *PaymentService) calculateRefundQuote(ctx context.Context, client *dbent
 	if err != nil {
 		return nil, infraerrors.BadRequest("REFUND_SNAPSHOT_MISSING", err.Error())
 	}
+	refundFeeRate := defaultRefundFeeRate
+	if s.configService != nil {
+		paymentConfig, configErr := s.configService.GetPaymentConfig(ctx)
+		if configErr != nil {
+			return nil, fmt.Errorf("get refund fee configuration: %w", configErr)
+		}
+		refundFeeRate = paymentConfig.RefundFeeRate
+	}
+	input.RefundFeeRate = decimal.NewFromFloat(refundFeeRate).Round(2)
 	remaining := input.PrincipalAmount.Sub(input.PreviousPrincipal).Round(refundMoneyScale)
 	requestedAmount := remaining
 	if requested != nil {
@@ -491,6 +508,8 @@ func (s *PaymentService) calculateRefundQuote(ctx context.Context, client *dbent
 			RequestedPrincipalAmount:     decimalFloat(requestedAmount, refundMoneyScale),
 			PrincipalAmount:              decimalFloat(amounts.PrincipalDelta, refundMoneyScale),
 			FeeAmount:                    decimalFloat(amounts.FeeDelta, refundMoneyScale),
+			RefundFeeRate:                refundFeeRate,
+			RefundFeeAmount:              decimalFloat(amounts.RefundFeeDelta, refundMoneyScale),
 			GatewayAmount:                decimalFloat(amounts.GatewayDelta, refundMoneyScale),
 			BasePoints:                   decimalFloat(amounts.RechargePointsDelta, refundPointsScale),
 			BonusPoints:                  decimalFloat(amounts.BonusPointsDelta, refundPointsScale),
@@ -532,6 +551,7 @@ func cumulativeRefundInputForOrder(order *dbent.PaymentOrder) (CumulativeRefundI
 		RechargePoints: basePoints, BonusPoints: bonusPoints,
 		PreviousPrincipal:      decimal.NewFromFloat(order.RefundedPrincipalAmount).Round(refundMoneyScale),
 		PreviousFee:            decimal.NewFromFloat(order.RefundedFeeAmount).Round(refundMoneyScale),
+		PreviousRefundFee:      decimal.NewFromFloat(order.RefundedPrincipalAmount + order.RefundedFeeAmount - order.RefundedGatewayAmount).Round(refundMoneyScale),
 		PreviousGateway:        decimal.NewFromFloat(order.RefundedGatewayAmount).Round(refundMoneyScale),
 		PreviousRechargePoints: decimal.NewFromFloat(order.ReversedBasePoints).Round(refundPointsScale),
 		PreviousBonusPoints:    decimal.NewFromFloat(order.ReversedBonusPoints).Round(refundPointsScale),
@@ -996,7 +1016,7 @@ func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, prov
 		SetStatus(status).
 		SetRefundedPrincipalAmount(refund.TargetPrincipalAmount).
 		SetRefundedFeeAmount(refund.TargetFeeAmount).
-		SetRefundedGatewayAmount(refund.TargetPrincipalAmount + refund.TargetFeeAmount).
+		SetRefundedGatewayAmount(refund.TargetPrincipalAmount + refund.TargetFeeAmount - refund.TargetRefundFeeAmount).
 		SetReversedBasePoints(refund.TargetBasePoints).
 		SetReversedBonusPoints(refund.TargetBonusPoints).
 		SetReversedAffiliatePoints(refund.TargetAffiliatePoints).

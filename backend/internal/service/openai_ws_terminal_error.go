@@ -33,10 +33,11 @@ func buildOpenAIWSResponseFailedEvent(responseID, code, message string) []byte {
 	payload, err := json.Marshal(map[string]any{
 		"type": "response.failed",
 		"response": map[string]any{
-			"id":     responseID,
-			"object": "response",
-			"status": "failed",
-			"output": []any{},
+			"id":         responseID,
+			"object":     "response",
+			"created_at": time.Now().Unix(),
+			"status":     "failed",
+			"output":     []any{},
 			"error": map[string]any{
 				"type":    "server_error",
 				"code":    code,
@@ -45,7 +46,7 @@ func buildOpenAIWSResponseFailedEvent(responseID, code, message string) []byte {
 		},
 	})
 	if err != nil {
-		return []byte(`{"type":"response.failed","response":{"id":"resp_gateway_error","object":"response","status":"failed","output":[],"error":{"type":"server_error","code":"server_error","message":"Upstream WebSocket disconnected before completing the response. Please retry."}}}`)
+		return []byte(`{"type":"response.failed","response":{"id":"resp_gateway_error","object":"response","created_at":1,"status":"failed","output":[],"error":{"type":"server_error","code":"server_error","message":"Upstream WebSocket disconnected before completing the response. Please retry."}}}`)
 	}
 	return payload
 }

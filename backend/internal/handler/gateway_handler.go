@@ -18,6 +18,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/pkg/antigravity"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	pkgerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/geminicli"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/ip"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
@@ -167,6 +168,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	body = parsedReq.Body.Bytes()
 	reqModel := parsedReq.Model
 	reqStream := parsedReq.Stream
+	bindRequestedReasoningEffort(c, body, reqModel)
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 
@@ -532,7 +534,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		// 转发请求
 		c.Set("parsed_request", attemptParsedReq)
 		var result *service.ForwardResult
-		requestCtx := c.Request.Context()
+		requestCtx := admissionCtx
 		if fs.SwitchCount > 0 {
 			requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
 		}
@@ -582,6 +584,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			forceCacheBilling := fs.ForceCacheBilling
 			quotaPlatform := service.QuotaPlatform(c.Request.Context(), currentAPIKey)
 			sessionID := service.ExtractClientSessionID(c)
+			stampForwardRequestedReasoningEffort(result, service.NormalizeClaudeOutputEffort(parsedReq.OutputEffort))
 			h.submitUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
 					Result:             result,
@@ -767,6 +770,66 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	})
 }
 
+// CodexModels generates the Codex catalog from the group's actual routing
+// surface for non-OpenAI and Composite groups.
+func (h *GatewayHandler) CodexModels(c *gin.Context) {
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.Group == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "API key group is required"}})
+		return
+	}
+	group := apiKey.Group
+	platform := ""
+	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok {
+		platform = strings.TrimSpace(forcedPlatform)
+	}
+	modelIDs := h.codexModelIDsForGroup(c.Request.Context(), group, platform)
+	modelIDs = service.FilterCodexModelIDsForGroup(modelIDs, group)
+	body, err := h.gatewayService.BuildCodexModelsManifestForGroup(c.Request.Context(), group, platform, modelIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"type": "internal_error", "message": err.Error()}})
+		return
+	}
+	etag := service.CodexModelsManifestETag(body)
+	c.Header("ETag", etag)
+	if service.CodexModelsManifestETagMatches(c.GetHeader("If-None-Match"), etag) {
+		c.Status(http.StatusNotModified)
+		return
+	}
+	c.Data(http.StatusOK, "application/json", body)
+}
+
+func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *service.Group, platformOverride string) []string {
+	if h == nil || h.gatewayService == nil || group == nil {
+		return nil
+	}
+	groupID := &group.ID
+	platform := strings.TrimSpace(platformOverride)
+	if platform == "" {
+		platform = group.Platform
+	}
+	if platform == service.PlatformComposite {
+		available := h.compositeAvailableModels(ctx, groupID)
+		fallback := defaultCodexModelIDsForPlatform(platform)
+		if group.CustomModelsListEnabled() {
+			return filterModelsByCustomList(available, fallback, group.ModelsListConfig.Models)
+		}
+		if len(available) > 0 {
+			return available
+		}
+		return fallback
+	}
+	available := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
+	fallback := defaultCodexModelIDsForPlatform(platform)
+	if group.CustomModelsListEnabled() {
+		return filterModelsByCustomList(customModelsListSource(platform, available, fallback), fallback, group.ModelsListConfig.Models)
+	}
+	if len(available) > 0 {
+		return available
+	}
+	return fallback
+}
+
 // AntigravityModels returns the models supported by the Antigravity gateway.
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
@@ -782,10 +845,14 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 	seen := make(map[string]struct{})
 	models := make([]string, 0)
 	schedulablePlatforms := h.gatewayService.GetSchedulablePlatforms(ctx, groupID)
-	for _, platform := range []string{service.PlatformAnthropic, service.PlatformOpenAI, service.PlatformGrok} {
+	for _, platform := range []string{
+		service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI,
+		service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi,
+		service.PlatformZhipu, service.PlatformDeepseek,
+	} {
 		platformModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
 		if len(platformModels) == 0 {
-			if _, ok := schedulablePlatforms[platform]; ok {
+			if _, ok := schedulablePlatforms[platform]; ok && !service.IsCNProvider(platform) {
 				platformModels = defaultModelIDsForPlatform(platform)
 			}
 		}
@@ -980,18 +1047,31 @@ func defaultModelIDsForPlatform(platform string) []string {
 	switch platform {
 	case service.PlatformOpenAI:
 		return openai.DefaultModelIDs()
-	case service.PlatformAnthropic:
-		ids := make([]string, 0, len(claude.DefaultModels))
-		for _, model := range claude.DefaultModels {
+	case service.PlatformGemini:
+		ids := make([]string, 0, len(geminicli.DefaultModels))
+		for _, model := range geminicli.DefaultModels {
 			ids = append(ids, model.ID)
 		}
 		return ids
+	case service.PlatformAntigravity:
+		models := antigravity.DefaultModels()
+		ids := make([]string, 0, len(models))
+		for _, model := range models {
+			ids = append(ids, model.ID)
+		}
+		return ids
+	case service.PlatformAnthropic:
+		return claude.DefaultModelIDs()
 	case service.PlatformGrok:
 		return xai.DefaultModelIDs()
 	case service.PlatformComposite:
 		ids := make([]string, 0)
 		seen := make(map[string]struct{})
-		for _, concretePlatform := range []string{service.PlatformAnthropic, service.PlatformOpenAI, service.PlatformGrok} {
+		for _, concretePlatform := range []string{
+			service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI,
+			service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi,
+			service.PlatformZhipu, service.PlatformDeepseek,
+		} {
 			for _, id := range defaultModelIDsForPlatform(concretePlatform) {
 				if _, ok := seen[id]; ok {
 					continue
@@ -1008,6 +1088,13 @@ func defaultModelIDsForPlatform(platform string) []string {
 		}
 		return ids
 	}
+}
+
+func defaultCodexModelIDsForPlatform(platform string) []string {
+	if platform == service.PlatformDeepseek {
+		return []string{"deepseek-v4-pro", "deepseek-v4-flash"}
+	}
+	return defaultModelIDsForPlatform(platform)
 }
 
 func mergeModelIDs(primary, secondary []string) []string {
