@@ -311,7 +311,11 @@ export default {
       refund_pending: '退款已提交渠道处理',
       reopened: '工单已重新打开',
     },
-    errors: {},
+    errors: {
+      REFUND_STILL_PENDING: '支付渠道仍在确认退款，请稍后再标记已解决。',
+      REFUND_RECORD_MISSING: '订单仍显示退款中，但找不到可恢复的退款记录，请检查订单退款详情。',
+      REFUND_QUERY_UNSUPPORTED: '当前支付渠道无法自动查询退款状态，请先在渠道侧确认并使用退款审核流程处理。',
+    },
   },
 
   // Auth

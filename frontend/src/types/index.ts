@@ -613,13 +613,21 @@ export interface GroupDynamicRateRule {
 	id: string
 	name: string
 	enabled: boolean
-	timezone: string
-	start_time: string
-	end_time: string
+	start_at?: string
+	end_at?: string
+	shared_quota_amount?: number
+	personal_quota_amount?: number
+	/** @deprecated Legacy daily-clock rule field. */
+	timezone?: string
+	/** @deprecated Legacy daily-clock rule field. */
+	start_time?: string
+	/** @deprecated Legacy daily-clock rule field. */
+	end_time?: string
 	levels: number[]
 	multiplier: number
 	activation_spend: number
-	quota_amount: number
+	/** @deprecated Legacy daily quota field. */
+	quota_amount?: number
 }
 
 export interface Group {

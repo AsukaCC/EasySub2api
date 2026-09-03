@@ -1,18 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { post } = vi.hoisted(() => ({
+const { get, post, del } = vi.hoisted(() => ({
+  get: vi.fn(),
   post: vi.fn(),
+  del: vi.fn(),
 }))
 
 vi.mock('@/api/client', () => ({
   apiClient: {
+    get,
     post,
+    delete: del,
   },
 }))
 
 import {
   batchUpdateLimits,
   bindUserAuthIdentity,
+  deleteUser,
+  listArchived,
+  permanentlyDeleteInactiveUsers,
+  previewInactiveUsers,
+  restoreArchivedUser,
   type AdminBindAuthIdentityRequest,
   type AdminBoundAuthIdentity,
   type BatchUpdateUserLimitsRequest,
@@ -83,7 +92,9 @@ const batchResponseContractExact: Assert<
 
 describe('admin users api auth identity binding', () => {
   beforeEach(() => {
+    get.mockReset()
     post.mockReset()
+    del.mockReset()
   })
 
   it('posts the backend-compatible auth identity bind payload and returns the backend response shape', async () => {
@@ -146,5 +157,58 @@ describe('admin users api auth identity binding', () => {
     expect(result).toEqual({ affected: 2 })
     expect(batchRequestContractExact).toBe(true)
     expect(batchResponseContractExact).toBe(true)
+  })
+
+  it('posts inactive cleanup preview and permanent delete payloads', async () => {
+    const filters = {
+      max_balance: 0,
+      last_used_before: '2026-08-01T00:00:00Z',
+      max_usage_7d: 0
+    }
+    post
+      .mockResolvedValueOnce({
+        data: {
+          total: 2,
+          total_balance: 0,
+          total_usage_7d: 0,
+          generated_at: '2026-09-03T00:00:00Z',
+          snapshot_token: 'snapshot-2',
+          items: []
+        }
+      })
+      .mockResolvedValueOnce({ data: { deleted: 2 } })
+
+    await previewInactiveUsers(filters)
+    await permanentlyDeleteInactiveUsers({
+      ...filters,
+      expected_count: 2,
+      snapshot_token: 'snapshot-2',
+      confirmation: 'DELETE 2 USERS'
+    })
+
+    expect(post).toHaveBeenNthCalledWith(1, '/admin/users/inactive/preview', filters)
+    expect(post).toHaveBeenNthCalledWith(2, '/admin/users/inactive/permanent-delete', {
+      ...filters,
+      expected_count: 2,
+      snapshot_token: 'snapshot-2',
+      confirmation: 'DELETE 2 USERS'
+    })
+  })
+
+  it('lists, restores, and deletes users with archive disposition contracts', async () => {
+    get.mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 20, pages: 1 } })
+    post.mockResolvedValue({ data: { id: '0199-user', email: 'restored@example.com' } })
+    del.mockResolvedValue({ data: { message: 'archived', mode: 'archived' } })
+
+    await listArchived(1, 20, 'paid@example.com')
+    await restoreArchivedUser('0199-user')
+    const result = await deleteUser('0199-user')
+
+    expect(get).toHaveBeenCalledWith('/admin/users/archived', {
+      params: { page: 1, page_size: 20, search: 'paid@example.com' }
+    })
+    expect(post).toHaveBeenCalledWith('/admin/users/0199-user/restore')
+    expect(del).toHaveBeenCalledWith('/admin/users/0199-user')
+    expect(result.mode).toBe('archived')
   })
 })

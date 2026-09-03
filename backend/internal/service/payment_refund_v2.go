@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"strings"
 	"time"
@@ -36,6 +37,7 @@ const (
 
 	selfServiceRefundWindow    = 168 * time.Hour
 	refundSubmittingRetryAfter = 2 * time.Minute
+	refundSettlementTimeout    = 15 * time.Second
 	affiliateRefundHoldPurpose = "affiliate_refund"
 )
 
@@ -901,7 +903,7 @@ func (s *PaymentService) submitClaimedPaymentRefund(ctx context.Context, refund 
 	}
 	switch strings.TrimSpace(response.Status) {
 	case payment.ProviderStatusSuccess, payment.ProviderStatusRefunded:
-		return s.settlePaymentRefund(ctx, refund.ID, strings.TrimSpace(response.RefundID))
+		return s.settleProviderConfirmedPaymentRefund(ctx, refund.ID, strings.TrimSpace(response.RefundID))
 	case payment.ProviderStatusPending:
 		return s.markRefundPendingRecord(ctx, refund.ID, strings.TrimSpace(response.RefundID), "", "")
 	case payment.ProviderStatusFailed:
@@ -965,6 +967,78 @@ func (s *PaymentService) markRefundPendingRecord(ctx context.Context, refundID, 
 	return refund, nil
 }
 
+func (s *PaymentService) settleProviderConfirmedPaymentRefund(ctx context.Context, refundID, providerRefundID string) (*dbent.PaymentRefund, error) {
+	settlementCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refundSettlementTimeout)
+	defer cancel()
+	refund, err := s.settlePaymentRefund(settlementCtx, refundID, providerRefundID)
+	if err == nil {
+		return refund, nil
+	}
+	current, loadErr := s.entClient.PaymentRefund.Get(settlementCtx, refundID)
+	if loadErr == nil && current.Status == RefundStatusSucceeded {
+		return current, nil
+	}
+	pending, pendingErr := s.markRefundPendingRecord(settlementCtx, refundID, providerRefundID, "REFUND_SETTLEMENT_RETRY", err.Error())
+	if pendingErr != nil {
+		return nil, errors.Join(
+			fmt.Errorf("settle provider-confirmed refund: %w", err),
+			fmt.Errorf("preserve provider-confirmed refund for reconciliation: %w", pendingErr),
+		)
+	}
+	if pending.Status == RefundStatusFailed {
+		return nil, infraerrors.Conflict("REFUND_STATE_CONFLICT", "provider confirmed a refund that is already marked failed").WithCause(err)
+	}
+	slog.Warn("payment provider confirmed refund before local settlement completed",
+		"refund_id", refundID,
+		"provider_refund_id", providerRefundID,
+		"error", err,
+	)
+	return pending, nil
+}
+
+func settledPaymentOrderUpdate(update *dbent.PaymentOrderUpdateOne, order *dbent.PaymentOrder, refund *dbent.PaymentRefund, now time.Time) *dbent.PaymentOrderUpdateOne {
+	status := OrderStatusPartiallyRefunded
+	principalTotal, snapshotErr := cumulativeRefundInputForOrder(order)
+	if snapshotErr == nil && decimal.NewFromFloat(refund.TargetPrincipalAmount).Round(refundMoneyScale).Equal(principalTotal.PrincipalAmount) {
+		status = OrderStatusRefunded
+	}
+	return update.
+		SetStatus(status).
+		SetRefundedPrincipalAmount(refund.TargetPrincipalAmount).
+		SetRefundedFeeAmount(refund.TargetFeeAmount).
+		SetRefundedGatewayAmount(refund.TargetPrincipalAmount + refund.TargetFeeAmount - refund.TargetRefundFeeAmount).
+		SetReversedBasePoints(refund.TargetBasePoints).
+		SetReversedBonusPoints(refund.TargetBonusPoints).
+		SetReversedAffiliatePoints(refund.TargetAffiliatePoints).
+		SetRefundAmount(refund.TargetPrincipalAmount).
+		SetRefundReason(refund.Reason).
+		SetRefundAt(now).
+		ClearFailedAt().
+		ClearFailedReason()
+}
+
+func (s *PaymentService) completeSettledRefundTicket(ctx context.Context, refund *dbent.PaymentRefund, now time.Time) {
+	if refund == nil || refund.TicketID == nil || strings.TrimSpace(*refund.TicketID) == "" {
+		return
+	}
+	ticket, err := s.entClient.SupportTicket.Get(ctx, *refund.TicketID)
+	if err != nil {
+		if !dbent.IsNotFound(err) {
+			slog.Warn("failed to load settled refund ticket", "refund_id", refund.ID, "ticket_id", *refund.TicketID, "error", err)
+		}
+		return
+	}
+	update := s.entClient.SupportTicket.UpdateOneID(ticket.ID).
+		SetRefundID(refund.ID).
+		SetRefundDecision(SupportTicketRefundApproved)
+	if ticket.Status != SupportTicketStatusClosed && ticket.Status != SupportTicketStatusCancelled {
+		update.SetStatus(SupportTicketStatusResolved).SetResolvedAt(now)
+	}
+	if _, err := update.Save(ctx); err != nil {
+		slog.Warn("failed to complete settled refund ticket", "refund_id", refund.ID, "ticket_id", ticket.ID, "error", err)
+	}
+}
+
 func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, providerRefundID string) (_ *dbent.PaymentRefund, err error) {
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
@@ -980,18 +1054,45 @@ func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, prov
 	if err != nil {
 		return nil, fmt.Errorf("lock refund settlement: %w", err)
 	}
-	if refund.Status == RefundStatusSucceeded {
-		if err = tx.Commit(); err != nil {
-			return nil, err
-		}
-		return refund, nil
-	}
 	if refund.Status == RefundStatusFailed {
 		return nil, infraerrors.Conflict("REFUND_STATE_CONFLICT", "failed refund cannot be settled")
 	}
 	order, err := tx.PaymentOrder.Query().Where(paymentorder.IDEQ(refund.OrderID)).ForUpdate().Only(txCtx)
 	if err != nil {
 		return nil, fmt.Errorf("lock refund order settlement: %w", err)
+	}
+	now := time.Now()
+	if refund.Status == RefundStatusSucceeded {
+		active, queryErr := tx.PaymentRefund.Query().Where(
+			paymentrefund.OrderIDEQ(order.ID),
+			paymentrefund.StatusIn(RefundStatusRequested, RefundStatusReserved, RefundStatusSubmitting, RefundStatusPending),
+		).Exist(txCtx)
+		if queryErr != nil {
+			return nil, fmt.Errorf("query active refund during repair: %w", queryErr)
+		}
+		if !active {
+			projection, projectionErr := tx.PaymentRefund.Query().Where(
+				paymentrefund.OrderIDEQ(order.ID),
+				paymentrefund.StatusEQ(RefundStatusSucceeded),
+			).Order(paymentrefund.ByCreatedAt(sql.OrderDesc())).First(txCtx)
+			if projectionErr != nil {
+				return nil, fmt.Errorf("load latest settled refund projection: %w", projectionErr)
+			}
+			if _, updateErr := settledPaymentOrderUpdate(tx.PaymentOrder.UpdateOneID(order.ID), order, projection, now).Save(txCtx); updateErr != nil {
+				return nil, fmt.Errorf("repair refunded order totals: %w", updateErr)
+			}
+		}
+		if providerRefundID != "" && psStringValue(refund.ProviderRefundID) != providerRefundID {
+			refund, err = tx.PaymentRefund.UpdateOneID(refund.ID).SetProviderRefundID(providerRefundID).Save(txCtx)
+			if err != nil {
+				return nil, fmt.Errorf("update settled refund provider id: %w", err)
+			}
+		}
+		if err = tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit settled refund repair: %w", err)
+		}
+		s.completeSettledRefundTicket(ctx, refund, now)
+		return refund, nil
 	}
 	if refund.WalletHoldID != nil && strings.TrimSpace(*refund.WalletHoldID) != "" {
 		if _, err := s.userRepo.CaptureWalletHold(txCtx, *refund.WalletHoldID, "wallet-refund-capture:"+refund.ID); err != nil {
@@ -1006,26 +1107,7 @@ func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, prov
 		}
 	}
 
-	status := OrderStatusPartiallyRefunded
-	principalTotal, snapshotErr := cumulativeRefundInputForOrder(order)
-	if snapshotErr == nil && decimal.NewFromFloat(refund.TargetPrincipalAmount).Round(refundMoneyScale).Equal(principalTotal.PrincipalAmount) {
-		status = OrderStatusRefunded
-	}
-	now := time.Now()
-	if _, err := tx.PaymentOrder.UpdateOneID(order.ID).
-		SetStatus(status).
-		SetRefundedPrincipalAmount(refund.TargetPrincipalAmount).
-		SetRefundedFeeAmount(refund.TargetFeeAmount).
-		SetRefundedGatewayAmount(refund.TargetPrincipalAmount + refund.TargetFeeAmount - refund.TargetRefundFeeAmount).
-		SetReversedBasePoints(refund.TargetBasePoints).
-		SetReversedBonusPoints(refund.TargetBonusPoints).
-		SetReversedAffiliatePoints(refund.TargetAffiliatePoints).
-		SetRefundAmount(refund.TargetPrincipalAmount).
-		SetRefundReason(refund.Reason).
-		SetRefundAt(now).
-		ClearFailedAt().
-		ClearFailedReason().
-		Save(txCtx); err != nil {
+	if _, err := settledPaymentOrderUpdate(tx.PaymentOrder.UpdateOneID(order.ID), order, refund, now).Save(txCtx); err != nil {
 		return nil, fmt.Errorf("update refunded order totals: %w", err)
 	}
 	update := tx.PaymentRefund.UpdateOneID(refund.ID).
@@ -1040,15 +1122,6 @@ func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, prov
 	if err != nil {
 		return nil, fmt.Errorf("mark refund succeeded: %w", err)
 	}
-	if refund.TicketID != nil {
-		if _, err := tx.SupportTicket.Update().Where(supportticket.IDEQ(*refund.TicketID)).
-			SetStatus(SupportTicketStatusResolved).
-			SetRefundID(refund.ID).
-			SetResolvedAt(now).
-			Save(txCtx); err != nil {
-			return nil, fmt.Errorf("complete support ticket refund: %w", err)
-		}
-	}
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit refund settlement: %w", err)
 	}
@@ -1056,6 +1129,7 @@ func (s *PaymentService) settlePaymentRefund(ctx context.Context, refundID, prov
 	if affiliateWalletUserID != "" && affiliateWalletUserID != order.UserID {
 		s.invalidateRefundWalletCaches(ctx, affiliateWalletUserID)
 	}
+	s.completeSettledRefundTicket(ctx, refund, now)
 	return refund, nil
 }
 
@@ -1147,7 +1221,7 @@ func paymentRefundFailedOrderUpdate(update *dbent.PaymentOrderUpdateOne, now tim
 
 func (s *PaymentService) QueryPaymentRefund(ctx context.Context, orderID string) (*PaymentRefundResponse, error) {
 	refund, err := s.entClient.PaymentRefund.Query().Where(
-		paymentrefund.OrderIDEQ(orderID), paymentrefund.StatusEQ(RefundStatusPending),
+		paymentrefund.OrderIDEQ(orderID), paymentrefund.StatusIn(RefundStatusSubmitting, RefundStatusPending),
 	).Order(paymentrefund.ByCreatedAt(sql.OrderDesc())).First(ctx)
 	if err != nil {
 		if dbent.IsNotFound(err) {
@@ -1156,6 +1230,66 @@ func (s *PaymentService) QueryPaymentRefund(ctx context.Context, orderID string)
 		return nil, err
 	}
 	return s.queryPaymentRefundByID(ctx, refund.ID)
+}
+
+func (s *PaymentService) ReconcileRefundForTicket(ctx context.Context, ticketID, orderID string) (*PaymentRefundResponse, error) {
+	ticketID = strings.TrimSpace(ticketID)
+	orderID = strings.TrimSpace(orderID)
+	if ticketID == "" && orderID == "" {
+		return nil, nil
+	}
+	var refund *dbent.PaymentRefund
+	var err error
+	if ticketID != "" {
+		refund, err = s.entClient.PaymentRefund.Query().Where(paymentrefund.TicketIDEQ(ticketID)).
+			Order(paymentrefund.ByCreatedAt(sql.OrderDesc())).First(ctx)
+	}
+	if (ticketID == "" || dbent.IsNotFound(err)) && orderID != "" {
+		refund, err = s.entClient.PaymentRefund.Query().Where(paymentrefund.OrderIDEQ(orderID)).
+			Order(paymentrefund.ByCreatedAt(sql.OrderDesc())).First(ctx)
+	}
+	if err != nil {
+		if !dbent.IsNotFound(err) {
+			return nil, err
+		}
+		if orderID == "" {
+			return nil, nil
+		}
+		order, orderErr := s.entClient.PaymentOrder.Get(ctx, orderID)
+		if orderErr != nil {
+			if dbent.IsNotFound(orderErr) {
+				return nil, nil
+			}
+			return nil, orderErr
+		}
+		switch order.Status {
+		case OrderStatusRefundRequested, OrderStatusRefunding, OrderStatusRefundPending:
+			return nil, infraerrors.Conflict("REFUND_RECORD_MISSING", "the order is still refunding but has no recoverable refund record")
+		default:
+			return nil, nil
+		}
+	}
+
+	switch refund.Status {
+	case RefundStatusSucceeded:
+		refund, err = s.settlePaymentRefund(ctx, refund.ID, psStringValue(refund.ProviderRefundID))
+		if err != nil {
+			return nil, err
+		}
+		return paymentRefundResponse(refund), nil
+	case RefundStatusFailed:
+		return paymentRefundResponse(refund), nil
+	case RefundStatusReserved:
+		refund, err = s.executePaymentRefund(ctx, refund.ID)
+		if err != nil {
+			return nil, err
+		}
+		return paymentRefundResponse(refund), nil
+	case RefundStatusSubmitting, RefundStatusPending:
+		return s.queryPaymentRefundByID(ctx, refund.ID)
+	default:
+		return nil, infraerrors.Conflict("REFUND_STATE_CONFLICT", "refund is not ready for reconciliation")
+	}
 }
 
 func (s *PaymentService) queryPaymentRefundByID(ctx context.Context, refundID string) (*PaymentRefundResponse, error) {
@@ -1197,7 +1331,7 @@ func (s *PaymentService) queryPaymentRefundByID(ctx context.Context, refundID st
 	}
 	switch strings.TrimSpace(response.Status) {
 	case payment.ProviderStatusSuccess, payment.ProviderStatusRefunded:
-		refund, err = s.settlePaymentRefund(ctx, refund.ID, strings.TrimSpace(response.RefundID))
+		refund, err = s.settleProviderConfirmedPaymentRefund(ctx, refund.ID, strings.TrimSpace(response.RefundID))
 	case payment.ProviderStatusPending:
 		refund, err = s.markRefundPendingRecord(ctx, refund.ID, strings.TrimSpace(response.RefundID), "", "")
 	case payment.ProviderStatusFailed:

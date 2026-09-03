@@ -52,7 +52,7 @@ func TestPlatformPointsRefundIndexesAreInEntMigrationSchema(t *testing.T) {
 		"category = 'REFUND' AND order_id IS NOT NULL AND status IN ('PENDING_ADMIN', 'PENDING_USER', 'IN_PROGRESS')")
 
 	require.Equal(t, "currency = 'CNY'", entmigrate.PaymentRefundsTable.Annotation.Checks["payment_refunds_currency_valid"])
-	require.Equal(t, "gateway_amount = principal_amount + fee_amount", entmigrate.PaymentRefundsTable.Annotation.Checks["payment_refunds_gateway_split_valid"])
+	require.Equal(t, "gateway_amount + refund_fee_amount = principal_amount + fee_amount", entmigrate.PaymentRefundsTable.Annotation.Checks["payment_refunds_gateway_split_valid"])
 	require.Equal(t, "bonus_expired_offset <= bonus_points", entmigrate.PaymentRefundsTable.Annotation.Checks["payment_refunds_bonus_expired_offset_valid"])
 }
 

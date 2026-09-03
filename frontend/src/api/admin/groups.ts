@@ -21,6 +21,19 @@ export interface LiveCapability {
   reason?: string
 }
 
+export type DynamicRateUsageStatus = 'legacy' | 'not_started' | 'active' | 'expired' | 'invalid'
+
+export interface DynamicRateUsageSummary {
+  rule_id: string
+  rule_name: string
+  start_at: string
+  end_at: string
+  status: DynamicRateUsageStatus
+  shared_quota_amount: number
+  shared_used_amount: number
+  shared_remaining_amount: number | null
+}
+
 /**
  * List all groups with pagination
  * @param page - Page number (default: 1)
@@ -99,6 +112,14 @@ export async function getLiveCapability(): Promise<LiveCapability> {
  */
 export async function getById(id: string): Promise<AdminGroup> {
   const { data } = await apiClient.get<AdminGroup>(`/admin/groups/${id}`)
+  return data
+}
+
+/** Get shared quota usage for every dynamic rule in a group. */
+export async function getDynamicRateUsage(id: string): Promise<DynamicRateUsageSummary[]> {
+  const { data } = await apiClient.get<DynamicRateUsageSummary[]>(
+    `/admin/groups/${id}/dynamic-rate-usage`
+  )
   return data
 }
 
@@ -478,6 +499,7 @@ export const groupsAPI = {
   getAllIncludingInactive,
   getLiveCapability,
   getById,
+  getDynamicRateUsage,
   getModelsListCandidates,
   create,
   duplicate,

@@ -317,7 +317,11 @@ export default {
       refund_pending: 'Refund submitted to the payment provider',
       reopened: 'Ticket reopened',
     },
-    errors: {},
+    errors: {
+      REFUND_STILL_PENDING: 'The payment provider is still confirming this refund. Try resolving the ticket again later.',
+      REFUND_RECORD_MISSING: 'The order is still refunding, but no recoverable refund record was found. Check the order refund details.',
+      REFUND_QUERY_UNSUPPORTED: 'This payment provider cannot reconcile refunds automatically. Confirm the provider result and use the refund review flow.',
+    },
   },
 
   // Auth

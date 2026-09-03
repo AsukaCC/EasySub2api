@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -15,11 +17,13 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent/authidentitychannel"
 	dbgroup "github.com/AsukaCC/EasySub2api/ent/group"
 	"github.com/AsukaCC/EasySub2api/ent/identityadoptiondecision"
+	"github.com/AsukaCC/EasySub2api/ent/paymentorder"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
 	"github.com/AsukaCC/EasySub2api/ent/schema/mixins"
 	dbuser "github.com/AsukaCC/EasySub2api/ent/user"
 	"github.com/AsukaCC/EasySub2api/ent/userallowedgroup"
 	"github.com/AsukaCC/EasySub2api/ent/usersubscription"
+	"github.com/AsukaCC/EasySub2api/internal/payment"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -34,6 +38,7 @@ type userRepository struct {
 }
 
 var _ service.RedeemUserAdjustmentRepository = (*userRepository)(nil)
+var _ service.UserDeletionRepository = (*userRepository)(nil)
 
 func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) service.UserRepository {
 	return newUserRepositoryWithSQL(client, sqlDB)
@@ -568,6 +573,9 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 	}
 
 	q := r.client.User.Query()
+	if filters.OnlyDeleted {
+		q = q.Where(dbuser.DeletedAtNotNil())
+	}
 
 	if filters.Status != "" {
 		q = q.Where(dbuser.StatusEQ(filters.Status))
@@ -719,6 +727,10 @@ func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) 
 	case "created_at":
 		field = dbuser.FieldCreatedAt
 		defaultField = false
+	case "deleted_at":
+		field = dbuser.FieldDeletedAt
+		defaultField = false
+		nullsLastField = true
 	case "last_active_at":
 		field = dbuser.FieldLastActiveAt
 		defaultField = false
@@ -854,6 +866,357 @@ func (r *userRepository) GetLatestUsedAtByUserID(ctx context.Context, userID str
 		return nil, err
 	}
 	return latestByUserID[userID], nil
+}
+
+const inactiveUserFilterSQL = `
+	FROM users u
+	LEFT JOIN LATERAL (
+		SELECT
+			MAX(ul.created_at) AS last_used_at,
+			COALESCE(SUM(CASE
+				WHEN ul.created_at >= $4 AND ul.created_at < $5 AND ul.actual_cost > 0
+				THEN ul.actual_cost
+				ELSE 0
+			END), 0)::double precision AS usage_7d
+		FROM usage_logs ul
+		WHERE ul.user_id = u.id
+	) activity ON TRUE
+	WHERE u.deleted_at IS NULL
+	  AND u.role <> 'admin'
+	  AND u.balance <= $1
+	  AND u.created_at < $2
+	  AND (activity.last_used_at IS NULL OR activity.last_used_at < $2)
+	  AND activity.usage_7d <= $3
+`
+
+func inactiveUserFilterArgs(filter service.InactiveUserFilter) []any {
+	evaluationTime := filter.EvaluationTime.UTC()
+	if evaluationTime.IsZero() {
+		evaluationTime = time.Now().UTC()
+	}
+	return []any{
+		filter.MaxBalance,
+		filter.LastUsedBefore.UTC(),
+		filter.MaxUsage7d,
+		evaluationTime.Add(-7 * 24 * time.Hour),
+		evaluationTime,
+	}
+}
+
+func (r *userRepository) PreviewInactiveUsers(ctx context.Context, filter service.InactiveUserFilter, sampleLimit int) (*service.InactiveUserDeletePreview, error) {
+	if sampleLimit <= 0 {
+		sampleLimit = 100
+	}
+	if sampleLimit > 500 {
+		sampleLimit = 500
+	}
+
+	exec := clientFromContext(ctx, r.client)
+	args := inactiveUserFilterArgs(filter)
+	preview := &service.InactiveUserDeletePreview{
+		GeneratedAt: filter.EvaluationTime.UTC(),
+		Items:       []service.InactiveUserCandidate{},
+	}
+	if preview.GeneratedAt.IsZero() {
+		preview.GeneratedAt = time.Now().UTC()
+		filter.EvaluationTime = preview.GeneratedAt
+		args = inactiveUserFilterArgs(filter)
+	}
+
+	itemsQuery := `
+		SELECT
+			u.id,
+			u.email,
+			u.balance::double precision,
+			activity.last_used_at,
+			activity.usage_7d,
+			u.created_at
+	` + inactiveUserFilterSQL + `
+		ORDER BY COALESCE(activity.last_used_at, u.created_at) ASC, u.id ASC
+	`
+	itemRows, err := exec.QueryContext(ctx, itemsQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = itemRows.Close() }()
+	fingerprint := sha256.New()
+	for itemRows.Next() {
+		var (
+			candidate  service.InactiveUserCandidate
+			lastUsedAt sql.NullTime
+		)
+		if err := itemRows.Scan(
+			&candidate.ID,
+			&candidate.Email,
+			&candidate.Balance,
+			&lastUsedAt,
+			&candidate.Usage7d,
+			&candidate.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		candidate.CreatedAt = candidate.CreatedAt.UTC()
+		if lastUsedAt.Valid {
+			value := lastUsedAt.Time.UTC()
+			candidate.LastUsedAt = &value
+		}
+		preview.Total++
+		preview.TotalBalance += candidate.Balance
+		preview.TotalUsage7d += candidate.Usage7d
+		writeInactiveUserFingerprint(fingerprint, candidate)
+		if len(preview.Items) < sampleLimit {
+			preview.Items = append(preview.Items, candidate)
+		}
+	}
+	if err := itemRows.Err(); err != nil {
+		return nil, err
+	}
+	preview.SnapshotToken = hex.EncodeToString(fingerprint.Sum(nil))
+	return preview, nil
+}
+
+func (r *userRepository) PermanentlyDeleteInactiveUsers(ctx context.Context, filter service.InactiveUserFilter, expectedCount int64, snapshotToken string) (*service.InactiveUserPurgeResult, error) {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	opCtx := dbent.NewTxContext(ctx, tx)
+	exec := tx.Client()
+	args := inactiveUserFilterArgs(filter)
+	lockedQuery := `
+		SELECT
+			u.id,
+			u.email,
+			u.balance::double precision,
+			activity.last_used_at,
+			activity.usage_7d,
+			u.created_at
+	` + inactiveUserFilterSQL + `
+		ORDER BY COALESCE(activity.last_used_at, u.created_at) ASC, u.id ASC
+		FOR UPDATE OF u
+	`
+	rows, err := exec.QueryContext(opCtx, lockedQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	userIDs := make([]string, 0, expectedCount)
+	fingerprint := sha256.New()
+	for rows.Next() {
+		var (
+			candidate  service.InactiveUserCandidate
+			lastUsedAt sql.NullTime
+		)
+		if err := rows.Scan(&candidate.ID, &candidate.Email, &candidate.Balance, &lastUsedAt, &candidate.Usage7d, &candidate.CreatedAt); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		candidate.CreatedAt = candidate.CreatedAt.UTC()
+		if lastUsedAt.Valid {
+			value := lastUsedAt.Time.UTC()
+			candidate.LastUsedAt = &value
+		}
+		writeInactiveUserFingerprint(fingerprint, candidate)
+		userIDs = append(userIDs, candidate.ID)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	currentToken := hex.EncodeToString(fingerprint.Sum(nil))
+	if int64(len(userIDs)) != expectedCount || currentToken != strings.TrimSpace(snapshotToken) {
+		return nil, service.ErrInactiveUserPreviewChanged
+	}
+	if len(userIDs) == 0 {
+		return &service.InactiveUserPurgeResult{}, nil
+	}
+
+	keys, err := loadInactiveUserAPIKeys(opCtx, exec, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := purgeInactiveUserOwnedRows(opCtx, exec, userIDs); err != nil {
+		return nil, err
+	}
+
+	hardDeleteCtx := mixins.SkipSoftDelete(opCtx)
+	deleted, err := exec.User.Delete().Where(dbuser.IDIn(userIDs...)).Exec(hardDeleteCtx)
+	if err != nil {
+		return nil, err
+	}
+	if deleted != len(userIDs) {
+		return nil, service.ErrInactiveUserPreviewChanged
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &service.InactiveUserPurgeResult{UserIDs: userIDs, APIKeys: keys}, nil
+}
+
+func writeInactiveUserFingerprint(fingerprint interface{ Write([]byte) (int, error) }, candidate service.InactiveUserCandidate) {
+	lastUsedAt := int64(0)
+	if candidate.LastUsedAt != nil {
+		lastUsedAt = candidate.LastUsedAt.UTC().UnixNano()
+	}
+	_, _ = fmt.Fprintf(
+		fingerprint,
+		"%s\x00%.8f\x00%d\x00%.8f\x00%d\n",
+		candidate.ID,
+		candidate.Balance,
+		lastUsedAt,
+		candidate.Usage7d,
+		candidate.CreatedAt.UTC().UnixNano(),
+	)
+}
+
+func loadInactiveUserAPIKeys(ctx context.Context, exec *dbent.Client, userIDs []string) ([]string, error) {
+	rows, err := exec.QueryContext(ctx, `
+		SELECT key
+		FROM api_keys
+		WHERE user_id = ANY($1::uuid[]) AND deleted_at IS NULL
+	`, pq.Array(userIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	keys := make([]string, 0)
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		if key = strings.TrimSpace(key); key != "" {
+			keys = append(keys, key)
+		}
+	}
+	return keys, rows.Err()
+}
+
+func (r *userRepository) HasRechargeRecords(ctx context.Context, userID string) (bool, error) {
+	client := clientFromContext(ctx, r.client)
+	return client.PaymentOrder.Query().Where(
+		paymentorder.UserIDEQ(userID),
+		paymentorder.OrderTypeEQ(payment.OrderTypeBalance),
+		paymentorder.StatusIn(
+			payment.OrderStatusPaid,
+			payment.OrderStatusRecharging,
+			payment.OrderStatusCompleted,
+			payment.OrderStatusRefundRequested,
+			payment.OrderStatusRefunding,
+			payment.OrderStatusRefundPending,
+			payment.OrderStatusPartiallyRefunded,
+			payment.OrderStatusRefunded,
+			payment.OrderStatusRefundFailed,
+		),
+	).Exist(mixins.SkipSoftDelete(ctx))
+}
+
+func (r *userRepository) PermanentlyDeleteUser(ctx context.Context, userID string) (*service.InactiveUserPurgeResult, error) {
+	if existingTx := dbent.TxFromContext(ctx); existingTx != nil {
+		return r.permanentlyDeleteUser(ctx, existingTx.Client(), userID)
+	}
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	opCtx := dbent.NewTxContext(ctx, tx)
+	result, err := r.permanentlyDeleteUser(opCtx, tx.Client(), userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *userRepository) permanentlyDeleteUser(ctx context.Context, exec *dbent.Client, userID string) (*service.InactiveUserPurgeResult, error) {
+	keys, err := loadInactiveUserAPIKeys(ctx, exec, []string{userID})
+	if err != nil {
+		return nil, err
+	}
+	if err := purgeInactiveUserOwnedRows(ctx, exec, []string{userID}); err != nil {
+		return nil, err
+	}
+	deleted, err := exec.User.Delete().Where(dbuser.IDEQ(userID)).Exec(mixins.SkipSoftDelete(ctx))
+	if err != nil {
+		return nil, translatePersistenceError(err, service.ErrUserNotFound, nil)
+	}
+	if deleted == 0 {
+		return nil, service.ErrUserNotFound
+	}
+	return &service.InactiveUserPurgeResult{UserIDs: []string{userID}, APIKeys: keys}, nil
+}
+
+func (r *userRepository) RestoreArchivedUser(ctx context.Context, userID string) error {
+	if existingTx := dbent.TxFromContext(ctx); existingTx != nil {
+		return r.restoreArchivedUser(ctx, existingTx.Client(), userID)
+	}
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	opCtx := dbent.NewTxContext(ctx, tx)
+	if err := r.restoreArchivedUser(opCtx, tx.Client(), userID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *userRepository) restoreArchivedUser(ctx context.Context, exec *dbent.Client, userID string) error {
+	archiveCtx := mixins.SkipSoftDelete(ctx)
+	user, err := exec.User.Query().Where(dbuser.IDEQ(userID)).Only(archiveCtx)
+	if err != nil {
+		return translatePersistenceError(err, service.ErrUserNotFound, nil)
+	}
+	if user.DeletedAt == nil {
+		return service.ErrUserNotArchived
+	}
+	if _, err := exec.User.UpdateOneID(userID).ClearDeletedAt().Save(archiveCtx); err != nil {
+		return translatePersistenceError(err, service.ErrUserNotFound, service.ErrEmailExists)
+	}
+	if err := ensureEmailAuthIdentityWithClient(ctx, exec, userID, user.Email, "admin_restore"); err != nil {
+		if errors.Is(err, ErrAuthIdentityOwnershipConflict) {
+			return service.ErrEmailExists
+		}
+		return err
+	}
+	return nil
+}
+
+func purgeInactiveUserOwnedRows(ctx context.Context, exec *dbent.Client, userIDs []string) error {
+	arrayArg := pq.Array(userIDs)
+	queries := []string{
+		`DELETE FROM payment_audit_logs WHERE order_id IN (SELECT id FROM payment_orders WHERE user_id = ANY($1::uuid[]))`,
+		`DELETE FROM payment_refunds WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM support_tickets WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM payment_orders WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM usage_cleanup_tasks WHERE created_by = ANY($1::uuid[])`,
+		`DELETE FROM batch_image_jobs WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM channel_monitor_v2_latency_histograms_1m WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM channel_monitor_v2_latency_histograms_rollup WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM channel_monitor_v2_user_metrics_1m WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM channel_monitor_v2_user_metrics_rollup WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM deleted_api_key_audits WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM ops_error_logs WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM ops_ingress_reject_aggregates WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM ops_system_logs WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM orphan_allowed_groups_audit WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM usage_dashboard_daily_users WHERE user_id = ANY($1::uuid[])`,
+		`DELETE FROM usage_dashboard_hourly_users WHERE user_id = ANY($1::uuid[])`,
+	}
+	for _, query := range queries {
+		if _, err := exec.ExecContext(ctx, query, arrayArg); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func userLastUsedAtOrder(sortOrder string) []func(*entsql.Selector) {

@@ -35,7 +35,7 @@ func RegisterAdminRoutes(
 		registerDashboardRoutes(admin, h)
 
 		// 用户管理
-		registerUserManagementRoutes(admin, h)
+		registerUserManagementRoutes(admin, h, stepUpAuth)
 
 		// 分组管理
 		registerGroupRoutes(admin, h)
@@ -311,18 +311,22 @@ func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	users := admin.Group("/users")
 	{
 		users.GET("", h.Admin.User.List)
 		users.GET("/level-settings", h.Admin.User.GetLevelSettings)
 		users.PUT("/level-settings", h.Admin.User.UpdateLevelSettings)
 		users.POST("/levels/batch", h.Admin.User.BatchLevelProfiles)
+		users.POST("/inactive/preview", h.Admin.User.PreviewInactiveUsers)
+		users.POST("/inactive/permanent-delete", gin.HandlerFunc(stepUpAuth), h.Admin.User.PermanentlyDeleteInactiveUsers)
+		users.GET("/archived", h.Admin.User.ListArchived)
 		users.GET("/:id", h.Admin.User.GetByID)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)
 		users.DELETE("/:id", h.Admin.User.Delete)
+		users.POST("/:id/restore", h.Admin.User.RestoreArchived)
 		users.POST("/:id/balance", h.Admin.User.UpdateBalance)
 		users.GET("/:id/api-keys", h.Admin.User.GetUserAPIKeys)
 		users.GET("/:id/usage", h.Admin.User.GetUserUsage)
@@ -357,6 +361,7 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.POST("/:id/composite-routes/preview", h.Admin.Group.PreviewCompositeRoute)
 		groups.PUT("/:id/composite-routes/:route_id", h.Admin.Group.UpdateCompositeRoute)
 		groups.DELETE("/:id/composite-routes/:route_id", h.Admin.Group.DeleteCompositeRoute)
+		groups.GET("/:id/dynamic-rate-usage", h.Admin.Group.GetDynamicRateUsage)
 		groups.GET("/:id", h.Admin.Group.GetByID)
 		groups.POST("", h.Admin.Group.Create)
 		groups.POST("/:id/duplicate", h.Admin.Group.Duplicate)

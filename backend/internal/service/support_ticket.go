@@ -699,6 +699,15 @@ func (s *SupportTicketService) AdminSetStatus(ctx context.Context, ticketID, adm
 	if ticket.Status == SupportTicketStatusClosed || ticket.Status == SupportTicketStatusCancelled {
 		return nil, infraerrors.Conflict("SUPPORT_TICKET_STATE_CONFLICT", "terminal ticket cannot change status")
 	}
+	if ticket.Category == SupportTicketCategoryRefund && s.paymentService != nil && (status == SupportTicketStatusResolved || status == SupportTicketStatusClosed) {
+		refund, reconcileErr := s.paymentService.ReconcileRefundForTicket(ctx, ticket.ID, psStringValue(ticket.OrderID))
+		if reconcileErr != nil {
+			return nil, reconcileErr
+		}
+		if refund != nil && refund.Status != RefundStatusSucceeded && refund.Status != RefundStatusFailed {
+			return nil, infraerrors.Conflict("REFUND_STILL_PENDING", "the payment provider still reports this refund as pending")
+		}
+	}
 	now := time.Now()
 	update := s.client.SupportTicket.UpdateOneID(ticketID).SetStatus(status).SetLastAdminActivityAt(now)
 	if status == SupportTicketStatusResolved {

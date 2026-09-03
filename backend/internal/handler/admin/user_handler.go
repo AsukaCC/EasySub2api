@@ -204,6 +204,27 @@ type BindUserAuthIdentityChannelRequest struct {
 	Metadata       map[string]any `json:"metadata"`
 }
 
+type InactiveUserFilterRequest struct {
+	MaxBalance     float64   `json:"max_balance" binding:"gte=0"`
+	LastUsedBefore time.Time `json:"last_used_before" binding:"required"`
+	MaxUsage7d     float64   `json:"max_usage_7d" binding:"gte=0"`
+}
+
+type PermanentlyDeleteInactiveUsersRequest struct {
+	InactiveUserFilterRequest
+	ExpectedCount int64  `json:"expected_count" binding:"required,gt=0"`
+	SnapshotToken string `json:"snapshot_token" binding:"required"`
+	Confirmation  string `json:"confirmation" binding:"required"`
+}
+
+func (r InactiveUserFilterRequest) serviceFilter() service.InactiveUserFilter {
+	return service.InactiveUserFilter{
+		MaxBalance:     r.MaxBalance,
+		LastUsedBefore: r.LastUsedBefore,
+		MaxUsage7d:     r.MaxUsage7d,
+	}
+}
+
 // List handles listing all users with pagination
 // GET /api/v1/admin/users
 // Query params:
@@ -271,6 +292,32 @@ func (h *UserHandler) List(c *gin.Context) {
 		}
 	}
 
+	response.Paginated(c, out, total, page, pageSize)
+}
+
+// ListArchived returns only soft-deleted users retained for payment history.
+// GET /api/v1/admin/users/archived
+func (h *UserHandler) ListArchived(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	search := strings.TrimSpace(c.Query("search"))
+	if runes := []rune(search); len(runes) > 100 {
+		search = string(runes[:100])
+	}
+	includeSubscriptions := false
+	users, total, err := h.adminService.ListUsers(c.Request.Context(), page, pageSize, service.UserListFilters{
+		Search:               search,
+		IncludeSubscriptions: &includeSubscriptions,
+		IncludeDeleted:       true,
+		OnlyDeleted:          true,
+	}, c.DefaultQuery("sort_by", "deleted_at"), c.DefaultQuery("sort_order", "desc"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]dto.AdminUser, 0, len(users))
+	for i := range users {
+		out = append(out, *dto.UserFromServiceAdmin(&users[i]))
+	}
 	response.Paginated(c, out, total, page, pageSize)
 }
 
@@ -557,13 +604,101 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	err = h.adminService.DeleteUser(c.Request.Context(), userID)
+	if archiveService, ok := h.adminService.(service.AdminUserArchiveService); ok {
+		result, deleteErr := archiveService.DeleteUserWithPolicy(c.Request.Context(), userID)
+		if deleteErr != nil {
+			response.ErrorFrom(c, deleteErr)
+			return
+		}
+		message := "User archived successfully"
+		if result.Mode == service.UserDeletionModePermanentlyDeleted {
+			message = "User permanently deleted successfully"
+		}
+		response.Success(c, gin.H{"message": message, "mode": result.Mode})
+		return
+	}
+	if err := h.adminService.DeleteUser(c.Request.Context(), userID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "User deleted successfully", "mode": service.UserDeletionModeArchived})
+}
+
+// RestoreArchived restores a retained user account without recreating deleted API keys.
+// POST /api/v1/admin/users/:id/restore
+func (h *UserHandler) RestoreArchived(c *gin.Context) {
+	userID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	archiveService, ok := h.adminService.(service.AdminUserArchiveService)
+	if !ok {
+		response.InternalError(c, "User archive unavailable")
+		return
+	}
+	user, err := archiveService.RestoreArchivedUser(c.Request.Context(), userID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	response.Success(c, dto.UserFromServiceAdmin(user))
+}
 
-	response.Success(c, gin.H{"message": "User deleted successfully"})
+// PreviewInactiveUsers returns a bounded sample and aggregate totals for the
+// permanent deletion filters. Admin accounts are always excluded.
+// POST /api/v1/admin/users/inactive/preview
+func (h *UserHandler) PreviewInactiveUsers(c *gin.Context) {
+	var req InactiveUserFilterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	cleanupService, ok := h.adminService.(service.AdminInactiveUserService)
+	if !ok {
+		response.InternalError(c, "Inactive user cleanup unavailable")
+		return
+	}
+	preview, err := cleanupService.PreviewInactiveUsers(c.Request.Context(), req.serviceFilter())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, preview)
+}
+
+// PermanentlyDeleteInactiveUsers physically deletes the current filter match.
+// The count and typed confirmation must match the immediately preceding
+// preview; any drift aborts the transaction.
+// POST /api/v1/admin/users/inactive/permanent-delete
+func (h *UserHandler) PermanentlyDeleteInactiveUsers(c *gin.Context) {
+	var req PermanentlyDeleteInactiveUsersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	expectedConfirmation := fmt.Sprintf("DELETE %d USERS", req.ExpectedCount)
+	if strings.TrimSpace(req.Confirmation) != expectedConfirmation {
+		response.BadRequest(c, "confirmation must exactly match "+expectedConfirmation)
+		return
+	}
+	cleanupService, ok := h.adminService.(service.AdminInactiveUserService)
+	if !ok {
+		response.InternalError(c, "Inactive user cleanup unavailable")
+		return
+	}
+	result, err := cleanupService.PermanentlyDeleteInactiveUsers(
+		c.Request.Context(),
+		req.serviceFilter(),
+		req.ExpectedCount,
+		req.SnapshotToken,
+		getAdminIDFromContext(c),
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 // UpdateBalance handles updating user balance

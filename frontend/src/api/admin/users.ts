@@ -55,6 +55,47 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export interface InactiveUserFilterRequest {
+  max_balance: number
+  last_used_before: string
+  max_usage_7d: number
+}
+
+export interface InactiveUserCandidate {
+  id: string
+  email: string
+  balance: number
+  last_used_at: string | null
+  usage_7d: number
+  created_at: string
+}
+
+export interface InactiveUserDeletePreview {
+  total: number
+  total_balance: number
+  total_usage_7d: number
+  generated_at: string
+  snapshot_token: string
+  items: InactiveUserCandidate[]
+}
+
+export interface PermanentlyDeleteInactiveUsersRequest extends InactiveUserFilterRequest {
+  expected_count: number
+  snapshot_token: string
+  confirmation: string
+}
+
+export interface PermanentlyDeleteInactiveUsersResponse {
+  deleted: number
+}
+
+export type UserDeletionMode = 'archived' | 'permanently_deleted'
+
+export interface DeleteUserResponse {
+  message: string
+  mode: UserDeletionMode
+}
+
 export interface UserLevelSettings {
 	l2_min_spend: number
 	l3_min_spend: number
@@ -140,6 +181,17 @@ export async function list(
   return data
 }
 
+export async function listArchived(
+  page: number = 1,
+  pageSize: number = 20,
+  search?: string
+): Promise<PaginatedResponse<AdminUser>> {
+  const { data } = await apiClient.get<PaginatedResponse<AdminUser>>('/admin/users/archived', {
+    params: { page, page_size: pageSize, search: search || undefined }
+  })
+  return data
+}
+
 /**
  * Get user by ID
  * @param id - User ID
@@ -190,8 +242,13 @@ export async function update(id: string, updates: UpdateUserRequest): Promise<Ad
  * @param id - User ID
  * @returns Success confirmation
  */
-export async function deleteUser(id: string): Promise<{ message: string }> {
-  const { data } = await apiClient.delete<{ message: string }>(`/admin/users/${id}`)
+export async function deleteUser(id: string): Promise<DeleteUserResponse> {
+  const { data } = await apiClient.delete<DeleteUserResponse>(`/admin/users/${id}`)
+  return data
+}
+
+export async function restoreArchivedUser(id: string): Promise<AdminUser> {
+  const { data } = await apiClient.post<AdminUser>(`/admin/users/${id}/restore`)
   return data
 }
 
@@ -237,6 +294,26 @@ export async function batchUpdateLimits(
 ): Promise<BatchUpdateUserLimitsResponse> {
   const { data } = await apiClient.post<BatchUpdateUserLimitsResponse>(
     '/admin/users/batch-limits',
+    request
+  )
+  return data
+}
+
+export async function previewInactiveUsers(
+  request: InactiveUserFilterRequest
+): Promise<InactiveUserDeletePreview> {
+  const { data } = await apiClient.post<InactiveUserDeletePreview>(
+    '/admin/users/inactive/preview',
+    request
+  )
+  return data
+}
+
+export async function permanentlyDeleteInactiveUsers(
+  request: PermanentlyDeleteInactiveUsersRequest
+): Promise<PermanentlyDeleteInactiveUsersResponse> {
+  const { data } = await apiClient.post<PermanentlyDeleteInactiveUsersResponse>(
+    '/admin/users/inactive/permanent-delete',
     request
   )
   return data
@@ -449,6 +526,7 @@ export async function resetPlatformQuotaWindow(
 
 export const usersAPI = {
   list,
+  listArchived,
   getLevelSettings,
   updateLevelSettings,
   getLevelProfiles,
@@ -456,9 +534,12 @@ export const usersAPI = {
   create,
   update,
   delete: deleteUser,
+  restoreArchivedUser,
   updateBalance,
   updateConcurrency,
   batchUpdateLimits,
+  previewInactiveUsers,
+  permanentlyDeleteInactiveUsers,
   toggleStatus,
   getUserApiKeys,
   getUserUsageStats,

@@ -75,23 +75,47 @@ type UserLevelDashboard struct {
 }
 
 type DynamicRateUsageKey struct {
-	RuleID     string
-	BucketDate string
+	RuleID   string
+	QuotaKey string
 }
 
 type UserLevelRepository interface {
 	GetRollingSpend(ctx context.Context, userID string, since, until time.Time) (float64, error)
 	GetRollingSpendBatch(ctx context.Context, userIDs []string, since, until time.Time) (map[string]float64, error)
 	GetDynamicRateUsage(ctx context.Context, userID, groupID string, keys []DynamicRateUsageKey) (map[DynamicRateUsageKey]float64, error)
+	GetSharedDynamicRateUsage(ctx context.Context, groupID string, keys []DynamicRateUsageKey) (map[DynamicRateUsageKey]float64, error)
 }
 
 type DynamicRateCandidate struct {
-	RuleID      string  `json:"rule_id"`
-	RuleName    string  `json:"rule_name"`
-	Multiplier  float64 `json:"multiplier"`
-	QuotaAmount float64 `json:"quota_amount"` // Platform point allowance for this rule.
-	UsedAmount  float64 `json:"used_amount"`  // Charged platform points consumed from the allowance.
-	BucketDate  string  `json:"bucket_date"`
+	RuleID              string  `json:"rule_id"`
+	RuleName            string  `json:"rule_name"`
+	StartAt             string  `json:"start_at"`
+	EndAt               string  `json:"end_at"`
+	QuotaKey            string  `json:"quota_key"`
+	Multiplier          float64 `json:"multiplier"`
+	SharedQuotaAmount   float64 `json:"shared_quota_amount"`
+	SharedUsedAmount    float64 `json:"shared_used_amount"`
+	PersonalQuotaAmount float64 `json:"personal_quota_amount"`
+	PersonalUsedAmount  float64 `json:"personal_used_amount"`
+}
+
+const (
+	DynamicRateStatusLegacy     = "legacy"
+	DynamicRateStatusNotStarted = "not_started"
+	DynamicRateStatusActive     = "active"
+	DynamicRateStatusExpired    = "expired"
+	DynamicRateStatusInvalid    = "invalid"
+)
+
+type DynamicRateUsageSummary struct {
+	RuleID                string   `json:"rule_id"`
+	RuleName              string   `json:"rule_name"`
+	StartAt               string   `json:"start_at"`
+	EndAt                 string   `json:"end_at"`
+	Status                string   `json:"status"`
+	SharedQuotaAmount     float64  `json:"shared_quota_amount"`
+	SharedUsedAmount      float64  `json:"shared_used_amount"`
+	SharedRemainingAmount *float64 `json:"shared_remaining_amount"`
 }
 
 type UserRatePlan struct {
@@ -353,21 +377,14 @@ func dynamicRuleApplies(rule GroupDynamicRateRule, profile UserLevelProfile, at 
 			return "", false
 		}
 	}
-	location, err := time.LoadLocation(rule.Timezone)
-	if err != nil {
+	start, end, quotaKey, ok := parseDynamicRateWindow(rule)
+	if !ok {
 		return "", false
 	}
-	start, okStart := parseMinutes(rule.StartTime)
-	end, okEnd := parseMinutes(rule.EndTime)
-	if !okStart || !okEnd || start >= end {
+	if at.Before(start) || !at.Before(end) {
 		return "", false
 	}
-	local := at.In(location)
-	minute := local.Hour()*60 + local.Minute()
-	if minute < start || minute >= end {
-		return "", false
-	}
-	return local.Format("2006-01-02"), true
+	return quotaKey, true
 }
 
 func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, group *Group, profile UserLevelProfile, at time.Time) (UserRatePlan, error) {
@@ -379,23 +396,42 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	candidates := make([]DynamicRateCandidate, 0)
 	keys := make([]DynamicRateUsageKey, 0)
 	for _, rule := range group.DynamicRateRules {
-		bucketDate, ok := dynamicRuleApplies(rule, profile, at)
+		quotaKey, ok := dynamicRuleApplies(rule, profile, at)
 		if !ok {
 			continue
 		}
-		candidate := DynamicRateCandidate{RuleID: rule.ID, RuleName: rule.Name, Multiplier: rule.Multiplier, QuotaAmount: rule.QuotaAmount, BucketDate: bucketDate}
+		start, end, _, validWindow := parseDynamicRateWindow(rule)
+		if !validWindow {
+			continue
+		}
+		candidate := DynamicRateCandidate{
+			RuleID:              rule.ID,
+			RuleName:            rule.Name,
+			StartAt:             start.Format(time.RFC3339Nano),
+			EndAt:               end.Format(time.RFC3339Nano),
+			QuotaKey:            quotaKey,
+			Multiplier:          rule.Multiplier,
+			SharedQuotaAmount:   rule.SharedQuotaAmount,
+			PersonalQuotaAmount: rule.PersonalQuotaAmount,
+		}
 		candidates = append(candidates, candidate)
-		if rule.QuotaAmount > 0 {
-			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, BucketDate: bucketDate})
+		if rule.SharedQuotaAmount > 0 || rule.PersonalQuotaAmount > 0 {
+			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
 		}
 	}
 	if len(keys) > 0 && s.repo != nil {
-		usage, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
+		personalUsage, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
+		if err != nil {
+			return UserRatePlan{}, err
+		}
+		sharedUsage, err := s.repo.GetSharedDynamicRateUsage(ctx, group.ID, keys)
 		if err != nil {
 			return UserRatePlan{}, err
 		}
 		for i := range candidates {
-			candidates[i].UsedAmount = usage[DynamicRateUsageKey{RuleID: candidates[i].RuleID, BucketDate: candidates[i].BucketDate}]
+			key := DynamicRateUsageKey{RuleID: candidates[i].RuleID, QuotaKey: candidates[i].QuotaKey}
+			candidates[i].PersonalUsedAmount = personalUsage[key]
+			candidates[i].SharedUsedAmount = sharedUsage[key]
 		}
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -406,7 +442,9 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	})
 	usable := candidates[:0]
 	for _, candidate := range candidates {
-		if candidate.QuotaAmount == 0 || candidate.UsedAmount < candidate.QuotaAmount {
+		sharedAvailable := candidate.SharedQuotaAmount == 0 || candidate.SharedUsedAmount < candidate.SharedQuotaAmount
+		personalAvailable := candidate.PersonalQuotaAmount == 0 || candidate.PersonalUsedAmount < candidate.PersonalQuotaAmount
+		if sharedAvailable && personalAvailable {
 			usable = append(usable, candidate)
 		}
 	}
@@ -422,6 +460,83 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 		BaseMultiplier: base, PeakMultiplier: peak, EffectiveMultiplier: selected * peak,
 		Source: source, DynamicCandidates: candidates,
 	}, nil
+}
+
+func dynamicRateRuleStatus(rule GroupDynamicRateRule, at time.Time) string {
+	if isLegacyDynamicRateRule(rule) {
+		return DynamicRateStatusLegacy
+	}
+	start, end, _, ok := parseDynamicRateWindow(rule)
+	if !ok {
+		return DynamicRateStatusInvalid
+	}
+	if at.Before(start) {
+		return DynamicRateStatusNotStarted
+	}
+	if at.Before(end) {
+		return DynamicRateStatusActive
+	}
+	return DynamicRateStatusExpired
+}
+
+func (s *UserLevelService) GetDynamicRateUsageSummary(ctx context.Context, groupID string, at time.Time) ([]DynamicRateUsageSummary, error) {
+	if s == nil || s.groupRepo == nil {
+		return nil, errors.New("user level group repository is unavailable")
+	}
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return nil, ErrGroupNotFound
+	}
+	if at.IsZero() {
+		at = time.Now()
+	}
+	group, err := s.groupRepo.GetByIDLite(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil {
+		return nil, ErrGroupNotFound
+	}
+
+	keys := make([]DynamicRateUsageKey, 0, len(group.DynamicRateRules))
+	for _, rule := range group.DynamicRateRules {
+		if _, _, quotaKey, ok := parseDynamicRateWindow(rule); ok {
+			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
+		}
+	}
+	sharedUsage := make(map[DynamicRateUsageKey]float64, len(keys))
+	if len(keys) > 0 && s.repo != nil {
+		sharedUsage, err = s.repo.GetSharedDynamicRateUsage(ctx, group.ID, keys)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	result := make([]DynamicRateUsageSummary, 0, len(group.DynamicRateRules))
+	for _, rule := range group.DynamicRateRules {
+		start, end, quotaKey, validWindow := parseDynamicRateWindow(rule)
+		summary := DynamicRateUsageSummary{
+			RuleID:            rule.ID,
+			RuleName:          rule.Name,
+			Status:            dynamicRateRuleStatus(rule, at),
+			SharedQuotaAmount: QuantizeUsageBillingAmount(rule.SharedQuotaAmount),
+		}
+		if validWindow {
+			summary.StartAt = start.Format(time.RFC3339Nano)
+			summary.EndAt = end.Format(time.RFC3339Nano)
+			summary.SharedUsedAmount = QuantizeUsageBillingAmount(sharedUsage[DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey}])
+		}
+		if rule.SharedQuotaAmount > 0 {
+			remaining := rule.SharedQuotaAmount - summary.SharedUsedAmount
+			if remaining < 0 {
+				remaining = 0
+			}
+			remaining = QuantizeUsageBillingAmount(remaining)
+			summary.SharedRemainingAmount = &remaining
+		}
+		result = append(result, summary)
+	}
+	return result, nil
 }
 
 func (s *UserLevelService) resolveGroupBaseMultiplier(ctx context.Context, userID string, group *Group, level int) (float64, error) {

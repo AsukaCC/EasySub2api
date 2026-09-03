@@ -351,8 +351,10 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 				continue
 			}
 			rules = append(rules, UsageDynamicRateRule{
-				RuleID: candidate.RuleID, BucketDate: candidate.BucketDate,
-				Multiplier: multiplier, QuotaAmount: candidate.QuotaAmount,
+				RuleID: candidate.RuleID, QuotaKey: candidate.QuotaKey,
+				Multiplier:          multiplier,
+				SharedQuotaAmount:   candidate.SharedQuotaAmount,
+				PersonalQuotaAmount: candidate.PersonalQuotaAmount,
 			})
 		}
 		if len(rules) > 0 {

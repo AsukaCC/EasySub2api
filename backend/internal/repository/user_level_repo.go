@@ -59,20 +59,20 @@ func (r *userLevelRepository) GetDynamicRateUsage(ctx context.Context, userID, g
 		return out, nil
 	}
 	ruleIDs := make([]string, 0, len(keys))
-	dates := make([]string, 0, len(keys))
+	quotaKeys := make([]string, 0, len(keys))
 	for _, key := range keys {
 		ruleIDs = append(ruleIDs, key.RuleID)
-		dates = append(dates, key.BucketDate)
+		quotaKeys = append(quotaKeys, key.QuotaKey)
 	}
 	rows, err := r.sql.QueryContext(ctx, `
-		SELECT rule_id::text, bucket_date::text, used_amount
+		SELECT rule_id::text, quota_key, used_amount
 		FROM user_dynamic_rate_usage
 		WHERE user_id = $1 AND group_id = $2
-		  AND (rule_id, bucket_date) IN (
-			SELECT data.rule_id::uuid, data.bucket_date::date
-			FROM unnest($3::text[], $4::text[]) AS data(rule_id, bucket_date)
+		  AND (rule_id, quota_key) IN (
+			SELECT data.rule_id::uuid, data.quota_key
+			FROM unnest($3::text[], $4::text[]) AS data(rule_id, quota_key)
 		  )
-	`, userID, groupID, pq.Array(ruleIDs), pq.Array(dates))
+	`, userID, groupID, pq.Array(ruleIDs), pq.Array(quotaKeys))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,42 @@ func (r *userLevelRepository) GetDynamicRateUsage(ctx context.Context, userID, g
 	for rows.Next() {
 		var key service.DynamicRateUsageKey
 		var used float64
-		if err := rows.Scan(&key.RuleID, &key.BucketDate, &used); err != nil {
+		if err := rows.Scan(&key.RuleID, &key.QuotaKey, &used); err != nil {
+			return nil, err
+		}
+		out[key] = used
+	}
+	return out, rows.Err()
+}
+
+func (r *userLevelRepository) GetSharedDynamicRateUsage(ctx context.Context, groupID string, keys []service.DynamicRateUsageKey) (map[service.DynamicRateUsageKey]float64, error) {
+	out := make(map[service.DynamicRateUsageKey]float64, len(keys))
+	if len(keys) == 0 {
+		return out, nil
+	}
+	ruleIDs := make([]string, 0, len(keys))
+	quotaKeys := make([]string, 0, len(keys))
+	for _, key := range keys {
+		ruleIDs = append(ruleIDs, key.RuleID)
+		quotaKeys = append(quotaKeys, key.QuotaKey)
+	}
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT rule_id::text, quota_key, used_amount
+		FROM group_dynamic_rate_usage
+		WHERE group_id = $1
+		  AND (rule_id, quota_key) IN (
+			SELECT data.rule_id::uuid, data.quota_key
+			FROM unnest($2::text[], $3::text[]) AS data(rule_id, quota_key)
+		  )
+	`, groupID, pq.Array(ruleIDs), pq.Array(quotaKeys))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close() //nolint:errcheck
+	for rows.Next() {
+		var key service.DynamicRateUsageKey
+		var used float64
+		if err := rows.Scan(&key.RuleID, &key.QuotaKey, &used); err != nil {
 			return nil, err
 		}
 		out[key] = used

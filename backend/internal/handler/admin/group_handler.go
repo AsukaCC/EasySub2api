@@ -24,6 +24,7 @@ type GroupHandler struct {
 	adminService         service.AdminService
 	dashboardService     *service.DashboardService
 	groupCapacityService *service.GroupCapacityService
+	userLevelService     *service.UserLevelService
 }
 
 // GetLiveCapability 返回当前服务端是否具备生成 Live attestation 的运行环境。
@@ -100,11 +101,12 @@ func resolveLimitFieldAlias(points, legacy optionalLimitField, pointsName, legac
 }
 
 // NewGroupHandler creates a new admin group handler
-func NewGroupHandler(adminService service.AdminService, dashboardService *service.DashboardService, groupCapacityService *service.GroupCapacityService) *GroupHandler {
+func NewGroupHandler(adminService service.AdminService, dashboardService *service.DashboardService, groupCapacityService *service.GroupCapacityService, userLevelService *service.UserLevelService) *GroupHandler {
 	return &GroupHandler{
 		adminService:         adminService,
 		dashboardService:     dashboardService,
 		groupCapacityService: groupCapacityService,
+		userLevelService:     userLevelService,
 	}
 }
 
@@ -477,6 +479,26 @@ func (h *GroupHandler) GetByID(c *gin.Context) {
 	}
 
 	response.Success(c, dto.GroupFromServiceAdmin(group))
+}
+
+// GetDynamicRateUsage returns shared quota usage for every dynamic rule in a group.
+// GET /api/v1/admin/groups/:id/dynamic-rate-usage
+func (h *GroupHandler) GetDynamicRateUsage(c *gin.Context) {
+	groupID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service is unavailable")
+		return
+	}
+	usage, err := h.userLevelService.GetDynamicRateUsageSummary(c.Request.Context(), groupID, time.Now())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, usage)
 }
 
 // GetModelsListCandidates handles getting candidate model IDs for custom /v1/models list.

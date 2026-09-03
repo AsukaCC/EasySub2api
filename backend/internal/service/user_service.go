@@ -29,7 +29,12 @@ import (
 )
 
 var (
-	ErrUserNotFound             = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
+	ErrUserNotFound               = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
+	ErrInactiveUserPreviewChanged = infraerrors.Conflict(
+		"INACTIVE_USER_PREVIEW_CHANGED",
+		"inactive user matches changed; preview again before permanently deleting",
+	)
+	ErrUserNotArchived          = infraerrors.Conflict("USER_NOT_ARCHIVED", "user is not archived")
 	ErrPasswordIncorrect        = infraerrors.BadRequest("PASSWORD_INCORRECT", "current password is incorrect")
 	ErrBalanceNegative          = infraerrors.BadRequest("BALANCE_NEGATIVE", "balance cannot be negative")
 	ErrInsufficientPerms        = infraerrors.Forbidden("INSUFFICIENT_PERMISSIONS", "insufficient permissions")
@@ -82,6 +87,58 @@ type UserListFilters struct {
 	// IncludeDeleted 为 true 时绕过软删除过滤，返回含已删除（deleted_at 非空）的用户。
 	// 仅供 /admin/usage 的 SearchUsers 端点使用，其他列表调用方不要设置。
 	IncludeDeleted bool
+	// OnlyDeleted 仅返回 deleted_at 非空的归档用户；必须与 IncludeDeleted 一起使用。
+	OnlyDeleted bool
+}
+
+type UserDeletionMode string
+
+const (
+	UserDeletionModeArchived           UserDeletionMode = "archived"
+	UserDeletionModePermanentlyDeleted UserDeletionMode = "permanently_deleted"
+)
+
+type UserDeleteResult struct {
+	Mode UserDeletionMode `json:"mode"`
+}
+
+// InactiveUserFilter defines the destructive cleanup thresholds. Matching uses
+// balance <= MaxBalance, rolling successful actual_cost <= MaxUsage7d, and a
+// last usage timestamp before LastUsedBefore. Never-used users must also have
+// been created before LastUsedBefore so newly registered accounts are not
+// accidentally removed.
+type InactiveUserFilter struct {
+	MaxBalance     float64
+	LastUsedBefore time.Time
+	MaxUsage7d     float64
+	EvaluationTime time.Time
+}
+
+type InactiveUserCandidate struct {
+	ID         string     `json:"id"`
+	Email      string     `json:"email"`
+	Balance    float64    `json:"balance"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	Usage7d    float64    `json:"usage_7d"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type InactiveUserDeletePreview struct {
+	Total         int64                   `json:"total"`
+	TotalBalance  float64                 `json:"total_balance"`
+	TotalUsage7d  float64                 `json:"total_usage_7d"`
+	GeneratedAt   time.Time               `json:"generated_at"`
+	SnapshotToken string                  `json:"snapshot_token"`
+	Items         []InactiveUserCandidate `json:"items"`
+}
+
+type InactiveUserPurgeResult struct {
+	UserIDs []string
+	APIKeys []string
+}
+
+type InactiveUserDeleteResult struct {
+	Deleted int `json:"deleted"`
 }
 
 // UserUpdateFields 声明 UserRepository.Update 允许写回的列。
@@ -180,6 +237,22 @@ type UserRepository interface {
 	UpdateTotpSecret(ctx context.Context, userID string, encryptedSecret *string) error
 	EnableTotp(ctx context.Context, userID string) error
 	DisableTotp(ctx context.Context, userID string) error
+}
+
+// InactiveUserRepository is an optional destructive-cleanup capability kept
+// separate from UserRepository so existing consumers and test doubles do not
+// need to implement administrative purge operations.
+type InactiveUserRepository interface {
+	PreviewInactiveUsers(ctx context.Context, filter InactiveUserFilter, sampleLimit int) (*InactiveUserDeletePreview, error)
+	PermanentlyDeleteInactiveUsers(ctx context.Context, filter InactiveUserFilter, expectedCount int64, snapshotToken string) (*InactiveUserPurgeResult, error)
+}
+
+// UserDeletionRepository exposes the production-only archive/permanent-delete
+// policy without expanding UserRepository and every unrelated test double.
+type UserDeletionRepository interface {
+	HasRechargeRecords(ctx context.Context, userID string) (bool, error)
+	PermanentlyDeleteUser(ctx context.Context, userID string) (*InactiveUserPurgeResult, error)
+	RestoreArchivedUser(ctx context.Context, userID string) error
 }
 
 // RegistrationEmailDomainRepository 是生产用户仓储为非白名单域名单账户兜底策略提供的可选能力。

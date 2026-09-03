@@ -252,6 +252,24 @@
               {{ t('admin.users.bulkLimits.action', { count: selectedCount }) }}
             </button>
 
+            <button
+              class="views-admin-users-view__action-3 btn btn-secondary"
+              data-test="open-archived-users"
+              @click="showArchivedUsersModal = true"
+            >
+              <Icon name="inbox" size="md" class="views-admin-users-view__icon-5" />
+              {{ t('admin.users.archive.action') }}
+            </button>
+
+            <button
+              class="views-admin-users-view__action-3 btn btn-danger"
+              data-test="open-inactive-cleanup"
+              @click="showInactiveCleanupModal = true"
+            >
+              <Icon name="trash" size="md" class="views-admin-users-view__icon-5" />
+              {{ t('admin.users.inactiveCleanup.action') }}
+            </button>
+
             <!-- Create User Button (full width on mobile, auto width on desktop) -->
             <button @click="showCreateModal = true" class="views-admin-users-view__action-3 btn btn-primary">
               <Icon name="plus" size="md" class="views-admin-users-view__icon-5" />
@@ -755,6 +773,16 @@
       @close="showBulkEditModal = false"
       @success="handleBulkLimitsSuccess"
     />
+    <InactiveUserCleanupModal
+      :show="showInactiveCleanupModal"
+      @close="showInactiveCleanupModal = false"
+      @success="handleInactiveCleanupSuccess"
+    />
+    <ArchivedUsersModal
+      :show="showArchivedUsersModal"
+      @close="showArchivedUsersModal = false"
+      @restored="handleArchivedUserRestored"
+    />
     <UserPlatformQuotaModal
       :show="showPlatformQuotaModal"
       :user="platformQuotaUser"
@@ -803,6 +831,8 @@ import UserPlatformQuotaCell from '@/components/user/UserPlatformQuotaCell.vue'
 import UserCreateModal from '@/components/admin/user/UserCreateModal.vue'
 import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import BulkEditUserModal from '@/components/admin/user/BulkEditUserModal.vue'
+import InactiveUserCleanupModal from '@/components/admin/user/InactiveUserCleanupModal.vue'
+import ArchivedUsersModal from '@/components/admin/user/ArchivedUsersModal.vue'
 import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaModal.vue'
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
@@ -1302,6 +1332,8 @@ const pagination = reactive({
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showBulkEditModal = ref(false)
+const showInactiveCleanupModal = ref(false)
+const showArchivedUsersModal = ref(false)
 const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
@@ -1621,6 +1653,12 @@ const handleBulkLimitsSuccess = async () => {
   await loadUsers()
 }
 
+const handleInactiveCleanupSuccess = async () => {
+  clearSelection()
+  pagination.page = 1
+  await loadUsers()
+}
+
 let searchTimeout: ReturnType<typeof setTimeout>
 const handleSearch = () => {
   clearTimeout(searchTimeout)
@@ -1765,8 +1803,12 @@ const handleDelete = (user: AdminUser) => {
 const confirmDelete = async () => {
   if (!deletingUser.value) return
   try {
-    await adminAPI.users.delete(deletingUser.value.id)
-    appStore.showSuccess(t('common.success'))
+    const result = await adminAPI.users.delete(deletingUser.value.id)
+    appStore.showSuccess(
+      result.mode === 'archived'
+        ? t('admin.users.archive.archivedSuccess')
+        : t('admin.users.archive.permanentlyDeletedSuccess')
+    )
     showDeleteDialog.value = false
     deletingUser.value = null
     loadUsers()
@@ -1774,6 +1816,11 @@ const confirmDelete = async () => {
     appStore.showError(error.response?.data?.detail || t('admin.users.failedToDelete'))
     console.error('Error deleting user:', error)
   }
+}
+
+const handleArchivedUserRestored = () => {
+  appStore.showSuccess(t('admin.users.archive.restoredSuccess'))
+  void loadUsers()
 }
 
 const handleDeposit = (user: AdminUser) => {

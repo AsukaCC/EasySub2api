@@ -47,12 +47,14 @@ type UsageBillingCommand struct {
 }
 
 // UsageDynamicRateRule is a transaction-ready snapshot of one active rule.
-// QuotaAmount and persisted usage are actual charged platform points per user/day.
+// Quota amounts and persisted usage are actual charged platform points for the
+// absolute interval identified by QuotaKey.
 type UsageDynamicRateRule struct {
-	RuleID      string  `json:"rule_id"`
-	BucketDate  string  `json:"bucket_date"`
-	Multiplier  float64 `json:"multiplier"`
-	QuotaAmount float64 `json:"quota_amount"`
+	RuleID              string  `json:"rule_id"`
+	QuotaKey            string  `json:"quota_key"`
+	Multiplier          float64 `json:"multiplier"`
+	SharedQuotaAmount   float64 `json:"shared_quota_amount"`
+	PersonalQuotaAmount float64 `json:"personal_quota_amount"`
 }
 
 type UsageDynamicRatePlan struct {
@@ -109,7 +111,8 @@ func (c *UsageBillingCommand) quantizeMonetaryFields() {
 		c.DynamicRatePlan.FallbackMultiplier = QuantizeRateMultiplier(c.DynamicRatePlan.FallbackMultiplier)
 		for i := range c.DynamicRatePlan.Rules {
 			c.DynamicRatePlan.Rules[i].Multiplier = QuantizeRateMultiplier(c.DynamicRatePlan.Rules[i].Multiplier)
-			c.DynamicRatePlan.Rules[i].QuotaAmount = QuantizeUsageBillingAmount(c.DynamicRatePlan.Rules[i].QuotaAmount)
+			c.DynamicRatePlan.Rules[i].SharedQuotaAmount = QuantizeUsageBillingAmount(c.DynamicRatePlan.Rules[i].SharedQuotaAmount)
+			c.DynamicRatePlan.Rules[i].PersonalQuotaAmount = QuantizeUsageBillingAmount(c.DynamicRatePlan.Rules[i].PersonalQuotaAmount)
 		}
 	}
 }

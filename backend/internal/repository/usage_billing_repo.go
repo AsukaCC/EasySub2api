@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"sort"
 	"strings"
 
@@ -182,38 +183,76 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		if remainingStandard <= 0 || rule.Multiplier <= 0 || rule.Multiplier >= plan.FallbackMultiplier {
 			continue
 		}
-		if rule.QuotaAmount <= 0 {
+		if rule.SharedQuotaAmount < 0 || rule.PersonalQuotaAmount < 0 ||
+			math.IsNaN(rule.SharedQuotaAmount) || math.IsInf(rule.SharedQuotaAmount, 0) ||
+			math.IsNaN(rule.PersonalQuotaAmount) || math.IsInf(rule.PersonalQuotaAmount, 0) {
+			return errors.New("invalid dynamic rate quota amount")
+		}
+		sharedLimited := rule.SharedQuotaAmount > 0
+		personalLimited := rule.PersonalQuotaAmount > 0
+		if !sharedLimited && !personalLimited {
 			finalCost += remainingStandard * rule.Multiplier
 			remainingStandard = 0
 			break
 		}
-		if strings.TrimSpace(rule.RuleID) == "" || strings.TrimSpace(rule.BucketDate) == "" {
+		if strings.TrimSpace(rule.RuleID) == "" || strings.TrimSpace(rule.QuotaKey) == "" {
 			return errors.New("invalid dynamic rate quota key")
 		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO user_dynamic_rate_usage
-				(user_id, group_id, rule_id, bucket_date, used_amount, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
-			ON CONFLICT (user_id, group_id, rule_id, bucket_date) DO NOTHING
-		`, cmd.UserID, plan.GroupID, rule.RuleID, rule.BucketDate); err != nil {
-			return err
+
+		available := math.Inf(1)
+		if sharedLimited {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO group_dynamic_rate_usage
+					(group_id, rule_id, quota_key, used_amount, created_at, updated_at)
+				VALUES ($1, $2, $3, 0, NOW(), NOW())
+				ON CONFLICT (group_id, rule_id, quota_key) DO NOTHING
+			`, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
+				return err
+			}
+			var usedAmount float64
+			if err := tx.QueryRowContext(ctx, `
+				SELECT used_amount
+				FROM group_dynamic_rate_usage
+				WHERE group_id = $1 AND rule_id = $2 AND quota_key = $3
+				FOR UPDATE
+			`, plan.GroupID, rule.RuleID, rule.QuotaKey).Scan(&usedAmount); err != nil {
+				return err
+			}
+			available = rule.SharedQuotaAmount - usedAmount
 		}
-		var usedAmount float64
-		if err := tx.QueryRowContext(ctx, `
-			SELECT used_amount
-			FROM user_dynamic_rate_usage
-			WHERE user_id = $1 AND group_id = $2 AND rule_id = $3 AND bucket_date = $4
-			FOR UPDATE
-		`, cmd.UserID, plan.GroupID, rule.RuleID, rule.BucketDate).Scan(&usedAmount); err != nil {
-			return err
+		if personalLimited {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO user_dynamic_rate_usage
+					(user_id, group_id, rule_id, quota_key, used_amount, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
+				ON CONFLICT (user_id, group_id, rule_id, quota_key) DO NOTHING
+			`, cmd.UserID, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
+				return err
+			}
+			var usedAmount float64
+			if err := tx.QueryRowContext(ctx, `
+				SELECT used_amount
+				FROM user_dynamic_rate_usage
+				WHERE user_id = $1 AND group_id = $2 AND rule_id = $3 AND quota_key = $4
+				FOR UPDATE
+			`, cmd.UserID, plan.GroupID, rule.RuleID, rule.QuotaKey).Scan(&usedAmount); err != nil {
+				return err
+			}
+			personalAvailable := rule.PersonalQuotaAmount - usedAmount
+			if personalAvailable < available {
+				available = personalAvailable
+			}
 		}
-		available := rule.QuotaAmount - usedAmount
+		if available <= 0 {
+			continue
+		}
+		available = service.QuantizeUsageBillingAmount(available)
 		if available <= 0 {
 			continue
 		}
 		fullRuleCost := remainingStandard * rule.Multiplier
 		allocatedCost := fullRuleCost
-		if allocatedCost > available {
+		if !math.IsInf(available, 1) && allocatedCost > available {
 			allocatedCost = available
 		}
 		if allocatedCost <= 0 {
@@ -224,13 +263,28 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 			coveredStandard = remainingStandard
 		}
 		allocatedCost = service.QuantizeUsageBillingAmount(coveredStandard * rule.Multiplier)
+		if !math.IsInf(available, 1) && allocatedCost > available {
+			allocatedCost = available
+			coveredStandard = allocatedCost / rule.Multiplier
+		}
 		if allocatedCost > 0 {
-			if _, err := tx.ExecContext(ctx, `
-				UPDATE user_dynamic_rate_usage
-				SET used_amount = LEAST($1, used_amount + $2), updated_at = NOW()
-				WHERE user_id = $3 AND group_id = $4 AND rule_id = $5 AND bucket_date = $6
-			`, rule.QuotaAmount, allocatedCost, cmd.UserID, plan.GroupID, rule.RuleID, rule.BucketDate); err != nil {
-				return err
+			if sharedLimited {
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE group_dynamic_rate_usage
+					SET used_amount = LEAST($1, used_amount + $2), updated_at = NOW()
+					WHERE group_id = $3 AND rule_id = $4 AND quota_key = $5
+				`, rule.SharedQuotaAmount, allocatedCost, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
+					return err
+				}
+			}
+			if personalLimited {
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE user_dynamic_rate_usage
+					SET used_amount = LEAST($1, used_amount + $2), updated_at = NOW()
+					WHERE user_id = $3 AND group_id = $4 AND rule_id = $5 AND quota_key = $6
+				`, rule.PersonalQuotaAmount, allocatedCost, cmd.UserID, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
+					return err
+				}
 			}
 		}
 		finalCost += allocatedCost
