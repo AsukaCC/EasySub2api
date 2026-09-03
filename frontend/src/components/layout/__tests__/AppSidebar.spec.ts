@@ -60,6 +60,17 @@ describe('AppSidebar mobile visibility', () => {
       /@media \(max-width: 1023px\)[\s\S]*?\.components-layout-app-sidebar__aside-2\s*\{[\s\S]*?transform: translateX\(-100%\);/,
     )
   })
+
+  it('keeps the drawer below the mobile top navigation', () => {
+    expect(styleSource).toContain(
+      'inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) auto 0 0;',
+    )
+    expect(styleSource).toContain('z-index: 45;')
+    expect(componentSource).toContain(
+      'inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) 0 0;',
+    )
+    expect(componentSource).toContain('z-index: 40;')
+  })
 })
 
 describe('AppSidebar layout placement', () => {

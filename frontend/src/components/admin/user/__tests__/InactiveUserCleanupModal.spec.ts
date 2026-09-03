@@ -3,11 +3,12 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import InactiveUserCleanupModal from '../InactiveUserCleanupModal.vue'
 
-const { previewInactiveUsers, permanentlyDeleteInactiveUsers, showError, showSuccess } = vi.hoisted(() => ({
+const { previewInactiveUsers, permanentlyDeleteInactiveUsers, showError, showSuccess, appState } = vi.hoisted(() => ({
   previewInactiveUsers: vi.fn(),
   permanentlyDeleteInactiveUsers: vi.fn(),
   showError: vi.fn(),
-  showSuccess: vi.fn()
+  showSuccess: vi.fn(),
+  appState: { serverTimezone: 'Asia/Shanghai' }
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -20,7 +21,11 @@ vi.mock('@/api/admin', () => ({
 }))
 
 vi.mock('@/stores/app', () => ({
-  useAppStore: () => ({ showError, showSuccess })
+  useAppStore: () => ({
+    showError,
+    showSuccess,
+    cachedPublicSettings: { server_timezone: appState.serverTimezone }
+  })
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -47,6 +52,7 @@ describe('InactiveUserCleanupModal', () => {
     permanentlyDeleteInactiveUsers.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
+    appState.serverTimezone = 'Asia/Shanghai'
   })
 
   it('previews filters and permanently deletes only after exact confirmation', async () => {
@@ -80,7 +86,7 @@ describe('InactiveUserCleanupModal', () => {
     expect(previewInactiveUsers).toHaveBeenCalledWith({
       max_balance: 0,
       max_usage_7d: 0,
-      last_used_before: new Date('2026-08-04T12:00:00+08:00').toISOString()
+      last_used_before: '2026-08-04'
     })
     expect(wrapper.get('[data-test="inactive-delete"]').attributes('disabled')).toBeDefined()
 
@@ -91,12 +97,46 @@ describe('InactiveUserCleanupModal', () => {
     expect(permanentlyDeleteInactiveUsers).toHaveBeenCalledWith({
       max_balance: 0,
       max_usage_7d: 0,
-      last_used_before: new Date('2026-08-04T12:00:00+08:00').toISOString(),
+      last_used_before: '2026-08-04',
       expected_count: 2,
       snapshot_token: 'snapshot-2',
       confirmation: 'DELETE 2 USERS'
     })
     expect(wrapper.emitted('success')).toEqual([[2]])
     expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('uses the configured server date without browser timezone conversion', async () => {
+    vi.setSystemTime(new Date('2026-09-03T02:00:00Z'))
+    appState.serverTimezone = 'America/New_York'
+    previewInactiveUsers.mockResolvedValue({
+      total: 0,
+      total_balance: 0,
+      total_usage_7d: 0,
+      generated_at: '2026-09-03T02:00:00Z',
+      snapshot_token: 'empty',
+      items: []
+    })
+
+    const wrapper = mount(InactiveUserCleanupModal, {
+      props: { show: true },
+      global: { stubs: { BaseDialog: BaseDialogStub } }
+    })
+    const dateInput = wrapper.get('[data-test="inactive-last-used-before"]')
+
+    expect(dateInput.attributes('type')).toBe('date')
+    expect(dateInput.attributes('max')).toBe('2026-09-02')
+    expect((dateInput.element as HTMLInputElement).value).toBe('2026-08-03')
+
+    await wrapper.get('[data-test="inactive-preview"]').trigger('click')
+    await flushPromises()
+    expect(previewInactiveUsers).toHaveBeenCalledWith({
+      max_balance: 0,
+      max_usage_7d: 0,
+      last_used_before: '2026-08-03'
+    })
+
+    await dateInput.setValue('2026-09-03')
+    expect(wrapper.get('[data-test="inactive-preview"]').attributes('disabled')).toBeDefined()
   })
 })

@@ -369,7 +369,7 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 50;
-  padding: 0.75rem clamp(1rem, 2vw, 2rem) 0;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) clamp(1rem, 2vw, 2rem) 0;
 }
 
 /* 玻璃材质由 styles/glass.scss 中的 .app-top-nav-shell 提供 */

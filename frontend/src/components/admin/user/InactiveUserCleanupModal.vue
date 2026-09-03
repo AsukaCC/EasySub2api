@@ -29,11 +29,13 @@
           <input
             v-model="form.lastUsedBefore"
             class="input"
-            type="datetime-local"
-            step="1"
+            type="date"
+            :max="serverToday"
             data-test="inactive-last-used-before"
           />
-          <span class="input-hint">{{ t('admin.users.inactiveCleanup.lastUsedBeforeHint') }}</span>
+          <span class="input-hint">
+            {{ t('admin.users.inactiveCleanup.lastUsedBeforeHint', { timezone: serverTimezone }) }}
+          </span>
         </label>
 
         <label class="inactive-user-cleanup__field">
@@ -170,22 +172,59 @@ const preview = ref<InactiveUserDeletePreview | null>(null)
 const previewing = ref(false)
 const deleting = ref(false)
 const confirmation = ref('')
+const serverToday = ref('')
 const form = reactive({
   maxBalance: '0',
   lastUsedBefore: '',
   maxUsage7d: '0'
 })
 
-const toLocalDateTimeValue = (date: Date): string => {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+const defaultServerTimezone = 'Asia/Shanghai'
+const serverTimezone = computed(() => {
+  const configured = appStore.cachedPublicSettings?.server_timezone?.trim()
+  if (!configured) return defaultServerTimezone
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: configured }).format(new Date())
+    return configured
+  } catch {
+    return defaultServerTimezone
+  }
+})
+
+const formatDateInTimezone = (date: Date, timeZone: string): string => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
+const shiftDate = (value: string, days: number): string => {
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+const isValidDate = (value: string): boolean => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day
 }
 
 const reset = () => {
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - 30)
+  serverToday.value = formatDateInTimezone(new Date(), serverTimezone.value)
   form.maxBalance = '0'
-  form.lastUsedBefore = toLocalDateTimeValue(cutoff)
+  form.lastUsedBefore = shiftDate(serverToday.value, -30)
   form.maxUsage7d = '0'
   preview.value = null
   confirmation.value = ''
@@ -202,10 +241,10 @@ const validationError = computed(() => {
   if (!Number.isFinite(parsedMaxUsage7d.value) || parsedMaxUsage7d.value < 0) {
     return t('admin.users.inactiveCleanup.invalidUsage7d')
   }
-  if (!form.lastUsedBefore || Number.isNaN(new Date(form.lastUsedBefore).getTime())) {
+  if (!isValidDate(form.lastUsedBefore)) {
     return t('admin.users.inactiveCleanup.invalidLastUsedBefore')
   }
-  if (new Date(form.lastUsedBefore).getTime() > Date.now()) {
+  if (form.lastUsedBefore > serverToday.value) {
     return t('admin.users.inactiveCleanup.futureLastUsedBefore')
   }
   return ''
@@ -213,7 +252,7 @@ const validationError = computed(() => {
 
 const buildFilter = (): InactiveUserFilterRequest => ({
   max_balance: parsedMaxBalance.value,
-  last_used_before: new Date(form.lastUsedBefore).toISOString(),
+  last_used_before: form.lastUsedBefore,
   max_usage_7d: parsedMaxUsage7d.value
 })
 

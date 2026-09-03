@@ -872,7 +872,7 @@ const inactiveUserFilterSQL = `
 	FROM users u
 	LEFT JOIN LATERAL (
 		SELECT
-			MAX(ul.created_at) AS last_used_at,
+			MAX(ul.created_at) FILTER (WHERE ul.actual_cost > 0) AS last_used_at,
 			COALESCE(SUM(CASE
 				WHEN ul.created_at >= $4 AND ul.created_at < $5 AND ul.actual_cost > 0
 				THEN ul.actual_cost
@@ -883,10 +883,20 @@ const inactiveUserFilterSQL = `
 	) activity ON TRUE
 	WHERE u.deleted_at IS NULL
 	  AND u.role <> 'admin'
-	  AND u.balance <= $1
+	  AND GREATEST(u.balance, 0) <= $1
 	  AND u.created_at < $2
 	  AND (activity.last_used_at IS NULL OR activity.last_used_at < $2)
 	  AND activity.usage_7d <= $3
+`
+
+const inactiveUserCandidateSelectSQL = `
+	SELECT
+		u.id,
+		u.email,
+		GREATEST(u.balance, 0)::double precision,
+		activity.last_used_at,
+		activity.usage_7d,
+		u.created_at
 `
 
 func inactiveUserFilterArgs(filter service.InactiveUserFilter) []any {
@@ -923,15 +933,7 @@ func (r *userRepository) PreviewInactiveUsers(ctx context.Context, filter servic
 		args = inactiveUserFilterArgs(filter)
 	}
 
-	itemsQuery := `
-		SELECT
-			u.id,
-			u.email,
-			u.balance::double precision,
-			activity.last_used_at,
-			activity.usage_7d,
-			u.created_at
-	` + inactiveUserFilterSQL + `
+	itemsQuery := inactiveUserCandidateSelectSQL + inactiveUserFilterSQL + `
 		ORDER BY COALESCE(activity.last_used_at, u.created_at) ASC, u.id ASC
 	`
 	itemRows, err := exec.QueryContext(ctx, itemsQuery, args...)
@@ -985,15 +987,7 @@ func (r *userRepository) PermanentlyDeleteInactiveUsers(ctx context.Context, fil
 	opCtx := dbent.NewTxContext(ctx, tx)
 	exec := tx.Client()
 	args := inactiveUserFilterArgs(filter)
-	lockedQuery := `
-		SELECT
-			u.id,
-			u.email,
-			u.balance::double precision,
-			activity.last_used_at,
-			activity.usage_7d,
-			u.created_at
-	` + inactiveUserFilterSQL + `
+	lockedQuery := inactiveUserCandidateSelectSQL + inactiveUserFilterSQL + `
 		ORDER BY COALESCE(activity.last_used_at, u.created_at) ASC, u.id ASC
 		FOR UPDATE OF u
 	`

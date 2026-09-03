@@ -13,6 +13,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/handler/quotaview"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
+	appTimezone "github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
 	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 
@@ -205,9 +206,9 @@ type BindUserAuthIdentityChannelRequest struct {
 }
 
 type InactiveUserFilterRequest struct {
-	MaxBalance     float64   `json:"max_balance" binding:"gte=0"`
-	LastUsedBefore time.Time `json:"last_used_before" binding:"required"`
-	MaxUsage7d     float64   `json:"max_usage_7d" binding:"gte=0"`
+	MaxBalance     float64 `json:"max_balance" binding:"gte=0"`
+	LastUsedBefore string  `json:"last_used_before" binding:"required"`
+	MaxUsage7d     float64 `json:"max_usage_7d" binding:"gte=0"`
 }
 
 type PermanentlyDeleteInactiveUsersRequest struct {
@@ -217,12 +218,35 @@ type PermanentlyDeleteInactiveUsersRequest struct {
 	Confirmation  string `json:"confirmation" binding:"required"`
 }
 
-func (r InactiveUserFilterRequest) serviceFilter() service.InactiveUserFilter {
+func (r InactiveUserFilterRequest) serviceFilter() (service.InactiveUserFilter, error) {
+	lastUsedBefore, err := parseInactiveUserCutoff(r.LastUsedBefore)
+	if err != nil {
+		return service.InactiveUserFilter{}, err
+	}
 	return service.InactiveUserFilter{
 		MaxBalance:     r.MaxBalance,
-		LastUsedBefore: r.LastUsedBefore,
+		LastUsedBefore: lastUsedBefore,
 		MaxUsage7d:     r.MaxUsage7d,
+	}, nil
+}
+
+func parseInactiveUserCutoff(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, fmt.Errorf("last_used_before is required")
 	}
+	if len(value) == len("2006-01-02") {
+		parsed, err := appTimezone.ParseInLocation("2006-01-02", value)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("last_used_before must be a valid YYYY-MM-DD date: %w", err)
+		}
+		return parsed, nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("last_used_before must be YYYY-MM-DD or RFC3339: %w", err)
+	}
+	return parsed, nil
 }
 
 // List handles listing all users with pagination
@@ -659,7 +683,12 @@ func (h *UserHandler) PreviewInactiveUsers(c *gin.Context) {
 		response.InternalError(c, "Inactive user cleanup unavailable")
 		return
 	}
-	preview, err := cleanupService.PreviewInactiveUsers(c.Request.Context(), req.serviceFilter())
+	filter, err := req.serviceFilter()
+	if err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	preview, err := cleanupService.PreviewInactiveUsers(c.Request.Context(), filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -687,9 +716,14 @@ func (h *UserHandler) PermanentlyDeleteInactiveUsers(c *gin.Context) {
 		response.InternalError(c, "Inactive user cleanup unavailable")
 		return
 	}
+	filter, err := req.serviceFilter()
+	if err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
 	result, err := cleanupService.PermanentlyDeleteInactiveUsers(
 		c.Request.Context(),
-		req.serviceFilter(),
+		filter,
 		req.ExpectedCount,
 		req.SnapshotToken,
 		getAdminIDFromContext(c),

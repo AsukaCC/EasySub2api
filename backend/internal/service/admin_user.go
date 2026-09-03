@@ -16,6 +16,7 @@ import (
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
+	appTimezone "github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
 )
 
 // User management implementations
@@ -484,7 +485,7 @@ func (s *adminServiceImpl) RestoreArchivedUser(ctx context.Context, id string) (
 }
 
 func normalizeInactiveUserFilter(filter InactiveUserFilter) (InactiveUserFilter, error) {
-	now := time.Now().UTC()
+	now := appTimezone.Now()
 	if filter.MaxBalance < 0 {
 		return InactiveUserFilter{}, infraerrors.BadRequest("INVALID_MAX_BALANCE", "max_balance must be nonnegative")
 	}
@@ -498,7 +499,7 @@ func normalizeInactiveUserFilter(filter InactiveUserFilter) (InactiveUserFilter,
 	if filter.LastUsedBefore.After(now) {
 		return InactiveUserFilter{}, infraerrors.BadRequest("INVALID_LAST_USED_BEFORE", "last_used_before cannot be in the future")
 	}
-	filter.EvaluationTime = now
+	filter.EvaluationTime = now.UTC()
 	return filter, nil
 }
 

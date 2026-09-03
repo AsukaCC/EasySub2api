@@ -1659,5 +1659,10 @@ onBeforeUnmount(() => {
   .components-layout-app-sidebar__aside-2 {
     transform: translateX(-100%);
   }
+
+  .components-layout-app-sidebar__panel-3 {
+    inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) 0 0;
+    z-index: 40;
+  }
 }
 </style>
