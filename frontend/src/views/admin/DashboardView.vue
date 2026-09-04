@@ -384,9 +384,33 @@
 
           <!-- User Usage Trend (Full Width) -->
           <section class="dashboard-usage-chart card">
-            <h3 class="dashboard-usage-chart__title">
-              {{ t('admin.dashboard.recentUsage') }} (Top 12)
-            </h3>
+            <div class="dashboard-usage-chart__header">
+              <h3 class="dashboard-usage-chart__title">
+                {{ t('admin.dashboard.recentUsage') }} (Top 12)
+              </h3>
+              <div class="dashboard-usage-chart__metrics">
+                <button
+                  type="button"
+                  data-test="user-trend-metric-tokens"
+                  class="dashboard-usage-chart__metric"
+                  :class="{ 'dashboard-usage-chart__metric--active': userTrendMetric === 'tokens' }"
+                  :aria-pressed="userTrendMetric === 'tokens'"
+                  @click="setUserTrendMetric('tokens')"
+                >
+                  {{ t('admin.dashboard.metricTokens') }}
+                </button>
+                <button
+                  type="button"
+                  data-test="user-trend-metric-points"
+                  class="dashboard-usage-chart__metric"
+                  :class="{ 'dashboard-usage-chart__metric--active': userTrendMetric === 'actual_cost' }"
+                  :aria-pressed="userTrendMetric === 'actual_cost'"
+                  @click="setUserTrendMetric('actual_cost')"
+                >
+                  {{ t('admin.dashboard.metricActualCost') }}
+                </button>
+              </div>
+            </div>
             <div class="dashboard-usage-chart__body">
               <div v-if="userTrendLoading" class="dashboard-usage-chart__state">
                 <LoadingSpinner size="md" />
@@ -456,6 +480,8 @@ let realtimeRefreshTimer: number | undefined
 const trendData = ref<TrendDataPoint[]>([])
 const modelStats = ref<ModelStat[]>([])
 const userTrend = ref<UserUsageTrendPoint[]>([])
+type UserTrendMetric = 'tokens' | 'actual_cost'
+const userTrendMetric = ref<UserTrendMetric>('tokens')
 const rankingItems = ref<UserSpendingRankingItem[]>([])
 const rankingTotalActualCost = ref(0)
 const rankingTotalRequests = ref(0)
@@ -566,7 +592,10 @@ const lineOptions = computed(() => ({
       },
       callbacks: {
         label: (context: any) => {
-          return `${context.dataset.label}: ${formatTokens(context.raw)}`
+          const value = userTrendMetric.value === 'actual_cost'
+            ? formatPoints(context.raw)
+            : formatTokens(context.raw)
+          return `${context.dataset.label}: ${value}`
         }
       }
     }
@@ -592,7 +621,9 @@ const lineOptions = computed(() => ({
         font: {
           size: 10
         },
-        callback: (value: string | number) => formatTokens(Number(value))
+        callback: (value: string | number) => userTrendMetric.value === 'actual_cost'
+          ? formatPoints(Number(value))
+          : formatTokens(Number(value))
       }
     }
   }
@@ -626,7 +657,10 @@ const userTrendChartData = computed(() => {
     if (!userGroups.has(key)) {
       userGroups.set(key, { name: getDisplayName(point), data: new Map() })
     }
-    userGroups.get(key)!.data.set(point.date, point.tokens)
+    userGroups.get(key)!.data.set(
+      point.date,
+      userTrendMetric.value === 'actual_cost' ? point.actual_cost : point.tokens
+    )
   })
 
   const sortedDates = Array.from(allDates).sort()
@@ -779,7 +813,8 @@ const loadUsersTrend = async () => {
       end_date: endDate.value,
       timezone: browserTimezone,
       granularity: granularity.value,
-      limit: 12
+      limit: 12,
+      metric: userTrendMetric.value
     })
     if (currentSeq !== usersTrendLoadSeq) return
     userTrend.value = response.trend || []
@@ -792,6 +827,12 @@ const loadUsersTrend = async () => {
       userTrendLoading.value = false
     }
   }
+}
+
+const setUserTrendMetric = (metric: UserTrendMetric) => {
+  if (userTrendMetric.value === metric) return
+  userTrendMetric.value = metric
+  void loadUsersTrend()
 }
 
 const loadUserSpendingRanking = async () => {
@@ -903,12 +944,50 @@ onUnmounted(() => {
   overflow: visible;
 }
 
+.dashboard-usage-chart__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .dashboard-usage-chart__title {
-  margin: 0 0 1rem;
+  margin: 0;
   color: var(--color-text-primary);
   font-size: var(--type-control-size);
   font-weight: 600;
   line-height: var(--type-control-line-height);
+}
+
+.dashboard-usage-chart__metrics {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  background: var(--glass-layer-inset-bg);
+}
+
+.dashboard-usage-chart__metric {
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  color: var(--color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--type-micro-size);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.dashboard-usage-chart__metric:hover {
+  color: var(--color-text-primary);
+}
+
+.dashboard-usage-chart__metric--active {
+  color: var(--color-text-brand);
+  background: var(--glass-layer-inset-bg);
 }
 
 .dashboard-usage-chart__body {
@@ -1129,6 +1208,11 @@ onUnmounted(() => {
 .quota-dashboard__empty { display: flex; justify-content: center; padding: 1.5rem; }
 
 @media (max-width: 640px) {
+  .dashboard-usage-chart__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .dashboard-usage-chart__body {
     height: 32rem;
     padding-right: 0;

@@ -5,11 +5,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import type { DashboardStats } from '@/types'
 import DashboardView from '../DashboardView.vue'
 
-const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking, getRealtimeMetrics } = vi.hoisted(() => ({
+const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking, getRealtimeMetrics, getAccountQuotas } = vi.hoisted(() => ({
   getSnapshotV2: vi.fn(),
   getUserUsageTrend: vi.fn(),
   getUserSpendingRanking: vi.fn(),
-  getRealtimeMetrics: vi.fn()
+  getRealtimeMetrics: vi.fn(),
+  getAccountQuotas: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -18,7 +19,8 @@ vi.mock('@/api/admin', () => ({
       getSnapshotV2,
       getUserUsageTrend,
       getUserSpendingRanking,
-      getRealtimeMetrics
+      getRealtimeMetrics,
+      getAccountQuotas
     }
   }
 }))
@@ -96,6 +98,7 @@ describe('admin DashboardView', () => {
     getUserUsageTrend.mockReset()
     getUserSpendingRanking.mockReset()
     getRealtimeMetrics.mockReset()
+    getAccountQuotas.mockReset()
 
     getSnapshotV2.mockResolvedValue({
       stats: createDashboardStats(),
@@ -124,6 +127,7 @@ describe('admin DashboardView', () => {
       ws_pool_connections: 12,
       ws_pool_max_connections: 512
     })
+    getAccountQuotas.mockResolvedValue(null)
   })
 
   it('uses last 24 hours as default dashboard range', async () => {
@@ -153,5 +157,35 @@ describe('admin DashboardView', () => {
       end_date: formatLocalDate(now),
       granularity: 'hour'
     }))
+    expect(getUserUsageTrend).toHaveBeenCalledWith(expect.objectContaining({
+      metric: 'tokens'
+    }))
+  })
+
+  it('reloads the Top 12 trend ranked by points', async () => {
+    const wrapper = mount(DashboardView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          LoadingSpinner: true,
+          Icon: true,
+          DateRangePicker: true,
+          Select: true,
+          ModelDistributionChart: true,
+          TokenUsageTrend: true,
+          D3LineChart: true
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-test="user-trend-metric-points"]').trigger('click')
+    await flushPromises()
+
+    expect(getUserUsageTrend).toHaveBeenLastCalledWith(expect.objectContaining({
+      metric: 'actual_cost',
+      limit: 12
+    }))
+    expect(wrapper.get('[data-test="user-trend-metric-points"]').attributes('aria-pressed')).toBe('true')
   })
 })

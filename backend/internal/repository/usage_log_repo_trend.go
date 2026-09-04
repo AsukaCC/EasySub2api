@@ -82,8 +82,16 @@ func (r *usageLogRepository) GetAPIKeyUsageTrend(ctx context.Context, startTime,
 }
 
 // GetUserUsageTrend returns usage trend data grouped by user and date
-func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, endTime time.Time, granularity string, limit int) (results []UserUsageTrendPoint, err error) {
+func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric string) (results []UserUsageTrendPoint, err error) {
 	dateFormat := safeDateFormat(granularity)
+	rankingExpression := `SUM(
+				COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) +
+				COALESCE(cache_creation_tokens, 0) + COALESCE(cache_read_tokens, 0) +
+				COALESCE(image_input_tokens, 0) + COALESCE(image_output_tokens, 0)
+			)`
+	if metric == "actual_cost" {
+		rankingExpression = "COALESCE(SUM(actual_cost), 0)"
+	}
 	timezoneName := startTime.Location().String()
 	if timezoneName == "" || timezoneName == "Local" {
 		timezoneName = "UTC"
@@ -97,16 +105,12 @@ func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, e
 
 	query := fmt.Sprintf(`
 		WITH top_users AS (
-			SELECT user_id
+			SELECT user_id, %s AS ranking_value
 			FROM usage_logs
 			WHERE created_at >= $1 AND created_at < $2
 			  AND user_id IS NOT NULL
 			GROUP BY user_id
-			ORDER BY SUM(
-				COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) +
-				COALESCE(cache_creation_tokens, 0) + COALESCE(cache_read_tokens, 0) +
-				COALESCE(image_input_tokens, 0) + COALESCE(image_output_tokens, 0)
-			) DESC
+			ORDER BY ranking_value DESC, user_id ASC
 			LIMIT $3
 		),
 		buckets AS (
@@ -146,8 +150,8 @@ func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, e
 		CROSS JOIN buckets b
 		LEFT JOIN usage_by_bucket ub ON ub.user_id = tu.user_id AND ub.bucket = b.bucket
 		LEFT JOIN users us ON tu.user_id = us.id
-		ORDER BY b.bucket ASC, tokens DESC, tu.user_id ASC
-	`, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat)
+		ORDER BY b.bucket ASC, tu.ranking_value DESC, tu.user_id ASC
+	`, rankingExpression, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, timezoneName)
 	if err != nil {

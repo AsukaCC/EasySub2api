@@ -569,17 +569,21 @@ func (h *DashboardHandler) GetAPIKeyUsageTrend(c *gin.Context) {
 
 // GetUserUsageTrend handles getting user usage trend data
 // GET /api/v1/admin/dashboard/users-trend
-// Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), limit (default 12)
+// Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), limit (default 12), metric (tokens/actual_cost)
 func (h *DashboardHandler) GetUserUsageTrend(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
+	metric := strings.TrimSpace(c.DefaultQuery("metric", "tokens"))
+	if metric != "actual_cost" {
+		metric = "tokens"
+	}
 	limitStr := c.DefaultQuery("limit", "12")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
 		limit = 12
 	}
 
-	trend, hit, err := h.getUserUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit)
+	trend, hit, err := h.getUserUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit, metric)
 	if err != nil {
 		response.Error(c, 500, "Failed to get user usage trend")
 		return
@@ -591,6 +595,7 @@ func (h *DashboardHandler) GetUserUsageTrend(c *gin.Context) {
 		"start_date":  startTime.Format("2006-01-02"),
 		"end_date":    endTime.Add(-24 * time.Hour).Format("2006-01-02"),
 		"granularity": granularity,
+		"metric":      metric,
 	})
 }
 

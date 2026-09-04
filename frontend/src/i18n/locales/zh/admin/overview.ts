@@ -40,7 +40,7 @@ export default {
       modelDistribution: '模型分布',
       groupDistribution: '分组使用分布',
       metricTokens: '按 Token',
-      metricActualCost: '按实际消费',
+      metricActualCost: '按积分',
       tokenUsageTrend: 'Token 使用趋势',
       userUsageTrend: '用户使用趋势（Top 12）',
       noDataAvailable: '暂无数据',

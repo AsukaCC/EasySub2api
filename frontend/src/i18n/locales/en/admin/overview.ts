@@ -37,7 +37,7 @@ export default {
       modelDistribution: 'Model Distribution',
       groupDistribution: 'Group Usage Distribution',
       metricTokens: 'By Tokens',
-      metricActualCost: 'By Actual Cost',
+      metricActualCost: 'By Points',
       tokenUsageTrend: 'Token Usage Trend',
       userUsageTrend: 'User Usage Trend (Top 12)',
       model: 'Model',
