@@ -1131,7 +1131,9 @@ func (r *accountRepository) ListSubscriptionTiers(ctx context.Context, platform 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	result := make([]service.AccountSubscriptionTierSummary, 0)
 	for rows.Next() {
 		var value string

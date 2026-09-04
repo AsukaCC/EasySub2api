@@ -100,12 +100,12 @@ func NormalizeSubscriptionTier(value string) string {
 	for _, ch := range value {
 		if ch == ' ' || ch == '-' || ch == '_' || ch == '/' {
 			if builder.Len() > 0 && !lastUnderscore {
-				builder.WriteByte('_')
+				_ = builder.WriteByte('_')
 				lastUnderscore = true
 			}
 			continue
 		}
-		builder.WriteRune(ch)
+		_, _ = builder.WriteRune(ch)
 		lastUnderscore = false
 	}
 	return strings.Trim(builder.String(), "_")
