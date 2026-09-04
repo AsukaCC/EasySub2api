@@ -414,7 +414,7 @@ func claudeCodexDefaultReasoningLevel(levels []configuredCodexReasoningLevel) st
 
 func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasoningLevel {
 	values := []string{"low", "medium", "high", "xhigh"}
-	if isOpenAIGPT56Model(modelID) {
+	if isOpenAIGPT56Model(modelID) || isOpenAICodexGPT6Model(modelID) {
 		values = append(values, "max")
 	}
 	normalized := getNormalizedCodexModel(modelID)
@@ -435,7 +435,12 @@ func isOpenAICodexGPTModel(modelID string) bool {
 }
 
 func isOpenAICodexReasoningGPTModel(modelID string) bool {
-	return strings.HasPrefix(canonicalizeOpenAIModelAliasSpelling(modelID), "gpt-5")
+	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
+	return strings.HasPrefix(normalized, "gpt-5") || isOpenAICodexGPT6Model(normalized)
+}
+
+func isOpenAICodexGPT6Model(modelID string) bool {
+	return strings.HasPrefix(canonicalizeOpenAIModelAliasSpelling(modelID), "gpt-6")
 }
 
 func isOpenAICodexImageInputModel(modelID string) bool {
