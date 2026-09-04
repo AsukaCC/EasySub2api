@@ -120,7 +120,11 @@ function cancelApply() {
 }
 
 function emitApply(rule: AccountModelRule) {
-  const mappings = Object.entries(rule.mapping || {}).map(([from, to]) => ({ from, to }))
+  const mappings = Object.entries(rule.mapping || {}).map(([from, to]) => ({
+    from,
+    to,
+    ...(rule.reasoning_efforts?.[from] ? { reasoning_effort: rule.reasoning_efforts[from] } : {})
+  }))
   emit('apply', { name: rule.name, allowedModels: [...(rule.whitelist || [])], mappings })
 }
 

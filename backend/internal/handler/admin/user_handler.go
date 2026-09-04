@@ -13,7 +13,6 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/handler/quotaview"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
-	appTimezone "github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
 	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 
@@ -203,50 +202,6 @@ type BindUserAuthIdentityChannelRequest struct {
 	ChannelAppID   string         `json:"channel_app_id"`
 	ChannelSubject string         `json:"channel_subject"`
 	Metadata       map[string]any `json:"metadata"`
-}
-
-type InactiveUserFilterRequest struct {
-	MaxBalance     float64 `json:"max_balance" binding:"gte=0"`
-	LastUsedBefore string  `json:"last_used_before" binding:"required"`
-	MaxUsage7d     float64 `json:"max_usage_7d" binding:"gte=0"`
-}
-
-type PermanentlyDeleteInactiveUsersRequest struct {
-	InactiveUserFilterRequest
-	ExpectedCount int64  `json:"expected_count" binding:"required,gt=0"`
-	SnapshotToken string `json:"snapshot_token" binding:"required"`
-	Confirmation  string `json:"confirmation" binding:"required"`
-}
-
-func (r InactiveUserFilterRequest) serviceFilter() (service.InactiveUserFilter, error) {
-	lastUsedBefore, err := parseInactiveUserCutoff(r.LastUsedBefore)
-	if err != nil {
-		return service.InactiveUserFilter{}, err
-	}
-	return service.InactiveUserFilter{
-		MaxBalance:     r.MaxBalance,
-		LastUsedBefore: lastUsedBefore,
-		MaxUsage7d:     r.MaxUsage7d,
-	}, nil
-}
-
-func parseInactiveUserCutoff(value string) (time.Time, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return time.Time{}, fmt.Errorf("last_used_before is required")
-	}
-	if len(value) == len("2006-01-02") {
-		parsed, err := appTimezone.ParseInLocation("2006-01-02", value)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("last_used_before must be a valid YYYY-MM-DD date: %w", err)
-		}
-		return parsed, nil
-	}
-	parsed, err := time.Parse(time.RFC3339Nano, value)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("last_used_before must be YYYY-MM-DD or RFC3339: %w", err)
-	}
-	return parsed, nil
 }
 
 // List handles listing all users with pagination
@@ -628,24 +583,11 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if archiveService, ok := h.adminService.(service.AdminUserArchiveService); ok {
-		result, deleteErr := archiveService.DeleteUserWithPolicy(c.Request.Context(), userID)
-		if deleteErr != nil {
-			response.ErrorFrom(c, deleteErr)
-			return
-		}
-		message := "User archived successfully"
-		if result.Mode == service.UserDeletionModePermanentlyDeleted {
-			message = "User permanently deleted successfully"
-		}
-		response.Success(c, gin.H{"message": message, "mode": result.Mode})
-		return
-	}
 	if err := h.adminService.DeleteUser(c.Request.Context(), userID); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"message": "User deleted successfully", "mode": service.UserDeletionModeArchived})
+	response.Success(c, gin.H{"message": "User permanently deleted successfully", "mode": service.UserDeletionModePermanentlyDeleted})
 }
 
 // RestoreArchived restores a retained user account without recreating deleted API keys.
@@ -667,72 +609,6 @@ func (h *UserHandler) RestoreArchived(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.UserFromServiceAdmin(user))
-}
-
-// PreviewInactiveUsers returns a bounded sample and aggregate totals for the
-// permanent deletion filters. Admin accounts are always excluded.
-// POST /api/v1/admin/users/inactive/preview
-func (h *UserHandler) PreviewInactiveUsers(c *gin.Context) {
-	var req InactiveUserFilterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	cleanupService, ok := h.adminService.(service.AdminInactiveUserService)
-	if !ok {
-		response.InternalError(c, "Inactive user cleanup unavailable")
-		return
-	}
-	filter, err := req.serviceFilter()
-	if err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	preview, err := cleanupService.PreviewInactiveUsers(c.Request.Context(), filter)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, preview)
-}
-
-// PermanentlyDeleteInactiveUsers physically deletes the current filter match.
-// The count and typed confirmation must match the immediately preceding
-// preview; any drift aborts the transaction.
-// POST /api/v1/admin/users/inactive/permanent-delete
-func (h *UserHandler) PermanentlyDeleteInactiveUsers(c *gin.Context) {
-	var req PermanentlyDeleteInactiveUsersRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	expectedConfirmation := fmt.Sprintf("DELETE %d USERS", req.ExpectedCount)
-	if strings.TrimSpace(req.Confirmation) != expectedConfirmation {
-		response.BadRequest(c, "confirmation must exactly match "+expectedConfirmation)
-		return
-	}
-	cleanupService, ok := h.adminService.(service.AdminInactiveUserService)
-	if !ok {
-		response.InternalError(c, "Inactive user cleanup unavailable")
-		return
-	}
-	filter, err := req.serviceFilter()
-	if err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	result, err := cleanupService.PermanentlyDeleteInactiveUsers(
-		c.Request.Context(),
-		filter,
-		req.ExpectedCount,
-		req.SnapshotToken,
-		getAdminIDFromContext(c),
-	)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, result)
 }
 
 // UpdateBalance handles updating user balance

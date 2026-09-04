@@ -143,6 +143,7 @@ type AccountTestService struct {
 	claudeTokenProvider       *ClaudeTokenProvider
 	grokTokenProvider         *GrokTokenProvider
 	antigravityGatewayService *AntigravityGatewayService
+	openAIGatewayService      *OpenAIGatewayService
 	httpUpstream              HTTPUpstream
 	cfg                       *config.Config
 	settingService            *SettingService

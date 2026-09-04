@@ -229,7 +229,7 @@
 
             <!-- Whitelist Mode -->
             <div v-if="modelRestrictionMode === 'whitelist'">
-              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" @upstream-synced="handleUpstreamSynced" />
+              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
               <p class="components-account-edit-account-modal__description-2">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
                 <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -664,7 +664,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" @upstream-synced="handleUpstreamSynced" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -868,7 +868,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" @upstream-synced="handleUpstreamSynced" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -2678,6 +2678,7 @@ import {
   getPresetMappingsByPlatform,
   commonErrorCodes,
   buildModelMappingObject,
+  buildModelReasoningEffortsObject,
   splitModelMappingObject
 } from '@/composables/useModelWhitelist'
 
@@ -2721,6 +2722,7 @@ const bedrockPresets = computed(() => getPresetMappingsByPlatform('bedrock'))
 interface ModelMapping {
   from: string
   to: string
+  reasoning_effort?: string
 }
 
 interface TempUnschedRuleForm {
@@ -3310,8 +3312,11 @@ const normalizePoolModeRetryCount = (value: number) => {
   return normalized
 }
 
-const loadModelRestrictionFromMapping = (rawMapping?: Record<string, unknown>) => {
-  const parsed = splitModelMappingObject(rawMapping)
+const loadModelRestrictionFromMapping = (
+  rawMapping?: Record<string, unknown>,
+  rawReasoningEfforts?: Record<string, unknown>
+) => {
+  const parsed = splitModelMappingObject(rawMapping, rawReasoningEfforts)
   allowedModels.value = parsed.allowedModels
   modelMappings.value = parsed.modelMappings
   modelRestrictionMode.value =
@@ -3322,6 +3327,25 @@ const loadModelRestrictionFromMapping = (rawMapping?: Record<string, unknown>) =
 
 const buildModelRestrictionMapping = () =>
   buildModelMappingObject('combined', allowedModels.value, modelMappings.value)
+
+const applyOpenAIModelReasoningEffortCredentials = (credentials: Record<string, unknown>) => {
+  const rawMapping = credentials.model_mapping
+  if (!rawMapping || typeof rawMapping !== 'object' || Array.isArray(rawMapping)) {
+    delete credentials.model_reasoning_efforts
+    return
+  }
+
+  const modelMapping = rawMapping as Record<string, unknown>
+  const configuredEfforts = buildModelReasoningEffortsObject(modelMappings.value)
+  const reasoningEfforts = Object.fromEntries(
+    Object.entries(configuredEfforts || {}).filter(([model]) => model in modelMapping)
+  )
+  if (Object.keys(reasoningEfforts).length > 0) {
+    credentials.model_reasoning_efforts = reasoningEfforts
+  } else {
+    delete credentials.model_reasoning_efforts
+  }
+}
 
 const applyOpenAIModelMappingCredentials = (credentials: Record<string, unknown>) => {
   const shouldApplyModelMapping = !openaiPassthroughEnabled.value
@@ -3336,6 +3360,7 @@ const applyOpenAIModelMappingCredentials = (credentials: Record<string, unknown>
   } else if (!credentials.model_mapping) {
     delete credentials.model_mapping
   }
+  applyOpenAIModelReasoningEffortCredentials(credentials)
 
   const compactModelMapping = buildModelMappingObject('mapping', [], openAICompactModelMappings.value)
   if (compactModelMapping) {
@@ -3578,7 +3603,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
 
     // Load model mappings and detect mode
-    loadModelRestrictionFromMapping(credentials.model_mapping as Record<string, unknown> | undefined)
+    loadModelRestrictionFromMapping(
+      credentials.model_mapping as Record<string, unknown> | undefined,
+      credentials.model_reasoning_efforts as Record<string, unknown> | undefined
+    )
 
     // Load pool mode
     poolModeEnabled.value = credentials.pool_mode === true
@@ -3649,7 +3677,12 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     // Load model mappings for OpenAI/Grok OAuth accounts
     if ((newAccount.platform === 'openai' || newAccount.platform === 'grok') && newAccount.credentials) {
       const oauthCredentials = newAccount.credentials as Record<string, unknown>
-      loadModelRestrictionFromMapping(oauthCredentials.model_mapping as Record<string, unknown> | undefined)
+      loadModelRestrictionFromMapping(
+        oauthCredentials.model_mapping as Record<string, unknown> | undefined,
+        newAccount.platform === 'openai'
+          ? oauthCredentials.model_reasoning_efforts as Record<string, unknown> | undefined
+          : undefined
+      )
     } else {
       modelRestrictionMode.value = 'whitelist'
       modelMappings.value = []
@@ -4157,6 +4190,9 @@ const handleSubmit = async () => {
         newCredentials.model_mapping = currentCredentials.model_mapping
       }
       if (props.account.platform === 'openai') {
+        if (shouldApplyModelMapping) {
+          applyOpenAIModelReasoningEffortCredentials(newCredentials)
+        }
         applyOpenAIEndpointCapabilities(newCredentials)
         const compactModelMapping = buildModelMappingObject('mapping', [], openAICompactModelMappings.value)
         if (compactModelMapping) {

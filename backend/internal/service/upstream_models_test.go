@@ -33,7 +33,7 @@ func grokOAuthModelSyncTestAccount(baseURL string) *Account {
 		credentials["base_url"] = baseURL
 	}
 	return &Account{
-		ID:          10,
+		ID:          "00000000-0000-0000-0000-000000000010",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Credentials: credentials,
@@ -328,7 +328,7 @@ func TestFetchUpstreamSupportedModelsParsesOpenAIResponse(t *testing.T) {
 	}
 
 	models, err := svc.FetchUpstreamSupportedModels(context.Background(), &Account{
-		ID:       7,
+		ID:       "00000000-0000-0000-0000-000000000007",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -356,7 +356,7 @@ func TestFetchUpstreamSupportedModelsParsesGrokAPIKeyResponse(t *testing.T) {
 	}
 
 	models, err := svc.FetchUpstreamSupportedModels(context.Background(), &Account{
-		ID:       9,
+		ID:       "00000000-0000-0000-0000-000000000009",
 		Platform: PlatformGrok,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -423,7 +423,7 @@ func TestFetchUpstreamSupportedModelsDoesNotExposeUpstreamBody(t *testing.T) {
 	}
 
 	_, err := svc.FetchUpstreamSupportedModels(context.Background(), &Account{
-		ID:       8,
+		ID:       "00000000-0000-0000-0000-000000000008",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{

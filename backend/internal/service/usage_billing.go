@@ -47,8 +47,9 @@ type UsageBillingCommand struct {
 }
 
 // UsageDynamicRateRule is a transaction-ready snapshot of one active rule.
-// Quota amounts and persisted usage are actual charged platform points for the
-// absolute interval identified by QuotaKey.
+// Quota amounts and persisted usage use the same account-side billed USD
+// (account quota U) as account 7-day usage statistics, not user-facing platform
+// points, for the interval identified by QuotaKey.
 type UsageDynamicRateRule struct {
 	RuleID              string  `json:"rule_id"`
 	QuotaKey            string  `json:"quota_key"`
@@ -60,6 +61,7 @@ type UsageDynamicRateRule struct {
 type UsageDynamicRatePlan struct {
 	GroupID            string                 `json:"group_id"`
 	StandardCost       float64                `json:"standard_cost"`
+	AccountCost        float64                `json:"account_cost"`
 	FallbackMultiplier float64                `json:"fallback_multiplier"`
 	Rules              []UsageDynamicRateRule `json:"rules"`
 }
@@ -108,6 +110,7 @@ func (c *UsageBillingCommand) quantizeMonetaryFields() {
 	c.AccountQuotaCost = QuantizeUsageBillingAmount(c.AccountQuotaCost)
 	if c.DynamicRatePlan != nil {
 		c.DynamicRatePlan.StandardCost = QuantizeUsageBillingAmount(c.DynamicRatePlan.StandardCost)
+		c.DynamicRatePlan.AccountCost = QuantizeUsageBillingAmount(c.DynamicRatePlan.AccountCost)
 		c.DynamicRatePlan.FallbackMultiplier = QuantizeRateMultiplier(c.DynamicRatePlan.FallbackMultiplier)
 		for i := range c.DynamicRatePlan.Rules {
 			c.DynamicRatePlan.Rules[i].Multiplier = QuantizeRateMultiplier(c.DynamicRatePlan.Rules[i].Multiplier)

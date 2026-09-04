@@ -815,6 +815,29 @@ func (a *Account) GetMappedModel(requestedModel string) string {
 	return mappedModel
 }
 
+// GetModelReasoningEffort returns the account-level forced reasoning effort for
+// a client model. It follows the same exact/wildcard precedence as model_mapping.
+func (a *Account) GetModelReasoningEffort(requestedModel string) string {
+	if a == nil || !a.IsOpenAI() || len(a.Credentials) == 0 {
+		return ""
+	}
+	mapping := stringMappingFromRaw(a.Credentials["model_reasoning_efforts"])
+	if len(mapping) == 0 {
+		return ""
+	}
+	effort, matched := resolveRequestedModelInMapping(mapping, requestedModel)
+	if !matched {
+		normalized := normalizeRequestedModelForLookup(a.Platform, requestedModel)
+		if normalized != requestedModel {
+			effort, matched = resolveRequestedModelInMapping(mapping, normalized)
+		}
+	}
+	if !matched {
+		return ""
+	}
+	return NormalizeMaxReasoningEffort(effort)
+}
+
 // ResolveMappedModel 获取映射后的模型名，并返回是否命中了账号级映射。
 // matched=true 表示命中了精确映射或通配符映射，即使映射结果与原模型名相同。
 func (a *Account) ResolveMappedModel(requestedModel string) (mappedModel string, matched bool) {

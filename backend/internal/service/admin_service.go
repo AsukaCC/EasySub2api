@@ -135,18 +135,9 @@ type AdminService interface {
 	ResetAccountQuota(ctx context.Context, id string) error
 }
 
-// AdminInactiveUserService is intentionally separate from AdminService so the
-// permanent-delete feature can be capability-checked without expanding every
-// existing AdminService test stub.
-type AdminInactiveUserService interface {
-	PreviewInactiveUsers(ctx context.Context, filter InactiveUserFilter) (*InactiveUserDeletePreview, error)
-	PermanentlyDeleteInactiveUsers(ctx context.Context, filter InactiveUserFilter, expectedCount int64, snapshotToken, actorAdminID string) (*InactiveUserDeleteResult, error)
-}
-
-// AdminUserArchiveService exposes deletion disposition and archived-user
-// restoration without expanding the long-standing AdminService interface.
+// AdminUserArchiveService exposes restoration for users archived by older
+// versions without expanding the long-standing AdminService interface.
 type AdminUserArchiveService interface {
-	DeleteUserWithPolicy(ctx context.Context, id string) (*UserDeleteResult, error)
 	RestoreArchivedUser(ctx context.Context, id string) (*User, error)
 }
 

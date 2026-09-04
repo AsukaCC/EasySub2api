@@ -110,6 +110,7 @@
       <button
         v-if="canSyncUpstream"
         type="button"
+        data-testid="sync-upstream-models"
         @click="syncUpstreamModels"
         :disabled="isSyncingUpstream"
         class="components-account-model-whitelist-selector__action-5"
@@ -161,6 +162,7 @@ import ModelIcon from '@/components/common/ModelIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { allModels, getModelsByPlatform } from '@/composables/useModelWhitelist'
 import { useFloatingPanel } from '@/composables/useFloatingPanel'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 
@@ -169,6 +171,7 @@ const props = defineProps<{
   platform?: string
   platforms?: string[]
   accountId?: string
+  accountType?: string
   syncCredentials?: {
     platform: string
     type: string
@@ -215,23 +218,36 @@ const normalizedPlatforms = computed(() => {
   )
 })
 
-const upstreamSyncPlatforms = new Set([
-  'anthropic',
-  'openai',
-  'gemini',
-  'antigravity',
-  'grok',
-  'kimi',
-  'zhipu',
-  'deepseek'
-])
+const canSyncPlatformAccountType = (platform: string, accountType: string) => {
+  const normalizedPlatform = platform.trim().toLowerCase()
+  const normalizedType = accountType.trim().toLowerCase()
+
+  switch (normalizedPlatform) {
+    case 'anthropic':
+      return ['apikey', 'oauth', 'setup-token'].includes(normalizedType)
+    case 'openai':
+      return ['apikey', 'oauth'].includes(normalizedType)
+    case 'gemini':
+      return ['apikey', 'oauth'].includes(normalizedType)
+    case 'antigravity':
+      return normalizedType === 'apikey'
+    case 'grok':
+      return ['apikey', 'oauth'].includes(normalizedType)
+    case 'kimi':
+    case 'zhipu':
+    case 'deepseek':
+      return normalizedType === 'apikey'
+    default:
+      return false
+  }
+}
 const canSyncUpstream = computed(() => {
   if (props.accountId) {
-    if (normalizedPlatforms.value.length === 0) return true
-    return normalizedPlatforms.value.some(platform => upstreamSyncPlatforms.has(platform.toLowerCase()))
+    if (!props.accountType || normalizedPlatforms.value.length === 0) return false
+    return normalizedPlatforms.value.some(platform => canSyncPlatformAccountType(platform, props.accountType!))
   }
   if (props.syncCredentials) {
-    return upstreamSyncPlatforms.has(props.syncCredentials.platform.toLowerCase())
+    return canSyncPlatformAccountType(props.syncCredentials.platform, props.syncCredentials.type)
   }
   return false
 })
@@ -364,7 +380,7 @@ const syncUpstreamModels = async () => {
       appStore.showInfo(t('admin.accounts.syncUpstreamModelsNoChanges', { count: upstreamModels.length }))
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : t('admin.accounts.syncUpstreamModelsFailed')
+    const message = extractApiErrorMessage(error, t('admin.accounts.syncUpstreamModelsFailed'))
     appStore.showError(t('admin.accounts.syncUpstreamModelsError', { message }))
   } finally {
     isSyncingUpstream.value = false

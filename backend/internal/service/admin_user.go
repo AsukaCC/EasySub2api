@@ -16,7 +16,6 @@ import (
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
-	appTimezone "github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
 )
 
 // User management implementations
@@ -366,52 +365,44 @@ func sameInt64Set(a, b []string) bool {
 }
 
 func (s *adminServiceImpl) DeleteUser(ctx context.Context, id string) error {
-	_, err := s.DeleteUserWithPolicy(ctx, id)
-	return err
-}
-
-func (s *adminServiceImpl) DeleteUserWithPolicy(ctx context.Context, id string) (*UserDeleteResult, error) {
-	// Protect admin users: cannot delete admin accounts
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if user.Role == "admin" {
-		return nil, errors.New("cannot delete admin user")
+		return errors.New("cannot delete admin user")
 	}
 
-	apiKeys, err := s.listUserAPIKeysForDeletion(ctx, id)
-	if err != nil {
-		return nil, err
+	deletionRepo, ok := s.userRepo.(UserDeletionRepository)
+	if !ok {
+		return infraerrors.InternalServer("USER_PERMANENT_DELETE_UNAVAILABLE", "permanent user deletion is unavailable")
 	}
-	deletionRepo, supportsDeletionPolicy := s.userRepo.(UserDeletionRepository)
-	var mode UserDeletionMode
-	var deletedKeyValues []string
+	var purgeResult *UserPurgeResult
 
 	if s.entClient != nil {
 		tx, err := s.entClient.Tx(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		opCtx := dbent.NewTxContext(ctx, tx)
-		mode, deletedKeyValues, err = s.deleteUserByPolicy(opCtx, id, apiKeys, deletionRepo, supportsDeletionPolicy)
+		purgeResult, err = deletionRepo.PermanentlyDeleteUser(opCtx, id)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if err := tx.Commit(); err != nil {
-			return nil, err
+			return err
 		}
 	} else {
-		mode, deletedKeyValues, err = s.deleteUserByPolicy(ctx, id, apiKeys, deletionRepo, supportsDeletionPolicy)
+		purgeResult, err = deletionRepo.PermanentlyDeleteUser(ctx, id)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	if s.authCacheInvalidator != nil {
-		for _, keyValue := range deletedKeyValues {
+		for _, keyValue := range purgeResult.APIKeys {
 			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, keyValue)
 		}
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
@@ -421,40 +412,8 @@ func (s *adminServiceImpl) DeleteUserWithPolicy(ctx context.Context, id string) 
 			logger.LegacyPrintf("service.admin", "invalidate deleted user balance cache failed: user_id=%v err=%v", id, err)
 		}
 	}
-	logger.LegacyPrintf("service.admin", "audit: user deleted user_id=%v mode=%s", id, mode)
-	return &UserDeleteResult{Mode: mode}, nil
-}
-
-func (s *adminServiceImpl) deleteUserByPolicy(
-	ctx context.Context,
-	userID string,
-	apiKeys []APIKey,
-	deletionRepo UserDeletionRepository,
-	supportsDeletionPolicy bool,
-) (UserDeletionMode, []string, error) {
-	if supportsDeletionPolicy {
-		hasRechargeRecords, err := deletionRepo.HasRechargeRecords(ctx, userID)
-		if err != nil {
-			return "", nil, err
-		}
-		if !hasRechargeRecords {
-			result, err := deletionRepo.PermanentlyDeleteUser(ctx, userID)
-			if err != nil {
-				return "", nil, err
-			}
-			return UserDeletionModePermanentlyDeleted, result.APIKeys, nil
-		}
-	}
-	if err := s.deleteUserWithAPIKeys(ctx, userID, apiKeys); err != nil {
-		return "", nil, err
-	}
-	keyValues := make([]string, 0, len(apiKeys))
-	for _, key := range apiKeys {
-		if keyValue := strings.TrimSpace(key.Key); keyValue != "" {
-			keyValues = append(keyValues, keyValue)
-		}
-	}
-	return UserDeletionModeArchived, keyValues, nil
+	logger.LegacyPrintf("service.admin", "audit: user permanently deleted user_id=%v", id)
+	return nil
 }
 
 func (s *adminServiceImpl) RestoreArchivedUser(ctx context.Context, id string) (*User, error) {
@@ -482,129 +441,6 @@ func (s *adminServiceImpl) RestoreArchivedUser(ctx context.Context, id string) (
 	}
 	logger.LegacyPrintf("service.admin", "audit: archived user restored user_id=%v", id)
 	return s.userRepo.GetByID(ctx, id)
-}
-
-func normalizeInactiveUserFilter(filter InactiveUserFilter) (InactiveUserFilter, error) {
-	now := appTimezone.Now()
-	if filter.MaxBalance < 0 {
-		return InactiveUserFilter{}, infraerrors.BadRequest("INVALID_MAX_BALANCE", "max_balance must be nonnegative")
-	}
-	if filter.MaxUsage7d < 0 {
-		return InactiveUserFilter{}, infraerrors.BadRequest("INVALID_MAX_USAGE_7D", "max_usage_7d must be nonnegative")
-	}
-	if filter.LastUsedBefore.IsZero() {
-		return InactiveUserFilter{}, infraerrors.BadRequest("INVALID_LAST_USED_BEFORE", "last_used_before is required")
-	}
-	filter.LastUsedBefore = filter.LastUsedBefore.UTC()
-	if filter.LastUsedBefore.After(now) {
-		return InactiveUserFilter{}, infraerrors.BadRequest("INVALID_LAST_USED_BEFORE", "last_used_before cannot be in the future")
-	}
-	filter.EvaluationTime = now.UTC()
-	return filter, nil
-}
-
-func (s *adminServiceImpl) PreviewInactiveUsers(ctx context.Context, filter InactiveUserFilter) (*InactiveUserDeletePreview, error) {
-	normalized, err := normalizeInactiveUserFilter(filter)
-	if err != nil {
-		return nil, err
-	}
-	repo, ok := s.userRepo.(InactiveUserRepository)
-	if !ok {
-		return nil, infraerrors.InternalServer("INACTIVE_USER_CLEANUP_UNAVAILABLE", "inactive user cleanup is unavailable")
-	}
-	return repo.PreviewInactiveUsers(ctx, normalized, 100)
-}
-
-func (s *adminServiceImpl) PermanentlyDeleteInactiveUsers(ctx context.Context, filter InactiveUserFilter, expectedCount int64, snapshotToken, actorAdminID string) (*InactiveUserDeleteResult, error) {
-	if expectedCount <= 0 {
-		return nil, infraerrors.BadRequest("INVALID_EXPECTED_COUNT", "expected_count must be greater than zero")
-	}
-	if strings.TrimSpace(snapshotToken) == "" {
-		return nil, infraerrors.BadRequest("INVALID_SNAPSHOT_TOKEN", "snapshot_token is required")
-	}
-	normalized, err := normalizeInactiveUserFilter(filter)
-	if err != nil {
-		return nil, err
-	}
-	repo, ok := s.userRepo.(InactiveUserRepository)
-	if !ok {
-		return nil, infraerrors.InternalServer("INACTIVE_USER_CLEANUP_UNAVAILABLE", "inactive user cleanup is unavailable")
-	}
-	result, err := repo.PermanentlyDeleteInactiveUsers(ctx, normalized, expectedCount, snapshotToken)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.authCacheInvalidator != nil {
-		for _, key := range result.APIKeys {
-			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, key)
-		}
-		for _, userID := range result.UserIDs {
-			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
-		}
-	}
-	if s.billingCacheService != nil {
-		for _, userID := range result.UserIDs {
-			if err := s.billingCacheService.InvalidateUserBalance(ctx, userID); err != nil {
-				logger.LegacyPrintf("service.admin", "invalidate permanently deleted user balance cache failed: user_id=%v err=%v", userID, err)
-			}
-		}
-	}
-	logger.LegacyPrintf(
-		"service.admin",
-		"audit: inactive users permanently deleted actor_admin_id=%v deleted=%v max_balance=%v max_usage_7d=%v last_used_before=%s",
-		actorAdminID,
-		len(result.UserIDs),
-		normalized.MaxBalance,
-		normalized.MaxUsage7d,
-		normalized.LastUsedBefore.Format(time.RFC3339),
-	)
-	return &InactiveUserDeleteResult{Deleted: len(result.UserIDs)}, nil
-}
-
-func (s *adminServiceImpl) listUserAPIKeysForDeletion(ctx context.Context, userID string) ([]APIKey, error) {
-	if s.apiKeyRepo == nil {
-		return nil, nil
-	}
-
-	const pageSize = 1000
-	keys := make([]APIKey, 0)
-	for page := 1; ; page++ {
-		batch, result, err := s.apiKeyRepo.ListByUserID(ctx, userID, pagination.PaginationParams{
-			Page:      page,
-			PageSize:  pageSize,
-			SortBy:    "id",
-			SortOrder: pagination.SortOrderAsc,
-		}, APIKeyListFilters{})
-		if err != nil {
-			return nil, fmt.Errorf("list user api keys: %w", err)
-		}
-		keys = append(keys, batch...)
-		if len(batch) == 0 || len(batch) < pageSize || result == nil || int64(len(keys)) >= result.Total {
-			break
-		}
-	}
-	return keys, nil
-}
-
-func (s *adminServiceImpl) deleteUserWithAPIKeys(ctx context.Context, userID string, apiKeys []APIKey) error {
-	if s.apiKeyRepo != nil {
-		for _, key := range apiKeys {
-			if key.ID == "" {
-				continue
-			}
-			if err := s.apiKeyRepo.DeleteWithAudit(ctx, key.ID); err != nil {
-				logger.LegacyPrintf("service.admin", "delete user api key failed: user_id=%v api_key_id=%v err=%v", userID, key.ID, err)
-				return fmt.Errorf("delete user api key %v: %w", key.ID, err)
-			}
-		}
-	}
-
-	if err := s.userRepo.Delete(ctx, userID); err != nil {
-		logger.LegacyPrintf("service.admin", "delete user failed: user_id=%v err=%v", userID, err)
-		return err
-	}
-	return nil
 }
 
 func (s *adminServiceImpl) BatchUpdateConcurrency(ctx context.Context, userIDs []string, value int, mode string) (int, error) {

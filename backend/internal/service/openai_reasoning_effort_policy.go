@@ -478,26 +478,90 @@ func ApplyOpenAIReasoningEffortPolicyForModel(body []byte, maxEffort string, map
 	return result, changed, nil
 }
 
+// ApplyAccountModelReasoningEffort forces the configured account-level effort
+// for a client model. Group policy is applied by the caller afterwards.
+func ApplyAccountModelReasoningEffort(body []byte, account *Account, requestModel string) ([]byte, bool) {
+	if len(body) == 0 || account == nil {
+		return body, false
+	}
+	requestModel = strings.TrimSpace(requestModel)
+	if requestModel == "" {
+		requestModel = strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	}
+	effort := account.GetModelReasoningEffort(requestModel)
+	if effort == "" {
+		return body, false
+	}
+	path := "reasoning.effort"
+	if gjson.GetBytes(body, "reasoning_effort").Exists() || gjson.GetBytes(body, "messages").Exists() {
+		path = "reasoning_effort"
+	}
+	if strings.TrimSpace(gjson.GetBytes(body, path).String()) == effort {
+		return body, false
+	}
+	updated, err := sjson.SetBytes(body, path, effort)
+	if err != nil {
+		return body, false
+	}
+	return updated, true
+}
+
+// ApplyAccountModelReasoningEffortForMessages applies the same override to an
+// Anthropic Messages request before it is bridged to OpenAI.
+func ApplyAccountModelReasoningEffortForMessages(body []byte, account *Account, requestModel string) ([]byte, bool) {
+	if len(body) == 0 || account == nil {
+		return body, false
+	}
+	requestModel = strings.TrimSpace(requestModel)
+	if requestModel == "" {
+		requestModel = strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	}
+	effort := account.GetModelReasoningEffort(requestModel)
+	if effort == "" {
+		return body, false
+	}
+	if strings.TrimSpace(gjson.GetBytes(body, "output_config.effort").String()) == effort {
+		return body, false
+	}
+	updated, err := sjson.SetBytes(body, "output_config.effort", effort)
+	if err != nil {
+		return body, false
+	}
+	return updated, true
+}
+
 func applyOpenAIWSReasoningEffortPolicy(payload []byte, hooks *OpenAIWSIngressHooks) ([]byte, error) {
 	return applyOpenAIWSReasoningEffortPolicyForModel(payload, hooks, "")
 }
 
 func applyOpenAIWSReasoningEffortPolicyForModel(payload []byte, hooks *OpenAIWSIngressHooks, requestModel string) ([]byte, error) {
-	if hooks == nil || (hooks.MaxReasoningEffort == "" && len(hooks.ReasoningEffortMappings) == 0) {
+	if hooks == nil {
 		return payload, nil
 	}
+	result := payload
+	if hooks.ModelReasoningEffort != nil {
+		effort := NormalizeMaxReasoningEffort(hooks.ModelReasoningEffort(requestModel))
+		if effort != "" {
+			if updated, err := sjson.SetBytes(result, "reasoning.effort", effort); err == nil {
+				result = updated
+			}
+		}
+	}
+	if hooks.MaxReasoningEffort == "" && len(hooks.ReasoningEffortMappings) == 0 {
+		return result, nil
+	}
 	capped, changed, err := ApplyOpenAIReasoningEffortPolicyForModel(
-		payload,
+		result,
 		hooks.MaxReasoningEffort,
 		hooks.ReasoningEffortMappings,
 		hooks.MaxReasoningEffortOverLimit,
 		requestModel,
 	)
 	if err != nil {
-		return payload, err
+		return result, err
 	}
 	if changed {
 		return capped, nil
 	}
-	return payload, nil
+	return result, nil
 }

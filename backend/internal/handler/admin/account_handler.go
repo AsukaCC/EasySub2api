@@ -2615,6 +2615,13 @@ func (h *AccountHandler) SyncUpstreamModels(c *gin.Context) {
 		if errors.As(err, &syncErr) {
 			switch syncErr.Kind {
 			case service.UpstreamModelSyncErrorConfiguration, service.UpstreamModelSyncErrorUnsupported:
+				slog.Warn("sync_upstream_models_rejected",
+					"account_id", accountID,
+					"platform", account.Platform,
+					"account_type", account.Type,
+					"kind", syncErr.Kind,
+					"message", syncErr.SafeMessage(),
+				)
 				response.BadRequest(c, syncErr.SafeMessage())
 			case service.UpstreamModelSyncErrorInternal:
 				response.InternalError(c, syncErr.SafeMessage())

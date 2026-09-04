@@ -5563,21 +5563,22 @@ func (m *AccountGroupMutation) ResetEdge(name string) error {
 // AccountModelRuleMutation represents an operation that mutates the AccountModelRule nodes in the graph.
 type AccountModelRuleMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *string
-	created_at      *time.Time
-	updated_at      *time.Time
-	name            *string
-	description     *string
-	platform        *string
-	mapping         *map[string]string
-	whitelist       *[]string
-	appendwhitelist []string
-	clearedFields   map[string]struct{}
-	done            bool
-	oldValue        func(context.Context) (*AccountModelRule, error)
-	predicates      []predicate.AccountModelRule
+	op                Op
+	typ               string
+	id                *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	name              *string
+	description       *string
+	platform          *string
+	mapping           *map[string]string
+	reasoning_efforts *map[string]string
+	whitelist         *[]string
+	appendwhitelist   []string
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*AccountModelRule, error)
+	predicates        []predicate.AccountModelRule
 }
 
 var _ ent.Mutation = (*AccountModelRuleMutation)(nil)
@@ -5913,6 +5914,42 @@ func (m *AccountModelRuleMutation) ResetMapping() {
 	m.mapping = nil
 }
 
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (m *AccountModelRuleMutation) SetReasoningEfforts(value map[string]string) {
+	m.reasoning_efforts = &value
+}
+
+// ReasoningEfforts returns the value of the "reasoning_efforts" field in the mutation.
+func (m *AccountModelRuleMutation) ReasoningEfforts() (r map[string]string, exists bool) {
+	v := m.reasoning_efforts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningEfforts returns the old "reasoning_efforts" field's value of the AccountModelRule entity.
+// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountModelRuleMutation) OldReasoningEfforts(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningEfforts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningEfforts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningEfforts: %w", err)
+	}
+	return oldValue.ReasoningEfforts, nil
+}
+
+// ResetReasoningEfforts resets all changes to the "reasoning_efforts" field.
+func (m *AccountModelRuleMutation) ResetReasoningEfforts() {
+	m.reasoning_efforts = nil
+}
+
 // SetWhitelist sets the "whitelist" field.
 func (m *AccountModelRuleMutation) SetWhitelist(s []string) {
 	m.whitelist = &s
@@ -5998,7 +6035,7 @@ func (m *AccountModelRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountModelRuleMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, accountmodelrule.FieldCreatedAt)
 	}
@@ -6016,6 +6053,9 @@ func (m *AccountModelRuleMutation) Fields() []string {
 	}
 	if m.mapping != nil {
 		fields = append(fields, accountmodelrule.FieldMapping)
+	}
+	if m.reasoning_efforts != nil {
+		fields = append(fields, accountmodelrule.FieldReasoningEfforts)
 	}
 	if m.whitelist != nil {
 		fields = append(fields, accountmodelrule.FieldWhitelist)
@@ -6040,6 +6080,8 @@ func (m *AccountModelRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.Platform()
 	case accountmodelrule.FieldMapping:
 		return m.Mapping()
+	case accountmodelrule.FieldReasoningEfforts:
+		return m.ReasoningEfforts()
 	case accountmodelrule.FieldWhitelist:
 		return m.Whitelist()
 	}
@@ -6063,6 +6105,8 @@ func (m *AccountModelRuleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldPlatform(ctx)
 	case accountmodelrule.FieldMapping:
 		return m.OldMapping(ctx)
+	case accountmodelrule.FieldReasoningEfforts:
+		return m.OldReasoningEfforts(ctx)
 	case accountmodelrule.FieldWhitelist:
 		return m.OldWhitelist(ctx)
 	}
@@ -6115,6 +6159,13 @@ func (m *AccountModelRuleMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMapping(v)
+		return nil
+	case accountmodelrule.FieldReasoningEfforts:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningEfforts(v)
 		return nil
 	case accountmodelrule.FieldWhitelist:
 		v, ok := value.([]string)
@@ -6198,6 +6249,9 @@ func (m *AccountModelRuleMutation) ResetField(name string) error {
 		return nil
 	case accountmodelrule.FieldMapping:
 		m.ResetMapping()
+		return nil
+	case accountmodelrule.FieldReasoningEfforts:
+		m.ResetReasoningEfforts()
 		return nil
 	case accountmodelrule.FieldWhitelist:
 		m.ResetWhitelist()

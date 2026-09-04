@@ -148,12 +148,18 @@ func applyOpenAIReasoningEffortPolicyForRequest(c *gin.Context, apiKey *service.
 	return applyOpenAIReasoningEffortPolicyForSelectedAccount(c, apiKey, nil, body)
 }
 
-func applyOpenAIReasoningEffortPolicyForSelectedAccount(c *gin.Context, apiKey *service.APIKey, account *service.Account, body []byte) ([]byte, bool, error) {
+func applyOpenAIReasoningEffortPolicyForSelectedAccount(c *gin.Context, apiKey *service.APIKey, account *service.Account, body []byte, requestModels ...string) ([]byte, bool, error) {
+	requestModel := ""
+	if len(requestModels) > 0 {
+		requestModel = requestModels[0]
+	}
+	result, forced := service.ApplyAccountModelReasoningEffort(body, account, requestModel)
 	maxEffort, mappings, overLimit, ok := openAIReasoningEffortPolicyForSelectedAccount(c, apiKey, account)
 	if !ok {
-		return body, false, nil
+		return result, forced, nil
 	}
-	return service.ApplyOpenAIReasoningEffortPolicy(body, maxEffort, mappings, overLimit)
+	result, policyChanged, err := service.ApplyOpenAIReasoningEffortPolicyForModel(result, maxEffort, mappings, overLimit, requestModel)
+	return result, forced || policyChanged, err
 }
 
 func respondOpenAIReasoningEffortPolicyError(c *gin.Context, err error, write func(*gin.Context, int, string, string)) {

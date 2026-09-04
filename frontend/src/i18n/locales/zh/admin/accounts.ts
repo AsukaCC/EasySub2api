@@ -334,6 +334,8 @@ export default {
         whitelistHint: '白名单和映射至少填写一项；白名单仅支持精确模型名。',
         fromModel: '请求模型',
         toModel: '上游模型',
+        reasoningEffort: '推理强度',
+        reasoningEffortFollowRequest: '跟随请求',
         addMapping: '添加映射',
         importLatestModels: '导入最新支持模型',
         importLatestModelsHint: '多选当前平台支持的模型后，将按“模型 → 同名模型”新增映射，导入后仍可继续修改。',

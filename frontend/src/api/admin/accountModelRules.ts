@@ -8,6 +8,7 @@ export interface AccountModelRule {
   platform: AccountPlatform
   whitelist: string[]
   mapping: Record<string, string>
+  reasoning_efforts: Record<string, string>
   created_at: string
   updated_at: string
 }
@@ -18,6 +19,7 @@ export interface CreateAccountModelRuleRequest {
   platform: AccountPlatform
   whitelist: string[]
   mapping: Record<string, string>
+  reasoning_efforts: Record<string, string>
 }
 
 export type UpdateAccountModelRuleRequest = Partial<CreateAccountModelRuleRequest>

@@ -89,6 +89,12 @@ func (_u *AccountModelRuleUpdate) SetMapping(v map[string]string) *AccountModelR
 	return _u
 }
 
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (_u *AccountModelRuleUpdate) SetReasoningEfforts(v map[string]string) *AccountModelRuleUpdate {
+	_u.mutation.SetReasoningEfforts(v)
+	return _u
+}
+
 // SetWhitelist sets the "whitelist" field.
 func (_u *AccountModelRuleUpdate) SetWhitelist(v []string) *AccountModelRuleUpdate {
 	_u.mutation.SetWhitelist(v)
@@ -187,6 +193,9 @@ func (_u *AccountModelRuleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.Mapping(); ok {
 		_spec.SetField(accountmodelrule.FieldMapping, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.ReasoningEfforts(); ok {
+		_spec.SetField(accountmodelrule.FieldReasoningEfforts, field.TypeJSON, value)
+	}
 	if value, ok := _u.mutation.Whitelist(); ok {
 		_spec.SetField(accountmodelrule.FieldWhitelist, field.TypeJSON, value)
 	}
@@ -272,6 +281,12 @@ func (_u *AccountModelRuleUpdateOne) SetNillablePlatform(v *string) *AccountMode
 // SetMapping sets the "mapping" field.
 func (_u *AccountModelRuleUpdateOne) SetMapping(v map[string]string) *AccountModelRuleUpdateOne {
 	_u.mutation.SetMapping(v)
+	return _u
+}
+
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (_u *AccountModelRuleUpdateOne) SetReasoningEfforts(v map[string]string) *AccountModelRuleUpdateOne {
+	_u.mutation.SetReasoningEfforts(v)
 	return _u
 }
 
@@ -402,6 +417,9 @@ func (_u *AccountModelRuleUpdateOne) sqlSave(ctx context.Context) (_node *Accoun
 	}
 	if value, ok := _u.mutation.Mapping(); ok {
 		_spec.SetField(accountmodelrule.FieldMapping, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ReasoningEfforts(); ok {
+		_spec.SetField(accountmodelrule.FieldReasoningEfforts, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.Whitelist(); ok {
 		_spec.SetField(accountmodelrule.FieldWhitelist, field.TypeJSON, value)

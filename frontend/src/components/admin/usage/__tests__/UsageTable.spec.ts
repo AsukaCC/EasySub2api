@@ -86,6 +86,7 @@ const DataTableStub = {
     <div>
       <div v-for="row in data" :key="row.request_id">
         <slot name="cell-model" :row="row" :value="row.model" />
+        <slot name="cell-stream" :row="row" />
         <slot name="cell-billing_mode" :row="row" />
         <slot name="cell-tokens" :row="row" />
         <slot name="cell-cost" :row="row" />
@@ -218,6 +219,33 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')
     expect(text).toContain('$0.069568')
+  })
+
+  it('shows an inline Fast badge for priority service tier usage', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{
+          ...baseImageRow,
+          request_id: 'req-fast-tier',
+          service_tier: 'priority',
+        }],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const badge = wrapper.get('[data-testid="usage-service-tier-badge"]')
+    expect(badge.text()).toBe('Fast')
+    expect(badge.classes()).toContain('usage-request-badges__service-tier--fast')
+    expect(badge.attributes('title')).toBe('Service tier: Fast')
   })
 
   it('shows requested and upstream models separately for admin rows', () => {

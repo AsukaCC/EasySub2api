@@ -238,6 +238,7 @@ import UserErrorRequestsTable from '@/components/user/UserErrorRequestsTable.vue
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode } from '@/utils/billingMode'
+import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
 import type {
   ApiKey,
@@ -655,6 +656,7 @@ const exportToCSV = async () => {
       'Inbound Endpoint',
       'IP Address',
       'Type',
+      t('usage.serviceTier'),
       t('usage.nativeCompactionV2'),
       'Billing Mode',
       'Input Tokens',
@@ -676,6 +678,7 @@ const exportToCSV = async () => {
       log.inbound_endpoint || '',
       log.ip_address || '',
       getRequestTypeExportText(log),
+      getUsageServiceTierLabel(log.service_tier, t),
       t(log.native_compaction_v2 ? 'common.yes' : 'common.no'),
       getBillingModeLabel(getDisplayBillingMode(log), t),
       log.input_tokens,

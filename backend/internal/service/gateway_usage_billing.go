@@ -360,6 +360,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		if len(rules) > 0 {
 			cmd.DynamicRatePlan = &UsageDynamicRatePlan{
 				GroupID: p.RatePlan.GroupID, StandardCost: dynamicRateStandardCost,
+				AccountCost:        resolveAccountUsageCost(usageLog, p),
 				FallbackMultiplier: fallbackMultiplier, Rules: rules,
 			}
 		}
@@ -367,6 +368,20 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 
 	cmd.Normalize()
 	return cmd
+}
+
+// resolveAccountUsageCost returns the same account-side U amount used by the
+// account 7-day usage statistics: account_stats_cost takes precedence over the
+// default total_cost, then the account billing multiplier is applied.
+func resolveAccountUsageCost(usageLog *UsageLog, p *postUsageBillingParams) float64 {
+	if p == nil || p.Cost == nil {
+		return 0
+	}
+	baseCost := p.Cost.TotalCost
+	if usageLog != nil && usageLog.AccountStatsCost != nil {
+		baseCost = *usageLog.AccountStatsCost
+	}
+	return baseCost * p.AccountRateMultiplier
 }
 
 func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog, p *postUsageBillingParams, deps *billingDeps, repo UsageBillingRepository) (bool, error) {

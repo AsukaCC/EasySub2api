@@ -166,6 +166,7 @@ func TestGetDynamicRateUsageSummaryReportsSharedRemainderAndStates(t *testing.T)
 
 	start, _, quotaKey, ok := parseDynamicRateWindow(active)
 	require.True(t, ok)
+	require.Equal(t, start.Format(time.RFC3339Nano), quotaKey)
 	require.Equal(t, now.Add(-time.Hour), start)
 	repo := &dynamicRateSummaryRepository{shared: map[DynamicRateUsageKey]float64{
 		{RuleID: active.ID, QuotaKey: quotaKey}: 1.25,

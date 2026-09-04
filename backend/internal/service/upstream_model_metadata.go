@@ -221,6 +221,26 @@ func (s *AccountTestService) fetchUpstreamModelList(ctx context.Context, account
 	if account == nil {
 		return nil, nil, newUpstreamModelSyncConfigError("Account is required", nil)
 	}
+	if account.IsOpenAIOAuth() {
+		if s.openAIGatewayService == nil {
+			return nil, nil, newUpstreamModelSyncConfigError("OpenAI OAuth model sync service is not configured", nil)
+		}
+		manifest, err := s.openAIGatewayService.FetchCodexModelsManifest(ctx, account, "", "")
+		if err != nil {
+			return nil, nil, newUpstreamModelSyncUpstreamError("Failed to request OpenAI Codex model list", err)
+		}
+		if manifest == nil || len(manifest.Body) == 0 {
+			return nil, nil, newUpstreamModelSyncUpstreamError("OpenAI Codex returned no model list", nil)
+		}
+		models, err := extractUpstreamModelIDs(manifest.Body)
+		if err != nil {
+			return nil, nil, newUpstreamModelSyncUpstreamError("OpenAI Codex model list response was not valid JSON", err)
+		}
+		if len(models) == 0 {
+			return nil, nil, newUpstreamModelSyncUpstreamError("OpenAI Codex returned no supported models", nil)
+		}
+		return models, manifest.Body, nil
+	}
 	if s.httpUpstream == nil {
 		return nil, nil, newUpstreamModelSyncConfigError("Upstream HTTP client is not configured", nil)
 	}

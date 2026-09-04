@@ -204,7 +204,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 		attemptCtx := service.ContextWithSelectionProfitGate(c.Request.Context(), selection)
 		attemptAPIKey := service.APIKeyForAccountSelection(apiKey, selection)
-		policyBody, changed, policyErr := applyOpenAIReasoningEffortPolicyForSelectedAccount(c, attemptAPIKey, selection.Account, body)
+		policyBody, changed, policyErr := applyOpenAIReasoningEffortPolicyForSelectedAccount(c, attemptAPIKey, selection.Account, body, reqModel)
 		if policyErr != nil {
 			if selection.Acquired && selection.ReleaseFunc != nil {
 				selection.ReleaseFunc()

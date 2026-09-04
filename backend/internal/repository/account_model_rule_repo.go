@@ -66,7 +66,8 @@ func (r *accountModelRuleRepository) Create(ctx context.Context, rule *model.Acc
 		SetName(rule.Name).
 		SetPlatform(rule.Platform).
 		SetWhitelist(rule.Whitelist).
-		SetMapping(rule.Mapping)
+		SetMapping(rule.Mapping).
+		SetReasoningEfforts(rule.ReasoningEfforts)
 	if rule.Description != nil {
 		builder.SetDescription(*rule.Description)
 	}
@@ -85,7 +86,8 @@ func (r *accountModelRuleRepository) Update(ctx context.Context, rule *model.Acc
 		SetName(rule.Name).
 		SetPlatform(rule.Platform).
 		SetWhitelist(rule.Whitelist).
-		SetMapping(rule.Mapping)
+		SetMapping(rule.Mapping).
+		SetReasoningEfforts(rule.ReasoningEfforts)
 	if rule.Description != nil {
 		builder.SetDescription(*rule.Description)
 	} else {
@@ -119,14 +121,19 @@ func accountModelRuleToModel(row *ent.AccountModelRule) *model.AccountModelRule 
 	for from, to := range row.Mapping {
 		mapping[from] = to
 	}
+	reasoningEfforts := make(map[string]string, len(row.ReasoningEfforts))
+	for modelName, effort := range row.ReasoningEfforts {
+		reasoningEfforts[modelName] = effort
+	}
 	return &model.AccountModelRule{
-		ID:          row.ID,
-		Name:        row.Name,
-		Description: row.Description,
-		Platform:    row.Platform,
-		Whitelist:   append([]string(nil), row.Whitelist...),
-		Mapping:     mapping,
-		CreatedAt:   row.CreatedAt,
-		UpdatedAt:   row.UpdatedAt,
+		ID:               row.ID,
+		Name:             row.Name,
+		Description:      row.Description,
+		Platform:         row.Platform,
+		Whitelist:        append([]string(nil), row.Whitelist...),
+		Mapping:          mapping,
+		ReasoningEfforts: reasoningEfforts,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
 	}
 }

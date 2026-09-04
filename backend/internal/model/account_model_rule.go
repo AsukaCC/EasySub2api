@@ -12,14 +12,15 @@ import (
 // values use the same semantics as account credentials.model_mapping, while
 // whitelist contains exact request model names that should be allowed.
 type AccountModelRule struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description *string           `json:"description"`
-	Platform    string            `json:"platform"`
-	Whitelist   []string          `json:"whitelist"`
-	Mapping     map[string]string `json:"mapping"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Description      *string           `json:"description"`
+	Platform         string            `json:"platform"`
+	Whitelist        []string          `json:"whitelist"`
+	Mapping          map[string]string `json:"mapping"`
+	ReasoningEfforts map[string]string `json:"reasoning_efforts"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
 }
 
 // Validate normalizes and validates a rule before persistence.
@@ -85,7 +86,39 @@ func (r *AccountModelRule) Validate() error {
 	}
 	r.Whitelist = normalizedWhitelist
 	r.Mapping = normalized
+	normalizedReasoningEfforts := make(map[string]string, len(r.ReasoningEfforts))
+	for rawModel, rawEffort := range r.ReasoningEfforts {
+		modelName := strings.TrimSpace(rawModel)
+		if modelName == "" || strings.TrimSpace(rawEffort) == "" {
+			continue
+		}
+		if r.Platform != domain.PlatformOpenAI {
+			return &ValidationError{Field: "reasoning_efforts", Message: "reasoning effort is only supported for OpenAI rules"}
+		}
+		if _, exists := normalized[modelName]; !exists {
+			return &ValidationError{Field: "reasoning_efforts", Message: "reasoning effort model must exist in mapping"}
+		}
+		effort := normalizeRuleReasoningEffort(rawEffort)
+		if effort == "" {
+			return &ValidationError{Field: "reasoning_efforts", Message: "unsupported reasoning effort"}
+		}
+		normalizedReasoningEfforts[modelName] = effort
+	}
+	r.ReasoningEfforts = normalizedReasoningEfforts
 	return nil
+}
+
+func normalizeRuleReasoningEffort(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.NewReplacer("-", "", "_", "", " ", "").Replace(normalized)
+	switch normalized {
+	case "minimal", "low", "medium", "high", "max":
+		return normalized
+	case "xhigh", "extrahigh":
+		return "xhigh"
+	default:
+		return ""
+	}
 }
 
 func validModelWildcard(value string) bool {

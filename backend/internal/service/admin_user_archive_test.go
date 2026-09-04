@@ -11,8 +11,6 @@ import (
 type archivePolicyUserRepoStub struct {
 	UserRepository
 	user              *User
-	hasRecharge       bool
-	archived          bool
 	permanentlyPurged bool
 	restored          bool
 }
@@ -36,18 +34,9 @@ func (s *archivePolicyUserRepoStub) GetByIDIncludeDeleted(context.Context, strin
 	return &copy, nil
 }
 
-func (s *archivePolicyUserRepoStub) Delete(context.Context, string) error {
-	s.archived = true
-	return nil
-}
-
-func (s *archivePolicyUserRepoStub) HasRechargeRecords(context.Context, string) (bool, error) {
-	return s.hasRecharge, nil
-}
-
-func (s *archivePolicyUserRepoStub) PermanentlyDeleteUser(context.Context, string) (*InactiveUserPurgeResult, error) {
+func (s *archivePolicyUserRepoStub) PermanentlyDeleteUser(context.Context, string) (*UserPurgeResult, error) {
 	s.permanentlyPurged = true
-	return &InactiveUserPurgeResult{}, nil
+	return &UserPurgeResult{}, nil
 }
 
 func (s *archivePolicyUserRepoStub) RestoreArchivedUser(context.Context, string) error {
@@ -55,32 +44,15 @@ func (s *archivePolicyUserRepoStub) RestoreArchivedUser(context.Context, string)
 	return nil
 }
 
-func TestDeleteUserWithPolicyArchivesUsersWithRechargeRecords(t *testing.T) {
+func TestDeleteUserPermanentlyDeletesUsersRegardlessOfRechargeHistory(t *testing.T) {
 	repo := &archivePolicyUserRepoStub{
-		user:        &User{ID: "0199-user", Email: "paid@example.com", Role: RoleUser},
-		hasRecharge: true,
+		user: &User{ID: "0199-user", Email: "paid@example.com", Role: RoleUser},
 	}
 	service := &adminServiceImpl{userRepo: repo}
 
-	result, err := service.DeleteUserWithPolicy(context.Background(), "0199-user")
+	err := service.DeleteUser(context.Background(), "0199-user")
 
 	require.NoError(t, err)
-	require.Equal(t, UserDeletionModeArchived, result.Mode)
-	require.True(t, repo.archived)
-	require.False(t, repo.permanentlyPurged)
-}
-
-func TestDeleteUserWithPolicyPermanentlyDeletesUsersWithoutRechargeRecords(t *testing.T) {
-	repo := &archivePolicyUserRepoStub{
-		user: &User{ID: "0199-user", Email: "free@example.com", Role: RoleUser},
-	}
-	service := &adminServiceImpl{userRepo: repo}
-
-	result, err := service.DeleteUserWithPolicy(context.Background(), "0199-user")
-
-	require.NoError(t, err)
-	require.Equal(t, UserDeletionModePermanentlyDeleted, result.Mode)
-	require.False(t, repo.archived)
 	require.True(t, repo.permanentlyPurged)
 }
 

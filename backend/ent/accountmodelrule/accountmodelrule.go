@@ -25,6 +25,8 @@ const (
 	FieldPlatform = "platform"
 	// FieldMapping holds the string denoting the mapping field in the database.
 	FieldMapping = "mapping"
+	// FieldReasoningEfforts holds the string denoting the reasoning_efforts field in the database.
+	FieldReasoningEfforts = "reasoning_efforts"
 	// FieldWhitelist holds the string denoting the whitelist field in the database.
 	FieldWhitelist = "whitelist"
 	// Table holds the table name of the accountmodelrule in the database.
@@ -40,6 +42,7 @@ var Columns = []string{
 	FieldDescription,
 	FieldPlatform,
 	FieldMapping,
+	FieldReasoningEfforts,
 	FieldWhitelist,
 }
 

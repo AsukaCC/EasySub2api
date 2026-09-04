@@ -415,10 +415,12 @@ export type ModelRestrictionMode = 'whitelist' | 'mapping' | 'combined'
 export interface ModelMappingEntry {
   from: string
   to: string
+  reasoning_effort?: string
 }
 
 export function splitModelMappingObject(
-  modelMapping?: Record<string, unknown> | null
+  modelMapping?: Record<string, unknown> | null,
+  reasoningEfforts?: Record<string, unknown> | null
 ): { allowedModels: string[]; modelMappings: ModelMappingEntry[] } {
   const allowedModels: string[] = []
   const modelMappings: ModelMappingEntry[] = []
@@ -433,14 +435,30 @@ export function splitModelMappingObject(
     const to = rawTo.trim()
     if (!from || !to) continue
 
-    if (from === to) {
+    const reasoningEffort = typeof reasoningEfforts?.[from] === 'string'
+      ? reasoningEfforts[from].trim().toLowerCase()
+      : ''
+
+    if (from === to && !reasoningEffort) {
       allowedModels.push(from)
     } else {
-      modelMappings.push({ from, to })
+      modelMappings.push({ from, to, ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}) })
     }
   }
 
   return { allowedModels, modelMappings }
+}
+
+export function buildModelReasoningEffortsObject(
+  modelMappings: ModelMappingEntry[]
+): Record<string, string> | null {
+  const reasoningEfforts: Record<string, string> = {}
+  for (const mapping of modelMappings) {
+    const from = mapping.from.trim()
+    const effort = mapping.reasoning_effort?.trim().toLowerCase() || ''
+    if (from && effort) reasoningEfforts[from] = effort
+  }
+  return Object.keys(reasoningEfforts).length > 0 ? reasoningEfforts : null
 }
 
 export function buildModelMappingObject(

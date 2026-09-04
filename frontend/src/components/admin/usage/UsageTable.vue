@@ -130,6 +130,16 @@
             <span class="components-admin-usage-usage-table__text-13" :class="getRequestTypeBadgeClass(row)">
               {{ getRequestTypeLabel(row) }}
             </span>
+            <span
+              v-if="shouldShowUsageServiceTierBadge(row)"
+              data-testid="usage-service-tier-badge"
+              class="usage-request-badges__service-tier"
+              :class="getUsageServiceTierBadgeClass(row)"
+              :title="getUsageServiceTierTitle(row)"
+            >
+              <Icon v-if="isFastUsage(row)" name="bolt" size="xs" aria-hidden="true" />
+              {{ getUsageServiceTierLabel(row.service_tier, t) }}
+            </span>
             <span v-if="row.native_compaction_v2" class="usage-request-badges__compaction">
               {{ t('usage.nativeCompactionV2') }}
             </span>
@@ -526,7 +536,7 @@ import {
 } from '@/utils/format'
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
-import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
+import { getUsageServiceTierLabel, normalizeUsageServiceTier } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_CLASSES,
@@ -631,6 +641,25 @@ const formatUsageUSD = (amount: number | null | undefined) => {
 }
 
 const showIpGeoToolbar = computed(() => props.columns.some((col) => col.key === 'ip_address'))
+
+const normalizedUsageServiceTier = (row: AdminUsageLog): string | null =>
+  normalizeUsageServiceTier(row.service_tier)
+
+const shouldShowUsageServiceTierBadge = (row: AdminUsageLog): boolean => {
+  const tier = normalizedUsageServiceTier(row)
+  return tier === 'priority' || tier === 'flex'
+}
+
+const isFastUsage = (row: AdminUsageLog): boolean =>
+  normalizedUsageServiceTier(row) === 'priority'
+
+const getUsageServiceTierBadgeClass = (row: AdminUsageLog): string =>
+  isFastUsage(row)
+    ? 'usage-request-badges__service-tier--fast'
+    : 'usage-request-badges__service-tier--flex'
+
+const getUsageServiceTierTitle = (row: AdminUsageLog): string =>
+  `${t('usage.serviceTier')}: ${getUsageServiceTierLabel(row.service_tier, t)}`
 
 const requestedReasoningEffort = (row: AdminUsageLog): string | null | undefined =>
   row.requested_reasoning_effort?.trim()
@@ -863,6 +892,35 @@ const hideTokenTooltip = () => {
   font-size: var(--type-caption-size);
   line-height: var(--type-caption-line-height);
   font-weight: var(--font-weight-medium);
+}
+
+.usage-request-badges__service-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-block-size: 1.375rem;
+  padding-inline: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line-height);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
+}
+
+.usage-request-badges__service-tier--fast {
+  border-color: var(--color-warning-border);
+  color: var(--color-text-warning);
+  background: var(--glass-tint-warning);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text-warning) 8%, transparent) inset;
+}
+
+.usage-request-badges__service-tier--flex {
+  border-color: var(--color-info-border);
+  color: var(--color-text-info);
+  background: var(--glass-tint-info);
 }
 
 .usage-tooltip {

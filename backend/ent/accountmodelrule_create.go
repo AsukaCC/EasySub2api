@@ -83,6 +83,12 @@ func (_c *AccountModelRuleCreate) SetMapping(v map[string]string) *AccountModelR
 	return _c
 }
 
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (_c *AccountModelRuleCreate) SetReasoningEfforts(v map[string]string) *AccountModelRuleCreate {
+	_c.mutation.SetReasoningEfforts(v)
+	return _c
+}
+
 // SetWhitelist sets the "whitelist" field.
 func (_c *AccountModelRuleCreate) SetWhitelist(v []string) *AccountModelRuleCreate {
 	_c.mutation.SetWhitelist(v)
@@ -179,6 +185,9 @@ func (_c *AccountModelRuleCreate) check() error {
 	if _, ok := _c.mutation.Mapping(); !ok {
 		return &ValidationError{Name: "mapping", err: errors.New(`ent: missing required field "AccountModelRule.mapping"`)}
 	}
+	if _, ok := _c.mutation.ReasoningEfforts(); !ok {
+		return &ValidationError{Name: "reasoning_efforts", err: errors.New(`ent: missing required field "AccountModelRule.reasoning_efforts"`)}
+	}
 	if _, ok := _c.mutation.Whitelist(); !ok {
 		return &ValidationError{Name: "whitelist", err: errors.New(`ent: missing required field "AccountModelRule.whitelist"`)}
 	}
@@ -241,6 +250,10 @@ func (_c *AccountModelRuleCreate) createSpec() (*AccountModelRule, *sqlgraph.Cre
 	if value, ok := _c.mutation.Mapping(); ok {
 		_spec.SetField(accountmodelrule.FieldMapping, field.TypeJSON, value)
 		_node.Mapping = value
+	}
+	if value, ok := _c.mutation.ReasoningEfforts(); ok {
+		_spec.SetField(accountmodelrule.FieldReasoningEfforts, field.TypeJSON, value)
+		_node.ReasoningEfforts = value
 	}
 	if value, ok := _c.mutation.Whitelist(); ok {
 		_spec.SetField(accountmodelrule.FieldWhitelist, field.TypeJSON, value)
@@ -361,6 +374,18 @@ func (u *AccountModelRuleUpsert) SetMapping(v map[string]string) *AccountModelRu
 // UpdateMapping sets the "mapping" field to the value that was provided on create.
 func (u *AccountModelRuleUpsert) UpdateMapping() *AccountModelRuleUpsert {
 	u.SetExcluded(accountmodelrule.FieldMapping)
+	return u
+}
+
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (u *AccountModelRuleUpsert) SetReasoningEfforts(v map[string]string) *AccountModelRuleUpsert {
+	u.Set(accountmodelrule.FieldReasoningEfforts, v)
+	return u
+}
+
+// UpdateReasoningEfforts sets the "reasoning_efforts" field to the value that was provided on create.
+func (u *AccountModelRuleUpsert) UpdateReasoningEfforts() *AccountModelRuleUpsert {
+	u.SetExcluded(accountmodelrule.FieldReasoningEfforts)
 	return u
 }
 
@@ -501,6 +526,20 @@ func (u *AccountModelRuleUpsertOne) SetMapping(v map[string]string) *AccountMode
 func (u *AccountModelRuleUpsertOne) UpdateMapping() *AccountModelRuleUpsertOne {
 	return u.Update(func(s *AccountModelRuleUpsert) {
 		s.UpdateMapping()
+	})
+}
+
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (u *AccountModelRuleUpsertOne) SetReasoningEfforts(v map[string]string) *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.SetReasoningEfforts(v)
+	})
+}
+
+// UpdateReasoningEfforts sets the "reasoning_efforts" field to the value that was provided on create.
+func (u *AccountModelRuleUpsertOne) UpdateReasoningEfforts() *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.UpdateReasoningEfforts()
 	})
 }
 
@@ -810,6 +849,20 @@ func (u *AccountModelRuleUpsertBulk) SetMapping(v map[string]string) *AccountMod
 func (u *AccountModelRuleUpsertBulk) UpdateMapping() *AccountModelRuleUpsertBulk {
 	return u.Update(func(s *AccountModelRuleUpsert) {
 		s.UpdateMapping()
+	})
+}
+
+// SetReasoningEfforts sets the "reasoning_efforts" field.
+func (u *AccountModelRuleUpsertBulk) SetReasoningEfforts(v map[string]string) *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.SetReasoningEfforts(v)
+	})
+}
+
+// UpdateReasoningEfforts sets the "reasoning_efforts" field to the value that was provided on create.
+func (u *AccountModelRuleUpsertBulk) UpdateReasoningEfforts() *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.UpdateReasoningEfforts()
 	})
 }
 

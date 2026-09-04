@@ -130,6 +130,8 @@ export default {
         whitelistHint: 'Enter at least one whitelist model or mapping. Whitelist entries must be exact model names.',
         fromModel: 'Request model',
         toModel: 'Upstream model',
+        reasoningEffort: 'Reasoning effort',
+        reasoningEffortFollowRequest: 'Follow request',
         addMapping: 'Add mapping',
         importLatestModels: 'Import latest supported models',
         importLatestModelsHint: 'Select multiple models for this platform to add model → same-model mappings. You can edit them afterward.',

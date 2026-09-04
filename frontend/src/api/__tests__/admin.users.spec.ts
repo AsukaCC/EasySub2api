@@ -19,8 +19,6 @@ import {
   bindUserAuthIdentity,
   deleteUser,
   listArchived,
-  permanentlyDeleteInactiveUsers,
-  previewInactiveUsers,
   restoreArchivedUser,
   type AdminBindAuthIdentityRequest,
   type AdminBoundAuthIdentity,
@@ -159,46 +157,10 @@ describe('admin users api auth identity binding', () => {
     expect(batchResponseContractExact).toBe(true)
   })
 
-  it('posts inactive cleanup preview and permanent delete payloads', async () => {
-    const filters = {
-      max_balance: 0,
-      last_used_before: '2026-08-01T00:00:00Z',
-      max_usage_7d: 0
-    }
-    post
-      .mockResolvedValueOnce({
-        data: {
-          total: 2,
-          total_balance: 0,
-          total_usage_7d: 0,
-          generated_at: '2026-09-03T00:00:00Z',
-          snapshot_token: 'snapshot-2',
-          items: []
-        }
-      })
-      .mockResolvedValueOnce({ data: { deleted: 2 } })
-
-    await previewInactiveUsers(filters)
-    await permanentlyDeleteInactiveUsers({
-      ...filters,
-      expected_count: 2,
-      snapshot_token: 'snapshot-2',
-      confirmation: 'DELETE 2 USERS'
-    })
-
-    expect(post).toHaveBeenNthCalledWith(1, '/admin/users/inactive/preview', filters)
-    expect(post).toHaveBeenNthCalledWith(2, '/admin/users/inactive/permanent-delete', {
-      ...filters,
-      expected_count: 2,
-      snapshot_token: 'snapshot-2',
-      confirmation: 'DELETE 2 USERS'
-    })
-  })
-
-  it('lists, restores, and deletes users with archive disposition contracts', async () => {
+  it('lists and restores legacy archived users while current deletion is permanent', async () => {
     get.mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 20, pages: 1 } })
     post.mockResolvedValue({ data: { id: '0199-user', email: 'restored@example.com' } })
-    del.mockResolvedValue({ data: { message: 'archived', mode: 'archived' } })
+    del.mockResolvedValue({ data: { message: 'deleted', mode: 'permanently_deleted' } })
 
     await listArchived(1, 20, 'paid@example.com')
     await restoreArchivedUser('0199-user')
@@ -209,6 +171,6 @@ describe('admin users api auth identity binding', () => {
     })
     expect(post).toHaveBeenCalledWith('/admin/users/0199-user/restore')
     expect(del).toHaveBeenCalledWith('/admin/users/0199-user')
-    expect(result.mode).toBe('archived')
+    expect(result.mode).toBe('permanently_deleted')
   })
 })

@@ -2895,7 +2895,8 @@ import {
   getPresetMappingsByPlatform,
   getModelsByPlatform,
   commonErrorCodes,
-  buildModelMappingObject
+  buildModelMappingObject,
+  buildModelReasoningEffortsObject
 } from '@/composables/useModelWhitelist'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
@@ -3105,6 +3106,7 @@ const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 interface ModelMapping {
   from: string
   to: string
+  reasoning_effort?: string
 }
 
 interface TempUnschedRuleForm {
@@ -3795,6 +3797,25 @@ const buildCurrentModelRestrictionMapping = () => {
   return buildModelMappingObject(mode, allowedModels.value, modelMappings.value)
 }
 
+const applyCurrentModelReasoningEfforts = (credentials: Record<string, unknown>) => {
+  const rawMapping = credentials.model_mapping
+  if (!rawMapping || typeof rawMapping !== 'object' || Array.isArray(rawMapping)) {
+    delete credentials.model_reasoning_efforts
+    return
+  }
+
+  const modelMapping = rawMapping as Record<string, unknown>
+  const configuredEfforts = buildModelReasoningEffortsObject(modelMappings.value)
+  const reasoningEfforts = Object.fromEntries(
+    Object.entries(configuredEfforts || {}).filter(([model]) => model in modelMapping)
+  )
+  if (Object.keys(reasoningEfforts).length > 0) {
+    credentials.model_reasoning_efforts = reasoningEfforts
+  } else {
+    delete credentials.model_reasoning_efforts
+  }
+}
+
 const addPresetMapping = (from: string, to: string) => {
   if (modelMappings.value.some((m) => m.from === from)) {
     appStore.showInfo(t('admin.accounts.mappingExists', { model: from }))
@@ -3942,6 +3963,9 @@ const splitTempUnschedKeywords = (value: string) => {
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
+    if (payload.platform === 'openai') {
+      applyCurrentModelReasoningEfforts(payload.credentials)
+    }
     const account = await adminAPI.accounts.create(payload)
     if (payload.type === 'apikey' && upstreamModelsPreviewed.value) {
       try {
@@ -4899,6 +4923,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
+      applyCurrentModelReasoningEfforts(credentials)
       await adminAPI.accounts.create({
         name: form.name,
         notes: form.notes,
@@ -4945,6 +4970,7 @@ const buildOpenAICodexImportCredentialExtras = (): Record<string, unknown> | nul
   if (compactModelMapping) {
     credentials.compact_model_mapping = compactModelMapping
   }
+  applyCurrentModelReasoningEfforts(credentials)
 
   if (!applyTempUnschedConfig(credentials)) {
     return null
@@ -5180,6 +5206,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
+          applyCurrentModelReasoningEfforts(credentials)
           await adminAPI.accounts.create({
             name: accountName,
             notes: form.notes,

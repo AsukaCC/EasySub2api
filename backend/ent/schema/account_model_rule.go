@@ -46,6 +46,8 @@ func (AccountModelRule) Fields() []ent.Field {
 			NotEmpty(),
 		field.JSON("mapping", map[string]string{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.JSON("reasoning_efforts", map[string]string{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 		field.JSON("whitelist", []string{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 	}

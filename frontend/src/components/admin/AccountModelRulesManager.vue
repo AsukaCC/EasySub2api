@@ -181,7 +181,14 @@
           </div>
         </div>
         <div class="account-model-rules-modal__mapping-list">
-          <div v-for="(row, index) in form.mappings" :key="row.id" class="account-model-rules-modal__mapping-row">
+          <div
+            v-for="(row, index) in form.mappings"
+            :key="row.id"
+            :class="[
+              'account-model-rules-modal__mapping-row',
+              form.platform === 'openai' && 'model-rules__reasoning-row'
+            ]"
+          >
             <input
               v-model="row.from"
               class="input"
@@ -194,6 +201,15 @@
               class="input"
               type="text"
               :placeholder="t('admin.accounts.modelRules.toModel')"
+            />
+            <Select
+              v-if="form.platform === 'openai'"
+              v-model="row.reasoning_effort"
+              :options="reasoningEffortOptions"
+              :placeholder="t('admin.accounts.modelRules.reasoningEffortFollowRequest')"
+              :aria-label="t('admin.accounts.modelRules.reasoningEffort')"
+              :searchable="false"
+              clearable
             />
             <button
               type="button"
@@ -335,6 +351,7 @@ interface MappingRow {
   id: number
   from: string
   to: string
+  reasoning_effort: string
 }
 
 const { t } = useI18n()
@@ -363,6 +380,9 @@ const platformFilterOptions = computed(() => [
   { value: '', label: t('admin.accounts.allPlatforms') },
   ...platformOptions.value
 ])
+const reasoningEffortOptions = computed(() =>
+  ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(value => ({ value, label: value }))
+)
 
 const form = reactive({
   name: '',
@@ -405,7 +425,7 @@ function resetForm() {
   form.description = ''
   form.platform = 'anthropic'
   form.whitelist = []
-  form.mappings = [{ id: nextRowId++, from: '', to: '' }]
+  form.mappings = [{ id: nextRowId++, from: '', to: '', reasoning_effort: '' }]
   modelRestrictionMode.value = 'whitelist'
   showMappingModelImport.value = false
   mappingImportModels.value = []
@@ -430,9 +450,12 @@ function openEdit(rule: AccountModelRule) {
   form.mappings = Object.entries(rule.mapping || {}).map(([from, to]) => ({
     id: nextRowId++,
     from,
-    to
+    to,
+    reasoning_effort: rule.reasoning_efforts?.[from] || ''
   }))
-  if (form.mappings.length === 0) form.mappings.push({ id: nextRowId++, from: '', to: '' })
+  if (form.mappings.length === 0) {
+    form.mappings.push({ id: nextRowId++, from: '', to: '', reasoning_effort: '' })
+  }
   modelRestrictionMode.value = Object.keys(rule.mapping || {}).length > 0 ? 'mapping' : 'whitelist'
   formError.value = ''
   showForm.value = true
@@ -445,7 +468,7 @@ function closeForm() {
 }
 
 function addMapping() {
-  form.mappings.push({ id: nextRowId++, from: '', to: '' })
+  form.mappings.push({ id: nextRowId++, from: '', to: '', reasoning_effort: '' })
 }
 
 function closeMappingModelImport() {
@@ -507,7 +530,7 @@ function importSelectedModels() {
   let addedCount = 0
   for (const model of models) {
     if (existingSources.has(model)) continue
-    form.mappings.push({ id: nextRowId++, from: model, to: model })
+    form.mappings.push({ id: nextRowId++, from: model, to: model, reasoning_effort: '' })
     existingSources.add(model)
     addedCount += 1
   }
@@ -562,6 +585,17 @@ function buildMapping(): Record<string, string> | null {
   return mapping
 }
 
+function buildReasoningEfforts(mapping: Record<string, string>): Record<string, string> {
+  if (form.platform !== 'openai') return {}
+  const reasoningEfforts: Record<string, string> = {}
+  for (const row of form.mappings) {
+    const from = row.from.trim()
+    const effort = row.reasoning_effort.trim().toLowerCase()
+    if (from && mapping[from] && effort) reasoningEfforts[from] = effort
+  }
+  return reasoningEfforts
+}
+
 async function handleSubmit() {
   formError.value = ''
   if (!form.name.trim()) {
@@ -584,7 +618,8 @@ async function handleSubmit() {
       description: form.description.trim() || null,
       platform: form.platform,
       whitelist,
-      mapping
+      mapping,
+      reasoning_efforts: buildReasoningEfforts(mapping)
     }
     if (editingRule.value) {
       await adminAPI.accountModelRules.update(editingRule.value.id, payload)
@@ -630,14 +665,18 @@ async function confirmDelete() {
 
 onMounted(() => void loadRules())
 watch(platformFilter, () => void loadRules())
-watch(() => form.platform, () => {
-  if (showForm.value) {
-    modelRestrictionMode.value = 'whitelist'
-    form.whitelist = []
-    form.mappings = [{ id: nextRowId++, from: '', to: '' }]
-    closeMappingModelImport()
-  }
-})
+watch(
+  () => form.platform,
+  () => {
+    if (showForm.value) {
+      modelRestrictionMode.value = 'whitelist'
+      form.whitelist = []
+      form.mappings = [{ id: nextRowId++, from: '', to: '', reasoning_effort: '' }]
+      closeMappingModelImport()
+    }
+  },
+  { flush: 'sync' }
+)
 </script>
 
 <style scoped>
@@ -924,6 +963,10 @@ watch(() => form.platform, () => {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem;
+}
+
+.model-rules__reasoning-row {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(10rem, 0.65fr) auto;
 }
 
 .account-model-rules-modal__error {

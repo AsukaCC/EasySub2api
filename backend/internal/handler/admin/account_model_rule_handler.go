@@ -20,19 +20,21 @@ func NewAccountModelRuleHandler(svc *service.AccountModelRuleService) *AccountMo
 }
 
 type createAccountModelRuleRequest struct {
-	Name        string            `json:"name" binding:"required"`
-	Description *string           `json:"description"`
-	Platform    string            `json:"platform" binding:"required"`
-	Whitelist   []string          `json:"whitelist"`
-	Mapping     map[string]string `json:"mapping"`
+	Name             string            `json:"name" binding:"required"`
+	Description      *string           `json:"description"`
+	Platform         string            `json:"platform" binding:"required"`
+	Whitelist        []string          `json:"whitelist"`
+	Mapping          map[string]string `json:"mapping"`
+	ReasoningEfforts map[string]string `json:"reasoning_efforts"`
 }
 
 type updateAccountModelRuleRequest struct {
-	Name        *string           `json:"name"`
-	Description json.RawMessage   `json:"description"`
-	Platform    *string           `json:"platform"`
-	Whitelist   []string          `json:"whitelist"`
-	Mapping     map[string]string `json:"mapping"`
+	Name             *string           `json:"name"`
+	Description      json.RawMessage   `json:"description"`
+	Platform         *string           `json:"platform"`
+	Whitelist        []string          `json:"whitelist"`
+	Mapping          map[string]string `json:"mapping"`
+	ReasoningEfforts map[string]string `json:"reasoning_efforts"`
 }
 
 func (h *AccountModelRuleHandler) List(c *gin.Context) {
@@ -73,11 +75,12 @@ func (h *AccountModelRuleHandler) Create(c *gin.Context) {
 		return
 	}
 	rule := &model.AccountModelRule{
-		Name:        req.Name,
-		Description: req.Description,
-		Platform:    req.Platform,
-		Whitelist:   req.Whitelist,
-		Mapping:     req.Mapping,
+		Name:             req.Name,
+		Description:      req.Description,
+		Platform:         req.Platform,
+		Whitelist:        req.Whitelist,
+		Mapping:          req.Mapping,
+		ReasoningEfforts: req.ReasoningEfforts,
 	}
 	created, err := h.service.Create(c.Request.Context(), rule)
 	if err != nil {
@@ -134,6 +137,9 @@ func (h *AccountModelRuleHandler) Update(c *gin.Context) {
 	}
 	if req.Mapping != nil {
 		existing.Mapping = req.Mapping
+	}
+	if req.ReasoningEfforts != nil {
+		existing.ReasoningEfforts = req.ReasoningEfforts
 	}
 	updated, err := h.service.Update(c.Request.Context(), existing)
 	if err != nil {

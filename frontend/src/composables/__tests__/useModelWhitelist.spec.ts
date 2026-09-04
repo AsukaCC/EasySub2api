@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildModelMappingObject, getModelsByPlatform, splitModelMappingObject } from '../useModelWhitelist'
+import {
+  buildModelMappingObject,
+  buildModelReasoningEffortsObject,
+  getModelsByPlatform,
+  splitModelMappingObject
+} from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
   it('openai 模型列表包含 GPT-5.4 官方快照', () => {
@@ -107,16 +112,37 @@ describe('useModelWhitelist', () => {
   })
 
   it('splitModelMappingObject 会把身份映射还原成白名单，其余保留为映射', () => {
-    const parsed = splitModelMappingObject({
-      'gpt-5.4': 'gpt-5.4',
-      'gpt-latest': 'gpt-5.4',
-      ' ': 'gpt-empty',
-      broken: 123
-    })
+    const parsed = splitModelMappingObject(
+      {
+        'gpt-5.4': 'gpt-5.4',
+        'gpt-latest': 'gpt-5.4',
+        ' ': 'gpt-empty',
+        broken: 123
+      },
+      { 'gpt-latest': 'HIGH' }
+    )
 
     expect(parsed).toEqual({
       allowedModels: ['gpt-5.4'],
-      modelMappings: [{ from: 'gpt-latest', to: 'gpt-5.4' }]
+      modelMappings: [{ from: 'gpt-latest', to: 'gpt-5.4', reasoning_effort: 'high' }]
+    })
+  })
+
+  it('buildModelReasoningEffortsObject only keeps configured mapping efforts', () => {
+    expect(buildModelReasoningEffortsObject([
+      { from: 'gpt-latest', to: 'gpt-5.4', reasoning_effort: ' XHIGH ' },
+      { from: 'gpt-empty', to: 'gpt-5.4' },
+      { from: '', to: 'gpt-5.4', reasoning_effort: 'high' }
+    ])).toEqual({ 'gpt-latest': 'xhigh' })
+  })
+
+  it('同名映射配置推理强度时仍按映射回显', () => {
+    expect(splitModelMappingObject(
+      { 'gpt-5.6': 'gpt-5.6' },
+      { 'gpt-5.6': 'high' }
+    )).toEqual({
+      allowedModels: [],
+      modelMappings: [{ from: 'gpt-5.6', to: 'gpt-5.6', reasoning_effort: 'high' }]
     })
   })
 })

@@ -562,7 +562,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		}
 		attemptCtx := service.ContextWithSelectionProfitGate(c.Request.Context(), selection)
 		attemptAPIKey := service.APIKeyForAccountSelection(apiKey, selection)
-		policyBody, changed, policyErr := applyOpenAIReasoningEffortPolicyForSelectedAccount(c, attemptAPIKey, selection.Account, body)
+		policyBody, changed, policyErr := applyOpenAIReasoningEffortPolicyForSelectedAccount(c, attemptAPIKey, selection.Account, body, reqModel)
 		if policyErr != nil {
 			if selection.Acquired && selection.ReleaseFunc != nil {
 				selection.ReleaseFunc()
@@ -1036,8 +1036,6 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	// 解析渠道级模型映射
 	channelMappingMsg, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
-	mappedBodyForMessages := newOpenAIModelMappedBodyCache(body, h.gatewayService.ReplaceModelInBody)
-
 	// 绑定错误透传服务，允许 service 层在非 failover 错误场景复用规则。
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
@@ -1145,10 +1143,11 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			h.anthropicStreamingAwareError(c, cls.Status, cls.ErrType, cls.Message, streamStarted)
 			return
 		}
+		account := selection.Account
+		accountBody, _ := service.ApplyAccountModelReasoningEffortForMessages(body, account, currentRoutingModel)
 		attemptCtx := service.ContextWithSelectionProfitGate(c.Request.Context(), selection)
 		attemptAPIKey := service.APIKeyForAccountSelection(apiKey, selection)
-		attemptCtx = withOpenAIReasoningEffortPolicyForMessagesRequest(attemptCtx, c, attemptAPIKey, selection.Account, body)
-		account := selection.Account
+		attemptCtx = withOpenAIReasoningEffortPolicyForMessagesRequest(attemptCtx, c, attemptAPIKey, account, accountBody)
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		reqLog.Debug("openai_messages.account_selected", zap.String("account_id", account.ID), zap.String("account_name", account.Name))
 		_ = scheduleDecision
@@ -1173,7 +1172,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 		defaultMappedModel := strings.TrimSpace(effectiveMappedModel)
 		// 应用渠道模型映射到请求体
-		forwardBody := mappedBodyForMessages(channelMappingMsg.Mapped, channelMappingMsg.MappedModel)
+		forwardBody := newOpenAIModelMappedBodyCache(accountBody, h.gatewayService.ReplaceModelInBody)(channelMappingMsg.Mapped, channelMappingMsg.MappedModel)
 		writerSizeBeforeForward := c.Writer.Size()
 		result, err := func() (*service.OpenAIForwardResult, error) {
 			defer func() {
@@ -2150,6 +2149,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			MaxReasoningEffort:          maxReasoningEffort,
 			MaxReasoningEffortOverLimit: maxReasoningEffortOverLimit,
 			ReasoningEffortMappings:     reasoningEffortMappings,
+			ModelReasoningEffort:        account.GetModelReasoningEffort,
 			TurnStarted:                 recordTurnStart,
 			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
 				c.Set(securityAuditWSTurnContextKey, turn)

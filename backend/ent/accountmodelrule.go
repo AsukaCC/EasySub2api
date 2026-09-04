@@ -30,6 +30,8 @@ type AccountModelRule struct {
 	Platform string `json:"platform,omitempty"`
 	// Mapping holds the value of the "mapping" field.
 	Mapping map[string]string `json:"mapping,omitempty"`
+	// ReasoningEfforts holds the value of the "reasoning_efforts" field.
+	ReasoningEfforts map[string]string `json:"reasoning_efforts,omitempty"`
 	// Whitelist holds the value of the "whitelist" field.
 	Whitelist    []string `json:"whitelist,omitempty"`
 	selectValues sql.SelectValues
@@ -40,7 +42,7 @@ func (*AccountModelRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case accountmodelrule.FieldMapping, accountmodelrule.FieldWhitelist:
+		case accountmodelrule.FieldMapping, accountmodelrule.FieldReasoningEfforts, accountmodelrule.FieldWhitelist:
 			values[i] = new([]byte)
 		case accountmodelrule.FieldID, accountmodelrule.FieldName, accountmodelrule.FieldDescription, accountmodelrule.FieldPlatform:
 			values[i] = new(sql.NullString)
@@ -106,6 +108,14 @@ func (_m *AccountModelRule) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field mapping: %w", err)
 				}
 			}
+		case accountmodelrule.FieldReasoningEfforts:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field reasoning_efforts", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ReasoningEfforts); err != nil {
+					return fmt.Errorf("unmarshal field reasoning_efforts: %w", err)
+				}
+			}
 		case accountmodelrule.FieldWhitelist:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field whitelist", values[i])
@@ -169,6 +179,9 @@ func (_m *AccountModelRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("mapping=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Mapping))
+	builder.WriteString(", ")
+	builder.WriteString("reasoning_efforts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningEfforts))
 	builder.WriteString(", ")
 	builder.WriteString("whitelist=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Whitelist))
