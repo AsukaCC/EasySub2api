@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/apicompat"
-	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -62,22 +61,8 @@ func (s *GatewayService) ForwardAsResponses(
 	reqStream := true
 
 	// 4. Model mapping
-	mappedModel := originalModel
+	mappedModel := account.GetMappedModel(originalModel)
 	reasoningEffort := ExtractResponsesReasoningEffortFromBody(body)
-	if account.Type == AccountTypeAPIKey || account.Type == AccountTypeServiceAccount {
-		mappedModel = account.GetMappedModel(originalModel)
-	}
-	if mappedModel == originalModel && account.Platform == PlatformAnthropic && account.Type == AccountTypeServiceAccount {
-		normalized := normalizeVertexAnthropicModelID(claude.NormalizeModelID(originalModel))
-		if normalized != originalModel {
-			mappedModel = normalized
-		}
-	} else if mappedModel == originalModel && account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey {
-		normalized := claude.NormalizeModelID(originalModel)
-		if normalized != originalModel {
-			mappedModel = normalized
-		}
-	}
 	// 国产模型默认 effort 补充：需要 mappedModel 判定，推迟到 mapping 完成之后。
 	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, mappedModel)
 	anthropicReq.Model = mappedModel

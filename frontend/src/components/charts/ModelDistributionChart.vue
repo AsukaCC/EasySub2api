@@ -96,9 +96,7 @@
       </div>
     </div>
 
-    <div v-if="activeView === 'model_distribution' && loading" class="components-charts-model-distribution-chart__panel-6">
-      <LoadingSpinner />
-    </div>
+    <LoadingState v-if="activeView === 'model_distribution' && loading" variant="section" class="components-charts-model-distribution-chart__panel-6" />
     <div
       v-else-if="activeView === 'model_distribution' && displayModelStats.length > 0 && chartData"
       class="components-charts-model-distribution-chart__panel-7"
@@ -243,6 +241,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'

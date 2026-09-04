@@ -2015,34 +2015,16 @@
           >
             {{ t("common.cancel") }}
           </button>
-          <button
+          <button :aria-busy="submitting"
             type="submit"
             form="create-group-form"
             :disabled="submitting"
             class="btn btn-primary"
             data-tour="group-form-submit"
           >
-            <svg
-              v-if="submitting"
-              class="views-admin-groups-view__icon-7"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-groups-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-groups-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{ submitting ? t("admin.groups.creating") : t("common.create") }}
+            <LoadingButtonContent :loading="submitting" :loading-text="t('admin.groups.creating')">
+            {{ t("common.create") }}
+            </LoadingButtonContent>
           </button>
         </div>
       </template>
@@ -3503,34 +3485,16 @@
           >
             {{ t("common.cancel") }}
           </button>
-          <button
+          <button :aria-busy="submitting"
             type="submit"
             form="edit-group-form"
             :disabled="submitting"
             class="btn btn-primary"
             data-tour="group-form-submit"
           >
-            <svg
-              v-if="submitting"
-              class="views-admin-groups-view__icon-7"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-groups-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-groups-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{ submitting ? t("admin.groups.updating") : t("common.update") }}
+            <LoadingButtonContent :loading="submitting" :loading-text="t('admin.groups.updating')">
+            {{ t("common.update") }}
+            </LoadingButtonContent>
           </button>
         </div>
       </template>
@@ -3624,32 +3588,14 @@
           >
             {{ t("common.cancel") }}
           </button>
-          <button
+          <button :aria-busy="sortSubmitting"
             @click="saveSortOrder"
             :disabled="sortSubmitting"
             class="btn btn-primary"
           >
-            <svg
-              v-if="sortSubmitting"
-              class="views-admin-groups-view__icon-7"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-groups-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-groups-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{ sortSubmitting ? t("common.saving") : t("common.save") }}
+            <LoadingButtonContent :loading="sortSubmitting" :loading-text="t('common.saving')">
+            {{ t("common.save") }}
+            </LoadingButtonContent>
           </button>
         </div>
       </template>
@@ -4057,6 +4003,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";

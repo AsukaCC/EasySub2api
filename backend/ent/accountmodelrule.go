@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
+	"github.com/AsukaCC/EasySub2api/internal/domain"
 )
 
 // AccountModelRule is the model entity for the AccountModelRule schema.
@@ -28,6 +29,10 @@ type AccountModelRule struct {
 	Description *string `json:"description,omitempty"`
 	// Platform holds the value of the "platform" field.
 	Platform string `json:"platform,omitempty"`
+	// SubscriptionTier holds the value of the "subscription_tier" field.
+	SubscriptionTier *string `json:"subscription_tier,omitempty"`
+	// ModelRoutes holds the value of the "model_routes" field.
+	ModelRoutes []domain.AccountModelRoute `json:"model_routes,omitempty"`
 	// Mapping holds the value of the "mapping" field.
 	Mapping map[string]string `json:"mapping,omitempty"`
 	// ReasoningEfforts holds the value of the "reasoning_efforts" field.
@@ -42,9 +47,9 @@ func (*AccountModelRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case accountmodelrule.FieldMapping, accountmodelrule.FieldReasoningEfforts, accountmodelrule.FieldWhitelist:
+		case accountmodelrule.FieldModelRoutes, accountmodelrule.FieldMapping, accountmodelrule.FieldReasoningEfforts, accountmodelrule.FieldWhitelist:
 			values[i] = new([]byte)
-		case accountmodelrule.FieldID, accountmodelrule.FieldName, accountmodelrule.FieldDescription, accountmodelrule.FieldPlatform:
+		case accountmodelrule.FieldID, accountmodelrule.FieldName, accountmodelrule.FieldDescription, accountmodelrule.FieldPlatform, accountmodelrule.FieldSubscriptionTier:
 			values[i] = new(sql.NullString)
 		case accountmodelrule.FieldCreatedAt, accountmodelrule.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -99,6 +104,21 @@ func (_m *AccountModelRule) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field platform", values[i])
 			} else if value.Valid {
 				_m.Platform = value.String
+			}
+		case accountmodelrule.FieldSubscriptionTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_tier", values[i])
+			} else if value.Valid {
+				_m.SubscriptionTier = new(string)
+				*_m.SubscriptionTier = value.String
+			}
+		case accountmodelrule.FieldModelRoutes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field model_routes", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ModelRoutes); err != nil {
+					return fmt.Errorf("unmarshal field model_routes: %w", err)
+				}
 			}
 		case accountmodelrule.FieldMapping:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -176,6 +196,14 @@ func (_m *AccountModelRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("platform=")
 	builder.WriteString(_m.Platform)
+	builder.WriteString(", ")
+	if v := _m.SubscriptionTier; v != nil {
+		builder.WriteString("subscription_tier=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("model_routes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelRoutes))
 	builder.WriteString(", ")
 	builder.WriteString("mapping=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Mapping))

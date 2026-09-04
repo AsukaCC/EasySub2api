@@ -235,14 +235,7 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 
 	rawModel := gjson.GetBytes(out, "model")
 	if rawModel.Exists() && rawModel.Type == gjson.String {
-		normalized := claude.NormalizeModelID(rawModel.String())
-		if normalized != rawModel.String() {
-			if next, ok := setJSONValueBytes(out, "model", normalized); ok {
-				out = next
-				modified = true
-			}
-			modelID = normalized
-		}
+		modelID = rawModel.String()
 	}
 
 	// 确保 tools 字段存在（即使为空数组）

@@ -37,6 +37,8 @@ const {
   showError,
   showSuccess,
   listAffiliateUsers,
+  testSmtpConnection,
+  sendTestEmail,
 } = vi.hoisted(() => ({
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
@@ -79,6 +81,8 @@ const {
   showError: vi.fn(),
   showSuccess: vi.fn(),
   listAffiliateUsers: vi.fn(),
+  testSmtpConnection: vi.fn(),
+  sendTestEmail: vi.fn(),
 }));
 
 const localeRef = vi.hoisted(() => ({ value: "zh-CN" }));
@@ -119,6 +123,8 @@ vi.mock("@/api", () => ({
       getStreamTimeoutSettings,
       getRectifierSettings,
       getBetaPolicySettings,
+      testSmtpConnection,
+      sendTestEmail,
     },
     accounts: {
       getUpstreamBillingProbeSettings,
@@ -652,6 +658,8 @@ describe("admin SettingsView payment visible method controls", () => {
     showError.mockReset();
     showSuccess.mockReset();
     listAffiliateUsers.mockReset().mockResolvedValue({ items: [], total: 0 });
+    testSmtpConnection.mockReset().mockResolvedValue({ message: "SMTP OK" });
+    sendTestEmail.mockReset().mockResolvedValue({ message: "Email sent" });
     localeRef.value = "zh-CN";
 
     getSettings.mockResolvedValue({ ...baseSettingsResponse });
@@ -717,6 +725,61 @@ describe("admin SettingsView payment visible method controls", () => {
     });
     fetchPublicSettings.mockResolvedValue(undefined);
     adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("shows the shared page loading state while settings load", () => {
+    getSettings.mockReturnValue(new Promise(() => undefined));
+
+    const wrapper = mountView();
+
+    expect(wrapper.get('.loading-state--page').attributes('aria-busy')).toBe('true');
+    expect(wrapper.get('.loading-state--page').text()).toContain('common.loading');
+  });
+
+  it("shows stable loading content for SMTP and test email actions", async () => {
+    let resolveSmtp!: (value: { message: string }) => void;
+    let resolveEmail!: (value: { message: string }) => void;
+    testSmtpConnection.mockReturnValue(new Promise((resolve) => { resolveSmtp = resolve; }));
+    sendTestEmail.mockReturnValue(new Promise((resolve) => { resolveEmail = resolve; }));
+    getSettings.mockResolvedValue({ ...baseSettingsResponse, email_verify_enabled: true });
+
+    const wrapper = mountView('operations');
+    await flushPromises();
+
+    const smtpButton = wrapper.findAll('button').find((button) => button.text().includes('admin.settings.smtp.testConnection'))!;
+    await smtpButton.trigger('click');
+    expect(smtpButton.attributes('aria-busy')).toBe('true');
+    expect(smtpButton.text()).toContain('admin.settings.smtp.testing');
+    expect(smtpButton.findAll('.loading-button-content__layer')).toHaveLength(2);
+    resolveSmtp({ message: 'SMTP OK' });
+    await flushPromises();
+
+    await wrapper
+      .get('input[placeholder="admin.settings.testEmail.recipientEmailPlaceholder"]')
+      .setValue('admin@example.com');
+    const emailButton = wrapper.findAll('button').find((button) => button.text().includes('admin.settings.testEmail.sendTestEmail'))!;
+    await emailButton.trigger('click');
+    expect(emailButton.attributes('aria-busy')).toBe('true');
+    expect(emailButton.text()).toContain('admin.settings.testEmail.sending');
+    resolveEmail({ message: 'Email sent' });
+    await flushPromises();
+  });
+
+  it("shows stable loading content while saving settings", async () => {
+    let resolveSave!: (value: typeof baseSettingsResponse) => void;
+    updateSettings.mockReturnValue(new Promise((resolve) => { resolveSave = resolve; }));
+
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find('form').trigger('submit.prevent');
+
+    const saveButton = wrapper.get('.settings-save-bar__button');
+    expect(saveButton.attributes('aria-busy')).toBe('true');
+    expect(saveButton.text()).toContain('admin.settings.saving');
+    expect(saveButton.findAll('.loading-button-content__layer')).toHaveLength(2);
+
+    resolveSave({ ...baseSettingsResponse });
+    await flushPromises();
   });
 
   it("submits the compact home page toggle", async () => {

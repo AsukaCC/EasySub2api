@@ -2,6 +2,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -127,27 +128,29 @@ type CreateAccountRequest struct {
 	ExpiresAt          *int64         `json:"expires_at"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled       *bool          `json:"upstream_billing_probe_enabled"`
+	ModelRuleID        *string        `json:"model_rule_id"`
 }
 
 // UpdateAccountRequest represents update account request
 // 使用指针类型来区分"未提供"和"设置为0"
 type UpdateAccountRequest struct {
-	Name               string         `json:"name"`
-	Notes              *string        `json:"notes"`
-	Type               string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream bedrock service_account"`
-	Credentials        map[string]any `json:"credentials"`
-	Extra              map[string]any `json:"extra"`
-	ProxyID            *string        `json:"proxy_id"`
-	Concurrency        *int           `json:"concurrency"`
-	Priority           *int           `json:"priority"`
-	RateMultiplier     *float64       `json:"rate_multiplier"`
-	LoadFactor         *int           `json:"load_factor"`
-	Status             string         `json:"status" binding:"omitempty,oneof=active inactive error"`
-	GroupIDs           *[]string      `json:"group_ids"`
-	ExpiresAt          *int64         `json:"expires_at"`
-	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
-	ProbeEnabled       *bool          `json:"upstream_billing_probe_enabled"`
-	RateSyncEnabled    *bool          `json:"upstream_billing_rate_sync_enabled"`
+	Name               string          `json:"name"`
+	Notes              *string         `json:"notes"`
+	Type               string          `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream bedrock service_account"`
+	Credentials        map[string]any  `json:"credentials"`
+	Extra              map[string]any  `json:"extra"`
+	ProxyID            *string         `json:"proxy_id"`
+	Concurrency        *int            `json:"concurrency"`
+	Priority           *int            `json:"priority"`
+	RateMultiplier     *float64        `json:"rate_multiplier"`
+	LoadFactor         *int            `json:"load_factor"`
+	Status             string          `json:"status" binding:"omitempty,oneof=active inactive error"`
+	GroupIDs           *[]string       `json:"group_ids"`
+	ExpiresAt          *int64          `json:"expires_at"`
+	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
+	ProbeEnabled       *bool           `json:"upstream_billing_probe_enabled"`
+	RateSyncEnabled    *bool           `json:"upstream_billing_rate_sync_enabled"`
+	ModelRuleID        json.RawMessage `json:"model_rule_id"`
 }
 
 // BulkUpdateAccountsRequest represents the payload for bulk editing accounts
@@ -166,16 +169,18 @@ type BulkUpdateAccountsRequest struct {
 	Credentials    map[string]any            `json:"credentials"`
 	Extra          map[string]any            `json:"extra"`
 	ProbeEnabled   *bool                     `json:"upstream_billing_probe_enabled"`
+	ModelRuleID    json.RawMessage           `json:"model_rule_id"`
 }
 
 type BulkUpdateAccountFilters struct {
-	Platform     string `json:"platform"`
-	Type         string `json:"type"`
-	Status       string `json:"status"`
-	Group        string `json:"group"`
-	Search       string `json:"search"`
-	PrivacyMode  string `json:"privacy_mode"`
-	ExpiryStatus string `json:"expiry_status"`
+	Platform         string `json:"platform"`
+	Type             string `json:"type"`
+	Status           string `json:"status"`
+	Group            string `json:"group"`
+	Search           string `json:"search"`
+	PrivacyMode      string `json:"privacy_mode"`
+	ExpiryStatus     string `json:"expiry_status"`
+	SubscriptionTier string `json:"subscription_tier"`
 }
 
 // AccountWithConcurrency extends Account with real-time concurrency info
@@ -481,14 +486,20 @@ func (h *AccountHandler) listAccountSchedulerScoreFilterPool(
 	ctx context.Context,
 	platform, accountType, status, search string,
 	groupID string,
-	privacyMode, expiryStatus string,
+	privacyMode, expiryStatus, subscriptionTier string,
 ) []service.Account {
 	if h.adminService == nil || (platform != "" && platform != service.PlatformOpenAI) {
 		return nil
 	}
 	// 池只用于 OpenAI 分数计算（非 OpenAI 账号会在打分时被丢弃），
 	// 无论列表页平台过滤为何，查询一律限定 openai，避免无过滤时全表扫描。
-	accounts, err := h.adminService.ListAccountsForSchedulerScoreFilter(ctx, service.PlatformOpenAI, accountType, status, search, groupID, privacyMode, expiryStatus)
+	var accounts []service.Account
+	var err error
+	if tierService, ok := h.adminService.(service.AccountSubscriptionTierAdminService); ok {
+		accounts, err = tierService.ListAccountsForSchedulerScoreFilterWithSubscriptionTier(ctx, service.PlatformOpenAI, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier)
+	} else {
+		accounts, err = h.adminService.ListAccountsForSchedulerScoreFilter(ctx, service.PlatformOpenAI, accountType, status, search, groupID, privacyMode, expiryStatus)
+	}
 	if err != nil {
 		slog.Warn("openai_scheduler_filter_score_pool_failed", "error", err)
 		return nil
@@ -510,6 +521,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		response.ErrorFrom(c, expiryStatusErr)
 		return
 	}
+	subscriptionTier := strings.TrimSpace(c.Query("subscription_tier"))
 	sortBy := c.DefaultQuery("sort_by", "name")
 	sortOrder := c.DefaultQuery("sort_order", "asc")
 	// 标准化和验证 search 参数
@@ -539,7 +551,14 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 
-	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, sortBy, sortOrder)
+	var accounts []service.Account
+	var total int64
+	var err error
+	if tierService, ok := h.adminService.(service.AccountSubscriptionTierAdminService); ok {
+		accounts, total, err = tierService.ListAccountsWithSubscriptionTier(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder)
+	} else {
+		accounts, total, err = h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, sortBy, sortOrder)
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -576,7 +595,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 	if includeSchedulerScore && pageHasOpenAIAccounts {
-		schedulerFilterPool := h.listAccountSchedulerScoreFilterPool(c.Request.Context(), platform, accountType, status, search, groupID, privacyMode, expiryStatus)
+		schedulerFilterPool := h.listAccountSchedulerScoreFilterPool(c.Request.Context(), platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier)
 		schedulerScores, schedulerGroupScores = h.buildOpenAIAccountSchedulerScores(c.Request.Context(), accounts, schedulerFilterPool)
 	}
 
@@ -689,7 +708,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 
 	h.enrichShadowParents(c.Request.Context(), result)
 
-	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, search, lite)
+	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder, lite)
 	if etag != "" {
 		c.Header("ETag", etag)
 		c.Header("Vary", "If-None-Match")
@@ -706,29 +725,41 @@ func buildAccountsListETag(
 	items []AccountWithConcurrency,
 	total int64,
 	page, pageSize int,
-	platform, accountType, status, search string,
+	platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder string,
 	lite bool,
 ) string {
 	payload := struct {
-		Total       int64                    `json:"total"`
-		Page        int                      `json:"page"`
-		PageSize    int                      `json:"page_size"`
-		Platform    string                   `json:"platform"`
-		AccountType string                   `json:"type"`
-		Status      string                   `json:"status"`
-		Search      string                   `json:"search"`
-		Lite        bool                     `json:"lite"`
-		Items       []AccountWithConcurrency `json:"items"`
+		Total            int64                    `json:"total"`
+		Page             int                      `json:"page"`
+		PageSize         int                      `json:"page_size"`
+		Platform         string                   `json:"platform"`
+		AccountType      string                   `json:"type"`
+		Status           string                   `json:"status"`
+		Search           string                   `json:"search"`
+		GroupID          string                   `json:"group_id"`
+		PrivacyMode      string                   `json:"privacy_mode"`
+		ExpiryStatus     string                   `json:"expiry_status"`
+		SubscriptionTier string                   `json:"subscription_tier"`
+		SortBy           string                   `json:"sort_by"`
+		SortOrder        string                   `json:"sort_order"`
+		Lite             bool                     `json:"lite"`
+		Items            []AccountWithConcurrency `json:"items"`
 	}{
-		Total:       total,
-		Page:        page,
-		PageSize:    pageSize,
-		Platform:    platform,
-		AccountType: accountType,
-		Status:      status,
-		Search:      search,
-		Lite:        lite,
-		Items:       items,
+		Total:            total,
+		Page:             page,
+		PageSize:         pageSize,
+		Platform:         platform,
+		AccountType:      accountType,
+		Status:           status,
+		Search:           search,
+		GroupID:          groupID,
+		PrivacyMode:      privacyMode,
+		ExpiryStatus:     expiryStatus,
+		SubscriptionTier: subscriptionTier,
+		SortBy:           sortBy,
+		SortOrder:        sortOrder,
+		Lite:             lite,
+		Items:            items,
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
@@ -781,6 +812,20 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
 }
 
+func (h *AccountHandler) ListSubscriptionTiers(c *gin.Context) {
+	tierService, ok := h.adminService.(service.AccountSubscriptionTierAdminService)
+	if !ok {
+		response.Success(c, []service.AccountSubscriptionTierSummary{})
+		return
+	}
+	tiers, err := tierService.ListAccountSubscriptionTiers(c.Request.Context(), c.Query("platform"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, tiers)
+}
+
 // Create handles creating a new account
 // POST /api/v1/admin/accounts
 func (h *AccountHandler) Create(c *gin.Context) {
@@ -799,6 +844,14 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 	// base_rpm 输入校验：负值归零，超过 10000 截断
 	sanitizeExtraBaseRPM(req.Extra)
+	if req.ModelRuleID != nil {
+		modelRuleID, parseErr := parseEntityID(strings.TrimSpace(*req.ModelRuleID))
+		if parseErr != nil || modelRuleID == "" {
+			response.BadRequest(c, "Invalid model rule ID")
+			return
+		}
+		req.ModelRuleID = &modelRuleID
+	}
 
 	// 捕获闭包内创建的账号引用，用于创建成功后触发异步探测。
 	// 幂等重放时闭包不会执行 → createdAccount 为 nil → 不重复调度。
@@ -821,6 +874,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			ExpiresAt:          req.ExpiresAt,
 			AutoPauseOnExpired: req.AutoPauseOnExpired,
 			ProbeEnabled:       req.ProbeEnabled,
+			ModelRuleID:        req.ModelRuleID,
 		})
 		if execErr != nil {
 			return nil, execErr
@@ -915,6 +969,11 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	}
 	// base_rpm 输入校验：负值归零，超过 10000 截断
 	sanitizeExtraBaseRPM(req.Extra)
+	modelRuleID, err := parseNullableEntityID(req.ModelRuleID)
+	if err != nil {
+		response.BadRequest(c, "Invalid model rule ID")
+		return
+	}
 
 	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Name:               req.Name,
@@ -933,6 +992,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		AutoPauseOnExpired: req.AutoPauseOnExpired,
 		ProbeEnabled:       req.ProbeEnabled,
 		RateSyncEnabled:    req.RateSyncEnabled,
+		ModelRuleID:        modelRuleID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -1987,13 +2047,19 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		req.GroupIDs != nil ||
 		len(req.Credentials) > 0 ||
 		len(req.Extra) > 0 ||
-		req.ProbeEnabled != nil
+		req.ProbeEnabled != nil ||
+		req.ModelRuleID != nil
 
 	if !hasUpdates {
 		response.BadRequest(c, "No updates provided")
 		return
 	}
 
+	modelRuleID, err := parseNullableEntityID(req.ModelRuleID)
+	if err != nil {
+		response.BadRequest(c, "Invalid model rule ID")
+		return
+	}
 	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{
 		AccountIDs:     req.AccountIDs,
 		Filters:        toServiceBulkUpdateAccountFilters(req.Filters),
@@ -2009,6 +2075,7 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		Credentials:    req.Credentials,
 		Extra:          req.Extra,
 		ProbeEnabled:   req.ProbeEnabled,
+		ModelRuleID:    modelRuleID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -2023,14 +2090,37 @@ func toServiceBulkUpdateAccountFilters(filters *BulkUpdateAccountFilters) *servi
 		return nil
 	}
 	return &service.BulkUpdateAccountFilters{
-		Platform:     filters.Platform,
-		Type:         filters.Type,
-		Status:       filters.Status,
-		Group:        filters.Group,
-		Search:       filters.Search,
-		PrivacyMode:  filters.PrivacyMode,
-		ExpiryStatus: filters.ExpiryStatus,
+		Platform:         filters.Platform,
+		Type:             filters.Type,
+		Status:           filters.Status,
+		Group:            filters.Group,
+		Search:           filters.Search,
+		PrivacyMode:      filters.PrivacyMode,
+		ExpiryStatus:     filters.ExpiryStatus,
+		SubscriptionTier: filters.SubscriptionTier,
 	}
+}
+
+func parseNullableEntityID(raw json.RawMessage) (**string, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	trimmed := bytes.TrimSpace(raw)
+	if bytes.Equal(trimmed, []byte("null")) {
+		var value *string
+		return &value, nil
+	}
+	var value string
+	if err := json.Unmarshal(trimmed, &value); err != nil {
+		return nil, err
+	}
+	parsed, err := parseEntityID(strings.TrimSpace(value))
+	if err != nil || parsed == "" {
+		return nil, fmt.Errorf("invalid entity id")
+	}
+	value = parsed
+	pointer := &value
+	return &pointer, nil
 }
 
 // ========== OAuth Handlers ==========

@@ -37,9 +37,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="components-account-account-stats-modal__panel-7">
-        <LoadingSpinner />
-      </div>
+      <LoadingState v-if="loading" variant="section" class="components-account-account-stats-modal__panel-7" />
 
       <template v-else-if="stats">
         <!-- Row 1: Main Stats Cards -->
@@ -484,10 +482,11 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'

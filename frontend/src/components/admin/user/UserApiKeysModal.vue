@@ -7,7 +7,7 @@
         </div>
         <div><p class="components-admin-user-user-api-keys-modal__description">{{ user.email }}</p><p class="components-admin-user-user-api-keys-modal__description-2">{{ user.username }}</p></div>
       </div>
-      <div v-if="loading" class="components-admin-user-user-api-keys-modal__panel-4"><svg class="components-admin-user-user-api-keys-modal__icon" fill="none" viewBox="0 0 24 24"><circle class="components-admin-user-user-api-keys-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="components-admin-user-user-api-keys-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
+      <LoadingState v-if="loading" variant="section" size="sm" class="components-admin-user-user-api-keys-modal__panel-4" />
       <div v-else-if="apiKeys.length === 0" class="components-admin-user-user-api-keys-modal__panel-5"><p class="components-admin-user-user-api-keys-modal__description-3">{{ t('admin.users.noApiKeys') }}</p></div>
       <div v-else ref="scrollContainerRef" class="components-admin-user-user-api-keys-modal__panel-6" @scroll="closeGroupSelector">
         <div v-for="key in apiKeys" :key="key.id" class="components-admin-user-user-api-keys-modal__panel-7">
@@ -16,14 +16,14 @@
               <div class="components-admin-user-user-api-keys-modal__panel-10"><span class="components-admin-user-user-api-keys-modal__description">{{ key.name }}</span><span :class="['components-admin-user-user-api-keys-modal__text-5 badge', key.status === 'active' ? 'badge-success' : 'badge-danger']">{{ key.status }}</span></div>
               <p class="components-admin-user-user-api-keys-modal__description-4">{{ key.key.substring(0, 20) }}...{{ key.key.substring(key.key.length - 8) }}</p>
             </div>
-            <button
+            <button :aria-busy="updatingKeyIds.has(key.id)"
               type="button"
               class="components-admin-user-user-api-keys-modal__action"
               :disabled="updatingKeyIds.has(key.id)"
               :title="t('admin.users.manageGroups')"
               @click="openGroupSelector(key)"
             >
-              <svg v-if="updatingKeyIds.has(key.id)" class="components-admin-user-user-api-keys-modal__icon-2" fill="none" viewBox="0 0 24 24"><circle class="components-admin-user-user-api-keys-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="components-admin-user-user-api-keys-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+<LoadingSpinner v-if="updatingKeyIds.has(key.id)" size="sm" color="inherit" decorative />
               <Icon v-else name="grid" size="xs" />
               <span>{{ t('admin.users.manageGroups') }}</span>
             </button>
@@ -87,6 +87,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

@@ -13,9 +13,7 @@
       </span>
     </header>
 
-    <div v-if="loading" class="dashboard-announcements__state">
-      <LoadingSpinner size="md" />
-    </div>
+    <LoadingState v-if="loading" variant="section" size="md" class="dashboard-announcements__state" />
     <div v-else-if="latestAnnouncements.length === 0" class="dashboard-announcements__state">
       <Icon name="inbox" size="lg" />
       <span>{{ t('announcements.emptyDescription') }}</span>
@@ -47,11 +45,12 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import Icon from '@/components/icons/Icon.vue'
 import { useAnnouncementStore } from '@/stores/announcements'
 import { formatRelativeWithDateTime } from '@/utils/format'

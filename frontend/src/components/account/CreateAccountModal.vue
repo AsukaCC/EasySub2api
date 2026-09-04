@@ -818,6 +818,7 @@
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
           <AccountModelRuleSelector
             :platform="form.platform"
+            :model-value="selectedModelRuleId"
             :disabled="isOpenAIModelRestrictionDisabled"
             :has-existing-mappings="hasModelRestrictionValues"
             @apply="applyAccountModelRule"
@@ -833,8 +834,15 @@
           </div>
 
           <template v-else>
+            <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+              {{ t('admin.accounts.modelRules.boundReadOnlyHint') }}
+            </p>
+
             <!-- Mode Toggle -->
-            <div class="components-account-create-account-modal__panel-38">
+            <div
+              v-if="shouldShowLegacyModelRoutingEditor"
+              class="components-account-create-account-modal__panel-38"
+            >
               <button
                 type="button"
                 @click="modelRestrictionMode = 'whitelist'"
@@ -888,7 +896,9 @@
             </div>
 
             <!-- Whitelist Mode -->
-            <div v-if="modelRestrictionMode === 'whitelist'">
+            <div
+              v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+            >
               <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" :sync-credentials="syncPreviewCredentials" @upstream-synced="upstreamModelsPreviewed = true" />
               <p class="components-account-create-account-modal__text-3">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -899,7 +909,7 @@
             </div>
 
             <!-- Mapping Mode -->
-            <div v-else>
+            <div v-else-if="shouldShowLegacyModelRoutingEditor">
               <div class="components-account-create-account-modal__panel-31">
                 <p class="components-account-create-account-modal__description">
                   <svg
@@ -1308,12 +1318,20 @@
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
           <AccountModelRuleSelector
             platform="anthropic"
+            :model-value="selectedModelRuleId"
             :has-existing-mappings="hasModelRestrictionValues"
             @apply="applyAccountModelRule"
           />
 
+          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+            {{ t('admin.accounts.modelRules.boundReadOnlyHint') }}
+          </p>
+
           <!-- Mode Toggle -->
-          <div class="components-account-create-account-modal__panel-38">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-create-account-modal__panel-38"
+          >
             <button
               type="button"
               @click="modelRestrictionMode = 'whitelist'"
@@ -1341,7 +1359,9 @@
           </div>
 
           <!-- Whitelist Mode -->
-          <div v-if="modelRestrictionMode === 'whitelist'">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+          >
             <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" :sync-credentials="syncPreviewCredentials" @upstream-synced="upstreamModelsPreviewed = true" />
             <p class="components-account-create-account-modal__text-3">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -1350,7 +1370,10 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else class="components-account-create-account-modal__panel-41">
+          <div
+            v-else-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-create-account-modal__panel-41"
+          >
             <div v-for="(mapping, index) in modelMappings" :key="index" class="components-account-create-account-modal__panel-34">
               <input v-model="mapping.from" type="text" class="components-account-create-account-modal__field-4 input" :placeholder="t('admin.accounts.fromModel')" />
               <span class="components-account-create-account-modal__text-12">→</span>
@@ -1639,6 +1662,7 @@
         <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
         <AccountModelRuleSelector
           :platform="form.platform"
+          :model-value="selectedModelRuleId"
           :disabled="isOpenAIModelRestrictionDisabled"
           :has-existing-mappings="hasModelRestrictionValues"
           @apply="applyAccountModelRule"
@@ -1654,8 +1678,15 @@
         </div>
 
         <template v-else>
+          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+            {{ t('admin.accounts.modelRules.boundReadOnlyHint') }}
+          </p>
+
           <!-- Mode Toggle -->
-          <div class="components-account-create-account-modal__panel-38">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-create-account-modal__panel-38"
+          >
             <button
               type="button"
               @click="modelRestrictionMode = 'whitelist'"
@@ -1683,7 +1714,9 @@
           </div>
 
           <!-- Whitelist Mode -->
-          <div v-if="modelRestrictionMode === 'whitelist'">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+          >
             <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" :sync-credentials="syncPreviewCredentials" @upstream-synced="upstreamModelsPreviewed = true" />
             <p class="components-account-create-account-modal__text-3">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -1694,7 +1727,7 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else>
+          <div v-else-if="shouldShowLegacyModelRoutingEditor">
             <div class="components-account-create-account-modal__panel-31">
               <p class="components-account-create-account-modal__description">
                 {{ t('admin.accounts.mapRequestModels') }}
@@ -2807,33 +2840,14 @@
         <button @click="handleClose" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
         </button>
-        <button
+        <button :aria-busy="submitting"
           type="submit"
           form="create-account-form"
           :disabled="submitting"
           class="btn btn-primary"
           data-tour="account-form-submit"
         >
-          <svg
-            v-if="submitting"
-            class="components-account-create-account-modal__icon-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="components-account-create-account-modal__circle"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="components-account-create-account-modal__path"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
+<LoadingSpinner v-if="submitting" size="sm" color="inherit" decorative />
           {{
             isOAuthFlow
               ? t('common.next')
@@ -2847,38 +2861,16 @@
         <button type="button" class="btn btn-secondary" @click="goBackToBasicInfo">
           {{ t('common.back') }}
         </button>
-        <button
+        <button :aria-busy="currentOAuthLoading"
           v-if="isManualInputMethod"
           type="button"
           :disabled="!canExchangeCode"
           class="btn btn-primary"
           @click="handleExchangeCode"
         >
-          <svg
-            v-if="currentOAuthLoading"
-            class="components-account-create-account-modal__icon-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="components-account-create-account-modal__circle"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="components-account-create-account-modal__path"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          {{
-            currentOAuthLoading
-              ? t('admin.accounts.oauth.verifying')
-              : t('admin.accounts.oauth.completeAuth')
-          }}
+<LoadingButtonContent :loading="currentOAuthLoading" :loading-text="t('admin.accounts.oauth.verifying')">
+{{ t('admin.accounts.oauth.completeAuth') }}
+</LoadingButtonContent>
         </button>
       </div>
     </template>
@@ -2887,6 +2879,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -3232,6 +3226,8 @@ const modelMappings = ref<ModelMapping[]>([])
 const openAICompactModelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const selectedModelRuleId = ref<string | null>(null)
+const shouldShowLegacyModelRoutingEditor = computed(() => !selectedModelRuleId.value)
 const hasNonDefaultWhitelist = computed(() => {
   if (modelRestrictionMode.value !== 'whitelist' || allowedModels.value.length === 0) return false
   const defaults = getModelsByPlatform(form.platform)
@@ -3667,6 +3663,7 @@ watch(
     // Clear model-related settings
     allowedModels.value = []
     modelMappings.value = []
+    selectedModelRuleId.value = null
     if (newPlatform === 'grok') {
       accountCategory.value = 'oauth-based'
       addMethod.value = 'oauth'
@@ -3783,7 +3780,8 @@ const removeModelMapping = (index: number) => {
   modelMappings.value.splice(index, 1)
 }
 
-const applyAccountModelRule = (payload: { name: string; allowedModels: string[]; mappings: ModelMapping[] }) => {
+const applyAccountModelRule = (payload: { id: string | null; name: string; allowedModels: string[]; mappings: ModelMapping[] }) => {
+  selectedModelRuleId.value = payload.id
   modelRestrictionMode.value = payload.mappings.length > 0 ? 'mapping' : 'whitelist'
   allowedModels.value = payload.allowedModels.map(model => model.trim()).filter(Boolean)
   modelMappings.value = payload.mappings.map(mapping => ({ ...mapping }))
@@ -3963,6 +3961,7 @@ const splitTempUnschedKeywords = (value: string) => {
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
+    payload.model_rule_id = selectedModelRuleId.value
     if (payload.platform === 'openai') {
       applyCurrentModelReasoningEfforts(payload.credentials)
     }
@@ -4032,6 +4031,7 @@ const resetForm = () => {
   openAICompactModelMappings.value = []
   modelRestrictionMode.value = 'whitelist'
   allowedModels.value = [...claudeModels] // Default fill related models
+  selectedModelRuleId.value = null
 
   poolModeEnabled.value = false
   poolModeRetryCount.value = DEFAULT_POOL_MODE_RETRY_COUNT
@@ -4656,6 +4656,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           notes: form.notes,
           platform: 'grok',
           type: 'oauth',
+          model_rule_id: selectedModelRuleId.value,
           credentials,
           extra,
           proxy_id: form.proxy_id,
@@ -4829,6 +4830,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
           notes: form.notes,
           platform: 'grok',
           type: 'oauth',
+          model_rule_id: selectedModelRuleId.value,
           credentials,
           extra,
           proxy_id: form.proxy_id,
@@ -4929,6 +4931,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         notes: form.notes,
         platform: 'openai',
         type: 'oauth',
+        model_rule_id: selectedModelRuleId.value,
         credentials,
         extra,
         proxy_id: form.proxy_id,
@@ -5212,6 +5215,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
             notes: form.notes,
             platform: 'openai',
             type: 'oauth',
+            model_rule_id: selectedModelRuleId.value,
             credentials,
             extra,
             proxy_id: form.proxy_id,
@@ -5293,6 +5297,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           notes: form.notes,
           platform: 'antigravity',
           type: 'oauth',
+          model_rule_id: selectedModelRuleId.value,
           credentials,
           proxy_id: form.proxy_id,
           concurrency: form.concurrency,
@@ -5610,6 +5615,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           notes: form.notes,
           platform: form.platform,
           type: addMethod.value, // Use addMethod as type: 'oauth' or 'setup-token'
+          model_rule_id: selectedModelRuleId.value,
           credentials,
           extra,
           proxy_id: form.proxy_id,

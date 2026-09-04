@@ -4,9 +4,7 @@
       {{ t('payment.admin.dailyRevenue') }}
     </h3>
     <div class="components-admin-payment-daily-revenue-chart__panel-2">
-      <div v-if="loading" class="components-admin-payment-daily-revenue-chart__panel-3">
-        <LoadingSpinner size="md" />
-      </div>
+      <LoadingState v-if="loading" variant="section" size="md" class="components-admin-payment-daily-revenue-chart__panel-3" />
       <D3LineChart v-else-if="chartData" :data="chartData" :options="chartOptions" />
       <div
         v-else
@@ -19,9 +17,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import type { DailyPaymentStats } from '@/types/payment'
 

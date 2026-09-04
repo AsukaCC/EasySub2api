@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
+	"github.com/AsukaCC/EasySub2api/internal/domain"
 )
 
 // AccountModelRuleUpdate is the builder for updating AccountModelRule entities.
@@ -80,6 +81,38 @@ func (_u *AccountModelRuleUpdate) SetNillablePlatform(v *string) *AccountModelRu
 	if v != nil {
 		_u.SetPlatform(*v)
 	}
+	return _u
+}
+
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (_u *AccountModelRuleUpdate) SetSubscriptionTier(v string) *AccountModelRuleUpdate {
+	_u.mutation.SetSubscriptionTier(v)
+	return _u
+}
+
+// SetNillableSubscriptionTier sets the "subscription_tier" field if the given value is not nil.
+func (_u *AccountModelRuleUpdate) SetNillableSubscriptionTier(v *string) *AccountModelRuleUpdate {
+	if v != nil {
+		_u.SetSubscriptionTier(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (_u *AccountModelRuleUpdate) ClearSubscriptionTier() *AccountModelRuleUpdate {
+	_u.mutation.ClearSubscriptionTier()
+	return _u
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (_u *AccountModelRuleUpdate) SetModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpdate {
+	_u.mutation.SetModelRoutes(v)
+	return _u
+}
+
+// AppendModelRoutes appends value to the "model_routes" field.
+func (_u *AccountModelRuleUpdate) AppendModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpdate {
+	_u.mutation.AppendModelRoutes(v)
 	return _u
 }
 
@@ -160,6 +193,11 @@ func (_u *AccountModelRuleUpdate) check() error {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "AccountModelRule.platform": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionTier(); ok {
+		if err := accountmodelrule.SubscriptionTierValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_tier", err: fmt.Errorf(`ent: validator failed for field "AccountModelRule.subscription_tier": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -189,6 +227,20 @@ func (_u *AccountModelRuleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.Platform(); ok {
 		_spec.SetField(accountmodelrule.FieldPlatform, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SubscriptionTier(); ok {
+		_spec.SetField(accountmodelrule.FieldSubscriptionTier, field.TypeString, value)
+	}
+	if _u.mutation.SubscriptionTierCleared() {
+		_spec.ClearField(accountmodelrule.FieldSubscriptionTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.ModelRoutes(); ok {
+		_spec.SetField(accountmodelrule.FieldModelRoutes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedModelRoutes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, accountmodelrule.FieldModelRoutes, value)
+		})
 	}
 	if value, ok := _u.mutation.Mapping(); ok {
 		_spec.SetField(accountmodelrule.FieldMapping, field.TypeJSON, value)
@@ -275,6 +327,38 @@ func (_u *AccountModelRuleUpdateOne) SetNillablePlatform(v *string) *AccountMode
 	if v != nil {
 		_u.SetPlatform(*v)
 	}
+	return _u
+}
+
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (_u *AccountModelRuleUpdateOne) SetSubscriptionTier(v string) *AccountModelRuleUpdateOne {
+	_u.mutation.SetSubscriptionTier(v)
+	return _u
+}
+
+// SetNillableSubscriptionTier sets the "subscription_tier" field if the given value is not nil.
+func (_u *AccountModelRuleUpdateOne) SetNillableSubscriptionTier(v *string) *AccountModelRuleUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionTier(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (_u *AccountModelRuleUpdateOne) ClearSubscriptionTier() *AccountModelRuleUpdateOne {
+	_u.mutation.ClearSubscriptionTier()
+	return _u
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (_u *AccountModelRuleUpdateOne) SetModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpdateOne {
+	_u.mutation.SetModelRoutes(v)
+	return _u
+}
+
+// AppendModelRoutes appends value to the "model_routes" field.
+func (_u *AccountModelRuleUpdateOne) AppendModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpdateOne {
+	_u.mutation.AppendModelRoutes(v)
 	return _u
 }
 
@@ -368,6 +452,11 @@ func (_u *AccountModelRuleUpdateOne) check() error {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "AccountModelRule.platform": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionTier(); ok {
+		if err := accountmodelrule.SubscriptionTierValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_tier", err: fmt.Errorf(`ent: validator failed for field "AccountModelRule.subscription_tier": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -414,6 +503,20 @@ func (_u *AccountModelRuleUpdateOne) sqlSave(ctx context.Context) (_node *Accoun
 	}
 	if value, ok := _u.mutation.Platform(); ok {
 		_spec.SetField(accountmodelrule.FieldPlatform, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SubscriptionTier(); ok {
+		_spec.SetField(accountmodelrule.FieldSubscriptionTier, field.TypeString, value)
+	}
+	if _u.mutation.SubscriptionTierCleared() {
+		_spec.ClearField(accountmodelrule.FieldSubscriptionTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.ModelRoutes(); ok {
+		_spec.SetField(accountmodelrule.FieldModelRoutes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedModelRoutes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, accountmodelrule.FieldModelRoutes, value)
+		})
 	}
 	if value, ok := _u.mutation.Mapping(); ok {
 		_spec.SetField(accountmodelrule.FieldMapping, field.TypeJSON, value)

@@ -158,10 +158,16 @@
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
           <AccountModelRuleSelector
             :platform="account?.platform || 'anthropic'"
+            :subscription-tier="account?.subscription_tier"
+            :model-value="selectedModelRuleId"
+            :current-rule-name="account?.model_rule_name"
             :disabled="isOpenAIModelRestrictionDisabled"
             :has-existing-mappings="hasModelRestrictionValues"
             @apply="applyAccountModelRule"
           />
+          <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
+            {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
+          </p>
 
           <div
             v-if="isOpenAIModelRestrictionDisabled"
@@ -173,8 +179,21 @@
           </div>
 
           <template v-else>
+            <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+              {{
+                t(
+                  selectedModelRuleId
+                    ? 'admin.accounts.modelRules.boundReadOnlyHint'
+                    : 'admin.accounts.modelRules.unbindSaveHint'
+                )
+              }}
+            </p>
+
             <!-- Mode Toggle -->
-            <div class="components-account-edit-account-modal__panel-5">
+            <div
+              v-if="shouldShowLegacyModelRoutingEditor"
+              class="components-account-edit-account-modal__panel-5"
+            >
               <button
                 type="button"
                 @click="modelRestrictionMode = 'whitelist'"
@@ -228,7 +247,9 @@
             </div>
 
             <!-- Whitelist Mode -->
-            <div v-if="modelRestrictionMode === 'whitelist'">
+            <div
+              v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+            >
               <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
               <p class="components-account-edit-account-modal__description-2">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -239,7 +260,7 @@
             </div>
 
             <!-- Mapping Mode -->
-            <div v-else>
+            <div v-else-if="shouldShowLegacyModelRoutingEditor">
               <div class="components-account-edit-account-modal__panel-6">
                 <p class="components-account-edit-account-modal__description-3">
                   <svg
@@ -619,10 +640,16 @@
         <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
         <AccountModelRuleSelector
           :platform="account?.platform || 'anthropic'"
+          :subscription-tier="account?.subscription_tier"
+          :model-value="selectedModelRuleId"
+          :current-rule-name="account?.model_rule_name"
           :disabled="isOpenAIModelRestrictionDisabled"
           :has-existing-mappings="hasModelRestrictionValues"
           @apply="applyAccountModelRule"
         />
+        <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
+          {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
+        </p>
 
         <div
           v-if="isOpenAIModelRestrictionDisabled"
@@ -634,8 +661,21 @@
         </div>
 
         <template v-else>
+          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+            {{
+              t(
+                selectedModelRuleId
+                  ? 'admin.accounts.modelRules.boundReadOnlyHint'
+                  : 'admin.accounts.modelRules.unbindSaveHint'
+              )
+            }}
+          </p>
+
           <!-- Mode Toggle -->
-          <div class="components-account-edit-account-modal__panel-5">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-edit-account-modal__panel-5"
+          >
             <button
               type="button"
               @click="modelRestrictionMode = 'whitelist'"
@@ -663,7 +703,9 @@
           </div>
 
           <!-- Whitelist Mode -->
-          <div v-if="modelRestrictionMode === 'whitelist'">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+          >
             <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -674,7 +716,7 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else>
+          <div v-else-if="shouldShowLegacyModelRoutingEditor">
             <div class="components-account-edit-account-modal__panel-6">
               <p class="components-account-edit-account-modal__description-3">
                 {{ t('admin.accounts.mapRequestModels') }}
@@ -808,12 +850,31 @@
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
           <AccountModelRuleSelector
             :platform="account?.platform || 'anthropic'"
+            :subscription-tier="account?.subscription_tier"
+            :model-value="selectedModelRuleId"
+            :current-rule-name="account?.model_rule_name"
             :has-existing-mappings="hasModelRestrictionValues"
             @apply="applyAccountModelRule"
           />
+          <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
+            {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
+          </p>
+
+          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+            {{
+              t(
+                selectedModelRuleId
+                  ? 'admin.accounts.modelRules.boundReadOnlyHint'
+                  : 'admin.accounts.modelRules.unbindSaveHint'
+              )
+            }}
+          </p>
 
           <!-- Mode Toggle -->
-          <div class="components-account-edit-account-modal__panel-5">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-edit-account-modal__panel-5"
+          >
             <button
               type="button"
               @click="modelRestrictionMode = 'whitelist'"
@@ -867,7 +928,9 @@
           </div>
 
           <!-- Whitelist Mode -->
-          <div v-if="modelRestrictionMode === 'whitelist'">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+          >
             <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -878,7 +941,7 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else>
+          <div v-else-if="shouldShowLegacyModelRoutingEditor">
             <div class="components-account-edit-account-modal__panel-6">
               <p class="components-account-edit-account-modal__description-3">
                 <svg
@@ -1061,12 +1124,31 @@
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
           <AccountModelRuleSelector
             platform="anthropic"
+            :subscription-tier="account?.subscription_tier"
+            :model-value="selectedModelRuleId"
+            :current-rule-name="account?.model_rule_name"
             :has-existing-mappings="hasModelRestrictionValues"
             @apply="applyAccountModelRule"
           />
+          <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
+            {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
+          </p>
+
+          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
+            {{
+              t(
+                selectedModelRuleId
+                  ? 'admin.accounts.modelRules.boundReadOnlyHint'
+                  : 'admin.accounts.modelRules.unbindSaveHint'
+              )
+            }}
+          </p>
 
           <!-- Mode Toggle -->
-          <div class="components-account-edit-account-modal__panel-5">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-edit-account-modal__panel-5"
+          >
             <button
               type="button"
               @click="modelRestrictionMode = 'whitelist'"
@@ -1094,7 +1176,9 @@
           </div>
 
           <!-- Whitelist Mode -->
-          <div v-if="modelRestrictionMode === 'whitelist'">
+          <div
+            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+          >
             <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
@@ -1103,7 +1187,10 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else class="components-account-edit-account-modal__panel-13">
+          <div
+            v-else-if="shouldShowLegacyModelRoutingEditor"
+            class="components-account-edit-account-modal__panel-13"
+          >
             <div v-for="(mapping, index) in modelMappings" :key="getModelMappingKey(mapping)" class="components-account-edit-account-modal__panel-8">
               <input v-model="mapping.from" type="text" class="components-account-edit-account-modal__field-2 input" :placeholder="t('admin.accounts.fromModel')" />
               <span class="components-account-edit-account-modal__text-4">→</span>
@@ -2573,34 +2660,16 @@
         <button @click="handleClose" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
         </button>
-        <button
+        <button :aria-busy="submitting"
           type="submit"
           form="edit-account-form"
           :disabled="submitting"
           class="btn btn-primary"
           data-tour="account-form-submit"
         >
-          <svg
-            v-if="submitting"
-            class="components-account-edit-account-modal__icon-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="components-account-edit-account-modal__circle"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="components-account-edit-account-modal__path"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          {{ submitting ? t('admin.accounts.updating') : t('common.update') }}
+<LoadingButtonContent :loading="submitting" :loading-text="t('admin.accounts.updating')">
+{{ t('common.update') }}
+</LoadingButtonContent>
         </button>
       </div>
     </template>
@@ -2609,6 +2678,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -2828,6 +2899,11 @@ const modelMappings = ref<ModelMapping[]>([])
 const openAICompactModelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const selectedModelRuleId = ref<string | null>(null)
+const modelRuleBindingChanged = ref(false)
+const shouldShowLegacyModelRoutingEditor = computed(
+  () => !selectedModelRuleId.value && !modelRuleBindingChanged.value
+)
 const hasModelRestrictionValues = computed(() =>
   modelMappings.value.some(mapping => mapping.from.trim() !== '' || mapping.to.trim() !== '') ||
   allowedModels.value.length > 0
@@ -3391,6 +3467,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     : 'active'
   form.group_ids = newAccount.group_ids || []
   form.expires_at = newAccount.expires_at ?? null
+  selectedModelRuleId.value = newAccount.model_rule_id || null
+  modelRuleBindingChanged.value = false
 
   // Load intercept warmup requests setting (applies to all account types)
   const credentials = newAccount.credentials as Record<string, unknown> | undefined
@@ -3729,7 +3807,9 @@ const removeModelMapping = (index: number) => {
   modelMappings.value.splice(index, 1)
 }
 
-const applyAccountModelRule = (payload: { name: string; allowedModels: string[]; mappings: ModelMapping[] }) => {
+const applyAccountModelRule = (payload: { id: string | null; name: string; allowedModels: string[]; mappings: ModelMapping[] }) => {
+  selectedModelRuleId.value = payload.id
+  modelRuleBindingChanged.value = true
   modelRestrictionMode.value = payload.mappings.length > 0 ? 'mapping' : 'whitelist'
   allowedModels.value = payload.allowedModels.map(model => model.trim()).filter(Boolean)
   modelMappings.value = payload.mappings.map(mapping => ({ ...mapping }))
@@ -4116,6 +4196,9 @@ const handleSubmit = async () => {
 
   const updatePayload: Record<string, unknown> = { ...form }
   try {
+    if (modelRuleBindingChanged.value) {
+      updatePayload.model_rule_id = selectedModelRuleId.value
+    }
     // UUID 外键以 null 表示清除代理。
     if (form.expires_at === null) {
       updatePayload.expires_at = 0

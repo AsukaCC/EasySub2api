@@ -290,6 +290,27 @@
               </div>
             </div>
           </template>
+          <template #cell-model_rule="{ row }">
+            <div class="model-route-cell">
+              <span class="model-route-cell__tier">
+                {{ row.subscription_tier || t('admin.accounts.modelRules.unrecognizedTier') }}
+              </span>
+              <span v-if="row.model_rule_name" class="model-route-cell__rule">
+                {{ row.model_rule_name }}
+              </span>
+              <span v-else class="model-route-cell__empty">
+                {{ t('admin.accounts.modelRules.unbound') }}
+              </span>
+              <span
+                v-if="row.model_rule_tier_mismatch"
+                class="model-route-cell__warning"
+                :title="t('admin.accounts.modelRules.tierMismatchWarning')"
+              >
+                <Icon name="exclamationTriangle" size="xs" />
+                {{ t('admin.accounts.modelRules.tierMismatchShort') }}
+              </span>
+            </div>
+          </template>
           <template #cell-capacity="{ row }">
             <AccountCapacityCell :account="row" />
           </template>
@@ -462,6 +483,7 @@
       :account-ids="selIds"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
+      :selected-tiers="selTiers"
       :target="bulkEditTarget ?? undefined"
       :proxies="proxies"
       :groups="groups"
@@ -547,6 +569,7 @@ type AccountBulkEditTarget =
       accountIds: string[]
       selectedPlatforms: AccountPlatform[]
       selectedTypes: AccountType[]
+      selectedTiers: string[]
     }
   | {
       mode: 'filtered'
@@ -558,12 +581,14 @@ type AccountBulkEditTarget =
         search?: string
         privacy_mode?: string
         expiry_status?: string
+        subscription_tier?: string
         sort_by?: string
         sort_order?: AccountSortOrder
       }
       previewCount: number
       selectedPlatforms: AccountPlatform[]
       selectedTypes: AccountType[]
+      selectedTiers: string[]
     }
 const selPlatforms = computed<AccountPlatform[]>(() => {
   const platforms = new Set(
@@ -580,6 +605,14 @@ const selTypes = computed<AccountType[]>(() => {
       .map(a => a.type)
   )
   return [...types]
+})
+const selTiers = computed<string[]>(() => {
+  const tiers = new Set(
+    accounts.value
+      .filter(a => isSelected(a.id))
+      .map(a => a.subscription_tier || '')
+  )
+  return [...tiers]
 })
 const showCreate = ref(false)
 const showEdit = ref(false)
@@ -1075,6 +1108,7 @@ const {
     status: '',
     privacy_mode: '',
     expiry_status: '',
+    subscription_tier: '',
     group: '',
     search: '',
     include_scheduler_score: shouldIncludeSchedulerScore() ? '1' : '0',
@@ -1357,6 +1391,7 @@ const refreshAccountsIncrementally = async () => {
         status?: string
         privacy_mode?: string
         expiry_status?: string
+        subscription_tier?: string
         group?: string
         search?: string
         sort_by?: string
@@ -1661,6 +1696,7 @@ const allColumns = computed(() => {
     { key: 'id', label: t('admin.accounts.columns.id'), sortable: true },
     { key: 'platform', label: t('admin.accounts.columns.platform'), sortable: false },
     { key: 'type', label: t('admin.accounts.columns.type'), sortable: false },
+    { key: 'model_rule', label: t('admin.accounts.columns.modelRouting'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
@@ -1952,6 +1988,7 @@ const buildBulkEditFilterSnapshot = () => {
     search: typeof rawParams.search === 'string' ? rawParams.search : '',
     privacy_mode: typeof rawParams.privacy_mode === 'string' ? rawParams.privacy_mode : '',
     expiry_status: typeof rawParams.expiry_status === 'string' ? rawParams.expiry_status : '',
+    subscription_tier: typeof rawParams.subscription_tier === 'string' ? rawParams.subscription_tier : '',
     sort_by: typeof rawParams.sort_by === 'string' ? rawParams.sort_by : '',
     sort_order: sortOrder
   }
@@ -1986,7 +2023,8 @@ const handleSelectAllResults = async () => {
 const collectSelectionMetadata = (rows: Account[]) => {
   const selectedPlatforms = Array.from(new Set(rows.map(account => account.platform)))
   const selectedTypes = Array.from(new Set(rows.map(account => account.type)))
-  return { selectedPlatforms, selectedTypes }
+  const selectedTiers = Array.from(new Set(rows.map(account => account.subscription_tier || '')))
+  return { selectedPlatforms, selectedTypes, selectedTiers }
 }
 
 const openBulkEditSelected = () => {
@@ -1994,7 +2032,8 @@ const openBulkEditSelected = () => {
     mode: 'selected',
     accountIds: [...selIds.value],
     selectedPlatforms: [...selPlatforms.value],
-    selectedTypes: [...selTypes.value]
+    selectedTypes: [...selTypes.value],
+    selectedTiers: [...selTiers.value]
   }
   showBulkEdit.value = true
 }
@@ -2002,13 +2041,14 @@ const openBulkEditSelected = () => {
 const openBulkEditFiltered = async () => {
   const filters = buildBulkEditFilterSnapshot()
   const preview = await adminAPI.accounts.list(1, 100, filters)
-  const { selectedPlatforms, selectedTypes } = collectSelectionMetadata(preview.items)
+  const { selectedPlatforms, selectedTypes, selectedTiers } = collectSelectionMetadata(preview.items)
   bulkEditTarget.value = {
     mode: 'filtered',
     filters,
     previewCount: preview.total,
     selectedPlatforms,
-    selectedTypes
+    selectedTypes,
+    selectedTiers
   }
   showBulkEdit.value = true
 }
@@ -2022,6 +2062,7 @@ const handleBulkUpdated = () => {
 const handleDataImported = () => { showImportData.value = false; reload() }
 const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = 'ungrouped'
 const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = '__unset__'
+const ACCOUNT_SUBSCRIPTION_TIER_UNRECOGNIZED_QUERY_VALUE = '__unrecognized__'
 const buildAccountQueryFilters = () => ({
   platform: params.platform || '',
   type: params.type || '',
@@ -2029,6 +2070,7 @@ const buildAccountQueryFilters = () => ({
   group: params.group || '',
   privacy_mode: params.privacy_mode || '',
   expiry_status: params.expiry_status || '',
+  subscription_tier: params.subscription_tier || '',
   search: params.search || '',
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
@@ -2074,6 +2116,14 @@ const accountMatchesCurrentFilters = (account: Account) => {
   }
   if (filters.expiry_status && getAccountExpiryState(account.expires_at) !== filters.expiry_status) {
     return false
+  }
+  if (filters.subscription_tier) {
+    const tier = account.subscription_tier || ''
+    if (filters.subscription_tier === ACCOUNT_SUBSCRIPTION_TIER_UNRECOGNIZED_QUERY_VALUE) {
+      if (tier) return false
+    } else if (tier !== filters.subscription_tier) {
+      return false
+    }
   }
   const search = String(filters.search || '').trim().toLowerCase()
   if (search && !account.name.toLowerCase().includes(search)) return false
@@ -2625,6 +2675,36 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 0.3rem;
   min-width: 8.5rem;
+}
+
+.model-route-cell {
+  display: flex;
+  min-width: 10rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  font-size: var(--font-size-xs);
+}
+
+.model-route-cell__tier {
+  color: var(--color-text-secondary);
+}
+
+.model-route-cell__rule {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.model-route-cell__empty {
+  color: var(--color-text-tertiary);
+}
+
+.model-route-cell__warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-warning);
+  font-weight: 600;
 }
 
 .account-expiry,

@@ -19,6 +19,20 @@ const AccountListGroupUngrouped = "__ungrouped__"
 const AccountPrivacyModeUnsetFilter = "__unset__"
 const AccountExpiryStatusExpiring = "expiring"
 const AccountExpiryStatusExpired = "expired"
+const AccountSubscriptionTierUnrecognizedFilter = "__unrecognized__"
+
+type AccountSubscriptionTierSummary struct {
+	Value        string `json:"value"`
+	Label        string `json:"label"`
+	Platform     string `json:"platform,omitempty"`
+	AccountCount int64  `json:"account_count"`
+}
+
+type AccountSubscriptionTierRepository interface {
+	ListWithSubscriptionTierFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID, privacyMode, expiryStatus, subscriptionTier string) ([]Account, *pagination.PaginationResult, error)
+	ListAllWithSubscriptionTierFilters(ctx context.Context, platform, accountType, status, search string, groupID, privacyMode, expiryStatus, subscriptionTier string) ([]Account, error)
+	ListSubscriptionTiers(ctx context.Context, platform string) ([]AccountSubscriptionTierSummary, error)
+}
 
 // OAuthRefreshPageOptions describes one bounded, cursor-stable scan of OAuth
 // accounts. Candidate platforms are supplied by TokenRefreshService's refresher
@@ -156,17 +170,19 @@ type AdminAccountRepository interface {
 // AccountBulkUpdate describes the fields that can be updated in a bulk operation.
 // Nil pointers mean "do not change".
 type AccountBulkUpdate struct {
-	Name           *string
-	ProxyID        *string
-	Concurrency    *int
-	Priority       *int
-	RateMultiplier *float64
-	LoadFactor     *int
-	Status         *string
-	Schedulable    *bool
-	Credentials    map[string]any
-	Extra          map[string]any
-	ProbeEnabled   *bool
+	Name                         *string
+	ProxyID                      *string
+	Concurrency                  *int
+	Priority                     *int
+	RateMultiplier               *float64
+	LoadFactor                   *int
+	Status                       *string
+	Schedulable                  *bool
+	Credentials                  map[string]any
+	Extra                        map[string]any
+	ProbeEnabled                 *bool
+	ModelRuleID                  **string
+	ClearModelRoutingCredentials bool
 	// EnsureCodexFingerprintSeed asks the repository to atomically preserve an
 	// existing valid Codex fingerprint seed or create one for eligible rows.
 	EnsureCodexFingerprintSeed bool

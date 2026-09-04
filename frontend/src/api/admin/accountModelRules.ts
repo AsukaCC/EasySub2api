@@ -1,14 +1,20 @@
 import { apiClient } from '../client'
 import type { AccountPlatform } from '@/types'
 
+export interface AccountModelRoute {
+  request_model: string
+  upstream_model: string
+  reasoning_effort?: string
+}
+
 export interface AccountModelRule {
   id: string
   name: string
   description: string | null
   platform: AccountPlatform
-  whitelist: string[]
-  mapping: Record<string, string>
-  reasoning_efforts: Record<string, string>
+  subscription_tier: string | null
+  model_routes: AccountModelRoute[]
+  bound_account_count?: number
   created_at: string
   updated_at: string
 }
@@ -17,16 +23,18 @@ export interface CreateAccountModelRuleRequest {
   name: string
   description?: string | null
   platform: AccountPlatform
-  whitelist: string[]
-  mapping: Record<string, string>
-  reasoning_efforts: Record<string, string>
+  subscription_tier?: string | null
+  model_routes: AccountModelRoute[]
 }
 
 export type UpdateAccountModelRuleRequest = Partial<CreateAccountModelRuleRequest>
 
-export async function list(platform?: AccountPlatform | ''): Promise<AccountModelRule[]> {
+export async function list(platform?: AccountPlatform | '', subscriptionTier?: string): Promise<AccountModelRule[]> {
+  const params: Record<string, string> = {}
+  if (platform) params.platform = platform
+  if (subscriptionTier) params.subscription_tier = subscriptionTier
   const { data } = await apiClient.get<AccountModelRule[]>('/admin/account-model-rules', {
-    params: platform ? { platform } : undefined
+    params: Object.keys(params).length ? params : undefined
   })
   return data
 }
@@ -51,12 +59,4 @@ export async function deleteRule(id: string): Promise<{ message: string }> {
   return data
 }
 
-const accountModelRulesAPI = {
-  list,
-  getById,
-  create,
-  update,
-  delete: deleteRule
-}
-
-export default accountModelRulesAPI
+export default { list, getById, create, update, delete: deleteRule }

@@ -1198,6 +1198,11 @@ export interface Account {
   notes?: string | null
   platform: AccountPlatform
   type: AccountType
+  subscription_tier?: string
+  model_rule_id?: string | null
+  model_rule_name?: string
+  model_rule_subscription_tier?: string | null
+  model_rule_tier_mismatch?: boolean
   // 后端响应里 credentials 已脱敏：access_token / refresh_token / id_token /
   // api_key / session_key / cookie / aws_secret_access_key / aws_session_token /
   // service_account_json / service_account / private_key 不会出现，
@@ -1506,6 +1511,7 @@ export interface CreateAccountRequest {
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
   confirm_mixed_channel_risk?: boolean
+  model_rule_id?: string | null
 }
 
 export interface UpdateAccountRequest {
@@ -1526,6 +1532,7 @@ export interface UpdateAccountRequest {
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
   upstream_billing_rate_sync_enabled?: boolean
+  model_rule_id?: string | null
 }
 
 export interface CreateProxyRequest {

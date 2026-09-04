@@ -3,16 +3,17 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountModelRulesManager from '../AccountModelRulesManager.vue'
 
-const { listRules, updateRule } = vi.hoisted(() => ({
+const { listRules, updateRule, listSubscriptionTiers, listAccounts, syncUpstreamModels } = vi.hoisted(() => ({
   listRules: vi.fn(),
-  updateRule: vi.fn()
+  updateRule: vi.fn(),
+  listSubscriptionTiers: vi.fn(),
+  listAccounts: vi.fn(),
+  syncUpstreamModels: vi.fn()
 }))
 
 vi.mock('vue-i18n', async importOriginal => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
-  useI18n: () => ({
-    t: (key: string) => key
-  })
+  useI18n: () => ({ t: (key: string) => key })
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -23,8 +24,10 @@ vi.mock('@/api/admin', () => ({
       update: updateRule,
       delete: vi.fn()
     },
-    channels: {
-      syncPricingModels: vi.fn()
+    accounts: {
+      listSubscriptionTiers,
+      list: listAccounts,
+      syncUpstreamModels
     }
   }
 }))
@@ -61,7 +64,8 @@ function mountManager() {
         Select: SelectStub,
         Icon: true,
         PlatformIcon: true,
-        ModelWhitelistSelector: true
+        LoadingState: true,
+        LoadingButtonContent: { template: '<span><slot /></span>' }
       }
     }
   })
@@ -72,73 +76,77 @@ describe('AccountModelRulesManager', () => {
     setActivePinia(createPinia())
     listRules.mockReset()
     updateRule.mockReset()
+    listSubscriptionTiers.mockReset()
+    listAccounts.mockReset()
+    syncUpstreamModels.mockReset()
     updateRule.mockResolvedValue(undefined)
-    listRules.mockResolvedValue([
-      {
-        id: 'rule-1',
-        name: 'OpenAI mapping',
-        description: 'Mapping description',
-        platform: 'openai',
-        whitelist: [],
-        mapping: { 'gpt-4o': 'gpt-4.1' },
-        reasoning_efforts: { 'gpt-4o': 'high' },
-        created_at: '2026-09-01T00:00:00Z',
-        updated_at: '2026-09-01T00:00:00Z'
-      }
-    ])
+    listSubscriptionTiers.mockResolvedValue([{ value: 'pro', label: 'Pro', account_count: 1 }])
+    listAccounts.mockResolvedValue({
+      items: [{ id: 'account-1', name: 'Upstream account', platform: 'openai', type: 'oauth', subscription_tier: 'pro' }],
+      total: 1
+    })
+    syncUpstreamModels.mockResolvedValue({ models: ['gpt-5.6', 'gpt-5.6-sol'] })
+    listRules.mockResolvedValue([{
+      id: 'rule-1',
+      name: 'OpenAI routing',
+      description: 'Routing description',
+      platform: 'openai',
+      subscription_tier: 'pro',
+      model_routes: [{ request_model: 'gpt-5.6', upstream_model: 'gpt-5.6-sol', reasoning_effort: 'high' }],
+      bound_account_count: 0,
+      created_at: '2026-09-01T00:00:00Z',
+      updated_at: '2026-09-01T00:00:00Z'
+    }])
   })
 
-  it('keeps the existing mapping when editing a non-default platform rule', async () => {
+  it('does not render a duplicate page title', async () => {
+    const wrapper = mountManager()
+    await flushPromises()
+
+    expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.text()).toContain('admin.accounts.modelRules.description')
+  })
+
+  it('round-trips unified model routes and reasoning effort', async () => {
     const wrapper = mountManager()
     await flushPromises()
 
     await wrapper.get('button[title="common.edit"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="dialog"] select').element.value).toBe('openai')
-    expect(wrapper.get('button[role="tab"][aria-selected="true"]').text()).toContain(
-      'admin.accounts.modelRules.mapping'
-    )
-    expect(
-      (wrapper.get('input[placeholder="admin.accounts.modelRules.fromModel"]').element as HTMLInputElement).value
-    ).toBe('gpt-4o')
-    expect(
-      (wrapper.get('input[placeholder="admin.accounts.modelRules.toModel"]').element as HTMLInputElement).value
-    ).toBe('gpt-4.1')
-    expect(wrapper.get('select[aria-label="admin.accounts.modelRules.reasoningEffort"]').element.value).toBe('high')
-  })
+    expect((wrapper.get('input[placeholder="admin.accounts.modelRules.fromModel"]').element as HTMLInputElement).value).toBe('gpt-5.6')
+    expect((wrapper.get('input[placeholder="admin.accounts.modelRules.toModel"]').element as HTMLInputElement).value).toBe('gpt-5.6-sol')
+    expect(wrapper.get('[data-testid="rule-reasoning-effort"]').element.value).toBe('high')
 
-  it('saves the selected reasoning effort for OpenAI mappings', async () => {
-    const wrapper = mountManager()
-    await flushPromises()
-
-    await wrapper.get('button[title="common.edit"]').trigger('click')
-    await wrapper.get('select[aria-label="admin.accounts.modelRules.reasoningEffort"]').setValue('xhigh')
+    await wrapper.get('[data-testid="rule-reasoning-effort"]').setValue('xhigh')
     const primaryButtons = wrapper.findAll('[data-testid="dialog"] button.btn-primary')
     await primaryButtons[primaryButtons.length - 1].trigger('click')
     await flushPromises()
 
-    expect(updateRule).toHaveBeenCalledWith(
-      'rule-1',
-      expect.objectContaining({ reasoning_efforts: { 'gpt-4o': 'xhigh' } })
-    )
+    expect(updateRule).toHaveBeenCalledWith('rule-1', expect.objectContaining({
+      platform: 'openai',
+      subscription_tier: 'pro',
+      model_routes: [{ request_model: 'gpt-5.6', upstream_model: 'gpt-5.6-sol', reasoning_effort: 'xhigh' }]
+    }))
   })
 
-  it('still clears restrictions when the administrator changes platform', async () => {
+  it('imports models from the selected real upstream account as identity routes', async () => {
     const wrapper = mountManager()
     await flushPromises()
 
     await wrapper.get('button[title="common.edit"]').trigger('click')
-    await wrapper.get('[data-testid="dialog"] select').setValue('gemini')
-    await wrapper
-      .get('button[role="tab"][aria-selected="false"]')
-      .trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="rule-source-account"]').setValue('account-1')
+    await wrapper.get('button.btn-secondary').trigger('click')
+    await flushPromises()
 
-    expect(
-      (wrapper.get('input[placeholder="admin.accounts.modelRules.fromModel"]').element as HTMLInputElement).value
-    ).toBe('')
-    expect(
-      (wrapper.get('input[placeholder="admin.accounts.modelRules.toModel"]').element as HTMLInputElement).value
-    ).toBe('')
+    expect(syncUpstreamModels).toHaveBeenCalledWith('account-1')
+    const importButton = wrapper.findAll('button.btn-secondary')[1]
+    await importButton.trigger('click')
+
+    const requestModels = wrapper.findAll('input[placeholder="admin.accounts.modelRules.fromModel"]')
+      .map(input => (input.element as HTMLInputElement).value)
+    expect(requestModels).toContain('gpt-5.6')
+    expect(requestModels).toContain('gpt-5.6-sol')
   })
 })

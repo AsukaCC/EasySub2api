@@ -30,9 +30,7 @@
         </button>
       </div>
     </div>
-    <div v-if="loading" class="components-charts-group-distribution-chart__panel-4">
-      <LoadingSpinner />
-    </div>
+    <LoadingState v-if="loading" variant="section" class="components-charts-group-distribution-chart__panel-4" />
     <div v-else-if="displayGroupStats.length > 0 && chartData" class="components-charts-group-distribution-chart__panel-5">
       <div class="components-charts-group-distribution-chart__panel-6">
         <D3DonutChart :data="chartData" :options="doughnutOptions" />
@@ -108,9 +106,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import D3DonutChart from '@/components/charts/d3/D3DonutChart.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
 import type { GroupStat, UserBreakdownItem } from '@/types'

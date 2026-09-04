@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
-	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/ctxkey"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/usagestats"
@@ -2313,14 +2312,6 @@ func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedMo
 	if account.Platform == PlatformOpenAI && account.IsOpenAIPassthroughEnabled() {
 		return true
 	}
-	// OAuth/SetupToken 账号使用 Anthropic 标准映射（短ID → 长ID）
-	if account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey {
-		if account.Type == AccountTypeServiceAccount {
-			requestedModel = normalizeVertexAnthropicModelID(claude.NormalizeModelID(requestedModel))
-		} else {
-			requestedModel = claude.NormalizeModelID(requestedModel)
-		}
-	}
-	// 其他平台使用账户的模型支持检查
+	// Model identifiers are restricted only by explicit account routing.
 	return account.IsModelSupported(requestedModel)
 }

@@ -864,7 +864,7 @@ function handleToolbarRefresh() {
     <!-- Top Toolbar -->
     <div class="views-admin-ops-components-ops-dashboard-header__panel">
       <div>
-        <h1 class="views-admin-ops-components-ops-dashboard-header__heading">
+        <h1 v-if="props.fullscreen" class="views-admin-ops-components-ops-dashboard-header__heading">
           <svg class="views-admin-ops-components-ops-dashboard-header__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               stroke-linecap="round"

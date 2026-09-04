@@ -146,10 +146,18 @@ func ResolveBedrockModelID(account *Account, requestedModel string) (string, boo
 		return "", false
 	}
 
-	mappedModel := account.GetMappedModel(requestedModel)
-	modelID, shouldAdjustRegion, ok := normalizeBedrockModelID(mappedModel)
-	if !ok {
+	mappedModel, matched := account.ResolveMappedModel(requestedModel)
+	modelID := strings.TrimSpace(mappedModel)
+	if modelID == "" {
 		return "", false
+	}
+	shouldAdjustRegion := isRegionalBedrockModelID(modelID)
+	if matched && account.ModelRuleID == nil {
+		legacyModelID, legacyAdjustRegion, ok := normalizeBedrockModelID(modelID)
+		if ok {
+			modelID = legacyModelID
+			shouldAdjustRegion = legacyAdjustRegion
+		}
 	}
 	if shouldAdjustRegion {
 		targetRegion := bedrockRuntimeRegion(account)

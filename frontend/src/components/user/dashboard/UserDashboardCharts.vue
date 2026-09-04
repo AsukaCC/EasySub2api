@@ -23,9 +23,7 @@
     <div class="components-user-dashboard-user-dashboard-charts__panel-7">
       <!-- Model Distribution Chart -->
       <div class="components-user-dashboard-user-dashboard-charts__panel-8 card">
-        <div v-if="loading" class="components-user-dashboard-user-dashboard-charts__panel-9">
-          <LoadingSpinner size="md" />
-        </div>
+        <LoadingState v-if="loading" variant="section" size="md" class="components-user-dashboard-user-dashboard-charts__panel-9" />
         <h3 class="components-user-dashboard-user-dashboard-charts__heading">{{ t('dashboard.modelDistribution') }}</h3>
         <div class="components-user-dashboard-user-dashboard-charts__panel-10">
           <div class="components-user-dashboard-user-dashboard-charts__panel-11">
@@ -64,9 +62,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Select from '@/components/common/Select.vue'
 import D3DonutChart from '@/components/charts/d3/D3DonutChart.vue'

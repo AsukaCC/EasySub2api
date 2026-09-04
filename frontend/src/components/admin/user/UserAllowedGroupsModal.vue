@@ -13,12 +13,7 @@
       </div>
 
       <!-- 加载状态 -->
-      <div v-if="loading" class="components-admin-user-user-allowed-groups-modal__panel-5">
-        <svg class="components-admin-user-user-allowed-groups-modal__icon" fill="none" viewBox="0 0 24 24">
-          <circle class="components-admin-user-user-allowed-groups-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="components-admin-user-user-allowed-groups-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </div>
+      <LoadingState v-if="loading" variant="section" size="sm" class="components-admin-user-user-allowed-groups-modal__panel-5" />
 
       <div v-else class="components-admin-user-user-allowed-groups-modal__panel">
         <!-- 专属分组区域 -->
@@ -166,12 +161,10 @@
     <template #footer>
       <div class="components-admin-user-user-allowed-groups-modal__panel-22">
         <button @click="$emit('close')" class="components-admin-user-user-allowed-groups-modal__action btn btn-secondary">{{ t('common.cancel') }}</button>
-        <button @click="handleSave" :disabled="submitting" class="components-admin-user-user-allowed-groups-modal__action-2 btn btn-primary">
-          <svg v-if="submitting" class="components-admin-user-user-allowed-groups-modal__icon-4" fill="none" viewBox="0 0 24 24">
-            <circle class="components-admin-user-user-allowed-groups-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="components-admin-user-user-allowed-groups-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          {{ submitting ? t('common.saving') : t('common.save') }}
+        <button :aria-busy="submitting" @click="handleSave" :disabled="submitting" class="components-admin-user-user-allowed-groups-modal__action-2 btn btn-primary">
+<LoadingButtonContent :loading="submitting" :loading-text="t('common.saving')">
+{{ t('common.save') }}
+</LoadingButtonContent>
         </button>
       </div>
     </template>
@@ -179,6 +172,9 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

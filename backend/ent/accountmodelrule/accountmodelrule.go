@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/AsukaCC/EasySub2api/internal/domain"
 )
 
 const (
@@ -23,6 +24,10 @@ const (
 	FieldDescription = "description"
 	// FieldPlatform holds the string denoting the platform field in the database.
 	FieldPlatform = "platform"
+	// FieldSubscriptionTier holds the string denoting the subscription_tier field in the database.
+	FieldSubscriptionTier = "subscription_tier"
+	// FieldModelRoutes holds the string denoting the model_routes field in the database.
+	FieldModelRoutes = "model_routes"
 	// FieldMapping holds the string denoting the mapping field in the database.
 	FieldMapping = "mapping"
 	// FieldReasoningEfforts holds the string denoting the reasoning_efforts field in the database.
@@ -41,6 +46,8 @@ var Columns = []string{
 	FieldName,
 	FieldDescription,
 	FieldPlatform,
+	FieldSubscriptionTier,
+	FieldModelRoutes,
 	FieldMapping,
 	FieldReasoningEfforts,
 	FieldWhitelist,
@@ -67,6 +74,10 @@ var (
 	NameValidator func(string) error
 	// PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
 	PlatformValidator func(string) error
+	// SubscriptionTierValidator is a validator for the "subscription_tier" field. It is called by the builders before save.
+	SubscriptionTierValidator func(string) error
+	// DefaultModelRoutes holds the default value on creation for the "model_routes" field.
+	DefaultModelRoutes []domain.AccountModelRoute
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 )
@@ -102,4 +113,9 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByPlatform orders the results by the platform field.
 func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlatform, opts...).ToFunc()
+}
+
+// BySubscriptionTier orders the results by the subscription_tier field.
+func BySubscriptionTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionTier, opts...).ToFunc()
 }

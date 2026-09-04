@@ -32,21 +32,15 @@
                 class="redeem-form__input input"
               />
             </div>
-            <button
+            <button :aria-busy="submitting"
               type="submit"
               :disabled="!redeemCode || submitting"
               class="redeem-form__submit btn btn-primary"
             >
-              <svg v-if="submitting" class="redeem-form__spinner" fill="none" viewBox="0 0 24 24">
-                <circle class="redeem-form__spinner-track" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path
-                  class="redeem-form__spinner-head"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="checkCircle" size="md" />
-              {{ submitting ? t('redeem.redeeming') : t('redeem.redeemButton') }}
+              <LoadingButtonContent :loading="submitting" :loading-text="t('redeem.redeeming')">
+              <Icon  name="checkCircle" size="md" />
+                            {{ t('redeem.redeemButton') }}
+              </LoadingButtonContent>
             </button>
           </div>
           <p class="input-hint">{{ t('redeem.redeemCodeHint') }}</p>
@@ -67,9 +61,7 @@
 
         <div class="redeem-card__body">
           <!-- Loading State -->
-          <div v-if="loadingHistory" class="redeem-history__state">
-            <LoadingSpinner size="md" />
-          </div>
+          <LoadingState v-if="loadingHistory" variant="section" size="md" class="redeem-history__state" />
 
           <!-- History List -->
           <div v-else-if="history.length > 0" class="redeem-history">
@@ -106,6 +98,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -113,7 +107,7 @@ import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { redeemAPI, type RedeemHistoryItem } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime, formatPoints } from '@/utils/format'
 

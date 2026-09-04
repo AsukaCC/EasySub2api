@@ -3,7 +3,6 @@
     <main class="system-updates">
       <header class="system-updates__header">
         <div>
-          <h1>{{ t('admin.settings.systemUpdates.title') }}</h1>
           <p>{{ t('admin.settings.systemUpdates.description') }}</p>
         </div>
         <button class="btn btn-secondary" type="button" :disabled="loading" @click="checkForUpdates(true)">
@@ -263,8 +262,7 @@ onMounted(() => checkForUpdates(false))
 <style scoped>
 .system-updates { width: min(1080px, 100%); margin: 0 auto; padding: 2rem; }
 .system-updates__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-.system-updates__header h1 { margin: 0; font-size: var(--font-size-2xl); }
-.system-updates__header p { margin: .45rem 0 0; color: var(--color-text-secondary); }
+.system-updates__header p { margin: 0; color: var(--color-text-secondary); }
 .system-updates__header .btn, .system-updates__section-heading .btn, .system-updates__restart .btn { display: inline-flex; align-items: center; gap: .45rem; }
 .system-updates__summary, .system-updates__release, .system-updates__rollback, .system-updates__restart { border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); padding: 1.25rem; margin-bottom: 1rem; }
 .system-updates__summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; }

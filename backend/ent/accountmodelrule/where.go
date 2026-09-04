@@ -89,6 +89,11 @@ func Platform(v string) predicate.AccountModelRule {
 	return predicate.AccountModelRule(sql.FieldEQ(FieldPlatform, v))
 }
 
+// SubscriptionTier applies equality check predicate on the "subscription_tier" field. It's identical to SubscriptionTierEQ.
+func SubscriptionTier(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldEQ(FieldSubscriptionTier, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.AccountModelRule {
 	return predicate.AccountModelRule(sql.FieldEQ(FieldCreatedAt, v))
@@ -372,6 +377,81 @@ func PlatformEqualFold(v string) predicate.AccountModelRule {
 // PlatformContainsFold applies the ContainsFold predicate on the "platform" field.
 func PlatformContainsFold(v string) predicate.AccountModelRule {
 	return predicate.AccountModelRule(sql.FieldContainsFold(FieldPlatform, v))
+}
+
+// SubscriptionTierEQ applies the EQ predicate on the "subscription_tier" field.
+func SubscriptionTierEQ(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldEQ(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierNEQ applies the NEQ predicate on the "subscription_tier" field.
+func SubscriptionTierNEQ(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldNEQ(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierIn applies the In predicate on the "subscription_tier" field.
+func SubscriptionTierIn(vs ...string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldIn(FieldSubscriptionTier, vs...))
+}
+
+// SubscriptionTierNotIn applies the NotIn predicate on the "subscription_tier" field.
+func SubscriptionTierNotIn(vs ...string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldNotIn(FieldSubscriptionTier, vs...))
+}
+
+// SubscriptionTierGT applies the GT predicate on the "subscription_tier" field.
+func SubscriptionTierGT(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldGT(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierGTE applies the GTE predicate on the "subscription_tier" field.
+func SubscriptionTierGTE(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldGTE(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierLT applies the LT predicate on the "subscription_tier" field.
+func SubscriptionTierLT(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldLT(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierLTE applies the LTE predicate on the "subscription_tier" field.
+func SubscriptionTierLTE(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldLTE(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierContains applies the Contains predicate on the "subscription_tier" field.
+func SubscriptionTierContains(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldContains(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierHasPrefix applies the HasPrefix predicate on the "subscription_tier" field.
+func SubscriptionTierHasPrefix(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldHasPrefix(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierHasSuffix applies the HasSuffix predicate on the "subscription_tier" field.
+func SubscriptionTierHasSuffix(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldHasSuffix(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierIsNil applies the IsNil predicate on the "subscription_tier" field.
+func SubscriptionTierIsNil() predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldIsNull(FieldSubscriptionTier))
+}
+
+// SubscriptionTierNotNil applies the NotNil predicate on the "subscription_tier" field.
+func SubscriptionTierNotNil() predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldNotNull(FieldSubscriptionTier))
+}
+
+// SubscriptionTierEqualFold applies the EqualFold predicate on the "subscription_tier" field.
+func SubscriptionTierEqualFold(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldEqualFold(FieldSubscriptionTier, v))
+}
+
+// SubscriptionTierContainsFold applies the ContainsFold predicate on the "subscription_tier" field.
+func SubscriptionTierContainsFold(v string) predicate.AccountModelRule {
+	return predicate.AccountModelRule(sql.FieldContainsFold(FieldSubscriptionTier, v))
 }
 
 // And groups predicates with the AND operator between them.

@@ -8,7 +8,6 @@
       <template v-else>
         <div class="views-admin-risk-control-view__panel-4">
           <div>
-            <h1 class="views-admin-risk-control-view__heading">{{ t('admin.riskControl.title') }}</h1>
             <p class="views-admin-risk-control-view__description">{{ t('admin.riskControl.description') }}</p>
           </div>
           <div class="views-admin-risk-control-view__panel-5">

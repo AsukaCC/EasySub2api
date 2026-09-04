@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	dbent "github.com/AsukaCC/EasySub2api/ent"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
@@ -35,6 +36,35 @@ func (s *adminServiceImpl) ListAccountsForSchedulerScoreFilter(ctx context.Conte
 		return nil, nil
 	}
 	return s.accountRepo.ListAllWithFilters(ctx, platform, accountType, status, search, groupID, privacyMode, expiryStatus)
+}
+
+func (s *adminServiceImpl) ListAccountsWithSubscriptionTier(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID string, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder string) ([]Account, int64, error) {
+	repo, ok := s.accountRepo.(AccountSubscriptionTierRepository)
+	if !ok {
+		return s.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, sortBy, sortOrder)
+	}
+	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
+	accounts, result, err := repo.ListWithSubscriptionTierFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier)
+	if err != nil {
+		return nil, 0, err
+	}
+	return accounts, result.Total, nil
+}
+
+func (s *adminServiceImpl) ListAccountsForSchedulerScoreFilterWithSubscriptionTier(ctx context.Context, platform, accountType, status, search string, groupID string, privacyMode, expiryStatus, subscriptionTier string) ([]Account, error) {
+	repo, ok := s.accountRepo.(AccountSubscriptionTierRepository)
+	if !ok {
+		return s.ListAccountsForSchedulerScoreFilter(ctx, platform, accountType, status, search, groupID, privacyMode, expiryStatus)
+	}
+	return repo.ListAllWithSubscriptionTierFilters(ctx, platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier)
+}
+
+func (s *adminServiceImpl) ListAccountSubscriptionTiers(ctx context.Context, platform string) ([]AccountSubscriptionTierSummary, error) {
+	repo, ok := s.accountRepo.(AccountSubscriptionTierRepository)
+	if !ok {
+		return []AccountSubscriptionTierSummary{}, nil
+	}
+	return repo.ListSubscriptionTiers(ctx, strings.ToLower(strings.TrimSpace(platform)))
 }
 
 func (s *adminServiceImpl) ListOpenAISchedulableAccountsForSchedulerScore(ctx context.Context, groupID *string) ([]Account, error) {
@@ -301,6 +331,7 @@ func (s *adminServiceImpl) DuplicateAccount(ctx context.Context, id string, acto
 		GroupIDs:             groupIDs,
 		ExpiresAt:            expiresAt,
 		AutoPauseOnExpired:   &autoPauseOnExpired,
+		ModelRuleID:          cloneAccountValuePointer(source.ModelRuleID),
 		SkipDefaultGroupBind: true,
 	}
 	accountExtra, err := normalizeOpenAILongContextBillingExtra(input.Platform, input.Extra)
@@ -404,17 +435,19 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 	delete(accountExtra, OllamaCloudUsageSnapshotExtraKey)
 	accountExtra = prepareCodexFingerprintExtraForCreate(input.Platform, input.Type, accountExtra)
 	account := &Account{
-		Name:        input.Name,
-		Notes:       normalizeAccountNotes(input.Notes),
-		Platform:    input.Platform,
-		Type:        input.Type,
-		Credentials: input.Credentials,
-		Extra:       accountExtra,
-		ProxyID:     input.ProxyID,
-		Concurrency: normalizeAccountConcurrency(input.Platform, input.Type, input.Concurrency),
-		Priority:    input.Priority,
-		Status:      StatusActive,
-		Schedulable: true,
+		Name:                    input.Name,
+		Notes:                   normalizeAccountNotes(input.Notes),
+		Platform:                input.Platform,
+		Type:                    input.Type,
+		Credentials:             input.Credentials,
+		Extra:                   accountExtra,
+		ProxyID:                 input.ProxyID,
+		Concurrency:             normalizeAccountConcurrency(input.Platform, input.Type, input.Concurrency),
+		Priority:                input.Priority,
+		Status:                  StatusActive,
+		Schedulable:             true,
+		ModelRuleID:             input.ModelRuleID,
+		ModelRuleBindingChanged: input.ModelRuleID != nil,
 	}
 	if input.ProbeEnabled != nil && *input.ProbeEnabled {
 		if !isUpstreamBillingProbeAccount(account) {
@@ -601,6 +634,15 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 		}
 		// Strip SSO/password residue that must never sit next to OAuth tokens.
 		account.Credentials = SanitizeStoredCredentials(account.Platform, account.Credentials)
+	}
+	if input.ModelRuleID != nil {
+		account.ModelRuleID = *input.ModelRuleID
+		account.ModelRuleBindingChanged = true
+		if account.Credentials == nil {
+			account.Credentials = make(map[string]any)
+		}
+		delete(account.Credentials, "model_mapping")
+		delete(account.Credentials, "model_reasoning_efforts")
 	}
 	// Extra 使用 map：需要区分“未提供(nil)”与“显式清空({})”。
 	// 关闭配额限制时前端会删除 quota_* 键并提交 extra:{}，此时也必须落库。
@@ -894,7 +936,7 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 
 	// 预取所有目标账号，供凭据和代理守卫共用，避免多次 DB 查询。
 	var cachedTargets []*Account
-	if len(input.Credentials) > 0 || input.ProxyID != nil || openAISettings.any() || input.ProbeEnabled != nil || input.RateMultiplier != nil {
+	if len(input.Credentials) > 0 || input.ProxyID != nil || openAISettings.any() || input.ProbeEnabled != nil || input.RateMultiplier != nil || input.ModelRuleID != nil {
 		loaded, err := s.accountRepo.GetByIDs(ctx, input.AccountIDs)
 		if err != nil {
 			return nil, err
@@ -968,6 +1010,29 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 			})
 		}
 	}
+	if input.ModelRuleID != nil && *input.ModelRuleID != nil {
+		if s.entClient == nil {
+			return nil, infraerrors.InternalServer("ACCOUNT_MODEL_RULE_STORE_UNAVAILABLE", "account model rule store is unavailable")
+		}
+		rule, err := s.entClient.AccountModelRule.Get(ctx, **input.ModelRuleID)
+		if err != nil {
+			if dbent.IsNotFound(err) {
+				return nil, infraerrors.BadRequest("ACCOUNT_MODEL_RULE_NOT_FOUND", "account model rule not found")
+			}
+			return nil, err
+		}
+		for _, account := range cachedTargets {
+			if account == nil {
+				continue
+			}
+			if account.Platform != rule.Platform {
+				return nil, infraerrors.BadRequest("ACCOUNT_MODEL_RULE_PLATFORM_MISMATCH", "all target accounts must match the rule platform")
+			}
+			if rule.SubscriptionTier != nil && account.SubscriptionTier != *rule.SubscriptionTier {
+				return nil, infraerrors.BadRequest("ACCOUNT_MODEL_RULE_TIER_MISMATCH", "all target accounts must match the rule subscription tier")
+			}
+		}
+	}
 
 	// 校验并规范化请求头覆写配置（批量路径为 JSONB 顶层 key 合并，直接校验增量即可）
 	if err := NormalizeHeaderOverrideCredentials(input.Credentials); err != nil {
@@ -981,10 +1046,12 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 
 	// Prepare bulk updates for columns and JSONB fields.
 	repoUpdates := AccountBulkUpdate{
-		Credentials:                input.Credentials,
-		Extra:                      input.Extra,
-		ProbeEnabled:               input.ProbeEnabled,
-		EnsureCodexFingerprintSeed: ShouldEnsureCodexFingerprintSeedForExtraUpdates(input.Extra),
+		Credentials:                  input.Credentials,
+		Extra:                        input.Extra,
+		ProbeEnabled:                 input.ProbeEnabled,
+		EnsureCodexFingerprintSeed:   ShouldEnsureCodexFingerprintSeedForExtraUpdates(input.Extra),
+		ModelRuleID:                  input.ModelRuleID,
+		ClearModelRoutingCredentials: input.ModelRuleID != nil,
 	}
 	if input.ProbeEnabled != nil {
 		if repoUpdates.Extra == nil {
@@ -1130,20 +1197,14 @@ func (s *adminServiceImpl) resolveBulkUpdateTargetIDs(ctx context.Context, filte
 	accountIDs := make([]string, 0, pageSize)
 
 	for {
-		accounts, total, err := s.ListAccounts(
-			ctx,
-			page,
-			pageSize,
-			filters.Platform,
-			filters.Type,
-			filters.Status,
-			filters.Search,
-			groupID,
-			filters.PrivacyMode,
-			expiryStatus,
-			"",
-			"",
-		)
+		var accounts []Account
+		var total int64
+		var err error
+		if tierService, ok := any(s).(AccountSubscriptionTierAdminService); ok {
+			accounts, total, err = tierService.ListAccountsWithSubscriptionTier(ctx, page, pageSize, filters.Platform, filters.Type, filters.Status, filters.Search, groupID, filters.PrivacyMode, expiryStatus, filters.SubscriptionTier, "", "")
+		} else {
+			accounts, total, err = s.ListAccounts(ctx, page, pageSize, filters.Platform, filters.Type, filters.Status, filters.Search, groupID, filters.PrivacyMode, expiryStatus, "", "")
+		}
 		if err != nil {
 			return nil, err
 		}

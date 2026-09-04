@@ -43,6 +43,7 @@ export async function list(
     search?: string
     privacy_mode?: string
     expiry_status?: string
+    subscription_tier?: string
     lite?: string
     include_scheduler_score?: string
     sort_by?: string
@@ -69,6 +70,20 @@ export interface AccountListWithEtagResult {
   data: PaginatedResponse<Account> | null
 }
 
+export interface AccountSubscriptionTierOption {
+  value: string
+  label: string
+  platform?: string
+  account_count: number
+}
+
+export async function listSubscriptionTiers(platform?: string): Promise<AccountSubscriptionTierOption[]> {
+  const { data } = await apiClient.get<AccountSubscriptionTierOption[]>('/admin/accounts/subscription-tiers', {
+    params: platform ? { platform } : undefined
+  })
+  return data
+}
+
 export async function listWithEtag(
   page: number = 1,
   pageSize: number = 20,
@@ -80,6 +95,7 @@ export async function listWithEtag(
     search?: string
     privacy_mode?: string
     expiry_status?: string
+    subscription_tier?: string
     lite?: string
     include_scheduler_score?: string
     sort_by?: string
@@ -648,6 +664,7 @@ export async function exportData(options?: {
     group?: string
     privacy_mode?: string
     expiry_status?: string
+    subscription_tier?: string
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -658,13 +675,14 @@ export async function exportData(options?: {
   if (options?.ids && options.ids.length > 0) {
     params.ids = options.ids.join(',')
   } else if (options?.filters) {
-    const { platform, type, status, group, privacy_mode, expiry_status, search, sort_by, sort_order } = options.filters
+    const { platform, type, status, group, privacy_mode, expiry_status, subscription_tier, search, sort_by, sort_order } = options.filters
     if (platform) params.platform = platform
     if (type) params.type = type
     if (status) params.status = status
     if (group) params.group = group
     if (privacy_mode) params.privacy_mode = privacy_mode
     if (expiry_status) params.expiry_status = expiry_status
+    if (subscription_tier) params.subscription_tier = subscription_tier
     if (search) params.search = search
     if (sort_by) params.sort_by = sort_by
     if (sort_order) params.sort_order = sort_order
@@ -1005,6 +1023,7 @@ export async function batchRefreshGeminiTier(accountIds: string[] = []): Promise
 export const accountsAPI = {
   list,
   listWithEtag,
+  listSubscriptionTiers,
   getById,
   create,
   duplicate,

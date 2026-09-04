@@ -1,10 +1,11 @@
 <template>
   <div
     :class="['loading-spinner', sizeClasses, colorClass]"
-    role="status"
-    :aria-label="t('common.loading')"
+    :role="decorative ? undefined : 'status'"
+    :aria-label="decorative ? undefined : t('common.loading')"
+    :aria-hidden="decorative ? 'true' : undefined"
   >
-    <span class="loading-spinner__label">{{ t('common.loading') }}</span>
+    <span v-if="!decorative" class="loading-spinner__label">{{ t('common.loading') }}</span>
   </div>
 </template>
 
@@ -14,21 +15,24 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-type SpinnerSize = 'sm' | 'md' | 'lg' | 'xl'
-type SpinnerColor = 'primary' | 'secondary' | 'white' | 'gray'
+type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+type SpinnerColor = 'primary' | 'secondary' | 'white' | 'gray' | 'inherit'
 
 interface Props {
   size?: SpinnerSize
   color?: SpinnerColor
+  decorative?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
-  color: 'primary'
+  color: 'primary',
+  decorative: false
 })
 
 const sizeClasses = computed(() => {
   const sizes: Record<SpinnerSize, string> = {
+    xs: 'loading-spinner--xs',
     sm: 'loading-spinner--sm',
     md: 'loading-spinner--md',
     lg: 'loading-spinner--lg',
@@ -42,7 +46,8 @@ const colorClass = computed(() => {
     primary: 'loading-spinner--primary',
     secondary: 'loading-spinner--secondary',
     white: 'loading-spinner--white',
-    gray: 'loading-spinner--muted'
+    gray: 'loading-spinner--muted',
+    inherit: 'loading-spinner--inherit'
   }
   return colors[props.color]
 })
@@ -56,7 +61,7 @@ const colorClass = computed(() => {
   border-color: color-mix(in srgb, currentColor 24%, transparent);
   border-top-color: currentColor;
   border-radius: var(--radius-full);
-  animation: spin 0.75s linear infinite;
+  animation: loading-spinner-spin 0.75s linear infinite;
 }
 
 .loading-spinner__label {
@@ -71,6 +76,7 @@ const colorClass = computed(() => {
   border-width: 0;
 }
 
+.loading-spinner--xs { width: 0.875rem; height: 0.875rem; border-width: 2px; }
 .loading-spinner--sm { width: 1rem; height: 1rem; border-width: 2px; }
 .loading-spinner--md { width: 2rem; height: 2rem; border-width: 2px; }
 .loading-spinner--lg { width: 3rem; height: 3rem; border-width: 3px; }
@@ -79,13 +85,20 @@ const colorClass = computed(() => {
 .loading-spinner--secondary { color: var(--color-text-secondary); }
 .loading-spinner--white { color: var(--color-text-inverse); }
 .loading-spinner--muted { color: var(--color-text-muted); }
+.loading-spinner--inherit { color: inherit; }
 
-@keyframes spin {
+@keyframes loading-spinner-spin {
   from {
     transform: rotate(0deg);
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
   }
 }
 </style>

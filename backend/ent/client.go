@@ -906,6 +906,22 @@ func (c *AccountClient) QueryProxy(_m *Account) *ProxyQuery {
 	return query
 }
 
+// QueryModelRule queries the model_rule edge of a Account.
+func (c *AccountClient) QueryModelRule(_m *Account) *AccountModelRuleQuery {
+	query := (&AccountModelRuleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(account.Table, account.FieldID, id),
+			sqlgraph.To(accountmodelrule.Table, accountmodelrule.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, account.ModelRuleTable, account.ModelRuleColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryParent queries the parent edge of a Account.
 func (c *AccountClient) QueryParent(_m *Account) *AccountQuery {
 	query := (&AccountClient{config: c.config}).Query()

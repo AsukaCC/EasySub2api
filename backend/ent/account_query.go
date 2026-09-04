@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/account"
 	"github.com/AsukaCC/EasySub2api/ent/accountgroup"
+	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/group"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
 	"github.com/AsukaCC/EasySub2api/ent/proxy"
@@ -30,6 +31,7 @@ type AccountQuery struct {
 	predicates        []predicate.Account
 	withGroups        *GroupQuery
 	withProxy         *ProxyQuery
+	withModelRule     *AccountModelRuleQuery
 	withParent        *AccountQuery
 	withChildren      *AccountQuery
 	withUsageLogs     *UsageLogQuery
@@ -108,6 +110,28 @@ func (_q *AccountQuery) QueryProxy() *ProxyQuery {
 			sqlgraph.From(account.Table, account.FieldID, selector),
 			sqlgraph.To(proxy.Table, proxy.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, account.ProxyTable, account.ProxyColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryModelRule chains the current query on the "model_rule" edge.
+func (_q *AccountQuery) QueryModelRule() *AccountModelRuleQuery {
+	query := (&AccountModelRuleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(account.Table, account.FieldID, selector),
+			sqlgraph.To(accountmodelrule.Table, accountmodelrule.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, account.ModelRuleTable, account.ModelRuleColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -397,6 +421,7 @@ func (_q *AccountQuery) Clone() *AccountQuery {
 		predicates:        append([]predicate.Account{}, _q.predicates...),
 		withGroups:        _q.withGroups.Clone(),
 		withProxy:         _q.withProxy.Clone(),
+		withModelRule:     _q.withModelRule.Clone(),
 		withParent:        _q.withParent.Clone(),
 		withChildren:      _q.withChildren.Clone(),
 		withUsageLogs:     _q.withUsageLogs.Clone(),
@@ -426,6 +451,17 @@ func (_q *AccountQuery) WithProxy(opts ...func(*ProxyQuery)) *AccountQuery {
 		opt(query)
 	}
 	_q.withProxy = query
+	return _q
+}
+
+// WithModelRule tells the query-builder to eager-load the nodes that are connected to
+// the "model_rule" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AccountQuery) WithModelRule(opts ...func(*AccountModelRuleQuery)) *AccountQuery {
+	query := (&AccountModelRuleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withModelRule = query
 	return _q
 }
 
@@ -551,9 +587,10 @@ func (_q *AccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Acco
 	var (
 		nodes       = []*Account{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [7]bool{
 			_q.withGroups != nil,
 			_q.withProxy != nil,
+			_q.withModelRule != nil,
 			_q.withParent != nil,
 			_q.withChildren != nil,
 			_q.withUsageLogs != nil,
@@ -591,6 +628,12 @@ func (_q *AccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Acco
 	if query := _q.withProxy; query != nil {
 		if err := _q.loadProxy(ctx, query, nodes, nil,
 			func(n *Account, e *Proxy) { n.Edges.Proxy = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withModelRule; query != nil {
+		if err := _q.loadModelRule(ctx, query, nodes, nil,
+			func(n *Account, e *AccountModelRule) { n.Edges.ModelRule = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -710,6 +753,38 @@ func (_q *AccountQuery) loadProxy(ctx context.Context, query *ProxyQuery, nodes 
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "proxy_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *AccountQuery) loadModelRule(ctx context.Context, query *AccountModelRuleQuery, nodes []*Account, init func(*Account), assign func(*Account, *AccountModelRule)) error {
+	ids := make([]string, 0, len(nodes))
+	nodeids := make(map[string][]*Account)
+	for i := range nodes {
+		if nodes[i].ModelRuleID == nil {
+			continue
+		}
+		fk := *nodes[i].ModelRuleID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(accountmodelrule.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "model_rule_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -873,6 +948,9 @@ func (_q *AccountQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withProxy != nil {
 			_spec.Node.AddColumnOnce(account.FieldProxyID)
+		}
+		if _q.withModelRule != nil {
+			_spec.Node.AddColumnOnce(account.FieldModelRuleID)
 		}
 		if _q.withParent != nil {
 			_spec.Node.AddColumnOnce(account.FieldParentAccountID)

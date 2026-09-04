@@ -2335,6 +2335,7 @@ type AccountMutation struct {
 	session_window_start      *time.Time
 	session_window_end        *time.Time
 	session_window_status     *string
+	subscription_tier         *string
 	quota_dimension           *account.QuotaDimension
 	clearedFields             map[string]struct{}
 	groups                    map[string]struct{}
@@ -2342,6 +2343,8 @@ type AccountMutation struct {
 	clearedgroups             bool
 	proxy                     *string
 	clearedproxy              bool
+	model_rule                *string
+	clearedmodel_rule         bool
 	parent                    *string
 	clearedparent             bool
 	children                  map[string]struct{}
@@ -3841,6 +3844,104 @@ func (m *AccountMutation) ResetParentAccountID() {
 	delete(m.clearedFields, account.FieldParentAccountID)
 }
 
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (m *AccountMutation) SetSubscriptionTier(s string) {
+	m.subscription_tier = &s
+}
+
+// SubscriptionTier returns the value of the "subscription_tier" field in the mutation.
+func (m *AccountMutation) SubscriptionTier() (r string, exists bool) {
+	v := m.subscription_tier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionTier returns the old "subscription_tier" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldSubscriptionTier(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionTier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionTier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionTier: %w", err)
+	}
+	return oldValue.SubscriptionTier, nil
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (m *AccountMutation) ClearSubscriptionTier() {
+	m.subscription_tier = nil
+	m.clearedFields[account.FieldSubscriptionTier] = struct{}{}
+}
+
+// SubscriptionTierCleared returns if the "subscription_tier" field was cleared in this mutation.
+func (m *AccountMutation) SubscriptionTierCleared() bool {
+	_, ok := m.clearedFields[account.FieldSubscriptionTier]
+	return ok
+}
+
+// ResetSubscriptionTier resets all changes to the "subscription_tier" field.
+func (m *AccountMutation) ResetSubscriptionTier() {
+	m.subscription_tier = nil
+	delete(m.clearedFields, account.FieldSubscriptionTier)
+}
+
+// SetModelRuleID sets the "model_rule_id" field.
+func (m *AccountMutation) SetModelRuleID(s string) {
+	m.model_rule = &s
+}
+
+// ModelRuleID returns the value of the "model_rule_id" field in the mutation.
+func (m *AccountMutation) ModelRuleID() (r string, exists bool) {
+	v := m.model_rule
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelRuleID returns the old "model_rule_id" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldModelRuleID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelRuleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelRuleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelRuleID: %w", err)
+	}
+	return oldValue.ModelRuleID, nil
+}
+
+// ClearModelRuleID clears the value of the "model_rule_id" field.
+func (m *AccountMutation) ClearModelRuleID() {
+	m.model_rule = nil
+	m.clearedFields[account.FieldModelRuleID] = struct{}{}
+}
+
+// ModelRuleIDCleared returns if the "model_rule_id" field was cleared in this mutation.
+func (m *AccountMutation) ModelRuleIDCleared() bool {
+	_, ok := m.clearedFields[account.FieldModelRuleID]
+	return ok
+}
+
+// ResetModelRuleID resets all changes to the "model_rule_id" field.
+func (m *AccountMutation) ResetModelRuleID() {
+	m.model_rule = nil
+	delete(m.clearedFields, account.FieldModelRuleID)
+}
+
 // SetQuotaDimension sets the "quota_dimension" field.
 func (m *AccountMutation) SetQuotaDimension(ad account.QuotaDimension) {
 	m.quota_dimension = &ad
@@ -3956,6 +4057,33 @@ func (m *AccountMutation) ProxyIDs() (ids []string) {
 func (m *AccountMutation) ResetProxy() {
 	m.proxy = nil
 	m.clearedproxy = false
+}
+
+// ClearModelRule clears the "model_rule" edge to the AccountModelRule entity.
+func (m *AccountMutation) ClearModelRule() {
+	m.clearedmodel_rule = true
+	m.clearedFields[account.FieldModelRuleID] = struct{}{}
+}
+
+// ModelRuleCleared reports if the "model_rule" edge to the AccountModelRule entity was cleared.
+func (m *AccountMutation) ModelRuleCleared() bool {
+	return m.ModelRuleIDCleared() || m.clearedmodel_rule
+}
+
+// ModelRuleIDs returns the "model_rule" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ModelRuleID instead. It exists only for internal usage by the builders.
+func (m *AccountMutation) ModelRuleIDs() (ids []string) {
+	if id := m.model_rule; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetModelRule resets all changes to the "model_rule" edge.
+func (m *AccountMutation) ResetModelRule() {
+	m.model_rule = nil
+	m.clearedmodel_rule = false
 }
 
 // SetParentID sets the "parent" edge to the Account entity by id.
@@ -4140,7 +4268,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 33)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4231,6 +4359,12 @@ func (m *AccountMutation) Fields() []string {
 	if m.parent != nil {
 		fields = append(fields, account.FieldParentAccountID)
 	}
+	if m.subscription_tier != nil {
+		fields = append(fields, account.FieldSubscriptionTier)
+	}
+	if m.model_rule != nil {
+		fields = append(fields, account.FieldModelRuleID)
+	}
 	if m.quota_dimension != nil {
 		fields = append(fields, account.FieldQuotaDimension)
 	}
@@ -4302,6 +4436,10 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.SessionWindowStatus()
 	case account.FieldParentAccountID:
 		return m.ParentAccountID()
+	case account.FieldSubscriptionTier:
+		return m.SubscriptionTier()
+	case account.FieldModelRuleID:
+		return m.ModelRuleID()
 	case account.FieldQuotaDimension:
 		return m.QuotaDimension()
 	}
@@ -4373,6 +4511,10 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldSessionWindowStatus(ctx)
 	case account.FieldParentAccountID:
 		return m.OldParentAccountID(ctx)
+	case account.FieldSubscriptionTier:
+		return m.OldSubscriptionTier(ctx)
+	case account.FieldModelRuleID:
+		return m.OldModelRuleID(ctx)
 	case account.FieldQuotaDimension:
 		return m.OldQuotaDimension(ctx)
 	}
@@ -4594,6 +4736,20 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetParentAccountID(v)
 		return nil
+	case account.FieldSubscriptionTier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionTier(v)
+		return nil
+	case account.FieldModelRuleID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelRuleID(v)
+		return nil
 	case account.FieldQuotaDimension:
 		v, ok := value.(account.QuotaDimension)
 		if !ok {
@@ -4733,6 +4889,12 @@ func (m *AccountMutation) ClearedFields() []string {
 	if m.FieldCleared(account.FieldParentAccountID) {
 		fields = append(fields, account.FieldParentAccountID)
 	}
+	if m.FieldCleared(account.FieldSubscriptionTier) {
+		fields = append(fields, account.FieldSubscriptionTier)
+	}
+	if m.FieldCleared(account.FieldModelRuleID) {
+		fields = append(fields, account.FieldModelRuleID)
+	}
 	return fields
 }
 
@@ -4797,6 +4959,12 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldParentAccountID:
 		m.ClearParentAccountID()
+		return nil
+	case account.FieldSubscriptionTier:
+		m.ClearSubscriptionTier()
+		return nil
+	case account.FieldModelRuleID:
+		m.ClearModelRuleID()
 		return nil
 	}
 	return fmt.Errorf("unknown Account nullable field %s", name)
@@ -4896,6 +5064,12 @@ func (m *AccountMutation) ResetField(name string) error {
 	case account.FieldParentAccountID:
 		m.ResetParentAccountID()
 		return nil
+	case account.FieldSubscriptionTier:
+		m.ResetSubscriptionTier()
+		return nil
+	case account.FieldModelRuleID:
+		m.ResetModelRuleID()
+		return nil
 	case account.FieldQuotaDimension:
 		m.ResetQuotaDimension()
 		return nil
@@ -4905,12 +5079,15 @@ func (m *AccountMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AccountMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.groups != nil {
 		edges = append(edges, account.EdgeGroups)
 	}
 	if m.proxy != nil {
 		edges = append(edges, account.EdgeProxy)
+	}
+	if m.model_rule != nil {
+		edges = append(edges, account.EdgeModelRule)
 	}
 	if m.parent != nil {
 		edges = append(edges, account.EdgeParent)
@@ -4938,6 +5115,10 @@ func (m *AccountMutation) AddedIDs(name string) []ent.Value {
 		if id := m.proxy; id != nil {
 			return []ent.Value{*id}
 		}
+	case account.EdgeModelRule:
+		if id := m.model_rule; id != nil {
+			return []ent.Value{*id}
+		}
 	case account.EdgeParent:
 		if id := m.parent; id != nil {
 			return []ent.Value{*id}
@@ -4960,7 +5141,7 @@ func (m *AccountMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AccountMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedgroups != nil {
 		edges = append(edges, account.EdgeGroups)
 	}
@@ -5001,12 +5182,15 @@ func (m *AccountMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AccountMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedgroups {
 		edges = append(edges, account.EdgeGroups)
 	}
 	if m.clearedproxy {
 		edges = append(edges, account.EdgeProxy)
+	}
+	if m.clearedmodel_rule {
+		edges = append(edges, account.EdgeModelRule)
 	}
 	if m.clearedparent {
 		edges = append(edges, account.EdgeParent)
@@ -5028,6 +5212,8 @@ func (m *AccountMutation) EdgeCleared(name string) bool {
 		return m.clearedgroups
 	case account.EdgeProxy:
 		return m.clearedproxy
+	case account.EdgeModelRule:
+		return m.clearedmodel_rule
 	case account.EdgeParent:
 		return m.clearedparent
 	case account.EdgeChildren:
@@ -5045,6 +5231,9 @@ func (m *AccountMutation) ClearEdge(name string) error {
 	case account.EdgeProxy:
 		m.ClearProxy()
 		return nil
+	case account.EdgeModelRule:
+		m.ClearModelRule()
+		return nil
 	case account.EdgeParent:
 		m.ClearParent()
 		return nil
@@ -5061,6 +5250,9 @@ func (m *AccountMutation) ResetEdge(name string) error {
 		return nil
 	case account.EdgeProxy:
 		m.ResetProxy()
+		return nil
+	case account.EdgeModelRule:
+		m.ResetModelRule()
 		return nil
 	case account.EdgeParent:
 		m.ResetParent()
@@ -5563,22 +5755,25 @@ func (m *AccountGroupMutation) ResetEdge(name string) error {
 // AccountModelRuleMutation represents an operation that mutates the AccountModelRule nodes in the graph.
 type AccountModelRuleMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *string
-	created_at        *time.Time
-	updated_at        *time.Time
-	name              *string
-	description       *string
-	platform          *string
-	mapping           *map[string]string
-	reasoning_efforts *map[string]string
-	whitelist         *[]string
-	appendwhitelist   []string
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*AccountModelRule, error)
-	predicates        []predicate.AccountModelRule
+	op                 Op
+	typ                string
+	id                 *string
+	created_at         *time.Time
+	updated_at         *time.Time
+	name               *string
+	description        *string
+	platform           *string
+	subscription_tier  *string
+	model_routes       *[]domain.AccountModelRoute
+	appendmodel_routes []domain.AccountModelRoute
+	mapping            *map[string]string
+	reasoning_efforts  *map[string]string
+	whitelist          *[]string
+	appendwhitelist    []string
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*AccountModelRule, error)
+	predicates         []predicate.AccountModelRule
 }
 
 var _ ent.Mutation = (*AccountModelRuleMutation)(nil)
@@ -5878,6 +6073,106 @@ func (m *AccountModelRuleMutation) ResetPlatform() {
 	m.platform = nil
 }
 
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (m *AccountModelRuleMutation) SetSubscriptionTier(s string) {
+	m.subscription_tier = &s
+}
+
+// SubscriptionTier returns the value of the "subscription_tier" field in the mutation.
+func (m *AccountModelRuleMutation) SubscriptionTier() (r string, exists bool) {
+	v := m.subscription_tier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionTier returns the old "subscription_tier" field's value of the AccountModelRule entity.
+// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountModelRuleMutation) OldSubscriptionTier(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionTier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionTier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionTier: %w", err)
+	}
+	return oldValue.SubscriptionTier, nil
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (m *AccountModelRuleMutation) ClearSubscriptionTier() {
+	m.subscription_tier = nil
+	m.clearedFields[accountmodelrule.FieldSubscriptionTier] = struct{}{}
+}
+
+// SubscriptionTierCleared returns if the "subscription_tier" field was cleared in this mutation.
+func (m *AccountModelRuleMutation) SubscriptionTierCleared() bool {
+	_, ok := m.clearedFields[accountmodelrule.FieldSubscriptionTier]
+	return ok
+}
+
+// ResetSubscriptionTier resets all changes to the "subscription_tier" field.
+func (m *AccountModelRuleMutation) ResetSubscriptionTier() {
+	m.subscription_tier = nil
+	delete(m.clearedFields, accountmodelrule.FieldSubscriptionTier)
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (m *AccountModelRuleMutation) SetModelRoutes(dmr []domain.AccountModelRoute) {
+	m.model_routes = &dmr
+	m.appendmodel_routes = nil
+}
+
+// ModelRoutes returns the value of the "model_routes" field in the mutation.
+func (m *AccountModelRuleMutation) ModelRoutes() (r []domain.AccountModelRoute, exists bool) {
+	v := m.model_routes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelRoutes returns the old "model_routes" field's value of the AccountModelRule entity.
+// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountModelRuleMutation) OldModelRoutes(ctx context.Context) (v []domain.AccountModelRoute, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelRoutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelRoutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelRoutes: %w", err)
+	}
+	return oldValue.ModelRoutes, nil
+}
+
+// AppendModelRoutes adds dmr to the "model_routes" field.
+func (m *AccountModelRuleMutation) AppendModelRoutes(dmr []domain.AccountModelRoute) {
+	m.appendmodel_routes = append(m.appendmodel_routes, dmr...)
+}
+
+// AppendedModelRoutes returns the list of values that were appended to the "model_routes" field in this mutation.
+func (m *AccountModelRuleMutation) AppendedModelRoutes() ([]domain.AccountModelRoute, bool) {
+	if len(m.appendmodel_routes) == 0 {
+		return nil, false
+	}
+	return m.appendmodel_routes, true
+}
+
+// ResetModelRoutes resets all changes to the "model_routes" field.
+func (m *AccountModelRuleMutation) ResetModelRoutes() {
+	m.model_routes = nil
+	m.appendmodel_routes = nil
+}
+
 // SetMapping sets the "mapping" field.
 func (m *AccountModelRuleMutation) SetMapping(value map[string]string) {
 	m.mapping = &value
@@ -6035,7 +6330,7 @@ func (m *AccountModelRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountModelRuleMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 10)
 	if m.created_at != nil {
 		fields = append(fields, accountmodelrule.FieldCreatedAt)
 	}
@@ -6050,6 +6345,12 @@ func (m *AccountModelRuleMutation) Fields() []string {
 	}
 	if m.platform != nil {
 		fields = append(fields, accountmodelrule.FieldPlatform)
+	}
+	if m.subscription_tier != nil {
+		fields = append(fields, accountmodelrule.FieldSubscriptionTier)
+	}
+	if m.model_routes != nil {
+		fields = append(fields, accountmodelrule.FieldModelRoutes)
 	}
 	if m.mapping != nil {
 		fields = append(fields, accountmodelrule.FieldMapping)
@@ -6078,6 +6379,10 @@ func (m *AccountModelRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case accountmodelrule.FieldPlatform:
 		return m.Platform()
+	case accountmodelrule.FieldSubscriptionTier:
+		return m.SubscriptionTier()
+	case accountmodelrule.FieldModelRoutes:
+		return m.ModelRoutes()
 	case accountmodelrule.FieldMapping:
 		return m.Mapping()
 	case accountmodelrule.FieldReasoningEfforts:
@@ -6103,6 +6408,10 @@ func (m *AccountModelRuleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldDescription(ctx)
 	case accountmodelrule.FieldPlatform:
 		return m.OldPlatform(ctx)
+	case accountmodelrule.FieldSubscriptionTier:
+		return m.OldSubscriptionTier(ctx)
+	case accountmodelrule.FieldModelRoutes:
+		return m.OldModelRoutes(ctx)
 	case accountmodelrule.FieldMapping:
 		return m.OldMapping(ctx)
 	case accountmodelrule.FieldReasoningEfforts:
@@ -6152,6 +6461,20 @@ func (m *AccountModelRuleMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPlatform(v)
+		return nil
+	case accountmodelrule.FieldSubscriptionTier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionTier(v)
+		return nil
+	case accountmodelrule.FieldModelRoutes:
+		v, ok := value.([]domain.AccountModelRoute)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelRoutes(v)
 		return nil
 	case accountmodelrule.FieldMapping:
 		v, ok := value.(map[string]string)
@@ -6207,6 +6530,9 @@ func (m *AccountModelRuleMutation) ClearedFields() []string {
 	if m.FieldCleared(accountmodelrule.FieldDescription) {
 		fields = append(fields, accountmodelrule.FieldDescription)
 	}
+	if m.FieldCleared(accountmodelrule.FieldSubscriptionTier) {
+		fields = append(fields, accountmodelrule.FieldSubscriptionTier)
+	}
 	return fields
 }
 
@@ -6223,6 +6549,9 @@ func (m *AccountModelRuleMutation) ClearField(name string) error {
 	switch name {
 	case accountmodelrule.FieldDescription:
 		m.ClearDescription()
+		return nil
+	case accountmodelrule.FieldSubscriptionTier:
+		m.ClearSubscriptionTier()
 		return nil
 	}
 	return fmt.Errorf("unknown AccountModelRule nullable field %s", name)
@@ -6246,6 +6575,12 @@ func (m *AccountModelRuleMutation) ResetField(name string) error {
 		return nil
 	case accountmodelrule.FieldPlatform:
 		m.ResetPlatform()
+		return nil
+	case accountmodelrule.FieldSubscriptionTier:
+		m.ResetSubscriptionTier()
+		return nil
+	case accountmodelrule.FieldModelRoutes:
+		m.ResetModelRoutes()
 		return nil
 	case accountmodelrule.FieldMapping:
 		m.ResetMapping()

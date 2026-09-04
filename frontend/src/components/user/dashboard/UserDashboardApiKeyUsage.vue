@@ -11,9 +11,7 @@
       </router-link>
     </header>
 
-    <div v-if="loading" class="dashboard-key-usage__state">
-      <LoadingSpinner size="lg" />
-    </div>
+    <LoadingState v-if="loading" variant="section" size="lg" class="dashboard-key-usage__state" />
     <div v-else-if="keyCount === 0" class="dashboard-key-usage__state dashboard-key-usage__state--empty">
       <Icon name="key" size="xl" />
       <div>
@@ -82,9 +80,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import type { D3ChartData, D3ChartOptions, D3LineTooltipItem } from '@/components/charts/d3/chartTypes'
 import Icon from '@/components/icons/Icon.vue'

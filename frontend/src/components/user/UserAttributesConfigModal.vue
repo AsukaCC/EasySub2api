@@ -13,12 +13,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="components-user-user-attributes-config-modal__panel-3">
-        <svg class="components-user-user-attributes-config-modal__icon-2" fill="none" viewBox="0 0 24 24">
-          <circle class="components-user-user-attributes-config-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="components-user-user-attributes-config-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
-      </div>
+      <LoadingState v-if="loading" variant="section" size="sm" class="components-user-user-attributes-config-modal__panel-3" />
 
       <!-- Empty State -->
       <div v-else-if="attributes.length === 0" class="components-user-user-attributes-config-modal__panel-4">
@@ -212,12 +207,10 @@
         <button @click="closeEditModal" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
         </button>
-        <button type="submit" form="attribute-form" :disabled="saving" class="btn btn-primary">
-          <svg v-if="saving" class="components-user-user-attributes-config-modal__icon-5" fill="none" viewBox="0 0 24 24">
-            <circle class="components-user-user-attributes-config-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path class="components-user-user-attributes-config-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          {{ saving ? t('common.saving') : (editingAttribute ? t('common.update') : t('common.create')) }}
+        <button :aria-busy="saving" type="submit" form="attribute-form" :disabled="saving" class="btn btn-primary">
+          <LoadingButtonContent :loading="saving" :loading-text="t('common.saving')">
+          {{ (editingAttribute ? t('common.update') : t('common.create')) }}
+          </LoadingButtonContent>
         </button>
       </div>
     </template>
@@ -237,6 +230,9 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+
 import { ref, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

@@ -72,12 +72,7 @@
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="components-admin-user-user-balance-history-modal__panel-9">
-        <svg class="components-admin-user-user-balance-history-modal__icon-3" fill="none" viewBox="0 0 24 24">
-          <circle class="components-admin-user-user-balance-history-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="components-admin-user-user-balance-history-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
-      </div>
+      <LoadingState v-if="loading" variant="section" size="sm" class="components-admin-user-user-balance-history-modal__panel-9" />
 
       <!-- Empty state -->
       <div v-else-if="history.length === 0" class="components-admin-user-user-balance-history-modal__panel-10">
@@ -166,6 +161,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
+
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'

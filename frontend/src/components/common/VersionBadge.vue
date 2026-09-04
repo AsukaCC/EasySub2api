@@ -63,21 +63,7 @@
           <div class="components-common-version-badge__panel-4">
             <!-- Loading state -->
             <div v-if="loading" class="components-common-version-badge__panel-5">
-              <svg class="components-common-version-badge__icon" fill="none" viewBox="0 0 24 24">
-                <circle
-                  class="components-common-version-badge__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-common-version-badge__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
+              <LoadingSpinner size="sm" color="inherit" decorative />
             </div>
 
             <!-- Content -->
@@ -186,31 +172,12 @@
                 </div>
 
                 <!-- Restart button with countdown -->
-                <button
+                <button :aria-busy="restarting"
                   @click="handleRestart"
                   :disabled="restarting"
                   class="components-common-version-badge__action-4"
                 >
-                  <svg
-                    v-if="restarting"
-                    class="components-common-version-badge__icon-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="components-common-version-badge__circle"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="components-common-version-badge__path"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
+                  <LoadingSpinner v-if="restarting" size="sm" color="inherit" decorative />
                   <svg
                     v-else
                     class="components-common-version-badge__icon-6"
@@ -322,28 +289,15 @@
                 </div>
 
                 <!-- Update button -->
-                <button
+                <button :aria-busy="updating"
                   @click="handleUpdate"
                   :disabled="updating"
                   class="components-common-version-badge__action-5"
                 >
-                  <svg v-if="updating" class="components-common-version-badge__icon-5" fill="none" viewBox="0 0 24 24">
-                    <circle
-                      class="components-common-version-badge__circle"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="components-common-version-badge__path"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  <Icon v-else name="download" size="sm" :stroke-width="2" />
-                  {{ updating ? t('version.updating') : t('version.updateNow') }}
+                  <LoadingButtonContent :loading="updating" :loading-text="t('version.updating')">
+                  <Icon  name="download" size="sm" :stroke-width="2" />
+                                    {{ t('version.updateNow') }}
+                  </LoadingButtonContent>
                 </button>
 
                 <!-- View release link -->
@@ -427,25 +381,7 @@
                         v-else-if="rollbackVersionsLoading"
                         class="components-common-version-badge__panel-19"
                       >
-                        <svg
-                          class="components-common-version-badge__icon-11"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            class="components-common-version-badge__circle"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            stroke-width="4"
-                          ></circle>
-                          <path
-                            class="components-common-version-badge__path"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
+                        <LoadingSpinner size="sm" color="inherit" decorative />
                       </div>
 
                       <!-- Load error + retry -->
@@ -587,39 +523,19 @@
                               {{ rollbackError }}
                             </p>
 
-                            <button
+                            <button :aria-busy="rollingBack"
                               @click="handleRollback"
                               :disabled="rollingBack"
                               class="components-common-version-badge__action-11"
                             >
-                              <svg
-                                v-if="rollingBack"
-                                class="components-common-version-badge__icon-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                              >
-                                <circle
-                                  class="components-common-version-badge__circle"
-                                  cx="12"
-                                  cy="12"
-                                  r="10"
-                                  stroke="currentColor"
-                                  stroke-width="4"
-                                ></circle>
-                                <path
-                                  class="components-common-version-badge__path"
-                                  fill="currentColor"
-                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                ></path>
-                              </svg>
-                              <Icon v-else name="clock" size="sm" :stroke-width="2" />
-                              <span>{{
-                                rollingBack
-                                  ? t('version.rollingBack')
-                                  : t('version.rollbackConfirm', {
-                                      version: 'v' + selectedRollbackVersion
-                                    })
-                              }}</span>
+                              <LoadingButtonContent :loading="rollingBack" :loading-text="t('version.rollingBack')">
+                                <Icon name="clock" size="sm" :stroke-width="2" />
+                                <span>
+                                  {{ t('version.rollbackConfirm', {
+                                    version: 'v' + selectedRollbackVersion
+                                  }) }}
+                                </span>
+                              </LoadingButtonContent>
                             </button>
                           </div>
                         </transition>
@@ -643,6 +559,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from './LoadingButtonContent.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'

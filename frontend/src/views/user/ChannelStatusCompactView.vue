@@ -30,9 +30,7 @@
         </div>
       </section>
 
-      <div v-if="loading && rows.length === 0" class="channel-status-compact__loading">
-        <LoadingSpinner />
-      </div>
+      <LoadingState v-if="loading && rows.length === 0" variant="section" class="channel-status-compact__loading" />
 
       <section v-else-if="rows.length" class="channel-status-compact__list" aria-live="polite">
         <!-- 共享时间刻度:与卡片时间轴同一水平区间 -->
@@ -95,12 +93,13 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import PublicMonitorLayout from '@/components/layout/PublicMonitorLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { extractApiErrorMessage } from '@/utils/apiError'

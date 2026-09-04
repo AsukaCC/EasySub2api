@@ -21,9 +21,7 @@
       </div>
     </header>
 
-    <div v-if="loading" class="dashboard-level__state">
-      <LoadingSpinner size="md" />
-    </div>
+    <LoadingState v-if="loading" variant="section" size="md" class="dashboard-level__state" />
     <div v-else-if="profile" class="dashboard-level__body">
       <!-- 仅展示距下一级的进度,完整阶梯见弹窗 -->
       <div class="dashboard-level__progress" :aria-hidden="false">
@@ -120,9 +118,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { UserLevelDashboard } from '@/api/userLevel'

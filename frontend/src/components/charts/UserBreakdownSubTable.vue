@@ -1,8 +1,6 @@
 <template>
   <div class="components-charts-user-breakdown-sub-table__panel">
-    <div v-if="loading" class="components-charts-user-breakdown-sub-table__panel-2">
-      <LoadingSpinner />
-    </div>
+    <LoadingState v-if="loading" variant="section" class="components-charts-user-breakdown-sub-table__panel-2" />
     <div v-else-if="items.length === 0" class="components-charts-user-breakdown-sub-table__panel-3">
       {{ t('admin.dashboard.noDataAvailable') }}
     </div>
@@ -38,9 +36,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import type { UserBreakdownItem } from '@/types'
 import { formatPoints } from '@/utils/format'
 

@@ -187,38 +187,16 @@
             </div>
 
             <!-- Validate Button -->
-            <button
+            <button :aria-busy="loading"
               type="button"
               class="components-account-oauth-authorization-flow__action btn btn-primary"
               :disabled="loading || !refreshTokenInput.trim()"
               @click="handleValidateRefreshToken"
             >
-              <svg
-                v-if="loading"
-                class="components-account-oauth-authorization-flow__icon-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="components-account-oauth-authorization-flow__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-account-oauth-authorization-flow__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-              {{
-                loading
-                  ? t(getOAuthKey('validating'))
-                  : t(getOAuthKey('validateAndCreate'))
-              }}
+<LoadingButtonContent :loading="loading" :loading-text="t(getOAuthKey('validating'))">
+<Icon  name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+              {{ t(getOAuthKey('validateAndCreate')) }}
+</LoadingButtonContent>
             </button>
           </div>
         </div>
@@ -266,34 +244,16 @@
               </p>
             </div>
 
-            <button
+            <button :aria-busy="loading"
               type="button"
               class="components-account-oauth-authorization-flow__action btn btn-primary"
               :disabled="loading || !ssoCookieInput.trim()"
               @click="handleImportSSO"
             >
-              <svg
-                v-if="loading"
-                class="components-account-oauth-authorization-flow__icon-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="components-account-oauth-authorization-flow__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-account-oauth-authorization-flow__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-              {{ loading ? t(getOAuthKey('convertingSSO')) : t(getOAuthKey('convertSSOAndCreate')) }}
+<LoadingButtonContent :loading="loading" :loading-text="t(getOAuthKey('convertingSSO'))">
+<Icon  name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+              {{ t(getOAuthKey('convertSSOAndCreate')) }}
+</LoadingButtonContent>
             </button>
           </div>
         </div>
@@ -339,34 +299,16 @@
                 {{ error }}
               </p>
             </div>
-            <button
+            <button :aria-busy="loading"
               type="button"
               class="components-account-oauth-authorization-flow__action btn btn-primary"
               :disabled="loading || !emailPasswordInput.trim()"
               @click="handleAuthorizePassword"
             >
-              <svg
-                v-if="loading"
-                class="components-account-oauth-authorization-flow__icon-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="components-account-oauth-authorization-flow__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-account-oauth-authorization-flow__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-              {{ loading ? t(getOAuthKey('validating')) : t(getOAuthKey('validateAndCreate')) }}
+<LoadingButtonContent :loading="loading" :loading-text="t(getOAuthKey('validating'))">
+<Icon  name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+              {{ t(getOAuthKey('validateAndCreate')) }}
+</LoadingButtonContent>
             </button>
           </div>
         </div>
@@ -414,38 +356,16 @@
               </p>
             </div>
 
-            <button
+            <button :aria-busy="loading"
               type="button"
               class="components-account-oauth-authorization-flow__action btn btn-primary"
               :disabled="loading || !codexSessionInput.trim()"
               @click="handleImportCodexSession"
             >
-              <svg
-                v-if="loading"
-                class="components-account-oauth-authorization-flow__icon-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="components-account-oauth-authorization-flow__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-account-oauth-authorization-flow__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-              {{
-                loading
-                  ? t('admin.accounts.oauth.openai.validating')
-                  : t('admin.accounts.oauth.openai.codexSessionImportAndCreate')
-              }}
+<LoadingButtonContent :loading="loading" :loading-text="t('admin.accounts.oauth.openai.validating')">
+<Icon  name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+              {{ t('admin.accounts.oauth.openai.codexSessionImportAndCreate') }}
+</LoadingButtonContent>
             </button>
           </div>
         </div>
@@ -487,38 +407,16 @@
               </p>
             </div>
 
-            <button
+            <button :aria-busy="loading"
               type="button"
               class="components-account-oauth-authorization-flow__action btn btn-primary"
               :disabled="loading || !codexPATInput.trim()"
               @click="handleImportCodexPAT"
             >
-              <svg
-                v-if="loading"
-                class="components-account-oauth-authorization-flow__icon-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="components-account-oauth-authorization-flow__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-account-oauth-authorization-flow__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-              {{
-                loading
-                  ? t('admin.accounts.oauth.openai.validating')
-                  : t('admin.accounts.oauth.openai.codexPatImportAndCreate')
-              }}
+<LoadingButtonContent :loading="loading" :loading-text="t('admin.accounts.oauth.openai.validating')">
+<Icon  name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+              {{ t('admin.accounts.oauth.openai.codexPatImportAndCreate') }}
+</LoadingButtonContent>
             </button>
           </div>
         </div>
@@ -619,38 +517,16 @@
             </div>
 
             <!-- Auth Button -->
-            <button
+            <button :aria-busy="loading"
               type="button"
               class="components-account-oauth-authorization-flow__action btn btn-primary"
               :disabled="loading || !sessionKeyInput.trim()"
               @click="handleCookieAuth"
             >
-              <svg
-                v-if="loading"
-                class="components-account-oauth-authorization-flow__icon-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="components-account-oauth-authorization-flow__circle"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="components-account-oauth-authorization-flow__path"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <Icon v-else name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-              {{
-                loading
-                  ? t('admin.accounts.oauth.authorizing')
-                  : t('admin.accounts.oauth.startAutoAuth')
-              }}
+<LoadingButtonContent :loading="loading" :loading-text="t('admin.accounts.oauth.authorizing')">
+<Icon  name="sparkles" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+              {{ t('admin.accounts.oauth.startAutoAuth') }}
+</LoadingButtonContent>
             </button>
           </div>
         </div>
@@ -675,35 +551,17 @@
                 <p class="components-account-oauth-authorization-flow__description-6">
                   {{ oauthStep1GenerateUrl }}
                 </p>
-                <button
+                <button :aria-busy="loading"
                   v-if="!authUrl"
                   type="button"
                   :disabled="loading"
                   class="components-account-oauth-authorization-flow__action-3 btn btn-primary"
                   @click="handleGenerateUrl"
                 >
-                  <svg
-                    v-if="loading"
-                    class="components-account-oauth-authorization-flow__icon-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="components-account-oauth-authorization-flow__circle"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="components-account-oauth-authorization-flow__path"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  <Icon v-else name="link" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
-                  {{ loading ? t('admin.accounts.oauth.generating') : oauthGenerateAuthUrl }}
+<LoadingButtonContent :loading="loading" :loading-text="t('admin.accounts.oauth.generating')">
+<Icon  name="link" size="sm" class="components-account-oauth-authorization-flow__icon-4" />
+                  {{ oauthGenerateAuthUrl }}
+</LoadingButtonContent>
                 </button>
                 <div v-else class="components-account-oauth-authorization-flow__panel-14">
                   <div class="components-account-oauth-authorization-flow__label-4">
@@ -851,6 +709,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useClipboard } from '@/composables/useClipboard'

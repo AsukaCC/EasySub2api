@@ -135,6 +135,12 @@ type AdminService interface {
 	ResetAccountQuota(ctx context.Context, id string) error
 }
 
+type AccountSubscriptionTierAdminService interface {
+	ListAccountsWithSubscriptionTier(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder string) ([]Account, int64, error)
+	ListAccountsForSchedulerScoreFilterWithSubscriptionTier(ctx context.Context, platform, accountType, status, search string, groupID, privacyMode, expiryStatus, subscriptionTier string) ([]Account, error)
+	ListAccountSubscriptionTiers(ctx context.Context, platform string) ([]AccountSubscriptionTierSummary, error)
+}
+
 // AdminUserArchiveService exposes restoration for users archived by older
 // versions without expanding the long-standing AdminService interface.
 type AdminUserArchiveService interface {
@@ -383,6 +389,7 @@ type CreateAccountInput struct {
 	ExpiresAt          *int64
 	AutoPauseOnExpired *bool
 	ProbeEnabled       *bool
+	ModelRuleID        *string
 	// SkipDefaultGroupBind prevents auto-binding to platform default group when GroupIDs is empty.
 	SkipDefaultGroupBind bool
 }
@@ -413,6 +420,7 @@ type UpdateAccountInput struct {
 	AutoPauseOnExpired *bool
 	ProbeEnabled       *bool
 	RateSyncEnabled    *bool
+	ModelRuleID        **string
 }
 
 // BulkUpdateAccountsInput describes the payload for bulk updating accounts.
@@ -431,16 +439,18 @@ type BulkUpdateAccountsInput struct {
 	Credentials    map[string]any
 	Extra          map[string]any
 	ProbeEnabled   *bool
+	ModelRuleID    **string
 }
 
 type BulkUpdateAccountFilters struct {
-	Platform     string
-	Type         string
-	Status       string
-	Group        string
-	Search       string
-	PrivacyMode  string
-	ExpiryStatus string
+	Platform         string
+	Type             string
+	Status           string
+	Group            string
+	Search           string
+	PrivacyMode      string
+	ExpiryStatus     string
+	SubscriptionTier string
 }
 
 // BulkUpdateAccountResult captures the result for a single account update.

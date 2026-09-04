@@ -7,9 +7,7 @@
       </div>
     </div>
     <div class="components-user-dashboard-user-dashboard-recent-usage__panel-2 card-body">
-      <div v-if="loading" class="components-user-dashboard-user-dashboard-recent-usage__panel-3">
-        <LoadingSpinner size="lg" />
-      </div>
+      <LoadingState v-if="loading" variant="section" size="lg" class="components-user-dashboard-user-dashboard-recent-usage__panel-3" />
       <div v-else-if="stats.total_requests === 0" class="components-user-dashboard-user-dashboard-recent-usage__panel-4">
         <EmptyState :title="t('dashboard.noUsageRecords')" :description="t('dashboard.startUsingApi')" />
       </div>
@@ -59,8 +57,9 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime, formatPoints } from '@/utils/format'

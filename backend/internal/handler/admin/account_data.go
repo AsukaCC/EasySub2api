@@ -478,12 +478,19 @@ func (h *AccountHandler) listAllProxies(ctx context.Context) ([]service.Proxy, e
 	return out, nil
 }
 
-func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, search string, groupID string, privacyMode, expiryStatus, sortBy, sortOrder string) ([]service.Account, error) {
+func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, search string, groupID string, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder string) ([]service.Account, error) {
 	page := 1
 	pageSize := dataPageCap
 	var out []service.Account
 	for {
-		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, sortBy, sortOrder)
+		var items []service.Account
+		var total int64
+		var err error
+		if tierService, ok := h.adminService.(service.AccountSubscriptionTierAdminService); ok {
+			items, total, err = tierService.ListAccountsWithSubscriptionTier(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder)
+		} else {
+			items, total, err = h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, expiryStatus, sortBy, sortOrder)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -520,6 +527,7 @@ func (h *AccountHandler) resolveExportAccounts(ctx context.Context, ids []string
 	if expiryStatusErr != nil {
 		return nil, expiryStatusErr
 	}
+	subscriptionTier := strings.TrimSpace(c.Query("subscription_tier"))
 	search := strings.TrimSpace(c.Query("search"))
 	sortBy := c.DefaultQuery("sort_by", "name")
 	sortOrder := c.DefaultQuery("sort_order", "asc")
@@ -540,7 +548,7 @@ func (h *AccountHandler) resolveExportAccounts(ctx context.Context, ids []string
 		}
 	}
 
-	return h.listAccountsFiltered(ctx, platform, accountType, status, search, groupID, privacyMode, expiryStatus, sortBy, sortOrder)
+	return h.listAccountsFiltered(ctx, platform, accountType, status, search, groupID, privacyMode, expiryStatus, subscriptionTier, sortBy, sortOrder)
 }
 
 func (h *AccountHandler) resolveExportProxies(ctx context.Context, accounts []service.Account) ([]service.Proxy, error) {

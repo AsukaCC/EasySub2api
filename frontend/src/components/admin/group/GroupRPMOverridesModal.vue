@@ -83,12 +83,7 @@
       </div>
 
       <!-- 加载状态 -->
-      <div v-if="loading" class="components-admin-group-group-rpmoverrides-modal__panel-9">
-        <svg class="components-admin-group-group-rpmoverrides-modal__icon-2" fill="none" viewBox="0 0 24 24">
-          <circle class="components-admin-group-group-rpmoverrides-modal__circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="components-admin-group-group-rpmoverrides-modal__path" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </div>
+      <LoadingState v-if="loading" variant="section" size="sm" class="components-admin-group-group-rpmoverrides-modal__panel-9" />
 
       <!-- 列表 -->
       <div v-else>
@@ -206,6 +201,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
+
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

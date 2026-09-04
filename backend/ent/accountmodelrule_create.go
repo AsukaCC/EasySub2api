@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
+	"github.com/AsukaCC/EasySub2api/internal/domain"
 )
 
 // AccountModelRuleCreate is the builder for creating a AccountModelRule entity.
@@ -74,6 +75,26 @@ func (_c *AccountModelRuleCreate) SetNillableDescription(v *string) *AccountMode
 // SetPlatform sets the "platform" field.
 func (_c *AccountModelRuleCreate) SetPlatform(v string) *AccountModelRuleCreate {
 	_c.mutation.SetPlatform(v)
+	return _c
+}
+
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (_c *AccountModelRuleCreate) SetSubscriptionTier(v string) *AccountModelRuleCreate {
+	_c.mutation.SetSubscriptionTier(v)
+	return _c
+}
+
+// SetNillableSubscriptionTier sets the "subscription_tier" field if the given value is not nil.
+func (_c *AccountModelRuleCreate) SetNillableSubscriptionTier(v *string) *AccountModelRuleCreate {
+	if v != nil {
+		_c.SetSubscriptionTier(*v)
+	}
+	return _c
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (_c *AccountModelRuleCreate) SetModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleCreate {
+	_c.mutation.SetModelRoutes(v)
 	return _c
 }
 
@@ -152,6 +173,10 @@ func (_c *AccountModelRuleCreate) defaults() {
 		v := accountmodelrule.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.ModelRoutes(); !ok {
+		v := accountmodelrule.DefaultModelRoutes
+		_c.mutation.SetModelRoutes(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := accountmodelrule.DefaultID()
 		_c.mutation.SetID(v)
@@ -181,6 +206,14 @@ func (_c *AccountModelRuleCreate) check() error {
 		if err := accountmodelrule.PlatformValidator(v); err != nil {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "AccountModelRule.platform": %w`, err)}
 		}
+	}
+	if v, ok := _c.mutation.SubscriptionTier(); ok {
+		if err := accountmodelrule.SubscriptionTierValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_tier", err: fmt.Errorf(`ent: validator failed for field "AccountModelRule.subscription_tier": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ModelRoutes(); !ok {
+		return &ValidationError{Name: "model_routes", err: errors.New(`ent: missing required field "AccountModelRule.model_routes"`)}
 	}
 	if _, ok := _c.mutation.Mapping(); !ok {
 		return &ValidationError{Name: "mapping", err: errors.New(`ent: missing required field "AccountModelRule.mapping"`)}
@@ -246,6 +279,14 @@ func (_c *AccountModelRuleCreate) createSpec() (*AccountModelRule, *sqlgraph.Cre
 	if value, ok := _c.mutation.Platform(); ok {
 		_spec.SetField(accountmodelrule.FieldPlatform, field.TypeString, value)
 		_node.Platform = value
+	}
+	if value, ok := _c.mutation.SubscriptionTier(); ok {
+		_spec.SetField(accountmodelrule.FieldSubscriptionTier, field.TypeString, value)
+		_node.SubscriptionTier = &value
+	}
+	if value, ok := _c.mutation.ModelRoutes(); ok {
+		_spec.SetField(accountmodelrule.FieldModelRoutes, field.TypeJSON, value)
+		_node.ModelRoutes = value
 	}
 	if value, ok := _c.mutation.Mapping(); ok {
 		_spec.SetField(accountmodelrule.FieldMapping, field.TypeJSON, value)
@@ -362,6 +403,36 @@ func (u *AccountModelRuleUpsert) SetPlatform(v string) *AccountModelRuleUpsert {
 // UpdatePlatform sets the "platform" field to the value that was provided on create.
 func (u *AccountModelRuleUpsert) UpdatePlatform() *AccountModelRuleUpsert {
 	u.SetExcluded(accountmodelrule.FieldPlatform)
+	return u
+}
+
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (u *AccountModelRuleUpsert) SetSubscriptionTier(v string) *AccountModelRuleUpsert {
+	u.Set(accountmodelrule.FieldSubscriptionTier, v)
+	return u
+}
+
+// UpdateSubscriptionTier sets the "subscription_tier" field to the value that was provided on create.
+func (u *AccountModelRuleUpsert) UpdateSubscriptionTier() *AccountModelRuleUpsert {
+	u.SetExcluded(accountmodelrule.FieldSubscriptionTier)
+	return u
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (u *AccountModelRuleUpsert) ClearSubscriptionTier() *AccountModelRuleUpsert {
+	u.SetNull(accountmodelrule.FieldSubscriptionTier)
+	return u
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (u *AccountModelRuleUpsert) SetModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpsert {
+	u.Set(accountmodelrule.FieldModelRoutes, v)
+	return u
+}
+
+// UpdateModelRoutes sets the "model_routes" field to the value that was provided on create.
+func (u *AccountModelRuleUpsert) UpdateModelRoutes() *AccountModelRuleUpsert {
+	u.SetExcluded(accountmodelrule.FieldModelRoutes)
 	return u
 }
 
@@ -512,6 +583,41 @@ func (u *AccountModelRuleUpsertOne) SetPlatform(v string) *AccountModelRuleUpser
 func (u *AccountModelRuleUpsertOne) UpdatePlatform() *AccountModelRuleUpsertOne {
 	return u.Update(func(s *AccountModelRuleUpsert) {
 		s.UpdatePlatform()
+	})
+}
+
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (u *AccountModelRuleUpsertOne) SetSubscriptionTier(v string) *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.SetSubscriptionTier(v)
+	})
+}
+
+// UpdateSubscriptionTier sets the "subscription_tier" field to the value that was provided on create.
+func (u *AccountModelRuleUpsertOne) UpdateSubscriptionTier() *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.UpdateSubscriptionTier()
+	})
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (u *AccountModelRuleUpsertOne) ClearSubscriptionTier() *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.ClearSubscriptionTier()
+	})
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (u *AccountModelRuleUpsertOne) SetModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.SetModelRoutes(v)
+	})
+}
+
+// UpdateModelRoutes sets the "model_routes" field to the value that was provided on create.
+func (u *AccountModelRuleUpsertOne) UpdateModelRoutes() *AccountModelRuleUpsertOne {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.UpdateModelRoutes()
 	})
 }
 
@@ -835,6 +941,41 @@ func (u *AccountModelRuleUpsertBulk) SetPlatform(v string) *AccountModelRuleUpse
 func (u *AccountModelRuleUpsertBulk) UpdatePlatform() *AccountModelRuleUpsertBulk {
 	return u.Update(func(s *AccountModelRuleUpsert) {
 		s.UpdatePlatform()
+	})
+}
+
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (u *AccountModelRuleUpsertBulk) SetSubscriptionTier(v string) *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.SetSubscriptionTier(v)
+	})
+}
+
+// UpdateSubscriptionTier sets the "subscription_tier" field to the value that was provided on create.
+func (u *AccountModelRuleUpsertBulk) UpdateSubscriptionTier() *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.UpdateSubscriptionTier()
+	})
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (u *AccountModelRuleUpsertBulk) ClearSubscriptionTier() *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.ClearSubscriptionTier()
+	})
+}
+
+// SetModelRoutes sets the "model_routes" field.
+func (u *AccountModelRuleUpsertBulk) SetModelRoutes(v []domain.AccountModelRoute) *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.SetModelRoutes(v)
+	})
+}
+
+// UpdateModelRoutes sets the "model_routes" field to the value that was provided on create.
+func (u *AccountModelRuleUpsertBulk) UpdateModelRoutes() *AccountModelRuleUpsertBulk {
+	return u.Update(func(s *AccountModelRuleUpsert) {
+		s.UpdateModelRoutes()
 	})
 }
 

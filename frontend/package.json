@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "style:check": "node scripts/style-audit.mjs",
+    "loading:check": "node scripts/loading-audit.mjs",
     "style:inventory": "node scripts/style-migration-report.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",

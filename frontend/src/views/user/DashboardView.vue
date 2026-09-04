@@ -4,9 +4,7 @@
       <!-- 整页两栏:左 = 统计卡 + 图表 / 右 = 站内通知 + 消费等级 + 快捷操作 -->
       <div class="dashboard-page__grid">
         <div class="dashboard-page__main">
-          <div v-if="loading" class="dashboard-page__loading">
-            <LoadingSpinner />
-          </div>
+          <LoadingState v-if="loading" variant="section" class="dashboard-page__loading" />
           <div v-else-if="stats" class="dashboard-page__stats">
             <UserDashboardStats
               :stats="stats"
@@ -42,7 +40,7 @@ import { keysAPI, usageAPI, userLevelAPI } from '@/api'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
 import type { UserLevelDashboard } from '@/api/userLevel'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import LoadingState from '@/components/common/LoadingState.vue'
 import UserDashboardAnnouncements from '@/components/user/dashboard/UserDashboardAnnouncements.vue'
 import UserDashboardLevel from '@/components/user/dashboard/UserDashboardLevel.vue'
 import UserDashboardStats from '@/components/user/dashboard/UserDashboardStats.vue'

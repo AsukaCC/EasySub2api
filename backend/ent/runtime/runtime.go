@@ -270,6 +270,10 @@ func init() {
 	accountDescSessionWindowStatus := accountFields[25].Descriptor()
 	// account.SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	account.SessionWindowStatusValidator = accountDescSessionWindowStatus.Validators[0].(func(string) error)
+	// accountDescSubscriptionTier is the schema descriptor for subscription_tier field.
+	accountDescSubscriptionTier := accountFields[27].Descriptor()
+	// account.SubscriptionTierValidator is a validator for the "subscription_tier" field. It is called by the builders before save.
+	account.SubscriptionTierValidator = accountDescSubscriptionTier.Validators[0].(func(string) error)
 	// accountDescID is the schema descriptor for id field.
 	accountDescID := accountMixinFields0[0].Descriptor()
 	// account.DefaultID holds the default value on creation for the id field.
@@ -337,6 +341,14 @@ func init() {
 			return nil
 		}
 	}()
+	// accountmodelruleDescSubscriptionTier is the schema descriptor for subscription_tier field.
+	accountmodelruleDescSubscriptionTier := accountmodelruleFields[3].Descriptor()
+	// accountmodelrule.SubscriptionTierValidator is a validator for the "subscription_tier" field. It is called by the builders before save.
+	accountmodelrule.SubscriptionTierValidator = accountmodelruleDescSubscriptionTier.Validators[0].(func(string) error)
+	// accountmodelruleDescModelRoutes is the schema descriptor for model_routes field.
+	accountmodelruleDescModelRoutes := accountmodelruleFields[4].Descriptor()
+	// accountmodelrule.DefaultModelRoutes holds the default value on creation for the model_routes field.
+	accountmodelrule.DefaultModelRoutes = accountmodelruleDescModelRoutes.Default.([]domain.AccountModelRoute)
 	// accountmodelruleDescID is the schema descriptor for id field.
 	accountmodelruleDescID := accountmodelruleMixinFields0[0].Descriptor()
 	// accountmodelrule.DefaultID holds the default value on creation for the id field.

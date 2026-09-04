@@ -8,19 +8,18 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/domain"
 )
 
-// AccountModelRule is a reusable model restriction template. Mapping keys and
-// values use the same semantics as account credentials.model_mapping, while
-// whitelist contains exact request model names that should be allowed.
+// AccountModelRule is a reusable model-routing configuration scoped by
+// platform and, optionally, normalized subscription tier.
 type AccountModelRule struct {
-	ID               string            `json:"id"`
-	Name             string            `json:"name"`
-	Description      *string           `json:"description"`
-	Platform         string            `json:"platform"`
-	Whitelist        []string          `json:"whitelist"`
-	Mapping          map[string]string `json:"mapping"`
-	ReasoningEfforts map[string]string `json:"reasoning_efforts"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
+	ID                string                     `json:"id"`
+	Name              string                     `json:"name"`
+	Description       *string                    `json:"description"`
+	Platform          string                     `json:"platform"`
+	SubscriptionTier  *string                    `json:"subscription_tier"`
+	ModelRoutes       []domain.AccountModelRoute `json:"model_routes"`
+	BoundAccountCount int                        `json:"bound_account_count,omitempty"`
+	CreatedAt         time.Time                  `json:"created_at"`
+	UpdatedAt         time.Time                  `json:"updated_at"`
 }
 
 // Validate normalizes and validates a rule before persistence.
@@ -30,6 +29,14 @@ func (r *AccountModelRule) Validate() error {
 	}
 	r.Name = strings.TrimSpace(r.Name)
 	r.Platform = strings.TrimSpace(strings.ToLower(r.Platform))
+	if r.SubscriptionTier != nil {
+		tier := NormalizeSubscriptionTier(*r.SubscriptionTier)
+		if tier == "" {
+			r.SubscriptionTier = nil
+		} else {
+			r.SubscriptionTier = &tier
+		}
+	}
 	if r.Description != nil {
 		description := strings.TrimSpace(*r.Description)
 		if description == "" {
@@ -47,65 +54,61 @@ func (r *AccountModelRule) Validate() error {
 	if !domain.IsAccountPlatform(r.Platform) {
 		return &ValidationError{Field: "platform", Message: "unsupported account platform"}
 	}
-	normalized := make(map[string]string, len(r.Mapping))
-	for rawFrom, rawTo := range r.Mapping {
-		from := strings.TrimSpace(rawFrom)
-		to := strings.TrimSpace(rawTo)
+	normalizedRoutes := make([]domain.AccountModelRoute, 0, len(r.ModelRoutes))
+	seenSources := make(map[string]struct{}, len(r.ModelRoutes))
+	for _, rawRoute := range r.ModelRoutes {
+		from := strings.TrimSpace(rawRoute.RequestModel)
+		to := strings.TrimSpace(rawRoute.UpstreamModel)
 		if from == "" || to == "" {
-			continue
+			return &ValidationError{Field: "model_routes", Message: "request_model and upstream_model are required"}
 		}
 		if !validModelWildcard(from) {
-			return &ValidationError{Field: "mapping", Message: "source model wildcard must appear once at the end"}
+			return &ValidationError{Field: "model_routes", Message: "request model wildcard must appear once at the end"}
 		}
 		if strings.Contains(to, "*") {
-			return &ValidationError{Field: "mapping", Message: "target model cannot contain a wildcard"}
+			return &ValidationError{Field: "model_routes", Message: "upstream model cannot contain a wildcard"}
 		}
-		if _, exists := normalized[from]; exists {
-			return &ValidationError{Field: "mapping", Message: "duplicate source model"}
+		if _, exists := seenSources[from]; exists {
+			return &ValidationError{Field: "model_routes", Message: "duplicate request model"}
 		}
-		normalized[from] = to
+		seenSources[from] = struct{}{}
+		effort := ""
+		if strings.TrimSpace(rawRoute.ReasoningEffort) != "" {
+			if r.Platform != domain.PlatformOpenAI {
+				return &ValidationError{Field: "model_routes", Message: "reasoning effort is only supported for OpenAI rules"}
+			}
+			effort = normalizeRuleReasoningEffort(rawRoute.ReasoningEffort)
+			if effort == "" {
+				return &ValidationError{Field: "model_routes", Message: "unsupported reasoning effort"}
+			}
+		}
+		normalizedRoutes = append(normalizedRoutes, domain.AccountModelRoute{RequestModel: from, UpstreamModel: to, ReasoningEffort: effort})
 	}
-	normalizedWhitelist := make([]string, 0, len(r.Whitelist))
-	seenWhitelist := make(map[string]struct{}, len(r.Whitelist))
-	for _, rawModel := range r.Whitelist {
-		modelName := strings.TrimSpace(rawModel)
-		if modelName == "" {
-			continue
-		}
-		if strings.Contains(modelName, "*") {
-			return &ValidationError{Field: "whitelist", Message: "whitelist models cannot contain a wildcard"}
-		}
-		if _, exists := seenWhitelist[modelName]; exists {
-			continue
-		}
-		seenWhitelist[modelName] = struct{}{}
-		normalizedWhitelist = append(normalizedWhitelist, modelName)
-	}
-	if len(normalized) == 0 && len(normalizedWhitelist) == 0 {
-		return &ValidationError{Field: "rule", Message: "at least one whitelist model or model mapping is required"}
-	}
-	r.Whitelist = normalizedWhitelist
-	r.Mapping = normalized
-	normalizedReasoningEfforts := make(map[string]string, len(r.ReasoningEfforts))
-	for rawModel, rawEffort := range r.ReasoningEfforts {
-		modelName := strings.TrimSpace(rawModel)
-		if modelName == "" || strings.TrimSpace(rawEffort) == "" {
-			continue
-		}
-		if r.Platform != domain.PlatformOpenAI {
-			return &ValidationError{Field: "reasoning_efforts", Message: "reasoning effort is only supported for OpenAI rules"}
-		}
-		if _, exists := normalized[modelName]; !exists {
-			return &ValidationError{Field: "reasoning_efforts", Message: "reasoning effort model must exist in mapping"}
-		}
-		effort := normalizeRuleReasoningEffort(rawEffort)
-		if effort == "" {
-			return &ValidationError{Field: "reasoning_efforts", Message: "unsupported reasoning effort"}
-		}
-		normalizedReasoningEfforts[modelName] = effort
-	}
-	r.ReasoningEfforts = normalizedReasoningEfforts
+	r.ModelRoutes = normalizedRoutes
 	return nil
+}
+
+// NormalizeSubscriptionTier produces the stable key used by account filters
+// and model-rule scope matching.
+func NormalizeSubscriptionTier(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return ""
+	}
+	var builder strings.Builder
+	lastUnderscore := false
+	for _, ch := range value {
+		if ch == ' ' || ch == '-' || ch == '_' || ch == '/' {
+			if builder.Len() > 0 && !lastUnderscore {
+				builder.WriteByte('_')
+				lastUnderscore = true
+			}
+			continue
+		}
+		builder.WriteRune(ch)
+		lastUnderscore = false
+	}
+	return strings.Trim(builder.String(), "_")
 }
 
 func normalizeRuleReasoningEffort(value string) string {

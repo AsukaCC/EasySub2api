@@ -3,7 +3,6 @@
     <main class="ops-feature-settings">
       <header class="ops-feature-settings__header">
         <div>
-          <h1>{{ t('admin.settings.featureManagement.opsSettings.title') }}</h1>
           <p>{{ t('admin.settings.featureManagement.opsSettings.description') }}</p>
         </div>
         <RouterLink class="btn btn-secondary" to="/admin/ops">
@@ -125,8 +124,7 @@ onMounted(load)
 <style scoped>
 .ops-feature-settings { width: min(1100px, 100%); margin: 0 auto; padding: 2rem; }
 .ops-feature-settings__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
-.ops-feature-settings__header h1 { margin: 0; font-size: var(--font-size-2xl); }
-.ops-feature-settings__header p { margin: .45rem 0 0; color: var(--color-text-secondary); }
+.ops-feature-settings__header p { margin: 0; color: var(--color-text-secondary); }
 .ops-feature-settings__header .btn, .ops-feature-settings__actions .btn { display: inline-flex; align-items: center; gap: .45rem; }
 .ops-feature-settings__card { padding: 1.25rem; margin-bottom: 1.5rem; }
 .ops-feature-settings__row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--glass-border); }

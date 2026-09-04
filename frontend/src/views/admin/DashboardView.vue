@@ -2,9 +2,7 @@
   <AppLayout>
     <div class="page-stack">
       <!-- Loading State -->
-      <div v-if="loading" class="views-admin-dashboard-view__panel-2">
-        <LoadingSpinner />
-      </div>
+      <LoadingState v-if="loading" variant="page" />
 
       <template v-else-if="stats">
         <!-- Account weekly quota -->
@@ -14,14 +12,18 @@
               <h2 class="quota-dashboard__title">{{ t('admin.dashboard.accountQuotaTitle') }}</h2>
               <p class="quota-dashboard__hint">{{ t('admin.dashboard.accountQuotaHint') }}</p>
             </div>
-            <button type="button" class="btn btn-secondary" :disabled="quotaLoading" @click="loadAccountQuotas">
-              <LoadingSpinner v-if="quotaLoading" size="sm" />
+            <button
+              type="button"
+              class="btn btn-secondary"
+              :disabled="quotaLoading"
+              :aria-busy="quotaLoading"
+              @click="loadAccountQuotas"
+            >
+              <LoadingSpinner v-if="quotaLoading" size="sm" color="inherit" decorative />
               <span v-else>{{ t('common.refresh') }}</span>
             </button>
           </div>
-          <div v-if="quotaLoading && !quotaDashboard" class="quota-dashboard__loading">
-            <LoadingSpinner />
-          </div>
+          <LoadingState v-if="quotaLoading && !quotaDashboard" variant="section" class="quota-dashboard__loading" />
           <div v-else-if="quotaDashboard?.platforms.length" class="quota-dashboard__platforms">
             <article v-for="platform in quotaDashboard.platforms" :key="platform.platform" class="quota-platform">
               <div class="quota-platform__header">
@@ -412,9 +414,7 @@
               </div>
             </div>
             <div class="dashboard-usage-chart__body">
-              <div v-if="userTrendLoading" class="dashboard-usage-chart__state">
-                <LoadingSpinner size="md" />
-              </div>
+              <LoadingState v-if="userTrendLoading" variant="section" size="md" class="dashboard-usage-chart__state" />
               <D3LineChart
                 v-else-if="userTrendChartData"
                 class="dashboard-usage-chart__plot"
@@ -453,6 +453,7 @@ import type {
 import type { AccountQuotaDashboard, DashboardRealtimeMetrics } from '@/api/admin/dashboard'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import LoadingState from '@/components/common/LoadingState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Select from '@/components/common/Select.vue'

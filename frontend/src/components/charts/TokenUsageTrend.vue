@@ -3,9 +3,7 @@
     <h3 class="components-charts-token-usage-trend__heading">
       {{ t('admin.dashboard.tokenUsageTrend') }}
     </h3>
-    <div v-if="loading" class="components-charts-token-usage-trend__panel-2">
-      <LoadingSpinner />
-    </div>
+    <LoadingState v-if="loading" variant="section" class="components-charts-token-usage-trend__panel-2" />
     <div v-else-if="trendData.length > 0 && chartData" class="components-charts-token-usage-trend__panel-3">
       <D3LineChart :data="chartData" :options="lineOptions" />
     </div>
@@ -19,9 +17,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
 import D3LineChart from '@/components/charts/d3/D3LineChart.vue'
 import { useThemeColors } from '@/composables/useThemeColors'
 import type { TrendDataPoint } from '@/types'

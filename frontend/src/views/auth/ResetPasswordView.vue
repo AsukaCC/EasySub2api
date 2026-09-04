@@ -153,33 +153,15 @@
         </div>
 
         <!-- Submit Button -->
-        <button
+        <button :aria-busy="isLoading"
           type="submit"
           :disabled="isLoading"
           class="views-auth-reset-password-view__action-2 btn btn-primary"
         >
-          <svg
-            v-if="isLoading"
-            class="views-auth-reset-password-view__icon-4"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="views-auth-reset-password-view__circle"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="views-auth-reset-password-view__path"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          <Icon v-else name="checkCircle" size="md" class="views-auth-reset-password-view__icon-5" />
-          {{ isLoading ? t('auth.resettingPassword') : t('auth.resetPassword') }}
+          <LoadingButtonContent :loading="isLoading" :loading-text="t('auth.resettingPassword')">
+          <Icon  name="checkCircle" size="md" class="views-auth-reset-password-view__icon-5" />
+                    {{ t('auth.resetPassword') }}
+          </LoadingButtonContent>
         </button>
       </form>
     </div>
@@ -200,6 +182,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'

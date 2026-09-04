@@ -45,14 +45,15 @@ func (s *OpenAIGatewayService) forwardGrokResponses(
 		return nil, fmt.Errorf("grok account type %s is not supported by Responses forwarding", account.Type)
 	}
 
-	upstreamModel := account.GetMappedModel(originalModel)
+	upstreamModel, matched := account.ResolveMappedModel(originalModel)
 	if strings.TrimSpace(upstreamModel) == "" {
-		upstreamModel = grokDefaultResponsesModel
+		upstreamModel = originalModel
 	}
-	// Account mappings are optional. Canonicalize client aliases even when the
-	// account has no model_mapping, matching the Chat Completions path and xAI's
-	// actual Responses model IDs.
-	upstreamModel = xai.ResolveGrokTextResponsesModelID(upstreamModel, grokDefaultResponsesModel)
+	// Preserve new rule targets exactly. Legacy explicit mappings retain their
+	// historical xAI alias normalization for compatibility.
+	if matched && account.ModelRuleID == nil {
+		upstreamModel = xai.ResolveGrokTextResponsesModelID(upstreamModel, grokDefaultResponsesModel)
+	}
 	if isGrokImageGenerationModel(upstreamModel) {
 		return nil, fmt.Errorf("model %s is an image model and is not available on the Responses endpoint; use /v1/images/generations instead", upstreamModel)
 	}

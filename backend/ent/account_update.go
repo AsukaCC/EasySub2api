@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/account"
+	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/group"
 	"github.com/AsukaCC/EasySub2api/ent/predicate"
 	"github.com/AsukaCC/EasySub2api/ent/proxy"
@@ -543,6 +544,46 @@ func (_u *AccountUpdate) ClearParentAccountID() *AccountUpdate {
 	return _u
 }
 
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (_u *AccountUpdate) SetSubscriptionTier(v string) *AccountUpdate {
+	_u.mutation.SetSubscriptionTier(v)
+	return _u
+}
+
+// SetNillableSubscriptionTier sets the "subscription_tier" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableSubscriptionTier(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetSubscriptionTier(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (_u *AccountUpdate) ClearSubscriptionTier() *AccountUpdate {
+	_u.mutation.ClearSubscriptionTier()
+	return _u
+}
+
+// SetModelRuleID sets the "model_rule_id" field.
+func (_u *AccountUpdate) SetModelRuleID(v string) *AccountUpdate {
+	_u.mutation.SetModelRuleID(v)
+	return _u
+}
+
+// SetNillableModelRuleID sets the "model_rule_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableModelRuleID(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetModelRuleID(*v)
+	}
+	return _u
+}
+
+// ClearModelRuleID clears the value of the "model_rule_id" field.
+func (_u *AccountUpdate) ClearModelRuleID() *AccountUpdate {
+	_u.mutation.ClearModelRuleID()
+	return _u
+}
+
 // SetQuotaDimension sets the "quota_dimension" field.
 func (_u *AccountUpdate) SetQuotaDimension(v account.QuotaDimension) *AccountUpdate {
 	_u.mutation.SetQuotaDimension(v)
@@ -575,6 +616,11 @@ func (_u *AccountUpdate) AddGroups(v ...*Group) *AccountUpdate {
 // SetProxy sets the "proxy" edge to the Proxy entity.
 func (_u *AccountUpdate) SetProxy(v *Proxy) *AccountUpdate {
 	return _u.SetProxyID(v.ID)
+}
+
+// SetModelRule sets the "model_rule" edge to the AccountModelRule entity.
+func (_u *AccountUpdate) SetModelRule(v *AccountModelRule) *AccountUpdate {
+	return _u.SetModelRuleID(v.ID)
 }
 
 // SetParentID sets the "parent" edge to the Account entity by ID.
@@ -655,6 +701,12 @@ func (_u *AccountUpdate) RemoveGroups(v ...*Group) *AccountUpdate {
 // ClearProxy clears the "proxy" edge to the Proxy entity.
 func (_u *AccountUpdate) ClearProxy() *AccountUpdate {
 	_u.mutation.ClearProxy()
+	return _u
+}
+
+// ClearModelRule clears the "model_rule" edge to the AccountModelRule entity.
+func (_u *AccountUpdate) ClearModelRule() *AccountUpdate {
+	_u.mutation.ClearModelRule()
 	return _u
 }
 
@@ -773,6 +825,11 @@ func (_u *AccountUpdate) check() error {
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SubscriptionTier(); ok {
+		if err := account.SubscriptionTierValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_tier", err: fmt.Errorf(`ent: validator failed for field "Account.subscription_tier": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.QuotaDimension(); ok {
@@ -933,6 +990,12 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.SessionWindowStatusCleared() {
 		_spec.ClearField(account.FieldSessionWindowStatus, field.TypeString)
 	}
+	if value, ok := _u.mutation.SubscriptionTier(); ok {
+		_spec.SetField(account.FieldSubscriptionTier, field.TypeString, value)
+	}
+	if _u.mutation.SubscriptionTierCleared() {
+		_spec.ClearField(account.FieldSubscriptionTier, field.TypeString)
+	}
 	if value, ok := _u.mutation.QuotaDimension(); ok {
 		_spec.SetField(account.FieldQuotaDimension, field.TypeEnum, value)
 	}
@@ -1015,6 +1078,35 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ModelRuleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ModelRuleTable,
+			Columns: []string{account.ModelRuleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(accountmodelrule.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ModelRuleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ModelRuleTable,
+			Columns: []string{account.ModelRuleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(accountmodelrule.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -1673,6 +1765,46 @@ func (_u *AccountUpdateOne) ClearParentAccountID() *AccountUpdateOne {
 	return _u
 }
 
+// SetSubscriptionTier sets the "subscription_tier" field.
+func (_u *AccountUpdateOne) SetSubscriptionTier(v string) *AccountUpdateOne {
+	_u.mutation.SetSubscriptionTier(v)
+	return _u
+}
+
+// SetNillableSubscriptionTier sets the "subscription_tier" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableSubscriptionTier(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionTier(*v)
+	}
+	return _u
+}
+
+// ClearSubscriptionTier clears the value of the "subscription_tier" field.
+func (_u *AccountUpdateOne) ClearSubscriptionTier() *AccountUpdateOne {
+	_u.mutation.ClearSubscriptionTier()
+	return _u
+}
+
+// SetModelRuleID sets the "model_rule_id" field.
+func (_u *AccountUpdateOne) SetModelRuleID(v string) *AccountUpdateOne {
+	_u.mutation.SetModelRuleID(v)
+	return _u
+}
+
+// SetNillableModelRuleID sets the "model_rule_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableModelRuleID(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetModelRuleID(*v)
+	}
+	return _u
+}
+
+// ClearModelRuleID clears the value of the "model_rule_id" field.
+func (_u *AccountUpdateOne) ClearModelRuleID() *AccountUpdateOne {
+	_u.mutation.ClearModelRuleID()
+	return _u
+}
+
 // SetQuotaDimension sets the "quota_dimension" field.
 func (_u *AccountUpdateOne) SetQuotaDimension(v account.QuotaDimension) *AccountUpdateOne {
 	_u.mutation.SetQuotaDimension(v)
@@ -1705,6 +1837,11 @@ func (_u *AccountUpdateOne) AddGroups(v ...*Group) *AccountUpdateOne {
 // SetProxy sets the "proxy" edge to the Proxy entity.
 func (_u *AccountUpdateOne) SetProxy(v *Proxy) *AccountUpdateOne {
 	return _u.SetProxyID(v.ID)
+}
+
+// SetModelRule sets the "model_rule" edge to the AccountModelRule entity.
+func (_u *AccountUpdateOne) SetModelRule(v *AccountModelRule) *AccountUpdateOne {
+	return _u.SetModelRuleID(v.ID)
 }
 
 // SetParentID sets the "parent" edge to the Account entity by ID.
@@ -1785,6 +1922,12 @@ func (_u *AccountUpdateOne) RemoveGroups(v ...*Group) *AccountUpdateOne {
 // ClearProxy clears the "proxy" edge to the Proxy entity.
 func (_u *AccountUpdateOne) ClearProxy() *AccountUpdateOne {
 	_u.mutation.ClearProxy()
+	return _u
+}
+
+// ClearModelRule clears the "model_rule" edge to the AccountModelRule entity.
+func (_u *AccountUpdateOne) ClearModelRule() *AccountUpdateOne {
+	_u.mutation.ClearModelRule()
 	return _u
 }
 
@@ -1916,6 +2059,11 @@ func (_u *AccountUpdateOne) check() error {
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SubscriptionTier(); ok {
+		if err := account.SubscriptionTierValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_tier", err: fmt.Errorf(`ent: validator failed for field "Account.subscription_tier": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.QuotaDimension(); ok {
@@ -2093,6 +2241,12 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	if _u.mutation.SessionWindowStatusCleared() {
 		_spec.ClearField(account.FieldSessionWindowStatus, field.TypeString)
 	}
+	if value, ok := _u.mutation.SubscriptionTier(); ok {
+		_spec.SetField(account.FieldSubscriptionTier, field.TypeString, value)
+	}
+	if _u.mutation.SubscriptionTierCleared() {
+		_spec.ClearField(account.FieldSubscriptionTier, field.TypeString)
+	}
 	if value, ok := _u.mutation.QuotaDimension(); ok {
 		_spec.SetField(account.FieldQuotaDimension, field.TypeEnum, value)
 	}
@@ -2175,6 +2329,35 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ModelRuleCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ModelRuleTable,
+			Columns: []string{account.ModelRuleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(accountmodelrule.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ModelRuleIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ModelRuleTable,
+			Columns: []string{account.ModelRuleColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(accountmodelrule.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {

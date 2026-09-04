@@ -2,10 +2,7 @@
   <AppLayout>
     <div class="user-levels-view">
       <header class="user-levels-view__header">
-        <div>
-          <h1>{{ t('admin.users.levels.title') }}</h1>
-          <p>{{ t('admin.users.levels.description') }}</p>
-        </div>
+        <p>{{ t('admin.users.levels.description') }}</p>
       </header>
       <form class="user-levels-view__form" @submit.prevent="save">
         <div class="user-levels-view__grid">
@@ -54,8 +51,8 @@ onMounted(load)
 <style scoped>
 .user-levels-view { max-width: 980px; margin: 0 auto; padding: 2rem; }
 .user-levels-view__header { margin-bottom: 1.5rem; }
-.user-levels-view__header h1 { margin: 0; font-size: var(--font-size-2xl); }
-.user-levels-view__header p, .user-levels-view__note { color: var(--color-text-secondary); }
+.user-levels-view__header p { margin: 0; color: var(--color-text-secondary); }
+.user-levels-view__note { color: var(--color-text-secondary); }
 .user-levels-view__form { border: 1px solid var(--glass-border); background: var(--glass-bg); border-radius: var(--radius-lg); padding: 1.5rem; }
 .user-levels-view__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .user-levels-view__grid label { display: grid; gap: .4rem; color: var(--color-text-secondary); }

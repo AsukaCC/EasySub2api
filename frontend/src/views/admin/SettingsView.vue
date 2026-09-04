@@ -2,18 +2,11 @@
   <AppLayout>
     <div class="views-admin-settings-view__panel">
       <!-- Loading State -->
-      <div v-if="loading" class="views-admin-settings-view__panel-2">
-        <div
-          class="views-admin-settings-view__panel-3"
-        ></div>
-      </div>
+      <LoadingState v-if="loading" variant="page" />
 
       <!-- Settings Form -->
       <form v-else @submit.prevent="saveSection" class="views-admin-settings-view__form settings-page-form" novalidate>
         <div class="views-admin-settings-view__panel-152">
-          <h1 class="views-admin-settings-view__heading-2">
-            {{ t(`admin.settings.sections.${settingsSection}`) }}
-          </h1>
           <p class="views-admin-settings-view__description-17">
             {{ t(`admin.settings.sectionDescriptions.${settingsSection}`) }}
           </p>
@@ -60,15 +53,11 @@
               </div>
 
               <!-- Loading State -->
-              <div
+              <LoadingState
                 v-if="adminApiKeyLoading"
+                variant="inline"
                 class="views-admin-settings-view__panel-8"
-              >
-                <div
-                  class="views-admin-settings-view__panel-9"
-                ></div>
-                {{ t("common.loading") }}
-              </div>
+              />
 
               <!-- No Key Configured -->
               <div
@@ -78,37 +67,13 @@
                 <span class="views-admin-settings-view__text">
                   {{ t("admin.settings.adminApiKey.notConfigured") }}
                 </span>
-                <button
+                <button :aria-busy="adminApiKeyOperating"
                   type="button"
                   @click="createAdminApiKey"
                   :disabled="adminApiKeyOperating"
                   class="btn btn-primary btn-sm"
                 >
-                  <svg
-                    v-if="adminApiKeyOperating"
-                    class="views-admin-settings-view__icon-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="views-admin-settings-view__circle"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="views-admin-settings-view__path"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {{
-                    adminApiKeyOperating
-                      ? t("admin.settings.adminApiKey.creating")
-                      : t("admin.settings.adminApiKey.create")
-                  }}
+                  <LoadingButtonContent :loading="adminApiKeyOperating" :loading-text="t('admin.settings.adminApiKey.creating')">{{ t("admin.settings.adminApiKey.create") }}</LoadingButtonContent>
                 </button>
               </div>
 
@@ -251,37 +216,13 @@
                 <div
                   class="views-admin-settings-view__panel-17"
                 >
-                  <button
+                  <button :aria-busy="overloadCooldownSaving"
                     type="button"
                     @click="saveOverloadCooldownSettings"
                     :disabled="overloadCooldownSaving"
                     class="btn btn-primary btn-sm"
                   >
-                    <svg
-                      v-if="overloadCooldownSaving"
-                      class="views-admin-settings-view__icon-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="views-admin-settings-view__circle"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="views-admin-settings-view__path"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {{
-                      overloadCooldownSaving
-                        ? t("common.saving")
-                        : t("common.save")
-                    }}
+                    <LoadingButtonContent :loading="overloadCooldownSaving" :loading-text="t('common.saving')">{{ t("common.save") }}</LoadingButtonContent>
                   </button>
                 </div>
               </template>
@@ -358,37 +299,13 @@
                 <div
                   class="views-admin-settings-view__panel-17"
                 >
-                  <button
+                  <button :aria-busy="rateLimit429CooldownSaving"
                     type="button"
                     @click="saveRateLimit429CooldownSettings"
                     :disabled="rateLimit429CooldownSaving"
                     class="btn btn-primary btn-sm"
                   >
-                    <svg
-                      v-if="rateLimit429CooldownSaving"
-                      class="views-admin-settings-view__icon-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="views-admin-settings-view__circle"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="views-admin-settings-view__path"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {{
-                      rateLimit429CooldownSaving
-                        ? t("common.saving")
-                        : t("common.save")
-                    }}
+                    <LoadingButtonContent :loading="rateLimit429CooldownSaving" :loading-text="t('common.saving')">{{ t("common.save") }}</LoadingButtonContent>
                   </button>
                 </div>
               </template>
@@ -582,37 +499,13 @@
                 <div
                   class="views-admin-settings-view__panel-17"
                 >
-                  <button
+                  <button :aria-busy="streamTimeoutSaving"
                     type="button"
                     @click="saveStreamTimeoutSettings"
                     :disabled="streamTimeoutSaving"
                     class="btn btn-primary btn-sm"
                   >
-                    <svg
-                      v-if="streamTimeoutSaving"
-                      class="views-admin-settings-view__icon-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="views-admin-settings-view__circle"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="views-admin-settings-view__path"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {{
-                      streamTimeoutSaving
-                        ? t("common.saving")
-                        : t("common.save")
-                    }}
+                    <LoadingButtonContent :loading="streamTimeoutSaving" :loading-text="t('common.saving')">{{ t("common.save") }}</LoadingButtonContent>
                   </button>
                 </div>
               </template>
@@ -784,35 +677,13 @@
                 <div
                   class="views-admin-settings-view__panel-17"
                 >
-                  <button
+                  <button :aria-busy="rectifierSaving"
                     type="button"
                     @click="saveRectifierSettings"
                     :disabled="rectifierSaving"
                     class="btn btn-primary btn-sm"
                   >
-                    <svg
-                      v-if="rectifierSaving"
-                      class="views-admin-settings-view__icon-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="views-admin-settings-view__circle"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="views-admin-settings-view__path"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {{
-                      rectifierSaving ? t("common.saving") : t("common.save")
-                    }}
+                    <LoadingButtonContent :loading="rectifierSaving" :loading-text="t('common.saving')">{{ t("common.save") }}</LoadingButtonContent>
                   </button>
                 </div>
               </template>
@@ -1063,35 +934,13 @@
                 <div
                   class="views-admin-settings-view__panel-17"
                 >
-                  <button
+                  <button :aria-busy="betaPolicySaving"
                     type="button"
                     @click="saveBetaPolicySettings"
                     :disabled="betaPolicySaving"
                     class="btn btn-primary btn-sm"
                   >
-                    <svg
-                      v-if="betaPolicySaving"
-                      class="views-admin-settings-view__icon-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="views-admin-settings-view__circle"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="views-admin-settings-view__path"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {{
-                      betaPolicySaving ? t("common.saving") : t("common.save")
-                    }}
+                    <LoadingButtonContent :loading="betaPolicySaving" :loading-text="t('common.saving')">{{ t("common.save") }}</LoadingButtonContent>
                   </button>
                 </div>
               </template>
@@ -2026,38 +1875,14 @@
                 <div
                   class="views-admin-settings-view__panel-17"
                 >
-                  <button
+                  <button :aria-busy="panelRateLimitSaving"
                     type="button"
                     data-testid="panel-rate-limit-save"
                     @click="savePanelRateLimitSettings"
                     :disabled="panelRateLimitSaving"
                     class="btn btn-primary btn-sm"
                   >
-                    <svg
-                      v-if="panelRateLimitSaving"
-                      class="views-admin-settings-view__icon-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        class="views-admin-settings-view__circle"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="views-admin-settings-view__path"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {{
-                      panelRateLimitSaving
-                        ? t("common.saving")
-                        : t("common.save")
-                    }}
+                    <LoadingButtonContent :loading="panelRateLimitSaving" :loading-text="t('common.saving')">{{ t("common.save") }}</LoadingButtonContent>
                   </button>
                 </div>
               </template>
@@ -8231,37 +8056,13 @@
                   {{ t("admin.settings.smtp.description") }}
                 </p>
               </div>
-              <button
+              <button :aria-busy="testingSmtp"
                 type="button"
                 @click="testSmtpConnection"
                 :disabled="testingSmtp || loadFailed"
                 class="btn btn-secondary btn-sm"
               >
-                <svg
-                  v-if="testingSmtp"
-                  class="views-admin-settings-view__icon-11"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="views-admin-settings-view__circle"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="views-admin-settings-view__path"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                {{
-                  testingSmtp
-                    ? t("admin.settings.smtp.testing")
-                    : t("admin.settings.smtp.testConnection")
-                }}
+                <LoadingButtonContent :loading="testingSmtp" :loading-text="t('admin.settings.smtp.testing')">{{ t("admin.settings.smtp.testConnection") }}</LoadingButtonContent>
               </button>
             </div>
             <div class="views-admin-settings-view__panel-52 card-body">
@@ -8410,7 +8211,7 @@
                     "
                   />
                 </div>
-                <button
+                <button :aria-busy="sendingTestEmail"
                   type="button"
                   @click="sendTestEmail"
                   :disabled="
@@ -8418,31 +8219,7 @@
                   "
                   class="btn btn-secondary"
                 >
-                  <svg
-                    v-if="sendingTestEmail"
-                    class="views-admin-settings-view__icon-11"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="views-admin-settings-view__circle"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="views-admin-settings-view__path"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {{
-                    sendingTestEmail
-                      ? t("admin.settings.testEmail.sending")
-                      : t("admin.settings.testEmail.sendTestEmail")
-                  }}
+                  <LoadingButtonContent :loading="sendingTestEmail" :loading-text="t('admin.settings.testEmail.sending')">{{ t("admin.settings.testEmail.sendTestEmail") }}</LoadingButtonContent>
                 </button>
               </div>
             </div>
@@ -8623,36 +8400,12 @@
 
         <!-- Save Button -->
         <div v-if="hasSectionSave" class="views-admin-settings-view__panel-151 settings-save-bar">
-          <button
+          <button :aria-busy="saving"
             type="submit"
             :disabled="saving || loadFailed"
             class="btn btn-primary settings-save-bar__button"
           >
-            <svg
-              v-if="saving"
-              class="views-admin-settings-view__icon-11"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-settings-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-settings-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{
-              saving
-                ? t("admin.settings.saving")
-                : t("admin.settings.saveSettings")
-            }}
+            <LoadingButtonContent :loading="saving" :loading-text="t('admin.settings.saving')">{{ t("admin.settings.saveSettings") }}</LoadingButtonContent>
           </button>
         </div>
       </form>
@@ -8695,6 +8448,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from "@/components/common/LoadingButtonContent.vue";
+import LoadingState from "@/components/common/LoadingState.vue";
 import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";

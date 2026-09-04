@@ -15,7 +15,6 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/domain"
-	"github.com/AsukaCC/EasySub2api/internal/pkg/geminicli"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/openai_compat"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 )
@@ -58,8 +57,14 @@ type Account struct {
 	SessionWindowEnd    *time.Time
 	SessionWindowStatus string
 
-	ParentAccountID *string // non-nil → 影子账号（不持凭据，透传母账号凭据）
-	QuotaDimension  string  // 用量维度："" / "global" / "spark"
+	ParentAccountID           *string // non-nil → 影子账号（不持凭据，透传母账号凭据）
+	QuotaDimension            string  // 用量维度："" / "global" / "spark"
+	SubscriptionTier          string
+	ModelRuleID               *string
+	ModelRuleName             string
+	ModelRuleSubscriptionTier *string
+	ModelRoutes               []domain.AccountModelRoute
+	ModelRuleBindingChanged   bool
 
 	Proxy         *Proxy
 	AccountGroups []AccountGroup
@@ -580,6 +585,18 @@ func stringMappingFromRaw(raw any) map[string]string {
 }
 
 func (a *Account) GetModelMapping() map[string]string {
+	if a != nil && a.ModelRuleID != nil {
+		if len(a.ModelRoutes) == 0 {
+			return nil
+		}
+		mapping := make(map[string]string, len(a.ModelRoutes))
+		for _, route := range a.ModelRoutes {
+			if route.RequestModel != "" && route.UpstreamModel != "" {
+				mapping[route.RequestModel] = route.UpstreamModel
+			}
+		}
+		return mapping
+	}
 	runtimeVersion := xai.RuntimeModelMappingVersion()
 	credentialsPtr := mapPtr(a.Credentials)
 	rawMapping, _ := a.Credentials["model_mapping"].(map[string]any)
@@ -616,26 +633,7 @@ func (a *Account) GetModelMapping() map[string]string {
 }
 
 func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]string {
-	if a.Credentials == nil {
-		if a.Platform == PlatformAntigravity {
-			return domain.DefaultAntigravityModelMapping
-		}
-		if a.Platform == PlatformGrok {
-			return xai.DefaultModelMapping()
-		}
-		// Bedrock 默认映射由 forwardBedrock 统一处理（需配合 region prefix 调整）
-		return nil
-	}
 	if len(rawMapping) == 0 {
-		if a.IsGeminiGoogleOne() {
-			return geminicli.GoogleOneModelMapping()
-		}
-		if a.Platform == PlatformAntigravity {
-			return domain.DefaultAntigravityModelMapping
-		}
-		if a.Platform == PlatformGrok {
-			return xai.DefaultModelMapping()
-		}
 		return nil
 	}
 
@@ -645,28 +643,7 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 			result[k] = s
 		}
 	}
-	if len(result) > 0 {
-		if a.Platform == PlatformAntigravity {
-			ensureAntigravityDefaultPassthroughs(result, []string{
-				"gemini-3-flash", "gemini-3.1-pro-high", "gemini-3.1-pro-low",
-				"gemini-3.6-flash", "gemini-3.6-flash-high", "gemini-3.6-flash-low",
-				"gemini-3.6-flash-medium", "gemini-3.6-flash-tiered",
-			})
-			applyAntigravityGemini31ProAliases(result)
-		}
-		return result
-	}
-
-	if a.IsGeminiGoogleOne() {
-		return geminicli.GoogleOneModelMapping()
-	}
-	if a.Platform == PlatformAntigravity {
-		return domain.DefaultAntigravityModelMapping
-	}
-	if a.Platform == PlatformGrok {
-		return xai.DefaultModelMapping()
-	}
-	return nil
+	return result
 }
 
 func ensureAntigravityDefaultPassthrough(mapping map[string]string, model string) {
@@ -780,25 +757,16 @@ func resolveRequestedModelInMapping(mapping map[string]string, requestedModel st
 
 // IsModelSupported 检查模型是否在 model_mapping 中（支持通配符）
 // 如果未配置 mapping，返回 true（允许所有模型）。
-//
-// 例外：OpenAI OAuth 账号（Codex 上游）的空映射会排除明确属于其他厂商
-// 家族的模型（deepseek-*/glm-* 等）——转发阶段 normalizeOpenAIModelForUpstream
-// 会把未知模型原样透传，Codex 上游对这类模型必然返回不可重试的 400，导致
-// 请求卡死在该账号上、无法 failover 到真正支持该模型的 API Key 账号（#3662）。
-// 未知/自定义别名仍保持允许（兼容渠道级映射），见 isOpenAIOAuthServableModel。
 func (a *Account) IsModelSupported(requestedModel string) bool {
 	// 透传模式仅替换认证、模型语义完全交由上游决定，因此放行所有模型。
 	// 该短路必须在 model_mapping 判定之前：账号从"白名单模式"切换到透传后，
 	// credentials 里常残留旧的非空 model_mapping，若不在此放行，透传账号会被
 	// model_mapping 白名单错误排除出候选集，导致 no available accounts / 404（issue #4936）。
-	if a.IsOpenAIPassthroughEnabled() {
+	if a.ModelRuleID == nil && a.IsOpenAIPassthroughEnabled() {
 		return true
 	}
 	mapping := a.GetModelMapping()
 	if len(mapping) == 0 {
-		if a.IsOpenAIOAuth() {
-			return isOpenAIOAuthServableModel(requestedModel)
-		}
 		return true // 无映射 = 允许所有
 	}
 	if mappingSupportsRequestedModel(mapping, requestedModel) {
@@ -818,7 +786,23 @@ func (a *Account) GetMappedModel(requestedModel string) string {
 // GetModelReasoningEffort returns the account-level forced reasoning effort for
 // a client model. It follows the same exact/wildcard precedence as model_mapping.
 func (a *Account) GetModelReasoningEffort(requestedModel string) string {
-	if a == nil || !a.IsOpenAI() || len(a.Credentials) == 0 {
+	if a == nil || !a.IsOpenAI() {
+		return ""
+	}
+	if a.ModelRuleID != nil {
+		efforts := make(map[string]string, len(a.ModelRoutes))
+		for _, route := range a.ModelRoutes {
+			if route.RequestModel != "" && route.ReasoningEffort != "" {
+				efforts[route.RequestModel] = route.ReasoningEffort
+			}
+		}
+		effort, matched := resolveRequestedModelInMapping(efforts, requestedModel)
+		if !matched {
+			return ""
+		}
+		return NormalizeMaxReasoningEffort(effort)
+	}
+	if len(a.Credentials) == 0 {
 		return ""
 	}
 	mapping := stringMappingFromRaw(a.Credentials["model_reasoning_efforts"])
@@ -836,6 +820,13 @@ func (a *Account) GetModelReasoningEffort(requestedModel string) string {
 		return ""
 	}
 	return NormalizeMaxReasoningEffort(effort)
+}
+
+func (a *Account) HasModelRuleTierMismatch() bool {
+	if a == nil || a.ModelRuleID == nil || a.ModelRuleSubscriptionTier == nil {
+		return false
+	}
+	return strings.TrimSpace(*a.ModelRuleSubscriptionTier) != strings.TrimSpace(a.SubscriptionTier)
 }
 
 // ResolveMappedModel 获取映射后的模型名，并返回是否命中了账号级映射。
@@ -1872,7 +1863,7 @@ func (a *Account) IsOveragesEnabled() bool {
 // 兼容字段：accounts.extra.openai_oauth_passthrough（历史 OAuth 开关）。
 // 字段缺失或类型不正确时，按 false（关闭）处理。
 func (a *Account) IsOpenAIPassthroughEnabled() bool {
-	if a == nil || !a.IsOpenAI() || a.Extra == nil {
+	if a == nil || a.ModelRuleID != nil || !a.IsOpenAI() || a.Extra == nil {
 		return false
 	}
 	if enabled, ok := a.Extra["openai_passthrough"].(bool); ok {

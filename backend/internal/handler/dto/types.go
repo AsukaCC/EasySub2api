@@ -207,11 +207,16 @@ type AdminGroup struct {
 }
 
 type Account struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	Notes    *string `json:"notes"`
-	Platform string  `json:"platform"`
-	Type     string  `json:"type"`
+	ID                        string  `json:"id"`
+	Name                      string  `json:"name"`
+	Notes                     *string `json:"notes"`
+	Platform                  string  `json:"platform"`
+	Type                      string  `json:"type"`
+	SubscriptionTier          string  `json:"subscription_tier"`
+	ModelRuleID               *string `json:"model_rule_id"`
+	ModelRuleName             string  `json:"model_rule_name,omitempty"`
+	ModelRuleSubscriptionTier *string `json:"model_rule_subscription_tier,omitempty"`
+	ModelRuleTierMismatch     bool    `json:"model_rule_tier_mismatch"`
 	// Credentials 经 RedactCredentials 处理后只含非敏感子键；敏感 token / api_key / 私钥
 	// 的存在性通过 CredentialsStatus（has_<key>）暴露，原始值不返回前端。
 	Credentials             map[string]any                 `json:"credentials"`

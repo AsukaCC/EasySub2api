@@ -255,19 +255,18 @@ func (s *AntigravityGatewayService) handleAntigravityModelRateLimitBeforePolicy(
 	return true
 }
 
-// mapAntigravityModel 获取映射后的模型名
-// 完全依赖映射配置：账户映射（通配符）→ 默认映射兜底（DefaultAntigravityModelMapping）
-// 注意：返回空字符串表示模型不被支持，调度时会过滤掉该账号
+// mapAntigravityModel returns the explicitly routed model, or preserves the
+// requested identifier when no routing configuration exists.
 func mapAntigravityModel(account *Account, requestedModel string) string {
 	if account == nil {
 		return ""
 	}
-	requestedModel = strings.TrimPrefix(requestedModel, "models/")
+	originalModel := strings.TrimSpace(requestedModel)
+	requestedModel = strings.TrimPrefix(originalModel, "models/")
 
-	// 获取映射表（未配置时自动使用 DefaultAntigravityModelMapping）
 	mapping := account.GetModelMapping()
 	if len(mapping) == 0 {
-		return "" // 无映射配置（非 Antigravity 平台）
+		return originalModel
 	}
 
 	// 通过映射表查询（支持精确匹配 + 通配符）

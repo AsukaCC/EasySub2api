@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/domain"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/redis/go-redis/v9"
 )
@@ -860,33 +861,38 @@ func (c *schedulerCache) mgetChunked(ctx context.Context, keys []string) ([]any,
 
 func buildSchedulerMetadataAccount(account service.Account) service.Account {
 	return service.Account{
-		ID:                      account.ID,
-		Name:                    account.Name,
-		Platform:                account.Platform,
-		Type:                    account.Type,
-		Concurrency:             account.Concurrency,
-		LoadFactor:              account.LoadFactor,
-		Priority:                account.Priority,
-		RateMultiplier:          account.RateMultiplier,
-		Status:                  account.Status,
-		LastUsedAt:              account.LastUsedAt,
-		ExpiresAt:               account.ExpiresAt,
-		AutoPauseOnExpired:      account.AutoPauseOnExpired,
-		Schedulable:             account.Schedulable,
-		RateLimitedAt:           account.RateLimitedAt,
-		RateLimitResetAt:        account.RateLimitResetAt,
-		OverloadUntil:           account.OverloadUntil,
-		TempUnschedulableUntil:  account.TempUnschedulableUntil,
-		TempUnschedulableReason: account.TempUnschedulableReason,
-		SessionWindowStart:      account.SessionWindowStart,
-		SessionWindowEnd:        account.SessionWindowEnd,
-		SessionWindowStatus:     account.SessionWindowStatus,
-		ParentAccountID:         account.ParentAccountID,
-		QuotaDimension:          account.QuotaDimension,
-		AccountGroups:           filterSchedulerAccountGroups(account.AccountGroups),
-		GroupIDs:                filterSchedulerGroupIDs(account.GroupIDs, account.AccountGroups),
-		Credentials:             filterSchedulerCredentials(account.Credentials),
-		Extra:                   filterSchedulerExtra(account.Extra),
+		ID:                        account.ID,
+		Name:                      account.Name,
+		Platform:                  account.Platform,
+		Type:                      account.Type,
+		Concurrency:               account.Concurrency,
+		LoadFactor:                account.LoadFactor,
+		Priority:                  account.Priority,
+		RateMultiplier:            account.RateMultiplier,
+		Status:                    account.Status,
+		LastUsedAt:                account.LastUsedAt,
+		ExpiresAt:                 account.ExpiresAt,
+		AutoPauseOnExpired:        account.AutoPauseOnExpired,
+		Schedulable:               account.Schedulable,
+		RateLimitedAt:             account.RateLimitedAt,
+		RateLimitResetAt:          account.RateLimitResetAt,
+		OverloadUntil:             account.OverloadUntil,
+		TempUnschedulableUntil:    account.TempUnschedulableUntil,
+		TempUnschedulableReason:   account.TempUnschedulableReason,
+		SessionWindowStart:        account.SessionWindowStart,
+		SessionWindowEnd:          account.SessionWindowEnd,
+		SessionWindowStatus:       account.SessionWindowStatus,
+		ParentAccountID:           account.ParentAccountID,
+		QuotaDimension:            account.QuotaDimension,
+		SubscriptionTier:          account.SubscriptionTier,
+		ModelRuleID:               account.ModelRuleID,
+		ModelRuleName:             account.ModelRuleName,
+		ModelRuleSubscriptionTier: account.ModelRuleSubscriptionTier,
+		ModelRoutes:               append([]domain.AccountModelRoute(nil), account.ModelRoutes...),
+		AccountGroups:             filterSchedulerAccountGroups(account.AccountGroups),
+		GroupIDs:                  filterSchedulerGroupIDs(account.GroupIDs, account.AccountGroups),
+		Credentials:               filterSchedulerCredentials(account.Credentials),
+		Extra:                     filterSchedulerExtra(account.Extra),
 	}
 }
 

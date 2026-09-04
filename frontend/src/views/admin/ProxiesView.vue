@@ -269,59 +269,21 @@
 
           <template #cell-actions="{ row }">
             <div class="views-admin-proxies-view__panel-14">
-              <button
+              <button :aria-busy="testingProxyIds.has(row.id)"
                 @click="handleTestConnection(row)"
                 :disabled="testingProxyIds.has(row.id)"
                 class="views-admin-proxies-view__action-5"
               >
-                <svg
-                  v-if="testingProxyIds.has(row.id)"
-                  class="views-admin-proxies-view__icon-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="views-admin-proxies-view__circle"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="views-admin-proxies-view__path"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
+                <LoadingSpinner v-if="testingProxyIds.has(row.id)" size="sm" color="inherit" decorative />
                 <Icon v-else name="checkCircle" size="sm" />
                 <span class="views-admin-proxies-view__code">{{ t('admin.proxies.testConnection') }}</span>
               </button>
-              <button
+              <button :aria-busy="qualityCheckingProxyIds.has(row.id)"
                 @click="handleQualityCheck(row)"
                 :disabled="qualityCheckingProxyIds.has(row.id)"
                 class="views-admin-proxies-view__action-6"
               >
-                <svg
-                  v-if="qualityCheckingProxyIds.has(row.id)"
-                  class="views-admin-proxies-view__icon-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="views-admin-proxies-view__circle"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="views-admin-proxies-view__path"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
+                <LoadingSpinner v-if="qualityCheckingProxyIds.has(row.id)" size="sm" color="inherit" decorative />
                 <Icon v-else name="shield" size="sm" />
                 <span class="views-admin-proxies-view__code">{{ t('admin.proxies.qualityCheck') }}</span>
               </button>
@@ -594,67 +556,27 @@
           <button @click="closeCreateModal" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button
+          <button :aria-busy="submitting"
             v-if="createMode === 'standard'"
             type="submit"
             form="create-proxy-form"
             :disabled="submitting"
             class="btn btn-primary"
           >
-            <svg
-              v-if="submitting"
-              class="views-admin-proxies-view__icon-9"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-proxies-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-proxies-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{ submitting ? t('admin.proxies.creating') : t('common.create') }}
+            <LoadingButtonContent :loading="submitting" :loading-text="t('admin.proxies.creating')">
+            {{ t('common.create') }}
+            </LoadingButtonContent>
           </button>
-          <button
+          <button :aria-busy="submitting"
             v-else
             @click="handleBatchCreate"
             type="button"
             :disabled="submitting || batchParseResult.valid === 0"
             class="btn btn-primary"
           >
-            <svg
-              v-if="submitting"
-              class="views-admin-proxies-view__icon-9"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-proxies-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-proxies-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{
-              submitting
-                ? t('admin.proxies.importing')
-                : t('admin.proxies.importProxies', { count: batchParseResult.valid })
-            }}
+            <LoadingButtonContent :loading="submitting" :loading-text="t('admin.proxies.importing')">
+            {{ t('admin.proxies.importProxies', { count: batchParseResult.valid }) }}
+            </LoadingButtonContent>
           </button>
         </div>
       </template>
@@ -768,34 +690,16 @@
           <button @click="closeEditModal" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button
+          <button :aria-busy="submitting"
             v-if="editingProxy"
             type="submit"
             form="edit-proxy-form"
             :disabled="submitting"
             class="btn btn-primary"
           >
-            <svg
-              v-if="submitting"
-              class="views-admin-proxies-view__icon-9"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-admin-proxies-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-admin-proxies-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{ submitting ? t('admin.proxies.updating') : t('common.update') }}
+            <LoadingButtonContent :loading="submitting" :loading-text="t('admin.proxies.updating')">
+            {{ t('common.update') }}
+            </LoadingButtonContent>
           </button>
         </div>
       </template>
@@ -964,6 +868,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

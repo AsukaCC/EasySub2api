@@ -200,6 +200,10 @@ func (Account) Fields() []ent.Field {
 
 		field.String("parent_account_id").SchemaType(postgresUUIDSchema).Optional().Nillable().
 			Comment("Parent account id for a linked spark shadow (NULL = normal)."),
+		field.String("subscription_tier").MaxLen(100).Optional().Nillable().
+			Comment("Normalized subscription tier used by admin filtering and model-rule scope."),
+		field.String("model_rule_id").SchemaType(postgresUUIDSchema).Optional().Nillable().
+			Comment("Persistently bound account model routing rule."),
 		field.Enum("quota_dimension").Values("global", "spark").Default("global").
 			Comment("'global' (default) or 'spark' (shadow reads codex_bengalfox)."),
 	}
@@ -217,6 +221,9 @@ func (Account) Edges() []ent.Edge {
 		// 使用已有的 proxy_id 外键字段
 		edge.To("proxy", Proxy.Type).
 			Field("proxy_id").
+			Unique(),
+		edge.To("model_rule", AccountModelRule.Type).
+			Field("model_rule_id").
 			Unique(),
 		// children/parent: linked spark shadow relationship.
 		// parent_account_id is nullable, and the active one-shadow-per-parent rule
@@ -250,5 +257,7 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("priority", "status"),
 		index.Fields("deleted_at"), // 软删除查询优化
 		index.Fields("parent_account_id"),
+		index.Fields("subscription_tier"),
+		index.Fields("model_rule_id"),
 	}
 }

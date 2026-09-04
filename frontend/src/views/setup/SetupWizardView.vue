@@ -148,39 +148,17 @@
             </div>
           </div>
 
-          <button
+          <button :aria-busy="testingDb"
             @click="testDatabaseConnection"
             :disabled="testingDb"
             class="views-setup-setup-wizard-view__action btn btn-secondary"
           >
-            <svg
-              v-if="testingDb"
-              class="views-setup-setup-wizard-view__icon-2"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-setup-setup-wizard-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-setup-setup-wizard-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <Icon v-else-if="dbConnected" name="check" size="md" class="views-setup-setup-wizard-view__icon-3" :stroke-width="2" />
-            {{
-              testingDb
-                ? t('setup.status.testing')
-                : dbConnected
-                  ? t('setup.status.success')
-                  : t('setup.status.testConnection')
-            }}
+            <LoadingButtonContent :loading="testingDb" :loading-text="t('setup.status.testing')">
+            <Icon v-if="dbConnected" name="check" size="md" class="views-setup-setup-wizard-view__icon-3" :stroke-width="2" />
+                        {{ dbConnected
+                              ? t('setup.status.success')
+                              : t('setup.status.testConnection') }}
+            </LoadingButtonContent>
           </button>
         </div>
 
@@ -258,45 +236,23 @@
             <Toggle v-model="formData.redis.enable_tls" />
           </div>
 
-          <button
+          <button :aria-busy="testingRedis"
             @click="testRedisConnection"
             :disabled="testingRedis"
             class="views-setup-setup-wizard-view__action btn btn-secondary"
           >
-            <svg
-              v-if="testingRedis"
-              class="views-setup-setup-wizard-view__icon-2"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-setup-setup-wizard-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-setup-setup-wizard-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
+            <LoadingButtonContent :loading="testingRedis" :loading-text="t('setup.status.testing')">
             <Icon
-              v-else-if="redisConnected"
-              name="check"
-              size="md"
-              class="views-setup-setup-wizard-view__icon-3"
-              :stroke-width="2"
-            />
-            {{
-              testingRedis
-                ? t('setup.status.testing')
-                : redisConnected
-                  ? t('setup.status.success')
-                  : t('setup.status.testConnection')
-            }}
+                          v-if="redisConnected"
+                          name="check"
+                          size="md"
+                          class="views-setup-setup-wizard-view__icon-3"
+                          :stroke-width="2"
+                        />
+                        {{ redisConnected
+                              ? t('setup.status.success')
+                              : t('setup.status.testConnection') }}
+            </LoadingButtonContent>
           </button>
         </div>
 
@@ -406,26 +362,7 @@
           class="views-setup-setup-wizard-view__panel-17"
         >
           <div class="views-setup-setup-wizard-view__panel-16">
-            <svg
-              v-if="!serviceReady"
-              class="views-setup-setup-wizard-view__icon-5"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-setup-setup-wizard-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-setup-setup-wizard-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
+            <LoadingSpinner v-if="!serviceReady" size="sm" color="inherit" decorative />
             <Icon v-else name="checkCircle" size="md" class="views-setup-setup-wizard-view__icon-6" />
             <div>
               <p class="views-setup-setup-wizard-view__description-7">
@@ -464,33 +401,15 @@
             <Icon name="chevronRight" size="sm" class="views-setup-setup-wizard-view__icon-8" :stroke-width="2" />
           </button>
 
-          <button
+          <button :aria-busy="installing"
             v-else-if="!installSuccess"
             @click="performInstall"
             :disabled="installing"
             class="btn btn-primary"
           >
-            <svg
-              v-if="installing"
-              class="views-setup-setup-wizard-view__icon-2"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="views-setup-setup-wizard-view__circle"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="views-setup-setup-wizard-view__path"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            {{ installing ? t('setup.status.installing') : t('setup.status.completeInstallation') }}
+            <LoadingButtonContent :loading="installing" :loading-text="t('setup.status.installing')">
+            {{ t('setup.status.completeInstallation') }}
+            </LoadingButtonContent>
           </button>
         </div>
       </div>
@@ -499,6 +418,8 @@
 </template>
 
 <script setup lang="ts">
+import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { testDatabase, testRedis, install, type InstallRequest } from '@/api/setup'

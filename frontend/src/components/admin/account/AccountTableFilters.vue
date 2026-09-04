@@ -8,6 +8,7 @@
       @search="$emit('change')"
     />
     <Select :model-value="filters.platform" class="components-admin-account-account-table-filters__field" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
+    <Select :model-value="filters.subscription_tier" class="components-admin-account-account-table-filters__field" :options="tierOpts" :disabled="loadingTiers" @update:model-value="updateSubscriptionTier" @change="$emit('change')" />
     <Select :model-value="filters.type" class="components-admin-account-account-table-filters__field" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
     <Select :model-value="filters.expiry_status" class="components-admin-account-account-table-filters__field" :options="expiryOpts" @update:model-value="updateExpiryStatus" @change="$emit('change')" />
     <Select :model-value="filters.status" class="components-admin-account-account-table-filters__field" :options="sOpts" @update:model-value="updateStatus" @change="$emit('change')" />
@@ -17,12 +18,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'; import { useI18n } from 'vue-i18n'; import Select from '@/components/common/Select.vue'; import SearchInput from '@/components/common/SearchInput.vue'
+import { computed, ref, watch } from 'vue'; import { useI18n } from 'vue-i18n'; import Select from '@/components/common/Select.vue'; import SearchInput from '@/components/common/SearchInput.vue'
 import type { AdminGroup } from '@/types'
 import { accountPlatformOptions } from '@/utils/accountPlatforms'
+import { adminAPI } from '@/api/admin'
+import type { AccountSubscriptionTierOption } from '@/api/admin/accounts'
 const props = defineProps<{ searchQuery: string; filters: Record<string, any>; groups?: AdminGroup[] }>()
 const emit = defineEmits(['update:searchQuery', 'update:filters', 'change']); const { t } = useI18n()
-const updatePlatform = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, platform: value }) }
+const tiers = ref<AccountSubscriptionTierOption[]>([])
+const loadingTiers = ref(false)
+const updatePlatform = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, platform: value, subscription_tier: '' }) }
+const updateSubscriptionTier = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, subscription_tier: value }) }
 const updateType = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, type: value }) }
 const updateExpiryStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, expiry_status: value }) }
 const updateStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, status: value }) }
@@ -31,6 +37,13 @@ const updateGroup = (value: string | number | boolean | null) => { emit('update:
 const pOpts = computed(() => [
   { value: '', label: t('admin.accounts.allPlatforms') },
   ...accountPlatformOptions(t)
+])
+const tierOpts = computed(() => [
+  { value: '', label: t('admin.accounts.allSubscriptionTiers') },
+  ...tiers.value.map(tier => ({
+    value: tier.value,
+    label: `${tier.value === '__unrecognized__' ? t('admin.accounts.modelRules.unrecognizedTier') : tier.label} (${tier.account_count})`
+  }))
 ])
 const tOpts = computed(() => [{ value: '', label: t('admin.accounts.allTypes') }, { value: 'oauth', label: t('admin.accounts.oauthType') }, { value: 'setup-token', label: t('admin.accounts.setupToken') }, { value: 'apikey', label: t('admin.accounts.apiKey') }, { value: 'bedrock', label: 'AWS Bedrock' }])
 const expiryOpts = computed(() => [
@@ -51,4 +64,16 @@ const gOpts = computed(() => [
   { value: 'ungrouped', label: t('admin.accounts.ungroupedGroup') },
   ...(props.groups || []).map(g => ({ value: String(g.id), label: g.name }))
 ])
+
+watch(() => props.filters.platform, async (platform) => {
+  loadingTiers.value = true
+  try {
+    tiers.value = await adminAPI.accounts.listSubscriptionTiers(typeof platform === 'string' ? platform : '')
+  } catch (error) {
+    tiers.value = []
+    console.error('Failed to load account subscription tiers:', error)
+  } finally {
+    loadingTiers.value = false
+  }
+}, { immediate: true })
 </script>

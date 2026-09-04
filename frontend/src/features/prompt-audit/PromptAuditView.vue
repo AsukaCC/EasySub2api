@@ -9,7 +9,6 @@
       <header class="features-prompt-audit-prompt-audit-view__header">
         <div>
           <p class="features-prompt-audit-prompt-audit-view__description">{{ t('nav.securityAudit') }}</p>
-          <h1 class="features-prompt-audit-prompt-audit-view__heading">{{ t('admin.promptAudit.title') }}</h1>
           <p class="features-prompt-audit-prompt-audit-view__description-2">{{ t('admin.promptAudit.description') }}</p>
         </div>
         <div v-if="draft" class="features-prompt-audit-prompt-audit-view__panel-2">

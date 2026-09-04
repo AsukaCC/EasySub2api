@@ -3,7 +3,6 @@
     <main class="feature-management">
       <header class="feature-management__header">
         <div>
-          <h1>{{ t('admin.settings.featureManagement.title') }}</h1>
           <p>{{ t('admin.settings.featureManagement.description') }}</p>
         </div>
         <button class="btn btn-secondary" type="button" :disabled="loading" @click="load">
@@ -227,8 +226,7 @@ onMounted(load)
 <style scoped>
 .feature-management { width: min(1180px, 100%); margin: 0 auto; padding: 2rem; }
 .feature-management__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-.feature-management__header h1 { margin: 0; font-size: var(--font-size-2xl); }
-.feature-management__header p { margin: .45rem 0 0; color: var(--color-text-secondary); }
+.feature-management__header p { margin: 0; color: var(--color-text-secondary); }
 .feature-management__header .btn, .feature-management__configure { display: inline-flex; align-items: center; gap: .45rem; }
 .feature-management__list { border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); overflow: hidden; }
 .feature-management__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.5rem; align-items: center; padding: 1.15rem 1.25rem; border-bottom: 1px solid var(--glass-border); }

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/tidwall/gjson"
 
@@ -80,24 +79,13 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		}
 	}
 
-	// 应用模型映射：
-	// - APIKey 账号：使用账号级别的显式映射（如果配置），否则透传原始模型名
-	// - OAuth/SetupToken 账号：使用 Anthropic 标准映射（短ID → 长ID）
+	// Apply explicit routing for every account type. Empty routing preserves the
+	// request model identifier.
 	if reqModel != "" {
-		mappedModel := reqModel
+		mappedModel, matched := account.ResolveMappedModel(reqModel)
 		mappingSource := ""
-		if account.Type == AccountTypeAPIKey {
-			mappedModel = account.GetMappedModel(reqModel)
-			if mappedModel != reqModel {
-				mappingSource = "account"
-			}
-		}
-		if mappingSource == "" && account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey {
-			normalized := claude.NormalizeModelID(reqModel)
-			if normalized != reqModel {
-				mappedModel = normalized
-				mappingSource = "prefix"
-			}
+		if matched {
+			mappingSource = "account"
 		}
 		if mappedModel != reqModel {
 			originalReqModel := reqModel
