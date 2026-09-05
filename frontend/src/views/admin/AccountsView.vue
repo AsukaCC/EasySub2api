@@ -465,6 +465,9 @@
     <BulkEditAccountModal
       :show="showBulkEdit"
       :account-ids="selIds"
+      :upstream-account-id="bulkEditTarget?.upstreamAccountId"
+      :upstream-account-type="bulkEditTarget?.upstreamAccountType"
+      :upstream-account-platform="bulkEditTarget?.upstreamAccountPlatform"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
       :selected-tiers="selTiers"
@@ -551,6 +554,9 @@ type AccountBulkEditTarget =
   | {
       mode: 'selected'
       accountIds: string[]
+      upstreamAccountId?: string
+      upstreamAccountType?: AccountType
+      upstreamAccountPlatform?: AccountPlatform
       selectedPlatforms: AccountPlatform[]
       selectedTypes: AccountType[]
       selectedTiers: string[]
@@ -570,6 +576,9 @@ type AccountBulkEditTarget =
         sort_order?: AccountSortOrder
       }
       previewCount: number
+      upstreamAccountId?: string
+      upstreamAccountType?: AccountType
+      upstreamAccountPlatform?: AccountPlatform
       selectedPlatforms: AccountPlatform[]
       selectedTypes: AccountType[]
       selectedTiers: string[]
@@ -2012,9 +2021,13 @@ const collectSelectionMetadata = (rows: Account[]) => {
 }
 
 const openBulkEditSelected = () => {
+  const upstreamAccount = accounts.value.find(account => account.id === selIds.value[0])
   bulkEditTarget.value = {
     mode: 'selected',
     accountIds: [...selIds.value],
+    upstreamAccountId: selIds.value[0],
+    upstreamAccountType: upstreamAccount?.type,
+    upstreamAccountPlatform: upstreamAccount?.platform,
     selectedPlatforms: [...selPlatforms.value],
     selectedTypes: [...selTypes.value],
     selectedTiers: [...selTiers.value]
@@ -2025,11 +2038,15 @@ const openBulkEditSelected = () => {
 const openBulkEditFiltered = async () => {
   const filters = buildBulkEditFilterSnapshot()
   const preview = await adminAPI.accounts.list(1, 100, filters)
+  const upstreamAccount = preview.items[0]
   const { selectedPlatforms, selectedTypes, selectedTiers } = collectSelectionMetadata(preview.items)
   bulkEditTarget.value = {
     mode: 'filtered',
     filters,
     previewCount: preview.total,
+    upstreamAccountId: upstreamAccount?.id,
+    upstreamAccountType: upstreamAccount?.type,
+    upstreamAccountPlatform: upstreamAccount?.platform,
     selectedPlatforms,
     selectedTypes,
     selectedTiers

@@ -227,7 +227,7 @@
             <div
               v-if="modelRestrictionMode === 'whitelist'"
             >
-              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
+              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" />
               <p class="components-account-edit-account-modal__description-2">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
                 <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -660,7 +660,7 @@
           <div
             v-if="modelRestrictionMode === 'whitelist'"
           >
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -863,7 +863,7 @@
           <div
             v-if="modelRestrictionMode === 'whitelist'"
           >
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
+            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" />
             <p class="components-account-edit-account-modal__description-2">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -4092,16 +4092,6 @@ const parseDateTimeLocal = parseDateTimeLocalInput
 // Methods
 const handleClose = () => {
   emit('close')
-}
-
-const handleUpstreamSynced = async () => {
-  if (!props.account) return
-  try {
-    const refreshedAccount = await adminAPI.accounts.getById(props.account.id)
-    emit('updated', refreshedAccount)
-  } catch {
-    // The sync itself succeeded; the parent will receive the persisted snapshot on its next refresh.
-  }
 }
 
 const submitUpdateAccount = async (accountID: string, updatePayload: Record<string, unknown>) => {

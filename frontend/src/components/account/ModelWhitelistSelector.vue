@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { accountsAPI } from '@/api/admin/accounts'
@@ -172,6 +172,7 @@ const props = defineProps<{
   platforms?: string[]
   accountId?: string
   accountType?: string
+  syncPlatform?: string
   syncCredentials?: {
     platform: string
     type: string
@@ -201,6 +202,7 @@ const searchQuery = ref('')
 const customModel = ref('')
 const isComposing = ref(false)
 const isSyncingUpstream = ref(false)
+const syncedModels = ref<string[]>([])
 const normalizedPlatforms = computed(() => {
   const rawPlatforms =
     props.platforms && props.platforms.length > 0
@@ -243,8 +245,9 @@ const canSyncPlatformAccountType = (platform: string, accountType: string) => {
 }
 const canSyncUpstream = computed(() => {
   if (props.accountId) {
-    if (!props.accountType || normalizedPlatforms.value.length === 0) return false
-    return normalizedPlatforms.value.some(platform => canSyncPlatformAccountType(platform, props.accountType!))
+    const syncPlatform = props.syncPlatform?.trim() || normalizedPlatforms.value[0]
+    if (!props.accountType || !syncPlatform) return true
+    return canSyncPlatformAccountType(syncPlatform, props.accountType)
   }
   if (props.syncCredentials) {
     return canSyncPlatformAccountType(props.syncCredentials.platform, props.syncCredentials.type)
@@ -253,18 +256,23 @@ const canSyncUpstream = computed(() => {
 })
 
 const availableOptions = computed(() => {
-  if (normalizedPlatforms.value.length === 0) {
-    return allModels
-  }
-
   const allowedModels = new Set<string>()
-  for (const platform of normalizedPlatforms.value) {
-    for (const model of getModelsByPlatform(platform)) {
-      allowedModels.add(model)
+  if (normalizedPlatforms.value.length === 0) {
+    for (const model of allModels) allowedModels.add(model.value)
+  } else {
+    for (const platform of normalizedPlatforms.value) {
+      for (const model of getModelsByPlatform(platform)) {
+        allowedModels.add(model)
+      }
     }
   }
 
-  return allModels.filter(model => allowedModels.has(model.value))
+  // Upstream model IDs and existing custom entries are valid whitelist values
+  // even when they are not part of the static local catalog.
+  for (const model of syncedModels.value) allowedModels.add(model)
+  for (const model of props.modelValue) allowedModels.add(model)
+
+  return Array.from(allowedModels, value => ({ value, label: value }))
 })
 
 const filteredModels = computed(() => {
@@ -359,6 +367,7 @@ const syncUpstreamModels = async () => {
       return
     }
 
+    syncedModels.value = Array.from(new Set([...syncedModels.value, ...upstreamModels]))
     const newModels = [...props.modelValue]
     let addedCount = 0
     for (const model of upstreamModels) {
@@ -387,6 +396,10 @@ const syncUpstreamModels = async () => {
   }
 }
 
+watch(() => props.accountId, () => {
+  syncedModels.value = []
+})
+
 const clearAll = () => {
   emit('update:modelValue', [])
 }
@@ -402,3 +415,25 @@ onBeforeUnmount(() => {
 })
 
 </script>
+
+<style scoped>
+.components-account-model-whitelist-selector__panel-5 {
+  background-color: var(--glass-layer-floating-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 18px 42px rgba(15, 23, 42, 0.16),
+    0 4px 12px rgba(15, 23, 42, 0.10),
+    0 1px 0 var(--glass-highlight) inset;
+  color: var(--color-text-primary);
+  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+}
+
+:global(.dark) .components-account-model-whitelist-selector__panel-5 {
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.34),
+    0 4px 12px rgba(0, 0, 0, 0.24),
+    0 1px 0 var(--glass-highlight) inset;
+}
+</style>

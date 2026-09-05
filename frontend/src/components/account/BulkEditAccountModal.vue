@@ -352,6 +352,9 @@
               <ModelWhitelistSelector
                 v-model="allowedModels"
                 :platforms="targetSelectedPlatforms"
+                :account-id="upstreamAccountId"
+                :account-type="upstreamAccountType"
+                :sync-platform="upstreamAccountPlatform"
               />
 
               <p class="components-account-bulk-edit-account-modal__description-7">
@@ -1508,6 +1511,9 @@ import type { OpenAIWSMode } from '@/utils/openaiWsMode'
 interface Props {
   show: boolean
   accountIds: string[]
+  upstreamAccountId?: string
+  upstreamAccountType?: AccountType
+  upstreamAccountPlatform?: AccountPlatform
   selectedPlatforms: AccountPlatform[]
   selectedTypes: AccountType[]
   selectedTiers: string[]
