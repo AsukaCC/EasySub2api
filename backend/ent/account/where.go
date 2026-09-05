@@ -210,11 +210,6 @@ func SubscriptionTier(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldSubscriptionTier, v))
 }
 
-// ModelRuleID applies equality check predicate on the "model_rule_id" field. It's identical to ModelRuleIDEQ.
-func ModelRuleID(v string) predicate.Account {
-	return predicate.Account(sql.FieldEQ(FieldModelRuleID, v))
-}
-
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldCreatedAt, v))
@@ -1795,81 +1790,6 @@ func SubscriptionTierContainsFold(v string) predicate.Account {
 	return predicate.Account(sql.FieldContainsFold(FieldSubscriptionTier, v))
 }
 
-// ModelRuleIDEQ applies the EQ predicate on the "model_rule_id" field.
-func ModelRuleIDEQ(v string) predicate.Account {
-	return predicate.Account(sql.FieldEQ(FieldModelRuleID, v))
-}
-
-// ModelRuleIDNEQ applies the NEQ predicate on the "model_rule_id" field.
-func ModelRuleIDNEQ(v string) predicate.Account {
-	return predicate.Account(sql.FieldNEQ(FieldModelRuleID, v))
-}
-
-// ModelRuleIDIn applies the In predicate on the "model_rule_id" field.
-func ModelRuleIDIn(vs ...string) predicate.Account {
-	return predicate.Account(sql.FieldIn(FieldModelRuleID, vs...))
-}
-
-// ModelRuleIDNotIn applies the NotIn predicate on the "model_rule_id" field.
-func ModelRuleIDNotIn(vs ...string) predicate.Account {
-	return predicate.Account(sql.FieldNotIn(FieldModelRuleID, vs...))
-}
-
-// ModelRuleIDGT applies the GT predicate on the "model_rule_id" field.
-func ModelRuleIDGT(v string) predicate.Account {
-	return predicate.Account(sql.FieldGT(FieldModelRuleID, v))
-}
-
-// ModelRuleIDGTE applies the GTE predicate on the "model_rule_id" field.
-func ModelRuleIDGTE(v string) predicate.Account {
-	return predicate.Account(sql.FieldGTE(FieldModelRuleID, v))
-}
-
-// ModelRuleIDLT applies the LT predicate on the "model_rule_id" field.
-func ModelRuleIDLT(v string) predicate.Account {
-	return predicate.Account(sql.FieldLT(FieldModelRuleID, v))
-}
-
-// ModelRuleIDLTE applies the LTE predicate on the "model_rule_id" field.
-func ModelRuleIDLTE(v string) predicate.Account {
-	return predicate.Account(sql.FieldLTE(FieldModelRuleID, v))
-}
-
-// ModelRuleIDContains applies the Contains predicate on the "model_rule_id" field.
-func ModelRuleIDContains(v string) predicate.Account {
-	return predicate.Account(sql.FieldContains(FieldModelRuleID, v))
-}
-
-// ModelRuleIDHasPrefix applies the HasPrefix predicate on the "model_rule_id" field.
-func ModelRuleIDHasPrefix(v string) predicate.Account {
-	return predicate.Account(sql.FieldHasPrefix(FieldModelRuleID, v))
-}
-
-// ModelRuleIDHasSuffix applies the HasSuffix predicate on the "model_rule_id" field.
-func ModelRuleIDHasSuffix(v string) predicate.Account {
-	return predicate.Account(sql.FieldHasSuffix(FieldModelRuleID, v))
-}
-
-// ModelRuleIDIsNil applies the IsNil predicate on the "model_rule_id" field.
-func ModelRuleIDIsNil() predicate.Account {
-	return predicate.Account(sql.FieldIsNull(FieldModelRuleID))
-}
-
-// ModelRuleIDNotNil applies the NotNil predicate on the "model_rule_id" field.
-func ModelRuleIDNotNil() predicate.Account {
-	return predicate.Account(sql.FieldNotNull(FieldModelRuleID))
-}
-
-// ModelRuleIDEqualFold applies the EqualFold predicate on the "model_rule_id" field.
-func ModelRuleIDEqualFold(v string) predicate.Account {
-	return predicate.Account(sql.FieldEqualFold(FieldModelRuleID, v))
-}
-
-// ModelRuleIDContainsFold applies the ContainsFold predicate on the "model_rule_id" field.
-func ModelRuleIDContainsFold(v string) predicate.Account {
-	return predicate.Account(sql.FieldContainsFold(FieldModelRuleID, v))
-}
-
 // QuotaDimensionEQ applies the EQ predicate on the "quota_dimension" field.
 func QuotaDimensionEQ(v QuotaDimension) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldQuotaDimension, v))
@@ -1928,29 +1848,6 @@ func HasProxy() predicate.Account {
 func HasProxyWith(preds ...predicate.Proxy) predicate.Account {
 	return predicate.Account(func(s *sql.Selector) {
 		step := newProxyStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasModelRule applies the HasEdge predicate on the "model_rule" edge.
-func HasModelRule() predicate.Account {
-	return predicate.Account(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, ModelRuleTable, ModelRuleColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasModelRuleWith applies the HasEdge predicate on the "model_rule" edge with a given conditions (other predicates).
-func HasModelRuleWith(preds ...predicate.AccountModelRule) predicate.Account {
-	return predicate.Account(func(s *sql.Selector) {
-		step := newModelRuleStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

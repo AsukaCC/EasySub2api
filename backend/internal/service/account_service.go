@@ -181,7 +181,6 @@ type AccountBulkUpdate struct {
 	Credentials                  map[string]any
 	Extra                        map[string]any
 	ProbeEnabled                 *bool
-	ModelRuleID                  **string
 	ClearModelRoutingCredentials bool
 	// EnsureCodexFingerprintSeed asks the repository to atomically preserve an
 	// existing valid Codex fingerprint seed or create one for eligible rows.

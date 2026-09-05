@@ -102,9 +102,6 @@ func RegisterAdminRoutes(
 		// TLS 指纹模板管理
 		registerTLSFingerprintProfileRoutes(admin, h)
 
-		// 账号模型规则管理
-		registerAccountModelRuleRoutes(admin, h)
-
 		// API Key 管理
 		registerAdminAPIKeyRoutes(admin, h)
 
@@ -762,17 +759,6 @@ func registerTLSFingerprintProfileRoutes(admin *gin.RouterGroup, h *handler.Hand
 		profiles.POST("", h.Admin.TLSFingerprintProfile.Create)
 		profiles.PUT("/:id", h.Admin.TLSFingerprintProfile.Update)
 		profiles.DELETE("/:id", h.Admin.TLSFingerprintProfile.Delete)
-	}
-}
-
-func registerAccountModelRuleRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	rules := admin.Group("/account-model-rules")
-	{
-		rules.GET("", h.Admin.AccountModelRule.List)
-		rules.GET("/:id", h.Admin.AccountModelRule.GetByID)
-		rules.POST("", h.Admin.AccountModelRule.Create)
-		rules.PUT("/:id", h.Admin.AccountModelRule.Update)
-		rules.DELETE("/:id", h.Admin.AccountModelRule.Delete)
 	}
 }
 

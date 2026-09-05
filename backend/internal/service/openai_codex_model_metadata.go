@@ -1,6 +1,88 @@
 package service
 
-import "strings"
+import (
+	"bytes"
+	"encoding/json"
+	"net/url"
+	"strings"
+)
+
+var codexToolCapabilityFields = []string{
+	"supports_search_tool", "apply_patch_tool_type", "comp_hash", "tool_mode", "use_responses_lite",
+}
+
+func applyCodexToolCapabilities(dst, src map[string]json.RawMessage, overwrite bool) bool {
+	changed := false
+	for _, field := range codexToolCapabilityFields {
+		value := bytes.TrimSpace(src[field])
+		if len(value) == 0 {
+			continue
+		}
+		if !bytes.Equal(value, []byte("null")) {
+			if field == "supports_search_tool" || field == "use_responses_lite" {
+				if !bytes.Equal(value, []byte("true")) && !bytes.Equal(value, []byte("false")) {
+					continue
+				}
+			} else {
+				var text string
+				if json.Unmarshal(value, &text) != nil {
+					continue
+				}
+			}
+		}
+		current, exists := dst[field]
+		if (exists && !overwrite) || bytes.Equal(current, value) {
+			continue
+		}
+		dst[field] = append(json.RawMessage(nil), value...)
+		changed = true
+	}
+	return changed
+}
+
+func accountCodexToolCapabilities(account *Account, modelID string) map[string]json.RawMessage {
+	capabilities := make(map[string]json.RawMessage)
+	if account == nil {
+		return capabilities
+	}
+	if metadata, ok := account.GetUpstreamModelMetadata(modelID); ok {
+		applyCodexToolCapabilities(capabilities, metadata.CodexToolCapabilities, true)
+	}
+	if account.IsOpenAI() && shouldForwardOpenAIResponsesViaRawChatCompletions(account) {
+		applyCodexToolCapabilities(capabilities, map[string]json.RawMessage{"supports_search_tool": json.RawMessage("true")}, false)
+	}
+	baseURL := strings.TrimSpace(account.GetCredential("base_url"))
+	if baseURL == "" {
+		baseURL = account.GetOpenAIBaseURL()
+	}
+	parsed, err := url.Parse(baseURL)
+	official := err == nil && (strings.EqualFold(parsed.Hostname(), "api.openai.com") ||
+		(account.IsOpenAIOAuth() && strings.EqualFold(parsed.Hostname(), "chatgpt.com")))
+	if account.IsOpenAI() && isOpenAIGPT6AstraModel(modelID) && official {
+		defaults := map[string]json.RawMessage{
+			"supports_search_tool":  json.RawMessage("true"),
+			"apply_patch_tool_type": json.RawMessage(`"freeform"`),
+			"comp_hash":             json.RawMessage(`"3000"`),
+			"tool_mode":             json.RawMessage("null"),
+			"use_responses_lite":    json.RawMessage("false"),
+		}
+		if account.IsOpenAIOAuth() {
+			defaults["tool_mode"] = json.RawMessage(`"code_mode_only"`)
+			defaults["use_responses_lite"] = json.RawMessage("true")
+		}
+		applyCodexToolCapabilities(capabilities, defaults, false)
+	}
+	if account.IsOpenAIApiKey() {
+		target := modelID
+		if isOpenAIGPT6AstraModel(target) {
+			target = "gpt-6-astra"
+		}
+		if _, disabled := apiKeyCodexModelsWithoutResponsesLite[target]; disabled && bytes.Equal(capabilities["use_responses_lite"], []byte("true")) {
+			capabilities["use_responses_lite"] = json.RawMessage("false")
+		}
+	}
+	return capabilities
+}
 
 func groupCodexModelMetadata(
 	platform string,
@@ -48,6 +130,7 @@ func groupCodexModelMetadata(
 	explicitTargetsConflict := explicitClaims && codexExplicitModelTargetsConflictForPlatform(accounts, platform, modelID)
 	publicAlias := upstreamModel != modelID
 	candidates := make([]UpstreamModelMetadata, 0)
+	missingMetadata := false
 	for i := range accounts {
 		account := &accounts[i]
 		if account.Platform != platform {
@@ -76,14 +159,20 @@ func groupCodexModelMetadata(
 					inputModalitiesConflict: true,
 				}, true
 			}
-			return codexModelMetadataOverride{}, false
+			missingMetadata = true
 		}
+		metadata.CodexToolCapabilities = accountCodexToolCapabilities(account, lookupModel)
 		candidates = append(candidates, metadata)
 	}
 	if len(candidates) == 0 {
 		return codexModelMetadataOverride{}, false
 	}
 	metadata := intersectUpstreamModelMetadata(modelID, candidates)
+	if missingMetadata {
+		metadata = codexModelMetadataOverride{UpstreamModelMetadata: UpstreamModelMetadata{
+			CodexToolCapabilities: metadata.CodexToolCapabilities,
+		}}
+	}
 	if publicAlias {
 		metadata.DisplayName = modelID
 		metadata.Description = configuredCodexCustomDescription
@@ -124,6 +213,27 @@ func codexExplicitModelTargetsConflictForPlatform(accounts []Account, platform, 
 
 func intersectUpstreamModelMetadata(modelID string, candidates []UpstreamModelMetadata) codexModelMetadataOverride {
 	result := codexModelMetadataOverride{UpstreamModelMetadata: UpstreamModelMetadata{ID: strings.TrimSpace(modelID)}}
+	result.CodexToolCapabilities = make(map[string]json.RawMessage)
+	for _, field := range codexToolCapabilityFields {
+		value := bytes.TrimSpace(candidates[0].CodexToolCapabilities[field])
+		shared := len(value) > 0
+		declared := shared
+		for _, candidate := range candidates[1:] {
+			declared = declared || len(candidate.CodexToolCapabilities[field]) > 0
+			if !bytes.Equal(value, bytes.TrimSpace(candidate.CodexToolCapabilities[field])) {
+				shared = false
+			}
+		}
+		if shared {
+			result.CodexToolCapabilities[field] = append(json.RawMessage(nil), value...)
+		} else if declared {
+			fallback := json.RawMessage("null")
+			if field == "supports_search_tool" || field == "use_responses_lite" {
+				fallback = json.RawMessage("false")
+			}
+			result.CodexToolCapabilities[field] = fallback
+		}
+	}
 	for _, candidate := range candidates {
 		if result.DisplayName == "" && strings.TrimSpace(candidate.DisplayName) != "" {
 			result.DisplayName = strings.TrimSpace(candidate.DisplayName)
@@ -254,6 +364,56 @@ func applyUpstreamModelMetadataToCodexDescriptor(descriptor *configuredCodexMode
 		descriptor.ContextWindow = metadata.ContextWindow
 		descriptor.MaxContextWindow = metadata.ContextWindow
 	}
+	for field, value := range metadata.CodexToolCapabilities {
+		switch field {
+		case "supports_search_tool":
+			_ = json.Unmarshal(value, &descriptor.SupportsSearchTool)
+		case "apply_patch_tool_type":
+			var text string
+			if json.Unmarshal(value, &text) == nil {
+				descriptor.ApplyPatchToolType = &text
+			}
+		case "comp_hash", "tool_mode":
+			var text string
+			if json.Unmarshal(value, &text) == nil {
+				if field == "comp_hash" {
+					descriptor.CompHash = text
+				} else {
+					descriptor.ToolMode = text
+				}
+			}
+		case "use_responses_lite":
+			_ = json.Unmarshal(value, &descriptor.UseResponsesLite)
+		}
+	}
+	enforceGPT6AstraCodexDescriptor(descriptor, metadata.ID)
+}
+
+// enforceGPT6AstraCodexDescriptor keeps Astra's fixed public contract intact
+// after account-scoped metadata has been merged into a routed manifest. Some
+// upstream /models responses expose generic or stale reasoning capabilities;
+// those values must not make `none` or `ultra` appear for Astra.
+func enforceGPT6AstraCodexDescriptor(descriptor *configuredCodexModelDescriptor, modelID string) {
+	if descriptor == nil {
+		return
+	}
+	modelID = strings.TrimSpace(modelID)
+	if !isOpenAIGPT6AstraModel(modelID) && !isOpenAIGPT6AstraModel(descriptor.Slug) {
+		return
+	}
+
+	defaultLevel := "medium"
+	descriptor.DefaultReasoningLevel = &defaultLevel
+	descriptor.SupportedReasoningLevels = reasoningLevels("low", "medium", "high", "xhigh", "max")
+	descriptor.ContextWindow = configuredCodexGPT6AstraContext
+	descriptor.MaxContextWindow = configuredCodexGPT6AstraContext
+	descriptor.InputModalities = []string{"text", "image"}
+
+	tierModel := modelID
+	if !isOpenAIGPT6AstraModel(tierModel) {
+		tierModel = descriptor.Slug
+	}
+	descriptor.ServiceTiers = configuredCodexServiceTiersForModel(tierModel)
 }
 
 func configuredCodexReasoningLevelDescription(level string) string {

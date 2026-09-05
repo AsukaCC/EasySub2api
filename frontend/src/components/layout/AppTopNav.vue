@@ -350,6 +350,7 @@ onBeforeUnmount(() => {
   width: 2.25rem;
   height: 2.25rem;
   object-fit: contain;
+  border-radius: 0.5rem;
 }
 
 .app-top-nav-badge {

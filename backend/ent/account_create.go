@@ -13,7 +13,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/AsukaCC/EasySub2api/ent/account"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/group"
 	"github.com/AsukaCC/EasySub2api/ent/proxy"
 	"github.com/AsukaCC/EasySub2api/ent/usagelog"
@@ -421,20 +420,6 @@ func (_c *AccountCreate) SetNillableSubscriptionTier(v *string) *AccountCreate {
 	return _c
 }
 
-// SetModelRuleID sets the "model_rule_id" field.
-func (_c *AccountCreate) SetModelRuleID(v string) *AccountCreate {
-	_c.mutation.SetModelRuleID(v)
-	return _c
-}
-
-// SetNillableModelRuleID sets the "model_rule_id" field if the given value is not nil.
-func (_c *AccountCreate) SetNillableModelRuleID(v *string) *AccountCreate {
-	if v != nil {
-		_c.SetModelRuleID(*v)
-	}
-	return _c
-}
-
 // SetQuotaDimension sets the "quota_dimension" field.
 func (_c *AccountCreate) SetQuotaDimension(v account.QuotaDimension) *AccountCreate {
 	_c.mutation.SetQuotaDimension(v)
@@ -481,11 +466,6 @@ func (_c *AccountCreate) AddGroups(v ...*Group) *AccountCreate {
 // SetProxy sets the "proxy" edge to the Proxy entity.
 func (_c *AccountCreate) SetProxy(v *Proxy) *AccountCreate {
 	return _c.SetProxyID(v.ID)
-}
-
-// SetModelRule sets the "model_rule" edge to the AccountModelRule entity.
-func (_c *AccountCreate) SetModelRule(v *AccountModelRule) *AccountCreate {
-	return _c.SetModelRuleID(v.ID)
 }
 
 // SetParentID sets the "parent" edge to the Account entity by ID.
@@ -910,23 +890,6 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ProxyID = &nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.ModelRuleIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   account.ModelRuleTable,
-			Columns: []string{account.ModelRuleColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(accountmodelrule.FieldID, field.TypeString),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.ModelRuleID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.ParentIDs(); len(nodes) > 0 {
@@ -1519,24 +1482,6 @@ func (u *AccountUpsert) UpdateSubscriptionTier() *AccountUpsert {
 // ClearSubscriptionTier clears the value of the "subscription_tier" field.
 func (u *AccountUpsert) ClearSubscriptionTier() *AccountUpsert {
 	u.SetNull(account.FieldSubscriptionTier)
-	return u
-}
-
-// SetModelRuleID sets the "model_rule_id" field.
-func (u *AccountUpsert) SetModelRuleID(v string) *AccountUpsert {
-	u.Set(account.FieldModelRuleID, v)
-	return u
-}
-
-// UpdateModelRuleID sets the "model_rule_id" field to the value that was provided on create.
-func (u *AccountUpsert) UpdateModelRuleID() *AccountUpsert {
-	u.SetExcluded(account.FieldModelRuleID)
-	return u
-}
-
-// ClearModelRuleID clears the value of the "model_rule_id" field.
-func (u *AccountUpsert) ClearModelRuleID() *AccountUpsert {
-	u.SetNull(account.FieldModelRuleID)
 	return u
 }
 
@@ -2174,27 +2119,6 @@ func (u *AccountUpsertOne) UpdateSubscriptionTier() *AccountUpsertOne {
 func (u *AccountUpsertOne) ClearSubscriptionTier() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearSubscriptionTier()
-	})
-}
-
-// SetModelRuleID sets the "model_rule_id" field.
-func (u *AccountUpsertOne) SetModelRuleID(v string) *AccountUpsertOne {
-	return u.Update(func(s *AccountUpsert) {
-		s.SetModelRuleID(v)
-	})
-}
-
-// UpdateModelRuleID sets the "model_rule_id" field to the value that was provided on create.
-func (u *AccountUpsertOne) UpdateModelRuleID() *AccountUpsertOne {
-	return u.Update(func(s *AccountUpsert) {
-		s.UpdateModelRuleID()
-	})
-}
-
-// ClearModelRuleID clears the value of the "model_rule_id" field.
-func (u *AccountUpsertOne) ClearModelRuleID() *AccountUpsertOne {
-	return u.Update(func(s *AccountUpsert) {
-		s.ClearModelRuleID()
 	})
 }
 
@@ -3001,27 +2925,6 @@ func (u *AccountUpsertBulk) UpdateSubscriptionTier() *AccountUpsertBulk {
 func (u *AccountUpsertBulk) ClearSubscriptionTier() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearSubscriptionTier()
-	})
-}
-
-// SetModelRuleID sets the "model_rule_id" field.
-func (u *AccountUpsertBulk) SetModelRuleID(v string) *AccountUpsertBulk {
-	return u.Update(func(s *AccountUpsert) {
-		s.SetModelRuleID(v)
-	})
-}
-
-// UpdateModelRuleID sets the "model_rule_id" field to the value that was provided on create.
-func (u *AccountUpsertBulk) UpdateModelRuleID() *AccountUpsertBulk {
-	return u.Update(func(s *AccountUpsert) {
-		s.UpdateModelRuleID()
-	})
-}
-
-// ClearModelRuleID clears the value of the "model_rule_id" field.
-func (u *AccountUpsertBulk) ClearModelRuleID() *AccountUpsertBulk {
-	return u.Update(func(s *AccountUpsert) {
-		s.ClearModelRuleID()
 	})
 }
 

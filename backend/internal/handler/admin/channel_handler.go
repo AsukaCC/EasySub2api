@@ -56,19 +56,20 @@ type updateChannelRequest struct {
 }
 
 type channelModelPricingRequest struct {
-	Platform          string                     `json:"platform" binding:"omitempty,max=50"`
-	Models            []string                   `json:"models" binding:"required,min=1,max=100"`
-	BillingMode       string                     `json:"billing_mode" binding:"omitempty,oneof=token per_request image"`
-	InputPrice        *float64                   `json:"input_price" binding:"omitempty,min=0"`
-	OutputPrice       *float64                   `json:"output_price" binding:"omitempty,min=0"`
-	CacheWritePrice   *float64                   `json:"cache_write_price" binding:"omitempty,min=0"`
-	CacheWrite1hPrice *float64                   `json:"cache_write_1h_price" binding:"omitempty,min=0"`
-	CacheReadPrice    *float64                   `json:"cache_read_price" binding:"omitempty,min=0"`
-	ImageInputPrice   *float64                   `json:"image_input_price" binding:"omitempty,min=0"`
-	ImageOutputPrice  *float64                   `json:"image_output_price" binding:"omitempty,min=0"`
-	PerRequestPrice   *float64                   `json:"per_request_price" binding:"omitempty,min=0"`
-	Intervals         []pricingIntervalRequest   `json:"intervals"`
-	TimePricing       *channelTimePricingRequest `json:"time_pricing"`
+	Platform                     string                     `json:"platform" binding:"omitempty,max=50"`
+	Models                       []string                   `json:"models" binding:"required,min=1,max=100"`
+	BillingMode                  string                     `json:"billing_mode" binding:"omitempty,oneof=token per_request image"`
+	InputPrice                   *float64                   `json:"input_price" binding:"omitempty,min=0"`
+	OutputPrice                  *float64                   `json:"output_price" binding:"omitempty,min=0"`
+	CacheWritePrice              *float64                   `json:"cache_write_price" binding:"omitempty,min=0"`
+	CacheWrite1hPrice            *float64                   `json:"cache_write_1h_price" binding:"omitempty,min=0"`
+	CacheReadPrice               *float64                   `json:"cache_read_price" binding:"omitempty,min=0"`
+	ImageInputPrice              *float64                   `json:"image_input_price" binding:"omitempty,min=0"`
+	ImageOutputPrice             *float64                   `json:"image_output_price" binding:"omitempty,min=0"`
+	PerRequestPrice              *float64                   `json:"per_request_price" binding:"omitempty,min=0"`
+	MaxReasoningEffortMultiplier *float64                   `json:"max_reasoning_effort_multiplier" binding:"omitempty,gt=0"`
+	Intervals                    []pricingIntervalRequest   `json:"intervals"`
+	TimePricing                  *channelTimePricingRequest `json:"time_pricing"`
 }
 
 type channelTimePricingRequest struct {
@@ -121,20 +122,21 @@ type channelResponse struct {
 }
 
 type channelModelPricingResponse struct {
-	ID                string                      `json:"id"`
-	Platform          string                      `json:"platform"`
-	Models            []string                    `json:"models"`
-	BillingMode       string                      `json:"billing_mode"`
-	InputPrice        *float64                    `json:"input_price"`
-	OutputPrice       *float64                    `json:"output_price"`
-	CacheWritePrice   *float64                    `json:"cache_write_price"`
-	CacheWrite1hPrice *float64                    `json:"cache_write_1h_price"`
-	CacheReadPrice    *float64                    `json:"cache_read_price"`
-	ImageInputPrice   *float64                    `json:"image_input_price"`
-	ImageOutputPrice  *float64                    `json:"image_output_price"`
-	PerRequestPrice   *float64                    `json:"per_request_price"`
-	Intervals         []pricingIntervalResponse   `json:"intervals"`
-	TimePricing       *channelTimePricingResponse `json:"time_pricing"`
+	ID                           string                      `json:"id"`
+	Platform                     string                      `json:"platform"`
+	Models                       []string                    `json:"models"`
+	BillingMode                  string                      `json:"billing_mode"`
+	InputPrice                   *float64                    `json:"input_price"`
+	OutputPrice                  *float64                    `json:"output_price"`
+	CacheWritePrice              *float64                    `json:"cache_write_price"`
+	CacheWrite1hPrice            *float64                    `json:"cache_write_1h_price"`
+	CacheReadPrice               *float64                    `json:"cache_read_price"`
+	ImageInputPrice              *float64                    `json:"image_input_price"`
+	ImageOutputPrice             *float64                    `json:"image_output_price"`
+	PerRequestPrice              *float64                    `json:"per_request_price"`
+	MaxReasoningEffortMultiplier *float64                    `json:"max_reasoning_effort_multiplier,omitempty"`
+	Intervals                    []pricingIntervalResponse   `json:"intervals"`
+	TimePricing                  *channelTimePricingResponse `json:"time_pricing"`
 }
 
 type channelTimePricingResponse struct {
@@ -243,20 +245,21 @@ func pricingToResponse(p *service.ChannelModelPricing) channelModelPricingRespon
 		intervals = append(intervals, intervalToResponse(iv))
 	}
 	return channelModelPricingResponse{
-		ID:                p.ID,
-		Platform:          platform,
-		Models:            models,
-		BillingMode:       billingMode,
-		InputPrice:        p.InputPrice,
-		OutputPrice:       p.OutputPrice,
-		CacheWritePrice:   p.CacheWritePrice,
-		CacheWrite1hPrice: p.CacheWrite1hPrice,
-		CacheReadPrice:    p.CacheReadPrice,
-		ImageInputPrice:   p.ImageInputPrice,
-		ImageOutputPrice:  p.ImageOutputPrice,
-		PerRequestPrice:   p.PerRequestPrice,
-		Intervals:         intervals,
-		TimePricing:       timePricingToResponse(p.TimePricing),
+		ID:                           p.ID,
+		Platform:                     platform,
+		Models:                       models,
+		BillingMode:                  billingMode,
+		InputPrice:                   p.InputPrice,
+		OutputPrice:                  p.OutputPrice,
+		CacheWritePrice:              p.CacheWritePrice,
+		CacheWrite1hPrice:            p.CacheWrite1hPrice,
+		CacheReadPrice:               p.CacheReadPrice,
+		ImageInputPrice:              p.ImageInputPrice,
+		ImageOutputPrice:             p.ImageOutputPrice,
+		PerRequestPrice:              p.PerRequestPrice,
+		MaxReasoningEffortMultiplier: p.MaxReasoningEffortMultiplier,
+		Intervals:                    intervals,
+		TimePricing:                  timePricingToResponse(p.TimePricing),
 	}
 }
 
@@ -315,19 +318,20 @@ func pricingRequestToService(reqs []channelModelPricingRequest) []service.Channe
 			})
 		}
 		result = append(result, service.ChannelModelPricing{
-			Platform:          platform,
-			Models:            r.Models,
-			BillingMode:       billingMode,
-			InputPrice:        r.InputPrice,
-			OutputPrice:       r.OutputPrice,
-			CacheWritePrice:   r.CacheWritePrice,
-			CacheWrite1hPrice: r.CacheWrite1hPrice,
-			CacheReadPrice:    r.CacheReadPrice,
-			ImageInputPrice:   r.ImageInputPrice,
-			ImageOutputPrice:  r.ImageOutputPrice,
-			PerRequestPrice:   r.PerRequestPrice,
-			Intervals:         intervals,
-			TimePricing:       timePricingRequestToService(r.TimePricing),
+			Platform:                     platform,
+			Models:                       r.Models,
+			BillingMode:                  billingMode,
+			InputPrice:                   r.InputPrice,
+			OutputPrice:                  r.OutputPrice,
+			CacheWritePrice:              r.CacheWritePrice,
+			CacheWrite1hPrice:            r.CacheWrite1hPrice,
+			CacheReadPrice:               r.CacheReadPrice,
+			ImageInputPrice:              r.ImageInputPrice,
+			ImageOutputPrice:             r.ImageOutputPrice,
+			PerRequestPrice:              r.PerRequestPrice,
+			MaxReasoningEffortMultiplier: r.MaxReasoningEffortMultiplier,
+			Intervals:                    intervals,
+			TimePricing:                  timePricingRequestToService(r.TimePricing),
 		})
 	}
 	return result

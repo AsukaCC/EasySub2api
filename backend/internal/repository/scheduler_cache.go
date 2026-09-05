@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/AsukaCC/EasySub2api/internal/domain"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/redis/go-redis/v9"
 )
@@ -885,10 +884,6 @@ func buildSchedulerMetadataAccount(account service.Account) service.Account {
 		ParentAccountID:           account.ParentAccountID,
 		QuotaDimension:            account.QuotaDimension,
 		SubscriptionTier:          account.SubscriptionTier,
-		ModelRuleID:               account.ModelRuleID,
-		ModelRuleName:             account.ModelRuleName,
-		ModelRuleSubscriptionTier: account.ModelRuleSubscriptionTier,
-		ModelRoutes:               append([]domain.AccountModelRoute(nil), account.ModelRoutes...),
 		AccountGroups:             filterSchedulerAccountGroups(account.AccountGroups),
 		GroupIDs:                  filterSchedulerGroupIDs(account.GroupIDs, account.AccountGroups),
 		Credentials:               filterSchedulerCredentials(account.Credentials),

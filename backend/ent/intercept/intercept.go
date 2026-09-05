@@ -10,7 +10,6 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent"
 	"github.com/AsukaCC/EasySub2api/ent/account"
 	"github.com/AsukaCC/EasySub2api/ent/accountgroup"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/announcement"
 	"github.com/AsukaCC/EasySub2api/ent/announcementread"
 	"github.com/AsukaCC/EasySub2api/ent/apikey"
@@ -191,33 +190,6 @@ func (f TraverseAccountGroup) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.AccountGroupQuery", q)
-}
-
-// The AccountModelRuleFunc type is an adapter to allow the use of ordinary function as a Querier.
-type AccountModelRuleFunc func(context.Context, *ent.AccountModelRuleQuery) (ent.Value, error)
-
-// Query calls f(ctx, q).
-func (f AccountModelRuleFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
-	if q, ok := q.(*ent.AccountModelRuleQuery); ok {
-		return f(ctx, q)
-	}
-	return nil, fmt.Errorf("unexpected query type %T. expect *ent.AccountModelRuleQuery", q)
-}
-
-// The TraverseAccountModelRule type is an adapter to allow the use of ordinary function as Traverser.
-type TraverseAccountModelRule func(context.Context, *ent.AccountModelRuleQuery) error
-
-// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
-func (f TraverseAccountModelRule) Intercept(next ent.Querier) ent.Querier {
-	return next
-}
-
-// Traverse calls f(ctx, q).
-func (f TraverseAccountModelRule) Traverse(ctx context.Context, q ent.Query) error {
-	if q, ok := q.(*ent.AccountModelRuleQuery); ok {
-		return f(ctx, q)
-	}
-	return fmt.Errorf("unexpected query type %T. expect *ent.AccountModelRuleQuery", q)
 }
 
 // The AnnouncementFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1336,8 +1308,6 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.AccountQuery, predicate.Account, account.OrderOption]{typ: ent.TypeAccount, tq: q}, nil
 	case *ent.AccountGroupQuery:
 		return &query[*ent.AccountGroupQuery, predicate.AccountGroup, accountgroup.OrderOption]{typ: ent.TypeAccountGroup, tq: q}, nil
-	case *ent.AccountModelRuleQuery:
-		return &query[*ent.AccountModelRuleQuery, predicate.AccountModelRule, accountmodelrule.OrderOption]{typ: ent.TypeAccountModelRule, tq: q}, nil
 	case *ent.AnnouncementQuery:
 		return &query[*ent.AnnouncementQuery, predicate.Announcement, announcement.OrderOption]{typ: ent.TypeAnnouncement, tq: q}, nil
 	case *ent.AnnouncementReadQuery:

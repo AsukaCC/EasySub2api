@@ -28,6 +28,7 @@ func resolveAccountStatsCost(
 	requestCount int,
 	totalCost float64,
 	serviceTier string,
+	reasoningEffort ...string,
 ) *float64 {
 	if channelService == nil || upstreamModel == "" {
 		return nil
@@ -40,7 +41,7 @@ func resolveAccountStatsCost(
 	platform := channelService.GetGroupPlatform(ctx, groupID)
 
 	// 优先级 1：自定义规则（始终尝试）
-	if cost := tryCustomRules(channel, accountID, groupID, platform, upstreamModel, tokens, requestCount); cost != nil {
+	if cost := tryCustomRules(channel, accountID, groupID, platform, upstreamModel, tokens, requestCount, reasoningEffort...); cost != nil {
 		return cost
 	}
 
@@ -55,7 +56,7 @@ func resolveAccountStatsCost(
 
 	// 优先级 3：模型定价文件（LiteLLM）默认价格
 	if billingService != nil {
-		return tryModelFilePricing(billingService, upstreamModel, tokens, serviceTier)
+		return tryModelFilePricing(billingService, upstreamModel, tokens, serviceTier, reasoningEffort...)
 	}
 
 	return nil
@@ -64,9 +65,9 @@ func resolveAccountStatsCost(
 // tryModelFilePricing reuses the customer billing pipeline so service tiers,
 // long-context ladders, provider time pricing, and image token semantics cannot
 // drift into a second account-statistics implementation.
-func tryModelFilePricing(billingService *BillingService, model string, tokens UsageTokens, serviceTier string) *float64 {
+func tryModelFilePricing(billingService *BillingService, model string, tokens UsageTokens, serviceTier string, reasoningEffort ...string) *float64 {
 	breakdown, err := billingService.CalculateCostWithServiceTier(
-		model, tokens, 1, normalizeBillingServiceTier(serviceTier),
+		model, tokens, 1, normalizeBillingServiceTier(serviceTier), reasoningEffort...,
 	)
 	if err != nil || breakdown == nil || breakdown.TotalCost <= 0 {
 		return nil
@@ -78,6 +79,7 @@ func tryModelFilePricing(billingService *BillingService, model string, tokens Us
 func tryCustomRules(
 	channel *Channel, accountID, groupID string,
 	platform, model string, tokens UsageTokens, requestCount int,
+	reasoningEffort ...string,
 ) *float64 {
 	modelLower := strings.ToLower(model)
 	for _, rule := range channel.AccountStatsPricingRules {
@@ -88,7 +90,12 @@ func tryCustomRules(
 		if pricing == nil {
 			continue // 规则匹配但模型不在规则定价中，继续下一条
 		}
-		return calculateStatsCost(pricing, tokens, requestCount)
+		options := make([]any, 0, 1+len(reasoningEffort))
+		options = append(options, model)
+		for _, effort := range reasoningEffort {
+			options = append(options, effort)
+		}
+		return calculateStatsCost(pricing, tokens, requestCount, options...)
 	}
 	return nil
 }
@@ -157,7 +164,7 @@ func isPlatformMatch(queryPlatform, pricingPlatform string) bool {
 }
 
 // calculateStatsCost 使用给定的定价计算费用（不含任何倍率，原始费用）。
-func calculateStatsCost(pricing *ChannelModelPricing, tokens UsageTokens, requestCount int) *float64 {
+func calculateStatsCost(pricing *ChannelModelPricing, tokens UsageTokens, requestCount int, options ...any) *float64 {
 	if pricing == nil {
 		return nil
 	}
@@ -165,7 +172,19 @@ func calculateStatsCost(pricing *ChannelModelPricing, tokens UsageTokens, reques
 	case BillingModePerRequest, BillingModeImage:
 		return calculatePerRequestStatsCost(pricing, requestCount)
 	default:
-		return calculateTokenStatsCost(pricing, tokens)
+		cost := calculateTokenStatsCost(pricing, tokens)
+		if cost == nil {
+			return nil
+		}
+		model, effort := "", ""
+		if len(options) > 0 {
+			model, _ = options[0].(string)
+		}
+		if len(options) > 1 {
+			effort, _ = options[1].(string)
+		}
+		*cost *= maxReasoningEffortBillingMultiplier(model, effort, &ModelPricing{MaxReasoningEffortMultiplier: pricing.MaxReasoningEffortMultiplier})
+		return cost
 	}
 }
 
@@ -245,7 +264,11 @@ func applyAccountStatsCost(
 	if usageLog != nil && usageLog.ServiceTier != nil {
 		serviceTier = *usageLog.ServiceTier
 	}
+	reasoningEffort := ""
+	if usageLog != nil && usageLog.ReasoningEffort != nil {
+		reasoningEffort = *usageLog.ReasoningEffort
+	}
 	usageLog.AccountStatsCost = resolveAccountStatsCost(
-		ctx, cs, bs, accountID, groupID, model, tokens, requestCount, totalCost, serviceTier,
+		ctx, cs, bs, accountID, groupID, model, tokens, requestCount, totalCost, serviceTier, reasoningEffort,
 	)
 }

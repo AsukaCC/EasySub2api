@@ -7,7 +7,6 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/ent/account"
 	"github.com/AsukaCC/EasySub2api/ent/accountgroup"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/announcement"
 	"github.com/AsukaCC/EasySub2api/ent/announcementread"
 	"github.com/AsukaCC/EasySub2api/ent/apikey"
@@ -288,71 +287,6 @@ func init() {
 	accountgroupDescCreatedAt := accountgroupFields[3].Descriptor()
 	// accountgroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountgroup.DefaultCreatedAt = accountgroupDescCreatedAt.Default.(func() time.Time)
-	accountmodelruleMixin := schema.AccountModelRule{}.Mixin()
-	accountmodelruleMixinFields0 := accountmodelruleMixin[0].Fields()
-	_ = accountmodelruleMixinFields0
-	accountmodelruleMixinFields1 := accountmodelruleMixin[1].Fields()
-	_ = accountmodelruleMixinFields1
-	accountmodelruleFields := schema.AccountModelRule{}.Fields()
-	_ = accountmodelruleFields
-	// accountmodelruleDescCreatedAt is the schema descriptor for created_at field.
-	accountmodelruleDescCreatedAt := accountmodelruleMixinFields1[0].Descriptor()
-	// accountmodelrule.DefaultCreatedAt holds the default value on creation for the created_at field.
-	accountmodelrule.DefaultCreatedAt = accountmodelruleDescCreatedAt.Default.(func() time.Time)
-	// accountmodelruleDescUpdatedAt is the schema descriptor for updated_at field.
-	accountmodelruleDescUpdatedAt := accountmodelruleMixinFields1[1].Descriptor()
-	// accountmodelrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	accountmodelrule.DefaultUpdatedAt = accountmodelruleDescUpdatedAt.Default.(func() time.Time)
-	// accountmodelrule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	accountmodelrule.UpdateDefaultUpdatedAt = accountmodelruleDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// accountmodelruleDescName is the schema descriptor for name field.
-	accountmodelruleDescName := accountmodelruleFields[0].Descriptor()
-	// accountmodelrule.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	accountmodelrule.NameValidator = func() func(string) error {
-		validators := accountmodelruleDescName.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(name string) error {
-			for _, fn := range fns {
-				if err := fn(name); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// accountmodelruleDescPlatform is the schema descriptor for platform field.
-	accountmodelruleDescPlatform := accountmodelruleFields[2].Descriptor()
-	// accountmodelrule.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
-	accountmodelrule.PlatformValidator = func() func(string) error {
-		validators := accountmodelruleDescPlatform.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(platform string) error {
-			for _, fn := range fns {
-				if err := fn(platform); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// accountmodelruleDescSubscriptionTier is the schema descriptor for subscription_tier field.
-	accountmodelruleDescSubscriptionTier := accountmodelruleFields[3].Descriptor()
-	// accountmodelrule.SubscriptionTierValidator is a validator for the "subscription_tier" field. It is called by the builders before save.
-	accountmodelrule.SubscriptionTierValidator = accountmodelruleDescSubscriptionTier.Validators[0].(func(string) error)
-	// accountmodelruleDescModelRoutes is the schema descriptor for model_routes field.
-	accountmodelruleDescModelRoutes := accountmodelruleFields[4].Descriptor()
-	// accountmodelrule.DefaultModelRoutes holds the default value on creation for the model_routes field.
-	accountmodelrule.DefaultModelRoutes = accountmodelruleDescModelRoutes.Default.([]domain.AccountModelRoute)
-	// accountmodelruleDescID is the schema descriptor for id field.
-	accountmodelruleDescID := accountmodelruleMixinFields0[0].Descriptor()
-	// accountmodelrule.DefaultID holds the default value on creation for the id field.
-	accountmodelrule.DefaultID = accountmodelruleDescID.Default.(func() string)
 	announcementMixin := schema.Announcement{}.Mixin()
 	announcementMixinFields0 := announcementMixin[0].Fields()
 	_ = announcementMixinFields0

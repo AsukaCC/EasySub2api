@@ -78,16 +78,12 @@ const (
 	FieldParentAccountID = "parent_account_id"
 	// FieldSubscriptionTier holds the string denoting the subscription_tier field in the database.
 	FieldSubscriptionTier = "subscription_tier"
-	// FieldModelRuleID holds the string denoting the model_rule_id field in the database.
-	FieldModelRuleID = "model_rule_id"
 	// FieldQuotaDimension holds the string denoting the quota_dimension field in the database.
 	FieldQuotaDimension = "quota_dimension"
 	// EdgeGroups holds the string denoting the groups edge name in mutations.
 	EdgeGroups = "groups"
 	// EdgeProxy holds the string denoting the proxy edge name in mutations.
 	EdgeProxy = "proxy"
-	// EdgeModelRule holds the string denoting the model_rule edge name in mutations.
-	EdgeModelRule = "model_rule"
 	// EdgeParent holds the string denoting the parent edge name in mutations.
 	EdgeParent = "parent"
 	// EdgeChildren holds the string denoting the children edge name in mutations.
@@ -110,13 +106,6 @@ const (
 	ProxyInverseTable = "proxies"
 	// ProxyColumn is the table column denoting the proxy relation/edge.
 	ProxyColumn = "proxy_id"
-	// ModelRuleTable is the table that holds the model_rule relation/edge.
-	ModelRuleTable = "accounts"
-	// ModelRuleInverseTable is the table name for the AccountModelRule entity.
-	// It exists in this package in order to avoid circular dependency with the "accountmodelrule" package.
-	ModelRuleInverseTable = "account_model_rules"
-	// ModelRuleColumn is the table column denoting the model_rule relation/edge.
-	ModelRuleColumn = "model_rule_id"
 	// ParentTable is the table that holds the parent relation/edge.
 	ParentTable = "accounts"
 	// ParentColumn is the table column denoting the parent relation/edge.
@@ -175,7 +164,6 @@ var Columns = []string{
 	FieldSessionWindowStatus,
 	FieldParentAccountID,
 	FieldSubscriptionTier,
-	FieldModelRuleID,
 	FieldQuotaDimension,
 }
 
@@ -420,11 +408,6 @@ func BySubscriptionTier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionTier, opts...).ToFunc()
 }
 
-// ByModelRuleID orders the results by the model_rule_id field.
-func ByModelRuleID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldModelRuleID, opts...).ToFunc()
-}
-
 // ByQuotaDimension orders the results by the quota_dimension field.
 func ByQuotaDimension(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldQuotaDimension, opts...).ToFunc()
@@ -448,13 +431,6 @@ func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 func ByProxyField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProxyStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByModelRuleField orders the results by model_rule field.
-func ByModelRuleField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newModelRuleStep(), sql.OrderByField(field, opts...))
 	}
 }
 
@@ -518,13 +494,6 @@ func newProxyStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProxyInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, false, ProxyTable, ProxyColumn),
-	)
-}
-func newModelRuleStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ModelRuleInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, ModelRuleTable, ModelRuleColumn),
 	)
 }
 func newParentStep() *sqlgraph.Step {

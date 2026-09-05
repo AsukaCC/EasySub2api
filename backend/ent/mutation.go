@@ -14,7 +14,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/AsukaCC/EasySub2api/ent/account"
 	"github.com/AsukaCC/EasySub2api/ent/accountgroup"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/announcement"
 	"github.com/AsukaCC/EasySub2api/ent/announcementread"
 	"github.com/AsukaCC/EasySub2api/ent/apikey"
@@ -73,7 +72,6 @@ const (
 	TypeAPIKey                        = "APIKey"
 	TypeAccount                       = "Account"
 	TypeAccountGroup                  = "AccountGroup"
-	TypeAccountModelRule              = "AccountModelRule"
 	TypeAnnouncement                  = "Announcement"
 	TypeAnnouncementRead              = "AnnouncementRead"
 	TypeAuthIdentity                  = "AuthIdentity"
@@ -2343,8 +2341,6 @@ type AccountMutation struct {
 	clearedgroups             bool
 	proxy                     *string
 	clearedproxy              bool
-	model_rule                *string
-	clearedmodel_rule         bool
 	parent                    *string
 	clearedparent             bool
 	children                  map[string]struct{}
@@ -3893,55 +3889,6 @@ func (m *AccountMutation) ResetSubscriptionTier() {
 	delete(m.clearedFields, account.FieldSubscriptionTier)
 }
 
-// SetModelRuleID sets the "model_rule_id" field.
-func (m *AccountMutation) SetModelRuleID(s string) {
-	m.model_rule = &s
-}
-
-// ModelRuleID returns the value of the "model_rule_id" field in the mutation.
-func (m *AccountMutation) ModelRuleID() (r string, exists bool) {
-	v := m.model_rule
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldModelRuleID returns the old "model_rule_id" field's value of the Account entity.
-// If the Account object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountMutation) OldModelRuleID(ctx context.Context) (v *string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldModelRuleID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldModelRuleID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldModelRuleID: %w", err)
-	}
-	return oldValue.ModelRuleID, nil
-}
-
-// ClearModelRuleID clears the value of the "model_rule_id" field.
-func (m *AccountMutation) ClearModelRuleID() {
-	m.model_rule = nil
-	m.clearedFields[account.FieldModelRuleID] = struct{}{}
-}
-
-// ModelRuleIDCleared returns if the "model_rule_id" field was cleared in this mutation.
-func (m *AccountMutation) ModelRuleIDCleared() bool {
-	_, ok := m.clearedFields[account.FieldModelRuleID]
-	return ok
-}
-
-// ResetModelRuleID resets all changes to the "model_rule_id" field.
-func (m *AccountMutation) ResetModelRuleID() {
-	m.model_rule = nil
-	delete(m.clearedFields, account.FieldModelRuleID)
-}
-
 // SetQuotaDimension sets the "quota_dimension" field.
 func (m *AccountMutation) SetQuotaDimension(ad account.QuotaDimension) {
 	m.quota_dimension = &ad
@@ -4057,33 +4004,6 @@ func (m *AccountMutation) ProxyIDs() (ids []string) {
 func (m *AccountMutation) ResetProxy() {
 	m.proxy = nil
 	m.clearedproxy = false
-}
-
-// ClearModelRule clears the "model_rule" edge to the AccountModelRule entity.
-func (m *AccountMutation) ClearModelRule() {
-	m.clearedmodel_rule = true
-	m.clearedFields[account.FieldModelRuleID] = struct{}{}
-}
-
-// ModelRuleCleared reports if the "model_rule" edge to the AccountModelRule entity was cleared.
-func (m *AccountMutation) ModelRuleCleared() bool {
-	return m.ModelRuleIDCleared() || m.clearedmodel_rule
-}
-
-// ModelRuleIDs returns the "model_rule" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// ModelRuleID instead. It exists only for internal usage by the builders.
-func (m *AccountMutation) ModelRuleIDs() (ids []string) {
-	if id := m.model_rule; id != nil {
-		ids = append(ids, *id)
-	}
-	return
-}
-
-// ResetModelRule resets all changes to the "model_rule" edge.
-func (m *AccountMutation) ResetModelRule() {
-	m.model_rule = nil
-	m.clearedmodel_rule = false
 }
 
 // SetParentID sets the "parent" edge to the Account entity by id.
@@ -4268,7 +4188,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4362,9 +4282,6 @@ func (m *AccountMutation) Fields() []string {
 	if m.subscription_tier != nil {
 		fields = append(fields, account.FieldSubscriptionTier)
 	}
-	if m.model_rule != nil {
-		fields = append(fields, account.FieldModelRuleID)
-	}
 	if m.quota_dimension != nil {
 		fields = append(fields, account.FieldQuotaDimension)
 	}
@@ -4438,8 +4355,6 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.ParentAccountID()
 	case account.FieldSubscriptionTier:
 		return m.SubscriptionTier()
-	case account.FieldModelRuleID:
-		return m.ModelRuleID()
 	case account.FieldQuotaDimension:
 		return m.QuotaDimension()
 	}
@@ -4513,8 +4428,6 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldParentAccountID(ctx)
 	case account.FieldSubscriptionTier:
 		return m.OldSubscriptionTier(ctx)
-	case account.FieldModelRuleID:
-		return m.OldModelRuleID(ctx)
 	case account.FieldQuotaDimension:
 		return m.OldQuotaDimension(ctx)
 	}
@@ -4743,13 +4656,6 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSubscriptionTier(v)
 		return nil
-	case account.FieldModelRuleID:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetModelRuleID(v)
-		return nil
 	case account.FieldQuotaDimension:
 		v, ok := value.(account.QuotaDimension)
 		if !ok {
@@ -4892,9 +4798,6 @@ func (m *AccountMutation) ClearedFields() []string {
 	if m.FieldCleared(account.FieldSubscriptionTier) {
 		fields = append(fields, account.FieldSubscriptionTier)
 	}
-	if m.FieldCleared(account.FieldModelRuleID) {
-		fields = append(fields, account.FieldModelRuleID)
-	}
 	return fields
 }
 
@@ -4962,9 +4865,6 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldSubscriptionTier:
 		m.ClearSubscriptionTier()
-		return nil
-	case account.FieldModelRuleID:
-		m.ClearModelRuleID()
 		return nil
 	}
 	return fmt.Errorf("unknown Account nullable field %s", name)
@@ -5067,9 +4967,6 @@ func (m *AccountMutation) ResetField(name string) error {
 	case account.FieldSubscriptionTier:
 		m.ResetSubscriptionTier()
 		return nil
-	case account.FieldModelRuleID:
-		m.ResetModelRuleID()
-		return nil
 	case account.FieldQuotaDimension:
 		m.ResetQuotaDimension()
 		return nil
@@ -5079,15 +4976,12 @@ func (m *AccountMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AccountMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 5)
 	if m.groups != nil {
 		edges = append(edges, account.EdgeGroups)
 	}
 	if m.proxy != nil {
 		edges = append(edges, account.EdgeProxy)
-	}
-	if m.model_rule != nil {
-		edges = append(edges, account.EdgeModelRule)
 	}
 	if m.parent != nil {
 		edges = append(edges, account.EdgeParent)
@@ -5115,10 +5009,6 @@ func (m *AccountMutation) AddedIDs(name string) []ent.Value {
 		if id := m.proxy; id != nil {
 			return []ent.Value{*id}
 		}
-	case account.EdgeModelRule:
-		if id := m.model_rule; id != nil {
-			return []ent.Value{*id}
-		}
 	case account.EdgeParent:
 		if id := m.parent; id != nil {
 			return []ent.Value{*id}
@@ -5141,7 +5031,7 @@ func (m *AccountMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AccountMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 5)
 	if m.removedgroups != nil {
 		edges = append(edges, account.EdgeGroups)
 	}
@@ -5182,15 +5072,12 @@ func (m *AccountMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AccountMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 5)
 	if m.clearedgroups {
 		edges = append(edges, account.EdgeGroups)
 	}
 	if m.clearedproxy {
 		edges = append(edges, account.EdgeProxy)
-	}
-	if m.clearedmodel_rule {
-		edges = append(edges, account.EdgeModelRule)
 	}
 	if m.clearedparent {
 		edges = append(edges, account.EdgeParent)
@@ -5212,8 +5099,6 @@ func (m *AccountMutation) EdgeCleared(name string) bool {
 		return m.clearedgroups
 	case account.EdgeProxy:
 		return m.clearedproxy
-	case account.EdgeModelRule:
-		return m.clearedmodel_rule
 	case account.EdgeParent:
 		return m.clearedparent
 	case account.EdgeChildren:
@@ -5231,9 +5116,6 @@ func (m *AccountMutation) ClearEdge(name string) error {
 	case account.EdgeProxy:
 		m.ClearProxy()
 		return nil
-	case account.EdgeModelRule:
-		m.ClearModelRule()
-		return nil
 	case account.EdgeParent:
 		m.ClearParent()
 		return nil
@@ -5250,9 +5132,6 @@ func (m *AccountMutation) ResetEdge(name string) error {
 		return nil
 	case account.EdgeProxy:
 		m.ResetProxy()
-		return nil
-	case account.EdgeModelRule:
-		m.ResetModelRule()
 		return nil
 	case account.EdgeParent:
 		m.ResetParent()
@@ -5750,897 +5629,6 @@ func (m *AccountGroupMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown AccountGroup edge %s", name)
-}
-
-// AccountModelRuleMutation represents an operation that mutates the AccountModelRule nodes in the graph.
-type AccountModelRuleMutation struct {
-	config
-	op                 Op
-	typ                string
-	id                 *string
-	created_at         *time.Time
-	updated_at         *time.Time
-	name               *string
-	description        *string
-	platform           *string
-	subscription_tier  *string
-	model_routes       *[]domain.AccountModelRoute
-	appendmodel_routes []domain.AccountModelRoute
-	mapping            *map[string]string
-	reasoning_efforts  *map[string]string
-	whitelist          *[]string
-	appendwhitelist    []string
-	clearedFields      map[string]struct{}
-	done               bool
-	oldValue           func(context.Context) (*AccountModelRule, error)
-	predicates         []predicate.AccountModelRule
-}
-
-var _ ent.Mutation = (*AccountModelRuleMutation)(nil)
-
-// accountmodelruleOption allows management of the mutation configuration using functional options.
-type accountmodelruleOption func(*AccountModelRuleMutation)
-
-// newAccountModelRuleMutation creates new mutation for the AccountModelRule entity.
-func newAccountModelRuleMutation(c config, op Op, opts ...accountmodelruleOption) *AccountModelRuleMutation {
-	m := &AccountModelRuleMutation{
-		config:        c,
-		op:            op,
-		typ:           TypeAccountModelRule,
-		clearedFields: make(map[string]struct{}),
-	}
-	for _, opt := range opts {
-		opt(m)
-	}
-	return m
-}
-
-// withAccountModelRuleID sets the ID field of the mutation.
-func withAccountModelRuleID(id string) accountmodelruleOption {
-	return func(m *AccountModelRuleMutation) {
-		var (
-			err   error
-			once  sync.Once
-			value *AccountModelRule
-		)
-		m.oldValue = func(ctx context.Context) (*AccountModelRule, error) {
-			once.Do(func() {
-				if m.done {
-					err = errors.New("querying old values post mutation is not allowed")
-				} else {
-					value, err = m.Client().AccountModelRule.Get(ctx, id)
-				}
-			})
-			return value, err
-		}
-		m.id = &id
-	}
-}
-
-// withAccountModelRule sets the old AccountModelRule of the mutation.
-func withAccountModelRule(node *AccountModelRule) accountmodelruleOption {
-	return func(m *AccountModelRuleMutation) {
-		m.oldValue = func(context.Context) (*AccountModelRule, error) {
-			return node, nil
-		}
-		m.id = &node.ID
-	}
-}
-
-// Client returns a new `ent.Client` from the mutation. If the mutation was
-// executed in a transaction (ent.Tx), a transactional client is returned.
-func (m AccountModelRuleMutation) Client() *Client {
-	client := &Client{config: m.config}
-	client.init()
-	return client
-}
-
-// Tx returns an `ent.Tx` for mutations that were executed in transactions;
-// it returns an error otherwise.
-func (m AccountModelRuleMutation) Tx() (*Tx, error) {
-	if _, ok := m.driver.(*txDriver); !ok {
-		return nil, errors.New("ent: mutation is not running in a transaction")
-	}
-	tx := &Tx{config: m.config}
-	tx.init()
-	return tx, nil
-}
-
-// SetID sets the value of the id field. Note that this
-// operation is only accepted on creation of AccountModelRule entities.
-func (m *AccountModelRuleMutation) SetID(id string) {
-	m.id = &id
-}
-
-// ID returns the ID value in the mutation. Note that the ID is only available
-// if it was provided to the builder or after it was returned from the database.
-func (m *AccountModelRuleMutation) ID() (id string, exists bool) {
-	if m.id == nil {
-		return
-	}
-	return *m.id, true
-}
-
-// IDs queries the database and returns the entity ids that match the mutation's predicate.
-// That means, if the mutation is applied within a transaction with an isolation level such
-// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
-// or updated by the mutation.
-func (m *AccountModelRuleMutation) IDs(ctx context.Context) ([]string, error) {
-	switch {
-	case m.op.Is(OpUpdateOne | OpDeleteOne):
-		id, exists := m.ID()
-		if exists {
-			return []string{id}, nil
-		}
-		fallthrough
-	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().AccountModelRule.Query().Where(m.predicates...).IDs(ctx)
-	default:
-		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
-	}
-}
-
-// SetCreatedAt sets the "created_at" field.
-func (m *AccountModelRuleMutation) SetCreatedAt(t time.Time) {
-	m.created_at = &t
-}
-
-// CreatedAt returns the value of the "created_at" field in the mutation.
-func (m *AccountModelRuleMutation) CreatedAt() (r time.Time, exists bool) {
-	v := m.created_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldCreatedAt returns the old "created_at" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
-	}
-	return oldValue.CreatedAt, nil
-}
-
-// ResetCreatedAt resets all changes to the "created_at" field.
-func (m *AccountModelRuleMutation) ResetCreatedAt() {
-	m.created_at = nil
-}
-
-// SetUpdatedAt sets the "updated_at" field.
-func (m *AccountModelRuleMutation) SetUpdatedAt(t time.Time) {
-	m.updated_at = &t
-}
-
-// UpdatedAt returns the value of the "updated_at" field in the mutation.
-func (m *AccountModelRuleMutation) UpdatedAt() (r time.Time, exists bool) {
-	v := m.updated_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldUpdatedAt returns the old "updated_at" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
-	}
-	return oldValue.UpdatedAt, nil
-}
-
-// ResetUpdatedAt resets all changes to the "updated_at" field.
-func (m *AccountModelRuleMutation) ResetUpdatedAt() {
-	m.updated_at = nil
-}
-
-// SetName sets the "name" field.
-func (m *AccountModelRuleMutation) SetName(s string) {
-	m.name = &s
-}
-
-// Name returns the value of the "name" field in the mutation.
-func (m *AccountModelRuleMutation) Name() (r string, exists bool) {
-	v := m.name
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldName returns the old "name" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldName(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldName is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldName requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldName: %w", err)
-	}
-	return oldValue.Name, nil
-}
-
-// ResetName resets all changes to the "name" field.
-func (m *AccountModelRuleMutation) ResetName() {
-	m.name = nil
-}
-
-// SetDescription sets the "description" field.
-func (m *AccountModelRuleMutation) SetDescription(s string) {
-	m.description = &s
-}
-
-// Description returns the value of the "description" field in the mutation.
-func (m *AccountModelRuleMutation) Description() (r string, exists bool) {
-	v := m.description
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldDescription returns the old "description" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldDescription(ctx context.Context) (v *string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldDescription requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
-	}
-	return oldValue.Description, nil
-}
-
-// ClearDescription clears the value of the "description" field.
-func (m *AccountModelRuleMutation) ClearDescription() {
-	m.description = nil
-	m.clearedFields[accountmodelrule.FieldDescription] = struct{}{}
-}
-
-// DescriptionCleared returns if the "description" field was cleared in this mutation.
-func (m *AccountModelRuleMutation) DescriptionCleared() bool {
-	_, ok := m.clearedFields[accountmodelrule.FieldDescription]
-	return ok
-}
-
-// ResetDescription resets all changes to the "description" field.
-func (m *AccountModelRuleMutation) ResetDescription() {
-	m.description = nil
-	delete(m.clearedFields, accountmodelrule.FieldDescription)
-}
-
-// SetPlatform sets the "platform" field.
-func (m *AccountModelRuleMutation) SetPlatform(s string) {
-	m.platform = &s
-}
-
-// Platform returns the value of the "platform" field in the mutation.
-func (m *AccountModelRuleMutation) Platform() (r string, exists bool) {
-	v := m.platform
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPlatform returns the old "platform" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldPlatform(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPlatform requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
-	}
-	return oldValue.Platform, nil
-}
-
-// ResetPlatform resets all changes to the "platform" field.
-func (m *AccountModelRuleMutation) ResetPlatform() {
-	m.platform = nil
-}
-
-// SetSubscriptionTier sets the "subscription_tier" field.
-func (m *AccountModelRuleMutation) SetSubscriptionTier(s string) {
-	m.subscription_tier = &s
-}
-
-// SubscriptionTier returns the value of the "subscription_tier" field in the mutation.
-func (m *AccountModelRuleMutation) SubscriptionTier() (r string, exists bool) {
-	v := m.subscription_tier
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldSubscriptionTier returns the old "subscription_tier" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldSubscriptionTier(ctx context.Context) (v *string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSubscriptionTier is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSubscriptionTier requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSubscriptionTier: %w", err)
-	}
-	return oldValue.SubscriptionTier, nil
-}
-
-// ClearSubscriptionTier clears the value of the "subscription_tier" field.
-func (m *AccountModelRuleMutation) ClearSubscriptionTier() {
-	m.subscription_tier = nil
-	m.clearedFields[accountmodelrule.FieldSubscriptionTier] = struct{}{}
-}
-
-// SubscriptionTierCleared returns if the "subscription_tier" field was cleared in this mutation.
-func (m *AccountModelRuleMutation) SubscriptionTierCleared() bool {
-	_, ok := m.clearedFields[accountmodelrule.FieldSubscriptionTier]
-	return ok
-}
-
-// ResetSubscriptionTier resets all changes to the "subscription_tier" field.
-func (m *AccountModelRuleMutation) ResetSubscriptionTier() {
-	m.subscription_tier = nil
-	delete(m.clearedFields, accountmodelrule.FieldSubscriptionTier)
-}
-
-// SetModelRoutes sets the "model_routes" field.
-func (m *AccountModelRuleMutation) SetModelRoutes(dmr []domain.AccountModelRoute) {
-	m.model_routes = &dmr
-	m.appendmodel_routes = nil
-}
-
-// ModelRoutes returns the value of the "model_routes" field in the mutation.
-func (m *AccountModelRuleMutation) ModelRoutes() (r []domain.AccountModelRoute, exists bool) {
-	v := m.model_routes
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldModelRoutes returns the old "model_routes" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldModelRoutes(ctx context.Context) (v []domain.AccountModelRoute, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldModelRoutes is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldModelRoutes requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldModelRoutes: %w", err)
-	}
-	return oldValue.ModelRoutes, nil
-}
-
-// AppendModelRoutes adds dmr to the "model_routes" field.
-func (m *AccountModelRuleMutation) AppendModelRoutes(dmr []domain.AccountModelRoute) {
-	m.appendmodel_routes = append(m.appendmodel_routes, dmr...)
-}
-
-// AppendedModelRoutes returns the list of values that were appended to the "model_routes" field in this mutation.
-func (m *AccountModelRuleMutation) AppendedModelRoutes() ([]domain.AccountModelRoute, bool) {
-	if len(m.appendmodel_routes) == 0 {
-		return nil, false
-	}
-	return m.appendmodel_routes, true
-}
-
-// ResetModelRoutes resets all changes to the "model_routes" field.
-func (m *AccountModelRuleMutation) ResetModelRoutes() {
-	m.model_routes = nil
-	m.appendmodel_routes = nil
-}
-
-// SetMapping sets the "mapping" field.
-func (m *AccountModelRuleMutation) SetMapping(value map[string]string) {
-	m.mapping = &value
-}
-
-// Mapping returns the value of the "mapping" field in the mutation.
-func (m *AccountModelRuleMutation) Mapping() (r map[string]string, exists bool) {
-	v := m.mapping
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldMapping returns the old "mapping" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldMapping(ctx context.Context) (v map[string]string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldMapping is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldMapping requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldMapping: %w", err)
-	}
-	return oldValue.Mapping, nil
-}
-
-// ResetMapping resets all changes to the "mapping" field.
-func (m *AccountModelRuleMutation) ResetMapping() {
-	m.mapping = nil
-}
-
-// SetReasoningEfforts sets the "reasoning_efforts" field.
-func (m *AccountModelRuleMutation) SetReasoningEfforts(value map[string]string) {
-	m.reasoning_efforts = &value
-}
-
-// ReasoningEfforts returns the value of the "reasoning_efforts" field in the mutation.
-func (m *AccountModelRuleMutation) ReasoningEfforts() (r map[string]string, exists bool) {
-	v := m.reasoning_efforts
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldReasoningEfforts returns the old "reasoning_efforts" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldReasoningEfforts(ctx context.Context) (v map[string]string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldReasoningEfforts is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldReasoningEfforts requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldReasoningEfforts: %w", err)
-	}
-	return oldValue.ReasoningEfforts, nil
-}
-
-// ResetReasoningEfforts resets all changes to the "reasoning_efforts" field.
-func (m *AccountModelRuleMutation) ResetReasoningEfforts() {
-	m.reasoning_efforts = nil
-}
-
-// SetWhitelist sets the "whitelist" field.
-func (m *AccountModelRuleMutation) SetWhitelist(s []string) {
-	m.whitelist = &s
-	m.appendwhitelist = nil
-}
-
-// Whitelist returns the value of the "whitelist" field in the mutation.
-func (m *AccountModelRuleMutation) Whitelist() (r []string, exists bool) {
-	v := m.whitelist
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldWhitelist returns the old "whitelist" field's value of the AccountModelRule entity.
-// If the AccountModelRule object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AccountModelRuleMutation) OldWhitelist(ctx context.Context) (v []string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldWhitelist is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldWhitelist requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldWhitelist: %w", err)
-	}
-	return oldValue.Whitelist, nil
-}
-
-// AppendWhitelist adds s to the "whitelist" field.
-func (m *AccountModelRuleMutation) AppendWhitelist(s []string) {
-	m.appendwhitelist = append(m.appendwhitelist, s...)
-}
-
-// AppendedWhitelist returns the list of values that were appended to the "whitelist" field in this mutation.
-func (m *AccountModelRuleMutation) AppendedWhitelist() ([]string, bool) {
-	if len(m.appendwhitelist) == 0 {
-		return nil, false
-	}
-	return m.appendwhitelist, true
-}
-
-// ResetWhitelist resets all changes to the "whitelist" field.
-func (m *AccountModelRuleMutation) ResetWhitelist() {
-	m.whitelist = nil
-	m.appendwhitelist = nil
-}
-
-// Where appends a list predicates to the AccountModelRuleMutation builder.
-func (m *AccountModelRuleMutation) Where(ps ...predicate.AccountModelRule) {
-	m.predicates = append(m.predicates, ps...)
-}
-
-// WhereP appends storage-level predicates to the AccountModelRuleMutation builder. Using this method,
-// users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *AccountModelRuleMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.AccountModelRule, len(ps))
-	for i := range ps {
-		p[i] = ps[i]
-	}
-	m.Where(p...)
-}
-
-// Op returns the operation name.
-func (m *AccountModelRuleMutation) Op() Op {
-	return m.op
-}
-
-// SetOp allows setting the mutation operation.
-func (m *AccountModelRuleMutation) SetOp(op Op) {
-	m.op = op
-}
-
-// Type returns the node type of this mutation (AccountModelRule).
-func (m *AccountModelRuleMutation) Type() string {
-	return m.typ
-}
-
-// Fields returns all fields that were changed during this mutation. Note that in
-// order to get all numeric fields that were incremented/decremented, call
-// AddedFields().
-func (m *AccountModelRuleMutation) Fields() []string {
-	fields := make([]string, 0, 10)
-	if m.created_at != nil {
-		fields = append(fields, accountmodelrule.FieldCreatedAt)
-	}
-	if m.updated_at != nil {
-		fields = append(fields, accountmodelrule.FieldUpdatedAt)
-	}
-	if m.name != nil {
-		fields = append(fields, accountmodelrule.FieldName)
-	}
-	if m.description != nil {
-		fields = append(fields, accountmodelrule.FieldDescription)
-	}
-	if m.platform != nil {
-		fields = append(fields, accountmodelrule.FieldPlatform)
-	}
-	if m.subscription_tier != nil {
-		fields = append(fields, accountmodelrule.FieldSubscriptionTier)
-	}
-	if m.model_routes != nil {
-		fields = append(fields, accountmodelrule.FieldModelRoutes)
-	}
-	if m.mapping != nil {
-		fields = append(fields, accountmodelrule.FieldMapping)
-	}
-	if m.reasoning_efforts != nil {
-		fields = append(fields, accountmodelrule.FieldReasoningEfforts)
-	}
-	if m.whitelist != nil {
-		fields = append(fields, accountmodelrule.FieldWhitelist)
-	}
-	return fields
-}
-
-// Field returns the value of a field with the given name. The second boolean
-// return value indicates that this field was not set, or was not defined in the
-// schema.
-func (m *AccountModelRuleMutation) Field(name string) (ent.Value, bool) {
-	switch name {
-	case accountmodelrule.FieldCreatedAt:
-		return m.CreatedAt()
-	case accountmodelrule.FieldUpdatedAt:
-		return m.UpdatedAt()
-	case accountmodelrule.FieldName:
-		return m.Name()
-	case accountmodelrule.FieldDescription:
-		return m.Description()
-	case accountmodelrule.FieldPlatform:
-		return m.Platform()
-	case accountmodelrule.FieldSubscriptionTier:
-		return m.SubscriptionTier()
-	case accountmodelrule.FieldModelRoutes:
-		return m.ModelRoutes()
-	case accountmodelrule.FieldMapping:
-		return m.Mapping()
-	case accountmodelrule.FieldReasoningEfforts:
-		return m.ReasoningEfforts()
-	case accountmodelrule.FieldWhitelist:
-		return m.Whitelist()
-	}
-	return nil, false
-}
-
-// OldField returns the old value of the field from the database. An error is
-// returned if the mutation operation is not UpdateOne, or the query to the
-// database failed.
-func (m *AccountModelRuleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
-	switch name {
-	case accountmodelrule.FieldCreatedAt:
-		return m.OldCreatedAt(ctx)
-	case accountmodelrule.FieldUpdatedAt:
-		return m.OldUpdatedAt(ctx)
-	case accountmodelrule.FieldName:
-		return m.OldName(ctx)
-	case accountmodelrule.FieldDescription:
-		return m.OldDescription(ctx)
-	case accountmodelrule.FieldPlatform:
-		return m.OldPlatform(ctx)
-	case accountmodelrule.FieldSubscriptionTier:
-		return m.OldSubscriptionTier(ctx)
-	case accountmodelrule.FieldModelRoutes:
-		return m.OldModelRoutes(ctx)
-	case accountmodelrule.FieldMapping:
-		return m.OldMapping(ctx)
-	case accountmodelrule.FieldReasoningEfforts:
-		return m.OldReasoningEfforts(ctx)
-	case accountmodelrule.FieldWhitelist:
-		return m.OldWhitelist(ctx)
-	}
-	return nil, fmt.Errorf("unknown AccountModelRule field %s", name)
-}
-
-// SetField sets the value of a field with the given name. It returns an error if
-// the field is not defined in the schema, or if the type mismatched the field
-// type.
-func (m *AccountModelRuleMutation) SetField(name string, value ent.Value) error {
-	switch name {
-	case accountmodelrule.FieldCreatedAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetCreatedAt(v)
-		return nil
-	case accountmodelrule.FieldUpdatedAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetUpdatedAt(v)
-		return nil
-	case accountmodelrule.FieldName:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetName(v)
-		return nil
-	case accountmodelrule.FieldDescription:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetDescription(v)
-		return nil
-	case accountmodelrule.FieldPlatform:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPlatform(v)
-		return nil
-	case accountmodelrule.FieldSubscriptionTier:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetSubscriptionTier(v)
-		return nil
-	case accountmodelrule.FieldModelRoutes:
-		v, ok := value.([]domain.AccountModelRoute)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetModelRoutes(v)
-		return nil
-	case accountmodelrule.FieldMapping:
-		v, ok := value.(map[string]string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetMapping(v)
-		return nil
-	case accountmodelrule.FieldReasoningEfforts:
-		v, ok := value.(map[string]string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetReasoningEfforts(v)
-		return nil
-	case accountmodelrule.FieldWhitelist:
-		v, ok := value.([]string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetWhitelist(v)
-		return nil
-	}
-	return fmt.Errorf("unknown AccountModelRule field %s", name)
-}
-
-// AddedFields returns all numeric fields that were incremented/decremented during
-// this mutation.
-func (m *AccountModelRuleMutation) AddedFields() []string {
-	return nil
-}
-
-// AddedField returns the numeric value that was incremented/decremented on a field
-// with the given name. The second boolean return value indicates that this field
-// was not set, or was not defined in the schema.
-func (m *AccountModelRuleMutation) AddedField(name string) (ent.Value, bool) {
-	return nil, false
-}
-
-// AddField adds the value to the field with the given name. It returns an error if
-// the field is not defined in the schema, or if the type mismatched the field
-// type.
-func (m *AccountModelRuleMutation) AddField(name string, value ent.Value) error {
-	switch name {
-	}
-	return fmt.Errorf("unknown AccountModelRule numeric field %s", name)
-}
-
-// ClearedFields returns all nullable fields that were cleared during this
-// mutation.
-func (m *AccountModelRuleMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(accountmodelrule.FieldDescription) {
-		fields = append(fields, accountmodelrule.FieldDescription)
-	}
-	if m.FieldCleared(accountmodelrule.FieldSubscriptionTier) {
-		fields = append(fields, accountmodelrule.FieldSubscriptionTier)
-	}
-	return fields
-}
-
-// FieldCleared returns a boolean indicating if a field with the given name was
-// cleared in this mutation.
-func (m *AccountModelRuleMutation) FieldCleared(name string) bool {
-	_, ok := m.clearedFields[name]
-	return ok
-}
-
-// ClearField clears the value of the field with the given name. It returns an
-// error if the field is not defined in the schema.
-func (m *AccountModelRuleMutation) ClearField(name string) error {
-	switch name {
-	case accountmodelrule.FieldDescription:
-		m.ClearDescription()
-		return nil
-	case accountmodelrule.FieldSubscriptionTier:
-		m.ClearSubscriptionTier()
-		return nil
-	}
-	return fmt.Errorf("unknown AccountModelRule nullable field %s", name)
-}
-
-// ResetField resets all changes in the mutation for the field with the given name.
-// It returns an error if the field is not defined in the schema.
-func (m *AccountModelRuleMutation) ResetField(name string) error {
-	switch name {
-	case accountmodelrule.FieldCreatedAt:
-		m.ResetCreatedAt()
-		return nil
-	case accountmodelrule.FieldUpdatedAt:
-		m.ResetUpdatedAt()
-		return nil
-	case accountmodelrule.FieldName:
-		m.ResetName()
-		return nil
-	case accountmodelrule.FieldDescription:
-		m.ResetDescription()
-		return nil
-	case accountmodelrule.FieldPlatform:
-		m.ResetPlatform()
-		return nil
-	case accountmodelrule.FieldSubscriptionTier:
-		m.ResetSubscriptionTier()
-		return nil
-	case accountmodelrule.FieldModelRoutes:
-		m.ResetModelRoutes()
-		return nil
-	case accountmodelrule.FieldMapping:
-		m.ResetMapping()
-		return nil
-	case accountmodelrule.FieldReasoningEfforts:
-		m.ResetReasoningEfforts()
-		return nil
-	case accountmodelrule.FieldWhitelist:
-		m.ResetWhitelist()
-		return nil
-	}
-	return fmt.Errorf("unknown AccountModelRule field %s", name)
-}
-
-// AddedEdges returns all edge names that were set/added in this mutation.
-func (m *AccountModelRuleMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
-	return edges
-}
-
-// AddedIDs returns all IDs (to other nodes) that were added for the given edge
-// name in this mutation.
-func (m *AccountModelRuleMutation) AddedIDs(name string) []ent.Value {
-	return nil
-}
-
-// RemovedEdges returns all edge names that were removed in this mutation.
-func (m *AccountModelRuleMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
-	return edges
-}
-
-// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
-// the given name in this mutation.
-func (m *AccountModelRuleMutation) RemovedIDs(name string) []ent.Value {
-	return nil
-}
-
-// ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *AccountModelRuleMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
-	return edges
-}
-
-// EdgeCleared returns a boolean which indicates if the edge with the given name
-// was cleared in this mutation.
-func (m *AccountModelRuleMutation) EdgeCleared(name string) bool {
-	return false
-}
-
-// ClearEdge clears the value of the edge with the given name. It returns an error
-// if that edge is not defined in the schema.
-func (m *AccountModelRuleMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown AccountModelRule unique edge %s", name)
-}
-
-// ResetEdge resets all changes to the edge with the given name in this mutation.
-// It returns an error if the edge is not defined in the schema.
-func (m *AccountModelRuleMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown AccountModelRule edge %s", name)
 }
 
 // AnnouncementMutation represents an operation that mutates the Announcement nodes in the graph.

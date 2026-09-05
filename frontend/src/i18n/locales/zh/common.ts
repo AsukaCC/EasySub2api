@@ -185,7 +185,6 @@ export default {
     subscriptions: '订阅管理',
     accounts: '账号管理',
     accountList: '账号列表',
-    accountModelRules: '模型规则',
     proxies: 'IP管理',
     redeemCodes: '兑换码',
     ops: '运维监控',

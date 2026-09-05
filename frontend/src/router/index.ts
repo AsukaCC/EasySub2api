@@ -570,18 +570,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/accounts/model-rules',
-    name: 'AdminAccountModelRules',
-    component: () => import('@/views/admin/AccountModelRulesView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Account Model Rules',
-      titleKey: 'admin.accounts.modelRules.title',
-      descriptionKey: 'admin.accounts.modelRules.description'
-    }
-  },
-  {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
     component: () => import('@/views/admin/AnnouncementsView.vue'),

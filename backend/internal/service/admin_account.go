@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	dbent "github.com/AsukaCC/EasySub2api/ent"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
@@ -331,7 +330,6 @@ func (s *adminServiceImpl) DuplicateAccount(ctx context.Context, id string, acto
 		GroupIDs:             groupIDs,
 		ExpiresAt:            expiresAt,
 		AutoPauseOnExpired:   &autoPauseOnExpired,
-		ModelRuleID:          cloneAccountValuePointer(source.ModelRuleID),
 		SkipDefaultGroupBind: true,
 	}
 	accountExtra, err := normalizeOpenAILongContextBillingExtra(input.Platform, input.Extra)
@@ -423,6 +421,15 @@ func normalizeOpenAILongContextBillingUpdateExtra(account *Account, input *Updat
 	return normalized, nil
 }
 
+func hasModelRoutingCredentials(credentials map[string]any) bool {
+	if credentials == nil {
+		return false
+	}
+	_, hasMapping := credentials["model_mapping"]
+	_, hasReasoningEfforts := credentials["model_reasoning_efforts"]
+	return hasMapping || hasReasoningEfforts
+}
+
 // Grok media eligibility helpers live in account_grok_media_eligibility.go.
 
 func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]any) (*Account, error) {
@@ -446,8 +453,6 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 		Priority:                input.Priority,
 		Status:                  StatusActive,
 		Schedulable:             true,
-		ModelRuleID:             input.ModelRuleID,
-		ModelRuleBindingChanged: input.ModelRuleID != nil,
 	}
 	if input.ProbeEnabled != nil && *input.ProbeEnabled {
 		if !isUpstreamBillingProbeAccount(account) {
@@ -498,6 +503,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 	accountExtra, err = normalizeGrokMediaEligibilityExtra(input.Platform, accountExtra)
 	if err != nil {
+		return nil, err
+	}
+	if err := ValidateUpstreamRequestIDHeaderExtra(accountExtra); err != nil {
 		return nil, err
 	}
 
@@ -582,6 +590,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 		if err != nil {
 			return nil, err
 		}
+		if err := ValidateUpstreamRequestIDHeaderExtra(normalizedExtra); err != nil {
+			return nil, err
+		}
 	}
 	previousProbeIdentity := upstreamBillingProbeIdentity(account)
 	previousOllamaUsageIdentity := ollamaCloudUsageIdentity(account)
@@ -622,27 +633,26 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 	if input.Notes != nil {
 		account.Notes = normalizeAccountNotes(input.Notes)
 	}
+	modelRoutingChanged := hasModelRoutingCredentials(input.Credentials)
 	if account.IsCredentialShadow() && input.Credentials != nil {
 		account.Credentials = sanitizeSparkShadowCredentials(input.Credentials)
 	} else if len(input.Credentials) > 0 {
 		// 敏感子键采用"incoming 没提供就保留"的合并语义：前端响应已脱敏，
 		// 全对象 PUT 编辑时不会再带回 token，避免覆盖时清空已有凭证。
+		if modelRoutingChanged {
+			delete(account.Credentials, "model_mapping")
+			delete(account.Credentials, "model_reasoning_efforts")
+		}
 		account.Credentials = MergePreservingSensitiveCreds(account.Credentials, input.Credentials)
+		if modelRoutingChanged && account.Platform != PlatformOpenAI {
+			delete(account.Credentials, "model_reasoning_efforts")
+		}
 		// 校验并规范化请求头覆写配置（header 名小写化、格式检查）
 		if err := NormalizeHeaderOverrideCredentials(account.Credentials); err != nil {
 			return nil, err
 		}
 		// Strip SSO/password residue that must never sit next to OAuth tokens.
 		account.Credentials = SanitizeStoredCredentials(account.Platform, account.Credentials)
-	}
-	if input.ModelRuleID != nil {
-		account.ModelRuleID = *input.ModelRuleID
-		account.ModelRuleBindingChanged = true
-		if account.Credentials == nil {
-			account.Credentials = make(map[string]any)
-		}
-		delete(account.Credentials, "model_mapping")
-		delete(account.Credentials, "model_reasoning_efforts")
 	}
 	// Extra 使用 map：需要区分“未提供(nil)”与“显式清空({})”。
 	// 关闭配额限制时前端会删除 quota_* 键并提交 extra:{}，此时也必须落库。
@@ -874,6 +884,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 // （如 model_rate_limits / passive_usage_* 等）。
 func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id string, updates map[string]any) error {
 	updates = sanitizedCodexFingerprintExtraUpdates(updates)
+	if err := ValidateUpstreamRequestIDHeaderExtra(updates); err != nil {
+		return err
+	}
 	delete(updates, UpstreamBillingProbeEnabledExtraKey)
 	delete(updates, UpstreamBillingRateSyncEnabledExtraKey)
 	delete(updates, UpstreamBillingProbeExtraKey)
@@ -933,10 +946,11 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	if err != nil {
 		return nil, err
 	}
+	modelRoutingChanged := hasModelRoutingCredentials(input.Credentials)
 
 	// 预取所有目标账号，供凭据和代理守卫共用，避免多次 DB 查询。
 	var cachedTargets []*Account
-	if len(input.Credentials) > 0 || input.ProxyID != nil || openAISettings.any() || input.ProbeEnabled != nil || input.RateMultiplier != nil || input.ModelRuleID != nil {
+	if len(input.Credentials) > 0 || input.ProxyID != nil || openAISettings.any() || input.ProbeEnabled != nil || input.RateMultiplier != nil || modelRoutingChanged {
 		loaded, err := s.accountRepo.GetByIDs(ctx, input.AccountIDs)
 		if err != nil {
 			return nil, err
@@ -1010,27 +1024,25 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 			})
 		}
 	}
-	if input.ModelRuleID != nil && *input.ModelRuleID != nil {
-		if s.entClient == nil {
-			return nil, infraerrors.InternalServer("ACCOUNT_MODEL_RULE_STORE_UNAVAILABLE", "account model rule store is unavailable")
-		}
-		rule, err := s.entClient.AccountModelRule.Get(ctx, **input.ModelRuleID)
-		if err != nil {
-			if dbent.IsNotFound(err) {
-				return nil, infraerrors.BadRequest("ACCOUNT_MODEL_RULE_NOT_FOUND", "account model rule not found")
-			}
-			return nil, err
-		}
+	if modelRoutingChanged {
+		modelPlatform := ""
 		for _, account := range cachedTargets {
 			if account == nil {
 				continue
 			}
-			if account.Platform != rule.Platform {
-				return nil, infraerrors.BadRequest("ACCOUNT_MODEL_RULE_PLATFORM_MISMATCH", "all target accounts must match the rule platform")
+			if modelPlatform == "" {
+				modelPlatform = account.Platform
+				continue
 			}
-			if rule.SubscriptionTier != nil && account.SubscriptionTier != *rule.SubscriptionTier {
-				return nil, infraerrors.BadRequest("ACCOUNT_MODEL_RULE_TIER_MISMATCH", "all target accounts must match the rule subscription tier")
+			if account.Platform != modelPlatform {
+				return nil, infraerrors.BadRequest(
+					"ACCOUNT_MODEL_ROUTING_PLATFORM_MISMATCH",
+					"model routing updates require accounts from a single platform",
+				)
 			}
+		}
+		if modelPlatform != PlatformOpenAI {
+			delete(input.Credentials, "model_reasoning_efforts")
 		}
 	}
 
@@ -1050,8 +1062,7 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		Extra:                        input.Extra,
 		ProbeEnabled:                 input.ProbeEnabled,
 		EnsureCodexFingerprintSeed:   ShouldEnsureCodexFingerprintSeedForExtraUpdates(input.Extra),
-		ModelRuleID:                  input.ModelRuleID,
-		ClearModelRoutingCredentials: input.ModelRuleID != nil,
+		ClearModelRoutingCredentials: modelRoutingChanged,
 	}
 	if input.ProbeEnabled != nil {
 		if repoUpdates.Extra == nil {

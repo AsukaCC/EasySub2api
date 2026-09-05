@@ -1472,6 +1472,21 @@ func (s *GatewayService) checkAndRegisterSession(ctx context.Context, account *A
 	return allowed
 }
 
+// ReleaseAccountSession immediately removes a session registration created
+// during account selection when the upstream never served the request.
+// Successful sessions keep the existing idle-timeout lifecycle.
+func (s *GatewayService) ReleaseAccountSession(ctx context.Context, account *Account, sessionID string) {
+	if s == nil || s.sessionLimitCache == nil || account == nil || sessionID == "" {
+		return
+	}
+	if !account.IsAnthropicOAuthOrSetupToken() || account.GetMaxSessions() <= 0 {
+		return
+	}
+	if err := s.sessionLimitCache.UnregisterSession(ctx, account.ID, sessionID); err != nil {
+		slog.Debug("session_limit.release_failed", "account_id", account.ID, "error", err)
+	}
+}
+
 func (s *GatewayService) getSchedulableAccount(ctx context.Context, accountID string) (*Account, error) {
 	var (
 		account *Account

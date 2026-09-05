@@ -2,7 +2,6 @@
 package admin
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -128,7 +127,6 @@ type CreateAccountRequest struct {
 	ExpiresAt          *int64         `json:"expires_at"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled       *bool          `json:"upstream_billing_probe_enabled"`
-	ModelRuleID        *string        `json:"model_rule_id"`
 }
 
 // UpdateAccountRequest represents update account request
@@ -150,7 +148,6 @@ type UpdateAccountRequest struct {
 	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
 	ProbeEnabled       *bool           `json:"upstream_billing_probe_enabled"`
 	RateSyncEnabled    *bool           `json:"upstream_billing_rate_sync_enabled"`
-	ModelRuleID        json.RawMessage `json:"model_rule_id"`
 }
 
 // BulkUpdateAccountsRequest represents the payload for bulk editing accounts
@@ -169,7 +166,6 @@ type BulkUpdateAccountsRequest struct {
 	Credentials    map[string]any            `json:"credentials"`
 	Extra          map[string]any            `json:"extra"`
 	ProbeEnabled   *bool                     `json:"upstream_billing_probe_enabled"`
-	ModelRuleID    json.RawMessage           `json:"model_rule_id"`
 }
 
 type BulkUpdateAccountFilters struct {
@@ -844,15 +840,6 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 	// base_rpm 输入校验：负值归零，超过 10000 截断
 	sanitizeExtraBaseRPM(req.Extra)
-	if req.ModelRuleID != nil {
-		modelRuleID, parseErr := parseEntityID(strings.TrimSpace(*req.ModelRuleID))
-		if parseErr != nil || modelRuleID == "" {
-			response.BadRequest(c, "Invalid model rule ID")
-			return
-		}
-		req.ModelRuleID = &modelRuleID
-	}
-
 	// 捕获闭包内创建的账号引用，用于创建成功后触发异步探测。
 	// 幂等重放时闭包不会执行 → createdAccount 为 nil → 不重复调度。
 	var createdAccount *service.Account
@@ -874,7 +861,6 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			ExpiresAt:          req.ExpiresAt,
 			AutoPauseOnExpired: req.AutoPauseOnExpired,
 			ProbeEnabled:       req.ProbeEnabled,
-			ModelRuleID:        req.ModelRuleID,
 		})
 		if execErr != nil {
 			return nil, execErr
@@ -969,12 +955,6 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	}
 	// base_rpm 输入校验：负值归零，超过 10000 截断
 	sanitizeExtraBaseRPM(req.Extra)
-	modelRuleID, err := parseNullableEntityID(req.ModelRuleID)
-	if err != nil {
-		response.BadRequest(c, "Invalid model rule ID")
-		return
-	}
-
 	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Name:               req.Name,
 		Notes:              req.Notes,
@@ -992,7 +972,6 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		AutoPauseOnExpired: req.AutoPauseOnExpired,
 		ProbeEnabled:       req.ProbeEnabled,
 		RateSyncEnabled:    req.RateSyncEnabled,
-		ModelRuleID:        modelRuleID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -2047,19 +2026,13 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		req.GroupIDs != nil ||
 		len(req.Credentials) > 0 ||
 		len(req.Extra) > 0 ||
-		req.ProbeEnabled != nil ||
-		req.ModelRuleID != nil
+		req.ProbeEnabled != nil
 
 	if !hasUpdates {
 		response.BadRequest(c, "No updates provided")
 		return
 	}
 
-	modelRuleID, err := parseNullableEntityID(req.ModelRuleID)
-	if err != nil {
-		response.BadRequest(c, "Invalid model rule ID")
-		return
-	}
 	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{
 		AccountIDs:     req.AccountIDs,
 		Filters:        toServiceBulkUpdateAccountFilters(req.Filters),
@@ -2075,7 +2048,6 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		Credentials:    req.Credentials,
 		Extra:          req.Extra,
 		ProbeEnabled:   req.ProbeEnabled,
-		ModelRuleID:    modelRuleID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -2099,28 +2071,6 @@ func toServiceBulkUpdateAccountFilters(filters *BulkUpdateAccountFilters) *servi
 		ExpiryStatus:     filters.ExpiryStatus,
 		SubscriptionTier: filters.SubscriptionTier,
 	}
-}
-
-func parseNullableEntityID(raw json.RawMessage) (**string, error) {
-	if raw == nil {
-		return nil, nil
-	}
-	trimmed := bytes.TrimSpace(raw)
-	if bytes.Equal(trimmed, []byte("null")) {
-		var value *string
-		return &value, nil
-	}
-	var value string
-	if err := json.Unmarshal(trimmed, &value); err != nil {
-		return nil, err
-	}
-	parsed, err := parseEntityID(strings.TrimSpace(value))
-	if err != nil || parsed == "" {
-		return nil, fmt.Errorf("invalid entity id")
-	}
-	value = parsed
-	pointer := &value
-	return &pointer, nil
 }
 
 // ========== OAuth Handlers ==========

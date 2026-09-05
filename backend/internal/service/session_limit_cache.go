@@ -33,6 +33,10 @@ type SessionLimitCache interface {
 	// 用于活跃会话保持活动状态
 	RefreshSession(ctx context.Context, accountID string, sessionUUID string, idleTimeout time.Duration) error
 
+	// UnregisterSession immediately removes a failed session registration.
+	// Successful sessions continue to use the normal idle timeout lifecycle.
+	UnregisterSession(ctx context.Context, accountID string, sessionUUID string) error
+
 	// GetActiveSessionCount 获取当前活跃会话数
 	// 返回未过期的会话数量
 	GetActiveSessionCount(ctx context.Context, accountID string) (int, error)

@@ -213,10 +213,6 @@ type Account struct {
 	Platform                  string  `json:"platform"`
 	Type                      string  `json:"type"`
 	SubscriptionTier          string  `json:"subscription_tier"`
-	ModelRuleID               *string `json:"model_rule_id"`
-	ModelRuleName             string  `json:"model_rule_name,omitempty"`
-	ModelRuleSubscriptionTier *string `json:"model_rule_subscription_tier,omitempty"`
-	ModelRuleTierMismatch     bool    `json:"model_rule_tier_mismatch"`
 	// Credentials 经 RedactCredentials 处理后只含非敏感子键；敏感 token / api_key / 私钥
 	// 的存在性通过 CredentialsStatus（has_<key>）暴露，原始值不返回前端。
 	Credentials             map[string]any                 `json:"credentials"`
@@ -599,6 +595,8 @@ type AdminUsageLog struct {
 	ChannelID *string `json:"channel_id,omitempty"`
 	// ModelMappingChain 模型映射链，如 "a→b→c"
 	ModelMappingChain *string `json:"model_mapping_chain,omitempty"`
+	// UpstreamRequestID 是直接上游声明的请求标识，仅管理端可见。
+	UpstreamRequestID *string `json:"upstream_request_id,omitempty"`
 	// BillingTier 计费层级标签（per_request/image 模式）
 	BillingTier *string `json:"billing_tier,omitempty"`
 

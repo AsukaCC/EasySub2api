@@ -29,7 +29,7 @@ func (s *OpenAIGatewayService) CompleteAPIKeyCodexModelsManifestForClient(manife
 	if err != nil {
 		return err
 	}
-	body, err = adjustAPIKeyCodexModelsManifest(body)
+	body, err = adjustAPIKeyCodexModelsManifest(body, account)
 	if err != nil {
 		return err
 	}
@@ -58,12 +58,21 @@ func applySyncedAPIKeyCodexModelMetadata(body []byte, account *Account, overwrit
 			continue
 		}
 		slug = strings.TrimSpace(slug)
-		metadata, ok := snapshot.Models[slug]
+		lookupModel := slug
+		if account != nil {
+			lookupModel = account.GetMappedModel(slug)
+		}
+		metadata, ok := snapshot.Models[lookupModel]
 		if !ok {
 			continue
 		}
+		if lookupModel != slug {
+			metadata.DisplayName = ""
+			metadata.Description = ""
+		}
 		descriptor := newConfiguredCodexModelDescriptor(slug)
 		applyUpstreamModelMetadataToCodexDescriptor(&descriptor, codexModelMetadataOverride{UpstreamModelMetadata: metadata})
+		enforceGPT6AstraCodexDescriptor(&descriptor, lookupModel)
 		descriptorBody, err := json.Marshal(descriptor)
 		if err != nil {
 			return nil, fmt.Errorf("encode synced model %q: %w", slug, err)
@@ -72,7 +81,7 @@ func applySyncedAPIKeyCodexModelMetadata(body []byte, account *Account, overwrit
 		if err := json.Unmarshal(descriptorBody, &syncedFields); err != nil {
 			return nil, fmt.Errorf("decode synced model %q: %w", slug, err)
 		}
-		fields := make([]string, 0, 7)
+		fields := make([]string, 0, 12)
 		if strings.TrimSpace(metadata.DisplayName) != "" {
 			fields = append(fields, "display_name")
 		}
@@ -88,7 +97,14 @@ func applySyncedAPIKeyCodexModelMetadata(body []byte, account *Account, overwrit
 		if metadata.ContextWindow > 0 {
 			fields = append(fields, "context_window", "max_context_window")
 		}
-		modelChanged := false
+		for field := range metadata.CodexToolCapabilities {
+			if _, exists := syncedFields[field]; exists {
+				fields = append(fields, field)
+			}
+		}
+		// Converted model lists already contain live capability fields; do not
+		// overwrite explicit false/null declarations from the provider.
+		modelChanged := applyCodexToolCapabilities(model, metadata.CodexToolCapabilities, false)
 		for _, field := range fields {
 			value, exists := syncedFields[field]
 			if !exists {
@@ -160,11 +176,16 @@ func completeAPIKeyCodexModelsManifestMetadata(body []byte, completeAll bool, ac
 			continue
 		}
 		completeDescriptor := completeAll || isDeepSeekCodexModel(slug)
-		forceOfficialImage := officialOpenAI && isOpenAICodexImageInputModel(slug)
+		capabilityModel := slug
+		if account != nil {
+			capabilityModel = account.GetMappedModel(slug)
+		}
+		forceOfficialImage := officialOpenAI && (isOpenAICodexImageInputModel(slug) || isOpenAICodexImageInputModel(capabilityModel))
 		if !completeDescriptor && !forceOfficialImage {
 			continue
 		}
 		descriptor := newConfiguredCodexModelDescriptor(slug)
+		enforceGPT6AstraCodexDescriptor(&descriptor, capabilityModel)
 		if accountCodexModelSupportsImageInput(account, slug) {
 			descriptor.InputModalities = []string{"text", "image"}
 		}
@@ -180,13 +201,14 @@ func completeAPIKeyCodexModelsManifestMetadata(body []byte, completeAll bool, ac
 		if err := json.Unmarshal(defaultBody, &defaults); err != nil {
 			return nil, fmt.Errorf("decode default model %q: %w", slug, err)
 		}
-		modelChanged := false
+		capabilities := accountCodexToolCapabilities(account, capabilityModel)
+		modelChanged := applyCodexToolCapabilities(model, capabilities, false)
 		if completeDescriptor {
 			merged, err := mergeMissingCodexModelFields(model, defaults)
 			if err != nil {
 				return nil, fmt.Errorf("complete model %q: %w", slug, err)
 			}
-			modelChanged = merged
+			modelChanged = merged || modelChanged
 		}
 		if forceOfficialImage {
 			modalities, _ := json.Marshal([]string{"text", "image"})
@@ -220,6 +242,9 @@ func mergeMissingCodexModelFields(current, defaults map[string]json.RawMessage) 
 	changed := false
 	for key, defaultValue := range defaults {
 		currentValue, exists := current[key]
+		if exists && stringSliceContains(codexToolCapabilityFields, key) {
+			continue
+		}
 		if !exists || (bytes.Equal(bytes.TrimSpace(currentValue), []byte("null")) && !bytes.Equal(bytes.TrimSpace(defaultValue), []byte("null"))) {
 			current[key] = defaultValue
 			changed = true

@@ -911,7 +911,7 @@ func (r *channelMonitorV2Repository) loadFacts(ctx context.Context, filter servi
 	bucketExpr := "MIN(m.bucket_start)"
 	group := "m.platform,m.group_id,g.name,m.model"
 	if byBucket {
-		if bucketSeconds > 0 {
+		if bucketSeconds > 0 && bucketSeconds == int(filter.Bucket.Seconds()) {
 			bucketExpr = "m.bucket_start"
 			group = bucketExpr + "," + group
 		} else {
@@ -954,7 +954,7 @@ func (r *channelMonitorV2Repository) loadHistograms(ctx context.Context, filter 
 	bucketExpr := "MIN(h.bucket_start)"
 	group := "h.platform,h.group_id,h.model,h.user_id,h.metric,h.upper_bound_ms"
 	if byBucket {
-		if bucketSeconds > 0 {
+		if bucketSeconds > 0 && bucketSeconds == int(filter.Bucket.Seconds()) {
 			bucketExpr = "h.bucket_start"
 			group = bucketExpr + "," + group
 		} else {
@@ -1085,6 +1085,9 @@ func channelMonitorV2HistoryCoverageComplete(coverageStart, filterStart time.Tim
 func channelMonitorV2FixedBucketSeconds(filter service.ChannelMonitorV2Filter) int {
 	seconds := int(filter.Bucket.Seconds())
 	switch seconds {
+	case 2 * 60 * 60:
+		// The 2-hour UI bucket is rebinned from the retained 1-hour rollup.
+		return 3600
 	case 300, 3600, 43200, 86400:
 		return seconds
 	default:
@@ -1407,7 +1410,7 @@ func (r *channelMonitorV2Repository) loadIgnoredErrorCounts(
 	where, args, bucketSeconds := channelMonitorV2WhereWithRollup(filter, cfg, "e")
 	bucketExpr := "e.bucket_start"
 	groupBy := "e.bucket_start, e.platform, e.model"
-	if filter.Bucket > 0 && bucketSeconds == 0 {
+	if filter.Bucket > 0 && bucketSeconds != int(filter.Bucket.Seconds()) {
 		args = append([]any{fmt.Sprintf("%d seconds", int(filter.Bucket.Seconds()))}, args...)
 		where = shiftSQLPlaceholders(where, 1)
 		bucketExpr = "date_bin($1::interval,e.bucket_start,TIMESTAMPTZ '1970-01-01')"
@@ -1503,7 +1506,7 @@ func (r *channelMonitorV2Repository) loadIgnoredErrorCountsByMatrixKey(
 	where, args, bucketSeconds := channelMonitorV2WhereWithRollup(filter, cfg, "e")
 	bucketExpr := "e.bucket_start"
 	groupSQL := "e.bucket_start, e.platform, e.group_id, e.model"
-	if filter.Bucket > 0 && bucketSeconds == 0 {
+	if filter.Bucket > 0 && bucketSeconds != int(filter.Bucket.Seconds()) {
 		args = append([]any{fmt.Sprintf("%d seconds", int(filter.Bucket.Seconds()))}, args...)
 		where = shiftSQLPlaceholders(where, 1)
 		bucketExpr = "date_bin($1::interval,e.bucket_start,TIMESTAMPTZ '1970-01-01')"

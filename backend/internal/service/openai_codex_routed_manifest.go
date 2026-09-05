@@ -22,6 +22,7 @@ const (
 	configuredCodexGrokContext         = 500_000
 	configuredCodexGrokBuildContext    = 256_000
 	configuredCodexGPT56MaxContext     = 872_000
+	configuredCodexGPT6AstraContext    = 1_050_000
 	configuredCodexToolOutputMaxTokens = 10_000
 )
 
@@ -344,9 +345,7 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 		d.DisplayName = openaiCodexDisplayName(modelID)
 		d.Description = "OpenAI GPT coding model routed through EasySub2api."
 		d.SupportsParallelToolCalls = true
-		if configuredCodexSupportsPriorityServiceTier(modelID) {
-			d.ServiceTiers = []configuredCodexServiceTier{{ID: "priority", Name: "Fast", Description: "Priority processing for lower latency."}}
-		}
+		d.ServiceTiers = configuredCodexServiceTiersForModel(modelID)
 		if isOpenAICodexReasoningGPTModel(modelID) {
 			level := "medium"
 			if getNormalizedCodexModel(modelID) == "gpt-5.6-sol" {
@@ -359,13 +358,33 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 			if isOpenAIGPT56Model(modelID) {
 				d.MaxContextWindow = configuredCodexGPT56MaxContext
 			}
+			if isOpenAIGPT6AstraModel(modelID) {
+				d.ContextWindow = configuredCodexGPT6AstraContext
+				d.MaxContextWindow = configuredCodexGPT6AstraContext
+			}
 		}
 		if SupportsVerbosity(modelID) {
 			verbosity := "low"
 			d.SupportVerbosity, d.DefaultVerbosity = true, &verbosity
 		}
 	}
+	enforceGPT6AstraCodexDescriptor(&d, modelID)
 	return d
+}
+
+func configuredCodexServiceTiersForModel(modelID string) []configuredCodexServiceTier {
+	tiers := make([]configuredCodexServiceTier, 0, 2)
+	if configuredCodexSupportsPriorityServiceTier(modelID) {
+		tiers = append(tiers, configuredCodexServiceTier{
+			ID: "priority", Name: "Fast", Description: "Priority processing for lower latency.",
+		})
+	}
+	if configuredCodexSupportsUltrafastServiceTier(modelID) {
+		tiers = append(tiers, configuredCodexServiceTier{
+			ID: OpenAIFastTierUltrafast, Name: "Ultrafast", Description: "Ultra-low latency processing.",
+		})
+	}
+	return tiers
 }
 
 func reasoningLevels(values ...string) []configuredCodexReasoningLevel {
@@ -383,7 +402,11 @@ func configuredCodexSupportsPriorityServiceTier(modelID string) bool {
 			return true
 		}
 	}
-	return false
+	return isOpenAIGPT6AstraModel(normalized)
+}
+
+func configuredCodexSupportsUltrafastServiceTier(modelID string) bool {
+	return normalizeKnownOpenAICodexModel(modelID) == "gpt-5.6-sol"
 }
 
 func configuredCodexGrokReasoningLevels(modelID string) []configuredCodexReasoningLevel {
@@ -414,7 +437,7 @@ func claudeCodexDefaultReasoningLevel(levels []configuredCodexReasoningLevel) st
 
 func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasoningLevel {
 	values := []string{"low", "medium", "high", "xhigh"}
-	if isOpenAIGPT56Model(modelID) || isOpenAICodexGPT6Model(modelID) {
+	if isOpenAIGPT56Model(modelID) || isOpenAIGPT6AstraModel(modelID) {
 		values = append(values, "max")
 	}
 	normalized := getNormalizedCodexModel(modelID)
@@ -436,16 +459,12 @@ func isOpenAICodexGPTModel(modelID string) bool {
 
 func isOpenAICodexReasoningGPTModel(modelID string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
-	return strings.HasPrefix(normalized, "gpt-5") || isOpenAICodexGPT6Model(normalized)
-}
-
-func isOpenAICodexGPT6Model(modelID string) bool {
-	return strings.HasPrefix(canonicalizeOpenAIModelAliasSpelling(modelID), "gpt-6")
+	return strings.HasPrefix(normalized, "gpt-5") || isOpenAIGPT6AstraModel(normalized)
 }
 
 func isOpenAICodexImageInputModel(modelID string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
-	return strings.HasPrefix(normalized, "gpt-5") || strings.HasPrefix(normalized, "gpt-4o") ||
+	return isOpenAIGPT6AstraModel(normalized) || strings.HasPrefix(normalized, "gpt-5") || strings.HasPrefix(normalized, "gpt-4o") ||
 		strings.HasPrefix(normalized, "gpt-4.1") || strings.HasPrefix(normalized, "gpt-4.5") ||
 		strings.HasPrefix(normalized, "gpt-4-turbo") || strings.HasPrefix(normalized, "gpt-4-vision")
 }
@@ -622,6 +641,7 @@ func buildCodexModelsManifest(modelIDs []string, imageInput map[string]bool, met
 		if value, ok := metadata[modelID]; ok {
 			applyUpstreamModelMetadataToCodexDescriptor(&descriptor, value)
 		}
+		enforceGPT6AstraCodexDescriptor(&descriptor, metadataModelID)
 		if metadataModelID != modelID {
 			descriptor.DisplayName = modelID
 			descriptor.Description = configuredCodexCustomDescription
@@ -797,19 +817,23 @@ func accountCodexModelSupportsImageInput(account *Account, upstreamModel string)
 	if account == nil {
 		return false
 	}
-	if metadata, ok := account.GetUpstreamModelMetadata(upstreamModel); ok {
+	lookupModel := strings.TrimSpace(upstreamModel)
+	if mapped := strings.TrimSpace(account.GetMappedModel(lookupModel)); mapped != "" {
+		lookupModel = mapped
+	}
+	if metadata, ok := account.GetUpstreamModelMetadata(lookupModel); ok {
 		if modalities := normalizeCodexInputModalities(metadata.InputModalities); len(modalities) > 0 {
 			return stringSliceContains(modalities, "image")
 		}
 	}
 	switch account.Platform {
 	case PlatformOpenAI:
-		return isOpenAICodexImageInputModel(upstreamModel) && (account.IsOpenAIOAuth() || account.IsOpenAIApiKey())
+		return isOpenAICodexImageInputModel(lookupModel) && (account.IsOpenAIOAuth() || account.IsOpenAIApiKey())
 	case PlatformGrok:
 		if !isOfficialGrokCodexBaseURL(account.GetGrokBaseURL()) {
 			return false
 		}
-		return isGrokCodexImageInputModel(xai.ResolveGrokTextResponsesModelID(upstreamModel))
+		return isGrokCodexImageInputModel(xai.ResolveGrokTextResponsesModelID(lookupModel))
 	default:
 		return false
 	}

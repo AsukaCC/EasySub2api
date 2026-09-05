@@ -299,6 +299,18 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	}
 	// 判断是否真的绑定了粘性会话：有 sessionKey 且已经绑定到某个账号
 	hasBoundSession := sessionKey != "" && sessionBoundAccountID != ""
+	// Track session-limit registrations made by account selection. Failed
+	// upstream attempts must not occupy a session slot until idle timeout.
+	sessionSlotAccounts := make(map[string]*service.Account)
+	upstreamServedSession := false
+	defer func() {
+		if upstreamServedSession || sessionKey == "" {
+			return
+		}
+		for _, account := range sessionSlotAccounts {
+			h.gatewayService.ReleaseAccountSession(context.Background(), account, sessionKey)
+		}
+	}()
 
 	currentAPIKey := apiKey
 	currentSubscription := subscription
@@ -358,6 +370,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 		}
 		account := selection.Account
+		if account != nil {
+			sessionSlotAccounts[account.ID] = account
+		}
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
 		// [DEBUG-STICKY] 打印账号选择结果
@@ -442,6 +457,8 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		admissionCtx := service.ContextWithSelectionProfitGate(c.Request.Context(), selection)
 		latest, vetoed, reason := h.gatewayService.GatewayProfitControlVetoLatest(admissionCtx, account)
 		if vetoed {
+			h.gatewayService.ReleaseAccountSession(context.Background(), account, sessionKey)
+			delete(sessionSlotAccounts, account.ID)
 			if accountReleaseFunc != nil {
 				accountReleaseFunc()
 			}
@@ -456,6 +473,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 		account = latest
 		selection.Account = latest
+		if account != nil {
+			sessionSlotAccounts[account.ID] = account
+		}
 		// 等待路径保持既有 eager 绑定（无门时 helper 直接绑定）；调度器已
 		// 抢槽的直达路径无门时由选号内部绑定，这里只在门下补准入后绑定。
 		if selection.ProfitGateActive() || !selection.Acquired {
@@ -636,6 +656,8 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
 				switch action {
 				case FailoverContinue:
+					h.gatewayService.ReleaseAccountSession(context.Background(), account, sessionKey)
+					delete(sessionSlotAccounts, account.ID)
 					continue
 				case FailoverExhausted:
 					h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
@@ -674,6 +696,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			// 不会走到这里重复计费。
 			if result != nil {
 				submitForwardUsage(result)
+				upstreamServedSession = true
 			}
 			return
 		}
@@ -699,6 +722,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 
 		submitForwardUsage(result)
+		upstreamServedSession = true
 		return
 	}
 }

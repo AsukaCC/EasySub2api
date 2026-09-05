@@ -22,13 +22,10 @@ import (
 	dbent "github.com/AsukaCC/EasySub2api/ent"
 	dbaccount "github.com/AsukaCC/EasySub2api/ent/account"
 	dbaccountgroup "github.com/AsukaCC/EasySub2api/ent/accountgroup"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	dbgroup "github.com/AsukaCC/EasySub2api/ent/group"
 	dbpredicate "github.com/AsukaCC/EasySub2api/ent/predicate"
 	dbproxy "github.com/AsukaCC/EasySub2api/ent/proxy"
-	"github.com/AsukaCC/EasySub2api/internal/domain"
 	"github.com/AsukaCC/EasySub2api/internal/model"
-	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -141,7 +138,7 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 		return service.ErrAccountNilInput
 	}
 
-	if err := prepareAccountRoutingFields(ctx, client, account); err != nil {
+	if err := prepareAccountSubscriptionTier(ctx, client, account); err != nil {
 		return err
 	}
 
@@ -159,7 +156,6 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 		SetSchedulable(account.Schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 	builder.SetNillableSubscriptionTier(optionalString(account.SubscriptionTier))
-	builder.SetNillableModelRuleID(account.ModelRuleID)
 
 	if account.RateMultiplier != nil {
 		builder.SetRateMultiplier(*account.RateMultiplier)
@@ -530,7 +526,7 @@ func (r *accountRepository) updateLockedAccount(
 		return nil, err
 	}
 	account.Extra = extra
-	if err := prepareAccountRoutingFields(ctx, client, account); err != nil {
+	if err := prepareAccountSubscriptionTier(ctx, client, account); err != nil {
 		return nil, err
 	}
 
@@ -553,11 +549,6 @@ func (r *accountRepository) updateLockedAccount(
 		SetSchedulable(schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 	builder.SetNillableSubscriptionTier(optionalString(account.SubscriptionTier))
-	if account.ModelRuleID != nil {
-		builder.SetModelRuleID(*account.ModelRuleID)
-	} else {
-		builder.ClearModelRuleID()
-	}
 
 	if explicitRateMultiplier != nil {
 		builder.SetRateMultiplier(*explicitRateMultiplier)
@@ -3045,15 +3036,6 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []string, update
 		args = append(args, *updates.Schedulable)
 		idx++
 	}
-	if updates.ModelRuleID != nil {
-		if *updates.ModelRuleID == nil {
-			setClauses = append(setClauses, "model_rule_id = NULL")
-		} else {
-			setClauses = append(setClauses, "model_rule_id = $"+itoa(idx))
-			args = append(args, **updates.ModelRuleID)
-			idx++
-		}
-	}
 	if updates.ProbeEnabled != nil {
 		if updates.Extra == nil {
 			updates.Extra = make(map[string]any)
@@ -3070,7 +3052,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []string, update
 		credentialPlaceholder = "$" + itoa(idx)
 		credentialExpression := "COALESCE(credentials, '{}'::jsonb) || " + credentialPlaceholder + "::jsonb"
 		if updates.ClearModelRoutingCredentials {
-			credentialExpression = "(" + credentialExpression + ") - 'model_mapping' - 'model_reasoning_efforts'"
+			credentialExpression = "(COALESCE(credentials, '{}'::jsonb) - 'model_mapping' - 'model_reasoning_efforts') || " + credentialPlaceholder + "::jsonb"
 		}
 		setClauses = append(setClauses, "credentials = "+credentialExpression)
 		args = append(args, payload)
@@ -3295,7 +3277,6 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 
 	accountIDs := make([]string, 0, len(accounts))
 	proxyIDs := make([]string, 0, len(accounts))
-	modelRuleIDs := make([]string, 0, len(accounts))
 	for _, acc := range accounts {
 		accountIDs = append(accountIDs, acc.ID)
 		if acc.ProxyID != nil {
@@ -3303,9 +3284,6 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 		}
 		if acc.ProxyFallbackOriginID != nil {
 			proxyIDs = append(proxyIDs, *acc.ProxyFallbackOriginID)
-		}
-		if acc.ModelRuleID != nil {
-			modelRuleIDs = append(modelRuleIDs, *acc.ModelRuleID)
 		}
 	}
 
@@ -3317,11 +3295,6 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 	if err != nil {
 		return nil, err
 	}
-	modelRules, err := r.loadAccountModelRules(ctx, modelRuleIDs)
-	if err != nil {
-		return nil, err
-	}
-
 	outAccounts := make([]service.Account, 0, len(accounts))
 	for _, acc := range accounts {
 		out := accountEntityToService(acc)
@@ -3349,36 +3322,13 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 		if ags, ok := accountGroupsByAccount[acc.ID]; ok {
 			out.AccountGroups = ags
 		}
-		if acc.ModelRuleID != nil {
-			if rule, ok := modelRules[*acc.ModelRuleID]; ok {
-				out.ModelRuleName = rule.Name
-				out.ModelRuleSubscriptionTier = rule.SubscriptionTier
-				out.ModelRoutes = append([]domain.AccountModelRoute(nil), rule.ModelRoutes...)
-			}
-		}
 		outAccounts = append(outAccounts, *out)
 	}
 
 	return outAccounts, nil
 }
 
-func (r *accountRepository) loadAccountModelRules(ctx context.Context, ids []string) (map[string]*dbent.AccountModelRule, error) {
-	result := make(map[string]*dbent.AccountModelRule)
-	ids = uniqueIDs(ids)
-	if len(ids) == 0 {
-		return result, nil
-	}
-	rows, err := r.client.AccountModelRule.Query().Where(accountmodelrule.IDIn(ids...)).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, row := range rows {
-		result[row.ID] = row
-	}
-	return result, nil
-}
-
-func prepareAccountRoutingFields(ctx context.Context, client *dbent.Client, account *service.Account) error {
+func prepareAccountSubscriptionTier(ctx context.Context, client *dbent.Client, account *service.Account) error {
 	if account.ParentAccountID != nil {
 		parent, err := client.Account.Query().Where(dbaccount.IDEQ(*account.ParentAccountID)).Select(dbaccount.FieldSubscriptionTier).Only(ctx)
 		if err != nil {
@@ -3391,28 +3341,6 @@ func prepareAccountRoutingFields(ctx context.Context, client *dbent.Client, acco
 	} else {
 		account.SubscriptionTier = service.ResolveAccountSubscriptionTier(account)
 	}
-	if account.ModelRuleID == nil {
-		account.ModelRuleName = ""
-		account.ModelRuleSubscriptionTier = nil
-		account.ModelRoutes = nil
-		return nil
-	}
-	rule, err := client.AccountModelRule.Get(ctx, *account.ModelRuleID)
-	if err != nil {
-		if dbent.IsNotFound(err) {
-			return infraerrors.BadRequest("ACCOUNT_MODEL_RULE_NOT_FOUND", "account model rule not found")
-		}
-		return err
-	}
-	if rule.Platform != account.Platform {
-		return infraerrors.BadRequest("ACCOUNT_MODEL_RULE_PLATFORM_MISMATCH", "account model rule platform does not match account platform")
-	}
-	if account.ModelRuleBindingChanged && rule.SubscriptionTier != nil && *rule.SubscriptionTier != account.SubscriptionTier {
-		return infraerrors.BadRequest("ACCOUNT_MODEL_RULE_TIER_MISMATCH", "account model rule subscription tier does not match account subscription tier")
-	}
-	account.ModelRuleName = rule.Name
-	account.ModelRuleSubscriptionTier = rule.SubscriptionTier
-	account.ModelRoutes = append([]domain.AccountModelRoute(nil), rule.ModelRoutes...)
 	return nil
 }
 
@@ -3648,7 +3576,6 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		SessionWindowStatus:     derefString(m.SessionWindowStatus),
 		ParentAccountID:         m.ParentAccountID,
 		SubscriptionTier:        derefString(m.SubscriptionTier),
-		ModelRuleID:             m.ModelRuleID,
 		QuotaDimension:          string(m.QuotaDimension),
 	}
 }

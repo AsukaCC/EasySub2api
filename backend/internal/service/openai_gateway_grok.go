@@ -51,7 +51,7 @@ func (s *OpenAIGatewayService) forwardGrokResponses(
 	}
 	// Preserve new rule targets exactly. Legacy explicit mappings retain their
 	// historical xAI alias normalization for compatibility.
-	if matched && account.ModelRuleID == nil {
+	if matched {
 		upstreamModel = xai.ResolveGrokTextResponsesModelID(upstreamModel, grokDefaultResponsesModel)
 	}
 	if isGrokImageGenerationModel(upstreamModel) {

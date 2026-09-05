@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/AsukaCC/EasySub2api/ent/account"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/proxy"
 )
 
@@ -80,10 +79,8 @@ type Account struct {
 	SessionWindowStatus *string `json:"session_window_status,omitempty"`
 	// Parent account id for a linked spark shadow (NULL = normal).
 	ParentAccountID *string `json:"parent_account_id,omitempty"`
-	// Normalized subscription tier used by admin filtering and model-rule scope.
+	// Normalized subscription tier used by admin filtering and billing.
 	SubscriptionTier *string `json:"subscription_tier,omitempty"`
-	// Persistently bound account model routing rule.
-	ModelRuleID *string `json:"model_rule_id,omitempty"`
 	// 'global' (default) or 'spark' (shadow reads codex_bengalfox).
 	QuotaDimension account.QuotaDimension `json:"quota_dimension,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -98,8 +95,6 @@ type AccountEdges struct {
 	Groups []*Group `json:"groups,omitempty"`
 	// Proxy holds the value of the proxy edge.
 	Proxy *Proxy `json:"proxy,omitempty"`
-	// ModelRule holds the value of the model_rule edge.
-	ModelRule *AccountModelRule `json:"model_rule,omitempty"`
 	// Parent holds the value of the parent edge.
 	Parent *Account `json:"parent,omitempty"`
 	// Children holds the value of the children edge.
@@ -110,7 +105,7 @@ type AccountEdges struct {
 	AccountGroups []*AccountGroup `json:"account_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [7]bool
+	loadedTypes [6]bool
 }
 
 // GroupsOrErr returns the Groups value or an error if the edge
@@ -133,23 +128,12 @@ func (e AccountEdges) ProxyOrErr() (*Proxy, error) {
 	return nil, &NotLoadedError{edge: "proxy"}
 }
 
-// ModelRuleOrErr returns the ModelRule value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e AccountEdges) ModelRuleOrErr() (*AccountModelRule, error) {
-	if e.ModelRule != nil {
-		return e.ModelRule, nil
-	} else if e.loadedTypes[2] {
-		return nil, &NotFoundError{label: accountmodelrule.Label}
-	}
-	return nil, &NotLoadedError{edge: "model_rule"}
-}
-
 // ParentOrErr returns the Parent value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e AccountEdges) ParentOrErr() (*Account, error) {
 	if e.Parent != nil {
 		return e.Parent, nil
-	} else if e.loadedTypes[3] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: account.Label}
 	}
 	return nil, &NotLoadedError{edge: "parent"}
@@ -158,7 +142,7 @@ func (e AccountEdges) ParentOrErr() (*Account, error) {
 // ChildrenOrErr returns the Children value or an error if the edge
 // was not loaded in eager-loading.
 func (e AccountEdges) ChildrenOrErr() ([]*Account, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[3] {
 		return e.Children, nil
 	}
 	return nil, &NotLoadedError{edge: "children"}
@@ -167,7 +151,7 @@ func (e AccountEdges) ChildrenOrErr() ([]*Account, error) {
 // UsageLogsOrErr returns the UsageLogs value or an error if the edge
 // was not loaded in eager-loading.
 func (e AccountEdges) UsageLogsOrErr() ([]*UsageLog, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[4] {
 		return e.UsageLogs, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_logs"}
@@ -176,7 +160,7 @@ func (e AccountEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 // AccountGroupsOrErr returns the AccountGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e AccountEdges) AccountGroupsOrErr() ([]*AccountGroup, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[5] {
 		return e.AccountGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "account_groups"}
@@ -195,7 +179,7 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority:
 			values[i] = new(sql.NullInt64)
-		case account.FieldID, account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus, account.FieldParentAccountID, account.FieldSubscriptionTier, account.FieldModelRuleID, account.FieldQuotaDimension:
+		case account.FieldID, account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus, account.FieldParentAccountID, account.FieldSubscriptionTier, account.FieldQuotaDimension:
 			values[i] = new(sql.NullString)
 		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
 			values[i] = new(sql.NullTime)
@@ -428,13 +412,6 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 				_m.SubscriptionTier = new(string)
 				*_m.SubscriptionTier = value.String
 			}
-		case account.FieldModelRuleID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field model_rule_id", values[i])
-			} else if value.Valid {
-				_m.ModelRuleID = new(string)
-				*_m.ModelRuleID = value.String
-			}
 		case account.FieldQuotaDimension:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field quota_dimension", values[i])
@@ -462,11 +439,6 @@ func (_m *Account) QueryGroups() *GroupQuery {
 // QueryProxy queries the "proxy" edge of the Account entity.
 func (_m *Account) QueryProxy() *ProxyQuery {
 	return NewAccountClient(_m.config).QueryProxy(_m)
-}
-
-// QueryModelRule queries the "model_rule" edge of the Account entity.
-func (_m *Account) QueryModelRule() *AccountModelRuleQuery {
-	return NewAccountClient(_m.config).QueryModelRule(_m)
 }
 
 // QueryParent queries the "parent" edge of the Account entity.
@@ -638,11 +610,6 @@ func (_m *Account) String() string {
 	builder.WriteString(", ")
 	if v := _m.SubscriptionTier; v != nil {
 		builder.WriteString("subscription_tier=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.ModelRuleID; v != nil {
-		builder.WriteString("model_rule_id=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

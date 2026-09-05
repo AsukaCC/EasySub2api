@@ -23,6 +23,16 @@ const (
 
 var openAIReasoningEffortValues = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
 
+// normalizeReasoningEffortMappingSource keeps the legacy "none" value
+// available as an input-only mapping source. It must never expand the set of
+// effort values accepted as a mapping target or as a model capability.
+func normalizeReasoningEffortMappingSource(raw string) string {
+	if strings.EqualFold(strings.TrimSpace(raw), "none") {
+		return "none"
+	}
+	return NormalizeMaxReasoningEffort(raw)
+}
+
 type openAIReasoningEffortPolicyContextKey struct{}
 type requestedReasoningEffortContextKey struct{}
 
@@ -227,7 +237,7 @@ func selectReasoningEffortMapping(mappings []ReasoningEffortMapping, from, reque
 	}
 	candidates := make([]candidate, 0, len(mappings))
 	for i, mapping := range mappings {
-		if NormalizeMaxReasoningEffort(mapping.From) != from {
+		if normalizeReasoningEffortMappingSource(mapping.From) != from {
 			continue
 		}
 		model := strings.TrimSpace(mapping.Model)
@@ -280,7 +290,7 @@ func NormalizeReasoningEffortMappings(platform string, raw []ReasoningEffortMapp
 	normalized := make([]ReasoningEffortMapping, 0, len(raw))
 	seen := make(map[string]struct{}, len(raw))
 	for i, mapping := range raw {
-		from := NormalizeMaxReasoningEffort(mapping.From)
+		from := normalizeReasoningEffortMappingSource(mapping.From)
 		to := NormalizeMaxReasoningEffort(mapping.To)
 		if from == "" || to == "" {
 			return nil, fmt.Errorf("reasoning effort mapping %v contains an empty or unknown value", i+1)
@@ -288,8 +298,15 @@ func NormalizeReasoningEffortMappings(platform string, raw []ReasoningEffortMapp
 		if len(from) > maxReasoningEffortValueLen || len(to) > maxReasoningEffortValueLen {
 			return nil, fmt.Errorf("reasoning effort mapping %v values cannot exceed %v characters", i+1, maxReasoningEffortValueLen)
 		}
-		if _, err := normalizeMaxReasoningEffortForPlatform(platform, from); err != nil {
-			return nil, fmt.Errorf("reasoning effort mapping %v source: %w", i+1, err)
+		if from != "none" {
+			if _, err := normalizeMaxReasoningEffortForPlatform(platform, from); err != nil {
+				return nil, fmt.Errorf("reasoning effort mapping %v source: %w", i+1, err)
+			}
+		} else if len(reasoningEffortValuesForPlatform(platform)) == 0 {
+			return nil, fmt.Errorf(
+				"reasoning effort mapping %v source: reasoning effort policy is only supported for platforms %q and %q",
+				i+1, PlatformOpenAI, PlatformComposite,
+			)
 		}
 		if _, err := normalizeMaxReasoningEffortForPlatform(platform, to); err != nil {
 			return nil, fmt.Errorf("reasoning effort mapping %v target: %w", i+1, err)
@@ -387,7 +404,7 @@ func ApplyOpenAIReasoningEffortPolicyFromContext(ctx context.Context, body []byt
 
 func mapReasoningEffort(raw string, mappings []ReasoningEffortMapping, requestModel string) (string, bool) {
 	value := strings.TrimSpace(raw)
-	canonical := NormalizeMaxReasoningEffort(value)
+	canonical := normalizeReasoningEffortMappingSource(value)
 	if canonical == "" {
 		return value, false
 	}

@@ -143,6 +143,13 @@
                 type="number" step="any" min="0" class="components-admin-channel-pricing-entry-card__field input" :placeholder="t('admin.channels.form.pricePlaceholder')" />
             </div>
           </div>
+          <div class="components-admin-channel-pricing-entry-card__panel-9">
+            <div>
+              <label class="components-admin-channel-pricing-entry-card__label-3">{{ t('admin.channels.form.maxReasoningEffortMultiplier') }}</label>
+              <input :value="entry.max_reasoning_effort_multiplier" @input="emitField('max_reasoning_effort_multiplier', ($event.target as HTMLInputElement).value)"
+                type="number" step="any" min="0.000001" class="components-admin-channel-pricing-entry-card__field input" :placeholder="maxReasoningEffortMultiplierPlaceholder" />
+            </div>
+          </div>
 
           <!-- Token intervals (channel-only; group long-context uses official presets) -->
           <div v-if="!hideTokenIntervals" class="components-admin-channel-pricing-entry-card__panel-10">
@@ -291,6 +298,12 @@ const billingModeLabel = computed(() => {
   const opt = billingModeOptions.value.find(o => o.value === props.entry.billing_mode)
   return opt ? opt.label : props.entry.billing_mode
 })
+
+const maxReasoningEffortMultiplierPlaceholder = computed(() =>
+  props.entry.models.some(model => /fable(?:-5-1|-5\.1|5\.1|51)(?!\d)/i.test(model))
+    ? t('admin.channels.form.fable51DefaultMaxReasoningMultiplier')
+    : t('admin.channels.form.multiplierPlaceholder')
+)
 
 function emitField(field: keyof PricingFormEntry, value: string) {
   emit('update', { ...props.entry, [field]: value === '' ? null : value })

@@ -156,18 +156,6 @@
         <!-- Model Restriction Section -->
         <div class="components-account-edit-account-modal__panel-3">
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
-          <AccountModelRuleSelector
-            :platform="account?.platform || 'anthropic'"
-            :subscription-tier="account?.subscription_tier"
-            :model-value="selectedModelRuleId"
-            :current-rule-name="account?.model_rule_name"
-            :disabled="isOpenAIModelRestrictionDisabled"
-            :has-existing-mappings="hasModelRestrictionValues"
-            @apply="applyAccountModelRule"
-          />
-          <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
-            {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
-          </p>
 
           <div
             v-if="isOpenAIModelRestrictionDisabled"
@@ -179,19 +167,8 @@
           </div>
 
           <template v-else>
-            <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
-              {{
-                t(
-                  selectedModelRuleId
-                    ? 'admin.accounts.modelRules.boundReadOnlyHint'
-                    : 'admin.accounts.modelRules.unbindSaveHint'
-                )
-              }}
-            </p>
-
             <!-- Mode Toggle -->
             <div
-              v-if="shouldShowLegacyModelRoutingEditor"
               class="components-account-edit-account-modal__panel-5"
             >
               <button
@@ -248,7 +225,7 @@
 
             <!-- Whitelist Mode -->
             <div
-              v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+              v-if="modelRestrictionMode === 'whitelist'"
             >
               <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
               <p class="components-account-edit-account-modal__description-2">
@@ -260,7 +237,7 @@
             </div>
 
             <!-- Mapping Mode -->
-            <div v-else-if="shouldShowLegacyModelRoutingEditor">
+            <div v-else>
               <div class="components-account-edit-account-modal__panel-6">
                 <p class="components-account-edit-account-modal__description-3">
                   <svg
@@ -638,18 +615,6 @@
         class="components-account-edit-account-modal__panel-3"
       >
         <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
-        <AccountModelRuleSelector
-          :platform="account?.platform || 'anthropic'"
-          :subscription-tier="account?.subscription_tier"
-          :model-value="selectedModelRuleId"
-          :current-rule-name="account?.model_rule_name"
-          :disabled="isOpenAIModelRestrictionDisabled"
-          :has-existing-mappings="hasModelRestrictionValues"
-          @apply="applyAccountModelRule"
-        />
-        <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
-          {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
-        </p>
 
         <div
           v-if="isOpenAIModelRestrictionDisabled"
@@ -661,19 +626,8 @@
         </div>
 
         <template v-else>
-          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
-            {{
-              t(
-                selectedModelRuleId
-                  ? 'admin.accounts.modelRules.boundReadOnlyHint'
-                  : 'admin.accounts.modelRules.unbindSaveHint'
-              )
-            }}
-          </p>
-
           <!-- Mode Toggle -->
           <div
-            v-if="shouldShowLegacyModelRoutingEditor"
             class="components-account-edit-account-modal__panel-5"
           >
             <button
@@ -704,7 +658,7 @@
 
           <!-- Whitelist Mode -->
           <div
-            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+            v-if="modelRestrictionMode === 'whitelist'"
           >
             <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
@@ -716,7 +670,7 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else-if="shouldShowLegacyModelRoutingEditor">
+          <div v-else>
             <div class="components-account-edit-account-modal__panel-6">
               <p class="components-account-edit-account-modal__description-3">
                 {{ t('admin.accounts.mapRequestModels') }}
@@ -848,31 +802,9 @@
         <!-- Model Restriction Section for Service Account -->
         <div class="components-account-edit-account-modal__panel-3">
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
-          <AccountModelRuleSelector
-            :platform="account?.platform || 'anthropic'"
-            :subscription-tier="account?.subscription_tier"
-            :model-value="selectedModelRuleId"
-            :current-rule-name="account?.model_rule_name"
-            :has-existing-mappings="hasModelRestrictionValues"
-            @apply="applyAccountModelRule"
-          />
-          <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
-            {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
-          </p>
-
-          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
-            {{
-              t(
-                selectedModelRuleId
-                  ? 'admin.accounts.modelRules.boundReadOnlyHint'
-                  : 'admin.accounts.modelRules.unbindSaveHint'
-              )
-            }}
-          </p>
 
           <!-- Mode Toggle -->
           <div
-            v-if="shouldShowLegacyModelRoutingEditor"
             class="components-account-edit-account-modal__panel-5"
           >
             <button
@@ -929,7 +861,7 @@
 
           <!-- Whitelist Mode -->
           <div
-            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+            v-if="modelRestrictionMode === 'whitelist'"
           >
             <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" :account-type="account?.type" @upstream-synced="handleUpstreamSynced" />
             <p class="components-account-edit-account-modal__description-2">
@@ -941,7 +873,7 @@
           </div>
 
           <!-- Mapping Mode -->
-          <div v-else-if="shouldShowLegacyModelRoutingEditor">
+          <div v-else>
             <div class="components-account-edit-account-modal__panel-6">
               <p class="components-account-edit-account-modal__description-3">
                 <svg
@@ -1122,31 +1054,9 @@
         <!-- Model Restriction for Bedrock -->
         <div class="components-account-edit-account-modal__panel-3">
           <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
-          <AccountModelRuleSelector
-            platform="anthropic"
-            :subscription-tier="account?.subscription_tier"
-            :model-value="selectedModelRuleId"
-            :current-rule-name="account?.model_rule_name"
-            :has-existing-mappings="hasModelRestrictionValues"
-            @apply="applyAccountModelRule"
-          />
-          <p v-if="account?.model_rule_tier_mismatch" class="input-hint account-model-rule-warning">
-            {{ t('admin.accounts.modelRules.tierMismatchWarning') }}
-          </p>
-
-          <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
-            {{
-              t(
-                selectedModelRuleId
-                  ? 'admin.accounts.modelRules.boundReadOnlyHint'
-                  : 'admin.accounts.modelRules.unbindSaveHint'
-              )
-            }}
-          </p>
 
           <!-- Mode Toggle -->
           <div
-            v-if="shouldShowLegacyModelRoutingEditor"
             class="components-account-edit-account-modal__panel-5"
           >
             <button
@@ -1177,7 +1087,7 @@
 
           <!-- Whitelist Mode -->
           <div
-            v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+            v-if="modelRestrictionMode === 'whitelist'"
           >
             <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" />
             <p class="components-account-edit-account-modal__description-2">
@@ -1188,7 +1098,7 @@
 
           <!-- Mapping Mode -->
           <div
-            v-else-if="shouldShowLegacyModelRoutingEditor"
+            v-else
             class="components-account-edit-account-modal__panel-13"
           >
             <div v-for="(mapping, index) in modelMappings" :key="getModelMappingKey(mapping)" class="components-account-edit-account-modal__panel-8">
@@ -1504,6 +1414,12 @@
         <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
+      <UpstreamRequestIdHeaderField
+        v-model="upstreamRequestIdHeader"
+        :platform="account.platform"
+        :type="account.type"
+      />
+
       <div class="components-account-edit-account-modal__panel-29">
         <div>
           <label class="input-label">{{ t('admin.accounts.concurrency') }}</label>
@@ -1774,6 +1690,37 @@
           </div>
           <p class="input-hint">{{ t('admin.accounts.openai.endpointCapabilitiesDesc') }}</p>
         </div>
+      </div>
+
+      <!-- OpenAI API Key 图片结果：将 url 回填为 b64_json -->
+      <div
+        v-if="account?.platform === 'openai' && account?.type === 'apikey'"
+        class="flex items-center justify-between gap-4 border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div>
+          <label class="input-label mb-0">{{ t('admin.accounts.openai.imagesUrlToB64Json') }}</label>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.openai.imagesUrlToB64JsonDesc') }}
+          </p>
+        </div>
+        <button
+          type="button"
+          data-testid="openai-images-url-to-b64-json-toggle"
+          role="switch"
+          :aria-checked="openAIImagesUrlToB64JsonEnabled"
+          @click="openAIImagesUrlToB64JsonEnabled = !openAIImagesUrlToB64JsonEnabled"
+          :class="[
+            'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+            openAIImagesUrlToB64JsonEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+          ]"
+        >
+          <span
+            :class="[
+              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+              openAIImagesUrlToB64JsonEnabled ? 'translate-x-5' : 'translate-x-0'
+            ]"
+          />
+        </button>
       </div>
 
       <div
@@ -2703,11 +2650,11 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
-import AccountModelRuleSelector from '@/components/account/AccountModelRuleSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
 import CnBaseUrlPresets from '@/components/account/CnBaseUrlPresets.vue'
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
+import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
 import OllamaCloudUsageSettings from '@/components/account/OllamaCloudUsageSettings.vue'
 import {
   applyHeaderOverride,
@@ -2899,15 +2846,6 @@ const modelMappings = ref<ModelMapping[]>([])
 const openAICompactModelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
-const selectedModelRuleId = ref<string | null>(null)
-const modelRuleBindingChanged = ref(false)
-const shouldShowLegacyModelRoutingEditor = computed(
-  () => !selectedModelRuleId.value && !modelRuleBindingChanged.value
-)
-const hasModelRestrictionValues = computed(() =>
-  modelMappings.value.some(mapping => mapping.from.trim() !== '' || mapping.to.trim() !== '') ||
-  allowedModels.value.length > 0
-)
 const DEFAULT_POOL_MODE_RETRY_COUNT = 3
 const MAX_POOL_MODE_RETRY_COUNT = 10
 const DEFAULT_POOL_MODE_RETRY_STATUS_CODES = [401, 403, 429]
@@ -2972,6 +2910,12 @@ const autoPause5hDisabled = ref(false)
 const autoPause7dDisabled = ref(false)
 const upstreamBillingAutoProbeEnabled = ref(false)
 const upstreamBillingRateSyncEnabled = ref(false)
+// 上游请求标识：直接上游声明请求 ID 的响应头名，留空不记录。
+const upstreamRequestIdHeader = ref('')
+const readUpstreamRequestIdHeader = (extra: unknown): string => {
+  const value = (extra as Record<string, unknown> | undefined)?.upstream_request_id_header
+  return typeof value === 'string' ? value : ''
+}
 const tempUnschedEnabled = ref(false)
 const accountSchedulingThresholdOverrideEnabled = ref(false)
 const accountSchedulingThresholdOverrideValue = ref(100)
@@ -3019,6 +2963,8 @@ const openAILongContextBillingEnabled = ref(false)
 const editPlanType = ref<string>('')
 const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
+// Images 非流式响应缺 b64_json 时由网关下载 url 回填（仅 OpenAI API Key）。
+const openAIImagesUrlToB64JsonEnabled = ref(false)
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
@@ -3427,12 +3373,7 @@ const applyOpenAIModelMappingCredentials = (credentials: Record<string, unknown>
   const shouldApplyModelMapping = !openaiPassthroughEnabled.value
 
   if (shouldApplyModelMapping) {
-    const modelMapping = buildModelRestrictionMapping()
-    if (modelMapping) {
-      credentials.model_mapping = modelMapping
-    } else {
-      delete credentials.model_mapping
-    }
+    credentials.model_mapping = buildModelRestrictionMapping() ?? {}
   } else if (!credentials.model_mapping) {
     delete credentials.model_mapping
   }
@@ -3467,8 +3408,6 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     : 'active'
   form.group_ids = newAccount.group_ids || []
   form.expires_at = newAccount.expires_at ?? null
-  selectedModelRuleId.value = newAccount.model_rule_id || null
-  modelRuleBindingChanged.value = false
 
   // Load intercept warmup requests setting (applies to all account types)
   const credentials = newAccount.credentials as Record<string, unknown> | undefined
@@ -3480,6 +3419,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   editZhipuOrganization.value = ''
   editZhipuProject.value = ''
 	const extra = newAccount.extra as Record<string, unknown> | undefined
+	upstreamRequestIdHeader.value = readUpstreamRequestIdHeader(extra)
 	autoPause5hThreshold.value = typeof extra?.auto_pause_5h_threshold === 'number' ? extra.auto_pause_5h_threshold * 100 : null
 	autoPause7dThreshold.value = typeof extra?.auto_pause_7d_threshold === 'number' ? extra.auto_pause_7d_threshold * 100 : null
 	autoPause5hDisabled.value = extra?.auto_pause_5h_disabled === true
@@ -3495,6 +3435,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   editPlanType.value = ''
   openAICompactMode.value = 'auto'
   openAIResponsesMode.value = 'auto'
+  openAIImagesUrlToB64JsonEnabled.value = false
   openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
   openAICompactModelMappings.value = []
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -3512,6 +3453,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       newAccount.type === 'oauth' && extra?.openai_responses_flatten_namespaces === true
     const longContextBillingValue = extra?.openai_long_context_billing_enabled
     openAILongContextBillingEnabled.value = longContextBillingValue === true
+    openAIImagesUrlToB64JsonEnabled.value = newAccount.type === 'apikey' && extra?.images_url_to_b64_json === true
     // plan_type 手动覆盖仅 OAuth 有实际调度语义(IsOpenAIChatGPTSubscription 要求 oauth),故只对 oauth 回填
     editPlanType.value = newAccount.type === 'oauth'
       ? readPlanType(newAccount.credentials as Record<string, unknown> | undefined)
@@ -3805,15 +3747,6 @@ const addModelMapping = () => {
 
 const removeModelMapping = (index: number) => {
   modelMappings.value.splice(index, 1)
-}
-
-const applyAccountModelRule = (payload: { id: string | null; name: string; allowedModels: string[]; mappings: ModelMapping[] }) => {
-  selectedModelRuleId.value = payload.id
-  modelRuleBindingChanged.value = true
-  modelRestrictionMode.value = payload.mappings.length > 0 ? 'mapping' : 'whitelist'
-  allowedModels.value = payload.allowedModels.map(model => model.trim()).filter(Boolean)
-  modelMappings.value = payload.mappings.map(mapping => ({ ...mapping }))
-  appStore.showSuccess(t('admin.accounts.modelRules.importSuccess', { name: payload.name }))
 }
 
 const addPresetMapping = (from: string, to: string) => {
@@ -4196,9 +4129,6 @@ const handleSubmit = async () => {
 
   const updatePayload: Record<string, unknown> = { ...form }
   try {
-    if (modelRuleBindingChanged.value) {
-      updatePayload.model_rule_id = selectedModelRuleId.value
-    }
     // UUID 外键以 null 表示清除代理。
     if (form.expires_at === null) {
       updatePayload.expires_at = 0
@@ -4263,12 +4193,7 @@ const handleSubmit = async () => {
 
       // Add model mapping if configured（OpenAI 开启自动透传时保留现有映射，不再编辑）
       if (shouldApplyModelMapping) {
-        const modelMapping = buildModelRestrictionMapping()
-        if (modelMapping) {
-          newCredentials.model_mapping = modelMapping
-        } else {
-          delete newCredentials.model_mapping
-        }
+        newCredentials.model_mapping = buildModelRestrictionMapping() ?? {}
       } else if (currentCredentials.model_mapping) {
         newCredentials.model_mapping = currentCredentials.model_mapping
       }
@@ -4384,12 +4309,8 @@ const handleSubmit = async () => {
       newCredentials.tier_id = 'vertex'
 
       // Add model mapping if configured
-      const modelMapping = buildModelRestrictionMapping()
-      if (modelMapping) {
-        newCredentials.model_mapping = modelMapping
-      } else {
-        delete newCredentials.model_mapping
-      }
+      newCredentials.model_mapping = buildModelRestrictionMapping() ?? {}
+      delete newCredentials.model_reasoning_efforts
 
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       applyAccountSchedulingThresholdOverridePatch(newCredentials, currentCredentials)
@@ -4442,12 +4363,8 @@ const handleSubmit = async () => {
       }
 
       // Model mapping
-      const modelMapping = buildModelRestrictionMapping()
-      if (modelMapping) {
-        newCredentials.model_mapping = modelMapping
-      } else {
-        delete newCredentials.model_mapping
-      }
+      newCredentials.model_mapping = buildModelRestrictionMapping() ?? {}
+      delete newCredentials.model_reasoning_efforts
 
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       applyAccountSchedulingThresholdOverridePatch(newCredentials, currentCredentials)
@@ -4480,12 +4397,8 @@ const handleSubmit = async () => {
       if (props.account.platform === 'openai') {
         applyOpenAIModelMappingCredentials(newCredentials)
       } else {
-        const modelMapping = buildModelRestrictionMapping()
-        if (modelMapping) {
-          newCredentials.model_mapping = modelMapping
-        } else {
-          delete newCredentials.model_mapping
-        }
+        newCredentials.model_mapping = buildModelRestrictionMapping() ?? {}
+        delete newCredentials.model_reasoning_efforts
       }
 
       updatePayload.credentials = newCredentials
@@ -4696,6 +4609,11 @@ const handleSubmit = async () => {
         } else {
           newExtra.openai_responses_mode = openAIResponsesMode.value
         }
+			if (openAIImagesUrlToB64JsonEnabled.value) {
+				newExtra.images_url_to_b64_json = true
+			} else {
+				delete newExtra.images_url_to_b64_json
+			}
 		}
 		if (autoPause5hThreshold.value != null && autoPause5hThreshold.value > 0) {
 			newExtra.auto_pause_5h_threshold = autoPause5hThreshold.value / 100
@@ -4762,6 +4680,21 @@ const handleSubmit = async () => {
         }
       }
 
+      updatePayload.extra = newExtra
+    }
+
+    // Persist the optional upstream response-header request ID mapping without
+    // dropping extra fields maintained by other account settings.
+    {
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
+        (props.account.extra as Record<string, unknown>) || {}
+      const newExtra: Record<string, unknown> = { ...currentExtra }
+      const headerName = upstreamRequestIdHeader.value.trim()
+      if (headerName) {
+        newExtra.upstream_request_id_header = headerName
+      } else {
+        delete newExtra.upstream_request_id_header
+      }
       updatePayload.extra = newExtra
     }
 

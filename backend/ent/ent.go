@@ -14,7 +14,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/AsukaCC/EasySub2api/ent/account"
 	"github.com/AsukaCC/EasySub2api/ent/accountgroup"
-	"github.com/AsukaCC/EasySub2api/ent/accountmodelrule"
 	"github.com/AsukaCC/EasySub2api/ent/announcement"
 	"github.com/AsukaCC/EasySub2api/ent/announcementread"
 	"github.com/AsukaCC/EasySub2api/ent/apikey"
@@ -120,7 +119,6 @@ func checkColumn(t, c string) error {
 			apikey.Table:                        apikey.ValidColumn,
 			account.Table:                       account.ValidColumn,
 			accountgroup.Table:                  accountgroup.ValidColumn,
-			accountmodelrule.Table:              accountmodelrule.ValidColumn,
 			announcement.Table:                  announcement.ValidColumn,
 			announcementread.Table:              announcementread.ValidColumn,
 			authidentity.Table:                  authidentity.ValidColumn,

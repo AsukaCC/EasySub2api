@@ -290,26 +290,10 @@
               </div>
             </div>
           </template>
-          <template #cell-model_rule="{ row }">
-            <div class="model-route-cell">
-              <span class="model-route-cell__tier">
-                {{ row.subscription_tier || t('admin.accounts.modelRules.unrecognizedTier') }}
-              </span>
-              <span v-if="row.model_rule_name" class="model-route-cell__rule">
-                {{ row.model_rule_name }}
-              </span>
-              <span v-else class="model-route-cell__empty">
-                {{ t('admin.accounts.modelRules.unbound') }}
-              </span>
-              <span
-                v-if="row.model_rule_tier_mismatch"
-                class="model-route-cell__warning"
-                :title="t('admin.accounts.modelRules.tierMismatchWarning')"
-              >
-                <Icon name="exclamationTriangle" size="xs" />
-                {{ t('admin.accounts.modelRules.tierMismatchShort') }}
-              </span>
-            </div>
+          <template #cell-subscription_tier="{ row }">
+            <span class="account-subscription-tier">
+              {{ row.subscription_tier || t('admin.accounts.subscriptionTierUnrecognized') }}
+            </span>
           </template>
           <template #cell-capacity="{ row }">
             <AccountCapacityCell :account="row" />
@@ -1696,7 +1680,7 @@ const allColumns = computed(() => {
     { key: 'id', label: t('admin.accounts.columns.id'), sortable: true },
     { key: 'platform', label: t('admin.accounts.columns.platform'), sortable: false },
     { key: 'type', label: t('admin.accounts.columns.type'), sortable: false },
-    { key: 'model_rule', label: t('admin.accounts.columns.modelRouting'), sortable: false },
+    { key: 'subscription_tier', label: t('admin.accounts.columns.subscriptionTier'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
@@ -2677,34 +2661,11 @@ onUnmounted(() => {
   min-width: 8.5rem;
 }
 
-.model-route-cell {
+.account-subscription-tier {
   display: flex;
-  min-width: 10rem;
-  flex-direction: column;
   align-items: flex-start;
-  gap: 0.25rem;
   font-size: var(--font-size-xs);
-}
-
-.model-route-cell__tier {
   color: var(--color-text-secondary);
-}
-
-.model-route-cell__rule {
-  color: var(--color-text-primary);
-  font-weight: 600;
-}
-
-.model-route-cell__empty {
-  color: var(--color-text-tertiary);
-}
-
-.model-route-cell__warning {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--color-text-warning);
-  font-weight: 600;
 }
 
 .account-expiry,

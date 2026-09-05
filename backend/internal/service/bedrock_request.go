@@ -152,7 +152,7 @@ func ResolveBedrockModelID(account *Account, requestedModel string) (string, boo
 		return "", false
 	}
 	shouldAdjustRegion := isRegionalBedrockModelID(modelID)
-	if matched && account.ModelRuleID == nil {
+	if matched {
 		legacyModelID, legacyAdjustRegion, ok := normalizeBedrockModelID(modelID)
 		if ok {
 			modelID = legacyModelID

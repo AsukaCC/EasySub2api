@@ -60,11 +60,6 @@ type Account struct {
 	ParentAccountID           *string // non-nil → 影子账号（不持凭据，透传母账号凭据）
 	QuotaDimension            string  // 用量维度："" / "global" / "spark"
 	SubscriptionTier          string
-	ModelRuleID               *string
-	ModelRuleName             string
-	ModelRuleSubscriptionTier *string
-	ModelRoutes               []domain.AccountModelRoute
-	ModelRuleBindingChanged   bool
 
 	Proxy         *Proxy
 	AccountGroups []AccountGroup
@@ -585,18 +580,6 @@ func stringMappingFromRaw(raw any) map[string]string {
 }
 
 func (a *Account) GetModelMapping() map[string]string {
-	if a != nil && a.ModelRuleID != nil {
-		if len(a.ModelRoutes) == 0 {
-			return nil
-		}
-		mapping := make(map[string]string, len(a.ModelRoutes))
-		for _, route := range a.ModelRoutes {
-			if route.RequestModel != "" && route.UpstreamModel != "" {
-				mapping[route.RequestModel] = route.UpstreamModel
-			}
-		}
-		return mapping
-	}
 	runtimeVersion := xai.RuntimeModelMappingVersion()
 	credentialsPtr := mapPtr(a.Credentials)
 	rawMapping, _ := a.Credentials["model_mapping"].(map[string]any)
@@ -762,7 +745,7 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 	// 该短路必须在 model_mapping 判定之前：账号从"白名单模式"切换到透传后，
 	// credentials 里常残留旧的非空 model_mapping，若不在此放行，透传账号会被
 	// model_mapping 白名单错误排除出候选集，导致 no available accounts / 404（issue #4936）。
-	if a.ModelRuleID == nil && a.IsOpenAIPassthroughEnabled() {
+	if a.IsOpenAIPassthroughEnabled() {
 		return true
 	}
 	mapping := a.GetModelMapping()
@@ -789,19 +772,6 @@ func (a *Account) GetModelReasoningEffort(requestedModel string) string {
 	if a == nil || !a.IsOpenAI() {
 		return ""
 	}
-	if a.ModelRuleID != nil {
-		efforts := make(map[string]string, len(a.ModelRoutes))
-		for _, route := range a.ModelRoutes {
-			if route.RequestModel != "" && route.ReasoningEffort != "" {
-				efforts[route.RequestModel] = route.ReasoningEffort
-			}
-		}
-		effort, matched := resolveRequestedModelInMapping(efforts, requestedModel)
-		if !matched {
-			return ""
-		}
-		return NormalizeMaxReasoningEffort(effort)
-	}
 	if len(a.Credentials) == 0 {
 		return ""
 	}
@@ -820,13 +790,6 @@ func (a *Account) GetModelReasoningEffort(requestedModel string) string {
 		return ""
 	}
 	return NormalizeMaxReasoningEffort(effort)
-}
-
-func (a *Account) HasModelRuleTierMismatch() bool {
-	if a == nil || a.ModelRuleID == nil || a.ModelRuleSubscriptionTier == nil {
-		return false
-	}
-	return strings.TrimSpace(*a.ModelRuleSubscriptionTier) != strings.TrimSpace(a.SubscriptionTier)
 }
 
 // ResolveMappedModel 获取映射后的模型名，并返回是否命中了账号级映射。
@@ -1863,7 +1826,7 @@ func (a *Account) IsOveragesEnabled() bool {
 // 兼容字段：accounts.extra.openai_oauth_passthrough（历史 OAuth 开关）。
 // 字段缺失或类型不正确时，按 false（关闭）处理。
 func (a *Account) IsOpenAIPassthroughEnabled() bool {
-	if a == nil || a.ModelRuleID != nil || !a.IsOpenAI() || a.Extra == nil {
+	if a == nil || !a.IsOpenAI() || a.Extra == nil {
 		return false
 	}
 	if enabled, ok := a.Extra["openai_passthrough"].(bool); ok {

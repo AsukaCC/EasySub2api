@@ -542,7 +542,7 @@ func (s *OpenAIGatewayService) fetchCodexModelsManifestUpstream(ctx context.Cont
 		}
 	}
 	if request.useAPIKeyUpstream {
-		body, err = adjustAPIKeyCodexModelsManifest(body)
+		body, err = adjustAPIKeyCodexModelsManifest(body, request.credentialAccount)
 		if err != nil {
 			return nil, &codexModelsManifestUpstreamError{
 				err: infraerrors.Newf(
@@ -577,6 +577,7 @@ func codexModelsManifestBodyETag(body []byte) string {
 }
 
 var apiKeyCodexModelsWithoutResponsesLite = map[string]struct{}{
+	"gpt-6-astra":   {},
 	"gpt-5.6-sol":   {},
 	"gpt-5.6-terra": {},
 	"gpt-5.6-luna":  {},
@@ -586,7 +587,11 @@ var apiKeyCodexModelsWithoutResponsesLite = map[string]struct{}{
 // Lite for custom API key providers. Those clients do not install web.run in
 // Lite mode, so the affected model manifests must advertise the full Responses
 // path. Return the original body when no targeted true value is present.
-func adjustAPIKeyCodexModelsManifest(body []byte) ([]byte, error) {
+func adjustAPIKeyCodexModelsManifest(body []byte, accounts ...*Account) ([]byte, error) {
+	var account *Account
+	if len(accounts) > 0 {
+		account = accounts[0]
+	}
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return nil, fmt.Errorf("decode JSON object: %w", err)
@@ -606,7 +611,14 @@ func adjustAPIKeyCodexModelsManifest(body []byte) ([]byte, error) {
 		if err := json.Unmarshal(model["slug"], &slug); err != nil {
 			continue
 		}
-		if _, targeted := apiKeyCodexModelsWithoutResponsesLite[slug]; !targeted {
+		target := slug
+		if account != nil {
+			target = account.GetMappedModel(slug)
+		}
+		if isOpenAIGPT6AstraModel(target) {
+			target = "gpt-6-astra"
+		}
+		if _, targeted := apiKeyCodexModelsWithoutResponsesLite[target]; !targeted {
 			continue
 		}
 		var useResponsesLite bool
@@ -616,7 +628,7 @@ func adjustAPIKeyCodexModelsManifest(body []byte) ([]byte, error) {
 		model["use_responses_lite"] = json.RawMessage("false")
 		adjusted, err := json.Marshal(model)
 		if err != nil {
-			return nil, fmt.Errorf("encode model %q: %w", slug, err)
+			return nil, fmt.Errorf("encode model %q: %w", target, err)
 		}
 		models[i] = adjusted
 		changed = true
@@ -660,19 +672,33 @@ func convertOpenAIModelListToCodexManifestForAccount(body []byte, account *Accou
 	if !ok {
 		return body
 	}
-	var entries []struct {
-		ID string `json:"id"`
-	}
+	var entries []map[string]json.RawMessage
 	if err := json.Unmarshal(data, &entries); err != nil {
 		return body
 	}
 	modelIDs := make([]string, 0, len(entries))
+	modelMetadata := make(map[string]codexModelMetadataOverride, len(entries))
+	metadataModels := make(map[string]string, len(entries))
 	for _, entry := range entries {
-		id := strings.TrimSpace(entry.ID)
+		var id string
+		if err := json.Unmarshal(entry["id"], &id); err != nil {
+			continue
+		}
+		id = strings.TrimSpace(id)
 		if id == "" {
 			continue
 		}
 		modelIDs = append(modelIDs, id)
+		capabilityModel := id
+		if account != nil {
+			capabilityModel = account.GetMappedModel(id)
+		}
+		metadataModels[id] = capabilityModel
+		capabilities := accountCodexToolCapabilities(account, capabilityModel)
+		applyCodexToolCapabilities(capabilities, entry, true)
+		modelMetadata[id] = codexModelMetadataOverride{UpstreamModelMetadata: UpstreamModelMetadata{
+			CodexToolCapabilities: capabilities,
+		}}
 	}
 	if len(modelIDs) == 0 {
 		return body
@@ -683,7 +709,7 @@ func convertOpenAIModelListToCodexManifestForAccount(body []byte, account *Accou
 			imageInputModels[modelID] = true
 		}
 	}
-	converted, err := buildCodexModelsManifest(modelIDs, imageInputModels, nil, nil)
+	converted, err := buildCodexModelsManifest(modelIDs, imageInputModels, metadataModels, modelMetadata)
 	if err != nil {
 		return body
 	}

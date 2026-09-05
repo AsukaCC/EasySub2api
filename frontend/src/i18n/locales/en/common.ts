@@ -198,7 +198,6 @@ export default {
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
     accountList: 'Account List',
-    accountModelRules: 'Model Rules',
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',

@@ -447,6 +447,7 @@ const ranges = computed(() => [
   { value: '90m' as MonitorRange, label: t('channelMonitorV2.ranges.90m') },
   { value: '24h' as MonitorRange, label: t('channelMonitorV2.ranges.24h') },
   { value: '7d' as MonitorRange, label: t('channelMonitorV2.ranges.7d') },
+  { value: '14d' as MonitorRange, label: t('channelMonitorV2.ranges.14d') },
   { value: '30d' as MonitorRange, label: t('channelMonitorV2.ranges.30d') },
 ])
 const tabs = computed(() => [
@@ -552,7 +553,7 @@ const activeRowsEmpty = computed(() =>
       ? errorRows.value.length === 0
       : userRows.value.length === 0
 )
-/** First-upgrade backfill toward 90m/24h/7d/30d; banner hides when backend omits bootstrap. */
+/** First-upgrade backfill toward 90m/24h/7d/14d/30d; banner hides when backend omits bootstrap. */
 const bootstrapActive = computed(() => Boolean(snapshot.value?.coverage?.bootstrap?.active))
 const bootstrapPercent = computed(() => {
   const raw = snapshot.value?.coverage?.bootstrap?.progress_percent
@@ -563,7 +564,7 @@ function csv(value: unknown) {
   return typeof value === 'string' ? value.split(',').filter(Boolean) : []
 }
 function parseRange(value: unknown): MonitorRange {
-  return ['90m', '24h', '7d', '30d'].includes(String(value)) ? (value as MonitorRange) : '90m'
+  return ['90m', '24h', '7d', '14d', '30d'].includes(String(value)) ? (value as MonitorRange) : '90m'
 }
 function syncQuery() {
   void router.replace({
@@ -864,7 +865,7 @@ onBeforeUnmount(() => {
   .monitor-range-tabs {
     display: grid;
     width: 100%;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .monitor-range-tabs .monitor-tabs__tab {

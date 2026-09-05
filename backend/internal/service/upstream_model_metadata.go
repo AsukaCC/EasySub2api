@@ -20,20 +20,22 @@ const (
 	modelsDevRegistryTTL                   = 6 * time.Hour
 	UpstreamModelMetadataExtraKey          = "upstream_model_metadata"
 	UpstreamModelMetadataIncompleteCode    = "upstream_model_metadata_incomplete"
+	UpstreamModelMetadataPartialCode       = "upstream_model_metadata_partial"
 	upstreamModelMetadataIncompleteMessage = "Model IDs were synced, but capability metadata is incomplete."
 )
 
 // UpstreamModelMetadata is the normalized capability projection stored with an account.
 type UpstreamModelMetadata struct {
-	ID                       string   `json:"id"`
-	DisplayName              string   `json:"display_name,omitempty"`
-	Description              string   `json:"description,omitempty"`
-	Reasoning                *bool    `json:"reasoning,omitempty"`
-	DefaultReasoningLevel    string   `json:"default_reasoning_level,omitempty"`
-	SupportedReasoningLevels []string `json:"supported_reasoning_levels,omitempty"`
-	InputModalities          []string `json:"input_modalities,omitempty"`
-	ContextWindow            int64    `json:"context_window,omitempty"`
-	MaxOutputTokens          int64    `json:"max_output_tokens,omitempty"`
+	ID                       string                     `json:"id"`
+	DisplayName              string                     `json:"display_name,omitempty"`
+	Description              string                     `json:"description,omitempty"`
+	Reasoning                *bool                      `json:"reasoning,omitempty"`
+	DefaultReasoningLevel    string                     `json:"default_reasoning_level,omitempty"`
+	SupportedReasoningLevels []string                   `json:"supported_reasoning_levels,omitempty"`
+	InputModalities          []string                   `json:"input_modalities,omitempty"`
+	ContextWindow            int64                      `json:"context_window,omitempty"`
+	MaxOutputTokens          int64                      `json:"max_output_tokens,omitempty"`
+	CodexToolCapabilities    map[string]json.RawMessage `json:"codex_tool_capabilities,omitempty"`
 }
 
 // UpstreamModelMetadataSnapshot is replaced atomically only after a complete sync.
@@ -100,6 +102,12 @@ type upstreamModelCapabilityEntry struct {
 	MaxContextWindow         int64                      `json:"max_context_window"`
 	MaxOutputTokens          int64                      `json:"max_output_tokens"`
 	Limit                    modelsDevLimit             `json:"limit"`
+	CodexToolCapabilities    map[string]json.RawMessage `json:"codex_tool_capabilities"`
+	SupportsSearchTool       json.RawMessage            `json:"supports_search_tool"`
+	ApplyPatchToolType       json.RawMessage            `json:"apply_patch_tool_type"`
+	CompHash                 json.RawMessage            `json:"comp_hash"`
+	ToolMode                 json.RawMessage            `json:"tool_mode"`
+	UseResponsesLite         json.RawMessage            `json:"use_responses_lite"`
 }
 
 func (a *Account) SetUpstreamModelMetadataSnapshot(snapshot UpstreamModelMetadataSnapshot) {
@@ -144,6 +152,7 @@ func (a *Account) GetUpstreamModelMetadata(modelID string) (UpstreamModelMetadat
 // useful to the UI, but never replaces a previously complete stored snapshot.
 func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, account *Account) (*UpstreamModelCatalog, error) {
 	models, body, err := s.fetchUpstreamModelList(ctx, account)
+	liveListAvailable := err == nil
 	if err != nil {
 		configuredModels := configuredUpstreamModelsForCapabilitySync(account)
 		if !upstreamModelListEndpointUnsupported(err) || len(configuredModels) == 0 {
@@ -170,9 +179,14 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 		}
 	}
 
+	// Enrich both the live list and concrete model_mapping targets. Dedicated
+	// media models are intentionally excluded from Codex capability completeness.
+	enrichIDs := dedupeAndSortModelIDs(append(append([]string{}, models...), configuredUpstreamModelsForCapabilitySync(account)...))
+	capabilityIDs := capabilitySyncModelIDs(enrichIDs)
+
 	source := "upstream"
-	if upstreamCatalogNeedsRegistry(models, catalog.Metadata) {
-		registryMetadata, registryErr := s.fetchModelsDevMetadata(ctx, account, models)
+	if upstreamCatalogNeedsRegistry(capabilityIDs, catalog.Metadata) {
+		registryMetadata, registryErr := s.fetchModelsDevMetadata(ctx, account, enrichIDs)
 		if registryErr != nil {
 			slog.Warn("upstream model capability metadata enrichment failed",
 				"account_id", upstreamModelSyncAccountID(account),
@@ -191,26 +205,48 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 		}
 	}
 
-	if upstreamCatalogNeedsRegistry(models, catalog.Metadata) {
-		catalog.Warnings = append(catalog.Warnings, UpstreamModelSyncWarning{
+	completeMetadata := completeUpstreamModelMetadataSubset(capabilityIDs, catalog.Metadata)
+	if !liveListAvailable {
+		// A 404/405 from /models means discovery is unavailable, not that old
+		// models were removed. Preserve the prior capability snapshot in that case.
+		if previous := account.GetUpstreamModelMetadataSnapshot(); previous != nil {
+			if completeMetadata == nil {
+				completeMetadata = make(map[string]UpstreamModelMetadata)
+			}
+			for modelID, metadata := range previous.Models {
+				if _, exists := completeMetadata[modelID]; !exists {
+					completeMetadata[modelID] = metadata
+				}
+			}
+		}
+	}
+	persistedCapabilities := false
+	if len(completeMetadata) > 0 && account != nil && strings.TrimSpace(account.ID) != "" && s.accountRepo != nil {
+		snapshot := UpstreamModelMetadataSnapshot{
+			Source:   source,
+			SyncedAt: time.Now().UTC().Format(time.RFC3339),
+			Models:   completeMetadata,
+		}
+		if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{UpstreamModelMetadataExtraKey: snapshot}); err != nil {
+			return nil, newUpstreamModelSyncInternalError("Failed to save upstream model metadata", err)
+		}
+		account.SetUpstreamModelMetadataSnapshot(snapshot)
+		persistedCapabilities = true
+	}
+	if upstreamCatalogNeedsRegistry(capabilityIDs, catalog.Metadata) {
+		warning := UpstreamModelSyncWarning{
 			Code:    UpstreamModelMetadataIncompleteCode,
 			Message: upstreamModelMetadataIncompleteMessage,
-		})
-		return catalog, nil
+		}
+		if persistedCapabilities {
+			warning.Code = UpstreamModelMetadataPartialCode
+			warning.Message = "Some model capabilities were saved; remaining models are still incomplete."
+		}
+		catalog.Warnings = append(catalog.Warnings, warning)
 	}
 	if len(catalog.Metadata) == 0 || account == nil || strings.TrimSpace(account.ID) == "" || s.accountRepo == nil {
 		return catalog, nil
 	}
-
-	snapshot := UpstreamModelMetadataSnapshot{
-		Source:   source,
-		SyncedAt: time.Now().UTC().Format(time.RFC3339),
-		Models:   catalog.Metadata,
-	}
-	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{UpstreamModelMetadataExtraKey: snapshot}); err != nil {
-		return nil, newUpstreamModelSyncInternalError("Failed to save upstream model metadata", err)
-	}
-	account.SetUpstreamModelMetadataSnapshot(snapshot)
 	return catalog, nil
 }
 
@@ -314,6 +350,18 @@ func configuredUpstreamModelsForCapabilitySync(account *Account) []string {
 	return dedupeAndSortModelIDs(models)
 }
 
+func capabilitySyncModelIDs(modelIDs []string) []string {
+	filtered := make([]string, 0, len(modelIDs))
+	for _, modelID := range modelIDs {
+		modelID = strings.TrimSpace(modelID)
+		if modelID == "" || isCodexDedicatedMediaModel(modelID) {
+			continue
+		}
+		filtered = append(filtered, modelID)
+	}
+	return dedupeAndSortModelIDs(filtered)
+}
+
 func upstreamModelSyncAccountID(account *Account) string {
 	if account == nil {
 		return ""
@@ -404,6 +452,15 @@ func upstreamMetadataFromCapabilityEntry(modelID string, entry upstreamModelCapa
 	if defaultLevel == "" && len(levels) > 0 {
 		defaultLevel = levels[0]
 	}
+	toolCapabilities := make(map[string]json.RawMessage)
+	applyCodexToolCapabilities(toolCapabilities, entry.CodexToolCapabilities, true)
+	applyCodexToolCapabilities(toolCapabilities, map[string]json.RawMessage{
+		"supports_search_tool":  entry.SupportsSearchTool,
+		"apply_patch_tool_type": entry.ApplyPatchToolType,
+		"comp_hash":             entry.CompHash,
+		"tool_mode":             entry.ToolMode,
+		"use_responses_lite":    entry.UseResponsesLite,
+	}, false)
 	displayName := strings.TrimSpace(entry.DisplayName)
 	if displayName == "" && strings.TrimSpace(entry.Name) != "" && strings.TrimSpace(entry.Name) != modelID {
 		displayName = strings.TrimSpace(entry.Name)
@@ -418,6 +475,7 @@ func upstreamMetadataFromCapabilityEntry(modelID string, entry upstreamModelCapa
 		InputModalities:          normalizeCodexInputModalities(modalities),
 		ContextWindow:            contextWindow,
 		MaxOutputTokens:          maxOutputTokens,
+		CodexToolCapabilities:    toolCapabilities,
 	}
 }
 
@@ -509,6 +567,35 @@ func upstreamModelMetadataIsUseful(metadata UpstreamModelMetadata) bool {
 		metadata.MaxOutputTokens > 0
 }
 
+func upstreamModelMetadataIsComplete(metadata UpstreamModelMetadata) bool {
+	if metadata.Reasoning == nil || len(normalizeCodexInputModalities(metadata.InputModalities)) == 0 || metadata.ContextWindow <= 0 {
+		return false
+	}
+	return !*metadata.Reasoning || len(normalizeReasoningLevels(metadata.SupportedReasoningLevels)) > 0
+}
+
+func completeUpstreamModelMetadataSubset(modelIDs []string, metadata map[string]UpstreamModelMetadata) map[string]UpstreamModelMetadata {
+	if len(metadata) == 0 {
+		return nil
+	}
+	complete := make(map[string]UpstreamModelMetadata)
+	for _, modelID := range modelIDs {
+		modelID = strings.TrimSpace(modelID)
+		entry, ok := metadata[modelID]
+		if modelID == "" || !ok || !upstreamModelMetadataIsComplete(entry) {
+			continue
+		}
+		if strings.TrimSpace(entry.ID) == "" {
+			entry.ID = modelID
+		}
+		complete[modelID] = entry
+	}
+	if len(complete) == 0 {
+		return nil
+	}
+	return complete
+}
+
 func mergeUpstreamModelMetadata(primary, fallback UpstreamModelMetadata) (UpstreamModelMetadata, bool) {
 	merged := primary
 	changed := false
@@ -547,6 +634,12 @@ func mergeUpstreamModelMetadata(primary, fallback UpstreamModelMetadata) (Upstre
 	}
 	if merged.MaxOutputTokens <= 0 && fallback.MaxOutputTokens > 0 {
 		merged.MaxOutputTokens = fallback.MaxOutputTokens
+		changed = true
+	}
+	if merged.CodexToolCapabilities == nil {
+		merged.CodexToolCapabilities = make(map[string]json.RawMessage)
+	}
+	if applyCodexToolCapabilities(merged.CodexToolCapabilities, fallback.CodexToolCapabilities, false) {
 		changed = true
 	}
 	return merged, changed
@@ -706,6 +799,13 @@ func (s *AccountTestService) upstreamModelRegistryBaseURL(ctx context.Context, a
 }
 
 func matchModelsDevProvider(registry map[string]modelsDevProvider, accountBaseURL string) (modelsDevProvider, bool) {
+	if provider, ok := matchModelsDevProviderByAPIURL(registry, accountBaseURL); ok {
+		return provider, true
+	}
+	return matchModelsDevProviderByKnownHost(registry, accountBaseURL)
+}
+
+func matchModelsDevProviderByAPIURL(registry map[string]modelsDevProvider, accountBaseURL string) (modelsDevProvider, bool) {
 	accountBaseURL = normalizeModelRegistryBaseURL(accountBaseURL)
 	if accountBaseURL == "" {
 		return modelsDevProvider{}, false
@@ -728,6 +828,29 @@ func matchModelsDevProvider(registry map[string]modelsDevProvider, accountBaseUR
 		}
 	}
 	return best, bestScore >= 0
+}
+
+func matchModelsDevProviderByKnownHost(registry map[string]modelsDevProvider, accountBaseURL string) (modelsDevProvider, bool) {
+	normalized := normalizeModelRegistryBaseURL(accountBaseURL)
+	parsed, err := url.Parse(normalized)
+	if err != nil || parsed.Hostname() == "" {
+		return modelsDevProvider{}, false
+	}
+	var providerID string
+	switch strings.ToLower(strings.TrimSpace(parsed.Hostname())) {
+	case "api.openai.com", "chatgpt.com":
+		providerID = "openai"
+	default:
+		return modelsDevProvider{}, false
+	}
+	provider, ok := registry[providerID]
+	if !ok || len(provider.Models) == 0 {
+		return modelsDevProvider{}, false
+	}
+	if strings.TrimSpace(provider.ID) == "" {
+		provider.ID = providerID
+	}
+	return provider, true
 }
 
 func normalizeModelRegistryBaseURL(raw string) string {

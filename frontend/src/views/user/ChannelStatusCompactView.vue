@@ -33,53 +33,80 @@
       <LoadingState v-if="loading && rows.length === 0" variant="section" class="channel-status-compact__loading" />
 
       <section v-else-if="rows.length" class="channel-status-compact__list" aria-live="polite">
-        <!-- 共享时间刻度:与卡片时间轴同一水平区间 -->
-        <div class="channel-status-compact__axis" aria-hidden="true">
-          <span>{{ axisLabels.start }}</span>
-          <span>{{ axisLabels.middle }}</span>
-          <span>{{ t('channelMonitorV2.compact.timeAxisNow') }}</span>
-        </div>
-
-        <article v-for="row in rows" :key="rowKey(row)" class="channel-status-compact__card">
+        <article v-for="entry in heatmapRows" :key="rowKey(entry.row)" class="channel-status-compact__card">
           <header class="channel-status-compact__header">
             <div class="channel-status-compact__identity">
               <Icon
-                :name="statusIcon(row)"
+                :name="statusIcon(entry.row)"
                 size="sm"
                 class="channel-status-compact__status-icon"
-                :class="statusClass(row)"
+                :class="statusClass(entry.row)"
               />
-              <strong>{{ row.group_name || t('channelMonitorV2.compact.unnamedGroup') }}</strong>
+              <strong>{{ entry.row.group_name || t('channelMonitorV2.compact.unnamedGroup') }}</strong>
               <span aria-hidden="true">/</span>
-              <span>{{ platformLabel(row.platform) }}</span>
-              <span class="channel-status-compact__multiplier">×{{ formatMultiplier(row.rate_multiplier) }}</span>
+              <span>{{ platformLabel(entry.row.platform) }}</span>
+              <span class="channel-status-compact__multiplier">×{{ formatMultiplier(entry.row.rate_multiplier) }}</span>
             </div>
-            <span class="channel-status-compact__availability">
-              {{ availabilityLabel(row) }}
+            <span class="channel-status-compact__error-rate">
+              {{ errorRateLabel(entry.row) }}
             </span>
           </header>
 
+          <!-- 时间轴属于当前分组，避免多个分组共用一个悬空刻度。 -->
+          <div class="channel-status-compact__axis" aria-hidden="true">
+            <span class="channel-status-compact__axis-spacer" />
+            <div class="channel-status-compact__day-labels">
+              <span v-for="day in heatmapDays" :key="day.key" :title="day.title">{{ day.label }}</span>
+            </div>
+          </div>
+
           <div
-            class="channel-status-compact__pulse"
+            class="channel-status-compact__heatmap"
             role="img"
-            :aria-label="t('channelMonitorV2.compact.timelineAria', { group: row.group_name || t('channelMonitorV2.compact.unnamedGroup') })"
+            :aria-label="t('channelMonitorV2.compact.timelineAria', { group: entry.row.group_name || t('channelMonitorV2.compact.unnamedGroup') })"
           >
-            <span
-              v-for="slot in alignedSlots(row)"
-              :key="slot.start"
-              class="channel-status-compact__cell"
-              :class="bucketClass(slot.bucket)"
-              :title="bucketTitle(slot.start, slot.bucket)"
-            />
+            <div v-for="slot in heatmapSlots" :key="slot.index" class="channel-status-compact__heatmap-row">
+              <span class="channel-status-compact__time-label">{{ slot.label }}</span>
+              <div class="channel-status-compact__cells">
+                <span
+                  v-for="day in heatmapDays"
+                  :key="`${day.key}:${slot.index}`"
+                  class="channel-status-compact__cell"
+                  :class="bucketClass(bucketFor(entry, day.key, slot.index))"
+                  :title="cellTooltipLabel(entry, day.key, slot.index)"
+                  :aria-label="cellTooltipLabel(entry, day.key, slot.index)"
+                  tabindex="0"
+                  role="img"
+                  @mouseenter="showTooltip($event, entry, day.key, slot.index)"
+                  @mousemove="moveTooltip"
+                  @mouseleave="hideTooltip"
+                  @focus="showTooltip($event, entry, day.key, slot.index)"
+                  @blur="hideTooltip"
+                  @keydown.esc="hideTooltip"
+                />
+              </div>
+            </div>
           </div>
         </article>
 
         <!-- 图例 -->
-        <div class="channel-status-compact__legend" aria-hidden="true">
-          <span><i class="channel-status-compact__dot is-healthy" />{{ t('channelMonitorV2.compact.legendHealthy') }}</span>
-          <span><i class="channel-status-compact__dot is-warning" />{{ t('channelMonitorV2.compact.legendWarning') }}</span>
-          <span><i class="channel-status-compact__dot is-critical" />{{ t('channelMonitorV2.compact.legendCritical') }}</span>
-          <span><i class="channel-status-compact__dot is-unknown" />{{ t('channelMonitorV2.compact.legendUnknown') }}</span>
+        <div class="channel-status-compact__legend" :aria-label="t('channelMonitorV2.compact.legendAria')">
+          <span class="channel-status-compact__legend-label">{{ t('channelMonitorV2.compact.legendLowError') }}</span>
+          <span class="channel-status-compact__legend-scale" aria-hidden="true">
+            <i class="channel-status-compact__dot error-band-0" />
+            <i class="channel-status-compact__dot error-band-1" />
+            <i class="channel-status-compact__dot error-band-2" />
+            <i class="channel-status-compact__dot error-band-3" />
+            <i class="channel-status-compact__dot error-band-4" />
+            <i class="channel-status-compact__dot error-band-5" />
+            <i class="channel-status-compact__dot error-band-6" />
+            <i class="channel-status-compact__dot error-band-7" />
+          </span>
+          <span class="channel-status-compact__legend-label">{{ t('channelMonitorV2.compact.legendHighError') }}</span>
+          <span class="channel-status-compact__legend-unknown">
+            <i class="channel-status-compact__dot error-band-unknown" />
+            {{ t('channelMonitorV2.compact.legendUnknown') }}
+          </span>
         </div>
       </section>
 
@@ -88,13 +115,31 @@
         <strong>{{ t('channelMonitorV2.compact.emptyTitle') }}</strong>
         <p>{{ t('channelMonitorV2.compact.emptyDescription') }}</p>
       </div>
+
+      <Teleport to="body">
+        <div
+          v-if="floatingTooltip.visible"
+          class="channel-status-compact__floating-tooltip"
+          :style="{ left: `${floatingTooltip.x}px`, top: `${floatingTooltip.y}px` }"
+          role="tooltip"
+        >
+          <span
+            v-for="(line, index) in floatingTooltip.lines"
+            :key="`${index}:${line}`"
+            class="channel-status-compact__tooltip-line"
+            :class="index === 0 ? 'channel-status-compact__tooltip-title' : ''"
+          >
+            {{ line }}
+          </span>
+        </div>
+      </Teleport>
     </div>
   </component>
 </template>
 
 <script setup lang="ts">
 import LoadingState from '@/components/common/LoadingState.vue'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import PublicMonitorLayout from '@/components/layout/PublicMonitorLayout.vue'
@@ -103,10 +148,16 @@ import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import { getPublicMatrix, type MonitorMatrixBucket, type MonitorMatrixRow } from '@/api/channelMonitorV2'
+import { getMatrix, getPublicMatrix, type MonitorMatrixBucket, type MonitorMatrixRow } from '@/api/channelMonitorV2'
 
 type StatusIcon = 'checkCircle' | 'exclamationCircle' | 'xCircle' | 'clock'
-type TimelineSlot = { start: string; bucket?: MonitorMatrixBucket }
+type HeatmapDay = { key: string; label: string; title: string }
+type HeatmapSlot = { index: number; label: string }
+type HeatmapEntry = { row: MonitorMatrixRow; bucketMap: Map<string, MonitorMatrixBucket> }
+
+const HEATMAP_DAY_COUNT = 14
+const HEATMAP_SLOT_COUNT = 12
+const HEATMAP_BUCKET_HOURS = 2
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -114,8 +165,14 @@ const authStore = useAuthStore()
 const layoutComponent = computed(() => authStore.isAuthenticated ? AppLayout : PublicMonitorLayout)
 const loading = ref(true)
 const rows = ref<MonitorMatrixRow[]>([])
-const bucketStarts = ref<string[]>([])
+const heatmapAnchor = ref(new Date())
 const lastUpdated = ref<Date | null>(null)
+const floatingTooltip = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  lines: [] as string[],
+})
 let controller: AbortController | null = null
 let refreshTimer: number | null = null
 
@@ -127,31 +184,38 @@ function formatClock(value: Date): string {
   }).format(value)
 }
 
-function formatAxisTime(iso: string | undefined): string {
-  if (!iso) return ''
+function localDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function formatHeatmapDay(date: Date): string {
   return new Intl.DateTimeFormat(locale.value || undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso))
+    month: 'short',
+    day: 'numeric',
+  }).format(date)
 }
 
-// 时间轴左端(约 90 分钟前)与中点(约 45 分钟前)的刻度
-const axisLabels = computed(() => ({
-  start: formatAxisTime(bucketStarts.value[0]),
-  middle: formatAxisTime(bucketStarts.value[Math.floor(bucketStarts.value.length / 2)]),
-}))
+const heatmapDays = computed<HeatmapDay[]>(() => {
+  const anchor = heatmapAnchor.value
+  const anchorDay = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
+  return Array.from({ length: HEATMAP_DAY_COUNT }, (_, index) => {
+    const date = new Date(anchorDay)
+    date.setDate(anchorDay.getDate() - (HEATMAP_DAY_COUNT - 1 - index))
+    return { key: localDateKey(date), label: String(date.getDate()), title: formatHeatmapDay(date) }
+  })
+})
 
-function buildBucketStarts(start: string, end: string | undefined, bucketSeconds: number): string[] {
-  const step = Math.max(60, bucketSeconds || 60) * 1000
-  const startMs = new Date(start).getTime()
-  const endMs = end ? new Date(end).getTime() : Date.now()
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs >= endMs) return []
-  const result: string[] = []
-  for (let cursor = Math.floor(startMs / step) * step; cursor < endMs; cursor += step) {
-    result.push(new Date(cursor).toISOString())
+const heatmapSlots = computed<HeatmapSlot[]>(() => Array.from({ length: HEATMAP_SLOT_COUNT }, (_, index) => {
+  const hour = index * HEATMAP_BUCKET_HOURS
+  return {
+    index,
+    label: index % 2 === 0 ? `${String(hour).padStart(2, '0')}:00` : '',
   }
-  return result.slice(-90)
-}
+}))
 
 async function load() {
   controller?.abort()
@@ -159,18 +223,13 @@ async function load() {
   controller = request
   loading.value = true
   try {
-    const result = await getPublicMatrix(
-      { range: '90m', platforms: [], groupIds: [], models: [] },
-      'platform_group',
-      request.signal,
-    )
+    const filter = { range: '14d' as const, platforms: [], groupIds: [], models: [] }
+    const result = authStore.isAdmin
+      ? await getMatrix(filter, 'platform_group', true, request.signal)
+      : await getPublicMatrix(filter, 'platform_group', request.signal)
     if (controller !== request) return
     rows.value = (result.items || []).filter((row) => Boolean(row.group_id))
-    bucketStarts.value = buildBucketStarts(
-      result.coverage.requested_start,
-      result.coverage.requested_end,
-      result.coverage.bucket_seconds,
-    )
+    heatmapAnchor.value = new Date()
     lastUpdated.value = new Date()
   } catch (error) {
     const reason = error as { name?: string; code?: string }
@@ -189,70 +248,168 @@ function rowKey(row: MonitorMatrixRow): string {
   return `${row.platform}:${row.group_id || row.group_name || ''}`
 }
 
-function alignedSlots(row: MonitorMatrixRow): TimelineSlot[] {
-  const buckets = new Map(
-    (row.buckets || []).map((bucket) => [new Date(bucket.bucket_start).toISOString(), bucket]),
+function buildBucketMap(row: MonitorMatrixRow): Map<string, MonitorMatrixBucket> {
+  const result = new Map<string, MonitorMatrixBucket>()
+  for (const bucket of row.buckets || []) {
+    const date = new Date(bucket.bucket_start)
+    if (!Number.isFinite(date.getTime())) continue
+    const slotIndex = Math.floor(date.getHours() / HEATMAP_BUCKET_HOURS)
+    result.set(`${localDateKey(date)}:${slotIndex}`, bucket)
+  }
+  return result
+}
+
+const heatmapRows = computed<HeatmapEntry[]>(() => rows.value.map((row) => ({
+  row,
+  bucketMap: buildBucketMap(row),
+})))
+
+function bucketFor(entry: HeatmapEntry, dayKey: string, slotIndex: number): MonitorMatrixBucket | undefined {
+  return entry.bucketMap.get(`${dayKey}:${slotIndex}`)
+}
+
+function heatmapSlotStart(dayKey: string, slotIndex: number): Date {
+  const [year, month, day] = dayKey.split('-').map(Number)
+  return new Date(year, month - 1, day, slotIndex * HEATMAP_BUCKET_HOURS)
+}
+
+function hasBucketTraffic(bucket: MonitorMatrixBucket): boolean {
+  const metrics = bucket.metrics
+  return Boolean(
+    metrics.request_count > 0 ||
+      metrics.error_requests > 0 ||
+      metrics.rpm > 0 ||
+      metrics.tpm > 0 ||
+      metrics.error_rate > 0,
   )
-  return bucketStarts.value.map((start) => ({ start, bucket: buckets.get(start) }))
 }
 
 function hasData(row: MonitorMatrixRow): boolean {
-  return (row.buckets || []).length > 0
+  return row.metrics.request_count > 0 || (row.buckets || []).some(hasBucketTraffic)
 }
 
-function availability(row: MonitorMatrixRow): number | null {
-  if (!hasData(row)) return null
-  return Math.max(0, Math.min(1, 1 - (row.metrics.error_rate || 0)))
+function normalizedErrorRate(value: number | null | undefined): number {
+  const rate = Number(value)
+  if (!Number.isFinite(rate)) return 0
+  return Math.max(0, Math.min(1, rate))
 }
 
-function availabilityLabel(row: MonitorMatrixRow): string {
-  const value = availability(row)
-  if (value == null) return t('channelMonitorV2.compact.noData')
-  const formatted = new Intl.NumberFormat(locale.value || undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value * 100)
-  return t('channelMonitorV2.compact.availability', { value: formatted })
+function formatErrorRate(value: number): string {
+  const percent = normalizedErrorRate(value) * 100
+  const fractionDigits = percent > 0 && percent < 1 ? 2 : 1
+  return new Intl.NumberFormat(locale.value || undefined, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(percent)
 }
 
-function latestBucket(row: MonitorMatrixRow): MonitorMatrixBucket | undefined {
-  return row.buckets?.[row.buckets.length - 1]
+function errorRateLabel(row: MonitorMatrixRow): string {
+  if (!hasData(row)) return t('channelMonitorV2.compact.noData')
+  return t('channelMonitorV2.compact.errorRate', { value: formatErrorRate(row.metrics.error_rate) })
 }
 
 function statusIcon(row: MonitorMatrixRow): StatusIcon {
-  const bucket = latestBucket(row)
-  if (!bucket) return 'clock'
-  const success = 1 - (bucket.metrics.error_rate || 0)
-  if (success >= 0.99) return 'checkCircle'
-  if (success >= 0.95) return 'exclamationCircle'
+  const rate = hasData(row) ? normalizedErrorRate(row.metrics.error_rate) : null
+  if (rate == null) return 'clock'
+  if (rate <= 0.01) return 'checkCircle'
+  if (rate <= 0.05) return 'exclamationCircle'
   return 'xCircle'
 }
 
 function statusClass(row: MonitorMatrixRow): string {
-  const bucket = latestBucket(row)
-  if (!bucket) return 'is-unknown'
-  return bucketClass(bucket)
+  return errorRateClass(hasData(row) ? row.metrics.error_rate : null)
 }
 
 function bucketClass(bucket?: MonitorMatrixBucket): string {
-  if (!bucket) return 'is-unknown'
-  const success = 1 - (bucket.metrics.error_rate || 0)
-  if (success >= 0.99) return 'is-healthy'
-  if (success >= 0.95) return 'is-warning'
-  return 'is-critical'
+  if (!bucket || !hasBucketTraffic(bucket)) return 'error-band-unknown'
+  return errorRateClass(bucket.metrics.error_rate)
 }
 
-function bucketTitle(start: string, bucket?: MonitorMatrixBucket): string {
-  const time = new Intl.DateTimeFormat(locale.value || undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(start))
-  if (!bucket) return t('channelMonitorV2.compact.noTrafficAt', { time })
-  const success = new Intl.NumberFormat(locale.value || undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format((1 - (bucket.metrics.error_rate || 0)) * 100)
-  return t('channelMonitorV2.compact.bucketAt', { time, value: success })
+function errorRateClass(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(Number(value))) return 'error-band-unknown'
+  const rate = normalizedErrorRate(value)
+  if (rate <= 0.005) return 'error-band-0'
+  if (rate <= 0.01) return 'error-band-1'
+  if (rate <= 0.03) return 'error-band-2'
+  if (rate <= 0.05) return 'error-band-3'
+  if (rate <= 0.1) return 'error-band-4'
+  if (rate <= 0.2) return 'error-band-5'
+  if (rate <= 0.35) return 'error-band-6'
+  return 'error-band-7'
+}
+
+function format24Hour(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function formatBucketRange(start: Date): string {
+  const end = new Date(start.getTime() + HEATMAP_BUCKET_HOURS * 60 * 60 * 1000)
+  return `${formatHeatmapDay(start)} ${format24Hour(start)}-${format24Hour(end)}`
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat(locale.value || undefined, {
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function bucketTooltipLines(start: Date, bucket?: MonitorMatrixBucket): string[] {
+  const time = formatBucketRange(start)
+  if (!bucket) return [time, t('channelMonitorV2.compact.noTraffic')]
+
+  const metrics = bucket.metrics
+  const lines = [
+    time,
+    t('channelMonitorV2.compact.tooltipErrorRate', { value: formatErrorRate(metrics.error_rate) }),
+  ]
+  if (metrics.request_count > 0) {
+    lines.push(t('channelMonitorV2.compact.requestCount', { value: formatCount(metrics.request_count) }))
+  }
+  if (metrics.error_requests > 0) {
+    lines.push(t('channelMonitorV2.compact.errorRequests', { value: formatCount(metrics.error_requests) }))
+  }
+  if (metrics.request_count > 0) {
+    const successRate = metrics.success_requests / metrics.request_count
+    lines.push(t('channelMonitorV2.metrics.successRateValue', { value: formatErrorRate(successRate) + '%' }))
+  }
+  return lines
+}
+
+function cellTooltipLabel(entry: HeatmapEntry, dayKey: string, slotIndex: number): string {
+  return bucketTooltipLines(
+    heatmapSlotStart(dayKey, slotIndex),
+    bucketFor(entry, dayKey, slotIndex),
+  ).join('\n')
+}
+
+function showTooltip(event: MouseEvent | FocusEvent, entry: HeatmapEntry, dayKey: string, slotIndex: number) {
+  floatingTooltip.lines = bucketTooltipLines(
+    heatmapSlotStart(dayKey, slotIndex),
+    bucketFor(entry, dayKey, slotIndex),
+  )
+  floatingTooltip.visible = true
+  positionTooltip(event)
+}
+
+function moveTooltip(event: MouseEvent) {
+  if (floatingTooltip.visible) positionTooltip(event)
+}
+
+function hideTooltip() {
+  floatingTooltip.visible = false
+}
+
+function positionTooltip(event: MouseEvent | FocusEvent) {
+  if ('clientX' in event) {
+    floatingTooltip.x = Math.min(window.innerWidth - 12, Math.max(12, event.clientX))
+    floatingTooltip.y = Math.min(window.innerHeight - 12, Math.max(12, event.clientY)) - 12
+    return
+  }
+  const target = event.target as HTMLElement | null
+  const rect = target?.getBoundingClientRect()
+  if (!rect) return
+  floatingTooltip.x = rect.left + rect.width / 2
+  floatingTooltip.y = rect.top - 10
 }
 
 function platformLabel(platform: string): string {
@@ -286,10 +443,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .channel-status-compact {
   display: grid;
-  gap: 1rem;
-  width: min(1120px, 100%);
+  gap: .75rem;
+  width: min(1280px, 100%);
   margin: 0 auto;
-  padding: 1.25rem 1rem 2rem;
+  padding: .9rem .75rem 1.5rem;
 }
 
 /* ---- 页头卡:对齐全站卡片头标准 ---- */
@@ -298,15 +455,15 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  padding: 1rem 1.5rem;
+  gap: .5rem .75rem;
+  padding: .75rem 1rem;
 }
 
 .channel-status-compact__head-main {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 0.75rem;
+  gap: .6rem;
 }
 
 .channel-status-compact__head-icon {
@@ -314,8 +471,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: var(--radius-md);
   color: var(--color-text-brand);
   background: var(--color-primary-subtle);
@@ -374,21 +531,52 @@ onBeforeUnmount(() => {
 
 .channel-status-compact__list {
   display: grid;
-  gap: .75rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 21rem));
+  justify-content: start;
+  align-items: start;
+  gap: .6rem;
 }
 
-/* ---- 共享时间刻度:与卡片时间轴同一水平区间(1rem 内边距 + 1px 边框补偿) ---- */
+/* ---- 每个分组内部的最近 14 天日期轴，与 14 列网格对齐 ---- */
 .channel-status-compact__axis {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: -0.25rem;
-  padding: 0 calc(1rem + 1px);
+  display: grid;
+  grid-template-columns: 1.9rem max-content;
+  align-items: end;
+  gap: .3rem;
+  padding: 0 .65rem .25rem;
   color: var(--color-text-tertiary);
   font-size: var(--font-size-2xs);
   font-variant-numeric: tabular-nums;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.channel-status-compact__axis::-webkit-scrollbar,
+.channel-status-compact__heatmap::-webkit-scrollbar {
+  display: none;
+}
+
+.channel-status-compact__axis-spacer {
+  display: block;
+}
+
+.channel-status-compact__day-labels,
+.channel-status-compact__cells {
+  display: grid;
+  grid-template-columns: repeat(14, .62rem);
+  gap: .16rem;
+  width: max-content;
+}
+
+.channel-status-compact__day-labels span {
+  width: .62rem;
+  text-align: center;
+  white-space: nowrap;
+  font-size: .58rem;
 }
 
 .channel-status-compact__card {
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
@@ -404,18 +592,20 @@ onBeforeUnmount(() => {
 
 .channel-status-compact__header {
   display: flex;
-  min-height: 2.75rem;
+  min-height: 2.35rem;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: .6rem 1rem .45rem;
+  gap: .75rem;
+  padding: .45rem .65rem .35rem;
 }
 
 .channel-status-compact__identity {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   align-items: center;
-  gap: .5rem;
+  flex-wrap: wrap;
+  gap: .35rem;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
@@ -438,76 +628,126 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.channel-status-compact__availability {
+.channel-status-compact__error-rate {
   flex: 0 0 auto;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 
-.channel-status-compact__pulse {
+.channel-status-compact__heatmap {
   display: grid;
-  height: 1rem;
-  grid-template-columns: repeat(90, minmax(2px, 1fr));
-  gap: 2px;
-  padding: 0 1rem .75rem;
-  box-sizing: content-box;
+  gap: .08rem;
+  padding: 0 .65rem .55rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.channel-status-compact__heatmap-row {
+  display: grid;
+  grid-template-columns: 1.9rem max-content;
+  align-items: center;
+  gap: .3rem;
+  min-height: .58rem;
+}
+
+.channel-status-compact__time-label {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-2xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.channel-status-compact__cells {
+  align-items: center;
 }
 
 .channel-status-compact__cell {
   display: block;
-  min-width: 0;
+  width: .62rem;
+  height: .62rem;
   border-radius: 1px;
-  background: #9ca3af;
+  background: var(--monitor-error-color);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
-.is-healthy {
-  color: #10b981;
+.channel-status-compact__cell:hover {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px var(--monitor-error-color), 0 2px 6px rgb(0 0 0 / 0.18);
 }
 
-.channel-status-compact__cell.is-healthy {
-  background: #10b981;
+.channel-status-compact__status-icon {
+  color: var(--monitor-error-ink);
 }
 
-.is-warning {
-  color: #f59e0b;
+/* Error-rate bands: low error is green, high error moves through yellow/orange to red. */
+.error-band-0 {
+  --monitor-error-color: #dcfce7;
+  --monitor-error-ink: #166534;
+}
+.error-band-1 {
+  --monitor-error-color: #86efac;
+  --monitor-error-ink: #166534;
+}
+.error-band-2 {
+  --monitor-error-color: #4ade80;
+  --monitor-error-ink: #15803d;
+}
+.error-band-3 {
+  --monitor-error-color: #22c55e;
+  --monitor-error-ink: #166534;
+}
+.error-band-4 {
+  --monitor-error-color: #facc15;
+  --monitor-error-ink: #854d0e;
+}
+.error-band-5 {
+  --monitor-error-color: #fb923c;
+  --monitor-error-ink: #9a3412;
+}
+.error-band-6 {
+  --monitor-error-color: #f97316;
+  --monitor-error-ink: #9a3412;
+}
+.error-band-7 {
+  --monitor-error-color: #ef4444;
+  --monitor-error-ink: #991b1b;
+}
+.error-band-unknown {
+  --monitor-error-color: #d1d5db;
+  --monitor-error-ink: #6b7280;
 }
 
-.channel-status-compact__cell.is-warning {
-  background: #f59e0b;
-}
-
-.is-critical {
-  color: #ef4444;
-}
-
-.channel-status-compact__cell.is-critical {
-  background: #ef4444;
-}
-
-.is-unknown {
-  color: #9ca3af;
-}
-
-.channel-status-compact__cell.is-unknown {
-  background: #9ca3af;
+.channel-status-compact__cell.error-band-unknown {
   opacity: .45;
 }
 
 /* ---- 图例 ---- */
 .channel-status-compact__legend {
+  grid-column: 1 / -1;
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0.375rem 1rem;
+  gap: 0.375rem .5rem;
   padding: 0.25rem calc(1rem + 1px) 0;
   color: var(--color-text-tertiary);
   font-size: var(--font-size-2xs);
 }
 
-.channel-status-compact__legend span {
+.channel-status-compact__legend-label,
+.channel-status-compact__legend-unknown,
+.channel-status-compact__legend-scale {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
+}
+
+.channel-status-compact__legend-unknown {
+  margin-left: auto;
 }
 
 .channel-status-compact__dot {
@@ -515,12 +755,81 @@ onBeforeUnmount(() => {
   width: 0.625rem;
   height: 0.625rem;
   border-radius: 2px;
+  background: var(--monitor-error-color);
 }
 
-.channel-status-compact__dot.is-healthy { background: #10b981; }
-.channel-status-compact__dot.is-warning { background: #f59e0b; }
-.channel-status-compact__dot.is-critical { background: #ef4444; }
-.channel-status-compact__dot.is-unknown { background: #9ca3af; opacity: 0.45; }
+.channel-status-compact__legend-scale {
+  gap: 2px;
+}
+
+.channel-status-compact__floating-tooltip {
+  pointer-events: none;
+  position: fixed;
+  z-index: 100000;
+  min-width: 12rem;
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  transform: translate(-50%, calc(-100% - .5rem));
+  padding: .5rem .625rem;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--glass-border-hover);
+  border-radius: .65rem;
+  background: var(--glass-layer-floating-bg);
+  color: var(--color-text-secondary);
+  box-shadow: var(--glass-shadow-hover);
+  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
+  font-size: var(--font-size-2xs);
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.channel-status-compact__tooltip-line {
+  display: block;
+}
+
+.channel-status-compact__tooltip-title {
+  margin-bottom: .2rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+:global(.dark) .error-band-0 {
+  --monitor-error-color: #166534;
+  --monitor-error-ink: #bbf7d0;
+}
+:global(.dark) .error-band-1 {
+  --monitor-error-color: #15803d;
+  --monitor-error-ink: #bbf7d0;
+}
+:global(.dark) .error-band-2 {
+  --monitor-error-color: #22c55e;
+  --monitor-error-ink: #dcfce7;
+}
+:global(.dark) .error-band-3 {
+  --monitor-error-color: #4ade80;
+  --monitor-error-ink: #14532d;
+}
+:global(.dark) .error-band-4 {
+  --monitor-error-color: #ca8a04;
+  --monitor-error-ink: #fef08a;
+}
+:global(.dark) .error-band-5 {
+  --monitor-error-color: #ea580c;
+  --monitor-error-ink: #fed7aa;
+}
+:global(.dark) .error-band-6 {
+  --monitor-error-color: #f97316;
+  --monitor-error-ink: #ffedd5;
+}
+:global(.dark) .error-band-7 {
+  --monitor-error-color: #dc2626;
+  --monitor-error-ink: #fecaca;
+}
+:global(.dark) .error-band-unknown {
+  --monitor-error-color: #4b5563;
+  --monitor-error-ink: #d1d5db;
+}
 
 .channel-status-compact__empty {
   display: grid;
@@ -544,7 +853,12 @@ onBeforeUnmount(() => {
 
 @media (max-width: 700px) {
   .channel-status-compact {
-    padding: 0.75rem 0.75rem 1.5rem;
+    padding: .75rem .5rem 1.25rem;
+  }
+
+  .channel-status-compact__list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .5rem;
   }
 
   .channel-status-compact__head {
@@ -561,12 +875,49 @@ onBeforeUnmount(() => {
     gap: .2rem;
   }
 
-  .channel-status-compact__availability {
+  .channel-status-compact__error-rate {
     padding-left: 1.5rem;
   }
 
-  .channel-status-compact__pulse {
-    gap: 1px;
+  .channel-status-compact__axis {
+    grid-template-columns: 1.65rem max-content;
+    gap: .22rem;
+    padding-right: .5rem;
+    padding-left: .5rem;
+  }
+
+  .channel-status-compact__heatmap {
+    padding-right: .5rem;
+    padding-left: .5rem;
+  }
+
+  .channel-status-compact__heatmap-row {
+    grid-template-columns: 1.65rem max-content;
+    gap: .22rem;
+  }
+
+  .channel-status-compact__day-labels,
+  .channel-status-compact__cells {
+    grid-template-columns: repeat(14, .5rem);
+    gap: .12rem;
+  }
+
+  .channel-status-compact__day-labels span {
+    width: .5rem;
+    font-size: .52rem;
+  }
+
+  .channel-status-compact__cell {
+    width: .5rem;
+    height: .5rem;
+  }
+
+  .channel-status-compact__floating-tooltip {
+    min-width: 10rem;
+  }
+
+  .channel-status-compact__legend-unknown {
+    margin-left: 0;
   }
 }
 </style>

@@ -36,6 +36,22 @@ func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, erro
 	return normalized, nil
 }
 
+// validateOutboundURL validates a URL that the gateway fetches proactively,
+// using the same allowlist policy as configured upstream base URLs.
+func (s *OpenAIGatewayService) validateOutboundURL(raw string) (string, error) {
+	if s == nil || s.cfg == nil {
+		return urlvalidator.ValidateURLFormat(raw, false)
+	}
+	if !s.cfg.Security.URLAllowlist.Enabled {
+		return urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
+	}
+	return urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
+		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
+		RequireAllowlist: true,
+		AllowPrivate:     s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+	})
+}
+
 // buildOpenAIResponsesURL 组装 OpenAI Responses 端点。
 // - base 以 /v1 结尾：追加 /responses
 // - base 以其他版本段结尾（如 /v4）：追加 /responses
@@ -59,6 +75,9 @@ func shouldPreserveOpenAIResponsesNoneReasoningEffort(account *Account) bool {
 	if account == nil {
 		return false
 	}
+	if account.IsOpenAIPassthroughEnabled() {
+		return true
+	}
 	if account.IsOpenAIOAuth() || (account.IsOpenAI() && account.Type == AccountTypeSetupToken) {
 		return true
 	}
@@ -69,11 +88,24 @@ func shouldPreserveOpenAIResponsesNoneReasoningEffort(account *Account) bool {
 	return baseURL == "" || isOfficialOpenAIModelsBaseURL(baseURL)
 }
 
+func openAIRequestBodyUsesGPT6Astra(account *Account, body []byte) bool {
+	model := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	if model == "" {
+		return false
+	}
+	if account != nil {
+		if mapped := strings.TrimSpace(account.GetMappedModel(model)); mapped != "" {
+			model = mapped
+		}
+	}
+	return isOpenAIGPT6AstraModel(model)
+}
+
 // Codex can advertise a single "none" effort for visible non-reasoning models.
 // Compatible third-party Responses endpoints generally interpret that value as
 // invalid rather than as omission, while official OpenAI accepts it natively.
 func filterOpenAIResponsesNoneReasoningEffortForAccount(account *Account, body []byte) ([]byte, error) {
-	if len(body) == 0 || shouldPreserveOpenAIResponsesNoneReasoningEffort(account) {
+	if len(body) == 0 || (shouldPreserveOpenAIResponsesNoneReasoningEffort(account) && !openAIRequestBodyUsesGPT6Astra(account, body)) {
 		return body, nil
 	}
 
@@ -100,7 +132,7 @@ func filterOpenAIResponsesNoneReasoningEffortForAccount(account *Account, body [
 }
 
 func deleteOpenAIResponsesNoneReasoningEffortFromObject(account *Account, body map[string]any) {
-	if body == nil || shouldPreserveOpenAIResponsesNoneReasoningEffort(account) {
+	if body == nil || (shouldPreserveOpenAIResponsesNoneReasoningEffort(account) && !isOpenAIGPT6AstraModel(strings.TrimSpace(fmt.Sprint(body["model"])))) {
 		return
 	}
 	if effort, ok := body["reasoning_effort"].(string); ok && strings.EqualFold(strings.TrimSpace(effort), "none") {
@@ -1010,7 +1042,7 @@ func normalizeOpenAIServiceTier(raw string) *string {
 	// 但能让直连 OpenAI SDK 的用户透传 auto/default/scale 以便抓包/调试。
 	// 真未知值仍返回 nil，由 normalizeResponsesBodyServiceTier 从 body 中删除。
 	switch value {
-	case "priority", "flex", "auto", "default", "scale":
+	case "priority", "ultrafast", "flex", "auto", "default", "scale":
 		return &value
 	default:
 		return nil
@@ -1686,7 +1718,7 @@ func normalizeOpenAIReasoningEffort(raw string) string {
 }
 
 func normalizeOpenAIReasoningEffortForModel(raw, model string) string {
-	if strings.EqualFold(strings.TrimSpace(raw), "max") && isOpenAIGPT56Model(model) {
+	if strings.EqualFold(strings.TrimSpace(raw), "max") && (isOpenAIGPT56Model(model) || isOpenAIGPT6AstraModel(model)) {
 		return "max"
 	}
 	return normalizeOpenAIReasoningEffort(raw)

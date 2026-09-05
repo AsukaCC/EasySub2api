@@ -451,7 +451,9 @@ func (s *ChannelMonitorV2Service) ParseFilter(rangeValue string, platforms, mode
 	case "24h":
 		window, bucket = 24*time.Hour, time.Hour
 	case "7d":
-		window, bucket = 7*24*time.Hour, 12*time.Hour
+		window, bucket = 7*24*time.Hour, 2*time.Hour
+	case "14d":
+		window, bucket = 14*24*time.Hour, 2*time.Hour
 	case "30d":
 		window, bucket = 30*24*time.Hour, 24*time.Hour
 	default:

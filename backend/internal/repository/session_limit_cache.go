@@ -231,6 +231,16 @@ func (c *sessionLimitCache) RefreshSession(ctx context.Context, accountID string
 	return err
 }
 
+// UnregisterSession removes a session registration immediately. Redis ZREM is
+// idempotent, which makes this safe for failover cleanup and deferred cleanup.
+func (c *sessionLimitCache) UnregisterSession(ctx context.Context, accountID string, sessionUUID string) error {
+	if sessionUUID == "" {
+		return nil
+	}
+	_, err := c.rdb.ZRem(ctx, sessionLimitKey(accountID), sessionUUID).Result()
+	return err
+}
+
 // GetActiveSessionCount 获取活跃会话数
 func (c *sessionLimitCache) GetActiveSessionCount(ctx context.Context, accountID string) (int, error) {
 	key := sessionLimitKey(accountID)

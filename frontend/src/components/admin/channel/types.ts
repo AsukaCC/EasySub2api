@@ -23,6 +23,7 @@ export interface PricingFormEntry {
   cache_write_price: number | string | null
   cache_write_1h_price?: number | string | null
   cache_read_price: number | string | null
+  max_reasoning_effort_multiplier?: number | string | null
   image_input_price: number | string | null
   image_output_price: number | string | null
   per_request_price: number | string | null
@@ -52,6 +53,12 @@ export function isValidTimePricingMultiplier(value: number | string): boolean {
   const numericValue = Number(multiplier)
   return TWO_DECIMAL_MULTIPLIER.test(multiplier) &&
     Number.isFinite(numericValue) && numericValue > 0
+}
+
+export function isValidPositiveMultiplier(value: number | string | null | undefined): boolean {
+  if (value === null || value === undefined || value === '') return true
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) && numericValue > 0
 }
 
 export const COMMON_TIMEZONES = [

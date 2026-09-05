@@ -389,7 +389,6 @@ type CreateAccountInput struct {
 	ExpiresAt          *int64
 	AutoPauseOnExpired *bool
 	ProbeEnabled       *bool
-	ModelRuleID        *string
 	// SkipDefaultGroupBind prevents auto-binding to platform default group when GroupIDs is empty.
 	SkipDefaultGroupBind bool
 }
@@ -420,7 +419,6 @@ type UpdateAccountInput struct {
 	AutoPauseOnExpired *bool
 	ProbeEnabled       *bool
 	RateSyncEnabled    *bool
-	ModelRuleID        **string
 }
 
 // BulkUpdateAccountsInput describes the payload for bulk updating accounts.
@@ -439,7 +437,6 @@ type BulkUpdateAccountsInput struct {
 	Credentials    map[string]any
 	Extra          map[string]any
 	ProbeEnabled   *bool
-	ModelRuleID    **string
 }
 
 type BulkUpdateAccountFilters struct {

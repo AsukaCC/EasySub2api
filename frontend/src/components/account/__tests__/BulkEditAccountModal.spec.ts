@@ -22,9 +22,6 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       bulkUpdate: vi.fn()
-    },
-    accountModelRules: {
-      list: vi.fn()
     }
   }
 }))
@@ -81,7 +78,6 @@ function mountModal(extraProps: Record<string, unknown> = {}) {
 describe('BulkEditAccountModal', () => {
   beforeEach(() => {
     vi.mocked(adminAPI.accounts.bulkUpdate).mockReset()
-    vi.mocked(adminAPI.accountModelRules.list).mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     translate.mockClear()
@@ -91,7 +87,6 @@ describe('BulkEditAccountModal', () => {
       failed: 0,
       results: []
     } as any)
-    vi.mocked(adminAPI.accountModelRules.list).mockResolvedValue([])
   })
 
   it('批量修改倍率时提示自动同步账号需要先关闭同步', async () => {
@@ -139,50 +134,17 @@ describe('BulkEditAccountModal', () => {
     })
   })
 
-  it('同平台同档位多选可绑定统一模型路由规则', async () => {
-    vi.mocked(adminAPI.accountModelRules.list).mockResolvedValueOnce([{
-      id: 'rule-1',
-      name: 'GPT routing',
-      description: null,
-      platform: 'openai',
-      subscription_tier: 'pro',
-      model_routes: [
-        { request_model: 'gpt-5.4-mini', upstream_model: 'gpt-5.4-mini' },
-        { request_model: 'gpt-5.6', upstream_model: 'gpt-5.6-sol', reasoning_effort: 'high' }
-      ],
-      created_at: '2026-09-04T00:00:00Z',
-      updated_at: '2026-09-04T00:00:00Z'
-    }])
-    const wrapper = mountModal({ selectedTiers: ['pro'] })
-    await flushPromises()
-
-    await wrapper.get('#bulk-edit-model-restriction-enabled').setValue(true)
-    await wrapper.get('.model-rule-selector select').setValue('rule-1')
-    await wrapper.get('.model-rule-selector button').trigger('click')
-
-    expect(wrapper.text()).toContain('admin.accounts.modelRules.boundReadOnlyHint')
-    expect(wrapper.find('.components-account-model-whitelist-selector__panel').exists()).toBe(false)
-
-    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.modelRules.importSuccess')
-    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], {
-      model_rule_id: 'rule-1'
-    })
-  })
-
-  it('混合平台多选时不提供模型规则导入入口', async () => {
+  it('混合平台多选时不提交模型限制配置', async () => {
     const wrapper = mountModal({
       selectedPlatforms: ['openai', 'anthropic'],
       selectedTypes: ['apikey']
     })
 
     await wrapper.get('#bulk-edit-model-restriction-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
 
-    expect(wrapper.find('.model-rule-selector').exists()).toBe(false)
-    expect(wrapper.text()).toContain('admin.accounts.bulkEdit.modelRuleSinglePlatformHint')
-    expect(adminAPI.accountModelRules.list).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('admin.accounts.bulkEdit.modelRestrictionSinglePlatform')
+    expect(adminAPI.accounts.bulkUpdate).not.toHaveBeenCalled()
   })
 
   it('全部目标为 Grok OAuth 时，官方主机 base_url 作为手动端点切换正常提交', async () => {

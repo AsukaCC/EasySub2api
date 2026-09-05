@@ -266,32 +266,12 @@
           </div>
 
           <template v-else>
-            <AccountModelRuleSelector
-              v-if="modelRulePlatform"
-              :platform="modelRulePlatform"
-              :subscription-tier="modelRuleSubscriptionTier"
-              :model-value="selectedModelRuleId"
-              allow-unbind
-              :has-existing-mappings="hasModelRestrictionValues"
-              @apply="applyAccountModelRule"
-            />
-            <p v-else class="input-hint">
-              {{ t('admin.accounts.bulkEdit.modelRuleSinglePlatformHint') }}
-            </p>
-
-            <p v-if="!shouldShowLegacyModelRoutingEditor" class="input-hint">
-              {{
-                t(
-                  selectedModelRuleId
-                    ? 'admin.accounts.modelRules.boundReadOnlyHint'
-                    : 'admin.accounts.modelRules.unbindSaveHint'
-                )
-              }}
+            <p v-if="isMixedPlatform" class="input-hint">
+              {{ t('admin.accounts.bulkEdit.modelRestrictionSinglePlatform') }}
             </p>
 
             <!-- Mode Toggle -->
             <div
-              v-if="shouldShowLegacyModelRoutingEditor"
               class="components-account-bulk-edit-account-modal__panel-9"
             >
               <button
@@ -348,7 +328,7 @@
 
             <!-- Whitelist Mode -->
             <div
-              v-if="shouldShowLegacyModelRoutingEditor && modelRestrictionMode === 'whitelist'"
+              v-if="modelRestrictionMode === 'whitelist'"
             >
               <div class="components-account-bulk-edit-account-modal__panel-10">
                 <p class="components-account-bulk-edit-account-modal__description-6">
@@ -383,7 +363,7 @@
             </div>
 
             <!-- Mapping Mode -->
-            <div v-else-if="shouldShowLegacyModelRoutingEditor">
+            <div v-else>
               <div class="components-account-bulk-edit-account-modal__panel-11">
                 <p class="components-account-bulk-edit-account-modal__description-8">
                   <svg
@@ -436,11 +416,11 @@
                     :placeholder="t('admin.accounts.actualModel')"
                   />
                   <Select
-                    v-if="modelRulePlatform === 'openai'"
+                    v-if="modelRestrictionPlatform === 'openai'"
                     v-model="mapping.reasoning_effort"
                     :options="reasoningEffortOptions"
-                    :placeholder="t('admin.accounts.modelRules.reasoningEffortFollowRequest')"
-                    :aria-label="t('admin.accounts.modelRules.reasoningEffort')"
+                    :placeholder="t('admin.accounts.reasoningEffortFollowRequest')"
+                    :aria-label="t('admin.accounts.reasoningEffort')"
                     :searchable="false"
                     clearable
                     class="components-account-bulk-edit-account-modal__panel-7"
@@ -1500,7 +1480,6 @@ import Select from '@/components/common/Select.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
-import AccountModelRuleSelector from '@/components/account/AccountModelRuleSelector.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
   buildModelMappingObject as buildModelMappingPayload,
@@ -1558,14 +1537,8 @@ const targetMode = computed(() => props.target?.mode ?? 'selected')
 const targetPreviewCount = computed(() => props.target?.previewCount ?? props.accountIds.length)
 const targetSelectedPlatforms = computed(() => props.target?.selectedPlatforms ?? props.selectedPlatforms)
 const targetSelectedTypes = computed(() => props.target?.selectedTypes ?? props.selectedTypes)
-const targetSelectedTiers = computed(() => props.target?.selectedTiers ?? props.selectedTiers)
-const modelRulePlatform = computed<AccountPlatform | null>(() =>
+const modelRestrictionPlatform = computed<AccountPlatform | null>(() =>
   targetSelectedPlatforms.value.length === 1 ? targetSelectedPlatforms.value[0] : null
-)
-const modelRuleSubscriptionTier = computed(() =>
-  targetSelectedTiers.value.length === 1 && targetSelectedTiers.value[0]
-    ? targetSelectedTiers.value[0]
-    : '__all__'
 )
 // Grok 快捷端点仅在所选账号全部为 grok 平台时展示（其他平台不显示）
 const allTargetsGrok = computed(
@@ -1699,17 +1672,6 @@ const baseUrl = ref('')
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const modelMappings = ref<ModelMapping[]>([])
-const selectedModelRuleId = ref<string | null>(null)
-const modelRuleBindingChanged = ref(false)
-const shouldShowLegacyModelRoutingEditor = computed(
-  () => !selectedModelRuleId.value && !modelRuleBindingChanged.value
-)
-const hasModelRestrictionValues = computed(() =>
-  allowedModels.value.some(model => model.trim() !== '') ||
-  modelMappings.value.some(mapping =>
-    mapping.from.trim() !== '' || mapping.to.trim() !== '' || (mapping.reasoning_effort?.trim() || '') !== ''
-  )
-)
 const reasoningEffortOptions = computed(() =>
   ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(value => ({ value, label: value }))
 )
@@ -1890,25 +1852,6 @@ const addPresetMapping = (from: string, to: string) => {
   modelMappings.value.push({ from, to, reasoning_effort: '' })
 }
 
-const applyAccountModelRule = (payload: {
-  id: string | null
-  name: string
-  allowedModels: string[]
-  mappings: Array<{ from: string; to: string; reasoning_effort?: string }>
-}) => {
-  enableModelRestriction.value = true
-  selectedModelRuleId.value = payload.id
-  modelRuleBindingChanged.value = true
-  modelRestrictionMode.value = payload.mappings.length > 0 ? 'mapping' : 'whitelist'
-  allowedModels.value = payload.allowedModels.map(model => model.trim()).filter(Boolean)
-  modelMappings.value = payload.mappings.map(mapping => ({
-    from: mapping.from,
-    to: mapping.to,
-    reasoning_effort: mapping.reasoning_effort || ''
-  }))
-  appStore.showSuccess(t('admin.accounts.modelRules.importSuccess', { name: payload.name }))
-}
-
 // Error code helpers
 const toggleErrorCode = (code: number) => {
   const index = selectedErrorCodes.value.indexOf(code)
@@ -1975,7 +1918,7 @@ const applyModelReasoningEfforts = (
   credentials: Record<string, unknown>,
   modelMapping: Record<string, string>
 ) => {
-  if (modelRulePlatform.value !== 'openai') return
+  if (modelRestrictionPlatform.value !== 'openai') return
 
   const configuredEfforts = buildModelReasoningEffortsObject(modelMappings.value)
   const reasoningEfforts = Object.fromEntries(
@@ -2080,9 +2023,11 @@ const buildUpdatePayload = (): Record<string, unknown> | null => {
         : openAIResponsesMode.value
   }
 
-  if (enableModelRestriction.value && modelRuleBindingChanged.value) {
-    updates.model_rule_id = selectedModelRuleId.value
-  } else if (enableModelRestriction.value && !isOpenAIModelRestrictionDisabled.value) {
+  if (enableModelRestriction.value && !isOpenAIModelRestrictionDisabled.value) {
+    if (isMixedPlatform.value) {
+      appStore.showError(t('admin.accounts.bulkEdit.modelRestrictionSinglePlatform'))
+      return null
+    }
     // 空配置表示“支持所有模型”，需显式发送空对象以覆盖已有限制。
     const modelMapping = buildModelMappingObject() ?? {}
     credentials.model_mapping = modelMapping
@@ -2373,8 +2318,6 @@ watch(
       modelRestrictionMode.value = 'whitelist'
       allowedModels.value = []
       modelMappings.value = []
-      selectedModelRuleId.value = null
-      modelRuleBindingChanged.value = false
       selectedErrorCodes.value = []
       customErrorCodeInput.value = null
       interceptWarmupRequests.value = false

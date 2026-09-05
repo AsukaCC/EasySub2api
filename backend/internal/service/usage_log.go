@@ -184,6 +184,10 @@ type UsageLog struct {
 	// (e.g. the session_id / X-Session-Id headers). Nil when the client sent no
 	// valid session header. It is never derived from prompt_cache_key or content.
 	SessionID *string
+	// UpstreamRequestID is the request identifier returned by the direct upstream
+	// response header selected in account extra configuration. It is nil when no
+	// header is configured, unavailable, or the request used WebSocket transport.
+	UpstreamRequestID *string
 
 	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 	CacheTTLOverridden bool

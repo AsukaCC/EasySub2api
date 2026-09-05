@@ -42,7 +42,7 @@ const tierOpts = computed(() => [
   { value: '', label: t('admin.accounts.allSubscriptionTiers') },
   ...tiers.value.map(tier => ({
     value: tier.value,
-    label: `${tier.value === '__unrecognized__' ? t('admin.accounts.modelRules.unrecognizedTier') : tier.label} (${tier.account_count})`
+    label: `${tier.value === '__unrecognized__' ? t('admin.accounts.subscriptionTierUnrecognized') : tier.label} (${tier.account_count})`
   }))
 ])
 const tOpts = computed(() => [{ value: '', label: t('admin.accounts.allTypes') }, { value: 'oauth', label: t('admin.accounts.oauthType') }, { value: 'setup-token', label: t('admin.accounts.setupToken') }, { value: 'apikey', label: t('admin.accounts.apiKey') }, { value: 'bedrock', label: 'AWS Bedrock' }])
