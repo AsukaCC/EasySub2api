@@ -442,17 +442,17 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 	delete(accountExtra, OllamaCloudUsageSnapshotExtraKey)
 	accountExtra = prepareCodexFingerprintExtraForCreate(input.Platform, input.Type, accountExtra)
 	account := &Account{
-		Name:                    input.Name,
-		Notes:                   normalizeAccountNotes(input.Notes),
-		Platform:                input.Platform,
-		Type:                    input.Type,
-		Credentials:             input.Credentials,
-		Extra:                   accountExtra,
-		ProxyID:                 input.ProxyID,
-		Concurrency:             normalizeAccountConcurrency(input.Platform, input.Type, input.Concurrency),
-		Priority:                input.Priority,
-		Status:                  StatusActive,
-		Schedulable:             true,
+		Name:        input.Name,
+		Notes:       normalizeAccountNotes(input.Notes),
+		Platform:    input.Platform,
+		Type:        input.Type,
+		Credentials: input.Credentials,
+		Extra:       accountExtra,
+		ProxyID:     input.ProxyID,
+		Concurrency: normalizeAccountConcurrency(input.Platform, input.Type, input.Concurrency),
+		Priority:    input.Priority,
+		Status:      StatusActive,
+		Schedulable: true,
 	}
 	if input.ProbeEnabled != nil && *input.ProbeEnabled {
 		if !isUpstreamBillingProbeAccount(account) {
