@@ -132,22 +132,22 @@ type CreateAccountRequest struct {
 // UpdateAccountRequest represents update account request
 // 使用指针类型来区分"未提供"和"设置为0"
 type UpdateAccountRequest struct {
-	Name               string          `json:"name"`
-	Notes              *string         `json:"notes"`
-	Type               string          `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream bedrock service_account"`
-	Credentials        map[string]any  `json:"credentials"`
-	Extra              map[string]any  `json:"extra"`
-	ProxyID            *string         `json:"proxy_id"`
-	Concurrency        *int            `json:"concurrency"`
-	Priority           *int            `json:"priority"`
-	RateMultiplier     *float64        `json:"rate_multiplier"`
-	LoadFactor         *int            `json:"load_factor"`
-	Status             string          `json:"status" binding:"omitempty,oneof=active inactive error"`
-	GroupIDs           *[]string       `json:"group_ids"`
-	ExpiresAt          *int64          `json:"expires_at"`
-	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
-	ProbeEnabled       *bool           `json:"upstream_billing_probe_enabled"`
-	RateSyncEnabled    *bool           `json:"upstream_billing_rate_sync_enabled"`
+	Name               string         `json:"name"`
+	Notes              *string        `json:"notes"`
+	Type               string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream bedrock service_account"`
+	Credentials        map[string]any `json:"credentials"`
+	Extra              map[string]any `json:"extra"`
+	ProxyID            *string        `json:"proxy_id"`
+	Concurrency        *int           `json:"concurrency"`
+	Priority           *int           `json:"priority"`
+	RateMultiplier     *float64       `json:"rate_multiplier"`
+	LoadFactor         *int           `json:"load_factor"`
+	Status             string         `json:"status" binding:"omitempty,oneof=active inactive error"`
+	GroupIDs           *[]string      `json:"group_ids"`
+	ExpiresAt          *int64         `json:"expires_at"`
+	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
+	ProbeEnabled       *bool          `json:"upstream_billing_probe_enabled"`
+	RateSyncEnabled    *bool          `json:"upstream_billing_rate_sync_enabled"`
 }
 
 // BulkUpdateAccountsRequest represents the payload for bulk editing accounts
