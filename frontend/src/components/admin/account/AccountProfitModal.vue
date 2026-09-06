@@ -559,12 +559,22 @@ onBeforeUnmount(() => {
 }
 
 .account-profit-modal__chart-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
   min-width: 0;
   padding: 0.75rem 0.875rem 0.5rem;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   background: var(--glass-bg-subtle);
   box-shadow: 0 1px 0 var(--glass-highlight) inset;
+}
+
+.account-profit-modal__chart-panel :deep(.d3-line-chart) {
+  height: 16rem;
+  min-height: 0;
+  max-height: 16rem;
+  flex: 0 0 16rem;
 }
 
 .account-profit-modal__chart-panel h5 {
@@ -575,7 +585,15 @@ onBeforeUnmount(() => {
 }
 
 .account-profit-modal__chart-panel :deep(.d3-line-chart__frame) {
-  min-height: 15rem;
+  height: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.account-profit-modal__chart-panel :deep(.d3-line-chart__svg) {
+  height: 100%;
+  max-height: 100%;
 }
 
 .account-profit-modal__chart-empty {
