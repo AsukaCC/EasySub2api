@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import LoadingState from '@/components/common/LoadingState.vue'
@@ -138,6 +138,8 @@ const historyPage = ref(1)
 const selectedRange = ref<ProfitRange>('30d')
 const customFrom = ref('')
 const customTo = ref('')
+let loadRequestId = 0
+let activeController: AbortController | null = null
 
 const rangeOptions = computed(() => [
   { value: '7d' as const, label: t('admin.accounts.profit.range7d') },
@@ -247,26 +249,50 @@ function rangeTo(): string | undefined {
 
 async function load(page = 1) {
   if (!props.account) return
+
+  if (loading.value) return
+  if (page > 1 && (!stats.value?.has_more || page !== historyPage.value + 1)) return
+
+  activeController?.abort()
+  const controller = new AbortController()
+  activeController = controller
+  const requestId = ++loadRequestId
+  const accountId = props.account.id
   loading.value = true
   error.value = ''
   try {
-    const response = await adminAPI.accounts.getProfit(props.account.id, {
+    const response = await adminAPI.accounts.getProfit(accountId, {
       from: rangeFrom(),
       to: rangeTo(),
       page,
       page_size: 100
-    })
-    stats.value = response
-    historyRows.value = page === 1 ? response.history : [...historyRows.value, ...response.history]
+    }, { signal: controller.signal })
+
+    if (requestId !== loadRequestId || controller.signal.aborted || !props.show || props.account?.id !== accountId) return
+
+    const existingDates = new Set(page === 1 ? [] : historyRows.value.map(row => row.date))
+    const newRows = response.history.filter(row => !existingDates.has(row.date))
+    const mergedRows = page === 1
+      ? response.history
+      : [...historyRows.value, ...newRows]
+    const hasProgress = page === 1 || newRows.length > 0
+
+    stats.value = hasProgress ? response : { ...response, has_more: false }
+    historyRows.value = mergedRows
     historyPage.value = page
   } catch (err) {
+    if (requestId !== loadRequestId || controller.signal.aborted) return
     error.value = extractApiErrorMessage(err, t('admin.accounts.profit.loadFailed'))
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) {
+      loading.value = false
+      activeController = null
+    }
   }
 }
 
 function loadMore() {
+  if (loading.value || !stats.value?.has_more) return
   void load(historyPage.value + 1)
 }
 
@@ -282,19 +308,34 @@ function formatExpiry(timestamp?: number | null) {
   return timestamp ? formatDateTime(new Date(timestamp * 1000), { year: 'numeric', month: '2-digit', day: '2-digit' }) : t('admin.accounts.profit.noExpiry')
 }
 
-watch([() => props.show, () => props.account?.id, selectedRange], ([visible]) => {
-  if (!visible) return
+watch([() => props.show, () => props.account?.id, selectedRange, customFrom, customTo], ([visible]) => {
+  if (!visible) {
+    activeController?.abort()
+    loadRequestId += 1
+    loading.value = false
+    return
+  }
   if (selectedRange.value === 'custom' && !customRangeValid.value) {
+    activeController?.abort()
+    loadRequestId += 1
     stats.value = null
     historyRows.value = []
+    historyPage.value = 1
     error.value = ''
     return
   }
+  activeController?.abort()
+  loadRequestId += 1
+  loading.value = false
+  stats.value = null
+  historyRows.value = []
+  historyPage.value = 1
   void load(1)
 }, { immediate: true })
 
-watch([customFrom, customTo], () => {
-  if (props.show && selectedRange.value === 'custom' && customRangeValid.value) void load(1)
+onBeforeUnmount(() => {
+  activeController?.abort()
+  loadRequestId += 1
 })
 </script>
 

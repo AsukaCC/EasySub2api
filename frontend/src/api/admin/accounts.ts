@@ -329,9 +329,13 @@ export async function getStats(id: string, days: number = 30): Promise<AccountUs
 
 export async function getProfit(
   id: string,
-  params?: { from?: string; to?: string; page?: number; page_size?: number }
+  params?: { from?: string; to?: string; page?: number; page_size?: number },
+  options?: { signal?: AbortSignal }
 ): Promise<AccountProfitResponse> {
-  const { data } = await apiClient.get<AccountProfitResponse>(`/admin/accounts/${id}/profit`, { params })
+  const { data } = await apiClient.get<AccountProfitResponse>(`/admin/accounts/${id}/profit`, {
+    params,
+    signal: options?.signal
+  })
   return data
 }
 
