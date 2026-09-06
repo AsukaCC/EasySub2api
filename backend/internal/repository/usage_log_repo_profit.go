@@ -252,7 +252,7 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
 		       ), 0)
 		FROM accounts a
-		LEFT JOIN account_profit_daily_rollups r ON r.account_id = a.id
+		LEFT JOIN account_profit_daily_rollups r ON r.account_id = a.id::text
 		` + where + `
 		GROUP BY a.id, a.name, a.platform, a.subscription_tier, a.status,
 		         a.created_at, a.expires_at, a.updated_at, a.extra
@@ -431,7 +431,7 @@ func (r *usageLogRepository) ensureAccountProfitDailyRollups(ctx context.Context
 			       COALESCE(SUM(ul.actual_cost), 0)::numeric AS revenue_points,
 			       COALESCE(SUM(COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1)), 0)::numeric AS cost_usd
 			FROM usage_logs ul
-			WHERE ul.account_id = ANY($1::bigint[])
+			WHERE ul.account_id::text = ANY($1::text[])
 			  AND ul.created_at >= $3 AND ul.created_at < $4
 			GROUP BY ul.account_id, (ul.created_at AT TIME ZONE $2::text)::date
 		)
