@@ -171,6 +171,38 @@ func buildWhere(conditions []string) string {
 	return "WHERE " + strings.Join(conditions, " AND ")
 }
 
+// appendUsageLogUserRoleScopeCondition keeps administrator usage separate
+// without changing the billing records themselves. The scope is deliberately
+// based on the user role stored with the log's user relation, so API-key
+// requests and direct authenticated requests use the same attribution rule.
+func appendUsageLogUserRoleScopeCondition(conditions []string, args []any, scope, alias string) ([]string, []any) {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "admin", "regular":
+		userColumn := "user_id"
+		if alias != "" {
+			userColumn = alias + ".user_id"
+		}
+		roleCondition := "usage_scope_user.role = 'admin'"
+		if strings.EqualFold(strings.TrimSpace(scope), "regular") {
+			roleCondition = "usage_scope_user.role <> 'admin'"
+		}
+		conditions = append(conditions, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = %s AND %s)",
+			userColumn,
+			roleCondition,
+		))
+	}
+	return conditions, args
+}
+
+func appendUsageLogUserRoleScopeQueryFilter(query string, args []any, scope, alias string) (string, []any) {
+	conditions, args := appendUsageLogUserRoleScopeCondition(nil, args, scope, alias)
+	if len(conditions) == 0 {
+		return query, args
+	}
+	return query + " AND " + conditions[0], args
+}
+
 func appendRequestTypeOrStreamWhereCondition(conditions []string, args []any, requestType *int16, stream *bool) ([]string, []any) {
 	if requestType != nil {
 		condition, conditionArgs := buildRequestTypeFilterCondition(len(args)+1, *requestType)

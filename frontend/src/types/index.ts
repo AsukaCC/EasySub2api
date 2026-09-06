@@ -1308,7 +1308,6 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
-
   // 影子账号关系（spark 维度影子）
   parent_account_id?: string | null
   quota_dimension?: string
@@ -1318,6 +1317,66 @@ export interface Account {
   parent_privacy_mode?: string
   parent_subscription_expires_at?: string
   parent_chatgpt_account_id?: string
+}
+
+export interface AccountProfitPeriod {
+  revenue_points: number
+  cost_usd: number
+  profit_points: number
+  requests: number
+  tokens: number
+}
+
+export type AccountTodayProfit = AccountProfitPeriod
+
+export interface AccountProfitDailyRecord extends AccountProfitPeriod {
+  date: string
+  label: string
+}
+
+export interface AccountProfitResponse {
+  today: AccountProfitPeriod
+  week: AccountProfitPeriod
+  month: AccountProfitPeriod
+  period_7d: AccountProfitPeriod
+  expiry_30d?: AccountProfitPeriod | null
+  lifetime: AccountProfitPeriod
+  history: AccountProfitDailyRecord[]
+  total: number
+  page: number
+  page_size: number
+  has_more: boolean
+}
+
+export interface AccountProfitQuota7d {
+  known: boolean
+  used_percent: number
+  remaining_percent: number
+  reset_at?: string | null
+  observed_at?: string | null
+  source?: string
+}
+
+export interface AccountProfitListItem {
+  id: string
+  name: string
+  platform: AccountPlatform
+  subscription_tier?: string
+  status: Account['status']
+  created_at: string
+  expires_at?: number | null
+  quota_7d: AccountProfitQuota7d
+  period_7d: AccountProfitPeriod
+  expiry_30d?: AccountProfitPeriod | null
+  lifetime: AccountProfitPeriod
+}
+
+export interface AccountProfitListResponse {
+  items: AccountProfitListItem[]
+  total: number
+  page: number
+  page_size: number
+  pages?: number
 }
 
 export interface AccountSchedulerGroupScore {

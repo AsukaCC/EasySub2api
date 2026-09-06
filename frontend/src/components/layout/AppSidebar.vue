@@ -879,6 +879,8 @@ const adminNavSections = computed((): NavSection[] => {
           icon: GlobeIcon,
           children: [
             { path: '/admin/accounts', label: t('nav.accountList'), icon: GlobeIcon },
+            { path: '/admin/accounts/profit', label: t('nav.accountProfit'), icon: ChartIcon },
+            { path: '/admin/accounts/admin-usage', label: t('nav.adminUsage'), icon: ChartIcon },
           ],
         },
         { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },

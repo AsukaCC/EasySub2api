@@ -425,7 +425,7 @@ func (r *dashboardAggregationRepository) upsertHourlyAggregates(ctx context.Cont
 	query := `
 		WITH hourly AS (
 			SELECT
-				date_trunc('hour', created_at AT TIME ZONE $3) AT TIME ZONE $3 AS bucket_start,
+				date_trunc('hour', usage_logs.created_at AT TIME ZONE $3) AT TIME ZONE $3 AS bucket_start,
 				COUNT(*) AS total_requests,
 				COALESCE(SUM(input_tokens), 0) AS input_tokens,
 				COALESCE(SUM(output_tokens), 0) AS output_tokens,
@@ -434,9 +434,19 @@ func (r *dashboardAggregationRepository) upsertHourlyAggregates(ctx context.Cont
 				COALESCE(SUM(total_cost), 0) AS total_cost,
 				COALESCE(SUM(actual_cost), 0) AS actual_cost,
 				COALESCE(SUM(COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1)), 0) AS account_cost,
-				COALESCE(SUM(COALESCE(duration_ms, 0)), 0) AS total_duration_ms
+				COALESCE(SUM(COALESCE(duration_ms, 0)), 0) AS total_duration_ms,
+				COUNT(*) FILTER (WHERE u.role = 'admin') AS admin_requests,
+				COALESCE(SUM(input_tokens) FILTER (WHERE u.role = 'admin'), 0) AS admin_input_tokens,
+				COALESCE(SUM(output_tokens) FILTER (WHERE u.role = 'admin'), 0) AS admin_output_tokens,
+				COALESCE(SUM(cache_creation_tokens) FILTER (WHERE u.role = 'admin'), 0) AS admin_cache_creation_tokens,
+				COALESCE(SUM(cache_read_tokens) FILTER (WHERE u.role = 'admin'), 0) AS admin_cache_read_tokens,
+				COALESCE(SUM(total_cost) FILTER (WHERE u.role = 'admin'), 0) AS admin_total_cost,
+				COALESCE(SUM(actual_cost) FILTER (WHERE u.role = 'admin'), 0) AS admin_actual_cost,
+				COALESCE(SUM(COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1)) FILTER (WHERE u.role = 'admin'), 0) AS admin_account_cost,
+				COALESCE(SUM(COALESCE(duration_ms, 0)) FILTER (WHERE u.role = 'admin'), 0) AS admin_total_duration_ms
 			FROM usage_logs
-			WHERE created_at >= $1 AND created_at < $2
+			LEFT JOIN users u ON u.id = usage_logs.user_id
+			WHERE usage_logs.created_at >= $1 AND usage_logs.created_at < $2
 			GROUP BY 1
 		),
 		user_counts AS (
@@ -457,6 +467,16 @@ func (r *dashboardAggregationRepository) upsertHourlyAggregates(ctx context.Cont
 			account_cost,
 			total_duration_ms,
 			active_users,
+			admin_requests,
+			admin_input_tokens,
+			admin_output_tokens,
+			admin_cache_creation_tokens,
+			admin_cache_read_tokens,
+			admin_total_cost,
+			admin_actual_cost,
+			admin_account_cost,
+			admin_total_duration_ms,
+			admin_active_users,
 			computed_at
 		)
 		SELECT
@@ -471,9 +491,26 @@ func (r *dashboardAggregationRepository) upsertHourlyAggregates(ctx context.Cont
 			hourly.account_cost,
 			hourly.total_duration_ms,
 			COALESCE(user_counts.active_users, 0) AS active_users,
+			hourly.admin_requests,
+			hourly.admin_input_tokens,
+			hourly.admin_output_tokens,
+			hourly.admin_cache_creation_tokens,
+			hourly.admin_cache_read_tokens,
+			hourly.admin_total_cost,
+			hourly.admin_actual_cost,
+			hourly.admin_account_cost,
+			hourly.admin_total_duration_ms,
+			COALESCE(admin_user_counts.admin_active_users, 0) AS admin_active_users,
 			NOW()
 		FROM hourly
 		LEFT JOIN user_counts ON user_counts.bucket_start = hourly.bucket_start
+		LEFT JOIN (
+			SELECT hu.bucket_start, COUNT(*) AS admin_active_users
+			FROM usage_dashboard_hourly_users hu
+			JOIN users u ON u.id = hu.user_id
+			WHERE hu.bucket_start >= $1 AND hu.bucket_start < $2 AND u.role = 'admin'
+			GROUP BY hu.bucket_start
+		) admin_user_counts ON admin_user_counts.bucket_start = hourly.bucket_start
 		ON CONFLICT (bucket_start)
 		DO UPDATE SET
 			total_requests = EXCLUDED.total_requests,
@@ -486,6 +523,16 @@ func (r *dashboardAggregationRepository) upsertHourlyAggregates(ctx context.Cont
 			account_cost = EXCLUDED.account_cost,
 			total_duration_ms = EXCLUDED.total_duration_ms,
 			active_users = EXCLUDED.active_users,
+			admin_requests = EXCLUDED.admin_requests,
+			admin_input_tokens = EXCLUDED.admin_input_tokens,
+			admin_output_tokens = EXCLUDED.admin_output_tokens,
+			admin_cache_creation_tokens = EXCLUDED.admin_cache_creation_tokens,
+			admin_cache_read_tokens = EXCLUDED.admin_cache_read_tokens,
+			admin_total_cost = EXCLUDED.admin_total_cost,
+			admin_actual_cost = EXCLUDED.admin_actual_cost,
+			admin_account_cost = EXCLUDED.admin_account_cost,
+			admin_total_duration_ms = EXCLUDED.admin_total_duration_ms,
+			admin_active_users = EXCLUDED.admin_active_users,
 			computed_at = EXCLUDED.computed_at
 	`
 	_, err := r.sql.ExecContext(ctx, query, start, end, tzName)
@@ -506,7 +553,16 @@ func (r *dashboardAggregationRepository) upsertDailyAggregates(ctx context.Conte
 				COALESCE(SUM(total_cost), 0) AS total_cost,
 				COALESCE(SUM(actual_cost), 0) AS actual_cost,
 				COALESCE(SUM(account_cost), 0) AS account_cost,
-				COALESCE(SUM(total_duration_ms), 0) AS total_duration_ms
+				COALESCE(SUM(total_duration_ms), 0) AS total_duration_ms,
+				COALESCE(SUM(admin_requests), 0) AS admin_requests,
+				COALESCE(SUM(admin_input_tokens), 0) AS admin_input_tokens,
+				COALESCE(SUM(admin_output_tokens), 0) AS admin_output_tokens,
+				COALESCE(SUM(admin_cache_creation_tokens), 0) AS admin_cache_creation_tokens,
+				COALESCE(SUM(admin_cache_read_tokens), 0) AS admin_cache_read_tokens,
+				COALESCE(SUM(admin_total_cost), 0) AS admin_total_cost,
+				COALESCE(SUM(admin_actual_cost), 0) AS admin_actual_cost,
+				COALESCE(SUM(admin_account_cost), 0) AS admin_account_cost,
+				COALESCE(SUM(admin_total_duration_ms), 0) AS admin_total_duration_ms
 			FROM usage_dashboard_hourly
 			WHERE bucket_start >= $1 AND bucket_start < $2
 			GROUP BY (bucket_start AT TIME ZONE $5)::date
@@ -529,6 +585,16 @@ func (r *dashboardAggregationRepository) upsertDailyAggregates(ctx context.Conte
 			account_cost,
 			total_duration_ms,
 			active_users,
+			admin_requests,
+			admin_input_tokens,
+			admin_output_tokens,
+			admin_cache_creation_tokens,
+			admin_cache_read_tokens,
+			admin_total_cost,
+			admin_actual_cost,
+			admin_account_cost,
+			admin_total_duration_ms,
+			admin_active_users,
 			computed_at
 		)
 		SELECT
@@ -543,9 +609,26 @@ func (r *dashboardAggregationRepository) upsertDailyAggregates(ctx context.Conte
 			daily.account_cost,
 			daily.total_duration_ms,
 			COALESCE(user_counts.active_users, 0) AS active_users,
+			daily.admin_requests,
+			daily.admin_input_tokens,
+			daily.admin_output_tokens,
+			daily.admin_cache_creation_tokens,
+			daily.admin_cache_read_tokens,
+			daily.admin_total_cost,
+			daily.admin_actual_cost,
+			daily.admin_account_cost,
+			daily.admin_total_duration_ms,
+			COALESCE(admin_user_counts.admin_active_users, 0) AS admin_active_users,
 			NOW()
 		FROM daily
 		LEFT JOIN user_counts ON user_counts.bucket_date = daily.bucket_date
+		LEFT JOIN (
+			SELECT du.bucket_date, COUNT(*) AS admin_active_users
+			FROM usage_dashboard_daily_users du
+			JOIN users u ON u.id = du.user_id
+			WHERE du.bucket_date >= $3::date AND du.bucket_date < $4::date AND u.role = 'admin'
+			GROUP BY du.bucket_date
+		) admin_user_counts ON admin_user_counts.bucket_date = daily.bucket_date
 		ON CONFLICT (bucket_date)
 		DO UPDATE SET
 			total_requests = EXCLUDED.total_requests,
@@ -558,6 +641,16 @@ func (r *dashboardAggregationRepository) upsertDailyAggregates(ctx context.Conte
 			account_cost = EXCLUDED.account_cost,
 			total_duration_ms = EXCLUDED.total_duration_ms,
 			active_users = EXCLUDED.active_users,
+			admin_requests = EXCLUDED.admin_requests,
+			admin_input_tokens = EXCLUDED.admin_input_tokens,
+			admin_output_tokens = EXCLUDED.admin_output_tokens,
+			admin_cache_creation_tokens = EXCLUDED.admin_cache_creation_tokens,
+			admin_cache_read_tokens = EXCLUDED.admin_cache_read_tokens,
+			admin_total_cost = EXCLUDED.admin_total_cost,
+			admin_actual_cost = EXCLUDED.admin_actual_cost,
+			admin_account_cost = EXCLUDED.admin_account_cost,
+			admin_total_duration_ms = EXCLUDED.admin_total_duration_ms,
+			admin_active_users = EXCLUDED.admin_active_users,
 			computed_at = EXCLUDED.computed_at
 	`
 	_, err := r.sql.ExecContext(ctx, query, start, end, start, end, tzName)

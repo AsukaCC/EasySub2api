@@ -81,6 +81,7 @@ export interface CreateUsageCleanupTaskRequest {
 }
 
 export interface AdminUsageQueryParams extends UsageQueryParams {
+	scope?: AdminUsageRoleScope
   user_id?: string
   exact_total?: boolean
   billing_mode?: string
@@ -93,6 +94,13 @@ export interface AdminUsageQueryParams extends UsageQueryParams {
   status_code?: number | null
 }
 
+export type AdminUsageRoleScope = 'all' | 'regular' | 'admin'
+
+export interface AdminUsageRequestOptions {
+	signal?: AbortSignal
+	basePath?: string
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -102,9 +110,9 @@ export interface AdminUsageQueryParams extends UsageQueryParams {
  */
 export async function list(
   params: AdminUsageQueryParams,
-  options?: { signal?: AbortSignal }
+  options?: AdminUsageRequestOptions
 ): Promise<PaginatedResponse<AdminUsageLog>> {
-  const { data } = await apiClient.get<PaginatedResponse<AdminUsageLog>>('/admin/usage', {
+  const { data } = await apiClient.get<PaginatedResponse<AdminUsageLog>>(options?.basePath || '/admin/usage', {
     params,
     signal: options?.signal
   })
@@ -133,9 +141,12 @@ export async function getStats(params: {
   end_date?: string
   timezone?: string
   nocache?: number
+  scope?: AdminUsageRoleScope
+  base_path?: string
 }): Promise<AdminUsageStatsResponse> {
-  const { data } = await apiClient.get<AdminUsageStatsResponse>('/admin/usage/stats', {
-    params
+  const { base_path, ...queryParams } = params
+  const { data } = await apiClient.get<AdminUsageStatsResponse>(base_path || '/admin/usage/stats', {
+    params: queryParams
   })
   return data
 }
@@ -145,8 +156,8 @@ export async function getStats(params: {
  * @param keyword - Email keyword to search
  * @returns List of matching users (max 30)
  */
-export async function searchUsers(keyword: string): Promise<SimpleUser[]> {
-  const { data } = await apiClient.get<SimpleUser[]>('/admin/usage/search-users', {
+export async function searchUsers(keyword: string, options?: { basePath?: string }): Promise<SimpleUser[]> {
+  const { data } = await apiClient.get<SimpleUser[]>(options?.basePath || '/admin/usage/search-users', {
     params: { q: keyword }
   })
   return data
@@ -158,7 +169,7 @@ export async function searchUsers(keyword: string): Promise<SimpleUser[]> {
  * @param keyword - Optional keyword to search in key name
  * @returns List of matching API keys (max 30)
  */
-export async function searchApiKeys(userId?: string, keyword?: string): Promise<SimpleApiKey[]> {
+export async function searchApiKeys(userId?: string, keyword?: string, options?: { basePath?: string }): Promise<SimpleApiKey[]> {
   const params: Record<string, unknown> = {}
   if (userId !== undefined) {
     params.user_id = userId
@@ -166,7 +177,7 @@ export async function searchApiKeys(userId?: string, keyword?: string): Promise<
   if (keyword) {
     params.q = keyword
   }
-  const { data } = await apiClient.get<SimpleApiKey[]>('/admin/usage/search-api-keys', {
+  const { data } = await apiClient.get<SimpleApiKey[]>(options?.basePath || '/admin/usage/search-api-keys', {
     params
   })
   return data

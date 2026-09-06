@@ -26,6 +26,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/usagestats"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 
@@ -677,7 +678,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 			SchedulerScore:     schedulerScores[acc.ID],
 			SchedulerScores:    schedulerGroupScores[acc.ID],
 		}
-
 		// 添加窗口费用（仅当启用时）
 		if windowCosts != nil {
 			if cost, ok := windowCosts[acc.ID]; ok {
@@ -2348,6 +2348,137 @@ func (h *AccountHandler) GetTodayStats(c *gin.Context) {
 		return
 	}
 
+	response.Success(c, stats)
+}
+
+var accountProfitSortFields = map[string]struct{}{
+	"period_7d_revenue":    {},
+	"period_7d_cost":       {},
+	"period_7d_profit":     {},
+	"period_7d_tokens":     {},
+	"expiry_30d_revenue":   {},
+	"expiry_30d_cost":      {},
+	"expiry_30d_profit":    {},
+	"expiry_30d_tokens":    {},
+	"lifetime_revenue":     {},
+	"lifetime_cost":        {},
+	"lifetime_profit":      {},
+	"lifetime_tokens":      {},
+	"quota_7d_utilization": {},
+	"expires_at":           {},
+	"created_at":           {},
+}
+
+// ListProfit returns the server-side filtered and sorted account profit list.
+// GET /api/v1/admin/accounts/profit
+func (h *AccountHandler) ListProfit(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	if pageSize > 100 {
+		response.BadRequest(c, "Invalid page_size")
+		return
+	}
+
+	expiryStatus, err := parseAccountExpiryStatusFilter(c.Query("expiry_status"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	sortBy := strings.TrimSpace(c.DefaultQuery("sort_by", "created_at"))
+	if _, ok := accountProfitSortFields[sortBy]; !ok {
+		response.BadRequest(c, "Invalid sort_by")
+		return
+	}
+	sortOrder := strings.ToLower(strings.TrimSpace(c.DefaultQuery("sort_order", "desc")))
+	if sortOrder != "asc" && sortOrder != "desc" {
+		response.BadRequest(c, "Invalid sort_order")
+		return
+	}
+
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) > 100 {
+		search = search[:100]
+	}
+	params := usagestats.AccountProfitListParams{
+		Page:             page,
+		PageSize:         pageSize,
+		Search:           search,
+		Platform:         strings.TrimSpace(c.Query("platform")),
+		Status:           strings.TrimSpace(c.Query("status")),
+		ExpiryStatus:     expiryStatus,
+		SubscriptionTier: strings.TrimSpace(c.Query("subscription_tier")),
+		SortBy:           sortBy,
+		SortOrder:        sortOrder,
+	}
+	if h.accountUsageService == nil {
+		response.InternalError(c, "Account profit service is unavailable")
+		return
+	}
+	result, err := h.accountUsageService.ListAccountProfit(c.Request.Context(), params)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, result.Items, result.Total, result.Page, result.PageSize)
+}
+
+// GetProfit returns account revenue, account cost, and the numeric profit
+// difference for natural periods in the configured system timezone.
+// GET /api/v1/admin/accounts/:id/profit
+func (h *AccountHandler) GetProfit(c *gin.Context) {
+	accountID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	if _, err := h.adminService.GetAccount(c.Request.Context(), accountID); err != nil {
+		response.NotFound(c, "Account not found")
+		return
+	}
+
+	page, pageSize := 1, 30
+	if raw := strings.TrimSpace(c.Query("page")); raw != "" {
+		page, err = strconv.Atoi(raw)
+		if err != nil || page < 1 {
+			response.BadRequest(c, "Invalid page")
+			return
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("page_size")); raw != "" {
+		pageSize, err = strconv.Atoi(raw)
+		if err != nil || pageSize < 1 || pageSize > 100 {
+			response.BadRequest(c, "Invalid page_size")
+			return
+		}
+	}
+
+	today := timezone.Today()
+	var from time.Time
+	to := today.AddDate(0, 0, 1)
+	if raw := strings.TrimSpace(c.Query("from")); raw != "" {
+		from, err = timezone.ParseInLocation("2006-01-02", raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid from date")
+			return
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("to")); raw != "" {
+		toDate, parseErr := timezone.ParseInLocation("2006-01-02", raw)
+		if parseErr != nil {
+			response.BadRequest(c, "Invalid to date")
+			return
+		}
+		to = toDate.AddDate(0, 0, 1)
+	}
+	if !from.IsZero() && !from.Before(to) {
+		response.BadRequest(c, "from must be earlier than to")
+		return
+	}
+
+	stats, err := h.accountUsageService.GetAccountProfit(c.Request.Context(), accountID, from, to, page, pageSize)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	response.Success(c, stats)
 }
 

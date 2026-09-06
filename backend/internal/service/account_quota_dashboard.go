@@ -477,6 +477,13 @@ func passiveWeeklyQuotaSnapshot(account *Account, now time.Time) AccountWeeklyQu
 	return AccountWeeklyQuotaSnapshot{}
 }
 
+// PassiveWeeklyQuotaSnapshot returns the persisted upstream seven-day quota
+// projection without contacting any provider. It is shared by read-only
+// account dashboards that need the same freshness and fallback semantics.
+func PassiveWeeklyQuotaSnapshot(account *Account, now time.Time) AccountWeeklyQuotaSnapshot {
+	return passiveWeeklyQuotaSnapshot(account, now)
+}
+
 func normalizedWeeklySnapshot(extra map[string]any, now time.Time) (AccountWeeklyQuotaSnapshot, bool) {
 	raw, ok := extra["passive_weekly_quota"].(map[string]any)
 	if !ok {

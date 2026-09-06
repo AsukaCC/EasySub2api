@@ -267,8 +267,21 @@ func (h *DashboardHandler) GetRealtimeMetrics(c *gin.Context) {
 // GET /api/v1/admin/dashboard/trend
 // Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), user_id, api_key_id, model, account_id, group_id, request_type, stream, billing_type, billing_mode
 func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
+	h.getUsageTrend(c, "")
+}
+
+func (h *DashboardHandler) GetUsageTrendAdmin(c *gin.Context) {
+	h.getUsageTrend(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getUsageTrend(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	// Parse optional filter params
 	var userID, apiKeyID, accountID, groupID string
@@ -342,7 +355,7 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 		return
 	}
 
-	trend, hit, err := h.getUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch)
+	trend, hit, err := h.getUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch, roleScope)
 	if err != nil {
 		response.Error(c, 500, "Failed to get usage trend")
 		return
@@ -361,7 +374,20 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 // GET /api/v1/admin/dashboard/models
 // Query params: start_date, end_date (YYYY-MM-DD), user_id, api_key_id, account_id, group_id, request_type, stream, billing_type, billing_mode
 func (h *DashboardHandler) GetModelStats(c *gin.Context) {
+	h.getModelStats(c, "")
+}
+
+func (h *DashboardHandler) GetModelStatsAdmin(c *gin.Context) {
+	h.getModelStats(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getModelStats(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	// Parse optional filter params
 	var userID, apiKeyID, accountID, groupID string
@@ -439,7 +465,7 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 		return
 	}
 
-	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch)
+	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch, roleScope)
 	if err != nil {
 		response.Error(c, 500, "Failed to get model statistics")
 		return
@@ -457,7 +483,20 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 // GET /api/v1/admin/dashboard/groups
 // Query params: start_date, end_date (YYYY-MM-DD), user_id, api_key_id, account_id, group_id, request_type, stream, billing_type, billing_mode
 func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
+	h.getGroupStats(c, "")
+}
+
+func (h *DashboardHandler) GetGroupStatsAdmin(c *gin.Context) {
+	h.getGroupStats(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getGroupStats(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	var userID, apiKeyID, accountID, groupID string
 	var requestType *int16
@@ -526,7 +565,7 @@ func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 		return
 	}
 
-	stats, hit, err := h.getGroupStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch)
+	stats, hit, err := h.getGroupStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, nativeCompactionV2, billingType, billingMode, upstreamModelMismatch, roleScope)
 	if err != nil {
 		response.Error(c, 500, "Failed to get group statistics")
 		return
@@ -544,15 +583,28 @@ func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 // GET /api/v1/admin/dashboard/api-keys-trend
 // Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), limit (default 5)
 func (h *DashboardHandler) GetAPIKeyUsageTrend(c *gin.Context) {
+	h.getAPIKeyUsageTrend(c, "")
+}
+
+func (h *DashboardHandler) GetAPIKeyUsageTrendAdmin(c *gin.Context) {
+	h.getAPIKeyUsageTrend(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getAPIKeyUsageTrend(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	limitStr := c.DefaultQuery("limit", "5")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
 		limit = 5
 	}
 
-	trend, hit, err := h.getAPIKeyUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit)
+	trend, hit, err := h.getAPIKeyUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit, roleScope)
 	if err != nil {
 		response.Error(c, 500, "Failed to get API key usage trend")
 		return
@@ -571,8 +623,21 @@ func (h *DashboardHandler) GetAPIKeyUsageTrend(c *gin.Context) {
 // GET /api/v1/admin/dashboard/users-trend
 // Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), limit (default 12), metric (tokens/actual_cost)
 func (h *DashboardHandler) GetUserUsageTrend(c *gin.Context) {
+	h.getUserUsageTrend(c, "")
+}
+
+func (h *DashboardHandler) GetUserUsageTrendAdmin(c *gin.Context) {
+	h.getUserUsageTrend(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getUserUsageTrend(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	metric := strings.TrimSpace(c.DefaultQuery("metric", "tokens"))
 	if metric != "actual_cost" {
 		metric = "tokens"
@@ -583,7 +648,7 @@ func (h *DashboardHandler) GetUserUsageTrend(c *gin.Context) {
 		limit = 12
 	}
 
-	trend, hit, err := h.getUserUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit, metric)
+	trend, hit, err := h.getUserUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit, metric, roleScope)
 	if err != nil {
 		response.Error(c, 500, "Failed to get user usage trend")
 		return
@@ -622,17 +687,32 @@ func parseRankingLimit(raw string) int {
 // GetUserSpendingRanking handles getting user spending ranking data.
 // GET /api/v1/admin/dashboard/users-ranking
 func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
+	h.getUserSpendingRanking(c, "")
+}
+
+func (h *DashboardHandler) GetUserSpendingRankingAdmin(c *gin.Context) {
+	h.getUserSpendingRanking(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getUserSpendingRanking(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	limit := parseRankingLimit(c.DefaultQuery("limit", "12"))
 
 	keyRaw, _ := json.Marshal(struct {
 		Start string `json:"start"`
 		End   string `json:"end"`
 		Limit int    `json:"limit"`
+		Scope string `json:"scope"`
 	}{
 		Start: startTime.UTC().Format(time.RFC3339),
 		End:   endTime.UTC().Format(time.RFC3339),
 		Limit: limit,
+		Scope: roleScope,
 	})
 	cacheKey := string(keyRaw)
 	if cached, ok := dashboardUsersRankingCache.Get(cacheKey); ok {
@@ -641,7 +721,7 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 		return
 	}
 
-	ranking, err := h.dashboardService.GetUserSpendingRanking(c.Request.Context(), startTime, endTime, limit)
+	ranking, err := h.dashboardService.GetUserSpendingRankingWithRoleScope(c.Request.Context(), startTime, endTime, limit, roleScope)
 	if err != nil {
 		response.Error(c, 500, "Failed to get user spending ranking")
 		return
@@ -753,8 +833,13 @@ func (h *DashboardHandler) GetBatchAPIKeysUsage(c *gin.Context) {
 // Query params: start_date, end_date, group_id, model, endpoint, endpoint_type, limit
 func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, "")
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
-	dim := usagestats.UserBreakdownDimension{}
+	dim := usagestats.UserBreakdownDimension{UserRoleScope: roleScope}
 	if v := c.Query("group_id"); v != "" {
 		if id, err := parseEntityID(v); err == nil {
 			dim.GroupID = id

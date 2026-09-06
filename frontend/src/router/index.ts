@@ -570,6 +570,28 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/accounts/profit',
+    name: 'AdminAccountProfit',
+    component: () => import('@/views/admin/AccountProfitView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Account Profit',
+      titleKey: 'admin.accounts.profit.pageTitle',
+    }
+  },
+  {
+    path: '/admin/accounts/admin-usage',
+    name: 'AdminAccountAdminUsage',
+    component: () => import('@/views/admin/UsageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Administrator Usage',
+      titleKey: 'nav.adminUsage'
+    }
+  },
+  {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
     component: () => import('@/views/admin/AnnouncementsView.vue'),

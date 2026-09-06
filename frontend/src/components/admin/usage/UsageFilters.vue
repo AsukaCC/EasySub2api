@@ -242,12 +242,15 @@ interface Props {
   mode?: 'usage' | 'errors' | 'ranking'
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
+  /** Base path for role-scoped user and API key lookup endpoints. */
+  apiBasePath?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: true,
   mode: 'usage',
-  flat: false
+  flat: false,
+  apiBasePath: '/admin/usage'
 })
 const emit = defineEmits([
   'update:modelValue',
@@ -371,7 +374,7 @@ const debounceUserSearch = () => {
   userSearchTimeout = setTimeout(async () => {
     userSearchTimeout = null
     try {
-      const results = await adminAPI.usage.searchUsers(query)
+      const results = await adminAPI.usage.searchUsers(query, { basePath: `${props.apiBasePath}/search-users` })
       if (sequence === userSearchSequence) {
         userResults.value = results.sort((a, b) => Number(a.deleted) - Number(b.deleted))
       }
@@ -389,7 +392,8 @@ const debounceApiKeySearch = () => {
     try {
       apiKeyResults.value = await adminAPI.usage.searchApiKeys(
         filters.value.user_id,
-        apiKeyKeyword.value || ''
+        apiKeyKeyword.value || '',
+        { basePath: `${props.apiBasePath}/search-api-keys` }
       )
     } catch {
       apiKeyResults.value = []
@@ -406,7 +410,7 @@ const selectUser = async (u: SimpleUser) => {
 
   // Auto-load API keys for this user
   try {
-    apiKeyResults.value = await adminAPI.usage.searchApiKeys(u.id, '')
+    apiKeyResults.value = await adminAPI.usage.searchApiKeys(u.id, '', { basePath: `${props.apiBasePath}/search-api-keys` })
   } catch {
     apiKeyResults.value = []
   }

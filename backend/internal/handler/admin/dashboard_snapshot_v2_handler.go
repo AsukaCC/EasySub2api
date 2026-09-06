@@ -37,6 +37,7 @@ type dashboardSnapshotV2Response struct {
 }
 
 type dashboardSnapshotV2Filters struct {
+	UserRoleScope         string
 	UserID                string
 	APIKeyID              string
 	AccountID             string
@@ -53,6 +54,7 @@ type dashboardSnapshotV2Filters struct {
 type dashboardSnapshotV2CacheKey struct {
 	StartTime             string `json:"start_time"`
 	EndTime               string `json:"end_time"`
+	UserRoleScope         string `json:"user_role_scope"`
 	Granularity           string `json:"granularity"`
 	UserID                string `json:"user_id"`
 	APIKeyID              string `json:"api_key_id"`
@@ -74,6 +76,14 @@ type dashboardSnapshotV2CacheKey struct {
 }
 
 func (h *DashboardHandler) GetSnapshotV2(c *gin.Context) {
+	h.getSnapshotV2(c, "")
+}
+
+func (h *DashboardHandler) GetSnapshotV2Admin(c *gin.Context) {
+	h.getSnapshotV2(c, usageRoleScopeAdmin)
+}
+
+func (h *DashboardHandler) getSnapshotV2(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := strings.TrimSpace(c.DefaultQuery("granularity", "day"))
 	if granularity != "hour" {
@@ -92,7 +102,7 @@ func (h *DashboardHandler) GetSnapshotV2(c *gin.Context) {
 		}
 	}
 
-	filters, err := parseDashboardSnapshotV2Filters(c)
+	filters, err := parseDashboardSnapshotV2Filters(c, forcedScope)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -101,6 +111,7 @@ func (h *DashboardHandler) GetSnapshotV2(c *gin.Context) {
 	keyRaw, _ := json.Marshal(dashboardSnapshotV2CacheKey{
 		StartTime:             startTime.UTC().Format(time.RFC3339),
 		EndTime:               endTime.UTC().Format(time.RFC3339),
+		UserRoleScope:         filters.UserRoleScope,
 		Granularity:           granularity,
 		UserID:                filters.UserID,
 		APIKeyID:              filters.APIKeyID,
@@ -169,7 +180,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 	}
 
 	if includeStats {
-		stats, err := h.dashboardService.GetDashboardStats(ctx)
+		stats, err := h.dashboardService.GetDashboardStatsWithRoleScope(ctx, filters.UserRoleScope)
 		if err != nil {
 			return nil, errors.New("failed to get dashboard statistics")
 		}
@@ -196,6 +207,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.BillingType,
 			filters.BillingMode,
 			filters.UpstreamModelMismatch,
+			filters.UserRoleScope,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get usage trend")
@@ -219,6 +231,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.BillingType,
 			filters.BillingMode,
 			filters.UpstreamModelMismatch,
+			filters.UserRoleScope,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get model statistics")
@@ -241,6 +254,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.BillingType,
 			filters.BillingMode,
 			filters.UpstreamModelMismatch,
+			filters.UserRoleScope,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get group statistics")
@@ -249,7 +263,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 	}
 
 	if includeUsersTrend {
-		usersTrend, _, err := h.getUserUsageTrendCached(ctx, startTime, endTime, granularity, usersTrendLimit, "tokens")
+		usersTrend, _, err := h.getUserUsageTrendCached(ctx, startTime, endTime, granularity, usersTrendLimit, "tokens", filters.UserRoleScope)
 		if err != nil {
 			return nil, errors.New("failed to get user usage trend")
 		}
@@ -259,9 +273,14 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 	return resp, nil
 }
 
-func parseDashboardSnapshotV2Filters(c *gin.Context) (*dashboardSnapshotV2Filters, error) {
+func parseDashboardSnapshotV2Filters(c *gin.Context, forcedScope string) (*dashboardSnapshotV2Filters, error) {
+	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
+	if err != nil {
+		return nil, err
+	}
 	filters := &dashboardSnapshotV2Filters{
-		Model: strings.TrimSpace(c.Query("model")),
+		UserRoleScope: roleScope,
+		Model:         strings.TrimSpace(c.Query("model")),
 	}
 
 	if userIDStr := strings.TrimSpace(c.Query("user_id")); userIDStr != "" {

@@ -507,34 +507,31 @@ function formatBucketRange(value: string) {
   border-radius: 9999px;
 }
 
-/* Multi-stop green → yellow → red (score10 best … score0 worst) */
+/* Error-rate scale: low error is green, neutral is white, high error is red. */
 .health-score10 { background: #16a34a; }
-.health-score9  { background: #22c55e; }
-.health-score8  { background: #4ade80; }
-.health-score7  { background: #a3e635; }
-.health-score6  { background: #facc15; }
-.health-score5  { background: #fbbf24; }
-.health-score4  { background: #f59e0b; }
-.health-score3  { background: #f97316; }
-.health-score2  { background: #fb7185; }
-.health-score1  { background: #f87171; }
-.health-score0  { background: rgb(239, 67, 67); }
+.health-score9  { background: #3cae59; }
+.health-score8  { background: #63ba6b; }
+.health-score7  { background: #8ac57c; }
+.health-score6  { background: #b8d19a; }
+.health-score5  { background: #f5f5f5; }
+.health-score4  { background: #f3c3c1; }
+.health-score3  { background: #ee9292; }
+.health-score2  { background: #e96d6d; }
+.health-score1  { background: #e34f4f; }
+.health-score0  { background: #dc2626; }
 /* Coarse fallbacks (older payloads without score) */
 .health-healthy  { background: #22c55e; }
-.health-warning  { background: #f59e0b; }
+.health-warning  { background: #f5f5f5; }
 .health-critical { background: #ef4444; }
 .health-unknown  { background: #9ca3af; }
 
 .score-legend {
   background: linear-gradient(
     90deg,
-    rgb(239, 67, 67) 0%,
-    #f87171 15%,
-    #f97316 30%,
-    #f59e0b 45%,
-    #facc15 55%,
-    #a3e635 70%,
-    #22c55e 85%,
+    #dc2626 0%,
+    #e96d6d 20%,
+    #f5f5f5 50%,
+    #63ba6b 80%,
     #16a34a 100%
   );
 }

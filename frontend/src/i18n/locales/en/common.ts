@@ -198,6 +198,8 @@ export default {
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
     accountList: 'Account List',
+    accountProfit: 'Account Profit',
+    adminUsage: 'Administrator Usage',
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',

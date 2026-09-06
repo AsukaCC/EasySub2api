@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
@@ -12,7 +14,11 @@ import (
 )
 
 // getPerformanceStats 获取 RPM 和 TPM（近5分钟平均值，可选按用户过滤）
-func (r *usageLogRepository) getPerformanceStats(ctx context.Context, userID string) (rpm, tpm int64, err error) {
+func (r *usageLogRepository) getPerformanceStats(ctx context.Context, userID string, scopes ...string) (rpm, tpm int64, err error) {
+	userRoleScope := ""
+	if len(scopes) > 0 {
+		userRoleScope = scopes[0]
+	}
 	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 	query := `
 		SELECT
@@ -25,6 +31,7 @@ func (r *usageLogRepository) getPerformanceStats(ctx context.Context, userID str
 		query += " AND user_id = $2"
 		args = append(args, userID)
 	}
+	query, args = appendUsageLogUserRoleScopeQueryFilter(query, args, userRoleScope, "")
 
 	var requestCount int64
 	var tokenCount int64
@@ -86,17 +93,38 @@ func (r *usageLogRepository) GetDashboardStats(ctx context.Context) (*DashboardS
 	if err := r.fillDashboardEntityStats(ctx, stats, todayStart, now); err != nil {
 		return nil, err
 	}
-	if err := r.fillDashboardUsageStatsAggregated(ctx, stats, todayStart, now); err != nil {
+	if err := r.fillDashboardUsageStatsAggregated(ctx, stats, todayStart, now, "regular"); err != nil {
 		return nil, err
 	}
 
-	rpm, tpm, err := r.getPerformanceStats(ctx, "")
+	rpm, tpm, err := r.getPerformanceStats(ctx, "", "regular")
 	if err != nil {
 		return nil, err
 	}
 	stats.Rpm = rpm
 	stats.Tpm = tpm
 
+	return stats, nil
+}
+
+// GetDashboardStatsWithRoleScope reads pre-aggregated metrics for a user-role scope.
+// It is an optional repository capability so older service test doubles remain valid.
+func (r *usageLogRepository) GetDashboardStatsWithRoleScope(ctx context.Context, userRoleScope string) (*DashboardStats, error) {
+	stats := &DashboardStats{}
+	now := timezone.Now()
+	todayStart := timezone.Today()
+	if err := r.fillDashboardEntityStats(ctx, stats, todayStart, now); err != nil {
+		return nil, err
+	}
+	if err := r.fillDashboardUsageStatsAggregated(ctx, stats, todayStart, now, userRoleScope); err != nil {
+		return nil, err
+	}
+	rpm, tpm, err := r.getPerformanceStats(ctx, "", userRoleScope)
+	if err != nil {
+		return nil, err
+	}
+	stats.Rpm = rpm
+	stats.Tpm = tpm
 	return stats, nil
 }
 
@@ -114,11 +142,11 @@ func (r *usageLogRepository) GetDashboardStatsWithRange(ctx context.Context, sta
 	if err := r.fillDashboardEntityStats(ctx, stats, todayStart, now); err != nil {
 		return nil, err
 	}
-	if err := r.fillDashboardUsageStatsFromUsageLogs(ctx, stats, startUTC, endUTC, todayStart, now); err != nil {
+	if err := r.fillDashboardUsageStatsFromUsageLogs(ctx, stats, startUTC, endUTC, todayStart, now, "regular"); err != nil {
 		return nil, err
 	}
 
-	rpm, tpm, err := r.getPerformanceStats(ctx, "")
+	rpm, tpm, err := r.getPerformanceStats(ctx, "", "regular")
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +162,7 @@ func (r *usageLogRepository) fillDashboardEntityStats(ctx context.Context, stats
 			COUNT(*) as total_users,
 			COUNT(CASE WHEN created_at >= $1 THEN 1 END) as today_new_users
 		FROM users
-		WHERE deleted_at IS NULL
+		WHERE deleted_at IS NULL AND role <> 'admin'
 	`
 	if err := scanSingleRow(
 		ctx,
@@ -192,20 +220,58 @@ func (r *usageLogRepository) fillDashboardEntityStats(ctx context.Context, stats
 	return nil
 }
 
-func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Context, stats *DashboardStats, todayUTC, now time.Time) error {
+func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Context, stats *DashboardStats, todayUTC, now time.Time, scopes ...string) error {
+	userRoleScope := "regular"
+	if len(scopes) > 0 && strings.TrimSpace(scopes[0]) != "" {
+		userRoleScope = strings.ToLower(strings.TrimSpace(scopes[0]))
+	}
+	requestExpr := "total_requests - admin_requests"
+	inputExpr := "input_tokens - admin_input_tokens"
+	outputExpr := "output_tokens - admin_output_tokens"
+	cacheCreationExpr := "cache_creation_tokens - admin_cache_creation_tokens"
+	cacheReadExpr := "cache_read_tokens - admin_cache_read_tokens"
+	totalCostExpr := "total_cost - admin_total_cost"
+	actualCostExpr := "actual_cost - admin_actual_cost"
+	accountCostExpr := "account_cost - admin_account_cost"
+	durationExpr := "total_duration_ms - admin_total_duration_ms"
+	activeUsersExpr := "active_users - admin_active_users"
+	if userRoleScope == "admin" {
+		requestExpr = "admin_requests"
+		inputExpr = "admin_input_tokens"
+		outputExpr = "admin_output_tokens"
+		cacheCreationExpr = "admin_cache_creation_tokens"
+		cacheReadExpr = "admin_cache_read_tokens"
+		totalCostExpr = "admin_total_cost"
+		actualCostExpr = "admin_actual_cost"
+		accountCostExpr = "admin_account_cost"
+		durationExpr = "admin_total_duration_ms"
+		activeUsersExpr = "admin_active_users"
+	} else if userRoleScope == "all" {
+		requestExpr = "total_requests"
+		inputExpr = "input_tokens"
+		outputExpr = "output_tokens"
+		cacheCreationExpr = "cache_creation_tokens"
+		cacheReadExpr = "cache_read_tokens"
+		totalCostExpr = "total_cost"
+		actualCostExpr = "actual_cost"
+		accountCostExpr = "account_cost"
+		durationExpr = "total_duration_ms"
+		activeUsersExpr = "active_users"
+	}
 	totalStatsQuery := `
 		SELECT
-			COALESCE(SUM(total_requests), 0) as total_requests,
-			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
-			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
-			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
-			COALESCE(SUM(total_cost), 0) as total_cost,
-			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
-			COALESCE(SUM(account_cost), 0) as total_account_cost,
-			COALESCE(SUM(total_duration_ms), 0) as total_duration_ms
+			COALESCE(SUM(%s), 0) as total_requests,
+			COALESCE(SUM(%s), 0) as total_input_tokens,
+			COALESCE(SUM(%s), 0) as total_output_tokens,
+			COALESCE(SUM(%s), 0) as total_cache_creation_tokens,
+			COALESCE(SUM(%s), 0) as total_cache_read_tokens,
+			COALESCE(SUM(%s), 0) as total_cost,
+			COALESCE(SUM(%s), 0) as total_actual_cost,
+			COALESCE(SUM(%s), 0) as total_account_cost,
+			COALESCE(SUM(%s), 0) as total_duration_ms
 		FROM usage_dashboard_daily
 	`
+	totalStatsQuery = fmt.Sprintf(totalStatsQuery, requestExpr, inputExpr, outputExpr, cacheCreationExpr, cacheReadExpr, totalCostExpr, actualCostExpr, accountCostExpr, durationExpr)
 	var totalDurationMs int64
 	if err := scanSingleRow(
 		ctx,
@@ -231,18 +297,19 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 
 	todayStatsQuery := `
 		SELECT
-			total_requests as today_requests,
-			input_tokens as today_input_tokens,
-			output_tokens as today_output_tokens,
-			cache_creation_tokens as today_cache_creation_tokens,
-			cache_read_tokens as today_cache_read_tokens,
-			total_cost as today_cost,
-			actual_cost as today_actual_cost,
-			account_cost as today_account_cost,
-			active_users as active_users
+			%s as today_requests,
+			%s as today_input_tokens,
+			%s as today_output_tokens,
+			%s as today_cache_creation_tokens,
+			%s as today_cache_read_tokens,
+			%s as today_cost,
+			%s as today_actual_cost,
+			%s as today_account_cost,
+			%s as active_users
 		FROM usage_dashboard_daily
 		WHERE bucket_date = $1::date
 	`
+	todayStatsQuery = fmt.Sprintf(todayStatsQuery, requestExpr, inputExpr, outputExpr, cacheCreationExpr, cacheReadExpr, totalCostExpr, actualCostExpr, accountCostExpr, activeUsersExpr)
 	if err := scanSingleRow(
 		ctx,
 		r.sql,
@@ -264,11 +331,11 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 	}
 	stats.TodayTokens = stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
 
-	hourlyActiveQuery := `
-		SELECT active_users
+	hourlyActiveQuery := fmt.Sprintf(`
+		SELECT %s
 		FROM usage_dashboard_hourly
 		WHERE bucket_start = $1
-	`
+	`, activeUsersExpr)
 	hourStart := now.In(timezone.Location()).Truncate(time.Hour)
 	if err := scanSingleRow(ctx, r.sql, hourlyActiveQuery, []any{hourStart}, &stats.HourlyActiveUsers); err != nil {
 		if err != sql.ErrNoRows {
@@ -279,7 +346,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 	return nil
 }
 
-func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Context, stats *DashboardStats, startUTC, endUTC, todayUTC, now time.Time) error {
+func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Context, stats *DashboardStats, startUTC, endUTC, todayUTC, now time.Time, scopes ...string) error {
 	todayEnd := todayUTC.Add(24 * time.Hour)
 	combinedStatsQuery := `
 		WITH scoped AS (
@@ -296,6 +363,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 			FROM usage_logs
 			WHERE created_at >= LEAST($1::timestamptz, $3::timestamptz)
 				AND created_at < GREATEST($2::timestamptz, $4::timestamptz)
+				AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role <> 'admin')
 		)
 		SELECT
 			COUNT(*) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz) AS total_requests,
@@ -358,6 +426,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 			FROM usage_logs
 			WHERE created_at >= LEAST($1::timestamptz, $3::timestamptz)
 				AND created_at < GREATEST($2::timestamptz, $4::timestamptz)
+				AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role <> 'admin')
 		)
 		SELECT
 			COUNT(DISTINCT CASE WHEN created_at >= $1::timestamptz AND created_at < $2::timestamptz THEN user_id END) AS active_users,

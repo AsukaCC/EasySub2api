@@ -124,6 +124,26 @@ func (s *DashboardService) GetDashboardStats(ctx context.Context) (*usagestats.D
 	return stats, nil
 }
 
+// GetDashboardStatsWithRoleScope reads role-specific usage metrics. The
+// regular dashboard path keeps using the existing cached method; admin/all
+// scopes use the optional repository reader backed by derived aggregates.
+func (s *DashboardService) GetDashboardStatsWithRoleScope(ctx context.Context, userRoleScope string) (*usagestats.DashboardStats, error) {
+	if userRoleScope == "" || userRoleScope == "regular" {
+		return s.GetDashboardStats(ctx)
+	}
+	type scopedFetcher interface {
+		GetDashboardStatsWithRoleScope(context.Context, string) (*usagestats.DashboardStats, error)
+	}
+	if repo, ok := s.usageRepo.(scopedFetcher); ok {
+		stats, err := repo.GetDashboardStatsWithRoleScope(ctx, userRoleScope)
+		if err != nil {
+			return nil, fmt.Errorf("get dashboard stats with role scope: %w", err)
+		}
+		return stats, nil
+	}
+	return s.GetDashboardStats(ctx)
+}
+
 func (s *DashboardService) GetUsageTrendWithFilters(ctx context.Context, startTime, endTime time.Time, granularity string, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8) ([]usagestats.TrendDataPoint, error) {
 	trend, err := s.usageRepo.GetUsageTrendWithFilters(ctx, startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, billingType)
 	if err != nil {
@@ -392,6 +412,20 @@ func (s *DashboardService) GetAPIKeyUsageTrend(ctx context.Context, startTime, e
 	return trend, nil
 }
 
+func (s *DashboardService) GetAPIKeyUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, userRoleScope string) ([]usagestats.APIKeyUsageTrendPoint, error) {
+	type scopedReader interface {
+		GetAPIKeyUsageTrendWithRoleScope(context.Context, time.Time, time.Time, string, int, string) ([]usagestats.APIKeyUsageTrendPoint, error)
+	}
+	if repo, ok := s.usageRepo.(scopedReader); ok {
+		trend, err := repo.GetAPIKeyUsageTrendWithRoleScope(ctx, startTime, endTime, granularity, limit, userRoleScope)
+		if err != nil {
+			return nil, fmt.Errorf("get api key usage trend with role scope: %w", err)
+		}
+		return trend, nil
+	}
+	return s.GetAPIKeyUsageTrend(ctx, startTime, endTime, granularity, limit)
+}
+
 func (s *DashboardService) GetUserUsageTrend(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric string) ([]usagestats.UserUsageTrendPoint, error) {
 	trend, err := s.usageRepo.GetUserUsageTrend(ctx, startTime, endTime, granularity, limit, metric)
 	if err != nil {
@@ -400,12 +434,40 @@ func (s *DashboardService) GetUserUsageTrend(ctx context.Context, startTime, end
 	return trend, nil
 }
 
+func (s *DashboardService) GetUserUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric, userRoleScope string) ([]usagestats.UserUsageTrendPoint, error) {
+	type scopedReader interface {
+		GetUserUsageTrendWithRoleScope(context.Context, time.Time, time.Time, string, int, string, string) ([]usagestats.UserUsageTrendPoint, error)
+	}
+	if repo, ok := s.usageRepo.(scopedReader); ok {
+		trend, err := repo.GetUserUsageTrendWithRoleScope(ctx, startTime, endTime, granularity, limit, metric, userRoleScope)
+		if err != nil {
+			return nil, fmt.Errorf("get user usage trend with role scope: %w", err)
+		}
+		return trend, nil
+	}
+	return s.GetUserUsageTrend(ctx, startTime, endTime, granularity, limit, metric)
+}
+
 func (s *DashboardService) GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.UserSpendingRankingResponse, error) {
 	ranking, err := s.usageRepo.GetUserSpendingRanking(ctx, startTime, endTime, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get user spending ranking: %w", err)
 	}
 	return ranking, nil
+}
+
+func (s *DashboardService) GetUserSpendingRankingWithRoleScope(ctx context.Context, startTime, endTime time.Time, limit int, userRoleScope string) (*usagestats.UserSpendingRankingResponse, error) {
+	type scopedReader interface {
+		GetUserSpendingRankingWithRoleScope(context.Context, time.Time, time.Time, int, string) (*usagestats.UserSpendingRankingResponse, error)
+	}
+	if repo, ok := s.usageRepo.(scopedReader); ok {
+		ranking, err := repo.GetUserSpendingRankingWithRoleScope(ctx, startTime, endTime, limit, userRoleScope)
+		if err != nil {
+			return nil, fmt.Errorf("get user spending ranking with role scope: %w", err)
+		}
+		return ranking, nil
+	}
+	return s.GetUserSpendingRanking(ctx, startTime, endTime, limit)
 }
 
 func (s *DashboardService) GetUserBreakdownStats(ctx context.Context, startTime, endTime time.Time, dim usagestats.UserBreakdownDimension, limit int) ([]usagestats.UserBreakdownItem, error) {

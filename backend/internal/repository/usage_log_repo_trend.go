@@ -28,13 +28,29 @@ type APIKeyUsageTrendPoint = usagestats.APIKeyUsageTrendPoint
 
 // GetAPIKeyUsageTrend returns usage trend data grouped by API key and date
 func (r *usageLogRepository) GetAPIKeyUsageTrend(ctx context.Context, startTime, endTime time.Time, granularity string, limit int) (results []APIKeyUsageTrendPoint, err error) {
+	return r.getAPIKeyUsageTrendWithRoleScope(ctx, startTime, endTime, granularity, limit, "")
+}
+
+// GetAPIKeyUsageTrendWithRoleScope returns API key trends scoped by user role.
+// This optional repository method keeps the public usage repository contract backwards compatible.
+func (r *usageLogRepository) GetAPIKeyUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, userRoleScope string) (results []APIKeyUsageTrendPoint, err error) {
+	return r.getAPIKeyUsageTrendWithRoleScope(ctx, startTime, endTime, granularity, limit, userRoleScope)
+}
+
+func (r *usageLogRepository) getAPIKeyUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, userRoleScope string) (results []APIKeyUsageTrendPoint, err error) {
 	dateFormat := safeDateFormat(granularity)
 
+	roleCondition := ""
+	if strings.EqualFold(strings.TrimSpace(userRoleScope), "admin") {
+		roleCondition = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role = 'admin')"
+	} else if strings.EqualFold(strings.TrimSpace(userRoleScope), "regular") {
+		roleCondition = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role <> 'admin')"
+	}
 	query := fmt.Sprintf(`
 		WITH top_keys AS (
 			SELECT api_key_id
 			FROM usage_logs
-			WHERE created_at >= $1 AND created_at < $2
+			WHERE created_at >= $1 AND created_at < $2%s
 			GROUP BY api_key_id
 			ORDER BY SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens) DESC
 			LIMIT $3
@@ -48,10 +64,10 @@ func (r *usageLogRepository) GetAPIKeyUsageTrend(ctx context.Context, startTime,
 		FROM usage_logs u
 		LEFT JOIN api_keys k ON u.api_key_id = k.id
 		WHERE u.api_key_id IN (SELECT api_key_id FROM top_keys)
-		  AND u.created_at >= $4 AND u.created_at < $5
+		  AND u.created_at >= $4 AND u.created_at < $5%s
 		GROUP BY date, u.api_key_id, k.name
 		ORDER BY date ASC, tokens DESC
-	`, dateFormat)
+	`, roleCondition, dateFormat, strings.ReplaceAll(roleCondition, "usage_logs.user_id", "u.user_id"))
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, startTime, endTime)
 	if err != nil {
@@ -83,6 +99,15 @@ func (r *usageLogRepository) GetAPIKeyUsageTrend(ctx context.Context, startTime,
 
 // GetUserUsageTrend returns usage trend data grouped by user and date
 func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric string) (results []UserUsageTrendPoint, err error) {
+	return r.getUserUsageTrendWithRoleScope(ctx, startTime, endTime, granularity, limit, metric, "")
+}
+
+// GetUserUsageTrendWithRoleScope returns user trends scoped by user role.
+func (r *usageLogRepository) GetUserUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric, userRoleScope string) (results []UserUsageTrendPoint, err error) {
+	return r.getUserUsageTrendWithRoleScope(ctx, startTime, endTime, granularity, limit, metric, userRoleScope)
+}
+
+func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric, userRoleScope string) (results []UserUsageTrendPoint, err error) {
 	dateFormat := safeDateFormat(granularity)
 	rankingExpression := `SUM(
 				COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) +
@@ -102,12 +127,21 @@ func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, e
 		bucketUnit = "hour"
 		bucketStep = "1 hour"
 	}
+	roleConditionTop := ""
+	roleConditionDetail := ""
+	if strings.EqualFold(strings.TrimSpace(userRoleScope), "admin") {
+		roleConditionTop = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role = 'admin')"
+		roleConditionDetail = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = u.user_id AND usage_scope_user.role = 'admin')"
+	} else if strings.EqualFold(strings.TrimSpace(userRoleScope), "regular") {
+		roleConditionTop = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role <> 'admin')"
+		roleConditionDetail = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = u.user_id AND usage_scope_user.role <> 'admin')"
+	}
 
 	query := fmt.Sprintf(`
 		WITH top_users AS (
 			SELECT user_id, %s AS ranking_value
 			FROM usage_logs
-			WHERE created_at >= $1 AND created_at < $2
+			WHERE created_at >= $1 AND created_at < $2%s
 			  AND user_id IS NOT NULL
 			GROUP BY user_id
 			ORDER BY ranking_value DESC, user_id ASC
@@ -134,7 +168,7 @@ func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, e
 				COALESCE(SUM(u.actual_cost), 0) AS actual_cost
 			FROM usage_logs u
 			WHERE u.user_id IN (SELECT user_id FROM top_users)
-			  AND u.created_at >= $1 AND u.created_at < $2
+			  AND u.created_at >= $1 AND u.created_at < $2%s
 			GROUP BY bucket, u.user_id
 		)
 		SELECT
@@ -151,7 +185,7 @@ func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, e
 		LEFT JOIN usage_by_bucket ub ON ub.user_id = tu.user_id AND ub.bucket = b.bucket
 		LEFT JOIN users us ON tu.user_id = us.id
 		ORDER BY b.bucket ASC, tu.ranking_value DESC, tu.user_id ASC
-	`, rankingExpression, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat)
+	`, rankingExpression, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat, roleConditionDetail)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, timezoneName)
 	if err != nil {
@@ -183,6 +217,15 @@ func (r *usageLogRepository) GetUserUsageTrend(ctx context.Context, startTime, e
 
 // GetUserSpendingRanking returns user spending ranking aggregated within the time range.
 func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (result *UserSpendingRankingResponse, err error) {
+	return r.getUserSpendingRankingWithRoleScope(ctx, startTime, endTime, limit, "")
+}
+
+// GetUserSpendingRankingWithRoleScope returns the user spending ranking for a role scope.
+func (r *usageLogRepository) GetUserSpendingRankingWithRoleScope(ctx context.Context, startTime, endTime time.Time, limit int, userRoleScope string) (result *UserSpendingRankingResponse, err error) {
+	return r.getUserSpendingRankingWithRoleScope(ctx, startTime, endTime, limit, userRoleScope)
+}
+
+func (r *usageLogRepository) getUserSpendingRankingWithRoleScope(ctx context.Context, startTime, endTime time.Time, limit int, userRoleScope string) (result *UserSpendingRankingResponse, err error) {
 	if limit <= 0 {
 		limit = 12
 	}
@@ -229,6 +272,14 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		FROM ranked
 		ORDER BY actual_cost DESC, tokens DESC, user_id ASC
 	`
+	roleCondition := ""
+	if strings.EqualFold(strings.TrimSpace(userRoleScope), "admin") {
+		roleCondition = " AND us.role = 'admin'"
+	} else if strings.EqualFold(strings.TrimSpace(userRoleScope), "regular") {
+		roleCondition = " AND us.role <> 'admin'"
+	}
+	query = strings.Replace(query, "LEFT JOIN users us ON u.user_id = us.id\n\t\t\tWHERE", "LEFT JOIN users us ON u.user_id = us.id\n\t\t\tWHERE", 1)
+	query = strings.Replace(query, "WHERE u.created_at >= $1 AND u.created_at < $2\n\t\t\tGROUP BY", "WHERE u.created_at >= $1 AND u.created_at < $2"+roleCondition+"\n\t\t\tGROUP BY", 1)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
 	if err != nil {
@@ -307,20 +358,24 @@ func (r *usageLogRepository) GetUserUsageTrendByUserID(ctx context.Context, user
 
 // GetUserModelStats 获取指定用户的模型统计
 func (r *usageLogRepository) GetUserModelStats(ctx context.Context, userID string, startTime, endTime time.Time) (results []ModelStat, err error) {
-	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, "", "", "", "", nil, nil, nil, usagestats.ModelSourceRequested, "", nil, nil)
+	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, "", "", "", "", nil, nil, nil, usagestats.ModelSourceRequested, "", nil, nil, "")
 }
 
 // GetUsageTrendWithFilters returns usage trend data with optional filters
 func (r *usageLogRepository) GetUsageTrendWithFilters(ctx context.Context, startTime, endTime time.Time, granularity string, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8) (results []TrendDataPoint, err error) {
-	return r.getUsageTrendWithFilters(ctx, startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, "", requestType, stream, billingType, "", nil, nil)
+	return r.getUsageTrendWithFilters(ctx, startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, "", requestType, stream, billingType, "", nil, nil, "")
 }
 
 func (r *usageLogRepository) GetUsageTrendWithUsageFilters(ctx context.Context, startTime, endTime time.Time, granularity string, filters UsageLogFilters) (results []TrendDataPoint, err error) {
-	return r.getUsageTrendWithFilters(ctx, startTime, endTime, granularity, filters.UserID, filters.APIKeyID, filters.AccountID, filters.GroupID, filters.Model, filters.ModelFilterSource, filters.RequestType, filters.Stream, filters.BillingType, filters.BillingMode, filters.UpstreamModelMismatch, filters.NativeCompactionV2)
+	return r.getUsageTrendWithFilters(ctx, startTime, endTime, granularity, filters.UserID, filters.APIKeyID, filters.AccountID, filters.GroupID, filters.Model, filters.ModelFilterSource, filters.RequestType, filters.Stream, filters.BillingType, filters.BillingMode, filters.UpstreamModelMismatch, filters.NativeCompactionV2, filters.UserRoleScope)
 }
 
-func (r *usageLogRepository) getUsageTrendWithFilters(ctx context.Context, startTime, endTime time.Time, granularity string, userID, apiKeyID, accountID, groupID string, model string, modelSource string, requestType *int16, stream *bool, billingType *int8, billingMode string, upstreamModelMismatch *bool, nativeCompactionV2 *bool) (results []TrendDataPoint, err error) {
-	if shouldUsePreaggregatedTrend(granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, billingType, billingMode, upstreamModelMismatch, nativeCompactionV2) {
+func (r *usageLogRepository) getUsageTrendWithFilters(ctx context.Context, startTime, endTime time.Time, granularity string, userID, apiKeyID, accountID, groupID string, model string, modelSource string, requestType *int16, stream *bool, billingType *int8, billingMode string, upstreamModelMismatch *bool, nativeCompactionV2 *bool, scopes ...string) (results []TrendDataPoint, err error) {
+	userRoleScope := ""
+	if len(scopes) > 0 {
+		userRoleScope = scopes[0]
+	}
+	if shouldUsePreaggregatedTrend(granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, billingType, billingMode, upstreamModelMismatch, nativeCompactionV2) && strings.TrimSpace(userRoleScope) == "" {
 		aggregated, aggregatedErr := r.getUsageTrendFromAggregates(ctx, startTime, endTime, granularity)
 		if aggregatedErr == nil && len(aggregated) > 0 {
 			return aggregated, nil
@@ -361,6 +416,7 @@ func (r *usageLogRepository) getUsageTrendWithFilters(ctx context.Context, start
 		query += fmt.Sprintf(" AND group_id = $%d", len(args)+1)
 		args = append(args, groupID)
 	}
+	query, args = appendUsageLogUserRoleScopeQueryFilter(query, args, userRoleScope, "")
 	query, args = appendUsageLogModelQueryFilter(query, args, model, modelSource)
 	query, args = appendRequestTypeOrStreamQueryFilter(query, args, requestType, stream)
 	query, args = appendNativeCompactionV2QueryFilter(query, args, nativeCompactionV2, "")
@@ -473,20 +529,24 @@ func (r *usageLogRepository) getUsageTrendFromAggregates(ctx context.Context, st
 
 // GetModelStatsWithFilters returns model statistics with optional filters
 func (r *usageLogRepository) GetModelStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, requestType *int16, stream *bool, billingType *int8) (results []ModelStat, err error) {
-	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, "", requestType, stream, billingType, usagestats.ModelSourceRequested, "", nil, nil)
+	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, "", requestType, stream, billingType, usagestats.ModelSourceRequested, "", nil, nil, "")
 }
 
 // GetModelStatsWithFiltersBySource returns model statistics with optional filters and model source dimension.
 // source: requested | upstream | mapping.
 func (r *usageLogRepository) GetModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, requestType *int16, stream *bool, billingType *int8, source string) (results []ModelStat, err error) {
-	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, "", requestType, stream, billingType, source, "", nil, nil)
+	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, "", requestType, stream, billingType, source, "", nil, nil, "")
 }
 
 func (r *usageLogRepository) GetModelStatsWithUsageFiltersBySource(ctx context.Context, startTime, endTime time.Time, filters UsageLogFilters, source string) (results []ModelStat, err error) {
-	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, filters.UserID, filters.APIKeyID, filters.AccountID, filters.GroupID, filters.Model, filters.RequestType, filters.Stream, filters.BillingType, source, filters.BillingMode, filters.UpstreamModelMismatch, filters.NativeCompactionV2)
+	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, filters.UserID, filters.APIKeyID, filters.AccountID, filters.GroupID, filters.Model, filters.RequestType, filters.Stream, filters.BillingType, source, filters.BillingMode, filters.UpstreamModelMismatch, filters.NativeCompactionV2, filters.UserRoleScope)
 }
 
-func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8, source string, billingMode string, upstreamModelMismatch *bool, nativeCompactionV2 *bool) (results []ModelStat, err error) {
+func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8, source string, billingMode string, upstreamModelMismatch *bool, nativeCompactionV2 *bool, scopes ...string) (results []ModelStat, err error) {
+	userRoleScope := ""
+	if len(scopes) > 0 {
+		userRoleScope = scopes[0]
+	}
 	actualCostExpr := "COALESCE(SUM(actual_cost), 0) as actual_cost"
 	accountCostExpr := "COALESCE(SUM(COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1)), 0) as account_cost"
 	modelExpr := resolveModelDimensionExpression(source)
@@ -524,6 +584,7 @@ func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Contex
 		query += fmt.Sprintf(" AND group_id = $%d", len(args)+1)
 		args = append(args, groupID)
 	}
+	query, args = appendUsageLogUserRoleScopeQueryFilter(query, args, userRoleScope, "")
 	if strings.TrimSpace(model) != "" {
 		query += fmt.Sprintf(" AND %s = $%d", modelExpr, len(args)+1)
 		args = append(args, model)
@@ -562,14 +623,18 @@ func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Contex
 
 // GetGroupStatsWithFilters returns group usage statistics with optional filters
 func (r *usageLogRepository) GetGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, requestType *int16, stream *bool, billingType *int8) (results []usagestats.GroupStat, err error) {
-	return r.getGroupStatsWithFilters(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, "", requestType, stream, billingType, "", nil, nil)
+	return r.getGroupStatsWithFilters(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, "", requestType, stream, billingType, "", nil, nil, "")
 }
 
 func (r *usageLogRepository) GetGroupStatsWithUsageFilters(ctx context.Context, startTime, endTime time.Time, filters UsageLogFilters) (results []usagestats.GroupStat, err error) {
-	return r.getGroupStatsWithFilters(ctx, startTime, endTime, filters.UserID, filters.APIKeyID, filters.AccountID, filters.GroupID, filters.Model, filters.RequestType, filters.Stream, filters.BillingType, filters.BillingMode, filters.UpstreamModelMismatch, filters.NativeCompactionV2)
+	return r.getGroupStatsWithFilters(ctx, startTime, endTime, filters.UserID, filters.APIKeyID, filters.AccountID, filters.GroupID, filters.Model, filters.RequestType, filters.Stream, filters.BillingType, filters.BillingMode, filters.UpstreamModelMismatch, filters.NativeCompactionV2, filters.UserRoleScope)
 }
 
-func (r *usageLogRepository) getGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8, billingMode string, upstreamModelMismatch *bool, nativeCompactionV2 *bool) (results []usagestats.GroupStat, err error) {
+func (r *usageLogRepository) getGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8, billingMode string, upstreamModelMismatch *bool, nativeCompactionV2 *bool, scopes ...string) (results []usagestats.GroupStat, err error) {
+	userRoleScope := ""
+	if len(scopes) > 0 {
+		userRoleScope = scopes[0]
+	}
 	query := `
 		SELECT
 			COALESCE(ul.group_id::text, '') as group_id,
@@ -601,6 +666,7 @@ func (r *usageLogRepository) getGroupStatsWithFilters(ctx context.Context, start
 		query += fmt.Sprintf(" AND ul.group_id = $%d", len(args)+1)
 		args = append(args, groupID)
 	}
+	query, args = appendUsageLogUserRoleScopeQueryFilter(query, args, userRoleScope, "ul")
 	if strings.TrimSpace(model) != "" {
 		modelExpr := resolveModelDimensionExpressionWithAlias(usagestats.ModelSourceRequested, "ul")
 		query += fmt.Sprintf(" AND %s = $%d", modelExpr, len(args)+1)
@@ -696,6 +762,7 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 		query += fmt.Sprintf(" AND ul.account_id = $%d", len(args)+1)
 		args = append(args, dim.AccountID)
 	}
+	query, args = appendUsageLogUserRoleScopeQueryFilter(query, args, dim.UserRoleScope, "ul")
 	if dim.RequestType != nil {
 		condition, conditionArgs := buildRequestTypeFilterConditionWithAlias(len(args)+1, *dim.RequestType, "ul")
 		query += " AND " + condition

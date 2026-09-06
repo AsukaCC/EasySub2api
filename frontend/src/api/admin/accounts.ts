@@ -13,6 +13,8 @@ import type {
   WindowStats,
   ClaudeModel,
   AccountUsageStatsResponse,
+  AccountProfitResponse,
+  AccountProfitListResponse,
   TempUnschedulableStatus,
   AdminDataPayload,
   AdminDataImportResult,
@@ -54,6 +56,33 @@ export async function list(
   }
 ): Promise<PaginatedResponse<Account>> {
   const { data } = await apiClient.get<PaginatedResponse<Account>>('/admin/accounts', {
+    params: {
+      page,
+      page_size: pageSize,
+      ...filters
+    },
+    signal: options?.signal
+  })
+  return data
+}
+
+export interface AccountProfitListFilters {
+  platform?: string
+  status?: string
+  expiry_status?: string
+  subscription_tier?: string
+  search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
+}
+
+export async function listProfit(
+  page: number = 1,
+  pageSize: number = 20,
+  filters?: AccountProfitListFilters,
+  options?: { signal?: AbortSignal }
+): Promise<AccountProfitListResponse> {
+  const { data } = await apiClient.get<AccountProfitListResponse>('/admin/accounts/profit', {
     params: {
       page,
       page_size: pageSize,
@@ -295,6 +324,14 @@ export async function getStats(id: string, days: number = 30): Promise<AccountUs
   const { data } = await apiClient.get<AccountUsageStatsResponse>(`/admin/accounts/${id}/stats`, {
     params: { days }
   })
+  return data
+}
+
+export async function getProfit(
+  id: string,
+  params?: { from?: string; to?: string; page?: number; page_size?: number }
+): Promise<AccountProfitResponse> {
+  const { data } = await apiClient.get<AccountProfitResponse>(`/admin/accounts/${id}/profit`, { params })
   return data
 }
 
@@ -1022,6 +1059,7 @@ export async function batchRefreshGeminiTier(accountIds: string[] = []): Promise
 
 export const accountsAPI = {
   list,
+  listProfit,
   listWithEtag,
   listSubscriptionTiers,
   getById,
@@ -1034,6 +1072,7 @@ export const accountsAPI = {
   refreshCredentials,
   applyOAuthCredentials,
   getStats,
+  getProfit,
   clearError,
   getUsage,
   getBatchUsage,

@@ -83,7 +83,7 @@
           </button>
         </div>
 
-        <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="views-admin-usage-view__usage-filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
+        <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="views-admin-usage-view__usage-filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" :api-base-path="usageApiBasePath" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
             <div v-if="activeTab !== 'ranking'" class="views-admin-usage-view__panel-10 filter-toolbar" ref="columnDropdownRef">
               <button
@@ -212,6 +212,9 @@ type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
+const isAdminUsagePage = computed(() => route.path === '/admin/accounts/admin-usage')
+const adminUsageRoleScope = computed(() => isAdminUsagePage.value ? 'admin' as const : 'regular' as const)
+const usageApiBasePath = computed(() => isAdminUsagePage.value ? '/admin/accounts/admin-usage' : '/admin/usage')
 const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(true); const exporting = ref(false)
 const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
@@ -248,6 +251,7 @@ const breakdownFilters = computed(() => {
   if (filters.value.native_compaction_v2 != null) f.native_compaction_v2 = filters.value.native_compaction_v2
   if (filters.value.billing_type != null) f.billing_type = filters.value.billing_type
   if (filters.value.billing_mode) f.billing_mode = filters.value.billing_mode
+  f.scope = adminUsageRoleScope.value
   return f
 })
 
@@ -375,6 +379,7 @@ const buildUsageListParams = (
     page_size: pageSize,
     exact_total: exactTotal,
     ...filters.value,
+    scope: adminUsageRoleScope.value,
     stream: legacyStream === null ? undefined : legacyStream,
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order
@@ -386,7 +391,7 @@ const loadLogs = async () => {
   try {
     const res = await adminAPI.usage.list(
       buildUsageListParams(pagination.page, pagination.page_size, false),
-      { signal: c.signal }
+      { signal: c.signal, basePath: usageApiBasePath.value }
     )
     if(!c.signal.aborted) { usageLogs.value = res.items; pagination.total = res.total }
   } catch (error: any) { if(error?.name !== 'AbortError') console.error('Failed to load usage logs:', error) } finally { if(abortController === c) loading.value = false }
@@ -400,6 +405,8 @@ const loadStats = async (force = false) => {
     const s = await adminAPI.usage.getStats({
       ...filters.value,
       stream: legacyStream === null ? undefined : legacyStream,
+      scope: adminUsageRoleScope.value,
+      base_path: `${usageApiBasePath.value}/stats`,
       ...(force ? { nocache: 1 } : {}),
     })
     if (seq !== statsReqSeq) return
@@ -449,6 +456,7 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
       billing_type: filters.value.billing_type,
       billing_mode: filters.value.billing_mode,
       upstream_model_mismatch: filters.value.upstream_model_mismatch,
+      scope: adminUsageRoleScope.value,
     }
 
     const response = await adminAPI.dashboard.getModelStats({ ...baseParams, model_source: source })
@@ -501,6 +509,7 @@ const loadChartData = async () => {
       billing_type: filters.value.billing_type,
       billing_mode: filters.value.billing_mode,
       upstream_model_mismatch: filters.value.upstream_model_mismatch,
+      scope: adminUsageRoleScope.value,
       include_stats: false,
       include_trend: true,
       include_model_stats: false,
@@ -590,7 +599,7 @@ const exportToExcel = async () => {
     while (true) {
       const res = await adminUsageAPI.list(
         buildUsageListParams(p, 100, true),
-        { signal: c.signal }
+        { signal: c.signal, basePath: usageApiBasePath.value }
       )
       if (c.signal.aborted) break; if (p === 1) { total = res.total; exportProgress.total = total }
       const rows = (res.items || []).map((log: AdminUsageLog) => [
@@ -777,7 +786,7 @@ const detailTabs = computed(() => [
   { key: 'usage' as const, label: t('usage.tabs.usage'), icon: 'document' as const },
   { key: 'errors' as const, label: t('usage.tabs.errors'), icon: 'exclamationTriangle' as const },
   { key: 'ranking' as const, label: t('usage.tabs.ranking'), icon: 'chart' as const },
-])
+].filter((tab) => !isAdminUsagePage.value || tab.key !== 'errors'))
 const usageFiltersRef = ref<InstanceType<typeof UsageFilters> | null>(null)
 const rankingMounted = ref(false)
 const rankingRef = ref<InstanceType<typeof UserTokenRanking> | null>(null)

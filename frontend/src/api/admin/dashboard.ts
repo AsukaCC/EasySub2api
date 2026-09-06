@@ -16,6 +16,8 @@ import type {
   UsageRequestType
 } from '@/types'
 
+export type DashboardUsageRoleScope = 'all' | 'regular' | 'admin'
+
 /**
  * Get dashboard statistics
  * @returns Dashboard statistics including users, keys, accounts, and token usage
@@ -120,6 +122,7 @@ export async function getRealtimeMetrics(): Promise<DashboardRealtimeMetrics> {
 }
 
 export interface TrendParams {
+	scope?: DashboardUsageRoleScope
   start_date?: string
   end_date?: string
   timezone?: string
@@ -155,6 +158,7 @@ export async function getUsageTrend(params?: TrendParams): Promise<TrendResponse
 }
 
 export interface ModelStatsParams {
+	scope?: DashboardUsageRoleScope
   start_date?: string
   end_date?: string
   user_id?: string
@@ -188,6 +192,7 @@ export async function getModelStats(params?: ModelStatsParams): Promise<ModelSta
 }
 
 export interface GroupStatsParams {
+	scope?: DashboardUsageRoleScope
   start_date?: string
   end_date?: string
   user_id?: string
@@ -244,6 +249,7 @@ export async function getGroupStats(params?: GroupStatsParams): Promise<GroupSta
 }
 
 export interface UserBreakdownParams {
+	scope?: DashboardUsageRoleScope
   start_date?: string
   end_date?: string
   group_id?: string
@@ -328,6 +334,7 @@ export interface UserTrendResponse {
 
 export interface UserSpendingRankingParams
   extends Pick<TrendParams, 'start_date' | 'end_date' | 'timezone'> {
+	scope?: DashboardUsageRoleScope
   limit?: number
 }
 

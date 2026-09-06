@@ -181,11 +181,12 @@ type UserBreakdownItem struct {
 
 // UserBreakdownDimension specifies the dimension to filter for user breakdown.
 type UserBreakdownDimension struct {
-	GroupID      string // filter by group_id (non-empty to enable)
-	Model        string // filter by model name (non-empty to enable)
-	ModelType    string // "requested", "upstream", or "mapping"
-	Endpoint     string // filter by endpoint value (non-empty to enable)
-	EndpointType string // "inbound", "upstream", or "path"
+	GroupID       string // filter by group_id (non-empty to enable)
+	Model         string // filter by model name (non-empty to enable)
+	ModelType     string // "requested", "upstream", or "mapping"
+	Endpoint      string // filter by endpoint value (non-empty to enable)
+	EndpointType  string // "inbound", "upstream", or "path"
+	UserRoleScope string // "admin", "regular", or empty for all users
 	// Additional filter conditions
 	UserID             string // filter by user_id (non-empty to enable)
 	APIKeyID           string // filter by api_key_id (non-empty to enable)
@@ -279,8 +280,11 @@ type UsageLogFilters struct {
 	APIKeyID  string
 	AccountID string
 	GroupID   string
-	RequestID string
-	Model     string
+	// UserRoleScope controls whether usage is attributed to administrators,
+	// regular users, or all users. Empty preserves all-user behavior.
+	UserRoleScope string
+	RequestID     string
+	Model         string
 	// ModelFilterSource controls how Model is matched. Empty preserves raw usage_logs.model semantics.
 	ModelFilterSource     string
 	RequestType           *int16
@@ -394,4 +398,80 @@ type AccountUsageStatsResponse struct {
 	Models            []ModelStat           `json:"models"`
 	Endpoints         []EndpointStat        `json:"endpoints"`
 	UpstreamEndpoints []EndpointStat        `json:"upstream_endpoints"`
+}
+
+// AccountProfitPeriod combines platform revenue with the existing account
+// cost calculation. Profit is the numeric 1:1 difference used by billing.
+type AccountProfitPeriod struct {
+	RevenuePoints float64 `json:"revenue_points"`
+	CostUSD       float64 `json:"cost_usd"`
+	ProfitPoints  float64 `json:"profit_points"`
+	Requests      int64   `json:"requests"`
+	Tokens        int64   `json:"tokens"`
+}
+
+type AccountTodayProfit = AccountProfitPeriod
+
+type AccountProfitDailyRecord struct {
+	Date  string `json:"date"`
+	Label string `json:"label"`
+	AccountProfitPeriod
+}
+
+type AccountProfitResponse struct {
+	Today     AccountProfitPeriod        `json:"today"`
+	Week      AccountProfitPeriod        `json:"week"`
+	Month     AccountProfitPeriod        `json:"month"`
+	Period7d  AccountProfitPeriod        `json:"period_7d"`
+	Expiry30d *AccountProfitPeriod       `json:"expiry_30d,omitempty"`
+	Lifetime  AccountProfitPeriod        `json:"lifetime"`
+	History   []AccountProfitDailyRecord `json:"history"`
+	Total     int64                      `json:"total"`
+	Page      int                        `json:"page"`
+	PageSize  int                        `json:"page_size"`
+	HasMore   bool                       `json:"has_more"`
+}
+
+// AccountProfitListParams contains filters and ordering for the dedicated
+// admin account-profit list.
+type AccountProfitListParams struct {
+	Page             int
+	PageSize         int
+	Search           string
+	Platform         string
+	Status           string
+	ExpiryStatus     string
+	SubscriptionTier string
+	SortBy           string
+	SortOrder        string
+}
+
+type AccountProfitQuota7d struct {
+	Known            bool       `json:"known"`
+	UsedPercent      float64    `json:"used_percent"`
+	RemainingPercent float64    `json:"remaining_percent"`
+	ResetAt          *time.Time `json:"reset_at,omitempty"`
+	ObservedAt       *time.Time `json:"observed_at,omitempty"`
+	Source           string     `json:"source,omitempty"`
+}
+
+type AccountProfitListItem struct {
+	ID               string               `json:"id"`
+	Name             string               `json:"name"`
+	Platform         string               `json:"platform"`
+	SubscriptionTier string               `json:"subscription_tier"`
+	Status           string               `json:"status"`
+	CreatedAt        time.Time            `json:"created_at"`
+	ExpiresAt        *int64               `json:"expires_at,omitempty"`
+	Quota7d          AccountProfitQuota7d `json:"quota_7d"`
+	Period7d         AccountProfitPeriod  `json:"period_7d"`
+	Expiry30d        *AccountProfitPeriod `json:"expiry_30d,omitempty"`
+	Lifetime         AccountProfitPeriod  `json:"lifetime"`
+}
+
+type AccountProfitListResponse struct {
+	Items    []AccountProfitListItem `json:"items"`
+	Total    int64                   `json:"total"`
+	Page     int                     `json:"page"`
+	PageSize int                     `json:"page_size"`
 }

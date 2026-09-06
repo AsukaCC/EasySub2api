@@ -13,6 +13,7 @@ var usageStatsCache = newSnapshotCache(30 * time.Second)
 type usageStatsCacheKeyData struct {
 	StartTime             string `json:"start_time"`
 	EndTime               string `json:"end_time"`
+	UserRoleScope         string `json:"user_role_scope"`
 	UserID                string `json:"user_id"`
 	APIKeyID              string `json:"api_key_id"`
 	AccountID             string `json:"account_id"`
@@ -38,6 +39,7 @@ func usageStatsCacheKey(filters usagestats.UsageLogFilters) string {
 	return mustMarshalDashboardCacheKey(usageStatsCacheKeyData{
 		StartTime:             start,
 		EndTime:               end,
+		UserRoleScope:         filters.UserRoleScope,
 		UserID:                filters.UserID,
 		APIKeyID:              filters.APIKeyID,
 		AccountID:             filters.AccountID,
