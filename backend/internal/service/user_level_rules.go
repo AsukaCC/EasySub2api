@@ -12,6 +12,20 @@ import (
 
 const defaultDynamicRateTimezone = "Asia/Shanghai"
 
+// dynamicRatePersonalQuotaAmount returns the only quota that participates in
+// live selection. SharedQuotaAmount is retained solely for reading legacy
+// configurations; until migration 263 rewrites those rows, an old shared
+// value is treated as the same quota for each individual user.
+func dynamicRatePersonalQuotaAmount(rule GroupDynamicRateRule) float64 {
+	if rule.PersonalQuotaAmount > 0 {
+		return rule.PersonalQuotaAmount
+	}
+	if rule.SharedQuotaAmount > 0 {
+		return rule.SharedQuotaAmount
+	}
+	return 0
+}
+
 func hasLegacyDynamicRateFields(rule GroupDynamicRateRule) bool {
 	return strings.TrimSpace(rule.Timezone) != "" ||
 		strings.TrimSpace(rule.StartTime) != "" ||
@@ -139,6 +153,13 @@ func NormalizeDynamicRateRules(input []GroupDynamicRateRule) ([]GroupDynamicRate
 		if math.IsNaN(rule.PersonalQuotaAmount) || math.IsInf(rule.PersonalQuotaAmount, 0) || rule.PersonalQuotaAmount < 0 {
 			return nil, fmt.Errorf("dynamic_rate_rules[%d].personal_quota_amount must be nonnegative", i)
 		}
+		// Shared quotas were removed from the live model. If an older client
+		// still submits one, preserve its finite limit as an independent quota
+		// for every user instead of restoring group-wide consumption.
+		if rule.PersonalQuotaAmount <= 0 && rule.SharedQuotaAmount > 0 {
+			rule.PersonalQuotaAmount = rule.SharedQuotaAmount
+		}
+		rule.SharedQuotaAmount = 0
 		rule.Multiplier = math.Round(rule.Multiplier*10000) / 10000
 		rule.ActivationSpend = QuantizeUsageBillingAmount(rule.ActivationSpend)
 		rule.QuotaAmount = QuantizeUsageBillingAmount(rule.QuotaAmount)

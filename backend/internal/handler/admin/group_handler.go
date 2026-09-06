@@ -481,7 +481,8 @@ func (h *GroupHandler) GetByID(c *gin.Context) {
 	response.Success(c, dto.GroupFromServiceAdmin(group))
 }
 
-// GetDynamicRateUsage returns shared quota usage for every dynamic rule in a group.
+// GetDynamicRateUsage returns dynamic-rate compatibility metadata for every
+// rule in a group. Live quota consumption is independent per user.
 // GET /api/v1/admin/groups/:id/dynamic-rate-usage
 func (h *GroupHandler) GetDynamicRateUsage(c *gin.Context) {
 	groupID, err := parseEntityID(c.Param("id"))

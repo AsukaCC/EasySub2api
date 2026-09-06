@@ -3,11 +3,13 @@ package domain
 // GroupDynamicRateRule is persisted in groups.dynamic_rate_rules JSONB.
 // An empty Levels slice means the rule applies to every user level.
 type GroupDynamicRateRule struct {
-	ID                  string  `json:"id"`
-	Name                string  `json:"name"`
-	Enabled             bool    `json:"enabled"`
-	StartAt             string  `json:"start_at"`
-	EndAt               string  `json:"end_at"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	StartAt string `json:"start_at"`
+	EndAt   string `json:"end_at"`
+	// SharedQuotaAmount is retained only to decode pre-263 configurations.
+	// Live selection and billing use PersonalQuotaAmount per user.
 	SharedQuotaAmount   float64 `json:"shared_quota_amount"`
 	PersonalQuotaAmount float64 `json:"personal_quota_amount"`
 	Levels              []int   `json:"levels"`

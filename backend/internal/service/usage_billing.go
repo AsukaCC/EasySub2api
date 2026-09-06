@@ -51,9 +51,11 @@ type UsageBillingCommand struct {
 // (account quota U) as account 7-day usage statistics, not user-facing platform
 // points, for the interval identified by QuotaKey.
 type UsageDynamicRateRule struct {
-	RuleID              string  `json:"rule_id"`
-	QuotaKey            string  `json:"quota_key"`
-	Multiplier          float64 `json:"multiplier"`
+	RuleID     string  `json:"rule_id"`
+	QuotaKey   string  `json:"quota_key"`
+	Multiplier float64 `json:"multiplier"`
+	// SharedQuotaAmount is retained for old transaction snapshots only. The
+	// repository treats it as a per-user fallback and never writes a group row.
 	SharedQuotaAmount   float64 `json:"shared_quota_amount"`
 	PersonalQuotaAmount float64 `json:"personal_quota_amount"`
 }

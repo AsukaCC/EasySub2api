@@ -108,14 +108,19 @@ const (
 )
 
 type DynamicRateUsageSummary struct {
-	RuleID                string   `json:"rule_id"`
-	RuleName              string   `json:"rule_name"`
-	StartAt               string   `json:"start_at"`
-	EndAt                 string   `json:"end_at"`
-	Status                string   `json:"status"`
+	RuleID   string `json:"rule_id"`
+	RuleName string `json:"rule_name"`
+	StartAt  string `json:"start_at"`
+	EndAt    string `json:"end_at"`
+	Status   string `json:"status"`
+	// Shared* fields remain in the response for clients that still decode the
+	// old payload. They are no longer used for dynamic-rate selection or
+	// billing; quotas are now independent for each user.
 	SharedQuotaAmount     float64  `json:"shared_quota_amount"`
 	SharedUsedAmount      float64  `json:"shared_used_amount"`
 	SharedRemainingAmount *float64 `json:"shared_remaining_amount"`
+	PersonalQuotaAmount   float64  `json:"personal_quota_amount"`
+	UsageScope            string   `json:"usage_scope"`
 }
 
 type UserRatePlan struct {
@@ -405,17 +410,19 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 			continue
 		}
 		candidate := DynamicRateCandidate{
-			RuleID:              rule.ID,
-			RuleName:            rule.Name,
-			StartAt:             start.Format(time.RFC3339Nano),
-			EndAt:               end.Format(time.RFC3339Nano),
-			QuotaKey:            quotaKey,
-			Multiplier:          rule.Multiplier,
-			SharedQuotaAmount:   rule.SharedQuotaAmount,
-			PersonalQuotaAmount: rule.PersonalQuotaAmount,
+			RuleID:     rule.ID,
+			RuleName:   rule.Name,
+			StartAt:    start.Format(time.RFC3339Nano),
+			EndAt:      end.Format(time.RFC3339Nano),
+			QuotaKey:   quotaKey,
+			Multiplier: rule.Multiplier,
+			// SharedQuotaAmount is intentionally not copied into a live plan.
+			// The migration converts old shared values to personal quotas, while
+			// this fallback keeps pre-migration in-memory configurations safe.
+			PersonalQuotaAmount: dynamicRatePersonalQuotaAmount(rule),
 		}
 		candidates = append(candidates, candidate)
-		if rule.SharedQuotaAmount > 0 || rule.PersonalQuotaAmount > 0 {
+		if candidate.PersonalQuotaAmount > 0 {
 			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
 		}
 	}
@@ -424,14 +431,9 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 		if err != nil {
 			return UserRatePlan{}, err
 		}
-		sharedUsage, err := s.repo.GetSharedDynamicRateUsage(ctx, group.ID, keys)
-		if err != nil {
-			return UserRatePlan{}, err
-		}
 		for i := range candidates {
 			key := DynamicRateUsageKey{RuleID: candidates[i].RuleID, QuotaKey: candidates[i].QuotaKey}
 			candidates[i].PersonalUsedAmount = personalUsage[key]
-			candidates[i].SharedUsedAmount = sharedUsage[key]
 		}
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -442,9 +444,8 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	})
 	usable := candidates[:0]
 	for _, candidate := range candidates {
-		sharedAvailable := candidate.SharedQuotaAmount == 0 || candidate.SharedUsedAmount < candidate.SharedQuotaAmount
 		personalAvailable := candidate.PersonalQuotaAmount == 0 || candidate.PersonalUsedAmount < candidate.PersonalQuotaAmount
-		if sharedAvailable && personalAvailable {
+		if personalAvailable {
 			usable = append(usable, candidate)
 		}
 	}
@@ -498,41 +499,21 @@ func (s *UserLevelService) GetDynamicRateUsageSummary(ctx context.Context, group
 		return nil, ErrGroupNotFound
 	}
 
-	keys := make([]DynamicRateUsageKey, 0, len(group.DynamicRateRules))
-	for _, rule := range group.DynamicRateRules {
-		if _, _, quotaKey, ok := parseDynamicRateWindow(rule); ok {
-			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
-		}
-	}
-	sharedUsage := make(map[DynamicRateUsageKey]float64, len(keys))
-	if len(keys) > 0 && s.repo != nil {
-		sharedUsage, err = s.repo.GetSharedDynamicRateUsage(ctx, group.ID, keys)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	result := make([]DynamicRateUsageSummary, 0, len(group.DynamicRateRules))
 	for _, rule := range group.DynamicRateRules {
-		start, end, quotaKey, validWindow := parseDynamicRateWindow(rule)
+		start, end, _, validWindow := parseDynamicRateWindow(rule)
 		summary := DynamicRateUsageSummary{
-			RuleID:            rule.ID,
-			RuleName:          rule.Name,
-			Status:            dynamicRateRuleStatus(rule, at),
-			SharedQuotaAmount: QuantizeUsageBillingAmount(rule.SharedQuotaAmount),
+			RuleID:   rule.ID,
+			RuleName: rule.Name,
+			Status:   dynamicRateRuleStatus(rule, at),
+			// This endpoint has no user context, so it reports configuration
+			// only. Usage is intentionally not aggregated across users.
+			PersonalQuotaAmount: QuantizeUsageBillingAmount(dynamicRatePersonalQuotaAmount(rule)),
+			UsageScope:          "per_user",
 		}
 		if validWindow {
 			summary.StartAt = start.Format(time.RFC3339Nano)
 			summary.EndAt = end.Format(time.RFC3339Nano)
-			summary.SharedUsedAmount = QuantizeUsageBillingAmount(sharedUsage[DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey}])
-		}
-		if rule.SharedQuotaAmount > 0 {
-			remaining := rule.SharedQuotaAmount - summary.SharedUsedAmount
-			if remaining < 0 {
-				remaining = 0
-			}
-			remaining = QuantizeUsageBillingAmount(remaining)
-			summary.SharedRemainingAmount = &remaining
 		}
 		result = append(result, summary)
 	}

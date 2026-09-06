@@ -26,6 +26,7 @@
           <h4>{{ t('admin.groups.levelRates.dynamicRules') }}</h4>
           <button type="button" class="btn btn-secondary btn-sm" @click="addRule"><Icon name="plus" size="sm" />{{ t('admin.groups.levelRates.addRule') }}</button>
         </div>
+        <p class="level-rates-modal__quota-hint">{{ t('admin.groups.levelRates.independentQuotaHint') }}</p>
         <p v-if="hasLegacyRules" class="level-rates-modal__legacy-hint">{{ t('admin.groups.levelRates.legacyHint') }}</p>
         <p v-if="rules.length === 0" class="level-rates-modal__empty">{{ t('admin.groups.levelRates.noRules') }}</p>
         <div v-for="(rule, index) in rules" :key="rule.id" class="level-rates-modal__rule">
@@ -44,17 +45,7 @@
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.endAt') }}</span><input :value="toLocalDateTimeInput(rule.end_at)" class="input" type="datetime-local" step="1" @input="updateDateTime(rule, 'end_at', ($event.target as HTMLInputElement).value)" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.multiplier') }}</span><input v-model.number="rule.multiplier" class="input" type="number" min="0.01" max="100" step="0.01" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.activationSpend') }}</span><input v-model.number="rule.activation_spend" class="input" type="number" min="0" step="0.01" /></label>
-            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.sharedQuotaAmount') }}</span><input v-model.number="rule.shared_quota_amount" class="input" type="number" min="0" step="0.01" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.personalQuotaAmount') }}</span><input v-model.number="rule.personal_quota_amount" class="input" type="number" min="0" step="0.01" /></label>
-          </div>
-          <div class="level-rates-modal__usage">
-            <div class="level-rates-modal__usage-label">
-              <span>{{ t('admin.groups.levelRates.sharedUsage') }}</span>
-              <span>{{ formatAmount(sharedQuotaUsed(rule)) }} / {{ sharedQuotaTotal(rule) > 0 ? formatAmount(sharedQuotaTotal(rule)) : t('admin.groups.levelRates.unlimited') }}</span>
-            </div>
-            <div v-if="sharedQuotaTotal(rule) > 0" class="level-rates-modal__progress" role="progressbar" :aria-valuenow="sharedQuotaUsed(rule)" :aria-valuemax="sharedQuotaTotal(rule)">
-              <span :style="{ width: `${sharedUsagePercent(rule)}%` }" />
-            </div>
           </div>
           <div class="level-rates-modal__rule-footer">
             <label class="level-rates-modal__check level-rates-modal__check--enabled"><input v-model="rule.enabled" type="checkbox" />{{ t('admin.groups.levelRates.enabled') }}</label>
@@ -83,7 +74,6 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
-import type { DynamicRateUsageSummary } from '@/api/admin/groups'
 import { useAppStore } from '@/stores/app'
 import type { AdminGroup, GroupDynamicRateRule } from '@/types'
 import {
@@ -102,10 +92,8 @@ const appStore = useAppStore()
 const levels = [1, 2, 3]
 const levelRates = ref<Record<string, number | undefined>>({})
 const rules = ref<GroupDynamicRateRule[]>([])
-const usageByRule = ref<Record<string, DynamicRateUsageSummary>>({})
 const saving = ref(false)
 const nowTick = ref(Date.now())
-let usageTimer: number | undefined
 let statusTimer: number | undefined
 
 const hasLegacyRules = computed(() => rules.value.some(isLegacyDynamicRateRule))
@@ -116,34 +104,20 @@ function cloneRule(rule: GroupDynamicRateRule): GroupDynamicRateRule {
     levels: [...(rule.levels || [])],
     start_at: rule.start_at || '',
     end_at: rule.end_at || '',
-    shared_quota_amount: Number(rule.shared_quota_amount ?? 0),
-    personal_quota_amount: Number(rule.personal_quota_amount ?? 0)
+    // Old shared quota values are displayed as the new per-user quota until
+    // migration 263 has rewritten the persisted group configuration.
+    shared_quota_amount: 0,
+    personal_quota_amount: Number(rule.personal_quota_amount ?? rule.shared_quota_amount ?? 0)
   }
 }
 
 function stopRefresh() {
-  if (usageTimer !== undefined) window.clearInterval(usageTimer)
   if (statusTimer !== undefined) window.clearInterval(statusTimer)
-  usageTimer = undefined
   statusTimer = undefined
 }
 
-async function loadUsage(groupID: string) {
-  try {
-    const summaries = await adminAPI.groups.getDynamicRateUsage(groupID)
-    if (props.show && props.group?.id === groupID) {
-      usageByRule.value = Object.fromEntries(summaries.map(summary => [summary.rule_id, summary]))
-    }
-  } catch {
-    // Background refreshes should not interrupt editing with a toast.
-  }
-}
-
-function startRefresh(groupID: string) {
+function startStatusRefresh() {
   stopRefresh()
-  usageByRule.value = {}
-  void loadUsage(groupID)
-  usageTimer = window.setInterval(() => void loadUsage(groupID), 10_000)
   statusTimer = window.setInterval(() => { nowTick.value = Date.now() }, 1_000)
 }
 
@@ -153,7 +127,7 @@ watch(() => [props.show, props.group] as const, ([show, group]) => {
   levelRates.value = { ...(group.level_rate_multipliers || {}) }
   rules.value = (group.dynamic_rate_rules || []).map(cloneRule)
   nowTick.value = Date.now()
-  startRefresh(group.id)
+  startStatusRefresh()
 }, { immediate: true })
 
 onUnmounted(stopRefresh)
@@ -202,39 +176,13 @@ function statusLabel(status: DynamicRateRuleStatus): string {
   }
 }
 
-function sharedQuotaTotal(rule: GroupDynamicRateRule): number {
-  return Math.max(0, Number(rule.shared_quota_amount ?? 0))
-}
-
-function sharedQuotaUsed(rule: GroupDynamicRateRule): number {
-  const summary = usageByRule.value[rule.id]
-  const window = parseAbsoluteWindow(rule)
-  const summaryStart = summary?.start_at ? new Date(summary.start_at) : null
-  if (!summary || !window || !summaryStart || Number.isNaN(summaryStart.getTime()) || summaryStart.getTime() !== window.start.getTime()) {
-    return 0
-  }
-  return Math.max(0, summary.shared_used_amount)
-}
-
-function sharedUsagePercent(rule: GroupDynamicRateRule): number {
-  const total = sharedQuotaTotal(rule)
-  if (total <= 0) return 0
-  return Math.min(100, Math.max(0, sharedQuotaUsed(rule) / total * 100))
-}
-
-function formatAmount(value: number): string {
-  if (!Number.isFinite(value)) return '0'
-  return value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') || '0'
-}
-
 function validateRules(): string | null {
   if (hasLegacyRules.value) return 'legacyRules'
   for (const rule of rules.value) {
     if (!rule.start_at || !rule.end_at) return 'timeRequired'
     if (!parseAbsoluteWindow(rule)) return 'invalidRange'
-    const shared = Number(rule.shared_quota_amount ?? 0)
     const personal = Number(rule.personal_quota_amount ?? 0)
-    if (!Number.isFinite(shared) || shared < 0 || !Number.isFinite(personal) || personal < 0) {
+    if (!Number.isFinite(personal) || personal < 0) {
       return 'invalidQuota'
     }
   }
@@ -248,7 +196,7 @@ function absoluteRuleForSave(rule: GroupDynamicRateRule): GroupDynamicRateRule {
     name: rule.name.trim(),
     start_at: window?.start.toISOString() || '',
     end_at: window?.end.toISOString() || '',
-    shared_quota_amount: Number(rule.shared_quota_amount ?? 0),
+    shared_quota_amount: 0,
     personal_quota_amount: Number(rule.personal_quota_amount ?? 0)
   }
   delete output.timezone
@@ -391,6 +339,7 @@ async function save() {
 }
 
 .level-rates-modal__legacy-hint,
+.level-rates-modal__quota-hint,
 .level-rates-modal__empty {
   margin: 0;
   border-radius: var(--radius-lg);
@@ -403,6 +352,13 @@ async function save() {
   border: 1px solid color-mix(in srgb, var(--color-text-danger) 32%, transparent);
   color: var(--color-text-danger);
   background: color-mix(in srgb, var(--color-text-danger) 8%, transparent);
+}
+
+.level-rates-modal__quota-hint {
+  padding: .7rem .875rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border-subtle));
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface-muted));
 }
 
 .level-rates-modal__empty {
@@ -513,44 +469,6 @@ async function save() {
   grid-column: span 3;
 }
 
-.level-rates-modal__usage {
-  display: grid;
-  gap: .5rem;
-  padding: .75rem .875rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-elevated);
-}
-
-.level-rates-modal__usage-label {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
-}
-
-.level-rates-modal__usage-label span:last-child {
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.level-rates-modal__progress {
-  height: .4rem;
-  overflow: hidden;
-  border-radius: var(--radius-full);
-  background: var(--color-surface-hover);
-}
-
-.level-rates-modal__progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-primary);
-  transition: width .2s ease;
-}
-
 .level-rates-modal__rule-footer {
   min-width: 0;
   justify-content: space-between;
@@ -643,16 +561,6 @@ async function save() {
   .level-rates-modal__section-heading .btn {
     justify-content: center;
     width: 100%;
-  }
-
-  .level-rates-modal__usage-label {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: .25rem;
-  }
-
-  .level-rates-modal__usage-label span:last-child {
-    text-align: left;
   }
 
   .level-rates-modal__scope {

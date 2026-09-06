@@ -32,6 +32,8 @@ export interface DynamicRateUsageSummary {
   shared_quota_amount: number
   shared_used_amount: number
   shared_remaining_amount: number | null
+  personal_quota_amount: number
+  usage_scope: 'per_user' | string
 }
 
 /**
@@ -115,7 +117,7 @@ export async function getById(id: string): Promise<AdminGroup> {
   return data
 }
 
-/** Get shared quota usage for every dynamic rule in a group. */
+/** Get dynamic-rule compatibility metadata for every rule in a group. */
 export async function getDynamicRateUsage(id: string): Promise<DynamicRateUsageSummary[]> {
   const { data } = await apiClient.get<DynamicRateUsageSummary[]>(
     `/admin/groups/${id}/dynamic-rate-usage`

@@ -190,33 +190,19 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 			math.IsNaN(rule.PersonalQuotaAmount) || math.IsInf(rule.PersonalQuotaAmount, 0) {
 			return errors.New("invalid dynamic rate quota amount")
 		}
-		sharedLimited := rule.SharedQuotaAmount > 0
-		personalLimited := rule.PersonalQuotaAmount > 0
+		// SharedQuotaAmount is a legacy field. It is accepted for old
+		// in-memory plans as a per-user quota, but it is never read or written
+		// as a group-wide counter.
+		personalQuotaAmount := rule.PersonalQuotaAmount
+		if personalQuotaAmount <= 0 && rule.SharedQuotaAmount > 0 {
+			personalQuotaAmount = rule.SharedQuotaAmount
+		}
+		personalLimited := personalQuotaAmount > 0
 		if strings.TrimSpace(rule.RuleID) == "" || strings.TrimSpace(rule.QuotaKey) == "" {
 			return errors.New("invalid dynamic rate quota key")
 		}
 
 		available := math.Inf(1)
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO group_dynamic_rate_usage
-				(group_id, rule_id, quota_key, used_amount, created_at, updated_at)
-			VALUES ($1, $2, $3, 0, NOW(), NOW())
-			ON CONFLICT (group_id, rule_id, quota_key) DO NOTHING
-		`, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
-			return err
-		}
-		var sharedUsedAmount float64
-		if err := tx.QueryRowContext(ctx, `
-			SELECT used_amount
-			FROM group_dynamic_rate_usage
-			WHERE group_id = $1 AND rule_id = $2 AND quota_key = $3
-			FOR UPDATE
-		`, plan.GroupID, rule.RuleID, rule.QuotaKey).Scan(&sharedUsedAmount); err != nil {
-			return err
-		}
-		if sharedLimited {
-			available = rule.SharedQuotaAmount - sharedUsedAmount
-		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO user_dynamic_rate_usage
 				(user_id, group_id, rule_id, quota_key, used_amount, created_at, updated_at)
@@ -235,7 +221,7 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 			return err
 		}
 		if personalLimited {
-			personalAvailable := rule.PersonalQuotaAmount - personalUsedAmount
+			personalAvailable := personalQuotaAmount - personalUsedAmount
 			if personalAvailable < available {
 				available = personalAvailable
 			}
@@ -267,19 +253,11 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		}
 		if allocatedAccountCost > 0 {
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE group_dynamic_rate_usage
-				SET used_amount = CASE WHEN $1 > 0 THEN LEAST($1, used_amount + $2) ELSE used_amount + $2 END,
-					updated_at = NOW()
-				WHERE group_id = $3 AND rule_id = $4 AND quota_key = $5
-			`, rule.SharedQuotaAmount, allocatedAccountCost, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, `
 				UPDATE user_dynamic_rate_usage
 				SET used_amount = CASE WHEN $1 > 0 THEN LEAST($1, used_amount + $2) ELSE used_amount + $2 END,
 					updated_at = NOW()
 				WHERE user_id = $3 AND group_id = $4 AND rule_id = $5 AND quota_key = $6
-			`, rule.PersonalQuotaAmount, allocatedAccountCost, cmd.UserID, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
+			`, personalQuotaAmount, allocatedAccountCost, cmd.UserID, plan.GroupID, rule.RuleID, rule.QuotaKey); err != nil {
 				return err
 			}
 		}

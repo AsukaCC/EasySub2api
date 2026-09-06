@@ -615,6 +615,7 @@ export interface GroupDynamicRateRule {
 	enabled: boolean
 	start_at?: string
 	end_at?: string
+	/** @deprecated Legacy group-wide quota; live billing uses the per-user quota. */
 	shared_quota_amount?: number
 	personal_quota_amount?: number
 	/** @deprecated Legacy daily-clock rule field. */
