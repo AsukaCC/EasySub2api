@@ -235,7 +235,8 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 	accountCostExpr := "account_cost - admin_account_cost"
 	durationExpr := "total_duration_ms - admin_total_duration_ms"
 	activeUsersExpr := "active_users - admin_active_users"
-	if userRoleScope == "admin" {
+	switch userRoleScope {
+	case "admin":
 		requestExpr = "admin_requests"
 		inputExpr = "admin_input_tokens"
 		outputExpr = "admin_output_tokens"
@@ -246,7 +247,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 		accountCostExpr = "admin_account_cost"
 		durationExpr = "admin_total_duration_ms"
 		activeUsersExpr = "admin_active_users"
-	} else if userRoleScope == "all" {
+	case "all":
 		requestExpr = "total_requests"
 		inputExpr = "input_tokens"
 		outputExpr = "output_tokens"
