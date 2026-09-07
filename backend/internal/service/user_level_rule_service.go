@@ -163,24 +163,8 @@ func (s *UserLevelService) UpdateLevelRule(ctx context.Context, ruleID string, i
 		if err != nil {
 			return nil, err
 		}
-		baseTierID := ""
-		for _, tier := range existing.Tiers {
-			if tier.SortOrder == 0 {
-				baseTierID = tier.ID
-				break
-			}
-		}
-		if baseTierID != "" {
-			baseTierKept := false
-			for _, tier := range tiers {
-				if tier.ID == baseTierID && tier.SortOrder == 0 && tier.MinSpend == 0 {
-					baseTierKept = true
-					break
-				}
-			}
-			if !baseTierKept {
-				return nil, invalidLevelRule("the base tier cannot be deleted or moved")
-			}
+		if err := preserveBaseLevelTierID(existing.Tiers, tiers); err != nil {
+			return nil, err
 		}
 	}
 	enabled := existing.Enabled
@@ -364,6 +348,29 @@ func normalizeLevelRuleTiers(ruleID string, input []UserLevelRuleTierInput) ([]U
 		}
 	}
 	return tiers, nil
+}
+
+// preserveBaseLevelTierID keeps the existing base-tier UUID when the client
+// omits it (create-then-update) or sends a replacement ID. Group and
+// announcement JSON store this UUID, so it must stay stable.
+func preserveBaseLevelTierID(existing, incoming []UserLevelTier) error {
+	baseTierID := ""
+	for _, tier := range existing {
+		if tier.SortOrder == 0 {
+			baseTierID = tier.ID
+			break
+		}
+	}
+	if baseTierID == "" {
+		return nil
+	}
+	for i, tier := range incoming {
+		if tier.SortOrder == 0 && tier.MinSpend == 0 {
+			incoming[i].ID = baseTierID
+			return nil
+		}
+	}
+	return invalidLevelRule("the base tier cannot be deleted or moved")
 }
 
 func validateRuleName(raw string) (string, error) {

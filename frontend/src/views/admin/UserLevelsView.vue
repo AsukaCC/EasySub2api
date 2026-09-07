@@ -274,7 +274,16 @@ async function saveRule() {
       })
     } else {
       const created = await adminAPI.users.createLevelRule({ name: draft.name, window_days: draft.window_days })
-      if (tiers.length !== 1 || tiers[0].name !== t('admin.users.levels.baseTier') || tiers[0].default_multiplier !== null) {
+      const createdBaseID = created.tiers?.find((tier) => tier.sort_order === 0)?.id || created.tiers?.[0]?.id
+      if (createdBaseID && tiers[0] && !tiers[0].id) {
+        tiers[0].id = createdBaseID
+      }
+      const needsFollowUpUpdate =
+        created.enabled !== draft.enabled ||
+        tiers.length !== 1 ||
+        tiers[0]?.name !== t('admin.users.levels.baseTier') ||
+        tiers[0]?.default_multiplier != null
+      if (needsFollowUpUpdate) {
         await adminAPI.users.updateLevelRule(created.id, {
           name: draft.name,
           window_days: draft.window_days,

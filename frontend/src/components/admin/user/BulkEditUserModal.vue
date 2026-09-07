@@ -62,32 +62,47 @@
         </div>
       </div>
 
-      <div class="components-admin-user-bulk-edit-user-modal__panel components-admin-user-bulk-edit-user-modal__level-rules">
-        <div class="components-admin-user-bulk-edit-user-modal__panel-2">
-          <div class="components-admin-user-bulk-edit-user-modal__panel-3">
-            <label for="bulk-level-rules" class="components-admin-user-bulk-edit-user-modal__label input-label">
-              {{ t('admin.users.levels.assignedRules') }}
-            </label>
-            <Toggle
-              v-model="enableLevelRules"
-              :aria-label="t('admin.users.levels.enableBulk')"
-              data-test="enable-level-rules"
-            />
-          </div>
-          <div v-if="enableLevelRules" class="components-admin-user-bulk-edit-user-modal__level-rule-fields">
-            <select v-model="levelRuleOperation" class="input">
-              <option value="add">{{ t('admin.users.levels.addOperation') }}</option>
-              <option value="remove">{{ t('admin.users.levels.removeOperation') }}</option>
-              <option value="replace">{{ t('admin.users.levels.replaceOperation') }}</option>
-            </select>
-            <select id="bulk-level-rules" v-model="selectedLevelRuleIDs" class="input" multiple size="4" :disabled="levelRulesLoading">
-              <option v-for="rule in levelRules" :key="rule.id" :value="rule.id">
-                {{ rule.name }} ({{ rule.window_days }}d)
-              </option>
-            </select>
-          </div>
+      <section class="bulk-edit-user-modal__level-rules">
+        <div class="components-admin-user-bulk-edit-user-modal__panel-3">
+          <label id="bulk-level-rules-label" class="components-admin-user-bulk-edit-user-modal__label input-label">
+            {{ t('admin.users.levels.assignedRules') }}
+          </label>
+          <Toggle
+            v-model="enableLevelRules"
+            :aria-label="t('admin.users.levels.enableBulk')"
+            data-test="enable-level-rules"
+          />
         </div>
-      </div>
+        <div v-if="enableLevelRules" class="bulk-edit-user-modal__level-fields">
+          <Select
+            v-model="levelRuleOperation"
+            :options="levelRuleOperationOptions"
+            :aria-label="t('admin.users.levels.enableBulk')"
+            data-test="level-rule-operation"
+          />
+          <div
+            class="bulk-edit-user-modal__rule-list"
+            role="group"
+            aria-labelledby="bulk-level-rules-label"
+            :aria-busy="levelRulesLoading"
+          >
+            <p v-if="levelRulesLoading" class="bulk-edit-user-modal__rule-empty">{{ t('common.loading') }}</p>
+            <p v-else-if="levelRules.length === 0" class="bulk-edit-user-modal__rule-empty">{{ t('admin.users.levels.empty') }}</p>
+            <label v-for="rule in levelRules" :key="rule.id" class="bulk-edit-user-modal__rule">
+              <input
+                type="checkbox"
+                :value="rule.id"
+                :checked="selectedLevelRuleIDs.includes(rule.id)"
+                :disabled="levelRulesLoading"
+                @change="toggleLevelRule(rule.id, ($event.target as HTMLInputElement).checked)"
+              />
+              <span class="bulk-edit-user-modal__rule-name">{{ rule.name }}</span>
+              <span class="bulk-edit-user-modal__rule-window">{{ rule.window_days }}d</span>
+            </label>
+          </div>
+          <p class="input-hint">{{ t('admin.users.levels.assignmentHint') }}</p>
+        </div>
+      </section>
 
       <p v-if="hasInvalidValue" class="components-admin-user-bulk-edit-user-modal__description-2">
         {{ t('admin.users.bulkLimits.nonNegativeInteger') }}
@@ -124,6 +139,7 @@ import type { BatchUpdateUserLimitsRequest } from '@/api/admin/users'
 import type { UserLevelRule } from '@/api/admin/users'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 
 const props = defineProps<{
@@ -149,6 +165,21 @@ const levelRuleOperation = ref<'add' | 'remove' | 'replace'>('replace')
 const selectedLevelRuleIDs = ref<string[]>([])
 const levelRules = ref<UserLevelRule[]>([])
 const levelRulesLoading = ref(false)
+const levelRuleOperationOptions = computed(() => [
+  { value: 'add', label: t('admin.users.levels.addOperation') },
+  { value: 'remove', label: t('admin.users.levels.removeOperation') },
+  { value: 'replace', label: t('admin.users.levels.replaceOperation') }
+])
+
+function toggleLevelRule(ruleID: string, checked: boolean) {
+  if (checked) {
+    if (!selectedLevelRuleIDs.value.includes(ruleID)) {
+      selectedLevelRuleIDs.value = [...selectedLevelRuleIDs.value, ruleID]
+    }
+    return
+  }
+  selectedLevelRuleIDs.value = selectedLevelRuleIDs.value.filter((id) => id !== ruleID)
+}
 
 const parseLimit = (value: string | number): number | null | undefined => {
   const trimmed = String(value).trim()
@@ -284,3 +315,73 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
+<style scoped>
+.bulk-edit-user-modal__level-rules {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 0.25rem;
+}
+
+.bulk-edit-user-modal__level-fields {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.bulk-edit-user-modal__rule-list {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 12.5rem;
+  min-width: 0;
+  overflow: auto;
+  padding: 0.4rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.bulk-edit-user-modal__rule {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.bulk-edit-user-modal__rule:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.bulk-edit-user-modal__rule input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.bulk-edit-user-modal__rule-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulk-edit-user-modal__rule-window {
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-edit-user-modal__rule-empty {
+  margin: 0;
+  padding: 1.25rem 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+</style>

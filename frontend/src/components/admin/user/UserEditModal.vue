@@ -56,21 +56,29 @@
         />
         <p class="input-hint">{{ t('admin.users.form.rpmLimitHint') }}</p>
       </div>
-      <div class="components-admin-user-user-edit-modal__level-rules">
-        <label class="input-label" for="user-level-rules">{{ t('admin.users.levels.assignedRules') }}</label>
-        <select
-          id="user-level-rules"
-          v-model="selectedLevelRuleIDs"
-          class="input"
-          multiple
-          size="4"
-          :disabled="levelRulesLoading"
+      <div class="user-edit-modal__level-rules">
+        <label class="input-label" id="user-level-rules-label">{{ t('admin.users.levels.assignedRules') }}</label>
+        <div
+          class="user-edit-modal__rule-list"
+          role="group"
+          aria-labelledby="user-level-rules-label"
+          :aria-busy="levelRulesLoading"
         >
-          <option v-for="rule in levelRules" :key="rule.id" :value="rule.id">
-            {{ rule.name }} ({{ rule.window_days }}d)
-          </option>
-        </select>
-        <p class="input-hint">{{ levelRulesLoading ? t('common.loading') : t('admin.users.levels.assignmentHint') }}</p>
+          <p v-if="levelRulesLoading" class="user-edit-modal__rule-empty">{{ t('common.loading') }}</p>
+          <p v-else-if="levelRules.length === 0" class="user-edit-modal__rule-empty">{{ t('admin.users.levels.empty') }}</p>
+          <label v-for="rule in levelRules" :key="rule.id" class="user-edit-modal__rule">
+            <input
+              type="checkbox"
+              :value="rule.id"
+              :checked="selectedLevelRuleIDs.includes(rule.id)"
+              :disabled="levelRulesLoading"
+              @change="toggleLevelRule(rule.id, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="user-edit-modal__rule-name">{{ rule.name }}</span>
+            <span class="user-edit-modal__rule-window">{{ rule.window_days }}d</span>
+          </label>
+        </div>
+        <p class="input-hint">{{ t('admin.users.levels.assignmentHint') }}</p>
       </div>
       <UserAttributeForm v-model="form.customAttributes" :user-id="user?.id" />
     </form>
@@ -145,6 +153,16 @@ async function loadLevelRules(userId: string) {
   }
 }
 
+function toggleLevelRule(ruleID: string, checked: boolean) {
+  if (checked) {
+    if (!selectedLevelRuleIDs.value.includes(ruleID)) {
+      selectedLevelRuleIDs.value = [...selectedLevelRuleIDs.value, ruleID]
+    }
+    return
+  }
+  selectedLevelRuleIDs.value = selectedLevelRuleIDs.value.filter((id) => id !== ruleID)
+}
+
 const generatePassword = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'
   let p = ''; for (let i = 0; i < 16; i++) p += chars.charAt(Math.floor(Math.random() * chars.length))
@@ -195,3 +213,66 @@ const handleUpdateUser = async () => {
   } finally { submitting.value = false }
 }
 </script>
+
+<style scoped>
+.user-edit-modal__level-rules {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.user-edit-modal__rule-list {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 12.5rem;
+  min-width: 0;
+  overflow: auto;
+  padding: 0.4rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.user-edit-modal__rule {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.user-edit-modal__rule:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.user-edit-modal__rule input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.user-edit-modal__rule-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-edit-modal__rule-window {
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.user-edit-modal__rule-empty {
+  margin: 0;
+  padding: 1.25rem 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+</style>

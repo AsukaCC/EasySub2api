@@ -622,7 +622,7 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 		GroupID: group.ID, UserLevel: profile.Level, Usage7d: profile.Usage7d,
 		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: peak, EffectiveMultiplier: selectedBase * peak,
 		Source: selectedSource, DynamicCandidates: candidates, SelectedDynamicRuleID: selectedDynamicRuleID,
-		UserLevelMultiplier: cloneFloatPtr(userLevel), GroupRuleMultiplier: floatPtr(groupSide),
+		UserLevelMultiplier: cloneFloatPtr(userLevel), GroupRuleMultiplier: userLevelFloatPtr(groupSide),
 		EffectiveBaseMultiplier: selectedBase, EffectiveSource: selectedSource, NonDynamicMultiplier: nonDynamicMultiplier,
 	}, nil
 }
@@ -650,7 +650,7 @@ func rateCandidatePtr(candidate rateCandidate) *float64 {
 	return &value
 }
 
-func floatPtr(value float64) *float64 {
+func userLevelFloatPtr(value float64) *float64 {
 	return &value
 }
 

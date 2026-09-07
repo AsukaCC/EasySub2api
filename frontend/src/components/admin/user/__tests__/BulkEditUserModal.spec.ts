@@ -3,8 +3,10 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import BulkEditUserModal from '../BulkEditUserModal.vue'
 
-const { batchUpdateLimits, showSuccess, showError } = vi.hoisted(() => ({
+const { batchUpdateLimits, batchAssignLevelRules, listLevelRules, showSuccess, showError } = vi.hoisted(() => ({
   batchUpdateLimits: vi.fn(),
+  batchAssignLevelRules: vi.fn(),
+  listLevelRules: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn()
 }))
@@ -12,7 +14,9 @@ const { batchUpdateLimits, showSuccess, showError } = vi.hoisted(() => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     users: {
-      batchUpdateLimits
+      batchUpdateLimits,
+      batchAssignLevelRules,
+      listLevelRules
     }
   }
 }))
@@ -42,6 +46,11 @@ const mountModal = () => mount(BulkEditUserModal, {
         props: ['show', 'title'],
         emits: ['close'],
         template: '<div v-if="show"><slot /><slot name="footer" /></div>'
+      },
+      Select: {
+        props: ['modelValue', 'options'],
+        emits: ['update:modelValue'],
+        template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select>'
       }
     }
   }
@@ -50,9 +59,13 @@ const mountModal = () => mount(BulkEditUserModal, {
 describe('BulkEditUserModal', () => {
   beforeEach(() => {
     batchUpdateLimits.mockReset()
+    batchAssignLevelRules.mockReset()
+    listLevelRules.mockReset()
     showSuccess.mockReset()
     showError.mockReset()
     batchUpdateLimits.mockResolvedValue({ affected: 2 })
+    batchAssignLevelRules.mockResolvedValue({ affected: 2 })
+    listLevelRules.mockResolvedValue([])
   })
 
   afterEach(() => {

@@ -394,7 +394,11 @@ const loadLogs = async () => {
       { signal: c.signal, basePath: usageApiBasePath.value }
     )
     if(!c.signal.aborted) { usageLogs.value = res.items; pagination.total = res.total }
-  } catch (error: any) { if(error?.name !== 'AbortError') console.error('Failed to load usage logs:', error) } finally { if(abortController === c) loading.value = false }
+  } catch (error: any) {
+    if (error?.name !== 'AbortError' && error?.code !== 'ERR_CANCELED') {
+      console.error('Failed to load usage logs:', error)
+    }
+  } finally { if(abortController === c) loading.value = false }
 }
 const loadStats = async (force = false) => {
   const seq = ++statsReqSeq
