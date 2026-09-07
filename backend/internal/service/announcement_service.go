@@ -253,10 +253,10 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID string, un
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 	now := time.Now()
-	userLevel := 0
+	userTierIDs := []string(nil)
 	if s.userLevelService != nil {
 		if profile, levelErr := s.userLevelService.ResolveProfile(ctx, userID, now); levelErr == nil {
-			userLevel = profile.Level
+			userTierIDs = append(userTierIDs, profile.CurrentTierIDs...)
 		}
 	}
 
@@ -272,7 +272,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID string, un
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if a.NotifyMode != AnnouncementNotifyModeSilent && !a.Targeting.MatchesForUser(user.Balance, activeGroupIDs, userID, userLevel) {
+		if a.NotifyMode != AnnouncementNotifyModeSilent && !a.Targeting.MatchesForUserTiers(user.Balance, activeGroupIDs, userID, userTierIDs) {
 			continue
 		}
 		visible = append(visible, a)
@@ -373,13 +373,13 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
-	userLevel := 0
+	userTierIDs := []string(nil)
 	if s.userLevelService != nil {
 		if profile, levelErr := s.userLevelService.ResolveProfile(ctx, userID, now); levelErr == nil {
-			userLevel = profile.Level
+			userTierIDs = append(userTierIDs, profile.CurrentTierIDs...)
 		}
 	}
-	if a.NotifyMode != AnnouncementNotifyModeSilent && !a.Targeting.MatchesForUser(user.Balance, activeGroupIDs, userID, userLevel) {
+	if a.NotifyMode != AnnouncementNotifyModeSilent && !a.Targeting.MatchesForUserTiers(user.Balance, activeGroupIDs, userID, userTierIDs) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -419,11 +419,13 @@ func (s *AnnouncementService) ListUserReadStatus(
 		return nil, nil, fmt.Errorf("get read map: %w", err)
 	}
 	levelByUser := make(map[string]int, len(userIDs))
+	tiersByUser := make(map[string][]string, len(userIDs))
 	if s.userLevelService != nil && len(userIDs) > 0 {
 		profiles, levelErr := s.userLevelService.GetProfiles(ctx, userIDs, time.Now())
 		if levelErr == nil {
 			for userID, profile := range profiles {
 				levelByUser[userID] = profile.Level
+				tiersByUser[userID] = append([]string(nil), profile.CurrentTierIDs...)
 			}
 		}
 	}
@@ -448,7 +450,7 @@ func (s *AnnouncementService) ListUserReadStatus(
 		}
 
 		eligible := ann.NotifyMode == AnnouncementNotifyModeSilent ||
-			(ann.IsActiveAt(time.Now()) && ann.Targeting.MatchesForUser(u.Balance, activeGroupIDs, u.ID, levelByUser[u.ID]))
+			(ann.IsActiveAt(time.Now()) && ann.Targeting.MatchesForUserTiers(u.Balance, activeGroupIDs, u.ID, tiersByUser[u.ID]))
 		out = append(out, AnnouncementUserReadStatus{
 			UserID:   u.ID,
 			Email:    u.Email,

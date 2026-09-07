@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -277,6 +278,10 @@ func (h *DashboardHandler) GetUsageTrendAdmin(c *gin.Context) {
 func (h *DashboardHandler) getUsageTrend(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
+	if granularity != "day" && granularity != "hour" {
+		response.BadRequest(c, "granularity must be day or hour")
+		return
+	}
 	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
 	if err != nil {
 		response.BadRequest(c, err.Error())
@@ -633,6 +638,10 @@ func (h *DashboardHandler) GetUserUsageTrendAdmin(c *gin.Context) {
 func (h *DashboardHandler) getUserUsageTrend(c *gin.Context, forcedScope string) {
 	startTime, endTime := parseTimeRange(c)
 	granularity := c.DefaultQuery("granularity", "day")
+	if granularity != "day" && granularity != "hour" {
+		response.BadRequest(c, "granularity must be day or hour")
+		return
+	}
 	roleScope, err := parseUsageRoleScope(c, usageRoleScopeRegular, forcedScope)
 	if err != nil {
 		response.BadRequest(c, err.Error())
@@ -650,6 +659,7 @@ func (h *DashboardHandler) getUserUsageTrend(c *gin.Context, forcedScope string)
 
 	trend, hit, err := h.getUserUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, limit, metric, roleScope)
 	if err != nil {
+		slog.Error("failed to get user usage trend", "error", err, "granularity", granularity, "role_scope", roleScope, "start", startTime, "end", endTime)
 		response.Error(c, 500, "Failed to get user usage trend")
 		return
 	}

@@ -62,13 +62,20 @@ func NormalizeLevelRateMultipliers(input map[string]float64) (map[string]float64
 	out := make(map[string]float64, len(input))
 	for key, value := range input {
 		key = strings.TrimSpace(key)
-		if key != "1" && key != "2" && key != "3" {
-			return nil, fmt.Errorf("level_rate_multipliers key must be 1, 2, or 3")
+		// Numeric keys belong to the removed fixed L1/L2/L3 model. They are
+		// intentionally discarded instead of being interpreted as all-users
+		// settings. New keys must identify a real user-level tier UUID.
+		if key == "1" || key == "2" || key == "3" {
+			continue
+		}
+		parsed, err := uuid.Parse(key)
+		if err != nil {
+			return nil, fmt.Errorf("level_rate_multipliers key must be a user level tier UUID")
 		}
 		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0.01 || value > 100 {
 			return nil, fmt.Errorf("level %s multiplier must be between 0.01 and 100", key)
 		}
-		out[key] = math.Round(value*10000) / 10000
+		out[parsed.String()] = math.Round(value*10000) / 10000
 	}
 	return out, nil
 }
@@ -166,20 +173,29 @@ func NormalizeDynamicRateRules(input []GroupDynamicRateRule) ([]GroupDynamicRate
 		rule.SharedQuotaAmount = QuantizeUsageBillingAmount(rule.SharedQuotaAmount)
 		rule.PersonalQuotaAmount = QuantizeUsageBillingAmount(rule.PersonalQuotaAmount)
 
-		levels := make([]int, 0, len(rule.Levels))
-		seenLevels := map[int]struct{}{}
-		for _, level := range rule.Levels {
-			if level < 1 || level > 3 {
-				return nil, fmt.Errorf("dynamic_rate_rules[%d].levels must contain only 1, 2, or 3", i)
+		// Legacy numeric targets cannot be mapped safely to a tier UUID. Keep
+		// the payload for an administrator to inspect, but make the rule inert.
+		if len(rule.Levels) > 0 {
+			rule.Enabled = false
+		}
+		seenTierIDs := make(map[string]struct{}, len(rule.LevelTierIDs))
+		tierIDs := make([]string, 0, len(rule.LevelTierIDs))
+		for _, tierID := range rule.LevelTierIDs {
+			tierID = strings.TrimSpace(tierID)
+			if tierID == "" {
+				return nil, fmt.Errorf("dynamic_rate_rules[%d].level_tier_ids cannot contain empty values", i)
 			}
-			if _, exists := seenLevels[level]; exists {
+			if _, err := uuid.Parse(tierID); err != nil {
+				return nil, fmt.Errorf("dynamic_rate_rules[%d].level_tier_ids must contain UUIDs", i)
+			}
+			if _, exists := seenTierIDs[tierID]; exists {
 				continue
 			}
-			seenLevels[level] = struct{}{}
-			levels = append(levels, level)
+			seenTierIDs[tierID] = struct{}{}
+			tierIDs = append(tierIDs, tierID)
 		}
-		sort.Ints(levels)
-		rule.Levels = levels
+		sort.Strings(tierIDs)
+		rule.LevelTierIDs = tierIDs
 		out = append(out, rule)
 	}
 	return out, nil

@@ -178,6 +178,11 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		}
 		return rules[i].RuleID < rules[j].RuleID
 	})
+	// A request selects one dynamic rule. Applying several rules would consume
+	// quota for rules that were not actually selected by the rate plan.
+	if len(rules) > 1 {
+		rules = rules[:1]
+	}
 
 	remainingStandard := plan.StandardCost
 	finalCost := 0.0

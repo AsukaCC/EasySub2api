@@ -9,7 +9,9 @@
         </div>
       </div>
       <div class="dashboard-level__header-actions">
-        <span v-if="profile" class="dashboard-level__badge">L{{ profile.level }}</span>
+        <span v-if="profile" class="dashboard-level__badge">
+          {{ profile.configured ? currentTierLabel : t('dashboard.level.unconfigured') }}
+        </span>
         <button
           v-if="profile"
           type="button"
@@ -22,43 +24,42 @@
     </header>
 
     <LoadingState v-if="loading" variant="section" size="md" class="dashboard-level__state" />
-    <div v-else-if="profile" class="dashboard-level__body">
-      <!-- 仅展示距下一级的进度,完整阶梯见弹窗 -->
+    <div v-else-if="profile && profile.configured && primaryRule" class="dashboard-level__body">
       <div class="dashboard-level__progress" :aria-hidden="false">
         <div class="dashboard-level__progress-track">
           <span class="dashboard-level__progress-fill" :style="{ width: `${progress}%` }" />
         </div>
         <div class="dashboard-level__progress-labels">
-          <span>L{{ profile.level }} · {{ formatPoints(profile.usage_7d) }}</span>
-          <span v-if="nextLevel">L{{ nextLevel.level }} · ≥ {{ formatPoints(nextLevel.threshold) }}</span>
-          <span v-else>L3</span>
+          <span>{{ primaryRule.rule_name }} / {{ currentTierLabel }} · {{ formatPoints(primaryRule.spend) }}</span>
+          <span v-if="nextTier">{{ primaryRule.rule_name }} / {{ nextTier.name }} · ≥ {{ formatPoints(nextTier.minSpend) }}</span>
+          <span v-else>{{ t('dashboard.level.maxLevel') }}</span>
         </div>
       </div>
       <p class="dashboard-level__caption">
-        <template v-if="nextLevel">
-          {{ t('dashboard.level.toNext', { level: `L${nextLevel.level}`, amount: formatPoints(nextLevel.remaining) }) }}
+        <template v-if="nextTier">
+          {{ t('dashboard.level.toNext', { level: nextTier.name, amount: formatPoints(nextTier.remaining) }) }}
         </template>
         <template v-else>{{ t('dashboard.level.maxLevel') }}</template>
       </p>
       <div
-        v-if="nextLevel && profile.next_level_multiplier != null"
+        v-if="nextTier && nextTier.multiplier != null"
         class="dashboard-level__next-rate"
       >
         <div class="dashboard-level__next-rate-copy">
           <span class="dashboard-level__label">
-            {{ t('dashboard.level.nextMultiplier', { level: `L${nextLevel.level}` }) }}
+            {{ t('dashboard.level.nextMultiplier', { level: nextTier.name }) }}
           </span>
           <small v-if="profile.next_multiplier_group" class="dashboard-level__group">
             {{ profile.next_multiplier_group }}
           </small>
         </div>
         <strong class="dashboard-level__next-rate-value">
-          ×{{ formatMultiplier(profile.next_level_multiplier) }}
+          ×{{ formatMultiplier(nextTier.multiplier) }}
         </strong>
       </div>
     </div>
     <div v-else class="dashboard-level__state dashboard-level__muted">
-      {{ t('dashboard.level.unavailable') }}
+      {{ profile?.configured ? t('dashboard.level.unavailable') : t('dashboard.level.unconfigured') }}
     </div>
 
     <!-- 完整进度弹窗 -->
@@ -72,15 +73,20 @@
         <div class="dashboard-level__summary">
           <div>
             <span class="dashboard-level__label">{{ t('dashboard.level.current') }}</span>
-            <strong class="dashboard-level__level">L{{ profile.level }}</strong>
+            <strong class="dashboard-level__level">{{ profile.configured ? currentTierLabel : t('dashboard.level.unconfigured') }}</strong>
           </div>
           <div>
             <span class="dashboard-level__label">{{ t('dashboard.level.spend7d') }}</span>
             <strong class="dashboard-level__value">{{ formatPoints(profile.usage_7d) }}</strong>
           </div>
           <div>
-            <span class="dashboard-level__label">{{ t('dashboard.level.multiplier') }}</span>
-            <strong v-if="profile.level_multiplier != null" class="dashboard-level__value">×{{ formatMultiplier(profile.level_multiplier) }}</strong>
+            <span class="dashboard-level__label">{{ t('dashboard.level.userMultiplier') }}</span>
+            <strong v-if="profile.user_level_multiplier != null" class="dashboard-level__value">×{{ formatMultiplier(profile.user_level_multiplier) }}</strong>
+            <strong v-else class="dashboard-level__value dashboard-level__muted">—</strong>
+          </div>
+          <div>
+            <span class="dashboard-level__label">{{ t('dashboard.level.groupMultiplier') }}</span>
+            <strong v-if="profile.group_rule_multiplier != null" class="dashboard-level__value">×{{ formatMultiplier(profile.group_rule_multiplier) }}</strong>
             <strong v-else class="dashboard-level__value dashboard-level__muted">—</strong>
           </div>
           <div v-if="profile.effective_multiplier != null && !sameMultiplier">
@@ -88,20 +94,20 @@
             <strong class="dashboard-level__value">×{{ formatMultiplier(profile.effective_multiplier) }}</strong>
             <small v-if="profile.multiplier_group" class="dashboard-level__group">{{ profile.multiplier_group }}</small>
           </div>
-          <div v-if="nextLevel && profile.next_level_multiplier != null">
+          <div v-if="nextTier && nextTier.multiplier != null">
             <span class="dashboard-level__label">
-              {{ t('dashboard.level.nextMultiplier', { level: `L${nextLevel.level}` }) }}
+              {{ t('dashboard.level.nextMultiplier', { level: nextTier.name }) }}
             </span>
-            <strong class="dashboard-level__value">×{{ formatMultiplier(profile.next_level_multiplier) }}</strong>
+            <strong class="dashboard-level__value">×{{ formatMultiplier(nextTier.multiplier) }}</strong>
             <small v-if="profile.next_multiplier_group" class="dashboard-level__group">{{ profile.next_multiplier_group }}</small>
           </div>
         </div>
 
         <div class="dashboard-level__ladder">
           <h4 class="dashboard-level__ladder-title">{{ t('dashboard.level.ladder') }}</h4>
-          <div v-for="tier in ladder" :key="tier.level" class="dashboard-level__tier">
+          <div v-for="tier in ladder" :key="tier.key" class="dashboard-level__tier">
             <div class="dashboard-level__tier-head">
-              <span class="dashboard-level__tier-name">L{{ tier.level }}</span>
+              <span class="dashboard-level__tier-name">{{ tier.ruleName }} / {{ tier.name }}</span>
               <span class="dashboard-level__tier-threshold">≥ {{ formatPoints(tier.threshold) }}</span>
               <span class="dashboard-level__tier-status" :class="`dashboard-level__tier-status--${tier.status}`">
                 {{ t(`dashboard.level.${tier.status}`) }}
@@ -138,66 +144,92 @@ const showFullDialog = ref(false)
 
 const formatMultiplier = (value: number) => Number(value || 0).toFixed(2)
 
-// 下一级信息:门槛与差额;满级时为 null
-const nextLevel = computed(() => {
-  const p = props.profile
-  if (!p || p.level >= 3) return null
-  const threshold = p.level === 1 ? p.l2_min_spend : p.l3_min_spend
-  return {
-    level: p.level + 1,
-    threshold,
-    remaining: Math.max(0, threshold - Math.max(0, p.usage_7d)),
-  }
-})
-
-// 当前级到下一级的进度(满级 100%)
-const progress = computed(() => {
-  if (!props.profile) return 0
-  const spend = Math.max(0, props.profile.usage_7d)
-  if (props.profile.level >= 3) return 100
-  if (props.profile.level === 2) {
-    const span = props.profile.l3_min_spend - props.profile.l2_min_spend
-    return span > 0 ? Math.min(100, Math.max(0, ((spend - props.profile.l2_min_spend) / span) * 100)) : 50
-  }
-  return props.profile.l2_min_spend > 0 ? Math.min(100, (spend / props.profile.l2_min_spend) * 100) : 0
-})
-
 type TierStatus = 'achieved' | 'inProgress' | 'locked'
 
+type TierView = {
+  key: string
+  ruleName: string
+  id: string
+  name: string
+  threshold: number
+  status: TierStatus
+  progress: number
+}
+
+const primaryRule = computed(() => {
+  const rules = props.profile?.rules ?? []
+  return rules.slice().sort((a, b) => {
+    if (a.window_days === 7 && b.window_days !== 7) return -1
+    if (b.window_days === 7 && a.window_days !== 7) return 1
+    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1
+    return a.rule_name.localeCompare(b.rule_name)
+  })[0] ?? null
+})
+
+const currentTierLabel = computed(() => {
+  const rule = primaryRule.value
+  if (!rule) return t('dashboard.level.unconfigured')
+  return rule.current_tier_name || t('dashboard.level.unconfigured')
+})
+
+const sortedPrimaryTiers = computed(() =>
+  (primaryRule.value?.tiers ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+)
+
+const nextTier = computed(() => {
+  const rule = primaryRule.value
+  if (!rule) return null
+  const currentOrder = rule.current_tier_order
+  const tier = sortedPrimaryTiers.value.find((item) => item.sort_order > currentOrder)
+  if (!tier) return null
+  return {
+    name: tier.name,
+    minSpend: tier.min_spend,
+    remaining: Math.max(0, tier.min_spend - Math.max(0, rule.spend)),
+    multiplier: tier.default_multiplier ?? null,
+  }
+})
+
 // 弹窗内的完整阶梯:每级门槛、状态与到达该级的进度
-// 每级的进度区间 = [上一级门槛, 本级门槛],已达成恒为 100%。
 const ladder = computed(() => {
   const p = props.profile
   if (!p) return []
-  const spend = Math.max(0, p.usage_7d)
-  const tiers = [
-    { level: 1, from: 0, threshold: 0 },
-    { level: 2, from: 0, threshold: p.l2_min_spend },
-    { level: 3, from: p.l2_min_spend, threshold: p.l3_min_spend },
-  ]
-  return tiers.map((tier) => {
-    let status: TierStatus
-    if (p.level >= tier.level) {
-      status = 'achieved'
-    } else if (tier.level === p.level + 1) {
-      status = 'inProgress'
-    } else {
-      status = 'locked'
-    }
-    let tierProgress = 0
-    if (status === 'achieved') {
-      tierProgress = 100
-    } else if (status === 'inProgress') {
-      const span = tier.threshold - tier.from
-      tierProgress = span > 0 ? Math.min(100, Math.max(0, ((spend - tier.from) / span) * 100)) : 0
-    }
-    return { level: tier.level, threshold: tier.threshold, status, progress: tierProgress }
+  return p.rules.flatMap((rule) => {
+    const tiers = (rule.tiers ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    const spend = Math.max(0, rule.spend)
+    return tiers.map((tier, index) => {
+      const previous = tiers[index - 1]?.min_spend ?? 0
+      const reached = tier.sort_order <= rule.current_tier_order
+      const isNext = !reached && tier.sort_order === rule.current_tier_order + 1
+      const span = tier.min_spend - previous
+      const progress = reached ? 100 : isNext && span > 0
+        ? Math.min(100, Math.max(0, ((spend - previous) / span) * 100))
+        : 0
+      return {
+        key: `${rule.rule_id}:${tier.id}`,
+        ruleName: rule.rule_name,
+        id: tier.id,
+        name: tier.name,
+        threshold: tier.min_spend,
+        status: reached ? 'achieved' : isNext ? 'inProgress' : 'locked',
+        progress,
+      } satisfies TierView
+    })
   })
 })
 
+const progress = computed(() => {
+  const rule = primaryRule.value
+  const next = nextTier.value
+  if (!rule || !next) return 100
+  const current = rule.min_spend
+  const span = next.minSpend - current
+  return span > 0 ? Math.min(100, Math.max(0, ((rule.spend - current) / span) * 100)) : 0
+})
+
 const sameMultiplier = computed(() => {
-  if (!props.profile || props.profile.level_multiplier == null || props.profile.effective_multiplier == null) return true
-  return Math.abs(props.profile.level_multiplier - props.profile.effective_multiplier) < 0.0001
+  if (!props.profile || props.profile.user_level_multiplier == null || props.profile.effective_multiplier == null) return true
+  return Math.abs(props.profile.user_level_multiplier - props.profile.effective_multiplier) < 0.0001
 })
 </script>
 

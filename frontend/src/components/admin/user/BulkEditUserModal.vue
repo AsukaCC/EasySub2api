@@ -62,6 +62,33 @@
         </div>
       </div>
 
+      <div class="components-admin-user-bulk-edit-user-modal__panel components-admin-user-bulk-edit-user-modal__level-rules">
+        <div class="components-admin-user-bulk-edit-user-modal__panel-2">
+          <div class="components-admin-user-bulk-edit-user-modal__panel-3">
+            <label for="bulk-level-rules" class="components-admin-user-bulk-edit-user-modal__label input-label">
+              {{ t('admin.users.levels.assignedRules') }}
+            </label>
+            <Toggle
+              v-model="enableLevelRules"
+              :aria-label="t('admin.users.levels.enableBulk')"
+              data-test="enable-level-rules"
+            />
+          </div>
+          <div v-if="enableLevelRules" class="components-admin-user-bulk-edit-user-modal__level-rule-fields">
+            <select v-model="levelRuleOperation" class="input">
+              <option value="add">{{ t('admin.users.levels.addOperation') }}</option>
+              <option value="remove">{{ t('admin.users.levels.removeOperation') }}</option>
+              <option value="replace">{{ t('admin.users.levels.replaceOperation') }}</option>
+            </select>
+            <select id="bulk-level-rules" v-model="selectedLevelRuleIDs" class="input" multiple size="4" :disabled="levelRulesLoading">
+              <option v-for="rule in levelRules" :key="rule.id" :value="rule.id">
+                {{ rule.name }} ({{ rule.window_days }}d)
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <p v-if="hasInvalidValue" class="components-admin-user-bulk-edit-user-modal__description-2">
         {{ t('admin.users.bulkLimits.nonNegativeInteger') }}
       </p>
@@ -94,6 +121,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { BatchUpdateUserLimitsRequest } from '@/api/admin/users'
+import type { UserLevelRule } from '@/api/admin/users'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Toggle from '@/components/common/Toggle.vue'
@@ -116,6 +144,11 @@ const concurrencyValue = ref<string | number>('')
 const rpmLimitValue = ref<string | number>('')
 const submitting = ref(false)
 const MAX_BATCH_USER_IDS = 500
+const enableLevelRules = ref(false)
+const levelRuleOperation = ref<'add' | 'remove' | 'replace'>('replace')
+const selectedLevelRuleIDs = ref<string[]>([])
+const levelRules = ref<UserLevelRule[]>([])
+const levelRulesLoading = ref(false)
 
 const parseLimit = (value: string | number): number | null | undefined => {
   const trimmed = String(value).trim()
@@ -137,12 +170,19 @@ const hasInvalidValue = computed(() =>
 const hasUpdate = computed(() =>
   (parsedConcurrency.value !== undefined && parsedConcurrency.value !== null)
   || (parsedRPMLimit.value !== undefined && parsedRPMLimit.value !== null)
+  || enableLevelRules.value
+)
+const levelRulesSelectionValid = computed(() =>
+  !enableLevelRules.value
+  || levelRuleOperation.value === 'replace'
+  || selectedLevelRuleIDs.value.length > 0
 )
 const selectionTooLarge = computed(() => props.selectedIds.length > MAX_BATCH_USER_IDS)
 const canSubmit = computed(() =>
   props.selectedIds.length > 0
   && !selectionTooLarge.value
   && hasUpdate.value
+  && levelRulesSelectionValid.value
   && !hasInvalidValue.value
   && !submitting.value
 )
@@ -152,13 +192,30 @@ const reset = () => {
   enableRPMLimit.value = false
   concurrencyValue.value = ''
   rpmLimitValue.value = ''
+  enableLevelRules.value = false
+  levelRuleOperation.value = 'replace'
+  selectedLevelRuleIDs.value = []
   submitting.value = false
+}
+
+async function loadLevelRules() {
+  levelRulesLoading.value = true
+  try {
+    levelRules.value = await adminAPI.users.listLevelRules()
+  } catch {
+    levelRules.value = []
+  } finally {
+    levelRulesLoading.value = false
+  }
 }
 
 watch(
   () => props.show,
   (show) => {
-    if (show) reset()
+    if (show) {
+      reset()
+      void loadLevelRules()
+    }
   }
 )
 
@@ -184,6 +241,9 @@ const handleSubmit = async () => {
         : t('admin.users.bulkLimits.rpmValue', { value: parsedRPMLimit.value })
     )
   }
+  if (enableLevelRules.value) {
+    fields.push(t(`admin.users.levels.${levelRuleOperation.value}Operation`))
+  }
 
   const confirmed = window.confirm(
     t('admin.users.bulkLimits.confirm', {
@@ -195,11 +255,23 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
-    const result = await adminAPI.users.batchUpdateLimits(request)
+    let affected = 0
+    if (parsedConcurrency.value !== undefined || parsedRPMLimit.value !== undefined) {
+      const result = await adminAPI.users.batchUpdateLimits(request)
+      affected = result.affected
+    }
+    if (enableLevelRules.value) {
+      const ruleResult = await adminAPI.users.batchAssignLevelRules({
+        user_ids: [...props.selectedIds],
+        rule_ids: [...selectedLevelRuleIDs.value],
+        operation: levelRuleOperation.value
+      })
+      affected = Math.max(affected, ruleResult.affected)
+    }
     appStore.showSuccess(
-      t('admin.users.bulkLimits.success', { count: result.affected })
+      t('admin.users.bulkLimits.success', { count: affected })
     )
-    emit('success', result.affected)
+    emit('success', affected)
     emit('close')
   } catch (error: any) {
     appStore.showError(

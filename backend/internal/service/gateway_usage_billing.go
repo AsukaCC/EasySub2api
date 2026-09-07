@@ -31,7 +31,34 @@ func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID,
 
 // ResolveUserGroupRateMultiplier resolves the same cached multiplier used by usage billing.
 func (s *GatewayService) ResolveUserGroupRateMultiplier(ctx context.Context, userID, groupID string, groupDefaultMultiplier float64) float64 {
+	if s != nil && s.userLevelService != nil && s.userLevelService.groupRepo != nil && strings.TrimSpace(userID) != "" && strings.TrimSpace(groupID) != "" {
+		if group, err := s.userLevelService.groupRepo.GetByIDLite(ctx, groupID); err == nil && group != nil {
+			if plan, planErr := s.userLevelService.ResolvePlan(ctx, userID, group, timezone.Now()); planErr == nil {
+				return plan.EffectiveBaseMultiplier
+			}
+		}
+	}
+	if s != nil && s.userLevelService != nil {
+		// Do not fall back to the legacy user-override resolver when the
+		// canonical plan cannot be built. The group default is the only safe
+		// partial snapshot in that situation.
+		return groupDefaultMultiplier
+	}
 	return s.getUserGroupRateMultiplier(ctx, userID, groupID, groupDefaultMultiplier)
+}
+
+// ResolveUserRatePlan exposes the canonical pricing snapshot to diagnostics
+// and other gateway-facing handlers. Callers must use this plan instead of
+// reconstructing the historical user-override-only calculation.
+func (s *GatewayService) ResolveUserRatePlan(ctx context.Context, userID string, group *Group, at time.Time) (*UserRatePlan, bool) {
+	if s == nil || s.userLevelService == nil || s.userLevelService.groupRepo == nil || group == nil {
+		return nil, false
+	}
+	plan, err := s.userLevelService.ResolvePlan(ctx, userID, group, at)
+	if err != nil {
+		return nil, false
+	}
+	return &plan, true
 }
 
 // RecordUsageInput 记录使用量的输入参数。
@@ -343,9 +370,20 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	if p.RatePlan != nil && dynamicRateStandardCost > 0 &&
 		(p.Cost.BillingMode == "" || p.Cost.BillingMode == string(BillingModeToken)) &&
 		len(p.RatePlan.DynamicCandidates) > 0 {
-		fallbackMultiplier := p.RatePlan.BaseMultiplier * p.RatePlan.PeakMultiplier
+		fallbackBase := p.RatePlan.NonDynamicMultiplier
+		if !finiteNonnegative(fallbackBase) {
+			fallbackBase = p.RatePlan.BaseMultiplier
+		}
+		fallbackMultiplier := fallbackBase * p.RatePlan.PeakMultiplier
 		rules := make([]UsageDynamicRateRule, 0, len(p.RatePlan.DynamicCandidates))
 		for _, candidate := range p.RatePlan.DynamicCandidates {
+			// A canonical plan explicitly names the one dynamic rule that won
+			// the final minimum comparison. An empty selection means that a
+			// static group candidate or the user-level candidate won, so no
+			// dynamic quota may be consumed.
+			if p.RatePlan.SelectedDynamicRuleID == "" || candidate.RuleID != p.RatePlan.SelectedDynamicRuleID {
+				continue
+			}
 			multiplier := candidate.Multiplier * p.RatePlan.PeakMultiplier
 			if multiplier >= fallbackMultiplier {
 				continue
@@ -356,6 +394,8 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 				SharedQuotaAmount:   candidate.SharedQuotaAmount,
 				PersonalQuotaAmount: candidate.PersonalQuotaAmount,
 			})
+			// Only the selected dynamic rule may consume quota for this request.
+			break
 		}
 		if len(rules) > 0 {
 			cmd.DynamicRatePlan = &UsageDynamicRatePlan{
@@ -819,23 +859,32 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
 
-	// 获取费率倍数（优先级：用户专属 > 分组默认 > 系统默认）
+	// Resolve a complete rate-plan snapshot when the request did not come from
+	// account selection. This keeps direct gateway paths aligned with scheduler
+	// pricing instead of restoring the old override-only behavior.
+	pricingAt := input.PricingAt
+	if pricingAt.IsZero() {
+		pricingAt = timezone.Now()
+	}
+	if ratePlan == nil && s.userLevelService != nil && user != nil && apiKey != nil && apiKey.Group != nil {
+		if resolved, resolveErr := s.userLevelService.ResolvePlan(ctx, user.ID, apiKey.Group, pricingAt); resolveErr == nil {
+			ratePlan = &resolved
+		}
+	}
+
+	// 获取费率倍数（用户等级与分组候选分别计算后取最低值）
 	multiplier := 1.0
 	if s.cfg != nil {
 		multiplier = s.cfg.Default.RateMultiplier
 	}
 	if ratePlan != nil {
-		multiplier = ratePlan.BaseMultiplier
+		multiplier = ratePlan.EffectiveBaseMultiplier
 	} else if apiKey.GroupID != nil && apiKey.Group != nil {
 		groupDefault := apiKey.Group.RateMultiplier
 		multiplier = s.ResolveUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
 	// token 倍率叠加高峰因子（token 计费含图片 token，图片按次倍率不受影响）。高峰因子按请求时刻现算，
 	// 不并入上面的 getUserGroupRateMultiplier，以免污染 user:group 倍率缓存。
-	pricingAt := input.PricingAt
-	if pricingAt.IsZero() {
-		pricingAt = timezone.Now()
-	}
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, multiplier, pricingAt)
 	if ratePlan != nil {
 		multiplier = ratePlan.EffectiveMultiplier

@@ -56,6 +56,22 @@
         />
         <p class="input-hint">{{ t('admin.users.form.rpmLimitHint') }}</p>
       </div>
+      <div class="components-admin-user-user-edit-modal__level-rules">
+        <label class="input-label" for="user-level-rules">{{ t('admin.users.levels.assignedRules') }}</label>
+        <select
+          id="user-level-rules"
+          v-model="selectedLevelRuleIDs"
+          class="input"
+          multiple
+          size="4"
+          :disabled="levelRulesLoading"
+        >
+          <option v-for="rule in levelRules" :key="rule.id" :value="rule.id">
+            {{ rule.name }} ({{ rule.window_days }}d)
+          </option>
+        </select>
+        <p class="input-hint">{{ levelRulesLoading ? t('common.loading') : t('admin.users.levels.assignmentHint') }}</p>
+      </div>
       <UserAttributeForm v-model="form.customAttributes" :user-id="user?.id" />
     </form>
     <template #footer>
@@ -79,6 +95,7 @@ import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, UserAttributeValuesMap } from '@/types'
+import type { UserLevelRule } from '@/api/admin/users'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
@@ -92,13 +109,41 @@ const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard
 
 const submitting = ref(false); const passwordCopied = ref(false)
 const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user', concurrency: 1, rpm_limit: 0, customAttributes: {} as UserAttributeValuesMap })
+const levelRules = ref<UserLevelRule[]>([])
+const selectedLevelRuleIDs = ref<string[]>([])
+const levelRulesLoading = ref(false)
+const levelRulesLoaded = ref(false)
 
 watch(() => props.user, (u) => {
   if (u) {
     Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', role: u.role || 'user', concurrency: u.concurrency, rpm_limit: u.rpm_limit ?? 0, customAttributes: {} })
     passwordCopied.value = false
+    selectedLevelRuleIDs.value = []
+    levelRulesLoaded.value = false
+    if (props.show) void loadLevelRules(u.id)
   }
 }, { immediate: true })
+
+watch(() => props.show, (show) => {
+  if (show && props.user) void loadLevelRules(props.user.id)
+})
+
+async function loadLevelRules(userId: string) {
+  levelRulesLoading.value = true
+  try {
+    const [available, assigned] = await Promise.all([
+      adminAPI.users.listLevelRules(),
+      adminAPI.users.getUserLevelRules(userId)
+    ])
+    levelRules.value = available
+    selectedLevelRuleIDs.value = assigned.map((rule) => rule.id)
+    levelRulesLoaded.value = true
+  } catch {
+    levelRulesLoaded.value = false
+  } finally {
+    levelRulesLoading.value = false
+  }
+}
 
 const generatePassword = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'
@@ -129,6 +174,9 @@ const handleUpdateUser = async () => {
     if (form.password.trim()) data.password = form.password.trim()
     // 提升为管理员属敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 验证并重试
     await stepUp.run(() => adminAPI.users.update(userId, data))
+    if (levelRulesLoaded.value) {
+      await adminAPI.users.replaceUserLevelRules(userId, selectedLevelRuleIDs.value)
+    }
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(userId, form.customAttributes)
     appStore.showSuccess(t('admin.users.userUpdated'))
     emit('success'); emit('close')

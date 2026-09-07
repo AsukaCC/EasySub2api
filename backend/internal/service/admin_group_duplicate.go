@@ -107,6 +107,7 @@ func cloneGroupDynamicRateRules(value []GroupDynamicRateRule) []GroupDynamicRate
 	cloned := make([]GroupDynamicRateRule, len(value))
 	for i := range value {
 		cloned[i] = value[i]
+		cloned[i].LevelTierIDs = append([]string(nil), value[i].LevelTierIDs...)
 		cloned[i].Levels = append([]int(nil), value[i].Levels...)
 	}
 	return cloned

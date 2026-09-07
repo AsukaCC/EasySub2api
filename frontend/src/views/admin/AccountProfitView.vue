@@ -127,12 +127,22 @@
                   <td v-for="column in visibleMetricColumns" :key="column.key" :class="['account-profit-view__metric-cell', metricClass(column), `is-group-${column.group}`]">
                     {{ formatMetric(account, column) }}
                   </td>
-                  <td>
-                    <button type="button" class="account-profit-view__detail" @click="openProfit(account)">
-                      <Icon name="chart" size="xs" />
-                      {{ t('admin.accounts.viewProfit') }}
-                    </button>
-                  </td>
+                   <td>
+                     <div class="account-profit-view__actions">
+                       <button
+                         type="button"
+                         class="account-profit-view__icon-action"
+                         :title="t('admin.accounts.profit.setSubscriptionCost')"
+                         @click="openCostEditor(account)"
+                       >
+                         <Icon name="edit" size="xs" />
+                       </button>
+                       <button type="button" class="account-profit-view__detail" @click="openProfit(account)">
+                         <Icon name="chart" size="xs" />
+                         {{ t('admin.accounts.viewProfit') }}
+                       </button>
+                     </div>
+                   </td>
                   </tr>
                 </template>
               </tbody>
@@ -146,6 +156,53 @@
       </TablePageLayout>
     </div>
     <AccountProfitModal :show="showProfit" :account="selectedAccount" @close="showProfit = false; selectedAccount = null" />
+    <BaseDialog
+      :show="showCostEditor"
+      :title="t('admin.accounts.profit.setSubscriptionCost')"
+      width="narrow"
+      @close="closeCostEditor()"
+    >
+      <form id="account-profit-cost-form" class="account-profit-view__cost-form" @submit.prevent="saveCost()">
+        <div v-if="costAccount" class="account-profit-view__cost-account">
+          <strong>{{ costAccount.name }}</strong>
+          <span>{{ platformLabel(costAccount.platform) }} · {{ costAccount.subscription_tier || t('admin.accounts.profit.noTier') }}</span>
+        </div>
+        <label class="account-profit-view__cost-field">
+          <span>{{ t('admin.accounts.profit.subscriptionCost') }}</span>
+          <input
+            v-model="costInput"
+            class="input"
+            type="number"
+            min="0"
+            step="0.0001"
+            :placeholder="t('admin.accounts.profit.subscriptionCostPlaceholder')"
+            :disabled="costSaving"
+          />
+        </label>
+        <p class="input-hint">{{ t('admin.accounts.profit.subscriptionCostHint') }}</p>
+        <p v-if="costError" class="account-profit-view__cost-error">{{ costError }}</p>
+      </form>
+      <template #footer>
+        <div class="account-profit-view__cost-actions">
+          <button
+            v-if="costAccount?.subscription_cost_points != null"
+            type="button"
+            class="btn btn-secondary"
+            :disabled="costSaving"
+            @click="saveCost(true)"
+          >
+            {{ t('admin.accounts.profit.clearSubscriptionCost') }}
+          </button>
+          <span class="account-profit-view__cost-actions-spacer" />
+          <button type="button" class="btn btn-secondary" :disabled="costSaving" @click="closeCostEditor">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="submit" form="account-profit-cost-form" class="btn btn-primary" :disabled="costSaving">
+            {{ costSaving ? t('common.saving') : t('common.save') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -154,6 +211,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'
@@ -174,6 +232,7 @@ type MetricKey =
   | 'period_7d_tokens'
   | 'expiry_30d_revenue'
   | 'expiry_30d_cost'
+  | 'expiry_30d_subscription_cost'
   | 'expiry_30d_profit'
   | 'expiry_30d_tokens'
   | 'lifetime_revenue'
@@ -187,7 +246,7 @@ interface MetricColumn {
   group: MetricGroup
   label: string
   sortBy: string
-  value: 'revenue_points' | 'cost_usd' | 'profit_points' | 'tokens'
+  value: 'revenue_points' | 'cost_usd' | 'profit_points' | 'tokens' | 'subscription_cost_points'
 }
 
 const metricGroups: MetricGroup[] = ['period', 'expiry', 'lifetime']
@@ -206,6 +265,11 @@ const sortOrder = ref<'asc' | 'desc'>('desc')
 const showColumnsMenu = ref(false)
 const selectedAccount = ref<AccountProfitListItem | null>(null)
 const showProfit = ref(false)
+const costAccount = ref<AccountProfitListItem | null>(null)
+const showCostEditor = ref(false)
+const costInput = ref('')
+const costSaving = ref(false)
+const costError = ref('')
 
 const filters = reactive<Record<string, string>>({
   search: '',
@@ -248,6 +312,7 @@ const metricColumns = computed<MetricColumn[]>(() => [
   { key: 'period_7d_tokens', group: 'period', label: t('admin.accounts.profit.tokens'), sortBy: 'period_7d_tokens', value: 'tokens' },
   { key: 'expiry_30d_revenue', group: 'expiry', label: t('admin.accounts.profit.revenuePoints'), sortBy: 'expiry_30d_revenue', value: 'revenue_points' },
   { key: 'expiry_30d_cost', group: 'expiry', label: t('admin.accounts.profit.upstreamCost'), sortBy: 'expiry_30d_cost', value: 'cost_usd' },
+  { key: 'expiry_30d_subscription_cost', group: 'expiry', label: t('admin.accounts.profit.subscriptionCost'), sortBy: 'expiry_30d_subscription_cost', value: 'subscription_cost_points' },
   { key: 'expiry_30d_profit', group: 'expiry', label: t('admin.accounts.profit.profit'), sortBy: 'expiry_30d_profit', value: 'profit_points' },
   { key: 'expiry_30d_tokens', group: 'expiry', label: t('admin.accounts.profit.tokens'), sortBy: 'expiry_30d_tokens', value: 'tokens' },
   { key: 'lifetime_revenue', group: 'lifetime', label: t('admin.accounts.profit.revenuePoints'), sortBy: 'lifetime_revenue', value: 'revenue_points' },
@@ -264,6 +329,7 @@ const columnVisibility = reactive<Record<MetricKey, boolean>>({
   period_7d_tokens: true,
   expiry_30d_revenue: true,
   expiry_30d_cost: true,
+  expiry_30d_subscription_cost: true,
   expiry_30d_profit: false,
   expiry_30d_tokens: true,
   lifetime_revenue: true,
@@ -336,6 +402,54 @@ function openProfit(account: AccountProfitListItem) {
   showProfit.value = true
 }
 
+function openCostEditor(account: AccountProfitListItem) {
+  costAccount.value = account
+  costInput.value = account.subscription_cost_points == null ? '' : String(account.subscription_cost_points)
+  costError.value = ''
+  showCostEditor.value = true
+}
+
+function resetCostEditor() {
+  showCostEditor.value = false
+  costAccount.value = null
+  costError.value = ''
+}
+
+function closeCostEditor() {
+  if (costSaving.value) return
+  resetCostEditor()
+}
+
+async function saveCost(clear = false) {
+  const account = costAccount.value
+  if (!account || costSaving.value) return
+
+  let value: number | null = null
+  if (!clear) {
+    const raw = costInput.value.trim()
+    if (raw !== '') {
+      const parsed = Number(raw)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        costError.value = t('admin.accounts.profit.subscriptionCostInvalid')
+        return
+      }
+      value = parsed
+    }
+  }
+
+  costSaving.value = true
+  costError.value = ''
+  try {
+    await adminAPI.accounts.updateProfitSettings(account.id, { subscription_cost_points: value })
+    resetCostEditor()
+    await load()
+  } catch (err) {
+    costError.value = extractApiErrorMessage(err, t('admin.accounts.profit.loadFailed'))
+  } finally {
+    costSaving.value = false
+  }
+}
+
 function platformLabel(value: AccountPlatform) {
   return t(`admin.accounts.platforms.${value}`)
 }
@@ -358,17 +472,24 @@ function metricPeriod(account: AccountProfitListItem, column: MetricColumn) {
 }
 
 function formatMetric(account: AccountProfitListItem, column: MetricColumn) {
+  if (column.value === 'subscription_cost_points') {
+    if (!account.expiry_30d) return '-'
+    return account.subscription_cost_points == null
+      ? t('admin.accounts.profit.subscriptionCostUnset')
+      : formatPoints(account.subscription_cost_points)
+  }
   const period = metricPeriod(account, column)
   if (!period) return '-'
   const value = period[column.value]
-  if (column.value === 'cost_usd') return formatUSD(value)
-  if (column.value === 'tokens') return formatNumber(value)
-  return formatPoints(value)
+  if (column.value === 'cost_usd') return formatUSD(Number(value ?? 0))
+  if (column.value === 'tokens') return formatNumber(Number(value ?? 0))
+  return formatPoints(Number(value ?? 0))
 }
 
 function metricClass(column: MetricColumn) {
   if (column.value === 'revenue_points') return 'is-revenue'
   if (column.value === 'cost_usd') return 'is-cost'
+  if (column.value === 'subscription_cost_points') return 'is-subscription-cost'
   if (column.value === 'profit_points') return 'is-profit'
   return 'is-tokens'
 }
@@ -520,7 +641,8 @@ onMounted(() => void load())
 
 .account-profit-view__icon-button:hover,
 .account-profit-view__refresh:hover:not(:disabled),
-.account-profit-view__detail:hover {
+.account-profit-view__detail:hover,
+.account-profit-view__icon-action:hover {
   border-color: var(--glass-border-hover);
   background: var(--glass-bg-interactive-hover);
   color: var(--color-text-primary);
@@ -530,6 +652,7 @@ onMounted(() => void load())
 .account-profit-view__icon-button:focus-visible,
 .account-profit-view__refresh:focus-visible,
 .account-profit-view__detail:focus-visible,
+.account-profit-view__icon-action:focus-visible,
 .account-profit-view__sort-button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 20%, transparent);
@@ -856,8 +979,85 @@ onMounted(() => void load())
   font-size: var(--font-size-2xs);
 }
 
+.account-profit-view__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.account-profit-view__icon-action {
+  display: inline-grid;
+  width: 1.875rem;
+  height: 1.875rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-interactive);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.account-profit-view__cost-form {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.account-profit-view__cost-account {
+  display: grid;
+  gap: 0.2rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.account-profit-view__cost-account strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.account-profit-view__cost-account span {
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-profit-view__cost-field {
+  display: grid;
+  gap: 0.375rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.account-profit-view__cost-field .input {
+  width: 100%;
+  min-height: 2.25rem;
+}
+
+.account-profit-view__cost-error {
+  margin: 0;
+  color: var(--color-text-danger);
+  font-size: var(--font-size-xs);
+}
+
+.account-profit-view__cost-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.account-profit-view__cost-actions-spacer {
+  flex: 1 1 auto;
+}
+
 .is-revenue { color: var(--color-text-success); }
 .is-cost { color: var(--color-text-warning); }
+.is-subscription-cost { color: #c2410c; }
 .is-profit { color: var(--color-text-brand); }
 .is-tokens { color: #7c3aed; }
 .is-muted { color: var(--color-text-muted); }

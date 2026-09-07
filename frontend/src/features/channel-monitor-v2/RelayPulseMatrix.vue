@@ -57,7 +57,7 @@
             :class="showThroughput ? 'matrix-row--with-tps' : ''"
           >
             <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-9 dimension-cell" :title="rowLabel(entry.row)">
-              <span :class="['status-dot', cellClass(entry.row.health, entry.row.metrics.request_count)]"></span>
+              <span :class="['status-dot', cellClass(entry.row.health, entry.row.metrics.error_rate, entry.row.metrics.request_count)]"></span>
               <strong class="features-channel-monitor-v2-relay-pulse-matrix__strong">{{ rowLabel(entry.row) }}</strong>
             </div>
             <strong class="features-channel-monitor-v2-relay-pulse-matrix__strong-2 summary-value">
@@ -87,7 +87,7 @@
                 :key="slot.start"
                 class="features-channel-monitor-v2-relay-pulse-matrix__text-5 pulse-cell"
                 :class="[
-                  slot.bucket ? cellClass(slot.bucket.health, slot.bucket.metrics.request_count) : 'health-unknown',
+                  slot.bucket ? cellClass(slot.bucket.health, slot.bucket.metrics.error_rate, slot.bucket.metrics.request_count) : 'health-unknown',
                   slot.bucket ? 'has-data' : 'is-empty',
                 ]"
                 tabindex="0"
@@ -131,9 +131,9 @@
 
       <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-12" :aria-label="t('channelMonitorV2.matrix.legendAria')">
         <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-13">
-          <span class="features-channel-monitor-v2-relay-pulse-matrix__text-2">{{ t('channelMonitorV2.matrix.bad') }}</span>
-          <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-14 score-legend"></div>
           <span class="features-channel-monitor-v2-relay-pulse-matrix__text-2">{{ t('channelMonitorV2.matrix.good') }}</span>
+          <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-14 score-legend"></div>
+          <span class="features-channel-monitor-v2-relay-pulse-matrix__text-2">{{ t('channelMonitorV2.matrix.bad') }}</span>
         </div>
         <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-15">
           <span class="features-channel-monitor-v2-relay-pulse-matrix__text-6"><i class="status-dot health-score10"></i>{{ t('channelMonitorV2.matrix.healthyLegend') }}</span>
@@ -185,8 +185,8 @@ import {
   formatMonitorThroughput,
   formatMonitorTokensPerSecond,
   tokensPerSecondFromTpm,
+  errorRateClass,
   healthModeScore,
-  healthScoreClass,
 } from '@/features/channel-monitor-v2/monitorFormat'
 import {
   applyWheelZoom,
@@ -343,8 +343,8 @@ watch(
   },
 )
 
-function cellClass(health: MonitorHealth, requestCount: number): string {
-  return healthScoreClass(health, props.healthMode, requestCount)
+function cellClass(health: MonitorHealth, errorRate: number, requestCount: number): string {
+  return errorRateClass(errorRate, health, requestCount)
 }
 
 function rowLabel(row: MonitorMatrixRow): string {
@@ -528,11 +528,11 @@ function formatBucketRange(value: string) {
 .score-legend {
   background: linear-gradient(
     90deg,
-    #dc2626 0%,
-    #e96d6d 20%,
+    #16a34a 0%,
+    #63ba6b 20%,
     #f5f5f5 50%,
-    #63ba6b 80%,
-    #16a34a 100%
+    #e96d6d 80%,
+    #dc2626 100%
   );
 }
 

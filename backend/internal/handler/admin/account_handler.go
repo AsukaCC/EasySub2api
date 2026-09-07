@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -2352,21 +2353,22 @@ func (h *AccountHandler) GetTodayStats(c *gin.Context) {
 }
 
 var accountProfitSortFields = map[string]struct{}{
-	"period_7d_revenue":    {},
-	"period_7d_cost":       {},
-	"period_7d_profit":     {},
-	"period_7d_tokens":     {},
-	"expiry_30d_revenue":   {},
-	"expiry_30d_cost":      {},
-	"expiry_30d_profit":    {},
-	"expiry_30d_tokens":    {},
-	"lifetime_revenue":     {},
-	"lifetime_cost":        {},
-	"lifetime_profit":      {},
-	"lifetime_tokens":      {},
-	"quota_7d_utilization": {},
-	"expires_at":           {},
-	"created_at":           {},
+	"period_7d_revenue":            {},
+	"period_7d_cost":               {},
+	"period_7d_profit":             {},
+	"period_7d_tokens":             {},
+	"expiry_30d_revenue":           {},
+	"expiry_30d_cost":              {},
+	"expiry_30d_profit":            {},
+	"expiry_30d_subscription_cost": {},
+	"expiry_30d_tokens":            {},
+	"lifetime_revenue":             {},
+	"lifetime_cost":                {},
+	"lifetime_profit":              {},
+	"lifetime_tokens":              {},
+	"quota_7d_utilization":         {},
+	"expires_at":                   {},
+	"created_at":                   {},
 }
 
 // ListProfit returns the server-side filtered and sorted account profit list.
@@ -2480,6 +2482,43 @@ func (h *AccountHandler) GetProfit(c *gin.Context) {
 		return
 	}
 	response.Success(c, stats)
+}
+
+// UpdateProfitSettings updates the optional subscription-cycle cost used by
+// the account's 30-day pre-expiry profit summary. Passing null clears it.
+// PUT /api/v1/admin/accounts/:id/profit-settings
+func (h *AccountHandler) UpdateProfitSettings(c *gin.Context) {
+	accountID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	if _, err := h.adminService.GetAccount(c.Request.Context(), accountID); err != nil {
+		response.NotFound(c, "Account not found")
+		return
+	}
+
+	var req struct {
+		SubscriptionCostPoints *float64 `json:"subscription_cost_points"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	if req.SubscriptionCostPoints != nil && (math.IsNaN(*req.SubscriptionCostPoints) || math.IsInf(*req.SubscriptionCostPoints, 0) || *req.SubscriptionCostPoints < 0) {
+		response.BadRequest(c, "subscription_cost_points must be a finite number greater than or equal to 0")
+		return
+	}
+	if h.accountUsageService == nil {
+		response.InternalError(c, "Account profit service is unavailable")
+		return
+	}
+	settings, err := h.accountUsageService.SetAccountProfitSubscriptionCost(c.Request.Context(), accountID, req.SubscriptionCostPoints)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, settings)
 }
 
 // BatchTodayStatsRequest 批量今日统计请求体。

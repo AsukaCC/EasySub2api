@@ -684,34 +684,34 @@ onBeforeUnmount(() => {
   color: var(--monitor-error-ink);
 }
 
-/* Error-rate bands: low error is green, high error moves through yellow/orange to red. */
+/* Error-rate bands: low error is green, the midpoint is white, and high error is red. */
 .error-band-0 {
-  --monitor-error-color: #dcfce7;
+  --monitor-error-color: #16a34a;
   --monitor-error-ink: #166534;
 }
 .error-band-1 {
-  --monitor-error-color: #86efac;
+  --monitor-error-color: #4ade80;
   --monitor-error-ink: #166534;
 }
 .error-band-2 {
-  --monitor-error-color: #4ade80;
+  --monitor-error-color: #86efac;
   --monitor-error-ink: #15803d;
 }
 .error-band-3 {
-  --monitor-error-color: #22c55e;
+  --monitor-error-color: #dcfce7;
   --monitor-error-ink: #166534;
 }
 .error-band-4 {
-  --monitor-error-color: #facc15;
-  --monitor-error-ink: #854d0e;
+  --monitor-error-color: #ffffff;
+  --monitor-error-ink: #64748b;
 }
 .error-band-5 {
-  --monitor-error-color: #fb923c;
-  --monitor-error-ink: #9a3412;
+  --monitor-error-color: #fecaca;
+  --monitor-error-ink: #b91c1c;
 }
 .error-band-6 {
-  --monitor-error-color: #f97316;
-  --monitor-error-ink: #9a3412;
+  --monitor-error-color: #f87171;
+  --monitor-error-ink: #b91c1c;
 }
 .error-band-7 {
   --monitor-error-color: #ef4444;

@@ -350,11 +350,13 @@
               </div>
 
               <ModelWhitelistSelector
-                v-model="allowedModels"
+                :model-value="allowedModels"
                 :platforms="targetSelectedPlatforms"
                 :account-id="upstreamAccountId"
                 :account-type="upstreamAccountType"
                 :sync-platform="upstreamAccountPlatform"
+                @update:model-value="handleAllowedModelsUpdate"
+                @upstream-synced="handleUpstreamModelsSynced"
               />
 
               <p class="components-account-bulk-edit-account-modal__description-7">
@@ -1918,6 +1920,15 @@ const buildModelMappingObject = (): Record<string, string> | null => {
     allowedModels.value,
     modelMappings.value
   )
+}
+
+const handleAllowedModelsUpdate = (models: string[]) => {
+  allowedModels.value = models
+  enableModelRestriction.value = true
+}
+
+const handleUpstreamModelsSynced = () => {
+  enableModelRestriction.value = true
 }
 
 const applyModelReasoningEfforts = (

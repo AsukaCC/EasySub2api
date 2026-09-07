@@ -381,6 +381,8 @@ export interface AnnouncementCondition {
   group_ids?: string[]
   value?: number
   user_ids?: string[]
+  level_tier_ids?: string[]
+  /** @deprecated Fixed numeric levels are retained only for old payloads. */
   levels?: number[]
 }
 
@@ -624,7 +626,10 @@ export interface GroupDynamicRateRule {
 	start_time?: string
 	/** @deprecated Legacy daily-clock rule field. */
 	end_time?: string
-	levels: number[]
+	/** User-level tier UUID targets. Empty means all users. */
+	level_tier_ids?: string[]
+	/** @deprecated Numeric fixed levels are no longer matched. */
+	levels?: number[]
 	multiplier: number
 	activation_spend: number
 	/** @deprecated Legacy daily quota field. */
@@ -1326,6 +1331,7 @@ export interface AccountProfitPeriod {
   profit_points: number
   requests: number
   tokens: number
+  subscription_cost_points?: number | null
 }
 
 export type AccountTodayProfit = AccountProfitPeriod
@@ -1342,11 +1348,17 @@ export interface AccountProfitResponse {
   period_7d: AccountProfitPeriod
   expiry_30d?: AccountProfitPeriod | null
   lifetime: AccountProfitPeriod
+  subscription_cost_points?: number | null
   history: AccountProfitDailyRecord[]
   total: number
   page: number
   page_size: number
   has_more: boolean
+}
+
+export interface AccountProfitSettings {
+  subscription_cost_points?: number | null
+  updated_at?: string | null
 }
 
 export interface AccountProfitQuota7d {
@@ -1366,6 +1378,7 @@ export interface AccountProfitListItem {
   status: Account['status']
   created_at: string
   expires_at?: number | null
+  subscription_cost_points?: number | null
   quota_7d: AccountProfitQuota7d
   period_7d: AccountProfitPeriod
   expiry_30d?: AccountProfitPeriod | null

@@ -403,11 +403,12 @@ type AccountUsageStatsResponse struct {
 // AccountProfitPeriod combines platform revenue with the existing account
 // cost calculation. Profit is the numeric 1:1 difference used by billing.
 type AccountProfitPeriod struct {
-	RevenuePoints float64 `json:"revenue_points"`
-	CostUSD       float64 `json:"cost_usd"`
-	ProfitPoints  float64 `json:"profit_points"`
-	Requests      int64   `json:"requests"`
-	Tokens        int64   `json:"tokens"`
+	RevenuePoints          float64  `json:"revenue_points"`
+	CostUSD                float64  `json:"cost_usd"`
+	ProfitPoints           float64  `json:"profit_points"`
+	Requests               int64    `json:"requests"`
+	Tokens                 int64    `json:"tokens"`
+	SubscriptionCostPoints *float64 `json:"subscription_cost_points,omitempty"`
 }
 
 type AccountTodayProfit = AccountProfitPeriod
@@ -419,17 +420,25 @@ type AccountProfitDailyRecord struct {
 }
 
 type AccountProfitResponse struct {
-	Today     AccountProfitPeriod        `json:"today"`
-	Week      AccountProfitPeriod        `json:"week"`
-	Month     AccountProfitPeriod        `json:"month"`
-	Period7d  AccountProfitPeriod        `json:"period_7d"`
-	Expiry30d *AccountProfitPeriod       `json:"expiry_30d,omitempty"`
-	Lifetime  AccountProfitPeriod        `json:"lifetime"`
-	History   []AccountProfitDailyRecord `json:"history"`
-	Total     int64                      `json:"total"`
-	Page      int                        `json:"page"`
-	PageSize  int                        `json:"page_size"`
-	HasMore   bool                       `json:"has_more"`
+	Today                  AccountProfitPeriod        `json:"today"`
+	Week                   AccountProfitPeriod        `json:"week"`
+	Month                  AccountProfitPeriod        `json:"month"`
+	Period7d               AccountProfitPeriod        `json:"period_7d"`
+	Expiry30d              *AccountProfitPeriod       `json:"expiry_30d,omitempty"`
+	Lifetime               AccountProfitPeriod        `json:"lifetime"`
+	History                []AccountProfitDailyRecord `json:"history"`
+	SubscriptionCostPoints *float64                   `json:"subscription_cost_points,omitempty"`
+	Total                  int64                      `json:"total"`
+	Page                   int                        `json:"page"`
+	PageSize               int                        `json:"page_size"`
+	HasMore                bool                       `json:"has_more"`
+}
+
+// AccountProfitSettings contains the optional cost used for an account's
+// subscription-cycle profit calculation. A nil cost means it is not set.
+type AccountProfitSettings struct {
+	SubscriptionCostPoints *float64   `json:"subscription_cost_points,omitempty"`
+	UpdatedAt              *time.Time `json:"updated_at,omitempty"`
 }
 
 // AccountProfitListParams contains filters and ordering for the dedicated
@@ -456,17 +465,18 @@ type AccountProfitQuota7d struct {
 }
 
 type AccountProfitListItem struct {
-	ID               string               `json:"id"`
-	Name             string               `json:"name"`
-	Platform         string               `json:"platform"`
-	SubscriptionTier string               `json:"subscription_tier"`
-	Status           string               `json:"status"`
-	CreatedAt        time.Time            `json:"created_at"`
-	ExpiresAt        *int64               `json:"expires_at,omitempty"`
-	Quota7d          AccountProfitQuota7d `json:"quota_7d"`
-	Period7d         AccountProfitPeriod  `json:"period_7d"`
-	Expiry30d        *AccountProfitPeriod `json:"expiry_30d,omitempty"`
-	Lifetime         AccountProfitPeriod  `json:"lifetime"`
+	ID                     string               `json:"id"`
+	Name                   string               `json:"name"`
+	Platform               string               `json:"platform"`
+	SubscriptionTier       string               `json:"subscription_tier"`
+	Status                 string               `json:"status"`
+	CreatedAt              time.Time            `json:"created_at"`
+	ExpiresAt              *int64               `json:"expires_at,omitempty"`
+	SubscriptionCostPoints *float64             `json:"subscription_cost_points,omitempty"`
+	Quota7d                AccountProfitQuota7d `json:"quota_7d"`
+	Period7d               AccountProfitPeriod  `json:"period_7d"`
+	Expiry30d              *AccountProfitPeriod `json:"expiry_30d,omitempty"`
+	Lifetime               AccountProfitPeriod  `json:"lifetime"`
 }
 
 type AccountProfitListResponse struct {

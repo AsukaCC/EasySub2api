@@ -341,13 +341,6 @@
             </span>
           </template>
 
-          <template #cell-user_level="{ row }">
-            <div class="views-admin-users-view__level-cell">
-              <span :class="['badge', row.user_level === 3 ? 'badge-green' : row.user_level === 2 ? 'badge-blue' : 'badge-gray']">L{{ row.user_level || 1 }}</span>
-              <small>{{ formatPoints(Number(row.usage_7d || 0)) }} / 7d</small>
-            </div>
-          </template>
-
           <template #cell-groups="{ row }">
             <div v-if="allGroups.length > 0" class="views-admin-users-view__panel-16">
               <!-- 专属分组行 -->
@@ -882,7 +875,6 @@ const allColumns = computed<Column[]>(() => [
   // Dynamic attribute columns
   ...attributeColumns.value,
   { key: 'role', label: t('admin.users.columns.role'), sortable: true },
-  { key: 'user_level', label: t('admin.users.columns.userLevel'), sortable: false },
   { key: 'groups', label: t('admin.users.columns.groups'), sortable: false },
   { key: 'subscriptions', label: t('admin.users.columns.subscriptions'), sortable: false },
   { key: 'balance', label: t('admin.users.columns.balance'), sortable: true },
@@ -1597,17 +1589,6 @@ const loadUsers = async () => {
     usageStats.value = {}
     userAttributeValues.value = {}
     platformQuotaStats.value = {}
-		if (typeof adminAPI.users.getLevelProfiles === 'function' && response.items.length > 0) {
-			try {
-				const profiles = await adminAPI.users.getLevelProfiles(response.items.map((u) => u.id))
-				const byID = new Map(profiles.map((profile) => [profile.user_id, profile]))
-				users.value = users.value.map((user) => {
-					const profile = byID.get(user.id)
-					return profile ? { ...user, user_level: profile.level, usage_7d: profile.usage_7d } : user
-				})
-			} catch { /* level display is best effort for older servers */ }
-		}
-
     // Defer heavy secondary data so table can render first.
     if (response.items.length > 0) {
       const userIds = response.items.map((u) => u.id)

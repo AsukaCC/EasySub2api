@@ -51,7 +51,7 @@ func (Group) Fields() []ent.Field {
 		field.JSON("level_rate_multipliers", map[string]float64{}).
 			Default(map[string]float64{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
-			Comment("用户等级倍率覆盖，key 为 1/2/3"),
+			Comment("用户等级倍率候选，key 为 user level tier UUID"),
 		field.JSON("dynamic_rate_rules", []domain.GroupDynamicRateRule{}).
 			Default([]domain.GroupDynamicRateRule{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

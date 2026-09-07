@@ -22,7 +22,7 @@ type Group struct {
 	Description    string
 	Platform       string
 	RateMultiplier float64
-	// LevelRateMultipliers 按用户等级覆盖基础倍率，key 为 "1"/"2"/"3"。
+	// LevelRateMultipliers 按用户等级提供独立倍率候选，key 为 user level tier UUID。
 	LevelRateMultipliers map[string]float64
 	// DynamicRateRules 是分组的分时动态倍率规则。
 	DynamicRateRules []GroupDynamicRateRule

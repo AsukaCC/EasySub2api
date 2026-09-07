@@ -127,20 +127,22 @@ func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context,
 		bucketUnit = "hour"
 		bucketStep = "1 hour"
 	}
+	roleJoinTop := ""
 	roleConditionTop := ""
 	roleConditionDetail := ""
 	if strings.EqualFold(strings.TrimSpace(userRoleScope), "admin") {
-		roleConditionTop = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role = 'admin')"
-		roleConditionDetail = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = u.user_id AND usage_scope_user.role = 'admin')"
+		roleJoinTop = " JOIN users usage_scope_user ON usage_scope_user.id = usage_logs.user_id"
+		roleConditionTop = " AND usage_scope_user.role = 'admin'"
 	} else if strings.EqualFold(strings.TrimSpace(userRoleScope), "regular") {
-		roleConditionTop = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = usage_logs.user_id AND usage_scope_user.role <> 'admin')"
-		roleConditionDetail = " AND EXISTS (SELECT 1 FROM users usage_scope_user WHERE usage_scope_user.id = u.user_id AND usage_scope_user.role <> 'admin')"
+		roleJoinTop = " JOIN users usage_scope_user ON usage_scope_user.id = usage_logs.user_id"
+		roleConditionTop = " AND usage_scope_user.role <> 'admin'"
 	}
 
 	query := fmt.Sprintf(`
 		WITH top_users AS (
 			SELECT user_id, %s AS ranking_value
 			FROM usage_logs
+			%s
 			WHERE created_at >= $1 AND created_at < $2%s
 			  AND user_id IS NOT NULL
 			GROUP BY user_id
@@ -185,7 +187,7 @@ func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context,
 		LEFT JOIN usage_by_bucket ub ON ub.user_id = tu.user_id AND ub.bucket = b.bucket
 		LEFT JOIN users us ON tu.user_id = us.id
 		ORDER BY b.bucket ASC, tu.ranking_value DESC, tu.user_id ASC
-	`, rankingExpression, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat, roleConditionDetail)
+	`, rankingExpression, roleJoinTop, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat, roleConditionDetail)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, timezoneName)
 	if err != nil {

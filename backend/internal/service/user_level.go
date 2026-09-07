@@ -2,14 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
@@ -17,12 +14,14 @@ import (
 )
 
 const (
+	// Kept as a source-compatibility marker for old settings rows. Runtime
+	// calculation never reads settings.user_level_settings anymore.
 	SettingKeyUserLevelSettings = "user_level_settings"
-	userLevelWindow             = 7 * 24 * time.Hour
 	userLevelProfileCacheTTL    = time.Minute
-	userLevelSettingsCacheTTL   = 30 * time.Second
 )
 
+// UserLevelSettings is retained only for source compatibility with older
+// clients. Fixed L1/L2/L3 thresholds are no longer used by the service.
 type UserLevelSettings struct {
 	L2MinSpend  float64 `json:"l2_min_spend"`
 	L3MinSpend  float64 `json:"l3_min_spend"`
@@ -30,48 +29,60 @@ type UserLevelSettings struct {
 }
 
 func DefaultUserLevelSettings() UserLevelSettings {
-	return UserLevelSettings{L2MinSpend: 50, L3MinSpend: 200, WindowHours: 168}
+	return UserLevelSettings{WindowHours: 168}
 }
 
 func ValidateUserLevelSettings(settings UserLevelSettings) (UserLevelSettings, error) {
 	if math.IsNaN(settings.L2MinSpend) || math.IsInf(settings.L2MinSpend, 0) || settings.L2MinSpend < 0 {
 		return settings, infraerrors.BadRequest("USER_LEVEL_L2_INVALID", "L2 minimum spend must be nonnegative")
 	}
-	if math.IsNaN(settings.L3MinSpend) || math.IsInf(settings.L3MinSpend, 0) || settings.L3MinSpend <= settings.L2MinSpend {
-		return settings, infraerrors.BadRequest("USER_LEVEL_L3_INVALID", "L3 minimum spend must be greater than L2")
+	if math.IsNaN(settings.L3MinSpend) || math.IsInf(settings.L3MinSpend, 0) || settings.L3MinSpend < 0 {
+		return settings, infraerrors.BadRequest("USER_LEVEL_L3_INVALID", "L3 minimum spend must be nonnegative")
 	}
 	settings.L2MinSpend = QuantizeUsageBillingAmount(settings.L2MinSpend)
 	settings.L3MinSpend = QuantizeUsageBillingAmount(settings.L3MinSpend)
-	settings.WindowHours = int(userLevelWindow / time.Hour)
+	settings.WindowHours = 168
 	return settings, nil
 }
 
 type UserLevelProfile struct {
-	UserID       string    `json:"user_id"`
-	Level        int       `json:"level"`
-	Usage7d      float64   `json:"usage_7d"`
-	WindowFrom   time.Time `json:"window_from"`
-	CalculatedAt time.Time `json:"calculated_at"`
+	UserID string `json:"user_id"`
+	// Level is a compatibility ordinal. It is zero when the user has no
+	// assigned rule; tier UUIDs in Rules/CurrentTierIDs are authoritative.
+	Level               int                    `json:"level"`
+	Configured          bool                   `json:"configured"`
+	Usage7d             float64                `json:"usage_7d"`
+	WindowFrom          time.Time              `json:"window_from"`
+	CalculatedAt        time.Time              `json:"calculated_at"`
+	Rules               []UserLevelRuleProfile `json:"rules"`
+	CurrentTierIDs      []string               `json:"current_tier_ids"`
+	UserLevelMultiplier *float64               `json:"user_level_multiplier,omitempty"`
 }
 
 // UserLevelDashboard is the user-safe summary exposed by the personal
-// dashboard. LevelMultiplier is the lowest level/base multiplier among the
-// user's currently available groups; EffectiveMultiplier also includes any
-// active dynamic and peak multipliers.
+// dashboard. Legacy fields remain in the JSON shape for old clients, but no
+// fixed L1/L2/L3 thresholds are returned or used for calculation.
 type UserLevelDashboard struct {
-	UserID              string    `json:"user_id"`
-	Level               int       `json:"level"`
-	Usage7d             float64   `json:"usage_7d"`
-	WindowHours         int       `json:"window_hours"`
-	WindowFrom          time.Time `json:"window_from"`
-	CalculatedAt        time.Time `json:"calculated_at"`
-	L2MinSpend          float64   `json:"l2_min_spend"`
-	L3MinSpend          float64   `json:"l3_min_spend"`
-	LevelMultiplier     *float64  `json:"level_multiplier,omitempty"`
-	EffectiveMultiplier *float64  `json:"effective_multiplier,omitempty"`
-	MultiplierGroup     string    `json:"multiplier_group,omitempty"`
-	NextLevelMultiplier *float64  `json:"next_level_multiplier,omitempty"`
-	NextMultiplierGroup string    `json:"next_multiplier_group,omitempty"`
+	UserID              string                 `json:"user_id"`
+	Level               int                    `json:"level"`
+	Configured          bool                   `json:"configured"`
+	Usage7d             float64                `json:"usage_7d"`
+	WindowHours         int                    `json:"window_hours"`
+	WindowFrom          time.Time              `json:"window_from"`
+	CalculatedAt        time.Time              `json:"calculated_at"`
+	Rules               []UserLevelRuleProfile `json:"rules"`
+	CurrentTierIDs      []string               `json:"current_tier_ids"`
+	UserLevelMultiplier *float64               `json:"user_level_multiplier,omitempty"`
+	GroupRuleMultiplier *float64               `json:"group_rule_multiplier,omitempty"`
+	EffectiveSource     string                 `json:"effective_source,omitempty"`
+	LevelMultiplier     *float64               `json:"level_multiplier,omitempty"`
+	EffectiveMultiplier *float64               `json:"effective_multiplier,omitempty"`
+	MultiplierGroup     string                 `json:"multiplier_group,omitempty"`
+	NextLevelMultiplier *float64               `json:"next_level_multiplier,omitempty"`
+	NextMultiplierGroup string                 `json:"next_multiplier_group,omitempty"`
+	// Deprecated fixed-setting fields. They are always zero.
+	L2MinSpend float64 `json:"l2_min_spend"`
+	L3MinSpend float64 `json:"l3_min_spend"`
 }
 
 type DynamicRateUsageKey struct {
@@ -79,6 +90,9 @@ type DynamicRateUsageKey struct {
 	QuotaKey string
 }
 
+// UserLevelRepository is the minimal rolling-spend/quota contract used by the
+// gateway. Rule CRUD lives in UserLevelRulesRepository so existing focused
+// implementations do not need to grow this interface.
 type UserLevelRepository interface {
 	GetRollingSpend(ctx context.Context, userID string, since, until time.Time) (float64, error)
 	GetRollingSpendBatch(ctx context.Context, userIDs []string, since, until time.Time) (map[string]float64, error)
@@ -113,9 +127,8 @@ type DynamicRateUsageSummary struct {
 	StartAt  string `json:"start_at"`
 	EndAt    string `json:"end_at"`
 	Status   string `json:"status"`
-	// Shared* fields remain in the response for clients that still decode the
-	// old payload. They are no longer used for dynamic-rate selection or
-	// billing; quotas are now independent for each user.
+	// Shared fields are retained for old response consumers. Live selection is
+	// per-user and never reads the group-wide counter.
 	SharedQuotaAmount     float64  `json:"shared_quota_amount"`
 	SharedUsedAmount      float64  `json:"shared_used_amount"`
 	SharedRemainingAmount *float64 `json:"shared_remaining_amount"`
@@ -123,15 +136,30 @@ type DynamicRateUsageSummary struct {
 	UsageScope            string   `json:"usage_scope"`
 }
 
+// UserRatePlan is the one pricing snapshot shared by scheduling and billing.
+// User-level and group-side candidates are kept separately so diagnostics can
+// explain why the final user-side multiplier was selected.
 type UserRatePlan struct {
-	GroupID             string                 `json:"group_id"`
-	UserLevel           int                    `json:"user_level"`
-	Usage7d             float64                `json:"usage_7d"`
-	BaseMultiplier      float64                `json:"base_multiplier"`
-	PeakMultiplier      float64                `json:"peak_multiplier"`
-	EffectiveMultiplier float64                `json:"effective_multiplier"`
-	Source              string                 `json:"source"`
-	DynamicCandidates   []DynamicRateCandidate `json:"dynamic_candidates"`
+	GroupID   string  `json:"group_id"`
+	UserLevel int     `json:"user_level"`
+	Usage7d   float64 `json:"usage_7d"`
+	// BaseMultiplier is retained for old consumers and now represents the
+	// final pre-peak user-side multiplier.
+	BaseMultiplier          float64                `json:"base_multiplier"`
+	RateMultiplier          float64                `json:"rate_multiplier"`
+	PeakMultiplier          float64                `json:"peak_multiplier"`
+	EffectiveMultiplier     float64                `json:"effective_multiplier"`
+	Source                  string                 `json:"source"`
+	DynamicCandidates       []DynamicRateCandidate `json:"dynamic_candidates"`
+	SelectedDynamicRuleID   string                 `json:"selected_dynamic_rule_id,omitempty"`
+	UserLevelMultiplier     *float64               `json:"user_level_multiplier,omitempty"`
+	GroupRuleMultiplier     *float64               `json:"group_rule_multiplier,omitempty"`
+	EffectiveBaseMultiplier float64                `json:"effective_base_multiplier"`
+	EffectiveSource         string                 `json:"effective_source"`
+	// NonDynamicMultiplier is the baseline a dynamic rule must beat. It keeps
+	// a more expensive dynamic rule from consuming quota when a user-level or
+	// static group candidate is already cheaper.
+	NonDynamicMultiplier float64 `json:"non_dynamic_multiplier"`
 }
 
 type RankedUserGroup struct {
@@ -140,121 +168,88 @@ type RankedUserGroup struct {
 	Plan         UserRatePlan
 }
 
-type cachedUserLevelSettings struct {
-	value     UserLevelSettings
-	expiresAt time.Time
-}
-
 type UserLevelService struct {
-	repo          UserLevelRepository
+	repo UserLevelRepository
+	// settingRepo is retained only to preserve the constructor used by Wire and
+	// external integrations. It is deliberately never read.
 	settingRepo   SettingRepository
 	groupRepo     GroupRepository
 	userRateRepo  UserGroupRateRepository
 	subRepo       UserSubscriptionRepository
+	rulesRepo     UserLevelRulesRepository
 	profileCache  *gocache.Cache
-	settingsMu    sync.Mutex
-	settingsCache cachedUserLevelSettings
+	cacheRevision atomic.Uint64
 }
 
 func NewUserLevelService(repo UserLevelRepository, settingRepo SettingRepository, groupRepo GroupRepository, userRateRepo UserGroupRateRepository, subRepo UserSubscriptionRepository) *UserLevelService {
-	return &UserLevelService{
+	s := &UserLevelService{
 		repo: repo, settingRepo: settingRepo, groupRepo: groupRepo, userRateRepo: userRateRepo, subRepo: subRepo,
 		profileCache: gocache.New(userLevelProfileCacheTTL, time.Minute),
 	}
+	if typed, ok := repo.(UserLevelRulesRepository); ok {
+		s.rulesRepo = typed
+	}
+	return s
 }
 
-func (s *UserLevelService) GetSettings(ctx context.Context) (UserLevelSettings, error) {
-	defaults := DefaultUserLevelSettings()
-	if s == nil || s.settingRepo == nil {
-		return defaults, nil
-	}
-	now := time.Now()
-	s.settingsMu.Lock()
-	if now.Before(s.settingsCache.expiresAt) {
-		value := s.settingsCache.value
-		s.settingsMu.Unlock()
-		return value, nil
-	}
-	s.settingsMu.Unlock()
-
-	raw, err := s.settingRepo.GetValue(ctx, SettingKeyUserLevelSettings)
-	if err != nil {
-		if !errors.Is(err, ErrSettingNotFound) {
-			return defaults, err
-		}
-	} else if strings.TrimSpace(raw) != "" {
-		if unmarshalErr := json.Unmarshal([]byte(raw), &defaults); unmarshalErr != nil {
-			return DefaultUserLevelSettings(), fmt.Errorf("parse user level settings: %w", unmarshalErr)
-		}
-	}
-	settings, err := ValidateUserLevelSettings(defaults)
-	if err != nil {
-		return DefaultUserLevelSettings(), err
-	}
-	s.settingsMu.Lock()
-	s.settingsCache = cachedUserLevelSettings{value: settings, expiresAt: now.Add(userLevelSettingsCacheTTL)}
-	s.settingsMu.Unlock()
-	return settings, nil
+// GetSettings is a compatibility read. The old settings row is intentionally
+// ignored so it cannot affect new rule calculations.
+func (s *UserLevelService) GetSettings(context.Context) (UserLevelSettings, error) {
+	return DefaultUserLevelSettings(), nil
 }
 
-func (s *UserLevelService) UpdateSettings(ctx context.Context, settings UserLevelSettings) (UserLevelSettings, error) {
-	settings, err := ValidateUserLevelSettings(settings)
-	if err != nil {
-		return settings, err
+// UpdateSettings is retained for old source consumers, but fixed thresholds
+// are no longer mutable through the service.
+func (s *UserLevelService) UpdateSettings(context.Context, UserLevelSettings) (UserLevelSettings, error) {
+	return DefaultUserLevelSettings(), errors.New("fixed user level settings have been removed; use level rules")
+}
+
+func (s *UserLevelService) invalidateProfiles() {
+	if s == nil {
+		return
 	}
-	if s == nil || s.settingRepo == nil {
-		return settings, errors.New("user level setting repository is unavailable")
-	}
-	raw, err := json.Marshal(settings)
-	if err != nil {
-		return settings, err
-	}
-	if err := s.settingRepo.Set(ctx, SettingKeyUserLevelSettings, string(raw)); err != nil {
-		return settings, err
-	}
-	s.settingsMu.Lock()
-	s.settingsCache = cachedUserLevelSettings{value: settings, expiresAt: time.Now().Add(userLevelSettingsCacheTTL)}
-	s.settingsMu.Unlock()
+	s.cacheRevision.Add(1)
 	if s.profileCache != nil {
 		s.profileCache.Flush()
 	}
-	return settings, nil
 }
 
-func userLevelForSpend(spend float64, settings UserLevelSettings) int {
-	if spend >= settings.L3MinSpend {
-		return 3
-	}
-	if spend >= settings.L2MinSpend {
-		return 2
-	}
-	return 1
+func (s *UserLevelService) profileCacheKey(userID string, at time.Time) string {
+	return strings.TrimSpace(userID) + ":" + timeFormatInt64(at.UTC().Truncate(time.Minute).Unix()) + ":" + timeFormatUint64(s.cacheRevision.Load())
 }
 
 func (s *UserLevelService) ResolveProfile(ctx context.Context, userID string, at time.Time) (UserLevelProfile, error) {
 	if at.IsZero() {
 		at = time.Now()
 	}
-	profile := UserLevelProfile{UserID: userID, Level: 1, WindowFrom: at.Add(-userLevelWindow), CalculatedAt: at}
-	if s == nil || s.repo == nil || strings.TrimSpace(userID) == "" {
+	profile := UserLevelProfile{
+		UserID: userID, WindowFrom: at.Add(-7 * 24 * time.Hour), CalculatedAt: at,
+		Rules: []UserLevelRuleProfile{}, CurrentTierIDs: []string{},
+	}
+	if s == nil || strings.TrimSpace(userID) == "" || s.rulesRepo == nil {
 		return profile, nil
 	}
-	if cached, ok := s.profileCache.Get(userID); ok {
-		if value, valid := cached.(UserLevelProfile); valid {
-			return value, nil
+	key := s.profileCacheKey(userID, at)
+	if s.profileCache != nil {
+		if cached, ok := s.profileCache.Get(key); ok {
+			if value, valid := cached.(UserLevelProfile); valid {
+				return cloneUserLevelProfile(value), nil
+			}
 		}
 	}
-	settings, err := s.GetSettings(ctx)
+	rulesByUser, err := s.rulesRepo.GetAssignedLevelRulesBatch(ctx, []string{userID})
 	if err != nil {
 		return profile, err
 	}
-	spend, err := s.repo.GetRollingSpend(ctx, userID, profile.WindowFrom, at)
+	rules := rulesByUser[userID]
+	spends, err := s.loadRuleSpends(ctx, []string{userID}, rules, at)
 	if err != nil {
 		return profile, err
 	}
-	profile.Usage7d = QuantizeUsageBillingAmount(spend)
-	profile.Level = userLevelForSpend(profile.Usage7d, settings)
-	s.profileCache.Set(userID, profile, userLevelProfileCacheTTL)
+	profile = buildUserLevelProfile(userID, rules, spends[userID], at)
+	if s.profileCache != nil {
+		s.profileCache.Set(key, cloneUserLevelProfile(profile), userLevelProfileCacheTTL)
+	}
 	return profile, nil
 }
 
@@ -262,30 +257,187 @@ func (s *UserLevelService) GetProfiles(ctx context.Context, userIDs []string, at
 	if at.IsZero() {
 		at = time.Now()
 	}
-	settings, err := s.GetSettings(ctx)
-	if err != nil {
-		return nil, err
-	}
-	spendByUser, err := s.repo.GetRollingSpendBatch(ctx, userIDs, at.Add(-userLevelWindow), at)
-	if err != nil {
-		return nil, err
-	}
 	out := make(map[string]UserLevelProfile, len(userIDs))
-	for _, userID := range userIDs {
-		spend := QuantizeUsageBillingAmount(spendByUser[userID])
-		profile := UserLevelProfile{UserID: userID, Level: userLevelForSpend(spend, settings), Usage7d: spend, WindowFrom: at.Add(-userLevelWindow), CalculatedAt: at}
-		out[userID] = profile
+	unique := uniqueStrings(userIDs)
+	for _, id := range unique {
+		out[id] = UserLevelProfile{UserID: id, WindowFrom: at.Add(-7 * 24 * time.Hour), CalculatedAt: at, Rules: []UserLevelRuleProfile{}, CurrentTierIDs: []string{}}
+	}
+	if len(unique) == 0 || s == nil || s.rulesRepo == nil {
+		return out, nil
+	}
+	rulesByUser, err := s.rulesRepo.GetAssignedLevelRulesBatch(ctx, unique)
+	if err != nil {
+		return nil, err
+	}
+	spends, err := s.loadRuleSpends(ctx, unique, flattenAssignedRules(rulesByUser), at)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range unique {
+		profile := buildUserLevelProfile(id, rulesByUser[id], spends[id], at)
+		out[id] = profile
 		if s.profileCache != nil {
-			s.profileCache.Set(userID, profile, userLevelProfileCacheTTL)
+			s.profileCache.Set(s.profileCacheKey(id, at), cloneUserLevelProfile(profile), userLevelProfileCacheTTL)
 		}
 	}
 	return out, nil
 }
 
-// ResolveDashboard resolves the current user's level and the lowest rate
-// visible across the groups the caller has already authorized for the user.
-// Group ranking remains centralized in RankGroups so dynamic quota and
-// subscription checks use exactly the same rules as request scheduling.
+// loadRuleSpends performs at most one aggregate query per supported window.
+// The returned map is user -> window days -> spend.
+func (s *UserLevelService) loadRuleSpends(ctx context.Context, userIDs []string, rules []UserLevelRule, at time.Time) (map[string]map[int]float64, error) {
+	out := make(map[string]map[int]float64, len(userIDs))
+	for _, id := range userIDs {
+		out[id] = make(map[int]float64)
+	}
+	if s == nil || s.repo == nil || len(userIDs) == 0 {
+		return out, nil
+	}
+	// Dynamic group rules use the rolling seven-day spend threshold even when a
+	// user has no assigned level rule. Keep that baseline independent from the
+	// set of configured user-level windows.
+	windows := map[int]struct{}{7: struct{}{}}
+	for _, rule := range rules {
+		if rule.WindowDays == 7 || rule.WindowDays == 14 || rule.WindowDays == 30 {
+			windows[rule.WindowDays] = struct{}{}
+		}
+	}
+	for days := range windows {
+		spendByUser, err := s.repo.GetRollingSpendBatch(ctx, userIDs, at.AddDate(0, 0, -days), at)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range userIDs {
+			out[id][days] = QuantizeUsageBillingAmount(spendByUser[id])
+		}
+	}
+	return out, nil
+}
+
+func buildUserLevelProfile(userID string, rules []UserLevelRule, spends map[int]float64, at time.Time) UserLevelProfile {
+	profile := UserLevelProfile{
+		UserID: userID, CalculatedAt: at, Usage7d: QuantizeUsageBillingAmount(spends[7]),
+		WindowFrom: at.Add(-7 * 24 * time.Hour), Rules: make([]UserLevelRuleProfile, 0, len(rules)), CurrentTierIDs: []string{},
+	}
+	if len(rules) == 0 {
+		return profile
+	}
+	var lowest *float64
+	for _, rule := range rules {
+		if rule.WindowDays != 7 && rule.WindowDays != 14 && rule.WindowDays != 30 {
+			continue
+		}
+		tiers := append([]UserLevelTier(nil), rule.Tiers...)
+		sort.SliceStable(tiers, func(i, j int) bool { return tiers[i].SortOrder < tiers[j].SortOrder })
+		spend := QuantizeUsageBillingAmount(spends[rule.WindowDays])
+		current := chooseUserLevelTier(tiers, spend)
+		entry := UserLevelRuleProfile{
+			RuleID: rule.ID, RuleName: rule.Name, WindowDays: rule.WindowDays, Enabled: rule.Enabled,
+			Spend: spend, WindowFrom: at.AddDate(0, 0, -rule.WindowDays), CalculatedAt: at,
+			Tiers: tiers,
+		}
+		if current != nil {
+			if rule.Enabled {
+				profile.Configured = true
+				entry.CurrentTierID = current.ID
+				entry.CurrentTierName = current.Name
+				entry.CurrentTierOrder = current.SortOrder
+				entry.MinSpend = current.MinSpend
+				entry.DefaultMultiplier = cloneFloatPtr(current.DefaultMultiplier)
+				profile.CurrentTierIDs = append(profile.CurrentTierIDs, current.ID)
+				if current.DefaultMultiplier != nil && (lowest == nil || *current.DefaultMultiplier < *lowest) {
+					value := *current.DefaultMultiplier
+					lowest = &value
+				}
+				if current.SortOrder+1 > profile.Level {
+					profile.Level = current.SortOrder + 1
+				}
+			}
+		}
+		if rule.WindowDays == 7 {
+			profile.Usage7d = spend
+			profile.WindowFrom = entry.WindowFrom
+		}
+		profile.Rules = append(profile.Rules, entry)
+	}
+	if len(profile.Rules) == 0 {
+		profile.Configured = false
+	}
+	profile.UserLevelMultiplier = lowest
+	profile.CurrentTierIDs = uniqueStrings(profile.CurrentTierIDs)
+	return profile
+}
+
+func chooseUserLevelTier(tiers []UserLevelTier, spend float64) *UserLevelTier {
+	var current *UserLevelTier
+	for i := range tiers {
+		if tiers[i].SortOrder == 0 || spend >= tiers[i].MinSpend {
+			if current == nil || tiers[i].MinSpend >= current.MinSpend {
+				candidate := tiers[i]
+				current = &candidate
+			}
+		}
+	}
+	return current
+}
+
+func cloneFloatPtr(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
+}
+
+func cloneUserLevelProfile(value UserLevelProfile) UserLevelProfile {
+	value.CurrentTierIDs = append([]string(nil), value.CurrentTierIDs...)
+	value.Rules = append([]UserLevelRuleProfile(nil), value.Rules...)
+	for i := range value.Rules {
+		value.Rules[i].DefaultMultiplier = cloneFloatPtr(value.Rules[i].DefaultMultiplier)
+		value.Rules[i].Tiers = append([]UserLevelTier(nil), value.Rules[i].Tiers...)
+		for j := range value.Rules[i].Tiers {
+			value.Rules[i].Tiers[j].DefaultMultiplier = cloneFloatPtr(value.Rules[i].Tiers[j].DefaultMultiplier)
+		}
+	}
+	value.UserLevelMultiplier = cloneFloatPtr(value.UserLevelMultiplier)
+	return value
+}
+
+func flattenAssignedRules(byUser map[string][]UserLevelRule) []UserLevelRule {
+	seen := make(map[string]struct{})
+	out := make([]UserLevelRule, 0)
+	for _, rules := range byUser {
+		for _, rule := range rules {
+			key := rule.ID + ":" + formatUnsignedDecimal(uint64(rule.WindowDays))
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, rule)
+		}
+	}
+	return out
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+// ResolveDashboard resolves the user's configured rules and the lowest final
+// rate across authorized groups.
 func (s *UserLevelService) ResolveDashboard(ctx context.Context, userID string, groupIDs []string, at time.Time) (UserLevelDashboard, error) {
 	if at.IsZero() {
 		at = time.Now()
@@ -294,19 +446,11 @@ func (s *UserLevelService) ResolveDashboard(ctx context.Context, userID string, 
 	if err != nil {
 		return UserLevelDashboard{}, err
 	}
-	settings, err := s.GetSettings(ctx)
-	if err != nil {
-		return UserLevelDashboard{}, err
-	}
 	out := UserLevelDashboard{
-		UserID:       profile.UserID,
-		Level:        profile.Level,
-		Usage7d:      profile.Usage7d,
-		WindowHours:  settings.WindowHours,
-		WindowFrom:   profile.WindowFrom,
-		CalculatedAt: profile.CalculatedAt,
-		L2MinSpend:   settings.L2MinSpend,
-		L3MinSpend:   settings.L3MinSpend,
+		UserID: profile.UserID, Level: profile.Level, Configured: profile.Configured,
+		Usage7d: profile.Usage7d, WindowHours: 168, WindowFrom: profile.WindowFrom, CalculatedAt: profile.CalculatedAt,
+		Rules: cloneUserLevelProfile(profile).Rules, CurrentTierIDs: append([]string(nil), profile.CurrentTierIDs...),
+		UserLevelMultiplier: cloneFloatPtr(profile.UserLevelMultiplier),
 	}
 	if len(groupIDs) == 0 {
 		return out, nil
@@ -317,64 +461,55 @@ func (s *UserLevelService) ResolveDashboard(ctx context.Context, userID string, 
 	}
 	for i := range ranked {
 		candidate := &ranked[i]
-		if out.LevelMultiplier == nil || candidate.Plan.BaseMultiplier < *out.LevelMultiplier {
-			value := candidate.Plan.BaseMultiplier
+		if candidate.Plan.GroupRuleMultiplier != nil && (out.GroupRuleMultiplier == nil || *candidate.Plan.GroupRuleMultiplier < *out.GroupRuleMultiplier) {
+			value := *candidate.Plan.GroupRuleMultiplier
+			out.GroupRuleMultiplier = &value
+		}
+		if out.LevelMultiplier == nil || candidate.Plan.EffectiveBaseMultiplier < *out.LevelMultiplier {
+			value := candidate.Plan.EffectiveBaseMultiplier
 			out.LevelMultiplier = &value
 		}
 		if out.EffectiveMultiplier == nil || candidate.Plan.EffectiveMultiplier < *out.EffectiveMultiplier {
 			value := candidate.Plan.EffectiveMultiplier
 			out.EffectiveMultiplier = &value
+			out.EffectiveSource = candidate.Plan.EffectiveSource
 			if candidate.Group != nil {
 				out.MultiplierGroup = candidate.Group.Name
-			}
-		}
-		if profile.Level < 3 && candidate.Group != nil {
-			nextMultiplier, resolveErr := s.resolveGroupBaseMultiplier(ctx, userID, candidate.Group, profile.Level+1)
-			if resolveErr != nil {
-				return out, resolveErr
-			}
-			if out.NextLevelMultiplier == nil || nextMultiplier < *out.NextLevelMultiplier {
-				value := nextMultiplier
-				out.NextLevelMultiplier = &value
-				out.NextMultiplierGroup = candidate.Group.Name
 			}
 		}
 	}
 	return out, nil
 }
 
+// RecordSpend invalidates the rule profile cache. The usage log is the source
+// of truth, so incrementing an old fixed-level snapshot would be incorrect when
+// multiple rule windows are assigned to the same user.
 func (s *UserLevelService) RecordSpend(userID string, amount float64) {
-	if s == nil || s.profileCache == nil || amount <= 0 {
+	if s == nil || amount <= 0 || strings.TrimSpace(userID) == "" {
 		return
 	}
-	cached, ok := s.profileCache.Get(userID)
-	if !ok {
-		return
-	}
-	profile, ok := cached.(UserLevelProfile)
-	if !ok {
-		return
-	}
-	settings, err := s.GetSettings(context.Background())
-	if err != nil {
-		s.profileCache.Delete(userID)
-		return
-	}
-	profile.Usage7d = QuantizeUsageBillingAmount(profile.Usage7d + amount)
-	profile.Level = userLevelForSpend(profile.Usage7d, settings)
-	profile.CalculatedAt = time.Now()
-	s.profileCache.Set(userID, profile, userLevelProfileCacheTTL)
+	s.invalidateProfiles()
 }
 
 func dynamicRuleApplies(rule GroupDynamicRateRule, profile UserLevelProfile, at time.Time) (string, bool) {
 	if !rule.Enabled || profile.Usage7d < rule.ActivationSpend {
 		return "", false
 	}
+	// A legacy numeric target is never broadened to all users. Empty
+	// level_tier_ids means unscoped; non-empty values match current tier UUIDs.
 	if len(rule.Levels) > 0 {
+		return "", false
+	}
+	if len(rule.LevelTierIDs) > 0 {
 		matched := false
-		for _, level := range rule.Levels {
-			if level == profile.Level {
-				matched = true
+		for _, target := range rule.LevelTierIDs {
+			for _, current := range profile.CurrentTierIDs {
+				if target == current {
+					matched = true
+					break
+				}
+			}
+			if matched {
 				break
 			}
 		}
@@ -383,26 +518,43 @@ func dynamicRuleApplies(rule GroupDynamicRateRule, profile UserLevelProfile, at 
 		}
 	}
 	start, end, quotaKey, ok := parseDynamicRateWindow(rule)
-	if !ok {
-		return "", false
-	}
-	if at.Before(start) || !at.Before(end) {
+	if !ok || at.Before(start) || !at.Before(end) {
 		return "", false
 	}
 	return quotaKey, true
 }
 
 func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, group *Group, profile UserLevelProfile, at time.Time) (UserRatePlan, error) {
-	base, source, err := s.resolveGroupBaseRate(ctx, userID, group, profile.Level)
-	if err != nil {
-		return UserRatePlan{}, err
+	if group == nil {
+		return UserRatePlan{}, ErrGroupNotFound
 	}
+	staticCandidates := make([]rateCandidate, 0, 2+len(profile.CurrentTierIDs))
+	staticCandidates = append(staticCandidates, rateCandidate{value: sanitizeMultiplier(group.RateMultiplier), source: "group"})
+	for _, tierID := range profile.CurrentTierIDs {
+		if value, ok := group.LevelRateMultipliers[tierID]; ok {
+			staticCandidates = append(staticCandidates, rateCandidate{value: sanitizeMultiplier(value), source: "group_level"})
+		}
+	}
+	if s.userRateRepo != nil {
+		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
+		if err != nil {
+			return UserRatePlan{}, err
+		}
+		if userRate != nil {
+			staticCandidates = append(staticCandidates, rateCandidate{value: sanitizeMultiplier(*userRate), source: "user_group"})
+		}
+	}
+	static := lowestRateCandidate(staticCandidates)
+	userLevel := profile.UserLevelMultiplier
 
+	// Dynamic rules are evaluated against the independent group-side baseline.
+	// They are not allowed to consume quota merely because they are cheaper than
+	// a user-level candidate; SelectedDynamicRuleID below is empty in that case.
 	candidates := make([]DynamicRateCandidate, 0)
 	keys := make([]DynamicRateUsageKey, 0)
 	for _, rule := range group.DynamicRateRules {
 		quotaKey, ok := dynamicRuleApplies(rule, profile, at)
-		if !ok {
+		if !ok || !finiteNonnegative(rule.Multiplier) || rule.Multiplier >= static.value {
 			continue
 		}
 		start, end, _, validWindow := parseDynamicRateWindow(rule)
@@ -410,16 +562,8 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 			continue
 		}
 		candidate := DynamicRateCandidate{
-			RuleID:     rule.ID,
-			RuleName:   rule.Name,
-			StartAt:    start.Format(time.RFC3339Nano),
-			EndAt:      end.Format(time.RFC3339Nano),
-			QuotaKey:   quotaKey,
-			Multiplier: rule.Multiplier,
-			// SharedQuotaAmount is intentionally not copied into a live plan.
-			// The migration converts old shared values to personal quotas, while
-			// this fallback keeps pre-migration in-memory configurations safe.
-			PersonalQuotaAmount: dynamicRatePersonalQuotaAmount(rule),
+			RuleID: rule.ID, RuleName: rule.Name, StartAt: start.Format(time.RFC3339Nano), EndAt: end.Format(time.RFC3339Nano),
+			QuotaKey: quotaKey, Multiplier: sanitizeMultiplier(rule.Multiplier), PersonalQuotaAmount: dynamicRatePersonalQuotaAmount(rule),
 		}
 		candidates = append(candidates, candidate)
 		if candidate.PersonalQuotaAmount > 0 {
@@ -427,13 +571,12 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 		}
 	}
 	if len(keys) > 0 && s.repo != nil {
-		personalUsage, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
+		used, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
 		if err != nil {
 			return UserRatePlan{}, err
 		}
 		for i := range candidates {
-			key := DynamicRateUsageKey{RuleID: candidates[i].RuleID, QuotaKey: candidates[i].QuotaKey}
-			candidates[i].PersonalUsedAmount = personalUsage[key]
+			candidates[i].PersonalUsedAmount = used[DynamicRateUsageKey{RuleID: candidates[i].RuleID, QuotaKey: candidates[i].QuotaKey}]
 		}
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -444,27 +587,95 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	})
 	usable := candidates[:0]
 	for _, candidate := range candidates {
-		personalAvailable := candidate.PersonalQuotaAmount == 0 || candidate.PersonalUsedAmount < candidate.PersonalQuotaAmount
-		if personalAvailable {
-			usable = append(usable, candidate)
+		if candidate.PersonalQuotaAmount > 0 && candidate.PersonalUsedAmount >= candidate.PersonalQuotaAmount {
+			continue
 		}
+		usable = append(usable, candidate)
 	}
 	candidates = usable
-	selected := base
-	if len(candidates) > 0 && candidates[0].Multiplier < selected {
-		selected = candidates[0].Multiplier
-		source = "dynamic"
+
+	groupSide := static.value
+	groupSideSource := static.source
+	selectedDynamicRuleID := ""
+	if len(candidates) > 0 && candidates[0].Multiplier < groupSide {
+		groupSide = candidates[0].Multiplier
+		groupSideSource = "dynamic"
+		selectedDynamicRuleID = candidates[0].RuleID
 	}
-	peak := group.PeakMultiplierAt(at)
+
+	selectedBase := groupSide
+	selectedSource := groupSideSource
+	// A user-level candidate wins ties as well. This makes the quota decision
+	// deterministic and avoids consuming a dynamic quota when it cannot change
+	// the price paid by the user.
+	if userLevel != nil && *userLevel <= selectedBase {
+		selectedBase = sanitizeMultiplier(*userLevel)
+		selectedSource = "user_level"
+		selectedDynamicRuleID = ""
+	}
+	nonDynamicMultiplier := static.value
+	if userLevel != nil && sanitizeMultiplier(*userLevel) < nonDynamicMultiplier {
+		nonDynamicMultiplier = sanitizeMultiplier(*userLevel)
+	}
+	peak := sanitizePeakMultiplier(group.PeakMultiplierAt(at))
 	return UserRatePlan{
 		GroupID: group.ID, UserLevel: profile.Level, Usage7d: profile.Usage7d,
-		BaseMultiplier: base, PeakMultiplier: peak, EffectiveMultiplier: selected * peak,
-		Source: source, DynamicCandidates: candidates,
+		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: peak, EffectiveMultiplier: selectedBase * peak,
+		Source: selectedSource, DynamicCandidates: candidates, SelectedDynamicRuleID: selectedDynamicRuleID,
+		UserLevelMultiplier: cloneFloatPtr(userLevel), GroupRuleMultiplier: floatPtr(groupSide),
+		EffectiveBaseMultiplier: selectedBase, EffectiveSource: selectedSource, NonDynamicMultiplier: nonDynamicMultiplier,
 	}, nil
 }
 
+type rateCandidate struct {
+	value  float64
+	source string
+}
+
+func lowestRateCandidate(candidates []rateCandidate) rateCandidate {
+	if len(candidates) == 0 {
+		return rateCandidate{value: 1, source: "default"}
+	}
+	best := candidates[0]
+	for _, candidate := range candidates[1:] {
+		if candidate.value < best.value {
+			best = candidate
+		}
+	}
+	return best
+}
+
+func rateCandidatePtr(candidate rateCandidate) *float64 {
+	value := candidate.value
+	return &value
+}
+
+func floatPtr(value float64) *float64 {
+	return &value
+}
+
+func sanitizeMultiplier(value float64) float64 {
+	if !finiteNonnegative(value) {
+		return 1
+	}
+	return value
+}
+
+func sanitizePeakMultiplier(value float64) float64 {
+	// A zero peak multiplier is a valid free window. Only malformed values
+	// should fall back to the neutral multiplier.
+	if !finiteNonnegative(value) {
+		return 1
+	}
+	return value
+}
+
+func finiteNonnegative(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0
+}
+
 func dynamicRateRuleStatus(rule GroupDynamicRateRule, at time.Time) string {
-	if isLegacyDynamicRateRule(rule) {
+	if isLegacyDynamicRateRule(rule) || len(rule.Levels) > 0 {
 		return DynamicRateStatusLegacy
 	}
 	start, end, _, ok := parseDynamicRateWindow(rule)
@@ -498,18 +709,12 @@ func (s *UserLevelService) GetDynamicRateUsageSummary(ctx context.Context, group
 	if group == nil {
 		return nil, ErrGroupNotFound
 	}
-
 	result := make([]DynamicRateUsageSummary, 0, len(group.DynamicRateRules))
 	for _, rule := range group.DynamicRateRules {
 		start, end, _, validWindow := parseDynamicRateWindow(rule)
 		summary := DynamicRateUsageSummary{
-			RuleID:   rule.ID,
-			RuleName: rule.Name,
-			Status:   dynamicRateRuleStatus(rule, at),
-			// This endpoint has no user context, so it reports configuration
-			// only. Usage is intentionally not aggregated across users.
-			PersonalQuotaAmount: QuantizeUsageBillingAmount(dynamicRatePersonalQuotaAmount(rule)),
-			UsageScope:          "per_user",
+			RuleID: rule.ID, RuleName: rule.Name, Status: dynamicRateRuleStatus(rule, at),
+			PersonalQuotaAmount: QuantizeUsageBillingAmount(dynamicRatePersonalQuotaAmount(rule)), UsageScope: "per_user",
 		}
 		if validWindow {
 			summary.StartAt = start.Format(time.RFC3339Nano)
@@ -520,33 +725,23 @@ func (s *UserLevelService) GetDynamicRateUsageSummary(ctx context.Context, group
 	return result, nil
 }
 
-func (s *UserLevelService) resolveGroupBaseMultiplier(ctx context.Context, userID string, group *Group, level int) (float64, error) {
-	multiplier, _, err := s.resolveGroupBaseRate(ctx, userID, group, level)
-	return multiplier, err
+// ResolvePlan resolves one group using the same profile and candidate logic as
+// RankGroups. Gateway paths that did not precompute a selection must call this
+// instead of falling back to the historical user-overrides-group behavior.
+func (s *UserLevelService) ResolvePlan(ctx context.Context, userID string, group *Group, at time.Time) (UserRatePlan, error) {
+	profile, err := s.ResolveProfile(ctx, userID, at)
+	if err != nil {
+		return UserRatePlan{}, err
+	}
+	return s.resolveGroupPlan(ctx, userID, group, profile, at)
 }
 
-// resolveGroupBaseRate is shared by live scheduling and the dashboard's next
-// level preview. User-specific group rates continue to override level rates,
-// so the preview always matches the rate that would actually be selected after
-// the user advances.
-func (s *UserLevelService) resolveGroupBaseRate(ctx context.Context, userID string, group *Group, level int) (float64, string, error) {
-	base := group.RateMultiplier
-	source := "group"
-	if levelRate, ok := group.LevelRateMultipliers[strconv.Itoa(level)]; ok {
-		base = levelRate
-		source = "level"
-	}
-	if s.userRateRepo != nil {
-		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
-		if err != nil {
-			return 0, "", err
-		}
-		if userRate != nil {
-			base = *userRate
-			source = "user"
-		}
-	}
-	return base, source, nil
+// resolveGroupBaseMultiplier is kept for old dashboard callers. It now uses
+// the current tier UUID candidates and the independent user-level minimum.
+func (s *UserLevelService) resolveGroupBaseMultiplier(ctx context.Context, userID string, group *Group, level int) (float64, error) {
+	_ = level
+	plan, err := s.ResolvePlan(ctx, userID, group, time.Now())
+	return plan.EffectiveBaseMultiplier, err
 }
 
 func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupIDs []string, at time.Time, platform string) ([]RankedUserGroup, error) {
@@ -560,7 +755,8 @@ func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupI
 	seen := make(map[string]struct{}, len(groupIDs))
 	ranked := make([]RankedUserGroup, 0, len(groupIDs))
 	for _, groupID := range groupIDs {
-		if groupID = strings.TrimSpace(groupID); groupID == "" {
+		groupID = strings.TrimSpace(groupID)
+		if groupID == "" {
 			continue
 		}
 		if _, exists := seen[groupID]; exists {
@@ -602,3 +798,29 @@ func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupI
 	})
 	return ranked, nil
 }
+
+// The decimal helpers keep profile cache keys independent of a settings JSON
+// representation and avoid a mutable configuration object in the key.
+func formatUnsignedDecimal(value uint64) string {
+	if value == 0 {
+		return "0"
+	}
+	var buf [20]byte
+	i := len(buf)
+	for value > 0 {
+		i--
+		buf[i] = byte('0' + value%10)
+		value /= 10
+	}
+	return string(buf[i:])
+}
+
+func formatSignedDecimal(value int64) string {
+	if value >= 0 {
+		return formatUnsignedDecimal(uint64(value))
+	}
+	return "-" + formatUnsignedDecimal(uint64(-(value + 1))) + "1"
+}
+
+func timeFormatInt64(value int64) string   { return formatSignedDecimal(value) }
+func timeFormatUint64(value uint64) string { return formatUnsignedDecimal(value) }

@@ -52,6 +52,28 @@ type BatchUserLevelProfilesRequest struct {
 	UserIDs []string `json:"user_ids" binding:"required,min=1,max=500"`
 }
 
+type CreateUserLevelRuleRequest struct {
+	Name       string `json:"name"`
+	WindowDays int    `json:"window_days"`
+}
+
+type UpdateUserLevelRuleRequest struct {
+	Name       string                           `json:"name"`
+	WindowDays int                              `json:"window_days"`
+	Enabled    *bool                            `json:"enabled"`
+	Tiers      []service.UserLevelRuleTierInput `json:"tiers"`
+}
+
+type UserLevelRuleAssignmentRequest struct {
+	RuleIDs []string `json:"rule_ids"`
+}
+
+type BatchUserLevelRuleAssignmentRequest struct {
+	UserIDs   []string `json:"user_ids" binding:"required,min=1,max=500"`
+	RuleIDs   []string `json:"rule_ids" binding:"max=500"`
+	Operation string   `json:"operation" binding:"required,oneof=add remove replace"`
+}
+
 // GetLevelSettings returns the thresholds used to derive levels from rolling 7-day spend.
 func (h *UserHandler) GetLevelSettings(c *gin.Context) {
 	if h.userLevelService == nil {
@@ -77,15 +99,11 @@ func (h *UserHandler) UpdateLevelSettings(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	settings, err := h.userLevelService.UpdateSettings(c.Request.Context(), service.UserLevelSettings{
+	_, err := h.userLevelService.UpdateSettings(c.Request.Context(), service.UserLevelSettings{
 		L2MinSpend: req.L2MinSpend,
 		L3MinSpend: req.L3MinSpend,
 	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, settings)
+	response.ErrorFrom(c, err)
 }
 
 // BatchLevelProfiles resolves current levels for a page of users in one aggregate query.
@@ -123,6 +141,192 @@ func (h *UserHandler) BatchLevelProfiles(c *gin.Context) {
 		profiles = append(profiles, profilesByID[userID])
 	}
 	response.Success(c, profiles)
+}
+
+// ListLevelRules returns administrator-created level rule profiles.
+func (h *UserHandler) ListLevelRules(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	rules, err := h.userLevelService.ListLevelRules(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rules)
+}
+
+// CreateLevelRule creates a rule with one base tier and no implicit multiplier.
+func (h *UserHandler) CreateLevelRule(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	var req CreateUserLevelRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	rule, err := h.userLevelService.CreateLevelRule(c.Request.Context(), service.CreateUserLevelRuleInput{
+		Name: req.Name, WindowDays: req.WindowDays,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rule)
+}
+
+// GetLevelRule returns one rule and all of its tiers.
+func (h *UserHandler) GetLevelRule(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	ruleID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid level rule ID")
+		return
+	}
+	rule, err := h.userLevelService.GetLevelRule(c.Request.Context(), ruleID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rule)
+}
+
+// UpdateLevelRule replaces the editable tiers atomically. Omitting tiers keeps
+// the existing tier set so small metadata edits remain backwards compatible.
+func (h *UserHandler) UpdateLevelRule(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	ruleID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid level rule ID")
+		return
+	}
+	var req UpdateUserLevelRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	rule, err := h.userLevelService.UpdateLevelRule(c.Request.Context(), ruleID, service.UpdateUserLevelRuleInput{
+		Name: req.Name, WindowDays: req.WindowDays, Enabled: req.Enabled, Tiers: req.Tiers,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rule)
+}
+
+// DeleteLevelRule refuses deletion while a rule or one of its tier UUIDs is referenced.
+func (h *UserHandler) DeleteLevelRule(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	ruleID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid level rule ID")
+		return
+	}
+	if err := h.userLevelService.DeleteLevelRule(c.Request.Context(), ruleID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
+}
+
+// GetUserLevelRules returns all rules explicitly assigned to a user.
+func (h *UserHandler) GetUserLevelRules(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	userID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	rules, err := h.userLevelService.GetUserLevelRules(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rules)
+}
+
+// ReplaceUserLevelRules atomically replaces a user's complete assignment set.
+func (h *UserHandler) ReplaceUserLevelRules(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	userID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	var req UserLevelRuleAssignmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.userLevelService.ReplaceUserLevelRules(c.Request.Context(), userID, req.RuleIDs); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"user_id": userID, "rule_ids": req.RuleIDs})
+}
+
+// BatchAssignLevelRules applies add/remove/replace for many users in one transaction.
+func (h *UserHandler) BatchAssignLevelRules(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	var req BatchUserLevelRuleAssignmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	affected, err := h.userLevelService.BatchAssignUserLevelRules(c.Request.Context(), service.BatchUserLevelRuleAssignmentInput{
+		UserIDs: req.UserIDs, RuleIDs: req.RuleIDs, Operation: req.Operation,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"affected": affected})
+}
+
+// ListLevelRuleMembers lists live users assigned to a rule.
+func (h *UserHandler) ListLevelRuleMembers(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+	ruleID, err := parseEntityID(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid level rule ID")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	users, total, err := h.userLevelService.ListLevelRuleMembers(c.Request.Context(), ruleID, page, pageSize)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]dto.AdminUser, 0, len(users))
+	for i := range users {
+		out = append(out, *dto.UserFromServiceAdmin(&users[i]))
+	}
+	response.Paginated(c, out, total, page, pageSize)
 }
 
 // NewUserHandler creates a new admin user handler

@@ -15,6 +15,7 @@ import type {
   AccountUsageStatsResponse,
   AccountProfitResponse,
   AccountProfitListResponse,
+  AccountProfitSettings,
   TempUnschedulableStatus,
   AdminDataPayload,
   AdminDataImportResult,
@@ -336,6 +337,14 @@ export async function getProfit(
     params,
     signal: options?.signal
   })
+  return data
+}
+
+export async function updateProfitSettings(
+  id: string,
+  payload: { subscription_cost_points: number | null }
+): Promise<AccountProfitSettings> {
+  const { data } = await apiClient.put<AccountProfitSettings>(`/admin/accounts/${id}/profit-settings`, payload)
   return data
 }
 
@@ -1077,6 +1086,7 @@ export const accountsAPI = {
   applyOAuthCredentials,
   getStats,
   getProfit,
+  updateProfitSettings,
   clearError,
   getUsage,
   getBatchUsage,

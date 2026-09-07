@@ -89,6 +89,32 @@ export function scoreToBand(score: number | null | undefined): HealthScoreBand {
   return `score${Math.max(0, Math.min(10, band))}` as HealthScoreBand
 }
 
+/** Map low-to-high error rate to green-to-white-to-red display bands. */
+export function errorRateToBand(
+  errorRate: number | null | undefined,
+  criticalErrorRate = 0.2,
+): HealthScoreBand {
+  if (errorRate == null || Number.isNaN(errorRate)) return 'unknown'
+  const critical = Number.isFinite(criticalErrorRate) && criticalErrorRate > 0 ? criticalErrorRate : 0.2
+  const normalized = Math.max(0, Math.min(1, errorRate / critical))
+  const errorBand = Math.round(normalized * 10)
+  // Keep the existing CSS band names: score10 is green and score0 is red.
+  return `score${10 - errorBand}` as HealthScoreBand
+}
+
+/** Return a status class whose color is determined by error rate. */
+export function errorRateClass(
+  errorRate: number | null | undefined,
+  health: MonitorHealth | undefined,
+  requestCount: number,
+): string {
+  if (errorRate == null || Number.isNaN(errorRate)) return 'health-unknown'
+  if (requestCount <= 0 && (!health || (health.error_rate === 'unknown' && health.error_rate_score == null))) {
+    return 'health-unknown'
+  }
+  return `health-${errorRateToBand(errorRate, health?.thresholds?.critical_error_rate)}`
+}
+
 export type HealthDisplayMode = 'overall' | 'success' | 'ttft' | 'cache'
 
 /** Resolve the score used for a health mode. */

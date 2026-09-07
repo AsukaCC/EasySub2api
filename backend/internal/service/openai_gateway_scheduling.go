@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/ctxkey"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 	"github.com/gin-gonic/gin"
@@ -964,6 +966,45 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	// 分组利润控制：legacy 公共入口同样装门，保证不经
 	// selectAccountWithScheduler 的调用方也无法绕过利润准入。
 	ctx = s.withOpenAIProfitControlGate(ctx, groupID)
+	groupIDs := apiKeyGroupIDsFromContext(ctx, groupID)
+	userID, _ := ctx.Value(ctxkey.UserID).(string)
+	if s.userLevelService != nil && strings.TrimSpace(userID) != "" && len(groupIDs) > 0 {
+		pricingAt, ok := openAIPricingAtFromContext(ctx)
+		if !ok {
+			pricingAt = time.Now()
+		}
+		ranked, rankErr := s.userLevelService.RankGroups(ctx, userID, groupIDs, pricingAt, PlatformOpenAI)
+		if rankErr == nil {
+			if len(ranked) == 0 {
+				return nil, ErrNoAvailableAccounts
+			}
+			var lastErr error
+			for i := range ranked {
+				candidate := &ranked[i]
+				candidateGroupID := candidate.Group.ID
+				candidateCtx := context.WithValue(ctx, ctxkey.APIKeyGroupIDs, []string{candidateGroupID})
+				candidateCtx = s.withOpenAIProfitControlGate(candidateCtx, &candidateGroupID)
+				selection, err := s.selectAccountWithLoadAwareness(candidateCtx, &candidateGroupID, PlatformOpenAI, sessionHash, requestedModel, excludedIDs, false, "", true)
+				if err == nil && selection != nil {
+					selection.BillingGroup = candidate.Group
+					selection.BillingSubscription = candidate.Subscription
+					plan := candidate.Plan
+					selection.RatePlan = &plan
+					return selection, nil
+				}
+				if err == nil {
+					return nil, ErrNoAvailableAccounts
+				}
+				lastErr = err
+				if !errors.Is(err, ErrNoAvailableAccounts) && !errors.Is(err, ErrNoAvailableCompactAccounts) {
+					return nil, err
+				}
+			}
+			if lastErr != nil {
+				return nil, lastErr
+			}
+		}
+	}
 	return s.selectAccountWithLoadAwareness(ctx, groupID, PlatformOpenAI, sessionHash, requestedModel, excludedIDs, false, "", true)
 }
 

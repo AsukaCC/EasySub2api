@@ -60,33 +60,124 @@ export interface DeleteUserResponse {
   mode: 'permanently_deleted'
 }
 
-export interface UserLevelSettings {
-	l2_min_spend: number
-	l3_min_spend: number
-	window_hours: number
+export interface UserLevelRuleTier {
+	id: string
+	rule_id: string
+	name: string
+	sort_order: number
+	min_spend: number
+	default_multiplier?: number | null
+	created_at: string
+	updated_at: string
+}
+
+export interface UserLevelRule {
+	id: string
+	name: string
+	window_days: 7 | 14 | 30
+	enabled: boolean
+	created_at: string
+	updated_at: string
+	tiers: UserLevelRuleTier[]
+	assigned_user_count: number
+	reference_count: number
+}
+
+export interface UserLevelRuleTierInput {
+	id?: string
+	name: string
+	sort_order: number
+	min_spend: number
+	default_multiplier?: number | null
 }
 
 export interface UserLevelProfile {
 	user_id: string
-	level: 1 | 2 | 3
+	level: number
+	configured: boolean
 	usage_7d: number
 	window_from: string
 	calculated_at: string
+	rules: Array<{
+		rule_id: string
+		rule_name: string
+		window_days: number
+		enabled: boolean
+		spend: number
+		window_from: string
+		calculated_at: string
+		current_tier_id?: string
+		current_tier_name?: string
+		current_tier_order: number
+		min_spend: number
+		default_multiplier?: number | null
+		tiers?: UserLevelRuleTier[]
+	}>
+	current_tier_ids: string[]
+	user_level_multiplier?: number | null
 }
 
-export async function getLevelSettings(): Promise<UserLevelSettings> {
-	const { data } = await apiClient.get<UserLevelSettings>('/admin/users/level-settings')
+export async function listLevelRules(): Promise<UserLevelRule[]> {
+	const { data } = await apiClient.get<UserLevelRule[]>('/admin/users/level-rules')
 	return data
 }
 
-export async function updateLevelSettings(input: Pick<UserLevelSettings, 'l2_min_spend' | 'l3_min_spend'>): Promise<UserLevelSettings> {
-	const { data } = await apiClient.put<UserLevelSettings>('/admin/users/level-settings', input)
+export async function getLevelRule(id: string): Promise<UserLevelRule> {
+	const { data } = await apiClient.get<UserLevelRule>(`/admin/users/level-rules/${id}`)
+	return data
+}
+
+export async function createLevelRule(input: { name: string; window_days?: 7 | 14 | 30 }): Promise<UserLevelRule> {
+	const { data } = await apiClient.post<UserLevelRule>('/admin/users/level-rules', input)
+	return data
+}
+
+export async function updateLevelRule(
+	id: string,
+	input: { name: string; window_days: 7 | 14 | 30; enabled?: boolean; tiers?: UserLevelRuleTierInput[] }
+): Promise<UserLevelRule> {
+	const { data } = await apiClient.put<UserLevelRule>(`/admin/users/level-rules/${id}`, input)
+	return data
+}
+
+export async function deleteLevelRule(id: string): Promise<{ deleted: boolean }> {
+	const { data } = await apiClient.delete<{ deleted: boolean }>(`/admin/users/level-rules/${id}`)
+	return data
+}
+
+export async function getUserLevelRules(userId: string): Promise<UserLevelRule[]> {
+	const { data } = await apiClient.get<UserLevelRule[]>(`/admin/users/${userId}/level-rules`)
+	return data
+}
+
+export async function replaceUserLevelRules(userId: string, ruleIds: string[]): Promise<{ user_id: string; rule_ids: string[] }> {
+	const { data } = await apiClient.put<{ user_id: string; rule_ids: string[] }>(
+		`/admin/users/${userId}/level-rules`, { rule_ids: ruleIds }
+	)
+	return data
+}
+
+export async function batchAssignLevelRules(input: {
+	user_ids: string[]
+	rule_ids: string[]
+	operation: 'add' | 'remove' | 'replace'
+}): Promise<{ affected: number }> {
+	const { data } = await apiClient.post<{ affected: number }>(
+		'/admin/users/level-rules/assignments/batch', input
+	)
+	return data
+}
+
+export async function getLevelRuleMembers(id: string, page = 1, pageSize = 20): Promise<PaginatedResponse<AdminUser>> {
+	const { data } = await apiClient.get<PaginatedResponse<AdminUser>>(`/admin/users/level-rules/${id}/members`, {
+		params: { page, page_size: pageSize }
+	})
 	return data
 }
 
 export async function getLevelProfiles(userIds: string[]): Promise<UserLevelProfile[]> {
 	if (userIds.length === 0) return []
-	const { data } = await apiClient.post<UserLevelProfile[]>('/admin/users/levels/batch', { user_ids: userIds })
+	const { data } = await apiClient.post<UserLevelProfile[]>('/admin/users/level-profiles/batch', { user_ids: userIds })
 	return data
 }
 
@@ -471,8 +562,15 @@ export async function resetPlatformQuotaWindow(
 export const usersAPI = {
   list,
   listArchived,
-  getLevelSettings,
-  updateLevelSettings,
+  listLevelRules,
+  getLevelRule,
+  createLevelRule,
+  updateLevelRule,
+  deleteLevelRule,
+  getUserLevelRules,
+  replaceUserLevelRules,
+  batchAssignLevelRules,
+  getLevelRuleMembers,
   getLevelProfiles,
   getById,
   create,

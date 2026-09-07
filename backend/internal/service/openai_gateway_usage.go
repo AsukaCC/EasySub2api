@@ -115,6 +115,16 @@ func (s *OpenAIGatewayService) RecordCyberPolicyUsageLog(ctx context.Context, in
 
 // ResolveUserGroupRateMultiplier resolves the same cached multiplier used by OpenAI usage billing.
 func (s *OpenAIGatewayService) ResolveUserGroupRateMultiplier(ctx context.Context, userID, groupID string, groupDefaultMultiplier float64) float64 {
+	if s != nil && s.userLevelService != nil && s.userLevelService.groupRepo != nil && strings.TrimSpace(userID) != "" && strings.TrimSpace(groupID) != "" {
+		if group, err := s.userLevelService.groupRepo.GetByIDLite(ctx, groupID); err == nil && group != nil {
+			if plan, planErr := s.userLevelService.ResolvePlan(ctx, userID, group, timezone.Now()); planErr == nil {
+				return plan.EffectiveBaseMultiplier
+			}
+		}
+	}
+	if s != nil && s.userLevelService != nil {
+		return groupDefaultMultiplier
+	}
 	if s == nil {
 		return groupDefaultMultiplier
 	}
@@ -123,6 +133,20 @@ func (s *OpenAIGatewayService) ResolveUserGroupRateMultiplier(ctx context.Contex
 		resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
 	}
 	return resolver.Resolve(ctx, userID, groupID, groupDefaultMultiplier)
+}
+
+// ResolveUserRatePlan exposes the canonical pricing snapshot to diagnostics
+// and other gateway-facing handlers. OpenAI and Grok share the same user-side
+// minimum calculation as the scheduler and billing paths.
+func (s *OpenAIGatewayService) ResolveUserRatePlan(ctx context.Context, userID string, group *Group, at time.Time) (*UserRatePlan, bool) {
+	if s == nil || s.userLevelService == nil || s.userLevelService.groupRepo == nil || group == nil {
+		return nil, false
+	}
+	plan, err := s.userLevelService.ResolvePlan(ctx, userID, group, at)
+	if err != nil {
+		return nil, false
+	}
+	return &plan, true
 }
 
 // openAIUsagePricingAt 返回本次用量记录使用的定价时刻：优先请求级 PricingAt
@@ -174,6 +198,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if !isGrokVideoUsageResult(result, nil) {
 		ApplyOpenAIImageBillingResolution(result)
 	}
+	pricingAt := openAIUsagePricingAt(input)
+	if ratePlan == nil && s.userLevelService != nil && user != nil && apiKey != nil && apiKey.Group != nil {
+		if resolved, resolveErr := s.userLevelService.ResolvePlan(ctx, user.ID, apiKey.Group, pricingAt); resolveErr == nil {
+			ratePlan = &resolved
+		}
+	}
 
 	// OpenAI input_tokens 是总输入，包含缓存读取和缓存写入明细。
 	// 将三类 token 拆成互斥桶，避免缓存写入同时按普通输入和 cache_write 重复计费。
@@ -198,7 +228,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		multiplier = s.cfg.Default.RateMultiplier
 	}
 	if ratePlan != nil {
-		multiplier = ratePlan.BaseMultiplier
+		multiplier = ratePlan.EffectiveBaseMultiplier
 	} else if apiKey.GroupID != nil && apiKey.Group != nil {
 		multiplier = s.ResolveUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
 	}
@@ -207,7 +237,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// 变价）；未装配 PricingAt 的路径回退记录时刻，保持既有行为。不并入上面的
 	// Resolve，以免污染 user:group 倍率缓存。
 	baseMultiplier := multiplier
-	pricingAt := openAIUsagePricingAt(input)
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, baseMultiplier, pricingAt)
 	if ratePlan != nil {
 		multiplier = ratePlan.EffectiveMultiplier

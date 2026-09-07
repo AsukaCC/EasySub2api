@@ -5,6 +5,7 @@ import (
 	"time"
 
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
+	"github.com/google/uuid"
 )
 
 const (
@@ -68,7 +69,10 @@ type AnnouncementCondition struct {
 	// user 条件：匹配的用户 ID
 	UserIDs []string `json:"user_ids,omitempty"`
 
-	// level 条件：匹配的消费等级（1-3）
+	// level 条件：匹配的 configured user-level tier UUIDs.
+	LevelTierIDs []string `json:"level_tier_ids,omitempty"`
+	// Levels is retained for decoding old announcements. Numeric targets are
+	// intentionally inert after the fixed level model was removed.
 	Levels []int `json:"levels,omitempty"`
 }
 
@@ -82,6 +86,17 @@ func (t AnnouncementTargeting) MatchesForUser(
 	userID string,
 	userLevel int,
 ) bool {
+	return t.MatchesForUserTiers(balance, activeSubscriptionGroupIDs, userID, nil)
+}
+
+// MatchesForUserTiers evaluates targeting against all currently reached tier
+// UUIDs. Legacy numeric level targets are never broadened to all users.
+func (t AnnouncementTargeting) MatchesForUserTiers(
+	balance float64,
+	activeSubscriptionGroupIDs map[string]struct{},
+	userID string,
+	userTierIDs []string,
+) bool {
 	// 空规则：展示给所有用户
 	if len(t.AnyOf) == 0 {
 		return true
@@ -94,7 +109,7 @@ func (t AnnouncementTargeting) MatchesForUser(
 		}
 		allMatched := true
 		for _, cond := range group.AllOf {
-			if !cond.MatchesForUser(balance, activeSubscriptionGroupIDs, userID, userLevel) {
+			if !cond.MatchesForUserTiers(balance, activeSubscriptionGroupIDs, userID, userTierIDs) {
 				allMatched = false
 				break
 			}
@@ -116,6 +131,24 @@ func (c AnnouncementCondition) MatchesForUser(
 	activeSubscriptionGroupIDs map[string]struct{},
 	userID string,
 	userLevel int,
+) bool {
+	return c.matchesForUser(balance, activeSubscriptionGroupIDs, userID, nil)
+}
+
+func (c AnnouncementCondition) MatchesForUserTiers(
+	balance float64,
+	activeSubscriptionGroupIDs map[string]struct{},
+	userID string,
+	userTierIDs []string,
+) bool {
+	return c.matchesForUser(balance, activeSubscriptionGroupIDs, userID, userTierIDs)
+}
+
+func (c AnnouncementCondition) matchesForUser(
+	balance float64,
+	activeSubscriptionGroupIDs map[string]struct{},
+	userID string,
+	userTierIDs []string,
 ) bool {
 	switch c.Type {
 	case AnnouncementConditionTypeSubscription:
@@ -163,11 +196,15 @@ func (c AnnouncementCondition) MatchesForUser(
 		return false
 
 	case AnnouncementConditionTypeLevel:
-		if c.Operator != AnnouncementOperatorIn || userLevel <= 0 {
+		if c.Operator != AnnouncementOperatorIn || len(c.LevelTierIDs) == 0 || len(userTierIDs) == 0 {
 			return false
 		}
-		for _, level := range c.Levels {
-			if level == userLevel {
+		current := make(map[string]struct{}, len(userTierIDs))
+		for _, tierID := range userTierIDs {
+			current[tierID] = struct{}{}
+		}
+		for _, tierID := range c.LevelTierIDs {
+			if _, ok := current[tierID]; ok {
 				return true
 			}
 		}
@@ -237,6 +274,17 @@ func (t AnnouncementTargeting) NormalizeAndValidate() (AnnouncementTargeting, er
 					cond.Levels = append(cond.Levels, level)
 				}
 			}
+			seenTierIDs := make(map[string]struct{})
+			for _, tierID := range c.LevelTierIDs {
+				tierID = strings.TrimSpace(tierID)
+				if _, err := uuid.Parse(tierID); err != nil {
+					return AnnouncementTargeting{}, ErrAnnouncementInvalidTarget
+				}
+				if _, ok := seenTierIDs[tierID]; !ok {
+					seenTierIDs[tierID] = struct{}{}
+					cond.LevelTierIDs = append(cond.LevelTierIDs, tierID)
+				}
+			}
 
 			if err := cond.validate(); err != nil {
 				return AnnouncementTargeting{}, err
@@ -276,8 +324,13 @@ func (c AnnouncementCondition) validate() error {
 		return nil
 
 	case AnnouncementConditionTypeLevel:
-		if c.Operator != AnnouncementOperatorIn || len(c.Levels) == 0 {
+		if c.Operator != AnnouncementOperatorIn || (len(c.LevelTierIDs) == 0 && len(c.Levels) == 0) {
 			return ErrAnnouncementInvalidTarget
+		}
+		for _, tierID := range c.LevelTierIDs {
+			if _, err := uuid.Parse(tierID); err != nil {
+				return ErrAnnouncementInvalidTarget
+			}
 		}
 		for _, level := range c.Levels {
 			if level < 1 || level > 3 {

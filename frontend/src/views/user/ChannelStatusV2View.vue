@@ -244,7 +244,7 @@
                 >
                   <td>
                     <div class="views-user-channel-status-v2-view__panel-17">
-                      <span :class="statusDot(row.health)" aria-hidden="true"></span>
+                      <span :class="statusDot(row.health, row.metrics.error_rate, row.metrics.request_count)" aria-hidden="true"></span>
                       <div>
                         <span class="views-user-channel-status-v2-view__text-11">{{ row.platform }}</span>
                         <strong class="views-user-channel-status-v2-view__strong">
@@ -421,6 +421,7 @@ import type {
   MonitorUserRow,
 } from '@/api/channelMonitorV2'
 import {
+  errorRateClass,
   formatLatencyKpiSecondary,
   formatLatencyPrivacy,
   formatMonitorMs,
@@ -739,14 +740,13 @@ function formatTime(value: string) {
     minute: '2-digit',
   }).format(new Date(value))
 }
-function statusDot(health?: MonitorHealth | HealthState) {
+function statusDot(health?: MonitorHealth | HealthState, errorRate?: number, requestCount = 0) {
   if (!health || typeof health === 'string') {
     return `status-dot health-${health || 'unknown'}`
   }
-  // Prefer multi-band score when available; otherwise fall back to the coarse
-  // overall state for mixed-version/older payloads.
-  const klass =
-    health.score != null
+  const klass = errorRate != null
+    ? errorRateClass(errorRate, health, requestCount)
+    : health.score != null
       ? healthScoreClass(health, 'overall', 0)
       : `health-${health.overall || 'unknown'}`
   return `status-dot ${klass}`

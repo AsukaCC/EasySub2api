@@ -121,16 +121,16 @@
                 <label class="input-label">{{ t('admin.announcements.form.selectLevels') }}</label>
                 <div class="components-admin-announcements-announcement-targeting-editor__levels">
                   <label
-                    v-for="level in userLevelOptions"
-                    :key="level.value"
+                    v-for="tier in userLevelOptions"
+                    :key="tier.value"
                     class="components-admin-announcements-announcement-targeting-editor__level"
                   >
                     <input
                       type="checkbox"
-                      :checked="cond.levels?.includes(level.value)"
-                      @change="setLevels(groupIndex, condIndex, level.value, ($event.target as HTMLInputElement).checked)"
+                      :checked="cond.level_tier_ids?.includes(tier.value)"
+                      @change="setLevelTierID(groupIndex, condIndex, tier.value, ($event.target as HTMLInputElement).checked)"
                     />
-                    {{ level.label }}
+                    {{ tier.label }}
                   </label>
                 </div>
               </div>
@@ -191,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
   AdminGroup,
@@ -206,6 +206,8 @@ import Select from '@/components/common/Select.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OpenAIFastPolicyUserSelector from '@/views/admin/settings/OpenAIFastPolicyUserSelector.vue'
+import { adminAPI } from '@/api'
+import type { UserLevelRule } from '@/api/admin/users'
 
 const { t } = useI18n()
 
@@ -230,11 +232,23 @@ const conditionTypeOptions = computed(() => [
   { value: 'level', label: t('admin.announcements.form.conditionLevel') }
 ])
 
-const userLevelOptions = computed(() => [
-  { value: 1, label: t('admin.announcements.form.level1') },
-  { value: 2, label: t('admin.announcements.form.level2') },
-  { value: 3, label: t('admin.announcements.form.level3') },
-])
+const levelRules = ref<UserLevelRule[]>([])
+const userLevelOptions = computed(() => levelRules.value.flatMap((rule) =>
+  (rule.tiers || [])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((tier) => ({ value: tier.id, label: `${rule.name} / ${tier.name}` }))
+))
+
+async function loadLevelRules() {
+  try {
+    levelRules.value = await adminAPI.users.listLevelRules()
+  } catch {
+    levelRules.value = []
+  }
+}
+
+onMounted(() => { void loadLevelRules() })
 
 const balanceOperatorOptions = computed(() => [
   { value: 'gt', label: t('admin.announcements.operators.gt') },
@@ -282,7 +296,7 @@ function defaultLevelCondition(): AnnouncementCondition {
   return {
     type: 'level' as AnnouncementConditionType,
     operator: 'in' as AnnouncementOperator,
-    levels: []
+    level_tier_ids: []
   }
 }
 
@@ -353,14 +367,15 @@ function setUserIDs(groupIndex: number, condIndex: number, userIDs: string[]) {
   })
 }
 
-function setLevels(groupIndex: number, condIndex: number, level: number, checked: boolean) {
+function setLevelTierID(groupIndex: number, condIndex: number, tierID: string, checked: boolean) {
   updateTargeting((draft) => {
     const condition = draft.any_of[groupIndex]?.all_of?.[condIndex]
     if (!condition) return
-    const levels = new Set(condition.levels ?? [])
-    if (checked) levels.add(level)
-    else levels.delete(level)
-    condition.levels = Array.from(levels).sort((a, b) => a - b)
+    const tierIDs = new Set(condition.level_tier_ids ?? [])
+    if (checked) tierIDs.add(tierID)
+    else tierIDs.delete(tierID)
+    condition.level_tier_ids = Array.from(tierIDs).sort()
+    delete condition.levels
     condition.operator = 'in'
   })
 }
@@ -480,7 +495,7 @@ const validationError = computed(() => {
         if (!c.user_ids || c.user_ids.length === 0) return t('admin.announcements.form.selectUsers')
       }
       if (c.type === 'level') {
-        if (!c.levels || c.levels.length === 0) return t('admin.announcements.form.selectLevels')
+        if (!c.level_tier_ids || c.level_tier_ids.length === 0) return t('admin.announcements.form.selectLevels')
       }
     }
   }

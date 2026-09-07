@@ -7,7 +7,12 @@
           <span>{{ account.id }} · {{ platformLabel(account.platform) }} · {{ account.subscription_tier || t('admin.accounts.profit.noTier') }}</span>
           <small>{{ t('admin.accounts.profit.accountCreated') }}: {{ formatDate(account.created_at) }} · {{ t('admin.accounts.profit.accountExpires') }}: {{ formatExpiry(account.expires_at) }}</small>
         </div>
-        <span class="account-profit-modal__unit">{{ t('admin.accounts.profit.unitHint') }}</span>
+        <div class="account-profit-modal__unit">
+          <span>{{ t('admin.accounts.profit.unitHint') }}</span>
+          <span v-if="stats && stats.subscription_cost_points != null" class="account-profit-modal__subscription-cost">
+            {{ t('admin.accounts.profit.subscriptionCost') }}: {{ formatPoints(stats.subscription_cost_points) }}
+          </span>
+        </div>
       </div>
 
       <LoadingState v-if="loading && !stats" variant="section" />
@@ -19,11 +24,15 @@
             <div class="account-profit-modal__metrics">
               <div><span>{{ t('admin.accounts.profit.revenuePoints') }}</span><strong class="is-revenue">{{ formatPoints(period.value.revenue_points) }}</strong></div>
               <div><span>{{ t('admin.accounts.profit.upstreamCost') }}</span><strong class="is-cost">{{ formatUSD(period.value.cost_usd) }}</strong></div>
+              <div v-if="period.value.subscription_cost_points != null"><span>{{ t('admin.accounts.profit.subscriptionCost') }}</span><strong class="is-subscription-cost">{{ formatPoints(period.value.subscription_cost_points) }}</strong></div>
               <div><span>{{ t('admin.accounts.profit.profit') }}</span><strong class="is-profit">{{ formatPoints(period.value.profit_points) }}</strong></div>
-              <div><span>{{ t('admin.accounts.profit.tokens') }}</span><strong class="is-tokens">{{ formatNumber(period.value.tokens) }}</strong></div>
-              <div><span>{{ t('admin.accounts.profit.requests') }}</span><strong>{{ formatNumber(period.value.requests) }}</strong></div>
-            </div>
-          </section>
+             <div><span>{{ t('admin.accounts.profit.tokens') }}</span><strong class="is-tokens">{{ formatNumber(period.value.tokens) }}</strong></div>
+               <div><span>{{ t('admin.accounts.profit.requests') }}</span><strong>{{ formatNumber(period.value.requests) }}</strong></div>
+             </div>
+              <p v-if="period.key === 'expiry_30d' && period.value.subscription_cost_points != null" class="account-profit-modal__formula">
+                {{ t('admin.accounts.profit.expiryProfitFormula', { cost: formatPoints(period.value.subscription_cost_points) }) }}
+              </p>
+           </section>
         </div>
 
         <div class="account-profit-modal__history-head">
@@ -402,6 +411,11 @@ onBeforeUnmount(() => {
   text-align: right;
 }
 
+.account-profit-modal__unit .account-profit-modal__subscription-cost {
+  margin-top: 0.25rem;
+  color: var(--color-text-warning);
+}
+
 .account-profit-modal__periods {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -465,6 +479,13 @@ onBeforeUnmount(() => {
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-profit-modal__formula {
+  margin: 0.625rem 0 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-2xs);
+  line-height: 1.45;
 }
 
 .account-profit-modal__range-tabs {
@@ -694,6 +715,7 @@ onBeforeUnmount(() => {
 
 .is-revenue { color: var(--color-text-success) !important; }
 .is-cost { color: var(--color-text-warning) !important; }
+.is-subscription-cost { color: #c2410c !important; }
 .is-profit { color: var(--color-text-brand) !important; }
 .is-tokens { color: #7c3aed !important; }
 
