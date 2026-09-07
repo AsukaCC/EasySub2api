@@ -500,27 +500,39 @@ func countUserLevelRuleReferences(ctx context.Context, q sqlQueryer, ruleID stri
 	if err := scanSingleRow(ctx, q, `SELECT COUNT(*) FROM user_level_rule_assignments WHERE rule_id = $1::uuid`, []any{ruleID}, &assignments); err != nil {
 		return 0, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT id::text FROM user_level_rule_tiers WHERE rule_id = $1::uuid`, ruleID)
+	// Drain the tier IDs before issuing more queries. When q is a *sql.Tx the
+	// connection is shared, and nesting a query inside an open rows cursor
+	// desyncs the lib/pq protocol ("unexpected Parse response 'D'").
+	tierIDs, err := listUserLevelTierIDs(ctx, q, ruleID)
 	if err != nil {
 		return 0, err
 	}
-	defer func() { _ = rows.Close() }()
 	var references int64
-	for rows.Next() {
-		var tierID string
-		if err := rows.Scan(&tierID); err != nil {
-			return 0, err
-		}
+	for _, tierID := range tierIDs {
 		count, err := countUserLevelTierReferences(ctx, q, tierID)
 		if err != nil {
 			return 0, err
 		}
 		references += count
 	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
 	return assignments + references, nil
+}
+
+func listUserLevelTierIDs(ctx context.Context, q sqlQueryer, ruleID string) ([]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id::text FROM user_level_rule_tiers WHERE rule_id = $1::uuid`, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	ids := make([]string, 0)
+	for rows.Next() {
+		var tierID string
+		if err := rows.Scan(&tierID); err != nil {
+			return nil, err
+		}
+		ids = append(ids, tierID)
+	}
+	return ids, rows.Err()
 }
 
 func countUserLevelTierReferences(ctx context.Context, q sqlQueryer, tierID string) (int64, error) {
