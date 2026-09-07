@@ -282,15 +282,23 @@ func (r *userLevelRepository) DeleteLevelRule(ctx context.Context, ruleID string
 	// be removed first. The reference check above already refused deletion
 	// when assignments or JSON consumers still point at this rule.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM user_level_rule_assignments WHERE rule_id = $1::uuid`, ruleID); err != nil {
-		return err
+		return wrapUserLevelRuleDeleteError(err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM user_level_rule_tiers WHERE rule_id = $1::uuid`, ruleID); err != nil {
-		return err
+		return wrapUserLevelRuleDeleteError(err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM user_level_rules WHERE id = $1::uuid`, ruleID); err != nil {
-		return err
+		return wrapUserLevelRuleDeleteError(err)
 	}
 	return tx.Commit()
+}
+
+func wrapUserLevelRuleDeleteError(err error) error {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23503" {
+		return service.ErrUserLevelRuleReferenced
+	}
+	return err
 }
 
 func (r *userLevelRepository) ListUserLevelRules(ctx context.Context, userID string) ([]service.UserLevelRule, error) {
