@@ -16,7 +16,7 @@ import (
 type gatewayModelsAccountRepoStub struct {
 	service.AccountRepository
 
-	byGroup map[int64][]service.Account
+	byGroup map[string][]service.Account
 }
 
 type gatewayModelsResponseForTest struct {
@@ -41,7 +41,7 @@ type gatewayReasoningEffortOptionForTest struct {
 	Default bool   `json:"default"`
 }
 
-func (s *gatewayModelsAccountRepoStub) ListSchedulableByGroupID(ctx context.Context, groupID int64) ([]service.Account, error) {
+func (s *gatewayModelsAccountRepoStub) ListSchedulableByGroupID(ctx context.Context, groupID string) ([]service.Account, error) {
 	accounts, ok := s.byGroup[groupID]
 	if !ok {
 		return nil, nil
@@ -52,13 +52,34 @@ func (s *gatewayModelsAccountRepoStub) ListSchedulableByGroupID(ctx context.Cont
 }
 
 func newGatewayModelsHandlerForTest(repo service.AccountRepository) *GatewayHandler {
+	return newGatewayModelsHandlerForTestWithGroups(repo, nil)
+}
+
+func newGatewayModelsHandlerForTestWithGroups(repo service.AccountRepository, groupRepo service.GroupRepository) *GatewayHandler {
 	return &GatewayHandler{
 		gatewayService: service.NewGatewayService(
 			repo,
-			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+			groupRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		),
 	}
+}
+
+type gatewayModelsGroupRepoStub struct {
+	service.GroupRepository
+
+	groups map[string]*service.Group
+}
+
+func (s *gatewayModelsGroupRepoStub) GetByIDLite(_ context.Context, id string) (*service.Group, error) {
+	if s == nil || s.groups == nil {
+		return nil, service.ErrGroupNotFound
+	}
+	group, ok := s.groups[id]
+	if !ok || group == nil {
+		return nil, service.ErrGroupNotFound
+	}
+	return group, nil
 }
 
 func TestDefaultModelIDsForCompositeIncludesAntigravityDefaults(t *testing.T) {
@@ -72,12 +93,12 @@ func TestDefaultModelIDsForCompositeIncludesAntigravityDefaults(t *testing.T) {
 func TestGatewayModels_GeminiGroupFallsBackToGeminiModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(20)
+	groupID := "20"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
-					{ID: 1, Platform: service.PlatformGemini},
+					{ID: "1", Platform: service.PlatformGemini},
 				},
 			},
 		},
@@ -104,13 +125,13 @@ func TestGatewayModels_GeminiGroupFallsBackToGeminiModels(t *testing.T) {
 func TestGatewayModels_Grok45AdvertisesReasoningEffortForGrokBuild(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(4409)
+	groupID := "4409"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformGrok,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{"grok-4.5": "grok-4.5"},
@@ -148,13 +169,13 @@ func TestGatewayModels_Grok45AdvertisesReasoningEffortForGrokBuild(t *testing.T)
 func TestGatewayModels_GeminiGroupFiltersMappedModelsByPlatform(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(21)
+	groupID := "21"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformAnthropic,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -163,7 +184,7 @@ func TestGatewayModels_GeminiGroupFiltersMappedModelsByPlatform(t *testing.T) {
 						},
 					},
 					{
-						ID:       2,
+						ID:       "2",
 						Platform: service.PlatformGemini,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -195,13 +216,13 @@ func TestGatewayModels_GeminiGroupFiltersMappedModelsByPlatform(t *testing.T) {
 func TestGatewayModels_CustomModelsListDisabledKeepsOriginalModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(22)
+	groupID := "22"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformOpenAI,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -241,13 +262,13 @@ func TestGatewayModels_CustomModelsListDisabledKeepsOriginalModels(t *testing.T)
 func TestGatewayModels_CustomModelsListFiltersAndOrdersMappedModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(23)
+	groupID := "23"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformOpenAI,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -288,13 +309,13 @@ func TestGatewayModels_CustomModelsListFiltersAndOrdersMappedModels(t *testing.T
 func TestGatewayModels_CompositeCustomModelsListFiltersAcrossConcretePlatforms(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(33)
+	groupID := "33"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformOpenAI,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -304,7 +325,7 @@ func TestGatewayModels_CompositeCustomModelsListFiltersAcrossConcretePlatforms(t
 						},
 					},
 					{
-						ID:       2,
+						ID:       "2",
 						Platform: service.PlatformGemini,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -313,7 +334,7 @@ func TestGatewayModels_CompositeCustomModelsListFiltersAcrossConcretePlatforms(t
 						},
 					},
 					{
-						ID:       3,
+						ID:       "3",
 						Platform: service.PlatformAntigravity,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -352,13 +373,13 @@ func TestGatewayModels_CompositeCustomModelsListFiltersAcrossConcretePlatforms(t
 func TestGatewayModels_CompositeUnmappedAccountsFallbackToLinkedPlatformsOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(34)
+	groupID := "34"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
-					{ID: 1, Platform: service.PlatformOpenAI},
-					{ID: 2, Platform: service.PlatformGrok},
+					{ID: "1", Platform: service.PlatformOpenAI},
+					{ID: "2", Platform: service.PlatformGrok},
 				},
 			},
 		},
@@ -388,13 +409,13 @@ func TestGatewayModels_CompositeUnmappedAccountsFallbackToLinkedPlatformsOnly(t 
 func TestGatewayModels_CustomModelsListKeepsConcreteModelAllowedByWildcardMapping(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(26)
+	groupID := "26"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformAnthropic,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -433,18 +454,18 @@ func TestGatewayModels_CustomModelsListKeepsConcreteModelAllowedByWildcardMappin
 func TestGatewayModels_AnthropicCustomModelsListIncludesOAuthClaudeAndMappedDeepSeek(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(28)
+	groupID := "28"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformAnthropic,
 						Type:     service.AccountTypeOAuth,
 					},
 					{
-						ID:       2,
+						ID:       "2",
 						Platform: service.PlatformAnthropic,
 						Type:     service.AccountTypeAPIKey,
 						Credentials: map[string]any{
@@ -484,18 +505,18 @@ func TestGatewayModels_AnthropicCustomModelsListIncludesOAuthClaudeAndMappedDeep
 func TestGatewayModels_AnthropicCustomModelsListDisabledKeepsMappedModelList(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(29)
+	groupID := "29"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformAnthropic,
 						Type:     service.AccountTypeOAuth,
 					},
 					{
-						ID:       2,
+						ID:       "2",
 						Platform: service.PlatformAnthropic,
 						Type:     service.AccountTypeAPIKey,
 						Credentials: map[string]any{
@@ -535,13 +556,13 @@ func TestGatewayModels_AnthropicCustomModelsListDisabledKeepsMappedModelList(t *
 func TestGatewayModels_AnthropicCustomModelsListIncludesOAuthClaudeWithoutMappings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(30)
+	groupID := "30"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformAnthropic,
 						Type:     service.AccountTypeOAuth,
 					},
@@ -576,13 +597,13 @@ func TestGatewayModels_AnthropicCustomModelsListIncludesOAuthClaudeWithoutMappin
 func TestGatewayModels_CustomModelsListCanReturnEmptyWhenSelectionsUnavailable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(24)
+	groupID := "24"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
 					{
-						ID:       1,
+						ID:       "1",
 						Platform: service.PlatformOpenAI,
 						Credentials: map[string]any{
 							"model_mapping": map[string]any{
@@ -621,12 +642,12 @@ func TestGatewayModels_CustomModelsListCanReturnEmptyWhenSelectionsUnavailable(t
 func TestGatewayModels_CustomModelsListFiltersDefaultFallbackModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(25)
+	groupID := "25"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
-					{ID: 1, Platform: service.PlatformOpenAI},
+					{ID: "1", Platform: service.PlatformOpenAI},
 				},
 			},
 		},
@@ -658,12 +679,12 @@ func TestGatewayModels_CustomModelsListFiltersDefaultFallbackModels(t *testing.T
 func TestGatewayModels_OpenAICustomModelsListKeepsOpenAIResponseShapeForDefaultFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(27)
+	groupID := "27"
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
-			byGroup: map[int64][]service.Account{
+			byGroup: map[string][]service.Account{
 				groupID: {
-					{ID: 1, Platform: service.PlatformOpenAI},
+					{ID: "1", Platform: service.PlatformOpenAI},
 				},
 			},
 		},
@@ -694,6 +715,74 @@ func TestGatewayModels_OpenAICustomModelsListKeepsOpenAIResponseShapeForDefaultF
 	require.NotZero(t, got.Data[0].Created)
 	require.Equal(t, "openai", got.Data[0].OwnedBy)
 	require.Empty(t, got.Data[0].CreatedAt)
+}
+
+func TestAPIKeyModelGroupIDsUsesAllBoundGroups(t *testing.T) {
+	primary := "g-openai"
+	require.Equal(t, []string{"g-openai", "g-grok"}, apiKeyModelGroupIDs(&service.APIKey{
+		GroupID:  &primary,
+		GroupIDs: []string{"g-openai", "g-grok"},
+		Group:    &service.Group{ID: primary, Platform: service.PlatformOpenAI},
+	}))
+}
+
+func TestGatewayModels_MultiGroupKeyReturnsUnionOfBoundGroupModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	openaiGroupID := "g-openai"
+	grokGroupID := "g-grok"
+	openaiGroup := &service.Group{ID: openaiGroupID, Platform: service.PlatformOpenAI}
+	grokGroup := &service.Group{ID: grokGroupID, Platform: service.PlatformGrok}
+	h := newGatewayModelsHandlerForTestWithGroups(
+		&gatewayModelsAccountRepoStub{
+			byGroup: map[string][]service.Account{
+				openaiGroupID: {
+					{
+						ID:       "acc-openai",
+						Platform: service.PlatformOpenAI,
+						Credentials: map[string]any{
+							"model_mapping": map[string]any{
+								"gpt-5.5": "gpt-5.5",
+							},
+						},
+					},
+				},
+				grokGroupID: {
+					{
+						ID:       "acc-grok",
+						Platform: service.PlatformGrok,
+						Credentials: map[string]any{
+							"model_mapping": map[string]any{
+								"grok-4.5": "grok-4.5",
+							},
+						},
+					},
+				},
+			},
+		},
+		&gatewayModelsGroupRepoStub{
+			groups: map[string]*service.Group{
+				grokGroupID: grokGroup,
+			},
+		},
+	)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+		GroupID:  &openaiGroupID,
+		GroupIDs: []string{openaiGroupID, grokGroupID},
+		Group:    openaiGroup,
+	})
+
+	h.Models(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got gatewayModelsResponseForTest
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	require.Equal(t, []string{"gpt-5.5", "grok-4.5"}, modelIDsForTest(got.Data))
 }
 
 func modelIDsForTest(models []gatewayModelItemForTest) []string {

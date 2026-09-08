@@ -730,64 +730,42 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 // Models handles listing available models
 // GET /v1/models
 // Returns models based on account configurations (model_mapping whitelist)
-// Falls back to default models if no whitelist is configured
+// Falls back to default models if no whitelist is configured.
+// Keys bound to multiple groups return the union of each group's /v1/models list.
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
-
-	var groupID *string
-	var platform string
-
-	if apiKey != nil && apiKey.Group != nil {
-		groupID = &apiKey.Group.ID
-		platform = apiKey.Group.Platform
-	}
-	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
-		platform = forcedPlatform
+	forcedPlatform := ""
+	if platform, ok := middleware2.GetForcePlatformFromContext(c); ok {
+		forcedPlatform = strings.TrimSpace(platform)
 	}
 
-	if platform == service.PlatformComposite {
-		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID)
-		if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
-			availableModels = filterModelsByCustomList(availableModels, defaultModelIDsForPlatform(service.PlatformComposite), apiKey.Group.ModelsListConfig.Models)
-			writeCustomModelsList(c, service.PlatformComposite, availableModels)
-			return
-		}
-		if len(availableModels) > 0 {
-			writeModelsList(c, service.PlatformComposite, availableModels)
-			return
-		}
-		writeModelsList(c, service.PlatformComposite, defaultModelIDsForPlatform(service.PlatformComposite))
+	groups := h.groupsForModelList(c.Request.Context(), apiKey, forcedPlatform)
+	if len(groups) == 0 {
+		writeModelsList(c, forcedPlatform, defaultModelIDsForPlatform(forcedPlatform))
 		return
 	}
 
-	// Get available models from account configurations for the selected group platform.
-	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
-	if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
-		fallbackModels := defaultModelIDsForPlatform(platform)
-		availableModels = filterModelsByCustomList(customModelsListSource(platform, availableModels, fallbackModels), fallbackModels, apiKey.Group.ModelsListConfig.Models)
-		writeCustomModelsList(c, platform, availableModels)
+	availableModels, responsePlatform, usedCustom := h.collectModelIDsForGroups(c.Request.Context(), groups, forcedPlatform, false)
+	if usedCustom {
+		writeCustomModelsList(c, responsePlatform, availableModels)
 		return
 	}
-
 	if len(availableModels) > 0 {
-		writeModelsList(c, platform, availableModels)
+		writeModelsList(c, responsePlatform, availableModels)
 		return
 	}
 
-	// Fallback to default models
-	if platform == service.PlatformOpenAI {
+	if responsePlatform == service.PlatformOpenAI {
 		c.JSON(http.StatusOK, gin.H{
 			"object": "list",
 			"data":   openai.DefaultModels,
 		})
 		return
 	}
-
-	if platform == service.PlatformGrok {
+	if responsePlatform == service.PlatformGrok {
 		writeGrokModelsList(c, xai.DefaultModelIDs())
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
 		"data":   claude.DefaultModels,
@@ -795,21 +773,20 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 }
 
 // CodexModels generates the Codex catalog from the group's actual routing
-// surface for non-OpenAI and Composite groups.
+// surface for non-OpenAI and Composite groups, and for multi-group keys.
 func (h *GatewayHandler) CodexModels(c *gin.Context) {
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil || apiKey.Group == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "API key group is required"}})
 		return
 	}
-	group := apiKey.Group
 	platform := ""
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok {
 		platform = strings.TrimSpace(forcedPlatform)
 	}
-	modelIDs := h.codexModelIDsForGroup(c.Request.Context(), group, platform)
-	modelIDs = service.FilterCodexModelIDsForGroup(modelIDs, group)
-	body, err := h.gatewayService.BuildCodexModelsManifestForGroup(c.Request.Context(), group, platform, modelIDs)
+	groups := h.groupsForModelList(c.Request.Context(), apiKey, platform)
+	modelIDs, _, _ := h.collectModelIDsForGroups(c.Request.Context(), groups, platform, true)
+	body, err := h.gatewayService.BuildCodexModelsManifestForGroup(c.Request.Context(), apiKey.Group, platform, modelIDs)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"type": "internal_error", "message": err.Error()}})
 		return
@@ -823,7 +800,100 @@ func (h *GatewayHandler) CodexModels(c *gin.Context) {
 	c.Data(http.StatusOK, "application/json", body)
 }
 
-func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *service.Group, platformOverride string) []string {
+func apiKeyModelGroupIDs(apiKey *service.APIKey) []string {
+	if apiKey == nil {
+		return nil
+	}
+	ids := service.NormalizeAPIKeyGroupIDs(apiKey.GroupIDs)
+	if len(ids) > 0 {
+		return ids
+	}
+	if apiKey.GroupID != nil && strings.TrimSpace(*apiKey.GroupID) != "" {
+		return []string{*apiKey.GroupID}
+	}
+	if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.ID) != "" {
+		return []string{apiKey.Group.ID}
+	}
+	return nil
+}
+
+func (h *GatewayHandler) groupsForModelList(ctx context.Context, apiKey *service.APIKey, forcedPlatform string) []*service.Group {
+	if apiKey == nil {
+		return nil
+	}
+	if strings.TrimSpace(forcedPlatform) != "" {
+		if apiKey.Group != nil {
+			return []*service.Group{apiKey.Group}
+		}
+		return nil
+	}
+	ids := apiKeyModelGroupIDs(apiKey)
+	groups := make([]*service.Group, 0, len(ids)+1)
+	seen := make(map[string]struct{}, len(ids)+1)
+	if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.ID) != "" {
+		groups = append(groups, apiKey.Group)
+		seen[apiKey.Group.ID] = struct{}{}
+	}
+	if h == nil || h.gatewayService == nil {
+		return groups
+	}
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		group, err := h.gatewayService.ResolveGroupByID(ctx, id)
+		if err != nil || group == nil {
+			continue
+		}
+		groups = append(groups, group)
+		seen[id] = struct{}{}
+	}
+	return groups
+}
+
+func (h *GatewayHandler) collectModelIDsForGroups(ctx context.Context, groups []*service.Group, platformOverride string, forCodex bool) ([]string, string, bool) {
+	modelIDs := make([]string, 0)
+	platforms := make(map[string]struct{}, len(groups))
+	usedCustom := false
+	for _, group := range groups {
+		if group == nil {
+			continue
+		}
+		ids := h.modelIDsForGroup(ctx, group, platformOverride, forCodex)
+		if forCodex {
+			ids = service.FilterCodexModelIDsForGroup(ids, group)
+		}
+		modelIDs = mergeModelIDs(modelIDs, ids)
+		platform := strings.TrimSpace(platformOverride)
+		if platform == "" {
+			platform = group.Platform
+		}
+		if platform != "" {
+			platforms[platform] = struct{}{}
+		}
+		if group.CustomModelsListEnabled() {
+			usedCustom = true
+		}
+	}
+	return modelIDs, responsePlatformForModelList(platforms, platformOverride), usedCustom
+}
+
+func responsePlatformForModelList(platforms map[string]struct{}, platformOverride string) string {
+	if platform := strings.TrimSpace(platformOverride); platform != "" {
+		return platform
+	}
+	if len(platforms) == 1 {
+		for platform := range platforms {
+			return platform
+		}
+	}
+	if len(platforms) > 1 {
+		return service.PlatformOpenAI
+	}
+	return ""
+}
+
+func (h *GatewayHandler) modelIDsForGroup(ctx context.Context, group *service.Group, platformOverride string, forCodex bool) []string {
 	if h == nil || h.gatewayService == nil || group == nil {
 		return nil
 	}
@@ -832,9 +902,12 @@ func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *servi
 	if platform == "" {
 		platform = group.Platform
 	}
+	fallback := defaultModelIDsForPlatform(platform)
+	if forCodex {
+		fallback = defaultCodexModelIDsForPlatform(platform)
+	}
 	if platform == service.PlatformComposite {
 		available := h.compositeAvailableModels(ctx, groupID)
-		fallback := defaultCodexModelIDsForPlatform(platform)
 		if group.CustomModelsListEnabled() {
 			return filterModelsByCustomList(available, fallback, group.ModelsListConfig.Models)
 		}
@@ -844,7 +917,6 @@ func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *servi
 		return fallback
 	}
 	available := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
-	fallback := defaultCodexModelIDsForPlatform(platform)
 	if group.CustomModelsListEnabled() {
 		return filterModelsByCustomList(customModelsListSource(platform, available, fallback), fallback, group.ModelsListConfig.Models)
 	}

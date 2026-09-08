@@ -67,7 +67,7 @@ func RegisterGatewayRoutes(
 	}
 	codexModelsHandler := func(c *gin.Context) {
 		apiKey, ok := middleware.GetAPIKeyFromContext(c)
-		if ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformOpenAI {
+		if ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformOpenAI && len(service.NormalizeAPIKeyGroupIDs(apiKey.GroupIDs)) <= 1 {
 			h.OpenAIGateway.CodexModels(c)
 			return
 		}

@@ -110,12 +110,12 @@ func (r *usageLogRepository) GetUserUsageTrendWithRoleScope(ctx context.Context,
 func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context, startTime, endTime time.Time, granularity string, limit int, metric, userRoleScope string) (results []UserUsageTrendPoint, err error) {
 	dateFormat := safeDateFormat(granularity)
 	rankingExpression := `SUM(
-				COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) +
-				COALESCE(cache_creation_tokens, 0) + COALESCE(cache_read_tokens, 0) +
-				COALESCE(image_input_tokens, 0) + COALESCE(image_output_tokens, 0)
+				COALESCE(usage_logs.input_tokens, 0) + COALESCE(usage_logs.output_tokens, 0) +
+				COALESCE(usage_logs.cache_creation_tokens, 0) + COALESCE(usage_logs.cache_read_tokens, 0) +
+				COALESCE(usage_logs.image_input_tokens, 0) + COALESCE(usage_logs.image_output_tokens, 0)
 			)`
 	if metric == "actual_cost" {
-		rankingExpression = "COALESCE(SUM(actual_cost), 0)"
+		rankingExpression = "COALESCE(SUM(usage_logs.actual_cost), 0)"
 	}
 	timezoneName := startTime.Location().String()
 	if timezoneName == "" || timezoneName == "Local" {
@@ -127,26 +127,26 @@ func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context,
 		bucketUnit = "hour"
 		bucketStep = "1 hour"
 	}
-	roleJoinTop := ""
+	// Use EXISTS instead of JOIN users: both tables have created_at, and an
+	// unqualified WHERE created_at makes PostgreSQL raise "column reference
+	// created_at is ambiguous" when the dashboard defaults to role_scope=regular.
 	roleConditionTop := ""
+	if conditions, _ := appendUsageLogUserRoleScopeCondition(nil, nil, userRoleScope, "usage_logs"); len(conditions) > 0 {
+		roleConditionTop = " AND " + conditions[0]
+	}
 	roleConditionDetail := ""
-	if strings.EqualFold(strings.TrimSpace(userRoleScope), "admin") {
-		roleJoinTop = " JOIN users usage_scope_user ON usage_scope_user.id = usage_logs.user_id"
-		roleConditionTop = " AND usage_scope_user.role = 'admin'"
-	} else if strings.EqualFold(strings.TrimSpace(userRoleScope), "regular") {
-		roleJoinTop = " JOIN users usage_scope_user ON usage_scope_user.id = usage_logs.user_id"
-		roleConditionTop = " AND usage_scope_user.role <> 'admin'"
+	if conditions, _ := appendUsageLogUserRoleScopeCondition(nil, nil, userRoleScope, "u"); len(conditions) > 0 {
+		roleConditionDetail = " AND " + conditions[0]
 	}
 
 	query := fmt.Sprintf(`
 		WITH top_users AS (
-			SELECT user_id, %s AS ranking_value
+			SELECT usage_logs.user_id, %s AS ranking_value
 			FROM usage_logs
-			%s
-			WHERE created_at >= $1 AND created_at < $2%s
-			  AND user_id IS NOT NULL
-			GROUP BY user_id
-			ORDER BY ranking_value DESC, user_id ASC
+			WHERE usage_logs.created_at >= $1 AND usage_logs.created_at < $2%s
+			  AND usage_logs.user_id IS NOT NULL
+			GROUP BY usage_logs.user_id
+			ORDER BY ranking_value DESC, usage_logs.user_id ASC
 			LIMIT $3
 		),
 		buckets AS (
@@ -187,7 +187,7 @@ func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context,
 		LEFT JOIN usage_by_bucket ub ON ub.user_id = tu.user_id AND ub.bucket = b.bucket
 		LEFT JOIN users us ON tu.user_id = us.id
 		ORDER BY b.bucket ASC, tu.ranking_value DESC, tu.user_id ASC
-	`, rankingExpression, roleJoinTop, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, roleConditionDetail, dateFormat)
+	`, rankingExpression, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, roleConditionDetail, dateFormat)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, timezoneName)
 	if err != nil {

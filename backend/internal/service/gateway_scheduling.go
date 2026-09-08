@@ -900,6 +900,9 @@ func (s *GatewayService) resolveGroupByID(ctx context.Context, groupID string) (
 	if group := s.groupFromContext(ctx, groupID); group != nil {
 		return group, nil
 	}
+	if s == nil || s.groupRepo == nil {
+		return nil, ErrGroupNotFound
+	}
 	group, err := s.groupRepo.GetByIDLite(ctx, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("get group failed: %w", err)

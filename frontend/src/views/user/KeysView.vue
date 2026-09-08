@@ -368,7 +368,7 @@
               <!-- Import to CC Switch Button -->
               <button
                 v-if="!publicSettings?.hide_ccs_import_button"
-                @click="importToCcswitch(row)"
+                @click="openCcsImportDialog(row)"
                 class="views-user-keys-view__action-7"
               >
                 <Icon name="upload" size="sm" />
@@ -957,6 +957,46 @@
     />
 
     <BaseDialog
+      :show="showCcsImportDialog"
+      :title="t('keys.ccsImportTitle')"
+      width="normal"
+      @close="closeCcsImportDialog"
+    >
+      <p class="views-user-keys-view__description-4">{{ t('keys.ccsImportHint') }}</p>
+      <div class="ccs-import-targets" role="radiogroup" :aria-label="t('keys.ccsImportTitle')">
+        <button
+          v-for="target in ccsImportTargets"
+          :key="`${target.app}-${target.platform}`"
+          type="button"
+          role="radio"
+          :aria-checked="selectedCcsImportTarget?.app === target.app && selectedCcsImportTarget?.platform === target.platform"
+          class="ccs-import-target"
+          :class="{ 'ccs-import-target--selected': selectedCcsImportTarget?.app === target.app && selectedCcsImportTarget?.platform === target.platform }"
+          @click="selectedCcsImportTarget = target"
+        >
+          <PlatformIcon :platform="ccsImportTargetIcon(target.platform, target.app)" size="sm" />
+          <span class="ccs-import-target__copy">
+            <span class="ccs-import-target__title">{{ ccsImportTargetLabel(target.app) }}</span>
+            <span class="ccs-import-target__hint">{{ ccsImportTargetHint(target.app) }}</span>
+          </span>
+        </button>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" @click="closeCcsImportDialog">
+          {{ t('common.cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="!selectedCcsImportTarget || !ccsImportKey"
+          @click="confirmCcsImport"
+        >
+          {{ t('keys.ccsImportConfirm') }}
+        </button>
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
       :show="showGroupManager"
       :title="t('keys.manageGroups')"
       width="normal"
@@ -1017,12 +1057,18 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupTransferPicker from '@/components/common/GroupTransferPicker.vue'
+	import PlatformIcon from '@/components/common/PlatformIcon.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime, formatPointAmount, formatPoints } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
-import { buildCcSwitchImportDeeplink } from '@/utils/ccswitchImport'
+import {
+  buildCcSwitchImportDeeplink,
+  ccsImportTargetsFromGroups,
+  type CcSwitchApp,
+  type CcSwitchImportTarget
+} from '@/utils/ccswitchImport'
 
 const formatPointRange = (used: number | null | undefined, limit: number | null | undefined): string =>
   `${formatPointAmount(used)} / ${formatPoints(limit)}`
@@ -1178,6 +1224,10 @@ const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
+const showCcsImportDialog = ref(false)
+const ccsImportKey = ref<ApiKey | null>(null)
+const ccsImportTargets = ref<CcSwitchImportTarget[]>([])
+const selectedCcsImportTarget = ref<CcSwitchImportTarget | null>(null)
 const showColumnDropdown = ref(false)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<string | null>(null)
@@ -1717,13 +1767,70 @@ const resetRateLimitUsage = async () => {
   }
 }
 
-const importToCcswitch = (row: ApiKey) => {
-  executeCcsImport(row)
+const openCcsImportDialog = (row: ApiKey) => {
+  ccsImportKey.value = row
+  const targets = ccsImportTargetsFromGroups(keyGroupOptions(row))
+  ccsImportTargets.value = targets
+  selectedCcsImportTarget.value = targets[0] || null
+  showCcsImportDialog.value = true
 }
 
-const executeCcsImport = (row: ApiKey) => {
+const closeCcsImportDialog = () => {
+  showCcsImportDialog.value = false
+  ccsImportKey.value = null
+  ccsImportTargets.value = []
+  selectedCcsImportTarget.value = null
+}
+
+const ccsImportTargetIcon = (platform: GroupPlatform, app: CcSwitchApp): GroupPlatform => {
+  if (app === 'codex' && platform !== 'grok') {
+    return 'openai'
+  }
+  if (app === 'grokbuild') {
+    return 'grok'
+  }
+  if (app === 'claude') {
+    return platform === 'gemini' || platform === 'antigravity' ? platform : 'anthropic'
+  }
+  return platform
+}
+
+const ccsImportTargetLabel = (app: CcSwitchApp): string => {
+  switch (app) {
+    case 'codex':
+      return t('keys.ccsImportCodex')
+    case 'grokbuild':
+      return t('keys.ccsImportGrok')
+    default:
+      return t('keys.ccsImportClaude')
+  }
+}
+
+const ccsImportTargetHint = (app: CcSwitchApp): string => {
+  switch (app) {
+    case 'codex':
+      return t('keys.ccsImportCodexHint')
+    case 'grokbuild':
+      return t('keys.ccsImportGrokHint')
+    default:
+      return t('keys.ccsImportClaudeHint')
+  }
+}
+
+const confirmCcsImport = () => {
+  const row = ccsImportKey.value
+  const target = selectedCcsImportTarget.value
+  if (!row || !target) return
+  closeCcsImportDialog()
+  executeCcsImport(row, target)
+}
+
+const executeCcsImport = (row: ApiKey, target: CcSwitchImportTarget) => {
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
-  const platform = row.group?.platform || 'anthropic'
+  const boundGroups = keyGroupOptions(row)
+  const websocketEnabled = target.app === 'codex'
+    && target.platform !== 'grok'
+    && boundGroups.some((group) => group.platform === 'openai' && group.ccs_codex_ws_enabled === true)
 
   const usageScript = `({
     request: {
@@ -1744,12 +1851,13 @@ const executeCcsImport = (row: ApiKey) => {
   const providerName = (publicSettings.value?.site_name || 'EasySub2api').trim() || 'EasySub2api'
   const deeplink = buildCcSwitchImportDeeplink({
     baseUrl,
-    platform,
+    platform: target.platform,
+    app: target.app,
     clientType: 'claude',
     providerName,
     apiKey: row.key,
     usageScript,
-    codexWebsocketEnabled: row.group?.ccs_codex_ws_enabled === true
+    codexWebsocketEnabled: websocketEnabled
   })
 
   try {
@@ -1829,5 +1937,53 @@ onUnmounted(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
+}
+
+.ccs-import-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.ccs-import-target {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.ccs-import-target:hover {
+  background: var(--color-surface-hover);
+}
+
+.ccs-import-target--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.ccs-import-target__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ccs-import-target__title {
+  font-weight: 600;
+}
+
+.ccs-import-target__hint {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
 }
 </style>

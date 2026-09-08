@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   GROK_CC_SWITCH_MODEL,
   OPENAI_CC_SWITCH_CODEX_MODEL,
-  buildCcSwitchImportDeeplink
+  buildCcSwitchImportDeeplink,
+  ccsImportTargetsFromGroups
 } from '@/utils/ccswitchImport'
 import type { GroupPlatform } from '@/types'
 
@@ -87,6 +88,49 @@ describe('ccswitchImport utils', () => {
     expect(params.get('app')).toBe('grokbuild')
     expect(params.get('endpoint')).toBe('https://api.example.com/v1')
     expect(params.get('model')).toBe(GROK_CC_SWITCH_MODEL)
+  })
+
+  it('lists Claude, Codex and Grok targets from all bound groups', () => {
+    expect(ccsImportTargetsFromGroups([
+      { platform: 'anthropic' },
+      { platform: 'openai' },
+      { platform: 'grok' }
+    ])).toEqual([
+      { app: 'claude', platform: 'anthropic' },
+      { app: 'codex', platform: 'openai' },
+      { app: 'grokbuild', platform: 'grok' }
+    ])
+  })
+
+  it('adds a Codex target for Grok-only keys so Codex can load Grok models', () => {
+    expect(ccsImportTargetsFromGroups([{ platform: 'grok' }])).toEqual([
+      { app: 'codex', platform: 'grok' },
+      { app: 'grokbuild', platform: 'grok' }
+    ])
+  })
+
+  it('defaults to Claude when a key has no groups', () => {
+    expect(ccsImportTargetsFromGroups([])).toEqual([
+      { app: 'claude', platform: 'anthropic' }
+    ])
+  })
+
+  it('imports Grok into Codex with the Grok model and Responses wire API', () => {
+    const params = paramsFromDeeplink(
+      buildCcSwitchImportDeeplink({
+        ...baseInput,
+        platform: 'grok',
+        app: 'codex',
+        clientType: 'claude'
+      })
+    )
+
+    expect(params.get('app')).toBe('codex')
+    expect(params.get('endpoint')).toBe(baseInput.baseUrl)
+    expect(params.get('model')).toBe(GROK_CC_SWITCH_MODEL)
+    const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
+    expect(payload.config).toContain('wire_api = "responses"')
+    expect(payload.config).toContain(`model = "${GROK_CC_SWITCH_MODEL}"`)
   })
 
   it.each([
