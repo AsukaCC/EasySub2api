@@ -436,6 +436,7 @@ export interface SystemSettings {
   default_concurrency: number;
   default_user_rpm_limit: number;
   default_subscriptions: DefaultSubscriptionSetting[];
+  default_user_level_rule_ids: string[];
   auth_source_default_email_balance?: number;
 	auth_source_default_email_bonus_validity_days?: number;
   auth_source_default_email_concurrency?: number;
@@ -785,6 +786,7 @@ export interface UpdateSettingsRequest {
   default_concurrency?: number;
   default_user_rpm_limit?: number;
   default_subscriptions?: DefaultSubscriptionSetting[];
+  default_user_level_rule_ids?: string[];
   auth_source_default_email_balance?: number;
 	auth_source_default_email_bonus_validity_days?: number;
   auth_source_default_email_concurrency?: number;
@@ -1471,7 +1473,7 @@ export async function updateRectifierSettings(
  * Matches backend dto.OpenAIFastPolicyRule.
  */
 export interface OpenAIFastPolicyRule {
-  service_tier: "all" | "priority" | "flex";
+  service_tier: "all" | "priority" | "flex" | "ultrafast";
   action: "pass" | "filter" | "block" | "force_priority";
   scope: "all" | "oauth" | "apikey" | "bedrock";
   user_ids?: string[];

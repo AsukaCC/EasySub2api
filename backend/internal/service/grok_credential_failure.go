@@ -649,6 +649,8 @@ func (s *OpenAIGatewayService) newGrokCredentialFailover(c *gin.Context, account
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 		Platform:  PlatformGrok,
 		AccountID: account.ID,
+		ProxyID:   opsUpstreamProxyID(account),
+		ProxyName: opsUpstreamProxyName(account),
 		Stage:     string(GatewayFailureStageAccountAuth),
 		Scope:     string(class.scope),
 		Reason:    string(class.reason),

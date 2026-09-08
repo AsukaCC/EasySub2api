@@ -383,8 +383,9 @@ const (
 	SettingKeyDefaultConcurrency              = "default_concurrency" // 新用户默认并发量
 	SettingKeyDefaultBalance                  = "default_balance"     // 新用户默认余额
 	SettingKeyBonusBalanceDefaultValidityDays = "bonus_balance_default_validity_days"
-	SettingKeyDefaultSubscriptions            = "default_subscriptions"  // 新用户默认订阅列表（JSON）
-	SettingKeyDefaultUserRPMLimit             = "default_user_rpm_limit" // 新用户默认 RPM 限制（0 = 不限制）
+	SettingKeyDefaultSubscriptions            = "default_subscriptions"       // 新用户默认订阅列表（JSON）
+	SettingKeyDefaultUserLevelRuleIDs         = "default_user_level_rule_ids" // 新用户默认等级规则（JSON UUID array）
+	SettingKeyDefaultUserRPMLimit             = "default_user_rpm_limit"      // 新用户默认 RPM 限制（0 = 不限制）
 
 	// 第三方认证来源默认授予配置
 	SettingKeyAuthSourceDefaultEmailBalance              = "auth_source_default_email_balance"

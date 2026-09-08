@@ -98,6 +98,8 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			AccountName:        account.Name,
 			UpstreamStatusCode: 0,
 			Kind:               "request_error",
@@ -127,6 +129,8 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  resp.Header.Get("x-request-id"),

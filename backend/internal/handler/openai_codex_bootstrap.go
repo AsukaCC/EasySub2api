@@ -18,67 +18,125 @@ const (
 // normalizeCodexCallOutputBootstrap converts the two call-less Codex bootstrap
 // envelopes into user messages. Ordinary function outputs remain subject to the
 // regular call_id/item_reference validation in the gateway handler.
+//
+// Delegation（create_thread / send_message_to_thread）：已有任务通过
+// send_message_to_thread 唤醒时会携带 previous_response_id；完整历史回放还会带有
+// 已配对的调用项。delegation 仍是客户端注入的用户输入，不属于这些历史调用的结果，
+// 因此允许它与可明确配对（带 id / call_id）的历史上下文共存。
+// Automation（automation_update，含 heartbeat 形态）保持 bootstrap-only 边界。
 func normalizeCodexCallOutputBootstrap(body []byte) ([]byte, string, bool) {
+	if normalized, changed := normalizeCodexBootstrapByKind(body, isCodexDelegationCandidate, true); changed {
+		return normalized, codexBootstrapKindDelegation, true
+	}
+	if normalized, changed := normalizeCodexBootstrapByKind(body, isCodexAutomationCandidate, false); changed {
+		return normalized, codexBootstrapKindAutomation, true
+	}
+	return body, "", false
+}
+
+func normalizeCodexBootstrapByKind(body []byte, isCandidate func(map[string]any) bool, allowHistoricalContext bool) ([]byte, bool) {
 	if !hasUniqueCodexBootstrapJSONMembers(body) {
-		return body, "", false
+		return body, false
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.UseNumber()
 	var request map[string]any
 	if err := decoder.Decode(&request); err != nil {
-		return body, "", false
+		return body, false
 	}
 	if previousResponseID, exists := request["previous_response_id"]; exists {
 		value, ok := previousResponseID.(string)
-		if !ok || strings.TrimSpace(value) != "" {
-			return body, "", false
+		if !ok || (!allowHistoricalContext && strings.TrimSpace(value) != "") {
+			return body, false
 		}
 	}
 
 	input, ok := request["input"].([]any)
-	if !ok || len(input) != 1 {
-		return body, "", false
+	if !ok {
+		return body, false
 	}
-	item, ok := input[0].(map[string]any)
-	if !ok || codexBootstrapStringField(item, "type") != "function_call_output" {
-		return body, "", false
-	}
-	if callIDValue, exists := item["call_id"]; exists {
-		callID, isString := callIDValue.(string)
-		if !isString || strings.TrimSpace(callID) != "" {
-			return body, "", false
+
+	// Responses built-ins follow the *_call / *_call_output naming convention,
+	// so classify by the wire type shape instead of maintaining an incomplete
+	// allowlist. Delegation may coexist with historical anchors only when their
+	// IDs make them unambiguous; automation retains the bootstrap-only boundary.
+	for _, raw := range input {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		typ := codexBootstrapStringField(item, "type")
+		if isCandidate(item) {
+			callIDValue, exists := item["call_id"]
+			callID, isString := callIDValue.(string)
+			if exists && (!isString || strings.TrimSpace(callID) != "") {
+				return body, false
+			}
+			continue
+		}
+		if typ == "item_reference" {
+			if allowHistoricalContext && strings.TrimSpace(codexBootstrapStringField(item, "id")) != "" {
+				continue
+			}
+			return body, false
+		}
+		if strings.HasSuffix(typ, "_call") || isCodexResponsesCallOutputType(typ) {
+			if allowHistoricalContext && strings.TrimSpace(codexBootstrapStringField(item, "call_id")) != "" {
+				continue
+			}
+			return body, false
 		}
 	}
 
-	output, ok := item["output"].(string)
-	if !ok {
-		return body, "", false
+	changed := false
+	for i, raw := range input {
+		item, ok := raw.(map[string]any)
+		if !ok || !isCandidate(item) {
+			continue
+		}
+		output, ok := item["output"].(string)
+		if !ok {
+			continue
+		}
+		input[i] = map[string]any{
+			"type": "message",
+			"role": "user",
+			"content": []any{map[string]any{
+				"type": "input_text",
+				"text": output,
+			}},
+		}
+		changed = true
 	}
-
-	kind := ""
-	switch {
-	case isCodexDelegationBootstrapItem(item) && validCodexDelegationEnvelope(output):
-		kind = codexBootstrapKindDelegation
-	case isCodexAutomationBootstrapItem(item) && validCodexAutomationBootstrap(output):
-		kind = codexBootstrapKindAutomation
-	default:
-		return body, "", false
+	if !changed {
+		return body, false
 	}
-
-	request["input"] = []any{map[string]any{
-		"type": "message",
-		"role": "user",
-		"content": []any{map[string]any{
-			"type": "input_text",
-			"text": output,
-		}},
-	}}
 	normalized, err := json.Marshal(request)
 	if err != nil {
-		return body, "", false
+		return body, false
 	}
-	return normalized, kind, true
+	return normalized, true
+}
+
+func isCodexResponsesCallOutputType(typ string) bool {
+	return strings.HasSuffix(typ, "_call_output") || typ == "tool_search_output"
+}
+
+func isCodexDelegationCandidate(item map[string]any) bool {
+	if codexBootstrapStringField(item, "type") != "function_call_output" || !isCodexDelegationBootstrapItem(item) {
+		return false
+	}
+	output, ok := item["output"].(string)
+	return ok && validCodexDelegationEnvelope(output)
+}
+
+func isCodexAutomationCandidate(item map[string]any) bool {
+	if codexBootstrapStringField(item, "type") != "function_call_output" || !isCodexAutomationBootstrapItem(item) {
+		return false
+	}
+	output, ok := item["output"].(string)
+	return ok && (validCodexAutomationBootstrap(output) || validCodexAutomationHeartbeat(output))
 }
 
 func isCodexDelegationBootstrapItem(item map[string]any) bool {
@@ -91,6 +149,58 @@ func isCodexDelegationBootstrapItem(item map[string]any) bool {
 func isCodexAutomationBootstrapItem(item map[string]any) bool {
 	return codexBootstrapStringField(item, "namespace") == "codex_app" &&
 		codexBootstrapStringField(item, "name") == "automation_update"
+}
+
+// validCodexAutomationHeartbeat 校验严格的 <heartbeat><automation_id>…</automation_id></heartbeat>
+// 形态：无命名空间/属性/注释，automation_id 为唯一子元素且值无首尾空白。
+func validCodexAutomationHeartbeat(value string) bool {
+	decoder := xml.NewDecoder(strings.NewReader(value))
+	var rootSeen, automationIDSeen bool
+	var automationID bytes.Buffer
+	depth := 0
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			id := automationID.String()
+			return rootSeen && automationIDSeen && depth == 0 &&
+				strings.TrimSpace(id) == id && validCodexAutomationID(id)
+		}
+		if err != nil {
+			return false
+		}
+		switch current := token.(type) {
+		case xml.StartElement:
+			depth++
+			if current.Name.Space != "" || len(current.Attr) != 0 || depth > 2 {
+				return false
+			}
+			if depth == 1 {
+				if rootSeen || current.Name.Local != "heartbeat" {
+					return false
+				}
+				rootSeen = true
+			} else if automationIDSeen || current.Name.Local != "automation_id" {
+				return false
+			}
+			automationIDSeen = depth == 2
+		case xml.EndElement:
+			if current.Name.Space != "" {
+				return false
+			}
+			depth--
+			if depth < 0 {
+				return false
+			}
+		case xml.CharData:
+			if depth == 2 {
+				_, _ = automationID.Write(current)
+			} else if len(bytes.TrimSpace(current)) != 0 {
+				return false
+			}
+		case xml.Comment, xml.ProcInst, xml.Directive:
+			return false
+		}
+	}
 }
 
 func codexBootstrapStringField(item map[string]any, key string) string {

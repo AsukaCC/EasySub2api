@@ -697,6 +697,8 @@ func (s *AntigravityGatewayService) writeMappedClaudeError(c *gin.Context, accou
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 		Platform:           account.Platform,
 		AccountID:          account.ID,
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		AccountName:        account.Name,
 		UpstreamStatusCode: upstreamStatus,
 		UpstreamRequestID:  upstreamRequestID,

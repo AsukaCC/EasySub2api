@@ -33,6 +33,7 @@ const messages: Record<string, string> = {
   'admin.dashboard.hour': 'Hour',
   'admin.usage.failedToLoadUser': 'Failed to load user',
 	'admin.usage.requestId': 'Request ID',
+	'admin.usage.upstreamRequestId': 'Upstream ID',
 	'usage.requestedModel': 'Requested model',
 	'usage.sentUpstreamModel': 'Sent upstream model',
 	'usage.upstreamResponseModel': 'Upstream response model',
@@ -99,6 +100,10 @@ vi.mock('@/stores/app', () => ({
 
 vi.mock('@/utils/format', () => ({
   formatReasoningEffort: (value: string | null | undefined) => value ?? '-',
+  formatReasoningEffortMapping: (
+    requested: string | null | undefined,
+    actual: string | null | undefined,
+  ) => actual ?? requested ?? '-',
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -208,8 +213,8 @@ describe('admin UsageView route filters', () => {
     const wrapper = mountRouteFilteredUsageView()
     await flushPromises()
 
-    expect(getById).toHaveBeenCalledWith(42, true)
-    expect(list).toHaveBeenCalledWith(expect.objectContaining({ user_id: 42 }), expect.anything())
+    expect(getById).toHaveBeenCalledWith('42', true)
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ user_id: '42' }), expect.anything())
     expect(wrapper.find('[data-test="user-filter-label"]').text()).toBe('route-user@test.com')
   })
 
@@ -220,7 +225,7 @@ describe('admin UsageView route filters', () => {
 
     const wrapper = mountRouteFilteredUsageView()
     await wrapper.vm.$nextTick()
-    ;(wrapper.vm as any).filters.user_id = 84
+    ;(wrapper.vm as any).filters.user_id = '84'
     ;(wrapper.findComponent(UsageFiltersStub).vm as any).setUserKeyword('current-user@test.com')
 
     resolveLookup({ id: 42, email: 'stale-user@test.com' })
@@ -241,7 +246,7 @@ describe('admin UsageView route filters', () => {
     resolveLookup({ id: 42, email: 'route-user@test.com' })
     await flushPromises()
 
-    expect((wrapper.vm as any).filters.user_id).toBe(42)
+    expect((wrapper.vm as any).filters.user_id).toBe('42')
     expect(wrapper.find('[data-test="user-filter-label"]').text()).toBe('new-search@test.com')
   })
 
@@ -257,7 +262,7 @@ describe('admin UsageView route filters', () => {
     rejectLookup(new Error('lookup failed'))
     await flushPromises()
 
-    expect((wrapper.vm as any).filters.user_id).toBe(42)
+    expect((wrapper.vm as any).filters.user_id).toBe('42')
     expect(wrapper.find('[data-test="user-filter-label"]').text()).toBe('new-search@test.com')
   })
 
@@ -268,7 +273,7 @@ describe('admin UsageView route filters', () => {
     const wrapper = mountRouteFilteredUsageView()
     await flushPromises()
 
-    expect(list).toHaveBeenCalledWith(expect.objectContaining({ user_id: 42 }), expect.anything())
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ user_id: '42' }), expect.anything())
     expect(wrapper.find('[data-test="user-filter-label"]').text()).toBe('42')
   })
 })
@@ -456,7 +461,48 @@ describe('admin UsageView request ID column visibility', () => {
     )
     expect(localStorage.setItem).toHaveBeenCalledWith(
       'usage-hidden-columns-version',
-      'request-id-hidden-by-default',
+      'upstream-request-id-hidden-by-default',
+    )
+  })
+
+  it('keeps upstream request ID hidden by default and offers it in column settings', async () => {
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          UsageStatsCards: true,
+          UsageFilters: UsageFiltersStub,
+          UsageTable: UsageTableStub,
+          UsageExportProgress: true,
+          UsageCleanupDialog: true,
+          UserBalanceHistoryModal: true,
+          AuditLogModal: true,
+          Pagination: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenUsageTrend: true,
+          ModelDistributionChart: true,
+          GroupDistributionChart: true,
+          EndpointDistributionChart: true,
+          UserTokenRanking: true,
+        },
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    const usageTable = wrapper.findComponent(UsageTableStub)
+    expect(usageTable.props('columns')).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'upstream_request_id' })]),
+    )
+
+    await wrapper.get('button[title="admin.users.columnSettings"]').trigger('click')
+    const toggle = wrapper.findAll('button').find((button) => button.text() === 'Upstream ID')
+    expect(toggle).toBeDefined()
+    await toggle!.trigger('click')
+
+    expect(usageTable.props('columns')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'upstream_request_id', label: 'Upstream ID' })]),
     )
   })
 })

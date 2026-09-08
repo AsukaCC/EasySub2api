@@ -132,7 +132,7 @@
               <Select
                 :id="`${idPrefix}-${row.id}-from`"
                 :model-value="row.from"
-                :options="reasoningEffortOptions"
+                :options="reasoningEffortSourceOptions"
                 :placeholder="t('admin.groups.form.reasoningEffortFromPlaceholder')"
                 :error="showValidation && !!validationErrors[row.id]?.from"
                 :aria-label="t('admin.groups.form.reasoningEffortFrom')"
@@ -205,6 +205,7 @@ import {
   MAX_REASONING_EFFORT_MODEL_LENGTH,
   normalizeReasoningEffortMatchType,
   reasoningEffortOptionsForPlatform,
+  reasoningEffortSourceOptionsForPlatform,
   reasoningEffortOverLimitDeny,
   reasoningEffortOverLimitDowngrade,
   validateReasoningEffortMappings,
@@ -232,6 +233,9 @@ const maxMappings = MAX_REASONING_EFFORT_MAPPINGS;
 const maxModelLength = MAX_REASONING_EFFORT_MODEL_LENGTH;
 const reasoningEffortOptions = computed(() =>
   reasoningEffortOptionsForPlatform(props.platform),
+);
+const reasoningEffortSourceOptions = computed(() =>
+  reasoningEffortSourceOptionsForPlatform(props.platform),
 );
 const matchTypeOptions = computed(() => [
   { value: "exact", label: t("admin.groups.form.reasoningEffortMatchExact") },

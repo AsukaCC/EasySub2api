@@ -480,6 +480,17 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
+// GetDefaultUserLevelRuleIDs returns the rule profiles assigned to newly
+// inserted regular users. Assignment itself is enforced by the database so
+// every registration path uses the same defaults.
+func (s *SettingService) GetDefaultUserLevelRuleIDs(ctx context.Context) []string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyDefaultUserLevelRuleIDs)
+	if err != nil {
+		return []string{}
+	}
+	return parseStringListSetting(value)
+}
+
 func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*AuthSourceDefaultSettings, error) {
 	keys := []string{
 		SettingKeyAuthSourceDefaultEmailBalance,

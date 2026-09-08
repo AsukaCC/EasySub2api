@@ -261,7 +261,11 @@ func (s *AccountTestService) fetchUpstreamModelList(ctx context.Context, account
 		if s.openAIGatewayService == nil {
 			return nil, nil, newUpstreamModelSyncConfigError("OpenAI OAuth model sync service is not configured", nil)
 		}
-		manifest, err := s.openAIGatewayService.FetchCodexModelsManifest(ctx, account, "", "")
+		clientVersion := ""
+		if s.settingService != nil {
+			clientVersion = s.settingService.GetOpenAICodexClientVersion(ctx)
+		}
+		manifest, err := s.openAIGatewayService.FetchCodexModelsManifest(ctx, account, clientVersion, "")
 		if err != nil {
 			return nil, nil, newUpstreamModelSyncUpstreamError("Failed to request OpenAI Codex model list", err)
 		}

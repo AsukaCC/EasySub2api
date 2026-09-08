@@ -227,6 +227,8 @@ func (s *GatewayService) executeBedrockUpstream(
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
 					AccountID:          account.ID,
+					ProxyID:            opsUpstreamProxyID(account),
+					ProxyName:          opsUpstreamProxyName(account),
 					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
@@ -278,6 +280,8 @@ func (s *GatewayService) handleBedrockUpstreamErrors(
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				Kind:               "retry_exhausted_failover",
@@ -302,6 +306,8 @@ func (s *GatewayService) handleBedrockUpstreamErrors(
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			AccountName:        account.Name,
 			UpstreamStatusCode: resp.StatusCode,
 			Kind:               "failover",

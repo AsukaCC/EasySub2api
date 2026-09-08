@@ -101,7 +101,8 @@ func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.
 		_, _ = c.Writer.Write(respBody)
 
 		return &ForwardResult{
-			Model: originalModel,
+			Model:           originalModel,
+			UpstreamHeaders: resp.Header.Clone(),
 		}, nil
 	}
 
@@ -146,6 +147,7 @@ func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.
 		Model:                         originalModel,
 		UpstreamResponseModel:         observedUpstreamResponseModel(c),
 		UpstreamResponseModelConflict: observedUpstreamResponseModelConflict(c),
+		UpstreamHeaders:               resp.Header.Clone(),
 		Stream:                        claudeReq.Stream,
 		Duration:                      duration,
 		FirstTokenMs:                  firstTokenMs,

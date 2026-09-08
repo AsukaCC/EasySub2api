@@ -374,6 +374,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if !equalDefaultSubscriptions(before.DefaultSubscriptions, after.DefaultSubscriptions) {
 		changed = append(changed, "default_subscriptions")
 	}
+	if !equalStringSlice(before.DefaultUserLevelRuleIDs, after.DefaultUserLevelRuleIDs) {
+		changed = append(changed, "default_user_level_rule_ids")
+	}
 	if before.EnableModelFallback != after.EnableModelFallback {
 		changed = append(changed, "enable_model_fallback")
 	}

@@ -102,6 +102,9 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 		return nil, policyErr
 	}
 	upstreamBody = updatedBody
+	// Ollama Cloud（实际 CC 上游为 ollama.com）输出上限 clamp：DeepSeek 系模型
+	// 超过 provider 硬上限的 max_tokens / max_completion_tokens 会被上游 400 拒绝。
+	upstreamBody = clampOllamaCloudUpstreamMaxTokens(account, upstreamBody)
 	serviceTier := extractOpenAIServiceTierFromBody(upstreamBody)
 
 	// Grok Composer does not accept image_url parts directly, but Grok Build
@@ -183,6 +186,8 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
 				AccountID:          account.ID,
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  firstNonEmpty(resp.Header.Get("x-request-id"), resp.Header.Get("xai-request-id")),

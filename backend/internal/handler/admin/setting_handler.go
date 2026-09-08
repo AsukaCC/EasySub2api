@@ -62,6 +62,7 @@ type SettingHandler struct {
 	notificationEmailService *service.NotificationEmailService
 	totpService              *service.TotpService
 	userService              *service.UserService
+	userLevelService         *service.UserLevelService
 }
 
 // NewSettingHandler 创建系统设置处理器
@@ -96,6 +97,10 @@ func (h *SettingHandler) SetAliyunCaptchaService(aliyunCaptchaService *service.A
 func (h *SettingHandler) SetStepUpDeps(totpService *service.TotpService, userService *service.UserService) {
 	h.totpService = totpService
 	h.userService = userService
+}
+
+func (h *SettingHandler) SetUserLevelService(userLevelService *service.UserLevelService) {
+	h.userLevelService = userLevelService
 }
 
 // GetSettings 获取所有系统设置
@@ -280,6 +285,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AffiliateInviteeBindingRewardValidityDays:              settings.AffiliateInviteeBindingRewardValidityDays,
 		DefaultUserRPMLimit:                                    settings.DefaultUserRPMLimit,
 		DefaultSubscriptions:                                   defaultSubscriptions,
+		DefaultUserLevelRuleIDs:                                settings.DefaultUserLevelRuleIDs,
 		EnableModelFallback:                                    settings.EnableModelFallback,
 		FallbackModelAnthropic:                                 settings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                                    settings.FallbackModelOpenAI,

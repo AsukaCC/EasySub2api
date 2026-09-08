@@ -550,6 +550,8 @@ urlFallbackLoop:
 				appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
 					Platform:           p.account.Platform,
 					AccountID:          p.account.ID,
+					ProxyID:            opsUpstreamProxyID(p.account),
+					ProxyName:          opsUpstreamProxyName(p.account),
 					AccountName:        p.account.Name,
 					UpstreamStatusCode: 0,
 					UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
@@ -627,6 +629,8 @@ urlFallbackLoop:
 						appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
 							Platform:           p.account.Platform,
 							AccountID:          p.account.ID,
+							ProxyID:            opsUpstreamProxyID(p.account),
+							ProxyName:          opsUpstreamProxyName(p.account),
 							AccountName:        p.account.Name,
 							UpstreamStatusCode: resp.StatusCode,
 							UpstreamRequestID:  resp.Header.Get("x-request-id"),
@@ -662,6 +666,8 @@ urlFallbackLoop:
 						appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
 							Platform:           p.account.Platform,
 							AccountID:          p.account.ID,
+							ProxyID:            opsUpstreamProxyID(p.account),
+							ProxyName:          opsUpstreamProxyName(p.account),
 							AccountName:        p.account.Name,
 							UpstreamStatusCode: resp.StatusCode,
 							UpstreamRequestID:  resp.Header.Get("x-request-id"),

@@ -86,6 +86,22 @@ func (s *UserLevelService) GetLevelRule(ctx context.Context, ruleID string) (*Us
 	return rule, nil
 }
 
+// NormalizeDefaultLevelRuleIDs validates the settings reference list while
+// preserving rule order. Disabled rules are valid defaults but are skipped by
+// assignment until an administrator enables them again.
+func (s *UserLevelService) NormalizeDefaultLevelRuleIDs(ctx context.Context, ruleIDs []string) ([]string, error) {
+	normalized, err := normalizeUUIDs(ruleIDs, ErrUserLevelRuleInvalid)
+	if err != nil {
+		return nil, err
+	}
+	for _, ruleID := range normalized {
+		if _, err := s.GetLevelRule(ctx, ruleID); err != nil {
+			return nil, err
+		}
+	}
+	return normalized, nil
+}
+
 func (s *UserLevelService) CreateLevelRule(ctx context.Context, input CreateUserLevelRuleInput) (*UserLevelRule, error) {
 	repo := s.levelRulesRepo()
 	if repo == nil {

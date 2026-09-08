@@ -142,6 +142,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
 import type { UserLevelRule, UserLevelRuleTierInput } from '@/api/admin/users'
 import { useAppStore } from '@/stores/app'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 interface TierDraft {
   id?: string
@@ -195,13 +196,16 @@ function beginEdit(rule: UserLevelRule) {
   draft.name = rule.name
   draft.window_days = rule.window_days
   draft.enabled = rule.enabled
-  draft.tiers = rule.tiers.slice().sort((a, b) => a.sort_order - b.sort_order).map((tier) => ({
+  const existingTiers = rule.tiers.slice().sort((a, b) => a.sort_order - b.sort_order).map((tier) => ({
     id: tier.id,
     name: tier.name,
     sort_order: tier.sort_order,
     min_spend: tier.min_spend,
     default_multiplier: tier.default_multiplier ?? null
   }))
+  draft.tiers = existingTiers.length > 0
+    ? existingTiers
+    : [{ id: '', name: t('admin.users.levels.baseTier'), sort_order: 0, min_spend: 0, default_multiplier: null }]
   editorError.value = ''
   editorOpen.value = true
 }
@@ -257,6 +261,20 @@ function normalizedTiers(): UserLevelRuleTierInput[] {
 async function saveRule() {
   editorError.value = ''
   const tiers = normalizedTiers()
+  if (!draft.name.trim() || tiers.some((tier) => !tier.name)) {
+    editorError.value = t('admin.users.levels.saveFailed')
+    return
+  }
+  if (tiers.some((tier) => !Number.isFinite(tier.min_spend) || tier.min_spend < 0)) {
+    editorError.value = t('admin.users.levels.invalidThresholds')
+    return
+  }
+  if (tiers.some((tier) => tier.default_multiplier != null && (
+    !Number.isFinite(tier.default_multiplier) || tier.default_multiplier < 0.01 || tier.default_multiplier > 100
+  ))) {
+    editorError.value = t('admin.users.levels.saveFailed')
+    return
+  }
   for (let index = 1; index < tiers.length; index += 1) {
     if (tiers[index].min_spend <= tiers[index - 1].min_spend) {
       editorError.value = t('admin.users.levels.invalidThresholds')
@@ -294,9 +312,10 @@ async function saveRule() {
     }
     editorOpen.value = false
     await load()
-  } catch {
-    editorError.value = t('admin.users.levels.saveFailed')
-    appStore.showError(t('admin.users.levels.saveFailed'))
+  } catch (error: unknown) {
+    const message = extractApiErrorMessage(error, t('admin.users.levels.saveFailed'))
+    editorError.value = message
+    appStore.showError(message)
   } finally {
     saving.value = false
   }

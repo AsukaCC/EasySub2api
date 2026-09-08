@@ -1061,6 +1061,7 @@
                           | 'all'
                           | 'priority'
                           | 'flex'
+                          | 'ultrafast'
                       "
                       :options="openaiFastPolicyTierOptions"
                     />
@@ -3626,6 +3627,50 @@
                   <p class="views-admin-settings-view__description-6">
                     {{ t("admin.settings.defaults.defaultUserRpmLimitHint") }}
                   </p>
+                </div>
+              </div>
+
+              <div class="views-admin-settings-view__panel-32">
+                <div class="views-admin-settings-view__panel-28">
+                  <div>
+                    <label class="views-admin-settings-view__label-2">
+                      {{ t("admin.settings.defaults.defaultUserLevelRules") }}
+                    </label>
+                    <p class="views-admin-settings-view__description-5">
+                      {{ t("admin.settings.defaults.defaultUserLevelRulesHint") }}
+                    </p>
+                  </div>
+                </div>
+                <p v-if="levelRulesLoading" class="views-admin-settings-view__description-5">
+                  {{ t("common.loading") }}
+                </p>
+                <p
+                  v-else-if="levelRules.length === 0"
+                  class="views-admin-settings-view__panel-68"
+                >
+                  {{ t("admin.settings.defaults.defaultUserLevelRulesEmpty") }}
+                </p>
+                <div v-else class="settings-default-level-rules">
+                  <label
+                    v-for="rule in levelRules"
+                    :key="rule.id"
+                    class="settings-default-level-rules__item"
+                  >
+                    <input
+                      v-model="form.default_user_level_rule_ids"
+                      type="checkbox"
+                      :value="rule.id"
+                    />
+                    <span class="settings-default-level-rules__content">
+                      <strong>{{ rule.name }}</strong>
+                      <small>
+                        {{ rule.window_days }}d ·
+                        {{ rule.enabled
+                          ? t("admin.settings.defaults.levelRuleEnabled")
+                          : t("admin.settings.defaults.levelRuleDisabled") }}
+                      </small>
+                    </span>
+                  </label>
                 </div>
               </div>
 
@@ -8481,6 +8526,7 @@ import type {
   WebSearchProviderConfig,
   WebSearchTestResult,
 } from "@/api/admin/settings";
+import type { UserLevelRule } from "@/api/admin/users";
 import type {
   AdminGroup,
   LoginAgreementDocument,
@@ -8644,7 +8690,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
     "password_reset_enabled", "frontend_url", "totp_enabled", "passkey_enabled",
     "session_binding_enabled", "step_up_enabled", "audit_log_retention_days",
 	"default_balance", "bonus_balance_default_validity_days", "default_concurrency", "default_user_rpm_limit",
-    "default_subscriptions", "default_platform_quotas", "account_scheduling_thresholds",
+    "default_subscriptions", "default_user_level_rule_ids", "default_platform_quotas", "account_scheduling_thresholds",
     "force_email_on_third_party_signup", "api_key_acl_trust_forwarded_ip",
     "forwarded_client_ip_headers", "turnstile_enabled", "turnstile_site_key",
     "turnstile_secret_key", "tencent_captcha_enabled", "tencent_captcha_app_id",
@@ -8757,6 +8803,8 @@ const adminApiKeyMasked = ref("");
 const adminApiKeyOperating = ref(false);
 const newAdminApiKey = ref("");
 const subscriptionGroups = ref<AdminGroup[]>([]);
+const levelRules = ref<UserLevelRule[]>([]);
+const levelRulesLoading = ref(false);
 
 // Upstream billing probe state
 const upstreamBillingProbeLoading = ref(true);
@@ -9375,6 +9423,7 @@ const form = reactive<SettingsForm>({
   affiliate_invitee_binding_reward_validity_days: 90,
   default_concurrency: 1,
   default_subscriptions: [],
+  default_user_level_rule_ids: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
   site_name: "EasySub2api",
@@ -10715,6 +10764,9 @@ async function loadSettings() {
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
     );
+    form.default_user_level_rule_ids = Array.isArray(settings.default_user_level_rule_ids)
+      ? [...new Set(settings.default_user_level_rule_ids.filter((id) => typeof id === "string" && id))]
+      : [];
     registrationEmailSuffixWhitelistTags.value =
       normalizeRegistrationEmailSuffixDomains(
         settings.registration_email_suffix_whitelist,
@@ -10835,6 +10887,17 @@ async function loadSubscriptionGroups() {
     );
   } catch (_error: unknown) {
     subscriptionGroups.value = [];
+  }
+}
+
+async function loadLevelRules() {
+  levelRulesLoading.value = true;
+  try {
+    levelRules.value = await adminAPI.users.listLevelRules();
+  } catch (_error: unknown) {
+    levelRules.value = [];
+  } finally {
+    levelRulesLoading.value = false;
   }
 }
 
@@ -11117,6 +11180,7 @@ async function saveSettings(section?: SettingsSection) {
       affiliate_invitee_binding_reward_validity_days: Math.max(1, Math.min(3650, Math.floor(Number(form.affiliate_invitee_binding_reward_validity_days) || 90))),
       default_concurrency: form.default_concurrency,
       default_subscriptions: normalizedDefaultSubscriptions,
+      default_user_level_rule_ids: [...form.default_user_level_rule_ids],
       force_email_on_third_party_signup: form.force_email_on_third_party_signup,
       default_user_rpm_limit: form.default_user_rpm_limit,
       site_name: form.site_name,
@@ -12047,6 +12111,10 @@ const openaiFastPolicyTierOptions = computed(() => [
     value: "priority",
     label: t("admin.settings.openaiFastPolicy.tierPriority"),
   },
+  {
+    value: "ultrafast",
+    label: t("admin.settings.openaiFastPolicy.tierUltrafast"),
+  },
   { value: "flex", label: t("admin.settings.openaiFastPolicy.tierFlex") },
 ]);
 
@@ -12513,6 +12581,7 @@ onMounted(() => {
     }
   });
   loadSubscriptionGroups();
+  loadLevelRules();
   loadAdminApiKey();
   loadUpstreamBillingProbeSettings();
   loadOllamaCloudUsageSettings();
@@ -13508,5 +13577,60 @@ watch(
   border: 0;
   opacity: 0;
   cursor: pointer;
+}
+
+.settings-default-level-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.settings-default-level-rules__item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: rgb(127 127 127 / 0.04);
+  cursor: pointer;
+}
+
+.settings-default-level-rules__item:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
+}
+
+.settings-default-level-rules__item input {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--theme-accent);
+}
+
+.settings-default-level-rules__content {
+  display: grid;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.settings-default-level-rules__content strong,
+.settings-default-level-rules__content small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-default-level-rules__content strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.settings-default-level-rules__content small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 </style>

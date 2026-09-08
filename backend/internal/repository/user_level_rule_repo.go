@@ -507,6 +507,19 @@ func countUserLevelRuleReferences(ctx context.Context, q sqlQueryer, ruleID stri
 	if err != nil {
 		return 0, err
 	}
+	var defaultSettings int64
+	if err := scanSingleRow(ctx, q, `
+		SELECT COUNT(*)
+		FROM settings s
+		WHERE s.key = 'default_user_level_rule_ids'
+		  AND CASE
+		        WHEN jsonb_typeof(COALESCE(NULLIF(s.value, ''), '[]')::jsonb) = 'array'
+		        THEN COALESCE(NULLIF(s.value, ''), '[]')::jsonb
+		        ELSE '[]'::jsonb
+		      END ? $1
+	`, []any{ruleID}, &defaultSettings); err != nil {
+		return 0, err
+	}
 	var references int64
 	for _, tierID := range tierIDs {
 		count, err := countUserLevelTierReferences(ctx, q, tierID)
@@ -515,7 +528,7 @@ func countUserLevelRuleReferences(ctx context.Context, q sqlQueryer, ruleID stri
 		}
 		references += count
 	}
-	return assignments + references, nil
+	return assignments + defaultSettings + references, nil
 }
 
 func listUserLevelTierIDs(ctx context.Context, q sqlQueryer, ruleID string) ([]string, error) {

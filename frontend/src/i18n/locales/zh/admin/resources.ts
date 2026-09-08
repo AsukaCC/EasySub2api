@@ -532,6 +532,8 @@ export default {
       group: '分组',
       requestId: '请求ID',
       requestIdCopied: '请求ID已复制',
+      upstreamRequestId: '上游ID',
+      upstreamRequestIdCopied: '上游ID已复制',
       allUsers: '全部用户',
       allApiKeys: '全部 API 密钥',
       allModels: '全部模型',

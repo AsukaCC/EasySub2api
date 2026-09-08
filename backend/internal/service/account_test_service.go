@@ -164,6 +164,45 @@ func (s *AccountTestService) SetSettingService(settingService *SettingService) {
 	}
 }
 
+// FetchOpenAIAccountModels 通过账号上游 live 模型目录（OAuth 走 Codex manifest，
+// API Key 走 /v1/models）为连接测试下拉提供模型列表。标准目录不带管理端选择器
+// 需要的 display_name/type 字段，这里统一回填，避免下拉显示为空白。
+func (s *AccountTestService) FetchOpenAIAccountModels(ctx context.Context, account *Account) ([]openai.Model, error) {
+	if s == nil {
+		return nil, errors.New("OpenAI model discovery service is unavailable")
+	}
+	if account == nil || !account.IsOpenAI() {
+		return nil, errors.New("OpenAI account is required")
+	}
+	modelIDs, _, err := s.fetchUpstreamModelList(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	models := make([]openai.Model, 0, len(modelIDs))
+	seen := make(map[string]struct{}, len(modelIDs))
+	for _, id := range modelIDs {
+		id = strings.TrimSpace(id)
+		if id == "" || strings.Contains(id, "*") {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		models = append(models, openai.Model{
+			ID:          id,
+			Object:      "model",
+			OwnedBy:     "openai",
+			Type:        "model",
+			DisplayName: id,
+		})
+	}
+	if len(models) == 0 {
+		return nil, errors.New("OpenAI upstream returned no models")
+	}
+	return models, nil
+}
+
 // NewAccountTestService creates a new AccountTestService
 func NewAccountTestService(
 	accountRepo AccountRepository,
@@ -398,7 +437,9 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		req.Header.Set("Authorization", "Bearer "+authToken)
 	} else {
 		req.Header.Set("anthropic-beta", claude.APIKeyBetaHeader)
-		setAnthropicAPIKeyAuthHeader(req.Header, account, authToken)
+		// Ollama Cloud Anthropic 兼容端点按实际 base_url 强制 Bearer，
+		// 其余保持 extra/default 行为。
+		setAnthropicAPIKeyAuthHeader(req.Header, account, authToken, account.GetBaseURL())
 	}
 
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头

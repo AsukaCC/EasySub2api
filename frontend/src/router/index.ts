@@ -582,14 +582,11 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin/accounts/admin-usage',
-    name: 'AdminAccountAdminUsage',
-    component: () => import('@/views/admin/UsageView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Administrator Usage',
-      titleKey: 'nav.adminUsage'
-    }
+    redirect: '/admin/usage/admin'
+  },
+  {
+    path: '/admin/accounts/usage',
+    redirect: '/admin/usage/users'
   },
   {
     path: '/admin/announcements',
@@ -796,14 +793,29 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin/usage',
+    redirect: '/admin/usage/users'
+  },
+  {
+    path: '/admin/usage/users',
+    name: 'AdminUserUsage',
+    component: () => import('@/views/admin/UsageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'User Usage Records',
+      titleKey: 'nav.userUsage',
+      descriptionKey: 'admin.usage.description'
+    }
+  },
+  {
+    path: '/admin/usage/admin',
     name: 'AdminUsage',
     component: () => import('@/views/admin/UsageView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
-      title: 'Usage Records',
-      titleKey: 'admin.usage.title',
-      descriptionKey: 'admin.usage.description'
+      title: 'Administrator Usage',
+      titleKey: 'nav.adminUsage'
     }
   },
   {

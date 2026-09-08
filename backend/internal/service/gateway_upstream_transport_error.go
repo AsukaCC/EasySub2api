@@ -30,6 +30,7 @@ func (s *GatewayService) handleUpstreamTransportError(
 	event.Platform = account.Platform
 	event.AccountID = account.ID
 	event.AccountName = account.Name
+	event.ProxyID, event.ProxyName = opsUpstreamProxyAttribution(account)
 	event.UpstreamStatusCode = 0
 	event.Kind = "request_error"
 	event.Message = safeErr

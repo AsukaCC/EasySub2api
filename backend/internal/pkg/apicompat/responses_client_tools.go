@@ -27,6 +27,15 @@ func AdaptResponsesClientTools(req map[string]any) (ResponsesClientToolMapping, 
 	if !ok || len(tools) == 0 {
 		return ResponsesClientToolMapping{}, false, nil
 	}
+	// 已完成的客户端 tool_search 结果会为本轮引入新工具：先提升为可调用声明，
+	// 再做后续 lowering，避免 function-only 上游无法调用已发现工具。
+	discovered, err := promoteResponsesToolSearchDiscoveries(req)
+	if err != nil {
+		return ResponsesClientToolMapping{}, false, err
+	}
+	if discovered {
+		tools, _ = req["tools"].([]any)
+	}
 
 	adapter := ResponsesClientToolMapping{CustomTools: make(map[string]bool)}
 	functionNames := make(map[string]bool)
@@ -73,7 +82,7 @@ func AdaptResponsesClientTools(req map[string]any) (ResponsesClientToolMapping, 
 
 	tools, _ = req["tools"].([]any)
 	lowered := make([]any, 0, len(tools))
-	changed := flattened
+	changed := discovered || flattened
 	seenSearch := false
 	for _, raw := range tools {
 		tool, ok := raw.(map[string]any)

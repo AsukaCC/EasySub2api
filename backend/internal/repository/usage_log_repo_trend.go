@@ -187,7 +187,7 @@ func (r *usageLogRepository) getUserUsageTrendWithRoleScope(ctx context.Context,
 		LEFT JOIN usage_by_bucket ub ON ub.user_id = tu.user_id AND ub.bucket = b.bucket
 		LEFT JOIN users us ON tu.user_id = us.id
 		ORDER BY b.bucket ASC, tu.ranking_value DESC, tu.user_id ASC
-	`, rankingExpression, roleJoinTop, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, dateFormat, roleConditionDetail)
+	`, rankingExpression, roleJoinTop, roleConditionTop, bucketUnit, bucketUnit, bucketStep, bucketUnit, roleConditionDetail, dateFormat)
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit, timezoneName)
 	if err != nil {

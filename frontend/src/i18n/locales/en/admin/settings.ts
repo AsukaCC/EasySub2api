@@ -478,6 +478,11 @@ export default {
         defaultSubscriptionsEmpty: 'No default subscriptions configured.',
         defaultSubscriptionsDuplicate:
           'Duplicate subscription group: {groupId}. Each group can only appear once.',
+        defaultUserLevelRules: 'Default User Level Rules',
+        defaultUserLevelRulesHint: 'Assign the selected rules to newly created regular users. Multiple rules are supported; administrator users are excluded.',
+        defaultUserLevelRulesEmpty: 'No user level rules are available. Create a rule on the User Levels page first.',
+        levelRuleEnabled: 'Enabled',
+        levelRuleDisabled: 'Disabled, not assigned',
         subscriptionGroup: 'Subscription Group',
         subscriptionValidityDays: 'Validity (days)',
         defaultPlatformQuotas: 'Default Platform Quotas (on signup)',
@@ -1298,7 +1303,7 @@ export default {
       },
       openaiFastPolicy: {
         title: 'OpenAI Fast/Flex Policy',
-        description: 'Intercept, filter, or pass OpenAI fast(priority) / flex requests based on the request body service_tier field. Applies to the OpenAI gateway only.',
+        description: 'Intercept, filter, or pass OpenAI fast(priority), ultrafast, or flex requests based on the request body service_tier field. Applies to the OpenAI gateway only.',
         empty: 'No rules configured. Click the button below to add one.',
         ruleHeader: 'Rule #{index}',
         removeRule: 'Remove rule',
@@ -1307,6 +1312,7 @@ export default {
         serviceTier: 'service_tier match',
         tierAll: 'All tier values',
         tierPriority: 'priority (fast)',
+        tierUltrafast: 'ultrafast',
         tierFlex: 'flex',
         action: 'Action',
         actionPass: 'Pass (keep service_tier)',

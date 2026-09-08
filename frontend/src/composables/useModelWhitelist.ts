@@ -7,6 +7,8 @@ const openaiModels = [
   // GPT-5.2 系列
   'gpt-5.2', 'gpt-5.2-2025-12-11', 'gpt-5.2-chat-latest',
   'gpt-5.2-pro', 'gpt-5.2-pro-2025-12-11',
+  // GPT-6 系列（Astra）
+  'gpt-6', 'gpt-6-astra',
   // GPT-5.6 系列
   'gpt-5.6', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
   // GPT-5.5 系列
@@ -281,6 +283,8 @@ const openaiPresetMappings = [
   { label: 'o3', from: 'o3', to: 'o3', color: 'composables-use-model-whitelist__state-6' },
   { label: 'GPT-5.3 Codex Spark', from: 'gpt-5.3-codex-spark', to: 'gpt-5.3-codex-spark', color: 'composables-use-model-whitelist__state-8' },
   { label: 'GPT-5.2', from: 'gpt-5.2', to: 'gpt-5.2', color: 'composables-use-model-whitelist__state-9' },
+  { label: 'GPT-6', from: 'gpt-6', to: 'gpt-6', color: 'composables-use-model-whitelist__state-6' },
+  { label: 'GPT-6 Astra', from: 'gpt-6-astra', to: 'gpt-6-astra', color: 'composables-use-model-whitelist__state-11' },
   { label: 'GPT-5.6', from: 'gpt-5.6', to: 'gpt-5.6', color: 'composables-use-model-whitelist__state-7' },
   { label: 'GPT-5.6 Sol', from: 'gpt-5.6-sol', to: 'gpt-5.6-sol', color: 'composables-use-model-whitelist__state-10' },
   { label: 'GPT-5.6 Terra', from: 'gpt-5.6-terra', to: 'gpt-5.6-terra', color: 'composables-use-model-whitelist__state-11' },

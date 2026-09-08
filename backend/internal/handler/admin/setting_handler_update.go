@@ -182,6 +182,7 @@ type UpdateSettingsRequest struct {
 	AffiliateInviteeBindingRewardValidityDays  *int                              `json:"affiliate_invitee_binding_reward_validity_days"`
 	DefaultUserRPMLimit                        int                               `json:"default_user_rpm_limit"`
 	DefaultSubscriptions                       []dto.DefaultSubscriptionSetting  `json:"default_subscriptions"`
+	DefaultUserLevelRuleIDs                    []string                          `json:"default_user_level_rule_ids"`
 	AuthSourceDefaultEmailBalance              *float64                          `json:"auth_source_default_email_balance"`
 	AuthSourceDefaultEmailBonusValidityDays    *int                              `json:"auth_source_default_email_bonus_validity_days"`
 	AuthSourceDefaultEmailConcurrency          *int                              `json:"auth_source_default_email_concurrency"`
@@ -733,6 +734,20 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		req.SMTPPort = 587
 	}
 	req.DefaultSubscriptions = normalizeDefaultSubscriptions(req.DefaultSubscriptions)
+	if _, sent := sentFields[service.SettingKeyDefaultUserLevelRuleIDs]; sent {
+		if h.userLevelService == nil {
+			response.InternalError(c, "User level service unavailable")
+			return
+		}
+		normalized, err := h.userLevelService.NormalizeDefaultLevelRuleIDs(c.Request.Context(), req.DefaultUserLevelRuleIDs)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		req.DefaultUserLevelRuleIDs = normalized
+	} else {
+		req.DefaultUserLevelRuleIDs = append([]string(nil), previousSettings.DefaultUserLevelRuleIDs...)
+	}
 	req.AuthSourceDefaultEmailSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultEmailSubscriptions)
 	req.AuthSourceDefaultOIDCSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultOIDCSubscriptions)
 	req.AuthSourceDefaultWeChatSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultWeChatSubscriptions)
@@ -1719,6 +1734,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateInviteeBindingRewardValidityDays: inviteeBindingRewardValidityDays,
 		DefaultUserRPMLimit:                       req.DefaultUserRPMLimit,
 		DefaultSubscriptions:                      defaultSubscriptions,
+		DefaultUserLevelRuleIDs:                   req.DefaultUserLevelRuleIDs,
 		EnableModelFallback:                       req.EnableModelFallback,
 		FallbackModelAnthropic:                    req.FallbackModelAnthropic,
 		FallbackModelOpenAI:                       req.FallbackModelOpenAI,
@@ -2347,6 +2363,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateInviteeBindingRewardValidityDays:              updatedSettings.AffiliateInviteeBindingRewardValidityDays,
 		DefaultUserRPMLimit:                                    updatedSettings.DefaultUserRPMLimit,
 		DefaultSubscriptions:                                   updatedDefaultSubscriptions,
+		DefaultUserLevelRuleIDs:                                updatedSettings.DefaultUserLevelRuleIDs,
 		EnableModelFallback:                                    updatedSettings.EnableModelFallback,
 		FallbackModelAnthropic:                                 updatedSettings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                                    updatedSettings.FallbackModelOpenAI,

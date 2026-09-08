@@ -248,6 +248,9 @@ func TestMapResponsesErrorCode(t *testing.T) {
 		{"custom_thing", "custom_thing"},
 	}
 	for _, tc := range cases {
-		assert.Equal(t, tc.out, mapResponsesErrorCode(tc.in), "in=%q", tc.in)
+		assert.Equal(t, tc.out, mapResponsesErrorCode(tc.in, ""), "in=%q", tc.in)
 	}
+	// 显式 code 优先于 errType 映射。
+	assert.Equal(t, gatewayQueueFullCode, mapResponsesErrorCode("rate_limit_error", gatewayQueueFullCode))
+	assert.Equal(t, gatewayConcurrencyLimitCode, mapResponsesErrorCode("rate_limit_error", gatewayConcurrencyLimitCode))
 }

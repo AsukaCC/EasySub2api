@@ -280,6 +280,24 @@
           <span v-else class="components-admin-usage-usage-table__text-12">-</span>
         </template>
 
+        <template #cell-upstream_request_id="{ row }">
+          <div v-if="row.upstream_request_id" class="components-admin-usage-usage-table__panel-21">
+            <span class="components-admin-usage-usage-table__text-27" :title="row.upstream_request_id">
+              {{ row.upstream_request_id }}
+            </span>
+            <button
+              type="button"
+              class="components-admin-usage-usage-table__action-3"
+              :class="copiedRequestId === row.upstream_request_id ? 'components-admin-usage-usage-table__action-4' : ''"
+              :title="copiedRequestId === row.upstream_request_id ? t('keys.copied') : t('keys.copyToClipboard')"
+              @click="copyUpstreamRequestId(row.upstream_request_id)"
+            >
+              <Icon :name="copiedRequestId === row.upstream_request_id ? 'check' : 'copy'" size="sm" class="components-admin-usage-usage-table__icon-9" />
+            </button>
+          </div>
+          <span v-else class="components-admin-usage-usage-table__text-12">-</span>
+        </template>
+
         <template #cell-user_agent="{ row }">
           <span v-if="row.user_agent" class="components-admin-usage-usage-table__text-28" :title="row.user_agent">{{ formatUserAgent(row.user_agent) }}</span>
           <span v-else class="components-admin-usage-usage-table__text-12">-</span>
@@ -714,18 +732,22 @@ const handleBatchFetchIpGeo = async () => {
   }
 }
 
-const copyRequestId = async (requestId: string) => {
+const copyIdentifier = async (value: string, copiedMessage: string) => {
   try {
-    await navigator.clipboard.writeText(requestId)
-    copiedRequestId.value = requestId
-    appStore.showSuccess(t('admin.usage.requestIdCopied'))
+    await navigator.clipboard.writeText(value)
+    copiedRequestId.value = value
+    appStore.showSuccess(copiedMessage)
     window.setTimeout(() => {
-      if (copiedRequestId.value === requestId) copiedRequestId.value = null
+      if (copiedRequestId.value === value) copiedRequestId.value = null
     }, 2000)
   } catch {
     appStore.showError(t('common.copyFailed'))
   }
 }
+
+const copyRequestId = (requestId: string) => copyIdentifier(requestId, t('admin.usage.requestIdCopied'))
+const copyUpstreamRequestId = (upstreamRequestId: string) =>
+  copyIdentifier(upstreamRequestId, t('admin.usage.upstreamRequestIdCopied'))
 
 type TooltipSide = 'left' | 'right'
 

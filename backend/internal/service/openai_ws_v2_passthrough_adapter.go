@@ -596,6 +596,14 @@ func openAIWSPassthroughStartsSemanticOutput(payload []byte) bool {
 		strings.HasPrefix(eventType, "response.output")
 }
 
+// markOpenAIWSV2PassthroughCyberPolicy 在 WSv2 透传路径上记录 cyber_policy 命中，
+// 与 ingress / HTTP bridge 共用同一标记入口。
+func markOpenAIWSV2PassthroughCyberPolicy(c *gin.Context, payload []byte) bool {
+	usage := OpenAIUsage{}
+	parseOpenAIWSResponseUsageFromCompletedEvent(payload, &usage)
+	return markOpenAICyberPolicyEvent(c, payload, http.StatusOK, &usage)
+}
+
 func openAIWSPassthroughIsTerminalOutput(payload []byte) bool {
 	switch strings.TrimSpace(gjson.GetBytes(payload, "type").String()) {
 	case "response.completed", "response.done", "response.failed", "response.incomplete", "response.cancelled", "response.canceled":
@@ -1259,6 +1267,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					return nil
 				}
 				eventType, _, _ := parseOpenAIWSEventEnvelope(payload)
+				// cyber_policy 命中先于账号侧副作用与限流 failover 记录：策略拒绝是
+				// 客户端请求内容问题，不应触发账号级临时失败或切换账号。
+				if (eventType == "error" || eventType == "response.failed") && markOpenAIWSV2PassthroughCyberPolicy(c, payload) {
+					return nil
+				}
 				if isOpenAIWSTerminalEvent(eventType) {
 					s.handleOpenAIWSTerminalTransientFailure(ctx, account, capturedSessionModel, handshakeHeaders, payload)
 				}

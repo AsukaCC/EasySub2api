@@ -410,6 +410,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		return nil, fmt.Errorf("marshal default subscriptions: %w", err)
 	}
 	updates[SettingKeyDefaultSubscriptions] = string(defaultSubsJSON)
+	defaultLevelRulesJSON, err := json.Marshal(settings.DefaultUserLevelRuleIDs)
+	if err != nil {
+		return nil, fmt.Errorf("marshal default user level rules: %w", err)
+	}
+	updates[SettingKeyDefaultUserLevelRuleIDs] = string(defaultLevelRulesJSON)
 
 	// Model fallback configuration
 	updates[SettingKeyEnableModelFallback] = strconv.FormatBool(settings.EnableModelFallback)

@@ -369,6 +369,7 @@ func (s *AntigravityGatewayService) consumeAntigravityCompatResponse(
 		UpstreamModel:                 call.billingModel,
 		UpstreamResponseModel:         observedUpstreamResponseModel(c),
 		UpstreamResponseModelConflict: observedUpstreamResponseModelConflict(c),
+		UpstreamHeaders:               resp.Header,
 		Stream:                        call.request.clientStream,
 		Duration:                      time.Since(call.request.startTime),
 		FirstTokenMs:                  streamResult.firstTokenMs,
@@ -426,6 +427,8 @@ func (s *AntigravityGatewayService) handleAntigravityCompatHTTPError(
 		event := OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
 			AccountID:          account.ID,
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			AccountName:        account.Name,
 			UpstreamStatusCode: resp.StatusCode,
 			UpstreamRequestID:  resp.Header.Get("x-request-id"),
@@ -495,6 +498,8 @@ func (s *AntigravityGatewayService) writeMappedAntigravityCompatError(
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 		Platform:           account.Platform,
 		AccountID:          account.ID,
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		AccountName:        account.Name,
 		UpstreamStatusCode: upstreamStatus,
 		UpstreamRequestID:  upstreamRequestID,

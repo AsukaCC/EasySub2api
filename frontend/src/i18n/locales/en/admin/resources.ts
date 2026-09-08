@@ -535,6 +535,8 @@ export default {
       group: 'Group',
       requestId: 'Request ID',
       requestIdCopied: 'Request ID copied',
+      upstreamRequestId: 'Upstream ID',
+      upstreamRequestIdCopied: 'Upstream ID copied',
       allUsers: 'All Users',
       allApiKeys: 'All API Keys',
       allModels: 'All Models',

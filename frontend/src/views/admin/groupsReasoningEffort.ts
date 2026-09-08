@@ -13,6 +13,10 @@ const openAIReasoningEffortValues = [
   "xhigh",
   "max",
 ] as const;
+const openAIReasoningEffortSourceValues = [
+  "none",
+  ...openAIReasoningEffortValues,
+] as const;
 
 export const MAX_REASONING_EFFORT_MAPPINGS = 64;
 export const MAX_REASONING_EFFORT_MODEL_LENGTH = 200;
@@ -47,6 +51,15 @@ export function reasoningEffortOptionsForPlatform(platform: GroupPlatform) {
   }));
 }
 
+export function reasoningEffortSourceOptionsForPlatform(
+  platform: GroupPlatform,
+) {
+  return (supportsReasoningEffortPolicyPlatform(platform)
+    ? openAIReasoningEffortSourceValues
+    : []
+  ).map((value) => ({ value, label: value }));
+}
+
 export function normalizeReasoningEffortForPlatform(
   platform: GroupPlatform,
   value: string | null | undefined,
@@ -57,6 +70,17 @@ export function normalizeReasoningEffortForPlatform(
   )
     ? normalized
     : "";
+}
+
+export function normalizeReasoningEffortSourceForPlatform(
+  platform: GroupPlatform,
+  value: string | null | undefined,
+): string {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return supportsReasoningEffortPolicyPlatform(platform) &&
+    normalized === "none"
+    ? "none"
+    : normalizeReasoningEffortForPlatform(platform, value);
 }
 
 export function normalizeReasoningEffortMatchType(
@@ -121,7 +145,10 @@ export function reasoningEffortMappingsToRows(
   platform: GroupPlatform = "openai",
 ): ReasoningEffortMappingRow[] {
   return (mappings ?? []).flatMap((mapping) => {
-    const from = normalizeReasoningEffortForPlatform(platform, mapping.from);
+    const from = normalizeReasoningEffortSourceForPlatform(
+      platform,
+      mapping.from,
+    );
     const to = normalizeReasoningEffortForPlatform(platform, mapping.to);
     const model = mapping.model?.trim() ?? "";
     const matchType = normalizeReasoningEffortMatchType(mapping.match_type);
@@ -177,7 +204,7 @@ export function validateReasoningEffortMappings(
     const scopeKey = `${model.toLowerCase()}\0${model ? matchType || "exact" : ""}`;
     if (!from) {
       errors[row.id] = { ...errors[row.id], from: "fromRequired" };
-    } else if (!normalizeReasoningEffortForPlatform(platform, from)) {
+    } else if (!normalizeReasoningEffortSourceForPlatform(platform, from)) {
       errors[row.id] = { ...errors[row.id], from: "unsupportedFrom" };
     } else {
       const key = `${scopeKey}\0${from.toLowerCase()}`;

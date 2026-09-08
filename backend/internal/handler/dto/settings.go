@@ -175,6 +175,7 @@ type SystemSettings struct {
 	AffiliateInviteeBindingRewardValidityDays int                          `json:"affiliate_invitee_binding_reward_validity_days"`
 	DefaultUserRPMLimit                       int                          `json:"default_user_rpm_limit"`
 	DefaultSubscriptions                      []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	DefaultUserLevelRuleIDs                   []string                     `json:"default_user_level_rule_ids"`
 
 	// Model fallback configuration
 	EnableModelFallback    bool   `json:"enable_model_fallback"`

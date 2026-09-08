@@ -169,6 +169,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateInviteeBindingRewardValidityDays:  strconv.Itoa(AffiliateBindingRewardValidityDefault),
 		SettingKeyDefaultUserRPMLimit:                        "0",
 		SettingKeyDefaultSubscriptions:                       "[]",
+		SettingKeyDefaultUserLevelRuleIDs:                    "[]",
 		SettingKeyAuthSourceDefaultEmailBalance:              "0",
 		SettingKeyAuthSourceDefaultEmailBonusValidityDays:    "0",
 		SettingKeyAuthSourceDefaultEmailConcurrency:          "5",
@@ -467,6 +468,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.AffiliateInviteeBindingRewardPoints = parseAffiliateBindingRewardPoints(settings[SettingKeyAffiliateInviteeBindingRewardPoints])
 	result.AffiliateInviteeBindingRewardValidityDays = parseAffiliateBindingRewardValidity(settings[SettingKeyAffiliateInviteeBindingRewardValidityDays])
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
+	result.DefaultUserLevelRuleIDs = parseStringListSetting(settings[SettingKeyDefaultUserLevelRuleIDs])
 
 	// 敏感信息直接返回，方便测试连接时使用
 	result.SMTPPassword = settings[SettingKeySMTPPassword]
@@ -1213,6 +1215,27 @@ func parseDefaultSubscriptions(raw string) []DefaultSubscriptionSetting {
 		normalized = append(normalized, item)
 	}
 
+	return normalized
+}
+
+func parseStringListSetting(raw string) []string {
+	var values []string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &values); err != nil {
+		return []string{}
+	}
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
 	return normalized
 }
 

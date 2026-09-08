@@ -738,7 +738,7 @@ const formatDuration = (ms: number): string => {
 
 const goToUserUsage = (item: UserSpendingRankingItem) => {
   void router.push({
-    path: '/admin/usage',
+    path: '/admin/usage/users',
     query: {
       user_id: String(item.user_id),
       start_date: startDate.value,
