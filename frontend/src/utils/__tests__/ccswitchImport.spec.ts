@@ -90,7 +90,7 @@ describe('ccswitchImport utils', () => {
     expect(params.get('model')).toBe(GROK_CC_SWITCH_MODEL)
   })
 
-  it('lists Claude, Codex and Grok targets from all bound groups', () => {
+  it('lists native and OpenAI-compatible CC-Switch targets from bound groups', () => {
     expect(ccsImportTargetsFromGroups([
       { platform: 'anthropic' },
       { platform: 'openai' },
@@ -98,14 +98,27 @@ describe('ccswitchImport utils', () => {
     ])).toEqual([
       { app: 'claude', platform: 'anthropic' },
       { app: 'codex', platform: 'openai' },
-      { app: 'grokbuild', platform: 'grok' }
+      { app: 'grokbuild', platform: 'grok' },
+      { app: 'opencode', platform: 'openai' },
+      { app: 'openclaw', platform: 'openai' },
+      { app: 'hermes', platform: 'openai' }
     ])
   })
 
   it('adds a Codex target for Grok-only keys so Codex can load Grok models', () => {
     expect(ccsImportTargetsFromGroups([{ platform: 'grok' }])).toEqual([
       { app: 'codex', platform: 'grok' },
-      { app: 'grokbuild', platform: 'grok' }
+      { app: 'grokbuild', platform: 'grok' },
+      { app: 'opencode', platform: 'grok' },
+      { app: 'openclaw', platform: 'grok' },
+      { app: 'hermes', platform: 'grok' }
+    ])
+  })
+
+  it('adds Gemini CLI for Gemini-compatible groups', () => {
+    expect(ccsImportTargetsFromGroups([{ platform: 'gemini' }])).toEqual([
+      { app: 'claude', platform: 'gemini' },
+      { app: 'gemini', platform: 'gemini' }
     ])
   })
 

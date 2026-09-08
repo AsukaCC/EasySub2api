@@ -349,14 +349,6 @@
 
           <template #cell-actions="{ row }">
             <div class="views-user-keys-view__panel-16">
-              <button
-                @click="openGroupSelector(row)"
-                class="views-user-keys-view__action-5 group/dropdown"
-                :title="t('keys.manageGroups')"
-              >
-                <Icon name="grid" size="sm" />
-                <span class="views-user-keys-view__code">{{ t('keys.manageGroups') }}</span>
-              </button>
               <!-- Use Key Button -->
               <button
                 @click="openUseKeyModal(row)"
@@ -368,7 +360,7 @@
               <!-- Import to CC Switch Button -->
               <button
                 v-if="!publicSettings?.hide_ccs_import_button"
-                @click="openCcsImportDialog(row)"
+                @click="importToCcSwitch(row)"
                 class="views-user-keys-view__action-7"
               >
                 <Icon name="upload" size="sm" />
@@ -453,9 +445,7 @@
         <div>
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
           <div class="views-user-keys-view__panel-17" data-tour="key-form-group">
-            <div class="views-user-keys-view__panel-18">
-              {{ t('keys.selectGroup') }} · {{ formData.group_ids.length }}
-            </div>
+            <div class="views-user-keys-view__panel-18">{{ t('keys.selectGroup') }}</div>
             <div class="views-user-keys-view__panel-19">
               <label
                 v-for="option in groupOptions"
@@ -463,10 +453,11 @@
                 class="views-user-keys-view__label"
               >
                 <input
-                  type="checkbox"
-                  :checked="formData.group_ids.includes(String(option.value))"
+                  type="radio"
+                  name="api-key-group"
+                  :checked="formData.group_id === String(option.value)"
                   class="views-user-keys-view__field-2"
-                  @change="formData.group_ids.includes(String(option.value)) ? formData.group_ids.splice(formData.group_ids.indexOf(String(option.value)), 1) : formData.group_ids.push(String(option.value))"
+                  @change="formData.group_id = String(option.value)"
                 />
                 <GroupOptionItem
                   :name="option.label"
@@ -480,7 +471,7 @@
                   :peak-end="option.peakEnd"
                   :peak-rate-multiplier="option.peakRateMultiplier"
                   :description="option.description"
-                  :selected="formData.group_ids.includes(String(option.value))"
+                  :selected="formData.group_id === String(option.value)"
                 />
               </label>
             </div>
@@ -956,77 +947,6 @@
       @close="closeUseKeyModal"
     />
 
-    <BaseDialog
-      :show="showCcsImportDialog"
-      :title="t('keys.ccsImportTitle')"
-      width="normal"
-      @close="closeCcsImportDialog"
-    >
-      <p class="views-user-keys-view__description-4">{{ t('keys.ccsImportHint') }}</p>
-      <div class="ccs-import-targets" role="radiogroup" :aria-label="t('keys.ccsImportTitle')">
-        <button
-          v-for="target in ccsImportTargets"
-          :key="`${target.app}-${target.platform}`"
-          type="button"
-          role="radio"
-          :aria-checked="selectedCcsImportTarget?.app === target.app && selectedCcsImportTarget?.platform === target.platform"
-          class="ccs-import-target"
-          :class="{ 'ccs-import-target--selected': selectedCcsImportTarget?.app === target.app && selectedCcsImportTarget?.platform === target.platform }"
-          @click="selectedCcsImportTarget = target"
-        >
-          <PlatformIcon :platform="ccsImportTargetIcon(target.platform, target.app)" size="sm" />
-          <span class="ccs-import-target__copy">
-            <span class="ccs-import-target__title">{{ ccsImportTargetLabel(target.app) }}</span>
-            <span class="ccs-import-target__hint">{{ ccsImportTargetHint(target.app) }}</span>
-          </span>
-        </button>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-secondary" @click="closeCcsImportDialog">
-          {{ t('common.cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="!selectedCcsImportTarget || !ccsImportKey"
-          @click="confirmCcsImport"
-        >
-          {{ t('keys.ccsImportConfirm') }}
-        </button>
-      </template>
-    </BaseDialog>
-
-    <BaseDialog
-      :show="showGroupManager"
-      :title="t('keys.manageGroups')"
-      width="normal"
-      @close="closeGroupSelector"
-    >
-      <div
-        class="views-user-keys-view__panel-20"
-      >
-        <p class="views-user-keys-view__description-4">{{ selectedKeyForGroup?.name }}</p>
-        <GroupTransferPicker
-          v-model="pendingGroupIds"
-          :groups="groups"
-          :available-label="t('keys.availableGroups')"
-          :selected-label="t('keys.selectedGroups')"
-          :search-placeholder="t('keys.searchGroup')"
-          :empty-label="t('keys.noGroupFound')"
-        />
-        <div class="views-user-keys-view__panel-30">
-          <span class="views-user-keys-view__text-5">{{ t('keys.selectedGroupCount', { count: pendingGroupIds.length }) }}</span>
-          <button
-            type="button"
-            class="views-user-keys-view__action-11"
-            :disabled="pendingGroupIds.length === 0"
-            @click="saveSelectedGroups"
-          >
-            {{ t('common.save') }}
-          </button>
-        </div>
-      </div>
-    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -1056,8 +976,6 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
-	import GroupTransferPicker from '@/components/common/GroupTransferPicker.vue'
-	import PlatformIcon from '@/components/common/PlatformIcon.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
@@ -1065,9 +983,6 @@ import { formatDateTime, formatPointAmount, formatPoints } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
   buildCcSwitchImportDeeplink,
-  ccsImportTargetsFromGroups,
-  type CcSwitchApp,
-  type CcSwitchImportTarget
 } from '@/utils/ccswitchImport'
 
 const formatPointRange = (used: number | null | undefined, limit: number | null | undefined): string =>
@@ -1224,36 +1139,23 @@ const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
-const showCcsImportDialog = ref(false)
-const ccsImportKey = ref<ApiKey | null>(null)
-const ccsImportTargets = ref<CcSwitchImportTarget[]>([])
-const selectedCcsImportTarget = ref<CcSwitchImportTarget | null>(null)
 const showColumnDropdown = ref(false)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<string | null>(null)
-const groupSelectorKeyId = ref<string | null>(null)
-const showGroupManager = ref(false)
 const publicSettings = ref<PublicSettings | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
-const pendingGroupIds = ref<string[]>([])
 let abortController: AbortController | null = null
 
-// Get the currently selected key for group change
-const selectedKeyForGroup = computed(() => {
-  if (groupSelectorKeyId.value === null) return null
-  return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
-})
-
 const keyGroupOptions = (key: ApiKey): Group[] => {
-  const ids = key.group_ids?.length ? key.group_ids : (key.group_id ? [key.group_id] : [])
-  return ids
-    .map((id) => groups.value.find((group) => group.id === id) || (key.group_id === id ? key.group : undefined))
-    .filter((group): group is Group => Boolean(group))
+  const id = key.group_id || key.group_ids?.[0]
+  if (!id) return []
+  const group = groups.value.find((item) => item.id === id) || (key.group?.id === id ? key.group : undefined)
+  return group ? [group] : []
 }
 
 const formData = ref({
   name: '',
-  group_ids: [] as string[],
+  group_id: '' as string,
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1392,7 +1294,7 @@ const loadApiKeys = async () => {
     if (signal.aborted) return
     apiKeys.value = response.items.map((key) => ({
       ...key,
-      group_ids: key.group_ids?.length ? key.group_ids : (key.group_id ? [key.group_id] : [])
+      group_ids: key.group_id ? [key.group_id] : (key.group_ids?.[0] ? [key.group_ids[0]] : [])
     }))
     pagination.value.total = response.total
     pagination.value.pages = response.pages
@@ -1480,7 +1382,7 @@ const editKey = (key: ApiKey) => {
   const hasExpiration = !!key.expires_at
   formData.value = {
     name: key.name,
-    group_ids: [...(key.group_ids?.length ? key.group_ids : key.group_id ? [key.group_id] : [])],
+    group_id: key.group_id || key.group_ids?.[0] || '',
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1513,39 +1415,6 @@ const toggleKeyStatus = async (key: ApiKey) => {
   }
 }
 
-const openGroupSelector = (key: ApiKey) => {
-  if (groupSelectorKeyId.value === key.id) {
-    closeGroupSelector()
-  } else {
-    pendingGroupIds.value = key.group_ids?.length ? [...key.group_ids] : (key.group_id ? [key.group_id] : [])
-    groupSelectorKeyId.value = key.id
-    showGroupManager.value = true
-  }
-}
-
-const saveSelectedGroups = async () => {
-  const key = selectedKeyForGroup.value
-  if (!key || pendingGroupIds.value.length === 0) return
-
-  closeGroupSelector()
-
-  try {
-    await keysAPI.update(key.id, {
-      group_ids: [...pendingGroupIds.value],
-      group_id: pendingGroupIds.value[0]
-    })
-    appStore.showSuccess(t('keys.groupChangedSuccess'))
-    loadApiKeys()
-  } catch (error) {
-    appStore.showError(t('keys.failedToChangeGroup'))
-  }
-}
-
-const closeGroupSelector = () => {
-  groupSelectorKeyId.value = null
-  showGroupManager.value = false
-}
-
 const handleDocumentClick = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
@@ -1559,8 +1428,8 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
-  // Validate at least one group is selected
-  if (formData.value.group_ids.length === 0) {
+  // A key must be bound to at most one group; creation requires one.
+  if (!formData.value.group_id) {
     appStore.showError(t('keys.groupRequired'))
     return
   }
@@ -1617,8 +1486,7 @@ const handleSubmit = async () => {
     if (showEditModal.value && selectedKey.value) {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
-        group_ids: [...formData.value.group_ids],
-        group_id: formData.value.group_ids[0],
+        group_id: formData.value.group_id,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1636,7 +1504,7 @@ const handleSubmit = async () => {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
       await keysAPI.create(
         formData.value.name,
-        formData.value.group_ids,
+        formData.value.group_id,
         customKey,
         ipWhitelist,
         ipBlacklist,
@@ -1687,7 +1555,7 @@ const closeModals = () => {
   selectedKey.value = null
   formData.value = {
     name: '',
-    group_ids: [],
+    group_id: '',
     status: 'active',
     use_custom_key: false,
     custom_key: '',
@@ -1767,70 +1635,12 @@ const resetRateLimitUsage = async () => {
   }
 }
 
-const openCcsImportDialog = (row: ApiKey) => {
-  ccsImportKey.value = row
-  const targets = ccsImportTargetsFromGroups(keyGroupOptions(row))
-  ccsImportTargets.value = targets
-  selectedCcsImportTarget.value = targets[0] || null
-  showCcsImportDialog.value = true
-}
-
-const closeCcsImportDialog = () => {
-  showCcsImportDialog.value = false
-  ccsImportKey.value = null
-  ccsImportTargets.value = []
-  selectedCcsImportTarget.value = null
-}
-
-const ccsImportTargetIcon = (platform: GroupPlatform, app: CcSwitchApp): GroupPlatform => {
-  if (app === 'codex' && platform !== 'grok') {
-    return 'openai'
-  }
-  if (app === 'grokbuild') {
-    return 'grok'
-  }
-  if (app === 'claude') {
-    return platform === 'gemini' || platform === 'antigravity' ? platform : 'anthropic'
-  }
-  return platform
-}
-
-const ccsImportTargetLabel = (app: CcSwitchApp): string => {
-  switch (app) {
-    case 'codex':
-      return t('keys.ccsImportCodex')
-    case 'grokbuild':
-      return t('keys.ccsImportGrok')
-    default:
-      return t('keys.ccsImportClaude')
-  }
-}
-
-const ccsImportTargetHint = (app: CcSwitchApp): string => {
-  switch (app) {
-    case 'codex':
-      return t('keys.ccsImportCodexHint')
-    case 'grokbuild':
-      return t('keys.ccsImportGrokHint')
-    default:
-      return t('keys.ccsImportClaudeHint')
-  }
-}
-
-const confirmCcsImport = () => {
-  const row = ccsImportKey.value
-  const target = selectedCcsImportTarget.value
-  if (!row || !target) return
-  closeCcsImportDialog()
-  executeCcsImport(row, target)
-}
-
-const executeCcsImport = (row: ApiKey, target: CcSwitchImportTarget) => {
+const importToCcSwitch = (row: ApiKey) => {
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
   const boundGroups = keyGroupOptions(row)
-  const websocketEnabled = target.app === 'codex'
-    && target.platform !== 'grok'
-    && boundGroups.some((group) => group.platform === 'openai' && group.ccs_codex_ws_enabled === true)
+  const platform = boundGroups[0]?.platform || row.group?.platform || 'anthropic'
+  const websocketEnabled = platform === 'openai'
+    && boundGroups[0]?.ccs_codex_ws_enabled === true
 
   const usageScript = `({
     request: {
@@ -1851,8 +1661,7 @@ const executeCcsImport = (row: ApiKey, target: CcSwitchImportTarget) => {
   const providerName = (publicSettings.value?.site_name || 'EasySub2api').trim() || 'EasySub2api'
   const deeplink = buildCcSwitchImportDeeplink({
     baseUrl,
-    platform: target.platform,
-    app: target.app,
+    platform,
     clientType: 'claude',
     providerName,
     apiKey: row.key,
@@ -1939,51 +1748,4 @@ onUnmounted(() => {
   gap: 0.375rem;
 }
 
-.ccs-import-targets {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.ccs-import-target {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.875rem 1rem;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  background: var(--color-surface);
-  cursor: pointer;
-}
-
-.ccs-import-target:hover {
-  background: var(--color-surface-hover);
-}
-
-.ccs-import-target--selected {
-  border-color: var(--color-primary);
-  background: var(--color-primary-subtle);
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-
-.ccs-import-target__copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.ccs-import-target__title {
-  font-weight: 600;
-}
-
-.ccs-import-target__hint {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-}
 </style>

@@ -786,7 +786,7 @@ func (h *GatewayHandler) CodexModels(c *gin.Context) {
 	}
 	groups := h.groupsForModelList(c.Request.Context(), apiKey, platform)
 	modelIDs, _, _ := h.collectModelIDsForGroups(c.Request.Context(), groups, platform, true)
-	body, err := h.gatewayService.BuildCodexModelsManifestForGroup(c.Request.Context(), apiKey.Group, platform, modelIDs)
+	body, err := h.gatewayService.BuildCodexModelsManifestForGroups(c.Request.Context(), groups, platform, modelIDs)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"type": "internal_error", "message": err.Error()}})
 		return
@@ -804,17 +804,7 @@ func apiKeyModelGroupIDs(apiKey *service.APIKey) []string {
 	if apiKey == nil {
 		return nil
 	}
-	ids := service.NormalizeAPIKeyGroupIDs(apiKey.GroupIDs)
-	if len(ids) > 0 {
-		return ids
-	}
-	if apiKey.GroupID != nil && strings.TrimSpace(*apiKey.GroupID) != "" {
-		return []string{*apiKey.GroupID}
-	}
-	if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.ID) != "" {
-		return []string{apiKey.Group.ID}
-	}
-	return nil
+	return apiKey.BoundGroupIDs()
 }
 
 func (h *GatewayHandler) groupsForModelList(ctx context.Context, apiKey *service.APIKey, forcedPlatform string) []*service.Group {

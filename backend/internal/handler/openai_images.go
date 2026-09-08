@@ -261,7 +261,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
 		if err != nil {
-			if result != nil && result.ImageCount > 0 {
+			if openAIImagesPartialResultCanBeBilled(result, err) {
 				reqLog.Warn("openai.images.forward_partial_error_with_image_result",
 					zap.String("account_id", account.ID),
 					zap.Int("image_count", result.ImageCount),

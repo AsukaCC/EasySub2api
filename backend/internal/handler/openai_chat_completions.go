@@ -267,8 +267,8 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if err == nil && result != nil && result.FirstTokenMs != nil {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
-		// #5148 对齐：错误返回携带的部分 result（流中断前上游已计量的 usage）照常
-		// 入账；failover 错误恒定 result=nil，不会重复计费。
+		// #5148 对齐：错误返回携带的部分 result（流中断前上游已计量的 usage）在
+		// 非 5xx 重试场景照常入账；可重试 5xx/failover 尝试不重复计费。
 		submitChatUsage := func(res *service.OpenAIForwardResult) {
 			if res == nil {
 				return
@@ -312,7 +312,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			})
 		}
 		if err != nil {
-			if result != nil && result.ImageCount > 0 {
+			if openAIPartialImageResultCanBeBilled(result, err) {
 				reqLog.Warn("openai_chat_completions.forward_partial_error_with_image_result",
 					zap.String("account_id", account.ID),
 					zap.Int("image_count", result.ImageCount),

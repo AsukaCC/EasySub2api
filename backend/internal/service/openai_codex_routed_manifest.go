@@ -598,6 +598,49 @@ func (s *GatewayService) BuildCodexModelsManifestForGroup(ctx context.Context, g
 	return buildCodexModelsManifestForAccounts(effectivePlatform, modelIDs, catalog, routes, routesAvailable)
 }
 
+// BuildCodexModelsManifestForGroups builds one manifest from every group bound
+// to an API key. Model capabilities are derived from the group that actually
+// exposes each model; the first matching group wins deterministic conflicts.
+func (s *GatewayService) BuildCodexModelsManifestForGroups(ctx context.Context, groups []*Group, platformOverride string, modelIDs []string) ([]byte, error) {
+	if len(groups) == 0 {
+		return BuildCodexModelsManifest(modelIDs)
+	}
+	accounts := make([]Account, 0)
+	seenAccounts := make(map[string]struct{})
+	var routes []CompositeModelRoute
+	routesAvailable := true
+	for _, group := range groups {
+		if group == nil || s == nil || s.accountRepo == nil {
+			continue
+		}
+		_, catalog, err := loadCodexGroupCatalogAccounts(ctx, s.accountRepo, group.ID)
+		if err == nil {
+			for _, account := range catalog {
+				if _, exists := seenAccounts[account.ID]; !exists {
+					seenAccounts[account.ID] = struct{}{}
+					accounts = append(accounts, account)
+				}
+			}
+		}
+		if group.Platform == PlatformComposite && s.compositeResolver != nil && s.compositeResolver.repo != nil {
+			groupRoutes, routeErr := s.compositeResolver.repo.ListByGroup(ctx, group.ID, false)
+			if routeErr != nil {
+				routesAvailable = false
+			} else {
+				routes = append(routes, groupRoutes...)
+			}
+		}
+	}
+	platform := strings.TrimSpace(platformOverride)
+	if platform == "" && len(groups) == 1 && groups[0] != nil {
+		platform = groups[0].Platform
+	}
+	if platform == "" || platform == PlatformComposite || isConcreteRequestPlatform(platform) {
+		return buildCodexModelsManifestForAccounts(platform, modelIDs, accounts, routes, routesAvailable)
+	}
+	return BuildCodexModelsManifest(modelIDs)
+}
+
 func buildCodexModelsManifestForAccounts(platform string, modelIDs []string, accounts []Account, routes []CompositeModelRoute, routesAvailable bool) ([]byte, error) {
 	imageInput := make(map[string]bool, len(modelIDs))
 	metadataModels := codexCatalogMetadataModels(platform, modelIDs, accounts, routes, routesAvailable)

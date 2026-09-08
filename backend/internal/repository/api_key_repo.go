@@ -91,7 +91,7 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id string) (*service.API
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
-	if err := r.hydrateGroupIDs(ctx, []service.APIKey{*out}); err != nil {
+	if err := r.hydrateGroupIDs(ctx, []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -133,7 +133,7 @@ func (r *apiKeyRepository) GetByKey(ctx context.Context, key string) (*service.A
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
-	if err := r.hydrateGroupIDs(ctx, []service.APIKey{*out}); err != nil {
+	if err := r.hydrateGroupIDs(ctx, []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -249,7 +249,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
-	if err := r.hydrateGroupIDs(ctx, []service.APIKey{*out}); err != nil {
+	if err := r.hydrateGroupIDs(ctx, []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -498,7 +498,7 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID string, para
 	for i := range keys {
 		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
 	}
-	if err := r.hydrateGroupIDs(ctx, outKeys); err != nil {
+	if err := r.hydrateGroupIDs(ctx, apiKeyPointers(outKeys)); err != nil {
 		return nil, nil, err
 	}
 	if err := r.attachLastUsedIPs(ctx, outKeys); err != nil {
@@ -521,7 +521,7 @@ func (r *apiKeyRepository) ListAllByUserID(ctx context.Context, userID string, f
 	for i := range keys {
 		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
 	}
-	if err := r.hydrateGroupIDs(ctx, outKeys); err != nil {
+	if err := r.hydrateGroupIDs(ctx, apiKeyPointers(outKeys)); err != nil {
 		return nil, err
 	}
 	if err := r.attachLastUsedIPs(ctx, outKeys); err != nil {
@@ -1032,13 +1032,24 @@ func (r *apiKeyRepository) loadGroupIDs(ctx context.Context, keyID string, fallb
 	return ids, nil
 }
 
-func (r *apiKeyRepository) hydrateGroupIDs(ctx context.Context, keys []service.APIKey) error {
+func apiKeyPointers(keys []service.APIKey) []*service.APIKey {
+	out := make([]*service.APIKey, len(keys))
 	for i := range keys {
-		ids, err := r.loadGroupIDs(ctx, keys[i].ID, keys[i].GroupID)
+		out[i] = &keys[i]
+	}
+	return out
+}
+
+func (r *apiKeyRepository) hydrateGroupIDs(ctx context.Context, keys []*service.APIKey) error {
+	for _, key := range keys {
+		if key == nil {
+			continue
+		}
+		ids, err := r.loadGroupIDs(ctx, key.ID, key.GroupID)
 		if err != nil {
 			return err
 		}
-		keys[i].GroupIDs = ids
+		key.GroupIDs = ids
 	}
 	return nil
 }

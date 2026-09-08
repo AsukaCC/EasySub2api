@@ -658,8 +658,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if err == nil && result != nil && result.FirstTokenMs != nil {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
-		// #5148 对齐：错误返回携带的部分 result（流中断前上游已计量的 usage）照常
-		// 入账；failover 错误恒定 result=nil，不会重复计费。
+		// #5148 对齐：错误返回携带的部分 result（流中断前上游已计量的 usage）在
+		// 非 5xx 重试场景照常入账；可重试 5xx/failover 尝试不重复计费。
 		submitResponsesUsage := func(res *service.OpenAIForwardResult) {
 			if res == nil {
 				return
@@ -706,7 +706,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			})
 		}
 		if err != nil {
-			if result != nil && result.ImageCount > 0 {
+			if openAIPartialImageResultCanBeBilled(result, err) {
 				reqLog.Warn("openai.forward_partial_error_with_image_result",
 					zap.String("account_id", account.ID),
 					zap.Int("image_count", result.ImageCount),
@@ -1221,8 +1221,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
 		}
 		// Forward 与错误一起返回的部分结果：流中断/客户端断开排水前上游已计量的
-		// usage 照常入账，避免上游已产生消耗的请求完全漏记（#5148，对齐 anthropic
-		// 网关同名修复）。failover 错误恒定 result=nil，不会重复计费。
+		// usage 在非 5xx 重试场景照常入账，避免上游已产生消耗的请求完全漏记（#5148，
+		// 对齐 anthropic 网关同名修复）。可重试 5xx/failover 尝试不重复计费。
 		submitMessagesUsage := func(res *service.OpenAIForwardResult) {
 			if res == nil {
 				return
@@ -1268,7 +1268,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			})
 		}
 		if err != nil {
-			if result != nil && result.ImageCount > 0 {
+			if openAIPartialImageResultCanBeBilled(result, err) {
 				reqLog.Warn("openai_messages.forward_partial_error_with_image_result",
 					zap.String("account_id", account.ID),
 					zap.Int("image_count", result.ImageCount),
@@ -2297,7 +2297,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					turnErr,
 				)
 				if turnErr != nil {
-					if result == nil || result.ImageCount <= 0 {
+					if !openAIPartialImageResultCanBeBilled(result, turnErr) {
 						return
 					}
 					// cyber 命中时该 turn 的用量已由 recordCyberPolicyIfMarked(forwardErrored=true)

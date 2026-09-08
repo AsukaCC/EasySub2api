@@ -92,6 +92,30 @@ func validateAPIKeyCreateRequest(req CreateAPIKeyRequest) error {
 	return nil
 }
 
+// normalizeAPIKeyGroupRequest keeps the legacy group_ids input compatible
+// while enforcing the API key contract of one primary group per key.
+func normalizeAPIKeyGroupRequest(groupID **string, groupIDs *[]string) error {
+	if groupIDs == nil || len(*groupIDs) == 0 {
+		return nil
+	}
+	if len(*groupIDs) > 1 {
+		return errors.New("an API key may be bound to only one group")
+	}
+	legacyID := strings.TrimSpace((*groupIDs)[0])
+	if legacyID == "" {
+		return errors.New("group_ids contains an empty group id")
+	}
+	if *groupID != nil && strings.TrimSpace(**groupID) != legacyID {
+		return errors.New("group_id conflicts with group_ids")
+	}
+	if *groupID == nil {
+		value := legacyID
+		*groupID = &value
+	}
+	*groupIDs = nil
+	return nil
+}
+
 func validateAPIKeyUpdateRequest(req UpdateAPIKeyRequest) error {
 	if req.Quota != nil && !validAPIKeyLimit(*req.Quota) {
 		return errors.New("invalid quota")
@@ -198,6 +222,10 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if err := normalizeAPIKeyGroupRequest(&req.GroupID, &req.GroupIDs); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	if err := validateAPIKeyCreateRequest(req); err != nil {
 		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative, and expires_in_days must be greater than zero")
 		return
@@ -252,6 +280,10 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	var req UpdateAPIKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := normalizeAPIKeyGroupRequest(&req.GroupID, req.GroupIDs); err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
 	if err := validateAPIKeyUpdateRequest(req); err != nil {

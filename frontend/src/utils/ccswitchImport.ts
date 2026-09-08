@@ -4,7 +4,8 @@ export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-5.5'
 export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
 
 export type CcSwitchClientType = 'claude'
-export type CcSwitchApp = 'claude' | 'codex' | 'grokbuild'
+// Keep this list aligned with CC-Switch deep-link import app identifiers.
+export type CcSwitchApp = 'claude' | 'codex' | 'gemini' | 'grokbuild' | 'opencode' | 'openclaw' | 'hermes'
 
 export interface CcSwitchImportConfig {
   app: CcSwitchApp
@@ -37,6 +38,7 @@ interface CcSwitchCodexImportPayload {
 
 const CLAUDE_IMPORT_PLATFORMS = new Set<GroupPlatform>(['anthropic', 'gemini', 'antigravity', 'composite'])
 const CODEX_IMPORT_PLATFORMS = new Set<GroupPlatform>(['openai', 'kimi', 'zhipu', 'deepseek'])
+const OPENAI_COMPATIBLE_CC_SWITCH_APPS: CcSwitchApp[] = ['opencode', 'openclaw', 'hermes']
 
 function encodeBase64Utf8(value: string): string {
   const bytes = new TextEncoder().encode(value)
@@ -100,6 +102,10 @@ export function ccsImportTargetsFromGroups(
   if (claudePlatform) {
     targets.push({ app: 'claude', platform: claudePlatform })
   }
+  const geminiPlatform = platforms.find((platform) => platform === 'gemini' || platform === 'antigravity')
+  if (geminiPlatform) {
+    targets.push({ app: 'gemini', platform: geminiPlatform })
+  }
   const codexPlatform = platforms.find((platform) => platform === 'openai')
     || platforms.find((platform) => CODEX_IMPORT_PLATFORMS.has(platform))
   const hasGrok = platforms.includes('grok')
@@ -110,6 +116,14 @@ export function ccsImportTargetsFromGroups(
   }
   if (hasGrok) {
     targets.push({ app: 'grokbuild', platform: 'grok' })
+  }
+  // These clients consume OpenAI-compatible Chat Completions endpoints. Keep
+  // them available for the same source groups that can be imported into Codex.
+  const compatiblePlatform = codexPlatform || (hasGrok ? 'grok' : undefined)
+  if (compatiblePlatform) {
+    for (const app of OPENAI_COMPATIBLE_CC_SWITCH_APPS) {
+      targets.push({ app, platform: compatiblePlatform })
+    }
   }
   if (targets.length === 0) {
     targets.push({ app: 'claude', platform: 'anthropic' })
@@ -144,6 +158,13 @@ export function resolveCcSwitchImportConfig(
       endpoint: baseUrl
     }
   }
+  if (appOverride === 'gemini' || appOverride === 'opencode' || appOverride === 'openclaw' || appOverride === 'hermes') {
+    return {
+      app: appOverride,
+      endpoint: baseUrl,
+      model: inferred.model
+    }
+  }
   return inferred
 }
 
@@ -166,6 +187,12 @@ function inferCcSwitchImportConfig(
         app: 'grokbuild',
         endpoint: withV1Endpoint(baseUrl),
         model: GROK_CC_SWITCH_MODEL
+      }
+    case 'gemini':
+    case 'antigravity':
+      return {
+        app: 'gemini',
+        endpoint: baseUrl
       }
     default:
       return {

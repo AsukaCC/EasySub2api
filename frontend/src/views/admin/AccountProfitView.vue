@@ -426,7 +426,8 @@ async function saveCost(clear = false) {
 
   let value: number | null = null
   if (!clear) {
-    const raw = costInput.value.trim()
+    // Native number inputs may update v-model with a number rather than text.
+    const raw = costInput.value == null ? '' : String(costInput.value).trim()
     if (raw !== '') {
       const parsed = Number(raw)
       if (!Number.isFinite(parsed) || parsed < 0) {

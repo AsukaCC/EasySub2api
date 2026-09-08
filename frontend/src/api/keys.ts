@@ -21,7 +21,6 @@ export async function list(
     search?: string
     status?: string
     group_id?: string
-    group_ids?: string[]
     sort_by?: string
     sort_order?: 'asc' | 'desc'
   },
@@ -49,7 +48,7 @@ export async function getById(id: string): Promise<ApiKey> {
 /**
  * Create new API key
  * @param name - Key name
- * @param groupId - Optional group ID
+ * @param groupId - Optional single group ID
  * @param customKey - Optional custom key value
  * @param ipWhitelist - Optional IP whitelist
  * @param ipBlacklist - Optional IP blacklist
@@ -60,7 +59,7 @@ export async function getById(id: string): Promise<ApiKey> {
  */
 export async function create(
   name: string,
-  groupIds?: string[] | string | null,
+  groupId?: string | null,
   customKey?: string,
   ipWhitelist?: string[],
   ipBlacklist?: string[],
@@ -69,14 +68,8 @@ export async function create(
   rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number }
 ): Promise<ApiKey> {
   const payload: CreateApiKeyRequest = { name }
-  const normalizedGroupIds = Array.isArray(groupIds)
-    ? groupIds.filter(Boolean)
-    : groupIds
-      ? [groupIds]
-      : []
-  if (normalizedGroupIds.length > 0) {
-    payload.group_ids = normalizedGroupIds
-    payload.group_id = normalizedGroupIds[0]
+  if (groupId) {
+    payload.group_id = groupId
   }
   if (customKey) {
     payload.custom_key = customKey

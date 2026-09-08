@@ -159,11 +159,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID)
-		groupIDs := service.NormalizeAPIKeyGroupIDs(apiKey.GroupIDs)
-		if len(groupIDs) == 0 && apiKey.GroupID != nil {
-			groupIDs = []string{*apiKey.GroupID}
-		}
-		ctx = context.WithValue(ctx, ctxkey.APIKeyGroupIDs, groupIDs)
+		ctx = context.WithValue(ctx, ctxkey.APIKeyGroupIDs, apiKey.BoundGroupIDs())
 		c.Request = c.Request.WithContext(ctx)
 		billingInfoRequest := c.Request.URL.Path == "/v1/easysub2api/billing" || c.Request.URL.Path == "/v1/sub2api/billing"
 		// Async image task polling only reads data that already belongs to the

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/ip"
@@ -74,6 +75,29 @@ func (k *APIKey) IsActive() bool {
 // HasRateLimits returns true if any rate limit window is configured
 func (k *APIKey) HasRateLimits() bool {
 	return k.RateLimit5h > 0 || k.RateLimit1d > 0 || k.RateLimit7d > 0
+}
+
+// BoundGroupIDs returns every group this key may use. GroupIDs is preferred;
+// GroupID / Group.ID remain fallbacks for keys that predate multi-group binding.
+func (k *APIKey) BoundGroupIDs() []string {
+	if k == nil {
+		return nil
+	}
+	ids := NormalizeAPIKeyGroupIDs(k.GroupIDs)
+	if len(ids) > 0 {
+		return ids
+	}
+	if k.GroupID != nil && strings.TrimSpace(*k.GroupID) != "" {
+		return []string{*k.GroupID}
+	}
+	if k.Group != nil && strings.TrimSpace(k.Group.ID) != "" {
+		return []string{k.Group.ID}
+	}
+	return nil
+}
+
+func (k *APIKey) HasMultipleBoundGroups() bool {
+	return len(k.BoundGroupIDs()) > 1
 }
 
 // IsExpired checks if the API key has expired

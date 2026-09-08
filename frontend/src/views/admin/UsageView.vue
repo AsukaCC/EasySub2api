@@ -891,6 +891,20 @@ watch(modelDistributionSource, (source) => {
   void loadModelStats(source)
 })
 
+// The users/admin routes intentionally reuse this component. Reload all
+// scoped data when Vue Router reuses the instance for a path change.
+watch(() => route.path, (path, previousPath) => {
+  if (!previousPath || path === previousPath) return
+  if (isAdminUsagePage.value && activeTab.value === 'errors') {
+    activeTab.value = 'usage'
+  }
+  errPage.value = 1
+  errRows.value = []
+  applyRouteQueryFilters()
+  void loadRouteUserFilterLabel()
+  applyFilters()
+})
+
 defineExpose({ requestedModelStats, refreshData })
 </script>
 
