@@ -12,19 +12,6 @@
       </div>
 
       <section class="level-rates-modal__section">
-        <h4>{{ t('admin.groups.levelRates.levelOverrides') }}</h4>
-        <div class="level-rates-modal__levels">
-          <label v-for="tier in levelTierOptions" :key="tier.id" class="level-rates-modal__field">
-            <span>{{ tier.label }}</span>
-            <input v-model="levelRates[tier.id]" class="input" type="number" min="0.01" max="100" step="0.01" :placeholder="t('admin.groups.levelRates.inherit')" />
-          </label>
-        </div>
-        <p v-if="levelRulesLoading" class="level-rates-modal__empty">{{ t('common.loading') }}</p>
-        <p v-else-if="levelRulesLoadError" class="level-rates-modal__legacy-hint">{{ t('admin.groups.levelRates.levelRulesLoadFailed') }}</p>
-        <p v-else-if="levelTierOptions.length === 0" class="level-rates-modal__empty">{{ t('admin.groups.levelRates.noLevelRules') }}</p>
-      </section>
-
-      <section class="level-rates-modal__section">
         <div class="level-rates-modal__section-heading">
           <h4>{{ t('admin.groups.levelRates.dynamicRules') }}</h4>
           <button type="button" class="btn btn-secondary btn-sm" @click="addRule"><Icon name="plus" size="sm" />{{ t('admin.groups.levelRates.addRule') }}</button>
@@ -46,17 +33,12 @@
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--name"><span>{{ t('admin.groups.levelRates.name') }}</span><input v-model="rule.name" class="input" maxlength="100" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.startAt') }}</span><input :value="toLocalDateTimeInput(rule.start_at)" class="input" type="datetime-local" step="1" @input="updateDateTime(rule, 'start_at', ($event.target as HTMLInputElement).value)" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.endAt') }}</span><input :value="toLocalDateTimeInput(rule.end_at)" class="input" type="datetime-local" step="1" @input="updateDateTime(rule, 'end_at', ($event.target as HTMLInputElement).value)" /></label>
-            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.multiplier') }}</span><input v-model.number="rule.multiplier" class="input" type="number" min="0.01" max="100" step="0.01" /></label>
+            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.discountCoefficient') }}</span><input v-model.number="rule.discount_coefficient" class="input" type="number" min="0.01" max="1" step="0.01" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.activationSpend') }}</span><input v-model.number="rule.activation_spend" class="input" type="number" min="0" step="0.01" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.personalQuotaAmount') }}</span><input v-model.number="rule.personal_quota_amount" class="input" type="number" min="0" step="0.01" /></label>
           </div>
           <div class="level-rates-modal__rule-footer">
             <label class="level-rates-modal__check level-rates-modal__check--enabled"><input v-model="rule.enabled" type="checkbox" />{{ t('admin.groups.levelRates.enabled') }}</label>
-            <div class="level-rates-modal__scope">
-              <span class="level-rates-modal__scope-label">{{ t('admin.groups.levelRates.levels') }}</span>
-              <label class="level-rates-modal__check"><input type="checkbox" :checked="(rule.level_tier_ids ?? []).length === 0" @change="toggleAll(rule, ($event.target as HTMLInputElement).checked)" />{{ t('admin.groups.levelRates.allLevels') }}</label>
-              <label v-for="tier in levelTierOptions" :key="tier.id" class="level-rates-modal__check"><input type="checkbox" :checked="(rule.level_tier_ids ?? []).includes(tier.id)" :disabled="(rule.level_tier_ids ?? []).length === 0" @change="toggleTier(rule, tier.id, ($event.target as HTMLInputElement).checked)" />{{ tier.label }}</label>
-            </div>
           </div>
         </div>
       </section>
@@ -79,7 +61,6 @@ import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
 import { useAppStore } from '@/stores/app'
 import type { AdminGroup, GroupDynamicRateRule } from '@/types'
-import type { UserLevelRule } from '@/api/admin/users'
 import {
   getDynamicRateRuleStatus,
   isLegacyDynamicRateRule,
@@ -93,50 +74,23 @@ const props = defineProps<{ show: boolean; group: AdminGroup | null }>()
 const emit = defineEmits<{ (event: 'close'): void; (event: 'success'): void }>()
 const { t } = useI18n()
 const appStore = useAppStore()
-const levelRates = ref<Record<string, number | undefined>>({})
 const rules = ref<GroupDynamicRateRule[]>([])
-const levelRules = ref<UserLevelRule[]>([])
-const levelRulesLoading = ref(false)
-const levelRulesLoadError = ref(false)
 const saving = ref(false)
 const nowTick = ref(Date.now())
 let statusTimer: number | undefined
 
-const isNumericLegacyRule = (rule: GroupDynamicRateRule) => (rule.levels?.length ?? 0) > 0
-const hasLegacyRules = computed(() => rules.value.some((rule) => isLegacyDynamicRateRule(rule) || isNumericLegacyRule(rule)))
-const levelTierOptions = computed(() => levelRules.value.flatMap((rule) =>
-  (rule.tiers || [])
-    .slice()
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((tier) => ({
-      id: tier.id,
-      label: `${rule.name} / ${tier.name}`,
-    }))
-))
-
-async function loadLevelRules() {
-  levelRulesLoading.value = true
-  levelRulesLoadError.value = false
-  try {
-    levelRules.value = await adminAPI.users.listLevelRules()
-  } catch {
-    levelRules.value = []
-    levelRulesLoadError.value = true
-  } finally {
-    levelRulesLoading.value = false
-  }
-}
-
+const hasLegacyRules = computed(() => rules.value.some((rule) => isLegacyDynamicRateRule(rule)))
 function cloneRule(rule: GroupDynamicRateRule): GroupDynamicRateRule {
   return {
     ...rule,
-    level_tier_ids: [...(rule.level_tier_ids || [])],
     start_at: rule.start_at || '',
     end_at: rule.end_at || '',
     // Old shared quota values are displayed as the new per-user quota until
     // migration 263 has rewritten the persisted group configuration.
     shared_quota_amount: 0,
-    personal_quota_amount: Number(rule.personal_quota_amount ?? rule.shared_quota_amount ?? 0)
+    personal_quota_amount: Number(rule.personal_quota_amount ?? rule.shared_quota_amount ?? 0),
+    discount_coefficient: Number(rule.discount_coefficient ?? rule.multiplier ?? 1),
+    multiplier: undefined
   }
 }
 
@@ -153,9 +107,7 @@ function startStatusRefresh() {
 watch(() => [props.show, props.group] as const, ([show, group]) => {
   stopRefresh()
   if (!show || !group) return
-  levelRates.value = { ...(group.level_rate_multipliers || {}) }
   rules.value = (group.dynamic_rate_rules || []).map(cloneRule)
-  void loadLevelRules()
   nowTick.value = Date.now()
   startStatusRefresh()
 }, { immediate: true })
@@ -170,8 +122,7 @@ function addRule() {
     enabled: true,
     start_at: '',
     end_at: '',
-    level_tier_ids: [],
-    multiplier: 1,
+    discount_coefficient: 1,
     activation_spend: 0,
     shared_quota_amount: 0,
     personal_quota_amount: 0
@@ -182,20 +133,8 @@ function updateDateTime(rule: GroupDynamicRateRule, field: 'start_at' | 'end_at'
   rule[field] = localDateTimeToUTC(value)
 }
 
-function toggleAll(rule: GroupDynamicRateRule, all: boolean) {
-  rule.level_tier_ids = all ? [] : (levelTierOptions.value[0] ? [levelTierOptions.value[0].id] : [])
-}
-
-function toggleTier(rule: GroupDynamicRateRule, tierID: string, checked: boolean) {
-  const next = new Set(rule.level_tier_ids ?? [])
-  checked ? next.add(tierID) : next.delete(tierID)
-  if (!checked && next.size === 0) return
-  rule.level_tier_ids = [...next].sort()
-}
-
 function ruleStatus(rule: GroupDynamicRateRule): DynamicRateRuleStatus {
   void nowTick.value
-  if (isNumericLegacyRule(rule)) return 'legacy'
   return getDynamicRateRuleStatus(rule)
 }
 
@@ -218,6 +157,8 @@ function validateRules(): string | null {
     if (!Number.isFinite(personal) || personal < 0) {
       return 'invalidQuota'
     }
+    const coefficient = Number(rule.discount_coefficient ?? 1)
+    if (!Number.isFinite(coefficient) || coefficient < 0.01 || coefficient > 1) return 'invalidCoefficient'
   }
   return null
 }
@@ -230,12 +171,16 @@ function absoluteRuleForSave(rule: GroupDynamicRateRule): GroupDynamicRateRule {
     start_at: window?.start.toISOString() || '',
     end_at: window?.end.toISOString() || '',
     shared_quota_amount: 0,
-    personal_quota_amount: Number(rule.personal_quota_amount ?? 0)
+    personal_quota_amount: Number(rule.personal_quota_amount ?? 0),
+    discount_coefficient: Number(rule.discount_coefficient ?? 1)
   }
   delete output.timezone
   delete output.start_time
   delete output.end_time
   delete output.quota_amount
+  delete output.level_tier_ids
+  delete output.levels
+  delete output.multiplier
   return output
 }
 
@@ -243,10 +188,6 @@ function close() { if (!saving.value) emit('close') }
 
 async function save() {
   if (!props.group) return
-  if (levelRulesLoading.value || levelRulesLoadError.value) {
-    appStore.showError(t('admin.groups.levelRates.levelRulesLoadFailed'))
-    return
-  }
   const validationKey = validateRules()
   if (validationKey) {
     appStore.showError(t(`admin.groups.levelRates.${validationKey}`))
@@ -254,14 +195,8 @@ async function save() {
   }
   saving.value = true
   try {
-    const normalizedRates: Record<string, number> = {}
-    const validTierIDs = new Set(levelTierOptions.value.map((tier) => tier.id))
-    for (const [tierID, value] of Object.entries(levelRates.value)) {
-      if (!validTierIDs.has(tierID)) continue
-      if (value != null && Number.isFinite(Number(value))) normalizedRates[tierID] = Number(value)
-    }
     const dynamicRateRules = rules.value.map(absoluteRuleForSave)
-    await adminAPI.groups.update(props.group.id, { level_rate_multipliers: normalizedRates, dynamic_rate_rules: dynamicRateRules })
+    await adminAPI.groups.update(props.group.id, { dynamic_rate_rules: dynamicRateRules })
     emit('success')
     emit('close')
   } catch {

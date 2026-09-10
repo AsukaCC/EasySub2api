@@ -51,7 +51,7 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID str
 		if cached, ok := r.cache.Get(key); ok {
 			if multiplier, castOK := cached.(float64); castOK {
 				userGroupRateCacheHitTotal.Add(1)
-				return multiplier
+				return groupDefaultMultiplier * multiplier
 			}
 		}
 	}
@@ -76,7 +76,7 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID str
 			return nil, repoErr
 		}
 
-		multiplier := groupDefaultMultiplier
+		multiplier := 1.0
 		if userRate != nil {
 			multiplier = *userRate
 		}
@@ -99,5 +99,5 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID str
 		userGroupRateCacheFallbackTotal.Add(1)
 		return groupDefaultMultiplier
 	}
-	return multiplier
+	return groupDefaultMultiplier * multiplier
 }

@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -145,9 +144,6 @@ func NormalizeDynamicRateRules(input []GroupDynamicRateRule) ([]GroupDynamicRate
 			rule.EndTime = ""
 			rule.QuotaAmount = 0
 		}
-		if math.IsNaN(rule.Multiplier) || math.IsInf(rule.Multiplier, 0) || rule.Multiplier < 0.01 || rule.Multiplier > 100 {
-			return nil, fmt.Errorf("dynamic_rate_rules[%d].multiplier must be between 0.01 and 100", i)
-		}
 		if math.IsNaN(rule.ActivationSpend) || math.IsInf(rule.ActivationSpend, 0) || rule.ActivationSpend < 0 {
 			return nil, fmt.Errorf("dynamic_rate_rules[%d].activation_spend must be nonnegative", i)
 		}
@@ -167,35 +163,34 @@ func NormalizeDynamicRateRules(input []GroupDynamicRateRule) ([]GroupDynamicRate
 			rule.PersonalQuotaAmount = rule.SharedQuotaAmount
 		}
 		rule.SharedQuotaAmount = 0
-		rule.Multiplier = math.Round(rule.Multiplier*10000) / 10000
+		// Older rows/clients called this field multiplier. Read it once, then
+		// persist only the explicit discount_coefficient field.
+		if rule.DiscountCoefficient == 0 {
+			if rule.Multiplier > 0 {
+				rule.DiscountCoefficient = rule.Multiplier
+			} else {
+				rule.DiscountCoefficient = 1
+			}
+		}
+		if math.IsNaN(rule.DiscountCoefficient) || math.IsInf(rule.DiscountCoefficient, 0) || rule.DiscountCoefficient < 0.01 || rule.DiscountCoefficient > 1 {
+			return nil, fmt.Errorf("dynamic_rate_rules[%d].discount_coefficient must be between 0.01 and 1", i)
+		}
+		rule.DiscountCoefficient = math.Round(rule.DiscountCoefficient*10000) / 10000
+		// Keep the legacy in-memory alias populated for old callers; the new
+		// field is authoritative for all calculations.
+		rule.Multiplier = rule.DiscountCoefficient
 		rule.ActivationSpend = QuantizeUsageBillingAmount(rule.ActivationSpend)
 		rule.QuotaAmount = QuantizeUsageBillingAmount(rule.QuotaAmount)
 		rule.SharedQuotaAmount = QuantizeUsageBillingAmount(rule.SharedQuotaAmount)
 		rule.PersonalQuotaAmount = QuantizeUsageBillingAmount(rule.PersonalQuotaAmount)
 
-		// Legacy numeric targets cannot be mapped safely to a tier UUID. Keep
-		// the payload for an administrator to inspect, but make the rule inert.
-		if len(rule.Levels) > 0 {
-			rule.Enabled = false
-		}
-		seenTierIDs := make(map[string]struct{}, len(rule.LevelTierIDs))
-		tierIDs := make([]string, 0, len(rule.LevelTierIDs))
-		for _, tierID := range rule.LevelTierIDs {
-			tierID = strings.TrimSpace(tierID)
-			if tierID == "" {
-				return nil, fmt.Errorf("dynamic_rate_rules[%d].level_tier_ids cannot contain empty values", i)
-			}
-			if _, err := uuid.Parse(tierID); err != nil {
-				return nil, fmt.Errorf("dynamic_rate_rules[%d].level_tier_ids must contain UUIDs", i)
-			}
-			if _, exists := seenTierIDs[tierID]; exists {
-				continue
-			}
-			seenTierIDs[tierID] = struct{}{}
-			tierIDs = append(tierIDs, tierID)
-		}
-		sort.Strings(tierIDs)
-		rule.LevelTierIDs = tierIDs
+		// Level scoping was removed from dynamic discounts. Preserve legacy
+		// fields for decoding/rollback, but never use them for matching.
+		// Dynamic discounts are no longer scoped by user levels. Drop legacy
+		// targeting fields when a rule is saved so the persisted contract is
+		// unambiguous.
+		rule.LevelTierIDs = nil
+		rule.Levels = nil
 		out = append(out, rule)
 	}
 	return out, nil

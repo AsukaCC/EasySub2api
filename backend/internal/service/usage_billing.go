@@ -53,7 +53,9 @@ type UsageBillingCommand struct {
 type UsageDynamicRateRule struct {
 	RuleID     string  `json:"rule_id"`
 	QuotaKey   string  `json:"quota_key"`
-	Multiplier float64 `json:"multiplier"`
+	DiscountCoefficient float64 `json:"discount_coefficient"`
+	// Multiplier is retained for old in-memory snapshots during rolling deploys.
+	Multiplier float64 `json:"-"`
 	// SharedQuotaAmount is retained for old transaction snapshots only. The
 	// repository treats it as a per-user fallback and never writes a group row.
 	SharedQuotaAmount   float64 `json:"shared_quota_amount"`
@@ -115,7 +117,11 @@ func (c *UsageBillingCommand) quantizeMonetaryFields() {
 		c.DynamicRatePlan.AccountCost = QuantizeUsageBillingAmount(c.DynamicRatePlan.AccountCost)
 		c.DynamicRatePlan.FallbackMultiplier = QuantizeRateMultiplier(c.DynamicRatePlan.FallbackMultiplier)
 		for i := range c.DynamicRatePlan.Rules {
-			c.DynamicRatePlan.Rules[i].Multiplier = QuantizeRateMultiplier(c.DynamicRatePlan.Rules[i].Multiplier)
+			if c.DynamicRatePlan.Rules[i].DiscountCoefficient == 0 {
+				c.DynamicRatePlan.Rules[i].DiscountCoefficient = c.DynamicRatePlan.Rules[i].Multiplier
+			}
+			c.DynamicRatePlan.Rules[i].DiscountCoefficient = QuantizeRateMultiplier(c.DynamicRatePlan.Rules[i].DiscountCoefficient)
+			c.DynamicRatePlan.Rules[i].Multiplier = 0
 			c.DynamicRatePlan.Rules[i].SharedQuotaAmount = QuantizeUsageBillingAmount(c.DynamicRatePlan.Rules[i].SharedQuotaAmount)
 			c.DynamicRatePlan.Rules[i].PersonalQuotaAmount = QuantizeUsageBillingAmount(c.DynamicRatePlan.Rules[i].PersonalQuotaAmount)
 		}

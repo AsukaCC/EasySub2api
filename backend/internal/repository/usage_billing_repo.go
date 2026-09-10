@@ -172,9 +172,14 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 	}
 	accountCostPerStandard := plan.AccountCost / plan.StandardCost
 	rules := append([]service.UsageDynamicRateRule(nil), plan.Rules...)
+	for i := range rules {
+		if rules[i].DiscountCoefficient == 0 {
+			rules[i].DiscountCoefficient = rules[i].Multiplier
+		}
+	}
 	sort.SliceStable(rules, func(i, j int) bool {
-		if rules[i].Multiplier != rules[j].Multiplier {
-			return rules[i].Multiplier < rules[j].Multiplier
+		if rules[i].DiscountCoefficient != rules[j].DiscountCoefficient {
+			return rules[i].DiscountCoefficient < rules[j].DiscountCoefficient
 		}
 		return rules[i].RuleID < rules[j].RuleID
 	})
@@ -187,7 +192,7 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 	remainingStandard := plan.StandardCost
 	finalCost := 0.0
 	for _, rule := range rules {
-		if remainingStandard <= 0 || rule.Multiplier <= 0 || rule.Multiplier >= plan.FallbackMultiplier {
+		if remainingStandard <= 0 || rule.DiscountCoefficient <= 0 || rule.DiscountCoefficient >= 1 {
 			continue
 		}
 		if rule.SharedQuotaAmount < 0 || rule.PersonalQuotaAmount < 0 ||
@@ -247,13 +252,13 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		if coveredStandard <= 0 {
 			continue
 		}
-		allocatedCost := service.QuantizeUsageBillingAmount(coveredStandard * rule.Multiplier)
+		allocatedCost := service.QuantizeUsageBillingAmount(coveredStandard * plan.FallbackMultiplier * rule.DiscountCoefficient)
 		allocatedAccountCost = service.QuantizeUsageBillingAmount(coveredStandard * accountCostPerStandard)
 		if !math.IsInf(available, 1) && allocatedAccountCost > available {
 			allocatedAccountCost = available
 			if accountCostPerStandard > 0 {
 				coveredStandard = allocatedAccountCost / accountCostPerStandard
-				allocatedCost = service.QuantizeUsageBillingAmount(coveredStandard * rule.Multiplier)
+				allocatedCost = service.QuantizeUsageBillingAmount(coveredStandard * plan.FallbackMultiplier * rule.DiscountCoefficient)
 			}
 		}
 		if allocatedAccountCost > 0 {

@@ -25,7 +25,7 @@ type Group struct {
 	RateMultiplier float64
 	// LevelRateMultipliers 按用户等级提供独立倍率候选，key 为 user level tier UUID。
 	LevelRateMultipliers map[string]float64
-	// DynamicRateRules 是分组的分时动态倍率规则。
+	// DynamicRateRules 是分组的分时动态优惠规则；系数 1 表示原价。
 	DynamicRateRules []GroupDynamicRateRule
 	// 高峰时段倍率：peak_rate_enabled 为 true 且当前时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier。详见 PeakMultiplierAt。

@@ -630,11 +630,13 @@ export interface GroupDynamicRateRule {
 	start_time?: string
 	/** @deprecated Legacy daily-clock rule field. */
 	end_time?: string
-	/** User-level tier UUID targets. Empty means all users. */
+	discount_coefficient?: number
+	/** @deprecated compatibility with pre-migration clients */
+	multiplier?: number
+	/** @deprecated level scoping is no longer used */
 	level_tier_ids?: string[]
-	/** @deprecated Numeric fixed levels are no longer matched. */
+	/** @deprecated numeric level scoping is no longer used */
 	levels?: number[]
-	multiplier: number
 	activation_spend: number
 	/** @deprecated Legacy daily quota field. */
 	quota_amount?: number

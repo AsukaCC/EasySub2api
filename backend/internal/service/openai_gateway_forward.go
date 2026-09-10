@@ -1187,8 +1187,12 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 		req.Header.Del("session_id")
 
 		if compatMessagesBridge {
+			// Messages / Chat 兼容桥接的客户端不是 Codex，其自报 UA / originator 不能出站；
+			// 但目标仍是 ChatGPT Codex 内部接口，必须携带规范 originator，否则下方的
+			// enforceCodexIdentityHeadersWithUA 会跳过收口，客户端原始 User-Agent 与缺失的
+			// version 头会原样到达 chatgpt.com（上游按身份缺失 404 或降载，issue #3901）。
 			req.Header.Del("OpenAI-Beta")
-			req.Header.Del("originator")
+			req.Header.Set("originator", resolveCodexOutboundIdentity("").originator)
 		} else {
 			req.Header.Set("originator", resolveOpenAIUpstreamOriginator(c, isCodexCLI))
 		}
@@ -1199,12 +1203,12 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 				req.Header.Set("version", CodexCanonicalClientVersion())
 			}
 			compactSession := resolveOpenAICompactSessionID(c)
-			req.Header.Set("session_id", isolateOpenAISessionID(apiKeyID, compactSession))
+			req.Header.Set("session_id", isolateOpenAISessionHeader(apiKeyID, compactSession))
 		} else {
 			req.Header.Set("accept", "text/event-stream")
 		}
 		if promptCacheKey != "" {
-			isolated := isolateOpenAISessionID(apiKeyID, promptCacheKey)
+			isolated := isolateOpenAISessionHeader(apiKeyID, promptCacheKey)
 			req.Header.Set("session_id", isolated)
 			if !compatMessagesBridge || clientConversationID != "" {
 				req.Header.Set("conversation_id", isolated)

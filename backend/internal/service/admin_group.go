@@ -292,10 +292,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if input.RateMultiplier < 0 {
 		return nil, errors.New("rate_multiplier must be >= 0")
 	}
-	levelRates, err := NormalizeLevelRateMultipliers(input.LevelRateMultipliers)
-	if err != nil {
-		return nil, err
-	}
+	// User-level price overrides have been removed from group settings. Keep
+	// the persisted compatibility column untouched for older deployments.
+	levelRates := map[string]float64{}
 	dynamicRules, err := NormalizeDynamicRateRules(input.DynamicRateRules)
 	if err != nil {
 		return nil, err
@@ -647,13 +646,8 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id string, input *Up
 		}
 		group.RateMultiplier = *input.RateMultiplier
 	}
-	if input.LevelRateMultipliers != nil {
-		normalized, err := NormalizeLevelRateMultipliers(*input.LevelRateMultipliers)
-		if err != nil {
-			return nil, err
-		}
-		group.LevelRateMultipliers = normalized
-	}
+	// level_rate_multipliers is a legacy compatibility field and is no longer
+	// accepted as a live pricing setting.
 	if input.DynamicRateRules != nil {
 		normalized, err := NormalizeDynamicRateRules(*input.DynamicRateRules)
 		if err != nil {

@@ -368,7 +368,6 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		dynamicRateStandardCost = *p.DynamicRateStandardCost
 	}
 	if p.RatePlan != nil && dynamicRateStandardCost > 0 &&
-		(p.Cost.BillingMode == "" || p.Cost.BillingMode == string(BillingModeToken)) &&
 		len(p.RatePlan.DynamicCandidates) > 0 {
 		fallbackBase := p.RatePlan.NonDynamicMultiplier
 		if !finiteNonnegative(fallbackBase) {
@@ -384,13 +383,14 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 			if p.RatePlan.SelectedDynamicRuleID == "" || candidate.RuleID != p.RatePlan.SelectedDynamicRuleID {
 				continue
 			}
-			multiplier := candidate.Multiplier * p.RatePlan.PeakMultiplier
+			multiplier := p.RatePlan.NonDynamicMultiplier * candidate.DiscountCoefficient * p.RatePlan.PeakMultiplier
 			if multiplier >= fallbackMultiplier {
 				continue
 			}
 			rules = append(rules, UsageDynamicRateRule{
 				RuleID: candidate.RuleID, QuotaKey: candidate.QuotaKey,
-				Multiplier:          multiplier,
+				DiscountCoefficient: candidate.DiscountCoefficient,
+				Multiplier:          candidate.DiscountCoefficient,
 				SharedQuotaAmount:   candidate.SharedQuotaAmount,
 				PersonalQuotaAmount: candidate.PersonalQuotaAmount,
 			})
@@ -872,7 +872,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		}
 	}
 
-	// 获取费率倍数（用户等级与分组候选分别计算后取最低值）
+	// 获取静态费率基数（分组倍率 × 用户专属分组倍率）。
 	multiplier := 1.0
 	if s.cfg != nil {
 		multiplier = s.cfg.Default.RateMultiplier
@@ -883,11 +883,17 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		groupDefault := apiKey.Group.RateMultiplier
 		multiplier = s.ResolveUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
-	// token 倍率叠加高峰因子（token 计费含图片 token，图片按次倍率不受影响）。高峰因子按请求时刻现算，
-	// 不并入上面的 getUserGroupRateMultiplier，以免污染 user:group 倍率缓存。
+	// 保留公共高峰/媒体定价钩子以兼容旧快照；当前用户计费严格使用
+	// 分组倍率 × 用户倍率，动态优惠由事务中的规则快照应用。
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, multiplier, pricingAt)
 	if ratePlan != nil {
-		multiplier = ratePlan.EffectiveMultiplier
+		// Dynamic quota allocation is finalized transactionally after the raw
+		// cost is known. Use the non-dynamic baseline here to avoid applying the
+		// discount twice; the persisted billing result applies the coefficient.
+		multiplier = ratePlan.NonDynamicMultiplier
+		if len(ratePlan.DynamicCandidates) == 0 {
+			multiplier = ratePlan.EffectiveMultiplier
+		}
 	}
 
 	// 确定计费模型

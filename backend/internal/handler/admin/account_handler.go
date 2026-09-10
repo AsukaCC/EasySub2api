@@ -1345,6 +1345,8 @@ type ApplyOAuthCredentialsRequest struct {
 //
 // 与通用 PUT /:id (Update) 接口的关键区别：
 //   - 仅接收 type / credentials / extra 三个字段（不接受 concurrency / rpm / quota_* 等可能误传的字段）
+//   - Credentials 以现有值为底做 key 级合并（MergeCredentials），只覆盖 OAuth 流程返回的
+//     鉴权字段；model_mapping / header_overrides 等非鉴权配置保持不变
 //   - Extra 走 UpdateAccountExtra(JSONB key 级合并)，**绝不**全量覆盖；
 //     避免 base_rpm / window_cost_limit / max_sessions / quota_* / privacy_mode
 //     等持久化配置在重新授权后丢失
@@ -1383,12 +1385,18 @@ func (h *AccountHandler) ApplyOAuthCredentials(c *gin.Context) {
 		return
 	}
 
+	// 重新授权只更新鉴权相关子键：以现有 credentials 为底、用 OAuth 流程返回的字段覆盖
+	// （与 token 自动刷新使用同一合并语义），保留 model_mapping / compact_model_mapping /
+	// model_reasoning_efforts / header_overrides / 临时不可调度 / 预热 等非鉴权配置。
+	// 通用 UpdateAccount 的 MergePreservingSensitiveCreds 只保留敏感键，前端未携带的
+	// 非敏感配置键会在重新授权后静默丢失。
+	mergedCredentials := service.MergeCredentials(existing.Credentials, req.Credentials)
 	// Drop SSO/password residue; re-auth must leave only OAuth tokens on disk.
-	req.Credentials = service.SanitizeStoredCredentials(existing.Platform, req.Credentials)
+	mergedCredentials = service.SanitizeStoredCredentials(existing.Platform, mergedCredentials)
 
 	updatedAccount, err := h.adminService.UpdateAccount(ctx, accountID, &service.UpdateAccountInput{
 		Type:        req.Type,
-		Credentials: req.Credentials,
+		Credentials: mergedCredentials,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
