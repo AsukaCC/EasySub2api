@@ -175,8 +175,8 @@ func TestEnforceCodexIdentityHeadersWithAccountOverrideUA(t *testing.T) {
 
 		enforceCodexIdentityHeadersWithUA(h, "codex-tui/0.125.0 (Mac OS X 14.0; arm64) iTerm")
 
-		require.Equal(t, "codex-tui", h.Get("originator"))
-		require.Equal(t, "codex-tui/0.200.1 (Mac OS X 14.0; arm64) iTerm", h.Get("user-agent"))
+		require.Equal(t, openai.CodexCLIOriginator, h.Get("originator"))
+		require.Equal(t, "codex_cli_rs/0.200.1 (Mac OS X 14.0; arm64) iTerm", h.Get("user-agent"))
 		require.Equal(t, "0.200.1", h.Get("version"))
 	})
 }
@@ -247,7 +247,31 @@ func TestEnforceCodexIdentityHeaders_EnforcementDisabled(t *testing.T) {
 	const tuiUA = "codex-tui/0.145.2 (Mac OS X 14.0; arm64) iTerm (codex-tui; 0.145.2)"
 
 	SetCodexIdentityEnforcementEnabled(false)
-	t.Cleanup(func() { SetCodexIdentityEnforcementEnabled(true) })
+	SetCodexOriginatorNormalizationEnabled(true)
+	t.Cleanup(func() {
+		SetCodexIdentityEnforcementEnabled(true)
+		SetCodexOriginatorNormalizationEnabled(true)
+	})
+
+	h := make(http.Header)
+	h.Set("originator", "codex-tui")
+	h.Set("user-agent", tuiUA)
+	h.Set("version", "0.145.2")
+
+	enforceCodexIdentityHeaders(h)
+
+	require.Equal(t, openai.CodexCLIOriginator, h.Get("originator"))
+	require.Equal(t, "codex_cli_rs/"+codexCLIVersion+" (Mac OS X 14.0; arm64) iTerm", h.Get("user-agent"))
+	require.Equal(t, codexCLIVersion, h.Get("version"))
+}
+
+// 关闭独立归一化开关后仍同步版本号，但保留客户端选择的 TUI 身份，
+// 便于上游容量分桶策略变化时快速回滚。
+func TestEnforceCodexIdentityHeaders_NormalizationDisabled(t *testing.T) {
+	const tuiUA = "codex-tui/0.145.2 (Mac OS X 14.0; arm64) iTerm (codex-tui; 0.145.2)"
+
+	SetCodexOriginatorNormalizationEnabled(false)
+	t.Cleanup(func() { SetCodexOriginatorNormalizationEnabled(true) })
 
 	h := make(http.Header)
 	h.Set("originator", "codex-tui")
@@ -257,8 +281,8 @@ func TestEnforceCodexIdentityHeaders_EnforcementDisabled(t *testing.T) {
 	enforceCodexIdentityHeaders(h)
 
 	require.Equal(t, "codex-tui", h.Get("originator"))
-	require.Equal(t, tuiUA, h.Get("user-agent"))
-	require.Equal(t, "0.145.2", h.Get("version"))
+	require.Equal(t, "codex-tui/"+codexCLIVersion+" (Mac OS X 14.0; arm64) iTerm (codex-tui; "+codexCLIVersion+")", h.Get("user-agent"))
+	require.Equal(t, codexCLIVersion, h.Get("version"))
 }
 
 // 关闭强制统一后，第三方 UA 仍整体回退为规范身份并对齐 version。
@@ -304,6 +328,23 @@ func TestEnforceCodexIdentityHeaders_NoOriginatorIsNoop(t *testing.T) {
 	require.Empty(t, h.Get("originator"))
 	require.Empty(t, h.Get("version"))
 	require.Equal(t, "third-party-client/1.0.0", h.Get("user-agent"))
+}
+
+// 终态清理可能剥离带有部署品牌的自定义 UA；清理后仍必须恢复一组
+// originator / User-Agent / version 自洽的 Codex 身份，不能把空 UA 发给上游。
+func TestFinalizeCodexOAuthIdentityHeadersRestoresSanitizedIdentity(t *testing.T) {
+	h := make(http.Header)
+	h.Set("originator", openai.CodexCLIOriginator)
+	h.Set("user-agent", openai.CodexCLIOriginator+"/0.125.0 (Ubuntu 22.4.0; x86_64) easysub2api")
+	h.Set("version", "0.125.0")
+
+	sanitizeOpenAIOutboundHeaders(h)
+	require.Empty(t, h.Get("user-agent"))
+
+	finalizeCodexOAuthIdentityHeaders(h)
+	require.Equal(t, openai.CodexCLIOriginator, h.Get("originator"))
+	require.Equal(t, codexCLIUserAgent, h.Get("user-agent"))
+	require.Equal(t, codexCLIVersion, h.Get("version"))
 }
 
 func TestNormalizeCodexClientVersion(t *testing.T) {

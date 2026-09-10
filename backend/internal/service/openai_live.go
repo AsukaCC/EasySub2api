@@ -413,6 +413,7 @@ func applyLiveUpstreamIdentityHeaders(headers http.Header) {
 	headers.Del("OpenAI-Beta")
 	// 终态清理：与其余出站路径一致，剥离平台品牌 / 基础设施头。
 	sanitizeOpenAIOutboundHeaders(headers)
+	finalizeCodexOAuthIdentityHeaders(headers)
 }
 
 func (s *OpenAIGatewayService) liveSidebandHeaders(

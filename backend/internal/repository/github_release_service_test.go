@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,6 +105,45 @@ func TestGitHubReleaseClientRedirectAuthorization(t *testing.T) {
 			require.Equal(t, tt.wantAuth, req.Header.Get("Authorization"))
 		})
 	}
+}
+
+func TestGitHubReleaseTagFromURL(t *testing.T) {
+	valid, err := url.Parse("https://github.com/openai/codex/releases/tag/rust-v0.153.4")
+	require.NoError(t, err)
+	tag, ok := githubReleaseTagFromURL(valid)
+	require.True(t, ok)
+	require.Equal(t, "rust-v0.153.4", tag)
+
+	invalid, err := url.Parse("https://example.com/openai/codex/releases/tag/rust-v0.153.4")
+	require.NoError(t, err)
+	_, ok = githubReleaseTagFromURL(invalid)
+	require.False(t, ok)
+}
+
+func TestGitHubReleaseClientLatestFallsBackToPublicReleasePage(t *testing.T) {
+	client := newTestGitHubReleaseClient()
+	client.httpClient.Transport = githubReleaseRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Host == "api.github.com" {
+			return &http.Response{
+				StatusCode: http.StatusForbidden,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("rate limited")),
+				Request:    req,
+			}, nil
+		}
+		finalURL, err := url.Parse("https://github.com/openai/codex/releases/tag/rust-v0.153.4")
+		require.NoError(t, err)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("release page")),
+			Request:    &http.Request{URL: finalURL},
+		}, nil
+	})
+
+	release, err := client.FetchLatestRelease(context.Background(), "openai/codex")
+	require.NoError(t, err)
+	require.Equal(t, "rust-v0.153.4", release.TagName)
 }
 
 func TestGitHubReleaseClientDoesNotAuthorizeDownloads(t *testing.T) {

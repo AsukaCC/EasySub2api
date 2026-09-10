@@ -816,6 +816,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
 	credentialAccount.ApplyHeaderOverrides(req.Header)
 	sanitizeOpenAIOutboundHeaders(req.Header)
+	if isOAuth {
+		finalizeCodexOAuthIdentityHeaders(req.Header)
+	}
 
 	// Get proxy URL
 	proxyURL := ""
@@ -2156,6 +2159,9 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
 	account.ApplyHeaderOverrides(req.Header)
 	sanitizeOpenAIOutboundHeaders(req.Header)
+	if isOAuth {
+		finalizeCodexOAuthIdentityHeaders(req.Header)
+	}
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -2673,6 +2679,7 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 	// 与该账号真实出站的身份不是同一个（issue #3901 的配对不变式由收口保证）。
 	enforceCodexIdentityHeadersWithUA(req.Header, credentialAccount.GetOpenAIUserAgent())
 	sanitizeOpenAIOutboundHeaders(req.Header)
+	finalizeCodexOAuthIdentityHeaders(req.Header)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {

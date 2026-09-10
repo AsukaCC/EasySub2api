@@ -854,8 +854,8 @@ type GatewayConfig struct {
 	// 默认关闭：生产出站只接受官方稳定版；面板手工填写或历史同步值若为预发布形态，
 	// 一律按非法版本回退到下一优先级来源。仅在需要跟随 alpha 通道联调时显式开启。
 	CodexAllowPrereleaseVersion bool `mapstructure:"codex_allow_prerelease_version"`
-	// DisableCodexOriginatorNormalization: 已废弃，等价于 DisableCodexIdentityEnforcement。
-	// 保留以兼容既有配置文件；加载时会折叠进新键，不要在新代码里直接读取。
+	// DisableCodexOriginatorNormalization: 兼容旧配置的回滚开关。设为 true 时关闭已知上游
+	// 降载 originator 到官方 CLI 身份的归一化，并连带关闭身份强制；默认 false。
 	DisableCodexOriginatorNormalization bool `mapstructure:"disable_codex_originator_normalization"`
 	// CodexImageGenerationBridgeEnabled: 是否为 Codex `/v1/responses` 自动注入 image_generation 工具和桥接指令。
 	// 默认关闭，避免纯文本 Codex 请求被意外改写；显式携带 image_generation 工具的请求仍按分组能力转发。
@@ -1755,9 +1755,8 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Gateway.ForcedCodexInstructionsTemplate = string(content)
 	}
 
-	// 兼容旧键 gateway.disable_codex_originator_normalization：语义已被
-	// disable_codex_identity_enforcement 取代（身份改写升级为强制统一出口），
-	// 任一为 true 即关闭强制统一。
+	// 旧版仅提供 disable_codex_originator_normalization，并把它作为完整身份保护的回滚键。
+	// 保留该语义，避免升级后既有配置意外重新启用强制改写；新配置应优先使用两个独立开关。
 	if cfg.Gateway.DisableCodexOriginatorNormalization {
 		cfg.Gateway.DisableCodexIdentityEnforcement = true
 	}

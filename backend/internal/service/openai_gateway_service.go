@@ -33,7 +33,7 @@ const (
 	openaiPlatformAPIURL            = "https://api.openai.com/v1/responses"
 	openaiPlatformAPIInputTokensURL = "https://api.openai.com/v1/responses/input_tokens"
 	openaiStickySessionTTL          = time.Hour // 粘性会话TTL
-	// 与真实 Codex TUI 的 User-Agent 结构对齐：
+	// 与真实 Codex CLI 的 User-Agent 结构对齐：
 	// {originator}/{version} ({OS} {OS_version}; {arch}) {terminal}
 	// 缺少 OS/架构/终端后缀的形态易被上游指纹识别为非官方客户端。
 	// 该后缀是 UA 形态的唯一定义处，buildCodexCLIUserAgent 按运行时版本号复用它。
@@ -41,7 +41,7 @@ const (
 	// codexCLIUserAgent 是编译期兜底 UA；运行时优先使用由后台版本号拼出的规范 UA。
 	// 版本段必须来自 codexCLIVersion：UA 与 version 头是同一个版本声明的两个出口，
 	// 各自硬编码会漂移成互相矛盾的身份。
-	codexCLIUserAgent = openai.CodexDefaultOriginator + "/" + codexCLIVersion + codexCLIUserAgentSuffix
+	codexCLIUserAgent = openai.CodexCLIOriginator + "/" + codexCLIVersion + codexCLIUserAgentSuffix
 	// codex_cli_only 拒绝时单个请求头日志长度上限（字符）
 	codexCLIOnlyHeaderValueMaxBytes = 256
 
@@ -61,7 +61,10 @@ const (
 	// 陈旧版本会被优先丢弃（HTTP 200 + 流内 server_is_overloaded）；非官方客户端配不出
 	// 官方身份时整体回退到本常量，因此它必须跟随官方 CLI 的当前发布版本，
 	// 落后多个版本会让这些请求稳定落在被优先丢弃的一侧。
-	codexCLIVersion = "0.153.4"
+	// Keep the compiled fallback at the latest known stable Codex release. Runtime
+	// settings may advance this through the auto-sync service, but new installs and
+	// temporarily unavailable settings must not advertise an older load-shed bucket.
+	codexCLIVersion = "0.154.0"
 	// Codex 限额快照仅用于后台展示/诊断，不需要每个成功请求都立即落库。
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
 	// 配额自动暂停时，超过该时长仍未刷新的 used% 快照视为陈旧，不再据此暂停账号。
@@ -544,7 +547,11 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	// enforceCodexIdentityHeaders 是 HTTP / 透传 / WS / 探针 等出站路径共用的纯函数收口点，
 	// 拿不到配置，故在此发布进程级开关快照。配置取反义，零值即「强制统一出口开启」。
 	if cfg != nil {
-		SetCodexIdentityEnforcementEnabled(!cfg.Gateway.DisableCodexIdentityEnforcement)
+		// 旧配置键仍作为完整保护的回滚别名，即使调用方手工构造 Config
+		// 而未经过 config.load，也不能意外重新开启身份强制。
+		identityEnforcementDisabled := cfg.Gateway.DisableCodexIdentityEnforcement || cfg.Gateway.DisableCodexOriginatorNormalization
+		SetCodexIdentityEnforcementEnabled(!identityEnforcementDisabled)
+		SetCodexOriginatorNormalizationEnabled(!cfg.Gateway.DisableCodexOriginatorNormalization)
 		SetCodexPrereleaseVersionAllowed(cfg.Gateway.CodexAllowPrereleaseVersion)
 	}
 	svc := &OpenAIGatewayService{
@@ -1122,7 +1129,7 @@ func isolateOpenAISessionID(apiKeyID string, raw string) string {
 //
 // isolateOpenAISessionID 的 16 位十六进制串只适合做内部键（粘性会话、cyber 屏蔽表）；
 // 真实 Codex 客户端在这两个头里携带的是 UUID，网关若把裸哈希送到上游，会在头形态上
-// 与规范身份（codex-tui UA / originator）自相矛盾。此处在同一隔离哈希之上派生确定性
+// 与规范身份（codex_cli_rs UA / originator）自相矛盾。此处在同一隔离哈希之上派生确定性
 // UUIDv4：同一 (apiKeyID, raw) 永远得到同一个 UUID，跨 API Key 仍然互不碰撞，且与
 // Messages / Chat Completions 桥接路径既有的 generateSessionUUID(isolate(...)) 形态一致。
 func isolateOpenAISessionHeader(apiKeyID string, raw string) string {

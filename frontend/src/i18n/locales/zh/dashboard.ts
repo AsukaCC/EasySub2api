@@ -318,6 +318,7 @@ export default {
     roleAll: '全部',
     roleAdmin: '管理员',
     roleUser: '用户',
+    adminUsage: '管理员使用量',
     description: '查看和分析您的 API 使用历史',
     costDetails: '费用明细',
     tokenDetails: 'Token 明细',

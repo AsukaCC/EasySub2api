@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="views-admin-usage-view__panel">
-      <UsageStatsCards :stats="usageStats" />
+      <UsageStatsCards :stats="usageStats" :show-average-duration="false" />
       <!-- Charts Section -->
       <div class="views-admin-usage-view__panel-2">
         <div class="views-admin-usage-view__panel-3 card">
@@ -81,10 +81,6 @@
             <Icon :name="tab.icon" size="sm" />
             {{ tab.label }}
           </button>
-          <div v-if="isMergedUsagePage" class="views-admin-usage-view__role-filter">
-            <span class="views-admin-usage-view__text">{{ t('usage.roleScope') }}:</span>
-            <Select v-model="selectedRoleScope" :options="roleScopeOptions" @change="applyRoleScope" />
-          </div>
         </div>
 
         <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="views-admin-usage-view__usage-filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" :api-base-path="usageApiBasePath" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
@@ -164,6 +160,10 @@
             @select-user="handleRankingSelectUser"
           />
         </div>
+        <div v-if="isMergedUsagePage" class="views-admin-usage-view__admin-usage">
+          <h3>{{ t('usage.adminUsage') }}</h3>
+          <UsageStatsCards :stats="adminUsageStats" :show-average-duration="false" />
+        </div>
       </div>
       <OpsErrorDetailModal v-model:show="showErrorModal" :error-id="selectedErrorId" :error-type="'request'" />
     </div>
@@ -218,19 +218,13 @@ type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
 const isAdminUsagePage = computed(() => route.path === '/admin/usage/admin')
 const isMergedUsagePage = computed(() => route.path === '/admin/usage')
-const selectedRoleScope = ref<'all' | 'regular' | 'admin'>('all')
 const adminUsageRoleScope = computed(() => {
   if (isAdminUsagePage.value) return 'admin' as const
-  if (isMergedUsagePage.value) return selectedRoleScope.value
+  if (isMergedUsagePage.value) return 'all' as const
   return 'regular' as const
 })
 const usageApiBasePath = computed(() => adminUsageRoleScope.value === 'admin' ? '/admin/accounts/admin-usage' : '/admin/usage')
-const roleScopeOptions = computed(() => [
-  { value: 'all', label: t('usage.roleAll') },
-  { value: 'admin', label: t('usage.roleAdmin') },
-  { value: 'regular', label: t('usage.roleUser') },
-])
-const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(true); const exporting = ref(false)
+const usageStats = ref<AdminUsageStatsResponse | null>(null); const adminUsageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(true); const exporting = ref(false)
 const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const modelDistributionSource = ref<ModelDistributionSource>('requested')
@@ -430,6 +424,14 @@ const loadStats = async (force = false) => {
     })
     if (seq !== statsReqSeq) return
     usageStats.value = s
+    if (isMergedUsagePage.value) {
+      adminUsageStats.value = await adminAPI.usage.getStats({
+        ...filters.value,
+        scope: 'admin',
+        base_path: '/admin/accounts/admin-usage/stats',
+        ...(force ? { nocache: 1 } : {}),
+      })
+    }
     inboundEndpointStats.value = s.endpoints || []
     upstreamEndpointStats.value = s.upstream_endpoints || []
     endpointPathStats.value = s.endpoint_paths || []
@@ -553,12 +555,6 @@ const applyFilters = () => {
   } else {
     errRows.value = []
   }
-}
-const applyRoleScope = () => {
-  pagination.page = 1
-  errPage.value = 1
-  errRows.value = []
-  applyFilters()
 }
 const refreshData = () => {
   invalidateModelStatsCache()
@@ -920,7 +916,6 @@ watch(() => route.path, (path, previousPath) => {
   if (isAdminUsagePage.value && activeTab.value === 'errors') {
     activeTab.value = 'usage'
   }
-  if (isMergedUsagePage.value) selectedRoleScope.value = 'all'
   errPage.value = 1
   errRows.value = []
   applyRouteQueryFilters()

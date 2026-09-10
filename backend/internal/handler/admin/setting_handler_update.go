@@ -1545,7 +1545,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		// 该值会被拼进出站 User-Agent 与 version 头，必须是合法版本号；空串表示跟随自动同步。
 		normalized := strings.TrimSpace(*req.OpenAICodexClientVersion)
 		if normalized != "" && service.NormalizeCodexClientVersion(normalized) == "" {
-			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.153.4)")
+			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.154.0)")
 			return
 		}
 		// 预发布版本仅在 gateway.codex_allow_prerelease_version 开启时可作为出站版本；

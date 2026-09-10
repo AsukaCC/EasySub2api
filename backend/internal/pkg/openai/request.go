@@ -244,11 +244,53 @@ func canonicalizeCodexOriginator(name string) string {
 	return name
 }
 
-// CodexCLIOriginator 是 codex-rs 客户端的历史默认 originator，保留用于兼容识别。
+// CodexCLIOriginator 是 codex-rs 客户端的官方默认 originator，也是网关的健康出站身份。
 const CodexCLIOriginator = "codex_cli_rs"
 
-// CodexDefaultOriginator 是网关默认使用的 Codex TUI originator。
-const CodexDefaultOriginator = "codex-tui"
+// CodexDefaultOriginator 是网关默认使用的官方 Codex CLI originator。
+// 保留该名称是为了兼容已有调用方；需要明确区分客户端类型时请使用
+// CodexCLIOriginator 或显式的 codex-tui 值。
+const CodexDefaultOriginator = CodexCLIOriginator
+
+// codexLoadShedOriginators 是已观测会被上游容量策略优先降载的身份快照。
+// 上游按 originator 分桶时，命中这些身份的请求可能返回 HTTP 200，随后在
+// SSE 中收到 server_is_overloaded；它不是协议常量，策略变化时应随观测更新。
+var codexLoadShedOriginators = map[string]struct{}{
+	"codex-tui": {},
+}
+
+// IsCodexLoadShedOriginator 报告 originator 是否落在已知上游降载桶。
+func IsCodexLoadShedOriginator(originator string) bool {
+	_, ok := codexLoadShedOriginators[normalizeCodexClientHeader(originator)]
+	return ok
+}
+
+// NormalizeCodexClientIdentityToCLI 将已知降载身份改写为官方 Codex CLI 身份。
+// 只替换 UA 首段和（如果存在）尾部 clientInfo.name 组，保留版本、操作系统、
+// 架构和终端指纹；返回值仍满足 originator 与 UA 首段配对规则。
+func NormalizeCodexClientIdentityToCLI(originator, userAgent string) (string, string, bool) {
+	if !IsCodexLoadShedOriginator(originator) {
+		return originator, userAgent, false
+	}
+
+	ua := strings.TrimSpace(userAgent)
+	slash := strings.IndexByte(ua, '/')
+	if slash <= 0 {
+		// 没有可重写的 UA 首段时，调用方仍应使用健康的 originator；
+		// 后续身份收口会在需要时整体回退规范 UA。
+		return CodexCLIOriginator, ua, true
+	}
+
+	rest := ua[slash:]
+	// 只有最后一组括号确实是官方 clientInfo 组时才裁剪，避免误伤
+	// `(Ubuntu 22.4.0; x86_64)` 这类操作系统指纹。
+	if trailer := codexUATrailerName(ua); trailer != "" && IsCodexOfficialClientOriginator(trailer) {
+		if open := strings.LastIndex(rest, "("); open > 0 {
+			rest = strings.TrimRight(rest[:open], " ")
+		}
+	}
+	return CodexCLIOriginator, CodexCLIOriginator + rest, true
+}
 
 // CodexUserAgentVersion 提取 Codex UA 的完整版本段，即 `{client}/{version} (...` 中的 version。
 // 与 ParseCodexEngineVersion 的区别：后者只取三段数字用于引擎版本比较（会丢掉 -alpha.4

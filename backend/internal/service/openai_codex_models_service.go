@@ -320,13 +320,17 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 	identity := resolveCodexOutboundIdentity(overrideUA)
 	headers.Set("Originator", identity.originator)
 	headers.Set("User-Agent", identity.userAgent)
-	// Version 头优先与 client_version 查询参数同源：客户端自报版本合法且不低于上游
-	// 门槛时原样使用；否则回退规范版本，避免陈旧 version 触发上游 404（issue #3901）。
-	// client_version 查询参数本身始终按客户端原值透传（内容协商语义，契约见
-	// TestFetchCodexModelsManifestPassthrough）。
-	headerVersion := AcceptCodexClientVersion(clientVersion)
-	if headerVersion == "" || CompareVersions(headerVersion, codexUpstreamMinVersion) < 0 {
-		headerVersion = identity.version
+	// ChatGPT/Codex 上游会把 Version 与 User-Agent 一起用于客户端身份校验，
+	// 因此 OAuth 请求必须使用同一份规范版本，不能把客户端传入的旧
+	// client_version 查询参数带进 Version 头。client_version 仍按原值透传，
+	// 因为它是模型清单的内容协商参数；API Key 自定义上游没有这条 ChatGPT
+	// 身份约束，继续保留既有的协商行为。
+	headerVersion := identity.version
+	if useAPIKeyUpstream {
+		headerVersion = AcceptCodexClientVersion(clientVersion)
+		if headerVersion == "" || CompareVersions(headerVersion, codexUpstreamMinVersion) < 0 {
+			headerVersion = identity.version
+		}
 	}
 	headers.Set("Version", headerVersion)
 	// 终态清理：账号级覆写（API Key 上游）可能带入平台品牌 / 基础设施头。
@@ -371,6 +375,7 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 		}
 	}
 	setOpenAIChatGPTAccountHeaders(request.headers, credAccount)
+	finalizeCodexOAuthIdentityHeaders(request.headers)
 	return s.fetchCodexModelsManifestUpstream(ctx, request, ifNoneMatch)
 }
 
