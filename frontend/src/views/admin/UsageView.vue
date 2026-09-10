@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="views-admin-usage-view__panel">
-      <UsageStatsCards :stats="usageStats" :show-average-duration="false" />
+      <UsageStatsCards :stats="usageStats" :admin-stats="adminUsageStats" />
       <!-- Charts Section -->
       <div class="views-admin-usage-view__panel-2">
         <div class="views-admin-usage-view__panel-3 card">
@@ -160,10 +160,6 @@
             @select-user="handleRankingSelectUser"
           />
         </div>
-        <div v-if="isMergedUsagePage" class="views-admin-usage-view__admin-usage">
-          <h3>{{ t('usage.adminUsage') }}</h3>
-          <UsageStatsCards :stats="adminUsageStats" :show-average-duration="false" />
-        </div>
       </div>
       <OpsErrorDetailModal v-model:show="showErrorModal" :error-id="selectedErrorId" :error-type="'request'" />
     </div>
@@ -218,9 +214,10 @@ type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
 const isAdminUsagePage = computed(() => route.path === '/admin/usage/admin')
 const isMergedUsagePage = computed(() => route.path === '/admin/usage')
+const selectedRoleScope = ref<'all' | 'regular' | 'admin'>('all')
 const adminUsageRoleScope = computed(() => {
   if (isAdminUsagePage.value) return 'admin' as const
-  if (isMergedUsagePage.value) return 'all' as const
+  if (isMergedUsagePage.value) return selectedRoleScope.value
   return 'regular' as const
 })
 const usageApiBasePath = computed(() => adminUsageRoleScope.value === 'admin' ? '/admin/accounts/admin-usage' : '/admin/usage')
@@ -425,12 +422,7 @@ const loadStats = async (force = false) => {
     if (seq !== statsReqSeq) return
     usageStats.value = s
     if (isMergedUsagePage.value) {
-      adminUsageStats.value = await adminAPI.usage.getStats({
-        ...filters.value,
-        scope: 'admin',
-        base_path: '/admin/accounts/admin-usage/stats',
-        ...(force ? { nocache: 1 } : {}),
-      })
+      adminUsageStats.value = await adminAPI.usage.getStats({ ...filters.value, scope: 'admin', base_path: '/admin/accounts/admin-usage/stats', ...(force ? { nocache: 1 } : {}) })
     }
     inboundEndpointStats.value = s.endpoints || []
     upstreamEndpointStats.value = s.upstream_endpoints || []
@@ -916,6 +908,7 @@ watch(() => route.path, (path, previousPath) => {
   if (isAdminUsagePage.value && activeTab.value === 'errors') {
     activeTab.value = 'usage'
   }
+  if (isMergedUsagePage.value) selectedRoleScope.value = 'all'
   errPage.value = 1
   errRows.value = []
   applyRouteQueryFilters()
