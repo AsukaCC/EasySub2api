@@ -1,6 +1,6 @@
 <template>
   <div class="components-admin-usage-usage-stats-cards__panel">
-    <div v-if="showAverageDuration" class="components-admin-usage-usage-stats-cards__panel-2 card">
+    <div class="components-admin-usage-usage-stats-cards__panel-2 card">
       <div class="components-admin-usage-usage-stats-cards__panel-3">
         <Icon name="document" size="md" />
       </div>
@@ -8,6 +8,7 @@
         <p class="components-admin-usage-usage-stats-cards__description">{{ t('usage.totalRequests') }}</p>
         <p class="components-admin-usage-usage-stats-cards__description-2">{{ stats?.total_requests?.toLocaleString() || '0' }}</p>
         <p class="components-admin-usage-usage-stats-cards__description-3">{{ t('usage.inSelectedRange') }}</p>
+        <p v-if="adminStats" class="admin-usage-hint">{{ t('usage.adminUsage') }}: {{ adminStats.total_requests?.toLocaleString() || '0' }}</p>
       </div>
     </div>
     <div class="components-admin-usage-usage-stats-cards__panel-2 card">
@@ -15,6 +16,7 @@
       <div>
         <p class="components-admin-usage-usage-stats-cards__description">{{ t('usage.totalTokens') }}</p>
         <p class="components-admin-usage-usage-stats-cards__description-2">{{ formatTokens(stats?.total_tokens || 0) }}</p>
+        <p v-if="adminStats" class="admin-usage-hint">{{ t('usage.adminUsage') }}: {{ formatTokens(adminStats.total_tokens || 0) }}</p>
         <p class="components-admin-usage-usage-stats-cards__description-4">
           <span>{{ t('usage.in') }}: {{ formatTokens(stats?.total_input_tokens || 0) }}</span>
           <span>/</span>
@@ -75,6 +77,7 @@
         <p class="components-admin-usage-usage-stats-cards__description-5">
           {{ formatPoints(stats?.total_actual_cost || 0) }}
         </p>
+        <p v-if="adminStats" class="admin-usage-hint">{{ t('usage.adminUsage') }}: {{ formatPoints(adminStats.total_actual_cost || 0) }}</p>
         <p class="components-admin-usage-usage-stats-cards__description-3">
           <template v-if="showAccountCost && totalAccountCost != null">
             <span class="components-admin-usage-usage-stats-cards__text-7">{{ t('usage.accountCost') }} ${{ totalAccountCost.toFixed(4) }}</span>
@@ -87,7 +90,7 @@
         </p>
       </div>
     </div>
-    <div class="components-admin-usage-usage-stats-cards__panel-2 card">
+    <div v-if="showAverageDuration" class="components-admin-usage-usage-stats-cards__panel-2 card">
       <div class="components-admin-usage-usage-stats-cards__panel-7">
         <Icon name="clock" size="md" />
       </div>
@@ -110,6 +113,7 @@ const props = withDefaults(defineProps<{
   showAccountCost?: boolean
   strikeStandardCost?: boolean
   showAverageDuration?: boolean
+  adminStats?: AdminUsageStatsResponse | null
 }>(), {
   showAccountCost: true,
   strikeStandardCost: false,
@@ -124,7 +128,6 @@ const totalAccountCost = computed(() => {
 })
 const showAccountCost = computed(() => props.showAccountCost)
 const strikeStandardCost = computed(() => props.strikeStandardCost)
-const showAverageDuration = computed(() => props.showAverageDuration)
 
 // 缓存读取占全部输入侧 Token 的比例；口径与 Token 趋势图保持一致。
 const cacheReadRatio = computed(() => {
@@ -154,5 +157,10 @@ const cacheDetailLabel = () => t('usage.cacheBreakdown')
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+.admin-usage-hint {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted, #8b98aa);
+  font-size: 0.7rem;
 }
 </style>
