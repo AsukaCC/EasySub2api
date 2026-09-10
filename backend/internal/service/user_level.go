@@ -123,11 +123,11 @@ const (
 )
 
 type DynamicRateUsageSummary struct {
-	RuleID   string `json:"rule_id"`
-	RuleName string `json:"rule_name"`
-	StartAt  string `json:"start_at"`
-	EndAt    string `json:"end_at"`
-	Status   string `json:"status"`
+	RuleID              string  `json:"rule_id"`
+	RuleName            string  `json:"rule_name"`
+	StartAt             string  `json:"start_at"`
+	EndAt               string  `json:"end_at"`
+	Status              string  `json:"status"`
 	DiscountCoefficient float64 `json:"discount_coefficient"`
 	// Shared fields are retained for old response consumers. Live selection is
 	// per-user and never reads the group-wide counter.
@@ -676,7 +676,15 @@ func (s *UserLevelService) GetDynamicRateUsageSummary(ctx context.Context, group
 		start, end, _, validWindow := parseDynamicRateWindow(rule)
 		summary := DynamicRateUsageSummary{
 			RuleID: rule.ID, RuleName: rule.Name, Status: dynamicRateRuleStatus(rule, at),
-			DiscountCoefficient: func() float64 { if rule.DiscountCoefficient > 0 { return rule.DiscountCoefficient }; if rule.Multiplier > 0 { return rule.Multiplier }; return 1 }(),
+			DiscountCoefficient: func() float64 {
+				if rule.DiscountCoefficient > 0 {
+					return rule.DiscountCoefficient
+				}
+				if rule.Multiplier > 0 {
+					return rule.Multiplier
+				}
+				return 1
+			}(),
 			PersonalQuotaAmount: QuantizeUsageBillingAmount(dynamicRatePersonalQuotaAmount(rule)), UsageScope: "per_user",
 		}
 		if validWindow {
