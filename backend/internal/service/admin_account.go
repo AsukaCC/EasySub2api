@@ -739,8 +739,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 	// 影子代理恒继承母账号(由 propagateProxyToShadows 同步),不接受独立编辑——外审 B/P1;
 	// 否则要等母账号下次改 proxy 才被覆盖,期间影子会出现"有时继承、有时独立"的漂移。
 	if input.ProxyID != nil && !account.IsCredentialShadow() {
-		// 0 表示清除代理（前端发送 0 而不是 null 来表达清除意图）
-		if *input.ProxyID == "" {
+		// 空字符串表示清除代理。JSON null 由 handler 转成空字符串后再传入，
+		// 以区分“未提供该字段”（不改）和“显式清空”。
+		if strings.TrimSpace(*input.ProxyID) == "" {
 			account.ProxyID = nil
 		} else {
 			account.ProxyID = input.ProxyID

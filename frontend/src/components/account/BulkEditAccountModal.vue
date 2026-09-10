@@ -1965,7 +1965,7 @@ const buildUpdatePayload = (): Record<string, unknown> | null => {
   }
 
   if (enableProxy.value) {
-    updates.proxy_id = proxyId.value
+    updates.proxy_id = proxyId.value ?? null
   }
 
   if (enableConcurrency.value) {

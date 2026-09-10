@@ -882,4 +882,17 @@ describe('BulkEditAccountModal', () => {
       status: 'active'
     })
   })
+
+  it('勾选代理并保持“无代理”时应提交 proxy_id: null 以清空绑定', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('#bulk-edit-proxy-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], {
+      proxy_id: null
+    })
+  })
 })
