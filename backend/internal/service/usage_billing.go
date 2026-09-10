@@ -51,8 +51,8 @@ type UsageBillingCommand struct {
 // (account quota U) as account 7-day usage statistics, not user-facing platform
 // points, for the interval identified by QuotaKey.
 type UsageDynamicRateRule struct {
-	RuleID     string  `json:"rule_id"`
-	QuotaKey   string  `json:"quota_key"`
+	RuleID              string  `json:"rule_id"`
+	QuotaKey            string  `json:"quota_key"`
 	DiscountCoefficient float64 `json:"discount_coefficient"`
 	// Multiplier is retained for old in-memory snapshots during rolling deploys.
 	Multiplier float64 `json:"-"`
