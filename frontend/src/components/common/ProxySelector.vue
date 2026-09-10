@@ -63,10 +63,10 @@
           <!-- No Proxy option -->
           <div
             @click="selectOption(null)"
-            :class="['select-option', modelValue === null && 'select-option-selected']"
+            :class="['select-option', isNoProxySelected && 'select-option-selected']"
           >
             <span class="select-option-label">{{ t('admin.accounts.noProxy') }}</span>
-            <Icon v-if="modelValue === null" name="check" size="sm" class="components-common-proxy-selector__icon-3" />
+            <Icon v-if="isNoProxySelected" name="check" size="sm" class="components-common-proxy-selector__icon-3" />
           </div>
 
           <!-- Proxy options -->
@@ -195,9 +195,11 @@ const testingProxyIds = reactive(new Set<string>())
 const batchTesting = ref(false)
 
 const selectedProxy = computed(() => {
-  if (props.modelValue === null) return null
+  if (props.modelValue == null || props.modelValue === '') return null
   return props.proxies.find((p) => p.id === props.modelValue) || null
 })
+
+const isNoProxySelected = computed(() => props.modelValue == null || props.modelValue === '')
 
 const selectedLabel = computed(() => {
   if (!selectedProxy.value) {

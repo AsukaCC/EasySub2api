@@ -3494,7 +3494,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   })
   form.name = newAccount.name
   form.notes = newAccount.notes || ''
-  form.proxy_id = newAccount.proxy_id
+  form.proxy_id = newAccount.proxy_id ?? null
   form.concurrency = newAccount.concurrency
   form.load_factor = newAccount.load_factor ?? null
   form.priority = newAccount.priority
@@ -4258,9 +4258,10 @@ const handleSubmit = async () => {
     return
   }
 
-  const updatePayload: Record<string, unknown> = { ...form }
-  try {
-    // UUID 外键以 null 表示清除代理。
+    const updatePayload: Record<string, unknown> = { ...form }
+    try {
+    // JSON null 表示清除代理：后端用字段是否出现区分“未改”和“清空”。
+    updatePayload.proxy_id = form.proxy_id ?? null
     if (form.expires_at === null) {
       updatePayload.expires_at = 0
     }

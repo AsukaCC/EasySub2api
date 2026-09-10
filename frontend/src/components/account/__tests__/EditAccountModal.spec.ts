@@ -314,6 +314,55 @@ describe('EditAccountModal', () => {
     })
   })
 
+  it('submits proxy_id null when the editor clears the assigned proxy', async () => {
+    const account = buildAccount()
+    account.proxy_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mount(EditAccountModal, {
+      props: {
+        show: true,
+        account,
+        proxies: [
+          {
+            id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            name: 'HK',
+            protocol: 'http',
+            host: '127.0.0.1',
+            port: 8080
+          }
+        ],
+        groups: []
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Select: SelectStub,
+          Icon: true,
+          ProxySelector: defineComponent({
+            name: 'ProxySelector',
+            props: {
+              modelValue: { type: [String, Object], default: null }
+            },
+            emits: ['update:modelValue'],
+            template: '<button type="button" data-testid="clear-proxy" @click="$emit(\'update:modelValue\', null)" />'
+          }),
+          GroupSelector: GroupSelectorStub,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub
+        }
+      }
+    })
+
+    await wrapper.get('[data-testid="clear-proxy"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.proxy_id).toBeNull()
+  })
+
   it('preserves model mappings when editing the whitelist', async () => {
     const account = buildAccount()
     account.credentials.model_mapping = {

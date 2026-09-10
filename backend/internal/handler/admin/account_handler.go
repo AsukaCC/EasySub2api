@@ -134,22 +134,22 @@ type CreateAccountRequest struct {
 // UpdateAccountRequest represents update account request
 // 使用指针类型来区分"未提供"和"设置为0"
 type UpdateAccountRequest struct {
-	Name               string         `json:"name"`
-	Notes              *string        `json:"notes"`
-	Type               string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream bedrock service_account"`
-	Credentials        map[string]any `json:"credentials"`
-	Extra              map[string]any `json:"extra"`
-	ProxyID            *string        `json:"proxy_id"`
-	Concurrency        *int           `json:"concurrency"`
-	Priority           *int           `json:"priority"`
-	RateMultiplier     *float64       `json:"rate_multiplier"`
-	LoadFactor         *int           `json:"load_factor"`
-	Status             string         `json:"status" binding:"omitempty,oneof=active inactive error"`
-	GroupIDs           *[]string      `json:"group_ids"`
-	ExpiresAt          *int64         `json:"expires_at"`
-	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
-	ProbeEnabled       *bool          `json:"upstream_billing_probe_enabled"`
-	RateSyncEnabled    *bool          `json:"upstream_billing_rate_sync_enabled"`
+	Name               string                  `json:"name"`
+	Notes              *string                 `json:"notes"`
+	Type               string                  `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream bedrock service_account"`
+	Credentials        map[string]any          `json:"credentials"`
+	Extra              map[string]any          `json:"extra"`
+	ProxyID            dto.NullableStringField `json:"proxy_id"`
+	Concurrency        *int                    `json:"concurrency"`
+	Priority           *int                    `json:"priority"`
+	RateMultiplier     *float64                `json:"rate_multiplier"`
+	LoadFactor         *int                    `json:"load_factor"`
+	Status             string                  `json:"status" binding:"omitempty,oneof=active inactive error"`
+	GroupIDs           *[]string               `json:"group_ids"`
+	ExpiresAt          *int64                  `json:"expires_at"`
+	AutoPauseOnExpired *bool                   `json:"auto_pause_on_expired"`
+	ProbeEnabled       *bool                   `json:"upstream_billing_probe_enabled"`
+	RateSyncEnabled    *bool                   `json:"upstream_billing_rate_sync_enabled"`
 }
 
 // BulkUpdateAccountsRequest represents the payload for bulk editing accounts
@@ -157,7 +157,7 @@ type BulkUpdateAccountsRequest struct {
 	AccountIDs     []string                  `json:"account_ids"`
 	Filters        *BulkUpdateAccountFilters `json:"filters"`
 	Name           string                    `json:"name"`
-	ProxyID        *string                   `json:"proxy_id"`
+	ProxyID        dto.NullableStringField   `json:"proxy_id"`
 	Concurrency    *int                      `json:"concurrency"`
 	Priority       *int                      `json:"priority"`
 	RateMultiplier *float64                  `json:"rate_multiplier"`
@@ -179,6 +179,20 @@ type BulkUpdateAccountFilters struct {
 	PrivacyMode      string `json:"privacy_mode"`
 	ExpiryStatus     string `json:"expiry_status"`
 	SubscriptionTier string `json:"subscription_tier"`
+}
+
+// clearableStringPtr converts a JSON string field that may be omitted, null, or set.
+// Omitted keeps the current value (nil). JSON null or blank means "clear" (empty string).
+func clearableStringPtr(field dto.NullableStringField) *string {
+	if !field.Set {
+		return nil
+	}
+	if field.Value == nil || strings.TrimSpace(*field.Value) == "" {
+		empty := ""
+		return &empty
+	}
+	value := strings.TrimSpace(*field.Value)
+	return &value
 }
 
 // AccountWithConcurrency extends Account with real-time concurrency info
@@ -962,7 +976,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		Type:               req.Type,
 		Credentials:        req.Credentials,
 		Extra:              req.Extra,
-		ProxyID:            req.ProxyID,
+		ProxyID:            clearableStringPtr(req.ProxyID),
 		Concurrency:        req.Concurrency, // 指针类型，nil 表示未提供
 		Priority:           req.Priority,    // 指针类型，nil 表示未提供
 		RateMultiplier:     req.RateMultiplier,
@@ -2017,7 +2031,7 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 	sanitizeExtraBaseRPM(req.Extra)
 
 	hasUpdates := req.Name != "" ||
-		req.ProxyID != nil ||
+		req.ProxyID.Set ||
 		req.Concurrency != nil ||
 		req.Priority != nil ||
 		req.RateMultiplier != nil ||
@@ -2038,7 +2052,7 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		AccountIDs:     req.AccountIDs,
 		Filters:        toServiceBulkUpdateAccountFilters(req.Filters),
 		Name:           req.Name,
-		ProxyID:        req.ProxyID,
+		ProxyID:        clearableStringPtr(req.ProxyID),
 		Concurrency:    req.Concurrency,
 		Priority:       req.Priority,
 		RateMultiplier: req.RateMultiplier,
