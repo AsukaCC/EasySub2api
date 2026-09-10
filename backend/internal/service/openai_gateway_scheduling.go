@@ -213,7 +213,7 @@ func resolveOpenAIUpstreamOriginator(c *gin.Context, isOfficialClient bool) stri
 		}
 	}
 	if isOfficialClient {
-		return openai.CodexDefaultOriginator
+		return openai.CodexCLIOriginator
 	}
 	return "opencode"
 }

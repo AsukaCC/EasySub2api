@@ -274,8 +274,14 @@ gateway:
   # 对外表现为 Codex 账号频繁过载不可用。归一化只替换身份段，保留版本/OS/架构/终端指纹，
   # 改写后 originator 与 User-Agent 首段仍然配套。
   #
-  # 默认 false（即归一化开启）；仅当上游调整分桶、使归一化反而落入降载桶时才置 true。
+  # 默认 false（即归一化与身份强制均开启）；旧版将 true 作为完整身份保护回滚，
+  # 仅当上游调整分桶或需要回滚时才置 true。新配置可用下方独立开关。
   disable_codex_originator_normalization: false
+  # Stop enforcing one canonical Codex identity for every OAuth request.
+  # 关闭后仍会配对 originator 与最终 User-Agent，并同步 version；默认 false。
+  disable_codex_identity_enforcement: false
+  # Allow prerelease Codex client versions in outbound identity (default false).
+  codex_allow_prerelease_version: false
   # Enable Codex image-generation bridge injection for /openai/v1/responses.
   # 是否为 Codex /responses 请求自动注入 image_generation 工具与桥接指令。
   #

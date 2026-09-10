@@ -130,13 +130,28 @@ func (c *githubReleaseClient) FetchLatestRelease(ctx context.Context, repo strin
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		if isCodexVersionRepository(repo) && ctx.Err() == nil {
+			if fallback, fallbackErr := c.fetchLatestReleaseFromWeb(ctx, repo); fallbackErr == nil {
+				return fallback, nil
+			}
+		}
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+		statusCode := resp.StatusCode
+		_ = resp.Body.Close()
+		// Unauthenticated GitHub API calls are frequently rate-limited (403/429).
+		// The public release endpoint does not require an API token and redirects to
+		// the canonical tag URL, which is sufficient for the Codex version sync.
+		if isCodexVersionRepository(repo) && (statusCode == http.StatusForbidden || statusCode == http.StatusTooManyRequests) {
+			if fallback, fallbackErr := c.fetchLatestReleaseFromWeb(ctx, repo); fallbackErr == nil {
+				return fallback, nil
+			}
+		}
+		return nil, fmt.Errorf("GitHub API returned %d", statusCode)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	var release service.GitHubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
@@ -144,6 +159,79 @@ func (c *githubReleaseClient) FetchLatestRelease(ctx context.Context, repo strin
 	}
 
 	return &release, nil
+}
+
+func isCodexVersionRepository(repo string) bool {
+	return strings.Trim(repo, "/") == "openai/codex"
+}
+
+// fetchLatestReleaseFromWeb is a rate-limit fallback for the small subset of
+// callers that only need the release tag. GitHub's public /releases/latest
+// endpoint redirects to /releases/tag/<tag>; no page body is parsed and no API
+// token is sent to github.com.
+func (c *githubReleaseClient) fetchLatestReleaseFromWeb(ctx context.Context, repo string) (*service.GitHubRelease, error) {
+	parts := strings.Split(strings.Trim(repo, "/"), "/")
+	if len(parts) != 2 || !isSafeGitHubPathSegment(parts[0]) || !isSafeGitHubPathSegment(parts[1]) {
+		return nil, fmt.Errorf("invalid GitHub repository %q", repo)
+	}
+	webURL := "https://github.com/" + parts[0] + "/" + parts[1] + "/releases/latest"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, webURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "text/html")
+	req.Header.Set("User-Agent", "EasySub2api-Updater")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("GitHub release page returned %d", resp.StatusCode)
+	}
+	finalURL := req.URL
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL
+	}
+	tag, ok := githubReleaseTagFromURL(finalURL)
+	if !ok {
+		return nil, fmt.Errorf("GitHub release page did not resolve to a tag")
+	}
+	return &service.GitHubRelease{
+		TagName: tag,
+		HTMLURL: finalURL.String(),
+	}, nil
+}
+
+func isSafeGitHubPathSegment(value string) bool {
+	if value == "" || value == "." || value == ".." {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func githubReleaseTagFromURL(value *url.URL) (string, bool) {
+	if value == nil || !strings.EqualFold(value.Host, "github.com") {
+		return "", false
+	}
+	segments := strings.Split(strings.Trim(value.Path, "/"), "/")
+	for i := 0; i+1 < len(segments); i++ {
+		if segments[i] != "tag" || segments[i+1] == "" {
+			continue
+		}
+		tag, err := url.PathUnescape(segments[i+1])
+		if err == nil && tag != "" {
+			return tag, true
+		}
+	}
+	return "", false
 }
 
 func (c *githubReleaseClient) FetchRecentReleases(ctx context.Context, repo string, perPage int) ([]*service.GitHubRelease, error) {

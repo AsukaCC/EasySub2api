@@ -160,11 +160,13 @@ func newCodexModelsTestAccount() *Account {
 func TestFetchCodexModelsManifestPassthrough(t *testing.T) {
 	manifestBody := `{"models":[{"slug":"gpt-5.5","display_name":"GPT-5.5"}]}`
 
-	var gotAuth, gotAccountID, gotOriginator, gotClientVersion string
+	var gotAuth, gotAccountID, gotOriginator, gotClientVersion, gotVersion, gotUserAgent string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotAccountID = r.Header.Get("chatgpt-account-id")
 		gotOriginator = r.Header.Get("Originator")
+		gotVersion = r.Header.Get("Version")
+		gotUserAgent = r.Header.Get("User-Agent")
 		gotClientVersion = r.URL.Query().Get("client_version")
 		w.Header().Set("ETag", `W/"abc123"`)
 		w.Header().Set("Content-Type", "application/json")
@@ -199,6 +201,12 @@ func TestFetchCodexModelsManifestPassthrough(t *testing.T) {
 	}
 	if gotClientVersion != "0.137.0" {
 		t.Errorf("client_version query: got %q", gotClientVersion)
+	}
+	if gotVersion != CodexCanonicalClientVersion() {
+		t.Errorf("OAuth Version header must use the canonical runtime version: got %q, want %q", gotVersion, CodexCanonicalClientVersion())
+	}
+	if gotVersion != openai.CodexUserAgentVersion(gotUserAgent) {
+		t.Errorf("OAuth Version header must match the User-Agent version: version=%q user-agent=%q", gotVersion, gotUserAgent)
 	}
 }
 

@@ -316,6 +316,7 @@ export default {
     roleAll: 'All',
     roleAdmin: 'Administrators',
     roleUser: 'Users',
+    adminUsage: 'Administrator Usage',
     description: 'View and analyze your API usage history',
     costDetails: 'Cost Breakdown',
     tokenDetails: 'Token Breakdown',

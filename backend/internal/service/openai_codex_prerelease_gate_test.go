@@ -80,7 +80,7 @@ func TestResolveCodexOutboundIdentityRejectsPrereleaseUAVersion(t *testing.T) {
 
 // 编译期兜底版本本身必须是稳定版，且不低于上游门槛。
 func TestBuiltinCodexVersionIsStableRelease(t *testing.T) {
-	require.Equal(t, "0.153.4", codexCLIVersion)
+	require.Equal(t, "0.154.0", codexCLIVersion)
 	require.False(t, IsCodexPrereleaseVersion(codexCLIVersion))
 	require.GreaterOrEqual(t, CompareVersions(codexCLIVersion, codexUpstreamMinVersion), 0)
 }

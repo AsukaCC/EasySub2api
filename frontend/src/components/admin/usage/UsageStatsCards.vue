@@ -1,6 +1,6 @@
 <template>
   <div class="components-admin-usage-usage-stats-cards__panel">
-    <div class="components-admin-usage-usage-stats-cards__panel-2 card">
+    <div v-if="showAverageDuration" class="components-admin-usage-usage-stats-cards__panel-2 card">
       <div class="components-admin-usage-usage-stats-cards__panel-3">
         <Icon name="document" size="md" />
       </div>
@@ -109,9 +109,11 @@ const props = withDefaults(defineProps<{
   stats: (AdminUsageStatsResponse | UsageStatsResponse) | null
   showAccountCost?: boolean
   strikeStandardCost?: boolean
+  showAverageDuration?: boolean
 }>(), {
   showAccountCost: true,
   strikeStandardCost: false,
+  showAverageDuration: true,
 })
 
 const { t } = useI18n()
@@ -122,6 +124,7 @@ const totalAccountCost = computed(() => {
 })
 const showAccountCost = computed(() => props.showAccountCost)
 const strikeStandardCost = computed(() => props.strikeStandardCost)
+const showAverageDuration = computed(() => props.showAverageDuration)
 
 // 缓存读取占全部输入侧 Token 的比例；口径与 Token 趋势图保持一致。
 const cacheReadRatio = computed(() => {

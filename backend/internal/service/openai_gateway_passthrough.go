@@ -596,6 +596,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	// 账号级请求头覆写（仅 openai api_key 账号启用时生效；OAuth 路径 no-op）
 	account.ApplyHeaderOverrides(req.Header)
 	sanitizeOpenAIOutboundHeaders(req.Header)
+	if account.Type == AccountTypeOAuth {
+		finalizeCodexOAuthIdentityHeaders(req.Header)
+	}
 	applyOpenCodeSessionHeader(c, account, targetURL, req.Header)
 	// x-codex-beta-features：按真实 Codex 的会话级行为补注（在账号级覆写之后，
 	// 保证不被覆盖丢失）。

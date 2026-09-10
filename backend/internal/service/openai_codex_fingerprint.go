@@ -59,7 +59,7 @@ func applyStagedCodexFingerprintHeaders(c *gin.Context, account *Account, h http
 //
 // 请求体侧的 applyCodexClientMetadata 已经用同一个 device_id 补 client_metadata.x-codex-installation-id，
 // 头侧却依赖客户端透传：非 Codex 客户端（Cursor / Claude Code 桥接 / opencode）不带该头时，
-// 上游会看到"自称 codex-tui、body 有安装标识、头却没有"的自相矛盾形态。头与体必须同源。
+// 上游会看到"自称 Codex、body 有安装标识、头却没有"的自相矛盾形态。头与体必须同源。
 // 未配置 device_id 时不臆造标识，保持原样。
 func applyCodexInstallationIDHeaderFallback(account *Account, h http.Header) {
 	if h == nil || account == nil || !account.IsOpenAIOAuth() {
