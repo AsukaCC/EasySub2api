@@ -213,3 +213,25 @@ func TestParse_无Scheme裸地址(t *testing.T) {
 		t.Fatal("无 scheme 的裸地址应返回错误")
 	}
 }
+
+func TestRedact_去除凭据只保留主机(t *testing.T) {
+	got := Redact("http://user:p%40ss@proxy.example.com:8080/path?x=1")
+	if got != "http://proxy.example.com:8080" {
+		t.Fatalf("应只保留 scheme://host:port: got %q", got)
+	}
+	if strings.Contains(got, "user") || strings.Contains(got, "p%40ss") {
+		t.Fatalf("脱敏结果不得包含凭据: %q", got)
+	}
+}
+
+func TestRedact_空串与非法值(t *testing.T) {
+	if got := Redact("   "); got != "" {
+		t.Fatalf("空串应返回空: got %q", got)
+	}
+	if got := Redact("::not a url::"); got != "<invalid-proxy-url>" {
+		t.Fatalf("非法值应返回占位符: got %q", got)
+	}
+	if got := Redact("user:secret@host"); strings.Contains(got, "secret") {
+		t.Fatalf("非法值不得回显原始输入: %q", got)
+	}
+}

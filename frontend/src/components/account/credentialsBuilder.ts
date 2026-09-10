@@ -227,19 +227,24 @@ export const GROK_BASE_URL_PRESETS: GrokBaseUrlPreset[] = [
   { label: 'eu-west-1', url: 'https://eu-west-1.api.x.ai/v1' }
 ]
 
-// ========== 国产供应商（Kimi / Zhipu / DeepSeek）base_url 预设 ==========
+// ========== 国产供应商（Kimi / Zhipu / DeepSeek / MiniMax）base_url 预设 ==========
 // 与后端 service/domain_constants.go 的默认 base url 保持一致。
 // 账号类型（payg 按量付费 / coding 编程套餐）决定额度监控方式；
 // API 协议（chat_completions / anthropic / responses）决定转发端点与格式，
 // 两者正交。同协议请求零转换直通，跨协议组合才走转换链。
 
 export type CnAccountMode = 'payg' | 'coding'
+export type CnProviderPlatform = 'kimi' | 'zhipu' | 'deepseek' | 'minimax'
 
-/** DeepSeek 与 Kimi 支持原生 Responses 端点，适配 Codex。 */
+/** DeepSeek、Kimi 与 MiniMax 支持原生 Responses 端点，适配 Codex。 */
 export type CnApiProtocol = 'chat_completions' | 'anthropic' | 'responses'
 
+export function isCNProviderPlatform(platform: string): platform is CnProviderPlatform {
+  return platform === 'kimi' || platform === 'zhipu' || platform === 'deepseek' || platform === 'minimax'
+}
+
 export function cnSupportsNativeResponses(platform: string): boolean {
-  return platform === 'deepseek' || platform === 'kimi'
+  return platform === 'deepseek' || platform === 'kimi' || platform === 'minimax'
 }
 
 export interface CnBaseUrlPreset {
@@ -251,7 +256,7 @@ export interface CnBaseUrlPreset {
 }
 
 /** 各供应商按账号类型 × API 协议分档的快捷端点（点击快速填充，输入框仍可自由填写）。 */
-export const CN_BASE_URL_PRESETS: Record<'kimi' | 'zhipu' | 'deepseek', CnBaseUrlPreset[]> = {
+export const CN_BASE_URL_PRESETS: Record<CnProviderPlatform, CnBaseUrlPreset[]> = {
   kimi: [
     { mode: 'payg', protocol: 'chat_completions', label: 'Moonshot', url: 'https://api.moonshot.cn/v1' },
     { mode: 'payg', protocol: 'anthropic', label: 'Moonshot Anthropic', url: 'https://api.moonshot.cn/anthropic' },
@@ -270,6 +275,20 @@ export const CN_BASE_URL_PRESETS: Record<'kimi' | 'zhipu' | 'deepseek', CnBaseUr
     { mode: 'payg', protocol: 'chat_completions', label: 'DeepSeek', url: 'https://api.deepseek.com' },
     { mode: 'payg', protocol: 'anthropic', label: 'DeepSeek Anthropic', url: 'https://api.deepseek.com/anthropic' },
     { mode: 'payg', protocol: 'responses', label: 'DeepSeek Responses', url: 'https://api.deepseek.com' }
+  ],
+  minimax: [
+    { mode: 'payg', protocol: 'chat_completions', label: 'MiniMax CN', url: 'https://api.minimaxi.com/v1' },
+    { mode: 'payg', protocol: 'anthropic', label: 'MiniMax CN Anthropic', url: 'https://api.minimaxi.com/anthropic' },
+    { mode: 'payg', protocol: 'responses', label: 'MiniMax CN Responses', url: 'https://api.minimaxi.com/v1' },
+    { mode: 'payg', protocol: 'chat_completions', label: 'MiniMax Intl', url: 'https://api.minimax.io/v1' },
+    { mode: 'payg', protocol: 'anthropic', label: 'MiniMax Intl Anthropic', url: 'https://api.minimax.io/anthropic' },
+    { mode: 'payg', protocol: 'responses', label: 'MiniMax Intl Responses', url: 'https://api.minimax.io/v1' },
+    { mode: 'coding', protocol: 'chat_completions', label: 'MiniMax Coding CN', url: 'https://api.minimaxi.com/v1' },
+    { mode: 'coding', protocol: 'anthropic', label: 'MiniMax Coding CN Anthropic', url: 'https://api.minimaxi.com/anthropic' },
+    { mode: 'coding', protocol: 'responses', label: 'MiniMax Coding CN Responses', url: 'https://api.minimaxi.com/v1' },
+    { mode: 'coding', protocol: 'chat_completions', label: 'MiniMax Coding Intl', url: 'https://api.minimax.io/v1' },
+    { mode: 'coding', protocol: 'anthropic', label: 'MiniMax Coding Intl Anthropic', url: 'https://api.minimax.io/anthropic' },
+    { mode: 'coding', protocol: 'responses', label: 'MiniMax Coding Intl Responses', url: 'https://api.minimax.io/v1' }
   ]
 }
 
@@ -287,11 +306,13 @@ export function defaultCNBaseUrl(
         return 'https://open.bigmodel.cn/api/anthropic'
       case 'deepseek':
         return 'https://api.deepseek.com/anthropic'
+      case 'minimax':
+        return 'https://api.minimaxi.com/anthropic'
       default:
         return ''
     }
   }
-  // Kimi / DeepSeek Responses 与 Chat Completions 使用同一 base，端点路径由后端处理。
+  // Kimi / DeepSeek / MiniMax Responses 与 Chat Completions 使用同一 base，端点路径由后端处理。
   switch (platform) {
     case 'kimi':
       return mode === 'coding' ? 'https://api.kimi.com/coding/v1' : 'https://api.moonshot.cn/v1'
@@ -301,6 +322,8 @@ export function defaultCNBaseUrl(
         : 'https://open.bigmodel.cn/api/paas/v4'
     case 'deepseek':
       return 'https://api.deepseek.com'
+    case 'minimax':
+      return 'https://api.minimaxi.com/v1'
     default:
       return ''
   }
@@ -311,7 +334,7 @@ export function defaultCNBaseUrl(
 // 共用，避免多处复制条件后一处改另一处漏改。
 
 export function cnQuotaCellVisible(platform: string, accountMode: string): boolean {
-  return (platform === 'kimi' || platform === 'zhipu') && accountMode === 'coding'
+  return (platform === 'kimi' || platform === 'zhipu' || platform === 'minimax') && accountMode === 'coding'
 }
 
 export function cnBalanceCellVisible(platform: string, accountMode: string): boolean {

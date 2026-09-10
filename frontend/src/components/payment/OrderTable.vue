@@ -23,6 +23,13 @@
         <div v-if="row.order_type === 'balance'" class="components-payment-order-table__panel-2">
           {{ t('payment.orders.creditedPoints') }}: {{ formatPoints(rechargeCreditedPoints(row), localeCode) }}
         </div>
+        <div v-else-if="(row.subscription_reset_card_count ?? 0) > 0" class="components-payment-order-table__panel-2">
+          {{ t('payment.planCard.resetCards') }}:
+          {{ t('payment.planCard.resetCardsValue', {
+            count: row.subscription_reset_card_count,
+            days: row.subscription_reset_card_validity_days ?? 30,
+          }) }}
+        </div>
       </div>
     </template>
     <template #cell-payment_type="{ value }">

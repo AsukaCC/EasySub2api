@@ -4,6 +4,7 @@ import (
 	"html"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
@@ -108,11 +109,13 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
+		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
 		ModelPlazaEnabled:     settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth: settings.ModelPlazaRequireAuth,
+		UsageGuideEnabled:     settings.UsageGuideEnabled,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
@@ -123,6 +126,25 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	})
+}
+
+// GetUsageGuide returns the administrator-authored Markdown guide for logged-in users.
+// GET /api/v1/usage-guide
+func (h *SettingHandler) GetUsageGuide(c *gin.Context) {
+	if h.settingService == nil || !h.settingService.IsUsageGuideEnabled(c.Request.Context()) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "usage guide not found"})
+		return
+	}
+	guide, err := h.settingService.GetUsageGuide(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	updatedAt := ""
+	if !guide.UpdatedAt.IsZero() {
+		updatedAt = guide.UpdatedAt.UTC().Format(time.RFC3339)
+	}
+	response.Success(c, gin.H{"content_md": guide.ContentMD, "updated_at": updatedAt})
 }
 
 // UnsubscribeNotificationEmail handles optional notification email opt-outs.

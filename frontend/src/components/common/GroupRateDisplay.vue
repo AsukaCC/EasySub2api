@@ -22,7 +22,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import { formatMultiplier, lowestAvailableGroupRate } from '@/utils/formatters'
+import { formatMultiplier, combinedGroupUserRate } from '@/utils/formatters'
 
 const props = withDefaults(defineProps<{
   rateMultiplier?: number
@@ -38,10 +38,10 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 
 const rate = computed(() => {
-  const original = lowestAvailableGroupRate(props.rateMultiplier, null)
-  const explicitEffective = lowestAvailableGroupRate(props.effectiveRateMultiplier, null)
+  const original = combinedGroupUserRate(props.rateMultiplier, null)
+  const explicitEffective = combinedGroupUserRate(props.effectiveRateMultiplier, null)
   const effective = explicitEffective
-    ?? lowestAvailableGroupRate(props.rateMultiplier, props.userRateMultiplier)
+    ?? combinedGroupUserRate(props.rateMultiplier, props.userRateMultiplier)
   const difference = original !== null && effective !== null ? effective - original : 0
 
   return {

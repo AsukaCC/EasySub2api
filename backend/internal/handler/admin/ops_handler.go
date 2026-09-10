@@ -104,6 +104,13 @@ func (h *OpsHandler) GetErrorLogs(c *gin.Context) {
 	}
 
 	filter := &service.OpsErrorLogFilter{Page: page, PageSize: pageSize}
+	if scope := strings.ToLower(strings.TrimSpace(c.Query("scope"))); scope != "" {
+		if scope != "all" && scope != usageRoleScopeAdmin && scope != usageRoleScopeRegular {
+			response.BadRequest(c, "Invalid scope, use all, regular, or admin")
+			return
+		}
+		filter.UserRoleScope = scope
+	}
 
 	if !startTime.IsZero() {
 		filter.StartTime = &startTime

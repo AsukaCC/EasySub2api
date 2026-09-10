@@ -64,3 +64,18 @@ func Parse(raw string) (trimmed string, parsed *url.URL, err error) {
 
 	return trimmed, parsed, nil
 }
+
+// Redact 返回可安全写入日志/诊断的代理 URL 形态：仅保留 scheme 与 host:port，
+// 去除用户名、密码、路径与查询。空串返回空串（表示直连），无法解析的值返回固定占位符，
+// 绝不回显原始输入（原始输入可能含凭据）。
+func Redact(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Host == "" {
+		return "<invalid-proxy-url>"
+	}
+	return strings.ToLower(parsed.Scheme) + "://" + parsed.Host
+}

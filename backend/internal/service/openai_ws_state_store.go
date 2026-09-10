@@ -31,6 +31,9 @@ type openAIWSConnBinding struct {
 
 type openAIWSTurnStateBinding struct {
 	turnState string
+	// accountID 铸造该 turn-state 的上游账号；空串表示旧式无溯源绑定。
+	// failover 换号后新账号不得回放旧账号铸造的 blob（跨账号矛盾信号）。
+	accountID string
 	expiresAt time.Time
 }
 
@@ -57,6 +60,11 @@ type OpenAIWSStateStore interface {
 	BindSessionTurnState(groupID string, sessionHash, turnState string, ttl time.Duration)
 	GetSessionTurnState(groupID string, sessionHash string) (string, bool)
 	DeleteSessionTurnState(groupID string, sessionHash string)
+	// BindSessionTurnStateForAccount / GetSessionTurnStateForAccount 是带账号溯源的变体：
+	// 绑定记录铸造账号；读取时仅当绑定属于同一账号（或为旧式无溯源绑定）才回放，
+	// 避免 failover 换号后把旧账号的 turn-state 带进新账号的握手。
+	BindSessionTurnStateForAccount(groupID string, sessionHash, accountID, turnState string, ttl time.Duration)
+	GetSessionTurnStateForAccount(groupID string, sessionHash, accountID string) (string, bool)
 
 	BindSessionConn(groupID string, sessionHash, connID string, ttl time.Duration)
 	GetSessionConn(groupID string, sessionHash string) (string, bool)
@@ -237,6 +245,10 @@ func (s *defaultOpenAIWSStateStore) DeleteResponseConn(responseID string) {
 }
 
 func (s *defaultOpenAIWSStateStore) BindSessionTurnState(groupID string, sessionHash, turnState string, ttl time.Duration) {
+	s.BindSessionTurnStateForAccount(groupID, sessionHash, "", turnState, ttl)
+}
+
+func (s *defaultOpenAIWSStateStore) BindSessionTurnStateForAccount(groupID string, sessionHash, accountID, turnState string, ttl time.Duration) {
 	key := openAIWSSessionTurnStateKey(groupID, sessionHash)
 	state := strings.TrimSpace(turnState)
 	if key == "" || state == "" {
@@ -249,15 +261,38 @@ func (s *defaultOpenAIWSStateStore) BindSessionTurnState(groupID string, session
 	ensureBindingCapacity(s.sessionToTurnState, key, openAIWSStateStoreMaxEntriesPerMap)
 	s.sessionToTurnState[key] = openAIWSTurnStateBinding{
 		turnState: state,
+		accountID: strings.TrimSpace(accountID),
 		expiresAt: time.Now().Add(ttl),
 	}
 	s.sessionToTurnStateMu.Unlock()
 }
 
 func (s *defaultOpenAIWSStateStore) GetSessionTurnState(groupID string, sessionHash string) (string, bool) {
+	binding, ok := s.loadSessionTurnStateBinding(groupID, sessionHash)
+	if !ok {
+		return "", false
+	}
+	return binding.turnState, true
+}
+
+// GetSessionTurnStateForAccount 仅回放同账号铸造（或旧式无溯源）的 turn-state。
+// 账号不匹配时视为不存在：调用方按「无 turn-state」出站，由上游为新账号重新铸造。
+func (s *defaultOpenAIWSStateStore) GetSessionTurnStateForAccount(groupID string, sessionHash, accountID string) (string, bool) {
+	binding, ok := s.loadSessionTurnStateBinding(groupID, sessionHash)
+	if !ok {
+		return "", false
+	}
+	accountID = strings.TrimSpace(accountID)
+	if binding.accountID != "" && accountID != "" && binding.accountID != accountID {
+		return "", false
+	}
+	return binding.turnState, true
+}
+
+func (s *defaultOpenAIWSStateStore) loadSessionTurnStateBinding(groupID string, sessionHash string) (openAIWSTurnStateBinding, bool) {
 	key := openAIWSSessionTurnStateKey(groupID, sessionHash)
 	if key == "" {
-		return "", false
+		return openAIWSTurnStateBinding{}, false
 	}
 	s.maybeCleanup()
 
@@ -266,9 +301,9 @@ func (s *defaultOpenAIWSStateStore) GetSessionTurnState(groupID string, sessionH
 	binding, ok := s.sessionToTurnState[key]
 	s.sessionToTurnStateMu.RUnlock()
 	if !ok || now.After(binding.expiresAt) || strings.TrimSpace(binding.turnState) == "" {
-		return "", false
+		return openAIWSTurnStateBinding{}, false
 	}
-	return binding.turnState, true
+	return binding, true
 }
 
 func (s *defaultOpenAIWSStateStore) DeleteSessionTurnState(groupID string, sessionHash string) {

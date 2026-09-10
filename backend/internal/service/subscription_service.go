@@ -417,7 +417,10 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 		validityDays = MaxValidityDays
 	}
 
-	now := time.Now()
+	// Use the service clock so entitlement activation, subscription windows,
+	// and reset-card validity all share the same durable timestamp. This also
+	// keeps the operation deterministic for callers that inject a clock.
+	now := s.resetCardNow()
 	expiresAt := now.AddDate(0, 0, validityDays)
 	if expiresAt.After(MaxExpiresAt) {
 		expiresAt = MaxExpiresAt
@@ -780,7 +783,14 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 
 // GetByID 根据ID获取订阅
 func (s *SubscriptionService) GetByID(ctx context.Context, id string) (*UserSubscription, error) {
-	return s.userSubRepo.GetByID(ctx, id)
+	sub, err := s.userSubRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.attachResetCardSummary(ctx, sub); err != nil {
+		return nil, err
+	}
+	return sub, nil
 }
 
 // GetActiveSubscription 获取用户对特定分组的有效订阅
@@ -831,6 +841,9 @@ func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID 
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.attachResetCardSummaries(ctx, subs); err != nil {
+		return nil, err
+	}
 	return subs, nil
 }
 
@@ -841,6 +854,9 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 		return nil, err
 	}
 	normalizeExpiredWindows(subs)
+	if err := s.attachResetCardSummaries(ctx, subs); err != nil {
+		return nil, err
+	}
 	return subs, nil
 }
 
@@ -853,6 +869,9 @@ func (s *SubscriptionService) ListGroupSubscriptions(ctx context.Context, groupI
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.attachResetCardSummaries(ctx, subs); err != nil {
+		return nil, nil, err
+	}
 	return subs, pag, nil
 }
 
@@ -865,6 +884,9 @@ func (s *SubscriptionService) List(ctx context.Context, page, pageSize int, user
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.attachResetCardSummaries(ctx, subs); err != nil {
+		return nil, nil, err
+	}
 	return subs, pag, nil
 }
 

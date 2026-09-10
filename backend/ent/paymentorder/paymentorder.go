@@ -96,6 +96,10 @@ const (
 	FieldSubscriptionGroupID = "subscription_group_id"
 	// FieldSubscriptionDays holds the string denoting the subscription_days field in the database.
 	FieldSubscriptionDays = "subscription_days"
+	// FieldSubscriptionResetCardCount holds the string denoting the subscription_reset_card_count field in the database.
+	FieldSubscriptionResetCardCount = "subscription_reset_card_count"
+	// FieldSubscriptionResetCardValidityDays holds the string denoting the subscription_reset_card_validity_days field in the database.
+	FieldSubscriptionResetCardValidityDays = "subscription_reset_card_validity_days"
 	// FieldProviderInstanceID holds the string denoting the provider_instance_id field in the database.
 	FieldProviderInstanceID = "provider_instance_id"
 	// FieldProviderKey holds the string denoting the provider_key field in the database.
@@ -205,6 +209,8 @@ var Columns = []string{
 	FieldPlanID,
 	FieldSubscriptionGroupID,
 	FieldSubscriptionDays,
+	FieldSubscriptionResetCardCount,
+	FieldSubscriptionResetCardValidityDays,
 	FieldProviderInstanceID,
 	FieldProviderKey,
 	FieldProviderSnapshot,
@@ -302,6 +308,10 @@ var (
 	DefaultOrderType string
 	// OrderTypeValidator is a validator for the "order_type" field. It is called by the builders before save.
 	OrderTypeValidator func(string) error
+	// DefaultSubscriptionResetCardCount holds the default value on creation for the "subscription_reset_card_count" field.
+	DefaultSubscriptionResetCardCount int
+	// DefaultSubscriptionResetCardValidityDays holds the default value on creation for the "subscription_reset_card_validity_days" field.
+	DefaultSubscriptionResetCardValidityDays int
 	// ProviderInstanceIDValidator is a validator for the "provider_instance_id" field. It is called by the builders before save.
 	ProviderInstanceIDValidator func(string) error
 	// ProviderKeyValidator is a validator for the "provider_key" field. It is called by the builders before save.
@@ -538,6 +548,16 @@ func BySubscriptionGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionDays orders the results by the subscription_days field.
 func BySubscriptionDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionDays, opts...).ToFunc()
+}
+
+// BySubscriptionResetCardCount orders the results by the subscription_reset_card_count field.
+func BySubscriptionResetCardCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionResetCardCount, opts...).ToFunc()
+}
+
+// BySubscriptionResetCardValidityDays orders the results by the subscription_reset_card_validity_days field.
+func BySubscriptionResetCardValidityDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionResetCardValidityDays, opts...).ToFunc()
 }
 
 // ByProviderInstanceID orders the results by the provider_instance_id field.

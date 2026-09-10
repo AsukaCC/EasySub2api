@@ -4,7 +4,7 @@
     :title="title || undefined"
   >
     <div
-      v-if="state"
+      v-if="resolvedState"
       class="features-channel-monitor-v2-metric-cell__panel-2"
       :class="dotClass"
       aria-hidden="true"
@@ -56,18 +56,29 @@ const detailParts = computed(() => {
     .filter(Boolean)
 })
 
+const missingValue = computed(() => {
+  const value = (props.value || '').trim()
+  return value === '' || value === '-' || value === '—'
+})
+
+const resolvedState = computed(() => (missingValue.value ? undefined : props.state))
+
 const stateClass = computed(() => {
-  if (!props.state) return 'features-channel-monitor-v2-metric-cell__state'
-  if (props.state === 'healthy') return 'features-channel-monitor-v2-metric-cell__state-2'
-  if (props.state === 'warning') return 'features-channel-monitor-v2-metric-cell__state-3'
-  if (props.state === 'critical') return 'features-channel-monitor-v2-metric-cell__state-4'
+  if (!resolvedState.value) {
+    return missingValue.value
+      ? 'features-channel-monitor-v2-metric-cell__state-5'
+      : 'features-channel-monitor-v2-metric-cell__state'
+  }
+  if (resolvedState.value === 'healthy') return 'features-channel-monitor-v2-metric-cell__state-2'
+  if (resolvedState.value === 'warning') return 'features-channel-monitor-v2-metric-cell__state-3'
+  if (resolvedState.value === 'critical') return 'features-channel-monitor-v2-metric-cell__state-4'
   return 'features-channel-monitor-v2-metric-cell__state-5'
 })
 
 const dotClass = computed(() => {
-  if (props.state === 'healthy') return 'status-fill--success'
-  if (props.state === 'warning') return 'status-fill--warning'
-  if (props.state === 'critical') return 'status-fill--danger'
+  if (resolvedState.value === 'healthy') return 'status-fill--success'
+  if (resolvedState.value === 'warning') return 'status-fill--warning'
+  if (resolvedState.value === 'critical') return 'status-fill--danger'
   return 'features-channel-monitor-v2-metric-cell__state-6'
 })
 </script>

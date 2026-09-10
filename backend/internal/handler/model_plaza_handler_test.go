@@ -125,3 +125,16 @@ func TestToModelPlazaOfficialPricing_NilPassthrough(t *testing.T) {
 }
 
 func testPtr(v float64) *float64 { return &v }
+
+func TestFilterPlazaVisibleGroups_SubscribedExclusiveGroup(t *testing.T) {
+	// 有效订阅对应的专属分组进入 allowedExclusive 后应对登录用户可见；未订阅的专属分组不可见。
+	groups := []service.PlazaGroup{
+		{ID: "42", IsExclusive: true, SubscriptionType: "subscription"},
+		{ID: "43", IsExclusive: true, SubscriptionType: "subscription"},
+		{ID: "44", IsExclusive: true, SubscriptionType: "standard"},
+	}
+	require.Empty(t, filterPlazaVisibleGroups(groups, nil))
+	visible := filterPlazaVisibleGroups(groups, map[string]struct{}{"42": {}})
+	require.Len(t, visible, 1)
+	require.Equal(t, "42", visible[0].ID)
+}

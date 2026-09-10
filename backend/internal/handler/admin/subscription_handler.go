@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"strings"
 
 	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
@@ -233,6 +234,81 @@ type ResetSubscriptionQuotaRequest struct {
 	Daily   bool `json:"daily"`
 	Weekly  bool `json:"weekly"`
 	Monthly bool `json:"monthly"`
+}
+
+type IssueResetCardsRequest struct {
+	SubscriptionIDs []string `json:"subscription_ids" binding:"required,min=1"`
+	Quantity        int      `json:"quantity" binding:"required,min=1,max=1000"`
+	ValidityDays    int      `json:"validity_days" binding:"omitempty,min=1,max=3650"`
+}
+
+type ResetWeeklySubscriptionsRequest struct {
+	SubscriptionIDs []string `json:"subscription_ids" binding:"required,min=1"`
+}
+
+// IssueResetCards grants independently expiring reset cards to one or more
+// subscriptions. Each subscription is committed independently so a single
+// invalid row does not roll back successful rows.
+// POST /api/v1/admin/subscriptions/reset-cards/issue
+func (h *SubscriptionHandler) IssueResetCards(c *gin.Context) {
+	var req IssueResetCardsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	for _, id := range req.SubscriptionIDs {
+		if strings.TrimSpace(id) == "" {
+			response.BadRequest(c, "subscription_ids must contain non-empty subscription IDs")
+			return
+		}
+	}
+	payload := struct {
+		SubscriptionIDs []string `json:"subscription_ids"`
+		Quantity        int      `json:"quantity"`
+		ValidityDays    int      `json:"validity_days"`
+	}{req.SubscriptionIDs, req.Quantity, req.ValidityDays}
+	adminID := getAdminIDFromContext(c)
+	executeAdminIdempotentJSON(c, "admin.subscriptions.issue_reset_cards", payload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		result := h.subscriptionService.IssueResetCards(ctx, req.SubscriptionIDs, req.Quantity, req.ValidityDays, adminID, c.GetHeader("Idempotency-Key"))
+		middleware2.SetAuditExtra(c, map[string]any{
+			"subscription_count": len(req.SubscriptionIDs),
+			"quantity":           req.Quantity,
+			"validity_days":      req.ValidityDays,
+			"success_count":      result.SuccessCount,
+			"failed_count":       result.FailedCount,
+			"total_issued":       result.TotalIssued,
+		})
+		return result, nil
+	})
+}
+
+// ResetWeekly resets only the rolling seven-day quota window and never
+// consumes reset cards.
+// POST /api/v1/admin/subscriptions/reset-weekly
+func (h *SubscriptionHandler) ResetWeekly(c *gin.Context) {
+	var req ResetWeeklySubscriptionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	for _, id := range req.SubscriptionIDs {
+		if strings.TrimSpace(id) == "" {
+			response.BadRequest(c, "subscription_ids must contain non-empty subscription IDs")
+			return
+		}
+	}
+	payload := struct {
+		SubscriptionIDs []string `json:"subscription_ids"`
+	}{req.SubscriptionIDs}
+	executeAdminIdempotentJSON(c, "admin.subscriptions.reset_weekly", payload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		result := h.subscriptionService.ResetWeeklyQuotas(ctx, req.SubscriptionIDs)
+		middleware2.SetAuditExtra(c, map[string]any{
+			"subscription_count": len(req.SubscriptionIDs),
+			"success_count":      result.SuccessCount,
+			"failed_count":       result.FailedCount,
+		})
+		return result, nil
+	})
 }
 
 // ResetQuota resets daily, weekly, and/or monthly usage for a subscription.

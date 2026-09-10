@@ -807,6 +807,48 @@ func (_u *PaymentOrderUpdate) ClearSubscriptionDays() *PaymentOrderUpdate {
 	return _u
 }
 
+// SetSubscriptionResetCardCount sets the "subscription_reset_card_count" field.
+func (_u *PaymentOrderUpdate) SetSubscriptionResetCardCount(v int) *PaymentOrderUpdate {
+	_u.mutation.ResetSubscriptionResetCardCount()
+	_u.mutation.SetSubscriptionResetCardCount(v)
+	return _u
+}
+
+// SetNillableSubscriptionResetCardCount sets the "subscription_reset_card_count" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableSubscriptionResetCardCount(v *int) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetSubscriptionResetCardCount(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionResetCardCount adds value to the "subscription_reset_card_count" field.
+func (_u *PaymentOrderUpdate) AddSubscriptionResetCardCount(v int) *PaymentOrderUpdate {
+	_u.mutation.AddSubscriptionResetCardCount(v)
+	return _u
+}
+
+// SetSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field.
+func (_u *PaymentOrderUpdate) SetSubscriptionResetCardValidityDays(v int) *PaymentOrderUpdate {
+	_u.mutation.ResetSubscriptionResetCardValidityDays()
+	_u.mutation.SetSubscriptionResetCardValidityDays(v)
+	return _u
+}
+
+// SetNillableSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableSubscriptionResetCardValidityDays(v *int) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetSubscriptionResetCardValidityDays(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionResetCardValidityDays adds value to the "subscription_reset_card_validity_days" field.
+func (_u *PaymentOrderUpdate) AddSubscriptionResetCardValidityDays(v int) *PaymentOrderUpdate {
+	_u.mutation.AddSubscriptionResetCardValidityDays(v)
+	return _u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_u *PaymentOrderUpdate) SetProviderInstanceID(v string) *PaymentOrderUpdate {
 	_u.mutation.SetProviderInstanceID(v)
@@ -1607,6 +1649,18 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SubscriptionResetCardCount(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionResetCardCount(); ok {
+		_spec.AddField(paymentorder.FieldSubscriptionResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SubscriptionResetCardValidityDays(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionResetCardValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionResetCardValidityDays(); ok {
+		_spec.AddField(paymentorder.FieldSubscriptionResetCardValidityDays, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
@@ -2564,6 +2618,48 @@ func (_u *PaymentOrderUpdateOne) ClearSubscriptionDays() *PaymentOrderUpdateOne 
 	return _u
 }
 
+// SetSubscriptionResetCardCount sets the "subscription_reset_card_count" field.
+func (_u *PaymentOrderUpdateOne) SetSubscriptionResetCardCount(v int) *PaymentOrderUpdateOne {
+	_u.mutation.ResetSubscriptionResetCardCount()
+	_u.mutation.SetSubscriptionResetCardCount(v)
+	return _u
+}
+
+// SetNillableSubscriptionResetCardCount sets the "subscription_reset_card_count" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableSubscriptionResetCardCount(v *int) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionResetCardCount(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionResetCardCount adds value to the "subscription_reset_card_count" field.
+func (_u *PaymentOrderUpdateOne) AddSubscriptionResetCardCount(v int) *PaymentOrderUpdateOne {
+	_u.mutation.AddSubscriptionResetCardCount(v)
+	return _u
+}
+
+// SetSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field.
+func (_u *PaymentOrderUpdateOne) SetSubscriptionResetCardValidityDays(v int) *PaymentOrderUpdateOne {
+	_u.mutation.ResetSubscriptionResetCardValidityDays()
+	_u.mutation.SetSubscriptionResetCardValidityDays(v)
+	return _u
+}
+
+// SetNillableSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableSubscriptionResetCardValidityDays(v *int) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionResetCardValidityDays(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionResetCardValidityDays adds value to the "subscription_reset_card_validity_days" field.
+func (_u *PaymentOrderUpdateOne) AddSubscriptionResetCardValidityDays(v int) *PaymentOrderUpdateOne {
+	_u.mutation.AddSubscriptionResetCardValidityDays(v)
+	return _u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_u *PaymentOrderUpdateOne) SetProviderInstanceID(v string) *PaymentOrderUpdateOne {
 	_u.mutation.SetProviderInstanceID(v)
@@ -3394,6 +3490,18 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SubscriptionResetCardCount(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionResetCardCount(); ok {
+		_spec.AddField(paymentorder.FieldSubscriptionResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SubscriptionResetCardValidityDays(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionResetCardValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionResetCardValidityDays(); ok {
+		_spec.AddField(paymentorder.FieldSubscriptionResetCardValidityDays, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)

@@ -197,6 +197,29 @@ func (s *AccountTestService) FetchOpenAIAccountModels(ctx context.Context, accou
 			DisplayName: id,
 		})
 	}
+	// Codex discovery lists Responses drivers, not image_generation tool models.
+	// Add locally supported image choices only to the OAuth test picker; keep the
+	// shared upstream catalog and API-key discovery authoritative.
+	if account.UsesOpenAICodexProtocol() {
+		for _, model := range openai.DefaultModels {
+			if _, ok := seen[model.ID]; ok {
+				continue
+			}
+			if IsGPTImageGenerationModel(model.ID) && account.IsModelSupported(model.ID) {
+				models = append(models, model)
+				seen[model.ID] = struct{}{}
+			}
+		}
+		for model := range account.GetModelMapping() {
+			if _, ok := seen[model]; ok {
+				continue
+			}
+			if IsGPTImageGenerationModel(model) && !strings.Contains(model, "*") {
+				models = append(models, openai.Model{ID: model, Object: "model", Type: "model", OwnedBy: "openai", DisplayName: model})
+				seen[model] = struct{}{}
+			}
+		}
+	}
 	if len(models) == 0 {
 		return nil, errors.New("OpenAI upstream returned no models")
 	}
@@ -792,6 +815,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
 	credentialAccount.ApplyHeaderOverrides(req.Header)
+	sanitizeOpenAIOutboundHeaders(req.Header)
 
 	// Get proxy URL
 	proxyURL := ""
@@ -1997,6 +2021,7 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
 	account.ApplyHeaderOverrides(req.Header)
+	sanitizeOpenAIOutboundHeaders(req.Header)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -2130,6 +2155,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
 	account.ApplyHeaderOverrides(req.Header)
+	sanitizeOpenAIOutboundHeaders(req.Header)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -2517,6 +2543,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
 	account.ApplyHeaderOverrides(req.Header)
+	sanitizeOpenAIOutboundHeaders(req.Header)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -2605,6 +2632,8 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 	}
 	applyOpenAIImagesDefaults(parsed)
 
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Responses driver: %s; image model: %s\n", openAIImagesResponsesMainModelValue(), parsed.Model)})
+
 	responsesBody, err := buildOpenAIImagesResponsesRequest(parsed, parsed.Model)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to build image request: %s", err.Error()))
@@ -2643,6 +2672,7 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 	// 与真实转发一致：账号级自定义 UA 同样作为管理员显式配置传入，否则测试用的身份
 	// 与该账号真实出站的身份不是同一个（issue #3901 的配对不变式由收口保证）。
 	enforceCodexIdentityHeadersWithUA(req.Header, credentialAccount.GetOpenAIUserAgent())
+	sanitizeOpenAIOutboundHeaders(req.Header)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -2678,6 +2708,9 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to parse image response: %s", err.Error()))
 	}
 	if len(results) == 0 {
+		if upstreamErr := extractOpenAIImagesUpstreamError(body); upstreamErr != nil {
+			return s.sendErrorAndEnd(c, upstreamErr.clientMessage())
+		}
 		return s.sendErrorAndEnd(c, "No images returned from responses API")
 	}
 

@@ -104,6 +104,16 @@ func ValidityUnit(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldValidityUnit, v))
 }
 
+// ResetCardCount applies equality check predicate on the "reset_card_count" field. It's identical to ResetCardCountEQ.
+func ResetCardCount(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldResetCardCount, v))
+}
+
+// ResetCardValidityDays applies equality check predicate on the "reset_card_validity_days" field. It's identical to ResetCardValidityDaysEQ.
+func ResetCardValidityDays(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldResetCardValidityDays, v))
+}
+
 // Features applies equality check predicate on the "features" field. It's identical to FeaturesEQ.
 func Features(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldFeatures, v))
@@ -597,6 +607,86 @@ func ValidityUnitEqualFold(v string) predicate.SubscriptionPlan {
 // ValidityUnitContainsFold applies the ContainsFold predicate on the "validity_unit" field.
 func ValidityUnitContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldValidityUnit, v))
+}
+
+// ResetCardCountEQ applies the EQ predicate on the "reset_card_count" field.
+func ResetCardCountEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldResetCardCount, v))
+}
+
+// ResetCardCountNEQ applies the NEQ predicate on the "reset_card_count" field.
+func ResetCardCountNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldResetCardCount, v))
+}
+
+// ResetCardCountIn applies the In predicate on the "reset_card_count" field.
+func ResetCardCountIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldResetCardCount, vs...))
+}
+
+// ResetCardCountNotIn applies the NotIn predicate on the "reset_card_count" field.
+func ResetCardCountNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldResetCardCount, vs...))
+}
+
+// ResetCardCountGT applies the GT predicate on the "reset_card_count" field.
+func ResetCardCountGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldResetCardCount, v))
+}
+
+// ResetCardCountGTE applies the GTE predicate on the "reset_card_count" field.
+func ResetCardCountGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldResetCardCount, v))
+}
+
+// ResetCardCountLT applies the LT predicate on the "reset_card_count" field.
+func ResetCardCountLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldResetCardCount, v))
+}
+
+// ResetCardCountLTE applies the LTE predicate on the "reset_card_count" field.
+func ResetCardCountLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldResetCardCount, v))
+}
+
+// ResetCardValidityDaysEQ applies the EQ predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysNEQ applies the NEQ predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysIn applies the In predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldResetCardValidityDays, vs...))
+}
+
+// ResetCardValidityDaysNotIn applies the NotIn predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldResetCardValidityDays, vs...))
+}
+
+// ResetCardValidityDaysGT applies the GT predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysGTE applies the GTE predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysLT applies the LT predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysLTE applies the LTE predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldResetCardValidityDays, v))
 }
 
 // FeaturesEQ applies the EQ predicate on the "features" field.

@@ -132,6 +132,9 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	if state := strings.TrimSpace(turnState); state != "" {
 		headers.Set(openAIWSTurnStateHeader, state)
 	}
+	// 与 HTTP 出站同一守卫：客户端回带的 turn-state 若已知由其他账号铸造（failover 换号），
+	// 剥离后再握手——异账号 blob 与本账号出站身份自相矛盾，是真实 Codex 永不产生的信号。
+	s.guardOpenAICodexTurnStateEcho(c, account, headers)
 	if metadata := strings.TrimSpace(turnMetadata); metadata != "" {
 		headers.Set(openAIWSTurnMetadataHeader, metadata)
 	}
@@ -173,6 +176,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	// 账号级请求头覆写（仅 openai api_key 账号启用时生效；OAuth 路径 no-op）。
 	// 覆盖所有 WS 模式（ctx_pool/dedicated/passthrough）的握手头。
 	account.ApplyHeaderOverrides(headers)
+	sanitizeOpenAIOutboundHeaders(headers)
 	setOpenAICodexRoutingHint(headers, account, routingModel, routingServiceTier)
 	logOpenAIRoutingDiagnostics(
 		ctx,

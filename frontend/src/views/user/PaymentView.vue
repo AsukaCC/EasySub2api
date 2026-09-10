@@ -124,7 +124,7 @@
             <img v-if="checkout.help_image_url" :src="checkout.help_image_url" alt=""
               class="views-user-payment-view__image"
               @click="previewImage = checkout.help_image_url" />
-            <p v-if="checkout.help_text" class="views-user-payment-view__description-9">{{ checkout.help_text }}</p>
+            <div v-if="checkout.help_text" class="payment-help-text markdown-body" v-html="renderedHelpText"></div>
           </div>
         </div>
       </template>
@@ -265,6 +265,15 @@
             <span class="subscription-dialog__limit-label">{{ t('payment.planCard.quota') }}</span>
             <div class="subscription-dialog__limit-value">{{ t('payment.planCard.unlimited') }}</div>
           </div>
+          <div v-if="(selectedPlan.reset_card_count ?? 0) > 0" class="subscription-dialog__limit-item">
+            <span class="subscription-dialog__limit-label">{{ t('payment.planCard.resetCards') }}</span>
+            <div class="subscription-dialog__limit-value">
+              {{ t('payment.planCard.resetCardsValue', {
+                count: selectedPlan.reset_card_count,
+                days: selectedPlan.reset_card_validity_days ?? 30,
+              }) }}
+            </div>
+          </div>
         </div>
 
         <!-- Wallet points check -->
@@ -359,6 +368,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
@@ -656,6 +667,10 @@ const checkout = ref<CheckoutInfoResponse>({
   plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
   wallet: { balance: 0, available_balance: 0, recharge_balance: 0, bonus_balance: 0, overdraft_amount: 0, frozen_balance: 0, frozen_recharge_balance: 0, frozen_bonus_balance: 0, total_balance: 0, next_expiring_bonus_amount: 0 },
 })
+
+const renderedHelpText = computed(() => DOMPurify.sanitize(
+  marked.parse(checkout.value.help_text || '', { async: false, gfm: true, breaks: false }),
+))
 
 const tabs = computed(() => {
   const result: { key: 'recharge' | 'subscription'; label: string }[] = []
@@ -1411,6 +1426,13 @@ defineExpose({
 </script>
 
 <style scoped>
+.payment-help-text {
+  width: 100%;
+  overflow-x: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 .wallet-summary {
   overflow: hidden;
   padding: 1.25rem;

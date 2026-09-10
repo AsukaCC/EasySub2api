@@ -204,6 +204,7 @@ type SystemSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        bool   `json:"channel_monitor_hide_user_ranking"`
 
 	// Grok model mapping policy (admin settings; empty mapping falls back to these).
 	GrokDefaultTextModel           string `json:"grok_default_text_model"`
@@ -219,6 +220,10 @@ type SystemSettings struct {
 	ModelPlazaUserVisible bool   `json:"model_plaza_user_visible"`
 	ModelPlazaRequireAuth bool   `json:"model_plaza_require_auth"`
 	ModelPlazaDescription string `json:"model_plaza_description"`
+
+	// Authenticated user usage guide.
+	UsageGuideEnabled   bool   `json:"usage_guide_enabled"`
+	UsageGuideContentMD string `json:"usage_guide_content_md"`
 
 	// Claude Code version check
 	MinClaudeCodeVersion string
@@ -384,6 +389,7 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        bool   `json:"channel_monitor_hide_user_ranking"`
 
 	// Grok model mapping policy (admin settings).
 	GrokDefaultTextModel           string `json:"grok_default_text_model"`
@@ -396,6 +402,7 @@ type PublicSettings struct {
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled     bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth bool `json:"model_plaza_require_auth"`
+	UsageGuideEnabled     bool `json:"usage_guide_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`

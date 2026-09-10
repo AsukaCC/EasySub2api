@@ -48,6 +48,19 @@ func validatePlanRequired(name string, groupID string, price float64, validityDa
 	return nil
 }
 
+func normalizePlanResetCardFields(count, validityDays int) (int, int, error) {
+	if count < 0 || count > MaxResetCardIssueQuantity {
+		return 0, 0, infraerrors.BadRequest("PLAN_RESET_CARD_COUNT_INVALID", "reset card count must be between 0 and 1000")
+	}
+	if validityDays <= 0 {
+		validityDays = DefaultResetCardValidityDays
+	}
+	if validityDays > MaxResetCardValidityDays {
+		return 0, 0, infraerrors.BadRequest("PLAN_RESET_CARD_VALIDITY_INVALID", "reset card validity must be between 1 and 3650 days")
+	}
+	return count, validityDays, nil
+}
+
 // validatePlanPatch validates only the non-nil fields in a patch update.
 func validatePlanPatch(req UpdatePlanRequest) error {
 	if req.Name != nil && strings.TrimSpace(*req.Name) == "" {
@@ -73,6 +86,12 @@ func validatePlanPatch(req UpdatePlanRequest) error {
 	}
 	if req.StockEnabled != nil && *req.StockEnabled && req.StockQuantity == nil {
 		return infraerrors.BadRequest("PLAN_STOCK_REQUIRED", "stock quantity is required when stock control is enabled")
+	}
+	if req.ResetCardCount != nil && (*req.ResetCardCount < 0 || *req.ResetCardCount > MaxResetCardIssueQuantity) {
+		return infraerrors.BadRequest("PLAN_RESET_CARD_COUNT_INVALID", "reset card count must be between 0 and 1000")
+	}
+	if req.ResetCardValidityDays != nil && (*req.ResetCardValidityDays < 1 || *req.ResetCardValidityDays > MaxResetCardValidityDays) {
+		return infraerrors.BadRequest("PLAN_RESET_CARD_VALIDITY_INVALID", "reset card validity must be between 1 and 3650 days")
 	}
 	return nil
 }
@@ -147,10 +166,15 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if req.StockEnabled && (req.StockQuantity == nil || *req.StockQuantity < 0) {
 		return nil, infraerrors.BadRequest("PLAN_STOCK_INVALID", "a non-negative stock quantity is required")
 	}
+	resetCardCount, resetCardValidityDays, err := normalizePlanResetCardFields(req.ResetCardCount, req.ResetCardValidityDays)
+	if err != nil {
+		return nil, err
+	}
 	b := s.entClient.SubscriptionPlan.Create().
 		SetGroupID(req.GroupID).SetName(req.Name).SetDescription(req.Description).
 		SetPrice(req.Price).SetCurrency(currency).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
 		SetFeatures(req.Features).SetProductName(req.ProductName).
+		SetResetCardCount(resetCardCount).SetResetCardValidityDays(resetCardValidityDays).
 		SetForSale(req.ForSale).SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
@@ -224,6 +248,12 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id string, req Up
 	}
 	if req.SortOrder != nil {
 		u.SetSortOrder(*req.SortOrder)
+	}
+	if req.ResetCardCount != nil {
+		u.SetResetCardCount(*req.ResetCardCount)
+	}
+	if req.ResetCardValidityDays != nil {
+		u.SetResetCardValidityDays(*req.ResetCardValidityDays)
 	}
 	if req.StockEnabled != nil {
 		if *req.StockEnabled {

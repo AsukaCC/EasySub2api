@@ -232,6 +232,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
 		SettingKeyChannelMonitorHideThroughput:         "true",
 		SettingKeyChannelMonitorShowQuota:              "false",
+		SettingKeyChannelMonitorHideUserRanking:        "false",
 
 		// Grok: safe defaults — no cross-vendor model rewrite unless operators enable it.
 		SettingKeyGrokDefaultTextModel:           "grok-4.5",
@@ -247,6 +248,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyModelPlazaUserVisible: "false",
 		SettingKeyModelPlazaRequireAuth: "false",
 		SettingKeyModelPlazaDescription: "",
+		SettingKeyUsageGuideEnabled:     "false",
+		SettingKeyUsageGuideContent:     defaultUsageGuideContent,
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
@@ -330,6 +333,10 @@ func parseForwardedClientIPHeadersSetting(value string) ([]string, error) {
 
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
+	usageGuideContent := settings[SettingKeyUsageGuideContent]
+	if _, exists := settings[SettingKeyUsageGuideContent]; !exists {
+		usageGuideContent = defaultUsageGuideContent
+	}
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
 	loginAgreementDocuments := parseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments])
 	loginAgreementUpdatedAt := strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt])
@@ -816,6 +823,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// 配额展示默认关闭且 fail-closed：仅字面 "true" 视为开启
 	// （与 setting_public.go 公开读取路径保持一致）。
 	result.ChannelMonitorShowQuota = settings[SettingKeyChannelMonitorShowQuota] == "true"
+	result.ChannelMonitorHideUserRanking = isTrueSettingValue(settings[SettingKeyChannelMonitorHideUserRanking])
 
 	// Grok default mapping policy
 	result.GrokDefaultTextModel = strings.TrimSpace(settings[SettingKeyGrokDefaultTextModel])
@@ -836,6 +844,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ModelPlazaUserVisible = userVisibilitySetting(settings, SettingKeyModelPlazaUserVisible, result.ModelPlazaEnabled)
 	result.ModelPlazaRequireAuth = settings[SettingKeyModelPlazaRequireAuth] == "true"
 	result.ModelPlazaDescription = settings[SettingKeyModelPlazaDescription]
+	result.UsageGuideEnabled = settings[SettingKeyUsageGuideEnabled] == "true"
+	result.UsageGuideContentMD = usageGuideContent
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
@@ -1042,6 +1052,15 @@ func userVisibilitySetting(settings map[string]string, key string, enabled bool)
 		return enabled
 	}
 	return enabled && value == "true"
+}
+
+func isTrueSettingValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "1", "on", "enabled":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeVisibleMethodSettingSource(method, source string, enabled bool) (string, error) {

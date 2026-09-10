@@ -26,8 +26,10 @@ func (PaymentOrder) Annotations() []schema.Annotation {
 		entsql.Annotation{
 			Table: "payment_orders",
 			Checks: map[string]string{
-				"payment_orders_order_type_valid":       "order_type IN ('balance', 'subscription')",
-				"payment_orders_inventory_status_valid": "inventory_status IN ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED')",
+				"payment_orders_order_type_valid":             "order_type IN ('balance', 'subscription')",
+				"payment_orders_inventory_status_valid":       "inventory_status IN ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED')",
+				"payment_orders_reset_card_count_nonnegative": "subscription_reset_card_count >= 0",
+				"payment_orders_reset_card_validity_positive": "subscription_reset_card_validity_days > 0",
 			},
 		},
 	}
@@ -167,6 +169,10 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.Int("subscription_days").
 			Optional().
 			Nillable(),
+		field.Int("subscription_reset_card_count").
+			Default(0),
+		field.Int("subscription_reset_card_validity_days").
+			Default(30),
 		field.String("provider_instance_id").SchemaType(postgresUUIDSchema).
 			Optional().
 			Nillable().

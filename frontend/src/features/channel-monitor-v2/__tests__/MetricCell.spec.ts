@@ -20,6 +20,21 @@ describe('MetricCell', () => {
     expect(wrapper.find('strong').classes().join(' ')).toMatch(/emerald/)
   })
 
+  it('does not paint missing first-token dash as critical red', () => {
+    const wrapper = mount(MetricCell, {
+      props: {
+        label: '首 Token P50',
+        value: '-',
+        detail: '-',
+        state: 'critical',
+      },
+    })
+    const classes = wrapper.find('strong').classes()
+    expect(classes).not.toContain('features-channel-monitor-v2-metric-cell__state-4')
+    expect(classes).toContain('features-channel-monitor-v2-metric-cell__state-5')
+    expect(wrapper.find('[aria-hidden="true"]').exists()).toBe(false)
+  })
+
   it('maps warning and critical health states to distinct colors', () => {
     const warning = mount(MetricCell, {
       props: { label: '错误', value: '10%', detail: '1 次', state: 'warning' },

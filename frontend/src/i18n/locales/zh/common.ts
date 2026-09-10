@@ -76,6 +76,7 @@ export default {
     noGroupsAvailable: '无可用分组',
     unknownError: '发生未知错误',
     saving: '保存中...',
+    retry: '重试',
     selectedCount: '（已选 {count} 个）',
     refresh: '刷新',
     autoRefresh: {
@@ -133,6 +134,13 @@ export default {
     acceptFailed: '提交确认失败'
   },
 
+  usageGuide: {
+    title: '使用说明',
+    description: '查看 API Key、分组、计费和模型调用说明',
+    loadFailed: '使用说明加载失败',
+    empty: '暂无使用说明内容',
+  },
+
   legal: {
     loadFailed: '文档加载失败',
     retryLater: '请稍后刷新页面重试。',
@@ -167,6 +175,7 @@ export default {
     announcements: '公告',
     apiKeys: 'API 密钥',
     usage: '使用记录',
+    usageGuide: '使用说明',
     userUsage: '用户使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',

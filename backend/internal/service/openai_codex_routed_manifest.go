@@ -151,7 +151,7 @@ func loadCodexGroupCatalogAccounts(ctx context.Context, repo AccountRepository, 
 	catalog = visible
 	groupAccounts, listErr := repo.ListModelAvailabilityCandidates(ctx, &groupID, []string{
 		PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity,
-		PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek,
+		PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax,
 	}, false)
 	if listErr != nil {
 		return visible, catalog, nil

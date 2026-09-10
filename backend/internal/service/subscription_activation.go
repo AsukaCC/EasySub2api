@@ -46,8 +46,10 @@ var (
 
 type SubscriptionGrantInput struct {
 	AssignSubscriptionInput
-	SourceType string
-	SourceID   string
+	SourceType            string
+	SourceID              string
+	ResetCardCount        int
+	ResetCardValidityDays int
 }
 
 type PendingSubscription struct {
@@ -56,6 +58,8 @@ type PendingSubscription struct {
 	GroupID                  string     `json:"group_id"`
 	Platform                 string     `json:"platform"`
 	ValidityDays             int        `json:"validity_days"`
+	ResetCardCount           int        `json:"reset_card_count"`
+	ResetCardValidityDays    int        `json:"reset_card_validity_days"`
 	SourceType               string     `json:"source_type"`
 	SourceID                 string     `json:"source_id,omitempty"`
 	BlockedBySubscriptionID  *string    `json:"blocked_by_subscription_id,omitempty"`
@@ -85,6 +89,7 @@ func pendingSubscriptionFromEnt(p *dbent.PendingSubscription) *PendingSubscripti
 	return &PendingSubscription{
 		ID: p.ID, UserID: p.UserID, GroupID: p.GroupID, Platform: p.Platform,
 		ValidityDays: p.ValidityDays, SourceType: p.SourceType, SourceID: p.SourceID,
+		ResetCardCount: p.ResetCardCount, ResetCardValidityDays: p.ResetCardValidityDays,
 		BlockedBySubscriptionID: p.BlockedBySubscriptionID,
 		ExpectedActivationAt:    p.ExpectedActivationAt, Status: p.Status,
 		ActivatedSubscriptionID: p.ActivatedSubscriptionID, ActivationMode: p.ActivationMode,
@@ -159,10 +164,26 @@ func (s *SubscriptionService) grantOrQueueSubscriptionTx(ctx context.Context, cl
 		if err == nil {
 			switch existing.Status {
 			case PendingSubscriptionStatusPending:
+				// A payment may have created this pending row under an older
+				// deployment before reset-card snapshots were persisted. The order
+				// source is already proven identical, so repair only the missing
+				// entitlement snapshot while keeping the grant idempotent.
+				if input.ResetCardCount > 0 && existing.ResetCardCount == 0 {
+					updated, updateErr := client.PendingSubscription.UpdateOneID(existing.ID).
+						SetResetCardCount(input.ResetCardCount).
+						SetResetCardValidityDays(normalizeResetCardValidityDays(input.ResetCardValidityDays)).
+						Save(ctx)
+					if updateErr != nil {
+						return nil, fmt.Errorf("repair pending subscription reset card snapshot: %w", updateErr)
+					}
+					existing = updated
+				}
 				return &SubscriptionGrantResult{ActivationStatus: SubscriptionActivationPending, PendingSubscription: pendingSubscriptionFromEnt(existing)}, nil
 			case PendingSubscriptionStatusActivated:
 				if existing.ActivatedSubscriptionID != nil {
-					sub, subErr := s.userSubRepo.GetByID(ctx, *existing.ActivatedSubscriptionID)
+					// Return the same enriched subscription shape as a first-time
+					// grant, including the subscription-bound reset-card summary.
+					sub, subErr := s.GetByID(ctx, *existing.ActivatedSubscriptionID)
 					if subErr == nil {
 						return &SubscriptionGrantResult{ActivationStatus: SubscriptionActivationActive, Subscription: sub, PendingSubscription: pendingSubscriptionFromEnt(existing)}, nil
 					}
@@ -177,7 +198,7 @@ func (s *SubscriptionService) grantOrQueueSubscriptionTx(ctx context.Context, cl
 		}
 	}
 
-	now := time.Now().UTC()
+	now := s.resetCardNow()
 	blockers, err := currentPlatformSubscriptions(ctx, client, input.UserID, platform, now, true)
 	if err != nil {
 		return nil, err
@@ -187,14 +208,20 @@ func (s *SubscriptionService) grantOrQueueSubscriptionTx(ctx context.Context, cl
 		if err != nil {
 			return nil, err
 		}
+		if input.ResetCardCount > 0 {
+			if _, err := s.grantResetCardsTx(ctx, client, sub, input.ResetCardCount, input.ResetCardValidityDays, firstNonEmpty(strings.TrimSpace(input.SourceType), "subscription_grant"), firstNonEmpty(strings.TrimSpace(input.SourceID), sub.ID), now); err != nil {
+				return nil, fmt.Errorf("issue subscription reset cards: %w", err)
+			}
+		}
 		result := &SubscriptionGrantResult{ActivationStatus: SubscriptionActivationActive, Subscription: sub}
 		if sourceID := strings.TrimSpace(input.SourceID); sourceID != "" {
-			now := time.Now().UTC()
 			recordBuilder := client.PendingSubscription.Create().
 				SetUserID(input.UserID).
 				SetGroupID(input.GroupID).
 				SetPlatform(platform).
 				SetValidityDays(input.ValidityDays).
+				SetResetCardCount(input.ResetCardCount).
+				SetResetCardValidityDays(normalizeResetCardValidityDays(input.ResetCardValidityDays)).
 				SetSourceType(firstNonEmpty(strings.TrimSpace(input.SourceType), "manual")).
 				SetSourceID(sourceID).
 				SetStatus(PendingSubscriptionStatusActivated).
@@ -238,6 +265,8 @@ func (s *SubscriptionService) grantOrQueueSubscriptionTx(ctx context.Context, cl
 		SetGroupID(input.GroupID).
 		SetPlatform(platform).
 		SetValidityDays(input.ValidityDays).
+		SetResetCardCount(input.ResetCardCount).
+		SetResetCardValidityDays(normalizeResetCardValidityDays(input.ResetCardValidityDays)).
 		SetSourceType(firstNonEmpty(strings.TrimSpace(input.SourceType), "manual")).
 		SetSourceID(strings.TrimSpace(input.SourceID)).
 		SetBlockedBySubscriptionID(blockedBy).
@@ -385,7 +414,7 @@ func (s *SubscriptionService) activatePendingTx(ctx context.Context, client *dbe
 			Save(ctx)
 		return nil, nil, ErrSubscriptionActivationTargetUnavailable
 	}
-	now := time.Now().UTC()
+	now := s.resetCardNow()
 	blockers, err := currentPlatformSubscriptions(ctx, client, pending.UserID, pending.Platform, now, true)
 	if err != nil {
 		return nil, nil, err
@@ -428,6 +457,13 @@ func (s *SubscriptionService) activatePendingTx(ctx context.Context, client *dbe
 	sub, _, err := s.assignOrExtendSubscription(ctx, grantInput, true)
 	if err != nil {
 		return nil, nil, err
+	}
+	if pending.ResetCardCount > 0 {
+		sourceType := firstNonEmpty(strings.TrimSpace(pending.SourceType), "pending_subscription")
+		sourceID := firstNonEmpty(strings.TrimSpace(pending.SourceID), pending.ID)
+		if _, err := s.grantResetCardsTx(ctx, client, sub, pending.ResetCardCount, pending.ResetCardValidityDays, sourceType, sourceID, now); err != nil {
+			return nil, nil, fmt.Errorf("issue pending subscription reset cards: %w", err)
+		}
 	}
 	mode := SubscriptionActivationModeScheduled
 	if immediate {

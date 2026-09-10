@@ -47,6 +47,34 @@ func (_c *PendingSubscriptionCreate) SetValidityDays(v int) *PendingSubscription
 	return _c
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (_c *PendingSubscriptionCreate) SetResetCardCount(v int) *PendingSubscriptionCreate {
+	_c.mutation.SetResetCardCount(v)
+	return _c
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_c *PendingSubscriptionCreate) SetNillableResetCardCount(v *int) *PendingSubscriptionCreate {
+	if v != nil {
+		_c.SetResetCardCount(*v)
+	}
+	return _c
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (_c *PendingSubscriptionCreate) SetResetCardValidityDays(v int) *PendingSubscriptionCreate {
+	_c.mutation.SetResetCardValidityDays(v)
+	return _c
+}
+
+// SetNillableResetCardValidityDays sets the "reset_card_validity_days" field if the given value is not nil.
+func (_c *PendingSubscriptionCreate) SetNillableResetCardValidityDays(v *int) *PendingSubscriptionCreate {
+	if v != nil {
+		_c.SetResetCardValidityDays(*v)
+	}
+	return _c
+}
+
 // SetSourceType sets the "source_type" field.
 func (_c *PendingSubscriptionCreate) SetSourceType(v string) *PendingSubscriptionCreate {
 	_c.mutation.SetSourceType(v)
@@ -290,6 +318,14 @@ func (_c *PendingSubscriptionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *PendingSubscriptionCreate) defaults() {
+	if _, ok := _c.mutation.ResetCardCount(); !ok {
+		v := pendingsubscription.DefaultResetCardCount
+		_c.mutation.SetResetCardCount(v)
+	}
+	if _, ok := _c.mutation.ResetCardValidityDays(); !ok {
+		v := pendingsubscription.DefaultResetCardValidityDays
+		_c.mutation.SetResetCardValidityDays(v)
+	}
 	if _, ok := _c.mutation.SourceID(); !ok {
 		v := pendingsubscription.DefaultSourceID
 		_c.mutation.SetSourceID(v)
@@ -342,6 +378,12 @@ func (_c *PendingSubscriptionCreate) check() error {
 	}
 	if _, ok := _c.mutation.ValidityDays(); !ok {
 		return &ValidationError{Name: "validity_days", err: errors.New(`ent: missing required field "PendingSubscription.validity_days"`)}
+	}
+	if _, ok := _c.mutation.ResetCardCount(); !ok {
+		return &ValidationError{Name: "reset_card_count", err: errors.New(`ent: missing required field "PendingSubscription.reset_card_count"`)}
+	}
+	if _, ok := _c.mutation.ResetCardValidityDays(); !ok {
+		return &ValidationError{Name: "reset_card_validity_days", err: errors.New(`ent: missing required field "PendingSubscription.reset_card_validity_days"`)}
 	}
 	if _, ok := _c.mutation.SourceType(); !ok {
 		return &ValidationError{Name: "source_type", err: errors.New(`ent: missing required field "PendingSubscription.source_type"`)}
@@ -438,6 +480,14 @@ func (_c *PendingSubscriptionCreate) createSpec() (*PendingSubscription, *sqlgra
 	if value, ok := _c.mutation.ValidityDays(); ok {
 		_spec.SetField(pendingsubscription.FieldValidityDays, field.TypeInt, value)
 		_node.ValidityDays = value
+	}
+	if value, ok := _c.mutation.ResetCardCount(); ok {
+		_spec.SetField(pendingsubscription.FieldResetCardCount, field.TypeInt, value)
+		_node.ResetCardCount = value
+	}
+	if value, ok := _c.mutation.ResetCardValidityDays(); ok {
+		_spec.SetField(pendingsubscription.FieldResetCardValidityDays, field.TypeInt, value)
+		_node.ResetCardValidityDays = value
 	}
 	if value, ok := _c.mutation.SourceType(); ok {
 		_spec.SetField(pendingsubscription.FieldSourceType, field.TypeString, value)
@@ -602,6 +652,42 @@ func (u *PendingSubscriptionUpsert) UpdateValidityDays() *PendingSubscriptionUps
 // AddValidityDays adds v to the "validity_days" field.
 func (u *PendingSubscriptionUpsert) AddValidityDays(v int) *PendingSubscriptionUpsert {
 	u.Add(pendingsubscription.FieldValidityDays, v)
+	return u
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *PendingSubscriptionUpsert) SetResetCardCount(v int) *PendingSubscriptionUpsert {
+	u.Set(pendingsubscription.FieldResetCardCount, v)
+	return u
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *PendingSubscriptionUpsert) UpdateResetCardCount() *PendingSubscriptionUpsert {
+	u.SetExcluded(pendingsubscription.FieldResetCardCount)
+	return u
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *PendingSubscriptionUpsert) AddResetCardCount(v int) *PendingSubscriptionUpsert {
+	u.Add(pendingsubscription.FieldResetCardCount, v)
+	return u
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (u *PendingSubscriptionUpsert) SetResetCardValidityDays(v int) *PendingSubscriptionUpsert {
+	u.Set(pendingsubscription.FieldResetCardValidityDays, v)
+	return u
+}
+
+// UpdateResetCardValidityDays sets the "reset_card_validity_days" field to the value that was provided on create.
+func (u *PendingSubscriptionUpsert) UpdateResetCardValidityDays() *PendingSubscriptionUpsert {
+	u.SetExcluded(pendingsubscription.FieldResetCardValidityDays)
+	return u
+}
+
+// AddResetCardValidityDays adds v to the "reset_card_validity_days" field.
+func (u *PendingSubscriptionUpsert) AddResetCardValidityDays(v int) *PendingSubscriptionUpsert {
+	u.Add(pendingsubscription.FieldResetCardValidityDays, v)
 	return u
 }
 
@@ -926,6 +1012,48 @@ func (u *PendingSubscriptionUpsertOne) AddValidityDays(v int) *PendingSubscripti
 func (u *PendingSubscriptionUpsertOne) UpdateValidityDays() *PendingSubscriptionUpsertOne {
 	return u.Update(func(s *PendingSubscriptionUpsert) {
 		s.UpdateValidityDays()
+	})
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *PendingSubscriptionUpsertOne) SetResetCardCount(v int) *PendingSubscriptionUpsertOne {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.SetResetCardCount(v)
+	})
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *PendingSubscriptionUpsertOne) AddResetCardCount(v int) *PendingSubscriptionUpsertOne {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.AddResetCardCount(v)
+	})
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *PendingSubscriptionUpsertOne) UpdateResetCardCount() *PendingSubscriptionUpsertOne {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.UpdateResetCardCount()
+	})
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (u *PendingSubscriptionUpsertOne) SetResetCardValidityDays(v int) *PendingSubscriptionUpsertOne {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.SetResetCardValidityDays(v)
+	})
+}
+
+// AddResetCardValidityDays adds v to the "reset_card_validity_days" field.
+func (u *PendingSubscriptionUpsertOne) AddResetCardValidityDays(v int) *PendingSubscriptionUpsertOne {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.AddResetCardValidityDays(v)
+	})
+}
+
+// UpdateResetCardValidityDays sets the "reset_card_validity_days" field to the value that was provided on create.
+func (u *PendingSubscriptionUpsertOne) UpdateResetCardValidityDays() *PendingSubscriptionUpsertOne {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.UpdateResetCardValidityDays()
 	})
 }
 
@@ -1452,6 +1580,48 @@ func (u *PendingSubscriptionUpsertBulk) AddValidityDays(v int) *PendingSubscript
 func (u *PendingSubscriptionUpsertBulk) UpdateValidityDays() *PendingSubscriptionUpsertBulk {
 	return u.Update(func(s *PendingSubscriptionUpsert) {
 		s.UpdateValidityDays()
+	})
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *PendingSubscriptionUpsertBulk) SetResetCardCount(v int) *PendingSubscriptionUpsertBulk {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.SetResetCardCount(v)
+	})
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *PendingSubscriptionUpsertBulk) AddResetCardCount(v int) *PendingSubscriptionUpsertBulk {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.AddResetCardCount(v)
+	})
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *PendingSubscriptionUpsertBulk) UpdateResetCardCount() *PendingSubscriptionUpsertBulk {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.UpdateResetCardCount()
+	})
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (u *PendingSubscriptionUpsertBulk) SetResetCardValidityDays(v int) *PendingSubscriptionUpsertBulk {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.SetResetCardValidityDays(v)
+	})
+}
+
+// AddResetCardValidityDays adds v to the "reset_card_validity_days" field.
+func (u *PendingSubscriptionUpsertBulk) AddResetCardValidityDays(v int) *PendingSubscriptionUpsertBulk {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.AddResetCardValidityDays(v)
+	})
+}
+
+// UpdateResetCardValidityDays sets the "reset_card_validity_days" field to the value that was provided on create.
+func (u *PendingSubscriptionUpsertBulk) UpdateResetCardValidityDays() *PendingSubscriptionUpsertBulk {
+	return u.Update(func(s *PendingSubscriptionUpsert) {
+		s.UpdateResetCardValidityDays()
 	})
 }
 

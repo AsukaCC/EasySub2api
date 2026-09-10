@@ -16,6 +16,8 @@ import (
 	dbent "github.com/AsukaCC/EasySub2api/ent"
 	"github.com/AsukaCC/EasySub2api/ent/paymentauditlog"
 	"github.com/AsukaCC/EasySub2api/ent/paymentorder"
+	"github.com/AsukaCC/EasySub2api/ent/pendingsubscription"
+	"github.com/AsukaCC/EasySub2api/ent/usersubscription"
 	"github.com/AsukaCC/EasySub2api/internal/payment"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 )
@@ -651,7 +653,10 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 				ValidityDays: days,
 				AssignedBy:   "",
 				Notes:        orderNote,
-			}, SourceType: "payment_order", SourceID: o.ID})
+			}, SourceType: "payment_order", SourceID: o.ID,
+				ResetCardCount:        o.SubscriptionResetCardCount,
+				ResetCardValidityDays: o.SubscriptionResetCardValidityDays,
+			})
 			if err != nil {
 				return fmt.Errorf("assign subscription: %w", err)
 			}
@@ -692,6 +697,16 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		}
 	}
 
+	// Card rights are part of the subscription entitlement, not the payment
+	// audit row.  A retry can arrive after an older deployment assigned the
+	// subscription (or after a recovery-by-note path) but before the card
+	// ledger was populated.  Reconcile that narrow gap inside the same
+	// fulfillment transaction.  Pending entitlements are deliberately left
+	// alone; activation owns their issuance and will use the same source key.
+	if err := s.ensurePaymentResetCardsIssuedTx(txCtx, txClient, o, groupID); err != nil {
+		return err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit subscription fulfillment tx: %w", err)
 	}
@@ -709,6 +724,93 @@ func (s *PaymentService) invalidateSubscriptionCachesAfterFulfillment(ctx contex
 		slog.Error("invalidate subscription cache after fulfillment", "orderID", o.ID, "userID", o.UserID, "groupID", groupID, "error", err)
 		s.writeAuditLog(ctx, o.ID, "SUBSCRIPTION_CACHE_INVALIDATION_FAILED", "system", map[string]any{"error": err.Error()})
 	}
+}
+
+// ensurePaymentResetCardsIssuedTx repairs a recoverable fulfillment gap
+// without ever duplicating cards.  The source_type/source_id/grant_index
+// unique key makes this safe for webhook retries and idempotency replays.
+func (s *PaymentService) ensurePaymentResetCardsIssuedTx(ctx context.Context, client *dbent.Client, o *dbent.PaymentOrder, groupID string) error {
+	if s == nil || s.subscriptionSvc == nil || client == nil || o == nil || o.SubscriptionResetCardCount <= 0 {
+		return nil
+	}
+
+	var subscriptionID string
+	issueAt := s.subscriptionSvc.resetCardNow()
+	pending, err := client.PendingSubscription.Query().Where(
+		pendingsubscription.SourceTypeEQ("payment_order"),
+		pendingsubscription.SourceIDEQ(o.ID),
+	).ForUpdate().Only(ctx)
+	if err == nil {
+		switch pending.Status {
+		case PendingSubscriptionStatusPending:
+			// The pending activation transaction will issue the snapshot cards
+			// immediately after it creates the active subscription.
+			return nil
+		case PendingSubscriptionStatusActivated:
+			if pending.ActivatedSubscriptionID != nil && strings.TrimSpace(*pending.ActivatedSubscriptionID) != "" {
+				subscriptionID = strings.TrimSpace(*pending.ActivatedSubscriptionID)
+			}
+			// Preserve the original activation timestamp when repairing a card
+			// ledger gap after a retry or an older deployment. Card validity is
+			// anchored to activation, never to the later reconciliation time.
+			if pending.ActivatedAt != nil && !pending.ActivatedAt.IsZero() {
+				issueAt = pending.ActivatedAt.UTC()
+			}
+		default:
+			return nil
+		}
+	} else if !dbent.IsNotFound(err) {
+		return fmt.Errorf("check payment pending entitlement for reset cards: %w", err)
+	}
+
+	// Older assignment recovery may have no pending row.  Require the order
+	// note as an additional ownership proof so an unrelated subscription in the
+	// same group can never receive this order's card entitlement.
+	if subscriptionID == "" {
+		orderNote := paymentSubscriptionOrderNote(o.ID)
+		recovered, lookupErr := client.UserSubscription.Query().Where(
+			usersubscription.UserIDEQ(o.UserID),
+			usersubscription.GroupIDEQ(groupID),
+			usersubscription.NotesContains(orderNote),
+		).ForUpdate().First(ctx)
+		if dbent.IsNotFound(lookupErr) {
+			return nil
+		}
+		if lookupErr != nil {
+			return fmt.Errorf("find payment subscription for reset cards: %w", lookupErr)
+		}
+		subscriptionID = recovered.ID
+	}
+
+	sub, lookupErr := client.UserSubscription.Query().Where(
+		usersubscription.IDEQ(subscriptionID),
+	).ForUpdate().Only(ctx)
+	if dbent.IsNotFound(lookupErr) {
+		return nil
+	}
+	if lookupErr != nil {
+		return fmt.Errorf("reload payment subscription for reset cards: %w", lookupErr)
+	}
+	if pending == nil && !sub.StartsAt.IsZero() && sub.StartsAt.Before(issueAt) {
+		// Legacy assignment recovery has no activation audit timestamp. The
+		// subscription start is the closest durable activation marker available;
+		// do not extend the card lifetime just because reconciliation ran later.
+		issueAt = sub.StartsAt.UTC()
+	}
+	if _, err := issueResetCardsTx(
+		ctx,
+		client,
+		sub,
+		o.SubscriptionResetCardCount,
+		o.SubscriptionResetCardValidityDays,
+		"",
+		"payment_order",
+		o.ID,
+		issueAt,
+	); err != nil {
+		return fmt.Errorf("reconcile payment subscription reset cards: %w", err)
+	}
+	return nil
 }
 
 func hasPaymentSubscriptionAssignmentAudit(ctx context.Context, client *dbent.Client, orderID string) (bool, error) {

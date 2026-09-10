@@ -314,6 +314,10 @@ export default {
   // Usage
   usage: {
     title: '使用记录',
+    roleScope: '用户类型',
+    roleAll: '全部',
+    roleAdmin: '管理员',
+    roleUser: '用户',
     description: '查看和分析您的 API 使用历史',
     costDetails: '费用明细',
     tokenDetails: 'Token 明细',
@@ -497,7 +501,8 @@ export default {
       antigravity: 'Antigravity',
       kimi: 'Kimi',
       zhipu: '智谱 GLM',
-      deepseek: 'DeepSeek'
+      deepseek: 'DeepSeek',
+      minimax: 'MiniMax'
     },
     // 检查模式（监控条目的工作方式）
     checkMode: {

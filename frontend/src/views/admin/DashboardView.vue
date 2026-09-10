@@ -502,7 +502,8 @@ const platformLabel = (platform: string): string => {
     grok: 'Grok',
     kimi: 'Kimi',
     zhipu: 'Zhipu',
-    deepseek: 'DeepSeek'
+    deepseek: 'DeepSeek',
+    minimax: 'MiniMax'
   }
   return labels[platform] || platform
 }

@@ -78,6 +78,8 @@ type Tx struct {
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// SubscriptionResetCard is the client for interacting with the SubscriptionResetCard builders.
+	SubscriptionResetCard *SubscriptionResetCardClient
 	// SupportTicket is the client for interacting with the SupportTicket builders.
 	SupportTicket *SupportTicketClient
 	// SupportTicketMessage is the client for interacting with the SupportTicketMessage builders.
@@ -265,6 +267,7 @@ func (tx *Tx) init() {
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
 	tx.SubscriptionPlan = NewSubscriptionPlanClient(tx.config)
+	tx.SubscriptionResetCard = NewSubscriptionResetCardClient(tx.config)
 	tx.SupportTicket = NewSupportTicketClient(tx.config)
 	tx.SupportTicketMessage = NewSupportTicketMessageClient(tx.config)
 	tx.SupportTicketRead = NewSupportTicketReadClient(tx.config)

@@ -56,7 +56,7 @@ declare module 'vue-router' {
     requiresRiskControl?: boolean
 
     /** User-facing feature that must be both running and published. */
-    userFeature?: 'channel-monitor' | 'available-channels' | 'model-plaza' | 'payment' | 'affiliate'
+    userFeature?: 'channel-monitor' | 'available-channels' | 'model-plaza' | 'usage-guide' | 'payment' | 'affiliate'
 
     /**
      * i18n key for the page title

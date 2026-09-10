@@ -24,8 +24,10 @@ func (PendingSubscription) Annotations() []schema.Annotation {
 		entsql.Annotation{
 			Table: "pending_subscriptions",
 			Checks: map[string]string{
-				"pending_subscriptions_status_valid":      "status IN ('PENDING', 'ACTIVATED', 'CANCELLED')",
-				"pending_subscriptions_validity_positive": "validity_days > 0",
+				"pending_subscriptions_status_valid":                 "status IN ('PENDING', 'ACTIVATED', 'CANCELLED')",
+				"pending_subscriptions_validity_positive":            "validity_days > 0",
+				"pending_subscriptions_reset_card_count_nonnegative": "reset_card_count >= 0",
+				"pending_subscriptions_reset_card_validity_positive": "reset_card_validity_days > 0",
 			},
 		},
 	}
@@ -41,6 +43,8 @@ func (PendingSubscription) Fields() []ent.Field {
 		field.String("group_id").SchemaType(postgresUUIDSchema),
 		field.String("platform").MaxLen(50),
 		field.Int("validity_days"),
+		field.Int("reset_card_count").Default(0),
+		field.Int("reset_card_validity_days").Default(30),
 		field.String("source_type").MaxLen(32),
 		field.String("source_id").MaxLen(128).Default(""),
 		field.String("blocked_by_subscription_id").SchemaType(postgresUUIDSchema).Optional().Nillable(),

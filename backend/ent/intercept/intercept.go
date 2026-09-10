@@ -41,6 +41,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent/securitysecret"
 	"github.com/AsukaCC/EasySub2api/ent/setting"
 	"github.com/AsukaCC/EasySub2api/ent/subscriptionplan"
+	"github.com/AsukaCC/EasySub2api/ent/subscriptionresetcard"
 	"github.com/AsukaCC/EasySub2api/ent/supportticket"
 	"github.com/AsukaCC/EasySub2api/ent/supportticketmessage"
 	"github.com/AsukaCC/EasySub2api/ent/supportticketread"
@@ -975,6 +976,33 @@ func (f TraverseSubscriptionPlan) Traverse(ctx context.Context, q ent.Query) err
 	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionPlanQuery", q)
 }
 
+// The SubscriptionResetCardFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubscriptionResetCardFunc func(context.Context, *ent.SubscriptionResetCardQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubscriptionResetCardFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubscriptionResetCardQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetCardQuery", q)
+}
+
+// The TraverseSubscriptionResetCard type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubscriptionResetCard func(context.Context, *ent.SubscriptionResetCardQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubscriptionResetCard) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubscriptionResetCard) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubscriptionResetCardQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetCardQuery", q)
+}
+
 // The SupportTicketFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SupportTicketFunc func(context.Context, *ent.SupportTicketQuery) (ent.Value, error)
 
@@ -1366,6 +1394,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SettingQuery, predicate.Setting, setting.OrderOption]{typ: ent.TypeSetting, tq: q}, nil
 	case *ent.SubscriptionPlanQuery:
 		return &query[*ent.SubscriptionPlanQuery, predicate.SubscriptionPlan, subscriptionplan.OrderOption]{typ: ent.TypeSubscriptionPlan, tq: q}, nil
+	case *ent.SubscriptionResetCardQuery:
+		return &query[*ent.SubscriptionResetCardQuery, predicate.SubscriptionResetCard, subscriptionresetcard.OrderOption]{typ: ent.TypeSubscriptionResetCard, tq: q}, nil
 	case *ent.SupportTicketQuery:
 		return &query[*ent.SupportTicketQuery, predicate.SupportTicket, supportticket.OrderOption]{typ: ent.TypeSupportTicket, tq: q}, nil
 	case *ent.SupportTicketMessageQuery:

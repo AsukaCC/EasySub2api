@@ -61,13 +61,15 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupBadge from './GroupBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
-import type { AdminGroup, GroupPlatform } from '@/types'
+import type { Group, GroupPlatform } from '@/types'
+
+type SelectableGroup = Group & { account_count?: number }
 
 const { t } = useI18n()
 
 interface Props {
   modelValue: string[]
-  groups: AdminGroup[]
+  groups: SelectableGroup[]
   platform?: GroupPlatform // Optional platform filter
   searchable?: boolean | 'auto'
 }
@@ -88,7 +90,7 @@ const isSearchable = computed(() => {
 
 // Filter groups by platform if specified
 const filteredGroups = computed(() => {
-  let result: AdminGroup[] = props.groups
+  let result: SelectableGroup[] = props.groups
   if (props.platform) {
     // 只能选择同 platform 的分组；composite 分组可接收任意具体平台账号
     result = result.filter((g) => g.platform === props.platform || g.platform === 'composite')

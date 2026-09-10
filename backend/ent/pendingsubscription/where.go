@@ -84,6 +84,16 @@ func ValidityDays(v int) predicate.PendingSubscription {
 	return predicate.PendingSubscription(sql.FieldEQ(FieldValidityDays, v))
 }
 
+// ResetCardCount applies equality check predicate on the "reset_card_count" field. It's identical to ResetCardCountEQ.
+func ResetCardCount(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldEQ(FieldResetCardCount, v))
+}
+
+// ResetCardValidityDays applies equality check predicate on the "reset_card_validity_days" field. It's identical to ResetCardValidityDaysEQ.
+func ResetCardValidityDays(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldEQ(FieldResetCardValidityDays, v))
+}
+
 // SourceType applies equality check predicate on the "source_type" field. It's identical to SourceTypeEQ.
 func SourceType(v string) predicate.PendingSubscription {
 	return predicate.PendingSubscription(sql.FieldEQ(FieldSourceType, v))
@@ -387,6 +397,86 @@ func ValidityDaysLT(v int) predicate.PendingSubscription {
 // ValidityDaysLTE applies the LTE predicate on the "validity_days" field.
 func ValidityDaysLTE(v int) predicate.PendingSubscription {
 	return predicate.PendingSubscription(sql.FieldLTE(FieldValidityDays, v))
+}
+
+// ResetCardCountEQ applies the EQ predicate on the "reset_card_count" field.
+func ResetCardCountEQ(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldEQ(FieldResetCardCount, v))
+}
+
+// ResetCardCountNEQ applies the NEQ predicate on the "reset_card_count" field.
+func ResetCardCountNEQ(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldNEQ(FieldResetCardCount, v))
+}
+
+// ResetCardCountIn applies the In predicate on the "reset_card_count" field.
+func ResetCardCountIn(vs ...int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldIn(FieldResetCardCount, vs...))
+}
+
+// ResetCardCountNotIn applies the NotIn predicate on the "reset_card_count" field.
+func ResetCardCountNotIn(vs ...int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldNotIn(FieldResetCardCount, vs...))
+}
+
+// ResetCardCountGT applies the GT predicate on the "reset_card_count" field.
+func ResetCardCountGT(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldGT(FieldResetCardCount, v))
+}
+
+// ResetCardCountGTE applies the GTE predicate on the "reset_card_count" field.
+func ResetCardCountGTE(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldGTE(FieldResetCardCount, v))
+}
+
+// ResetCardCountLT applies the LT predicate on the "reset_card_count" field.
+func ResetCardCountLT(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldLT(FieldResetCardCount, v))
+}
+
+// ResetCardCountLTE applies the LTE predicate on the "reset_card_count" field.
+func ResetCardCountLTE(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldLTE(FieldResetCardCount, v))
+}
+
+// ResetCardValidityDaysEQ applies the EQ predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysEQ(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldEQ(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysNEQ applies the NEQ predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysNEQ(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldNEQ(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysIn applies the In predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysIn(vs ...int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldIn(FieldResetCardValidityDays, vs...))
+}
+
+// ResetCardValidityDaysNotIn applies the NotIn predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysNotIn(vs ...int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldNotIn(FieldResetCardValidityDays, vs...))
+}
+
+// ResetCardValidityDaysGT applies the GT predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysGT(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldGT(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysGTE applies the GTE predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysGTE(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldGTE(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysLT applies the LT predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysLT(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldLT(FieldResetCardValidityDays, v))
+}
+
+// ResetCardValidityDaysLTE applies the LTE predicate on the "reset_card_validity_days" field.
+func ResetCardValidityDaysLTE(v int) predicate.PendingSubscription {
+	return predicate.PendingSubscription(sql.FieldLTE(FieldResetCardValidityDays, v))
 }
 
 // SourceTypeEQ applies the EQ predicate on the "source_type" field.

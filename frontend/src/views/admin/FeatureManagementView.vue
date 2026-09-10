@@ -88,6 +88,7 @@ type EnabledKey =
   | 'channel_monitor_enabled'
   | 'available_channels_enabled'
   | 'model_plaza_enabled'
+  | 'usage_guide_enabled'
   | 'payment_enabled'
   | 'affiliate_enabled'
   | 'risk_control_enabled'
@@ -111,7 +112,7 @@ type FeatureDefinition = {
   visibleKey?: VisibleKey
   secondaryKeys?: Array<{ key: EnabledKey; labelKey: string }>
   configPath: string
-  icon: 'chart' | 'globe' | 'grid' | 'creditCard' | 'gift' | 'shield' | 'server' | 'clipboard'
+  icon: 'chart' | 'globe' | 'grid' | 'creditCard' | 'gift' | 'shield' | 'server' | 'clipboard' | 'document'
 }
 
 const { t } = useI18n()
@@ -126,6 +127,7 @@ const state = reactive<FeatureState>({
   available_channels_enabled: false,
   available_channels_user_visible: false,
   model_plaza_enabled: false,
+  usage_guide_enabled: false,
   model_plaza_user_visible: false,
   payment_enabled: false,
   payment_user_visible: false,
@@ -143,6 +145,7 @@ const features: FeatureDefinition[] = [
   { id: 'channel-monitor', titleKey: 'admin.settings.features.channelMonitor.title', descriptionKey: 'admin.settings.features.channelMonitor.description', enabledKey: 'channel_monitor_enabled', visibleKey: 'channel_monitor_user_visible', configPath: '/admin/channels/monitor/settings', icon: 'chart' },
   { id: 'available-channels', titleKey: 'admin.settings.features.availableChannels.title', descriptionKey: 'admin.settings.features.availableChannels.description', enabledKey: 'available_channels_enabled', visibleKey: 'available_channels_user_visible', configPath: '/admin/channels/pricing', icon: 'globe' },
   { id: 'model-plaza', titleKey: 'admin.settings.features.modelPlaza.title', descriptionKey: 'admin.settings.features.modelPlaza.description', enabledKey: 'model_plaza_enabled', visibleKey: 'model_plaza_user_visible', configPath: '/admin/model-plaza/settings', icon: 'grid' },
+  { id: 'usage-guide', titleKey: 'admin.settings.features.usageGuide.title', descriptionKey: 'admin.settings.features.usageGuide.description', enabledKey: 'usage_guide_enabled', configPath: '/admin/usage-guide/settings', icon: 'document' },
   { id: 'payment', titleKey: 'admin.settings.featureManagement.modules.payment', descriptionKey: 'admin.settings.featureManagement.moduleDescriptions.payment', enabledKey: 'payment_enabled', visibleKey: 'payment_user_visible', configPath: '/admin/orders/settings', icon: 'creditCard' },
   {
     id: 'support-tickets',

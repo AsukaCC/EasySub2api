@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/ip"
 	middleware2 "github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -214,8 +215,11 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Live call not found")
 		return
 	}
+	// Origin is verified like every other ingress WebSocket: non-browser clients
+	// (no Origin header) pass, same-host browsers pass, and cross-origin browsers
+	// must match the configured CORS allowlist. Never skip verification here.
 	downstream, err := coderws.Accept(c.Writer, c.Request, &coderws.AcceptOptions{
-		InsecureSkipVerify: true,
+		OriginPatterns: liveSidebandOriginPatterns(h.cfg),
 	})
 	if err != nil {
 		return
@@ -226,6 +230,41 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 		return
 	}
 	_ = downstream.Close(coderws.StatusNormalClosure, "")
+}
+
+// liveSidebandOriginPatterns converts the CORS allowlist into coder/websocket
+// origin host patterns. An empty result keeps the library default (same-host
+// only for browsers; requests without an Origin header are always accepted).
+func liveSidebandOriginPatterns(cfg *config.Config) []string {
+	if cfg == nil || len(cfg.CORS.AllowedOrigins) == 0 {
+		return nil
+	}
+	patterns := make([]string, 0, len(cfg.CORS.AllowedOrigins))
+	seen := make(map[string]struct{}, len(cfg.CORS.AllowedOrigins))
+	for _, origin := range cfg.CORS.AllowedOrigins {
+		origin = strings.TrimSpace(origin)
+		if origin == "" {
+			continue
+		}
+		pattern := origin
+		if origin == "*" {
+			pattern = "*"
+		} else if parsed, err := url.Parse(origin); err == nil && parsed.Host != "" {
+			pattern = strings.ToLower(parsed.Host)
+		} else if strings.Contains(origin, "://") {
+			// Unparseable scheme://... entry: skip rather than widen the allowlist.
+			continue
+		}
+		if _, dup := seen[pattern]; dup {
+			continue
+		}
+		seen[pattern] = struct{}{}
+		patterns = append(patterns, pattern)
+	}
+	if len(patterns) == 0 {
+		return nil
+	}
+	return patterns
 }
 
 func liveEnabledForAPIKey(apiKey *service.APIKey) bool {

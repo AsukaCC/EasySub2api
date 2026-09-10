@@ -152,7 +152,7 @@
             Antigravity
           </button>
         </div>
-        <!-- CN providers row: Kimi / Zhipu GLM / DeepSeek -->
+        <!-- CN providers row: Kimi / Zhipu GLM / DeepSeek / MiniMax -->
         <div class="components-account-create-account-modal__panel-5">
           <button
             type="button"
@@ -192,6 +192,19 @@
           >
             <PlatformIcon platform="deepseek" size="sm" />
             DeepSeek
+          </button>
+          <button
+            type="button"
+            @click="selectCNPlatform('minimax')"
+            :class="[
+              'components-account-create-account-modal__action-14',
+              form.platform === 'minimax'
+                ? 'components-account-create-account-modal__action-21'
+                : 'components-account-create-account-modal__action-16'
+            ]"
+          >
+            <PlatformIcon platform="minimax" size="sm" />
+            MiniMax
           </button>
         </div>
       </div>
@@ -2930,10 +2943,12 @@ import {
   applyInterceptWarmup,
   cnSupportsNativeResponses,
   defaultCNBaseUrl,
+  isCNProviderPlatform,
   isHeaderOverrideCapable,
   validateHeaderOverrideRows,
   type CnAccountMode,
   type CnApiProtocol,
+  type CnProviderPlatform,
   type HeaderOverrideRow
 } from '@/components/account/credentialsBuilder'
 import {
@@ -3038,6 +3053,8 @@ const apiKeyValuePlaceholder = computed(() => {
       return '<api-key>.<secret>'
     case 'deepseek':
       return 'sk-...'
+    case 'minimax':
+      return 'sk-...'
     default:
       return 'sk-ant-...'
   }
@@ -3123,25 +3140,23 @@ const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
 const upstreamBillingAutoProbeEnabled = ref(true)
 
-// ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
+// ── 国产供应商（Kimi / Zhipu / DeepSeek / MiniMax）账号类型、API 协议与端点 ──
 const accountMode = ref<CnAccountMode>('payg')
 // API 协议决定转发端点与格式：cc=现有转换链，anthropic=原生直通（Claude Code），
-// responses=deepseek / kimi 原生 Responses 端点（Codex）。与账号类型正交。
+// responses=deepseek / kimi / minimax 原生 Responses 端点（Codex）。与账号类型正交。
 const apiProtocol = ref<CnApiProtocol>('chat_completions')
 const zhipuOrganization = ref('')
 const zhipuProject = ref('')
-const isCNPlatform = computed(
-  () => form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek'
-)
+const isCNPlatform = computed(() => isCNProviderPlatform(form.platform))
 // CnBaseUrlPresets 的 platform prop 是平台字面量联合类型，模板里不能写
 // `as` 断言（其中的 `|` 会被 eslint 误判为 Vue2 filter 语法），经此 computed 传递。
-const cnPresetPlatform = computed<'kimi' | 'zhipu' | 'deepseek'>(() => {
-  if (form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek') {
+const cnPresetPlatform = computed<CnProviderPlatform>(() => {
+  if (isCNProviderPlatform(form.platform)) {
     return form.platform
   }
   return 'kimi'
 })
-// 当前平台可选的协议档（responses 仅 deepseek / kimi）。
+// 当前平台可选的协议档（responses 仅 deepseek / kimi / minimax）。
 const cnProtocolOptions = computed<Array<{ value: CnApiProtocol; labelKey: string }>>(() => {
   const opts: Array<{ value: CnApiProtocol; labelKey: string }> = [
     { value: 'chat_completions', labelKey: 'chatCompletions' },
@@ -3161,6 +3176,8 @@ const cnAccentActiveClass = computed(() => {
       return 'components-account-create-account-modal__state-2'
     case 'deepseek':
       return 'components-account-create-account-modal__state-3'
+    case 'minimax':
+      return 'components-account-create-account-modal__state'
     default:
       return 'components-account-create-account-modal__state-4'
   }
@@ -3173,13 +3190,15 @@ const cnAccentIconClass = computed(() => {
       return 'components-account-create-account-modal__state-6'
     case 'deepseek':
       return 'components-account-create-account-modal__state-7'
+    case 'minimax':
+      return 'components-account-create-account-modal__state-5'
     default:
       return 'components-account-create-account-modal__panel-81'
   }
 })
 // 切换国产供应商平台：强制 apikey 类型，deepseek 无 coding 套餐故锁定 payg，
 // 协议回落 chat_completions，并把 base url 重置为该平台默认端点。
-function selectCNPlatform(platform: 'kimi' | 'zhipu' | 'deepseek') {
+function selectCNPlatform(platform: CnProviderPlatform) {
   form.platform = platform
   form.type = 'apikey'
   accountCategory.value = 'apikey'
@@ -3639,7 +3658,7 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (newPlatform === 'kimi' || newPlatform === 'zhipu' || newPlatform === 'deepseek') {
+    if (isCNProviderPlatform(newPlatform)) {
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, accountMode.value, apiProtocol.value)
     } else {
       apiKeyBaseUrl.value =
@@ -4385,7 +4404,7 @@ const handleSubmit = async () => {
   // 国产供应商：账号模式 + 协议 + 对应端点写入凭据；后端按 account_mode 路由
   // 额度/余额探测，按 api_protocol 路由转发端点与格式。注意 CN apikey 走本函数
   // 的通用路径（直接 doCreateAccount），不经过 createAccountAndFinish。
-  if (form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek') {
+  if (isCNProviderPlatform(form.platform)) {
     credentials.account_mode = accountMode.value
     credentials.api_protocol = apiProtocol.value
     const resolvedCNBase = (

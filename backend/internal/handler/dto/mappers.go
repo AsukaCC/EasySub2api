@@ -834,6 +834,19 @@ func UserSubscriptionFromServiceAdmin(sub *service.UserSubscription) *AdminUserS
 }
 
 func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscription {
+	resetCards := ResetCardSummary{
+		AvailableCount:  sub.ResetCards.AvailableCount,
+		ExpiredCount:    sub.ResetCards.ExpiredCount,
+		ConsumedCount:   sub.ResetCards.ConsumedCount,
+		NextExpiryAt:    sub.ResetCards.NextExpiryAt,
+		ExpiryBreakdown: make([]ResetCardExpiry, 0, len(sub.ResetCards.ExpiryBreakdown)),
+	}
+	for _, item := range sub.ResetCards.ExpiryBreakdown {
+		resetCards.ExpiryBreakdown = append(resetCards.ExpiryBreakdown, ResetCardExpiry{
+			ExpiresAt: item.ExpiresAt,
+			Count:     item.Count,
+		})
+	}
 	return UserSubscription{
 		ID:                 sub.ID,
 		UserID:             sub.UserID,
@@ -855,7 +868,34 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 		RevokedAt:          sub.DeletedAt,
 		User:               UserFromServiceShallow(sub.User),
 		Group:              GroupFromServiceShallow(sub.Group),
+		ResetCards:         resetCards,
 	}
+}
+
+func ResetCardConsumeResultFromService(result *service.ResetCardConsumeResult) *ResetCardConsumeResult {
+	if result == nil {
+		return nil
+	}
+	return &ResetCardConsumeResult{
+		Subscription:    UserSubscriptionFromService(result.Subscription),
+		ResetAt:         result.ResetAt,
+		WeeklyWindowEnd: result.WeeklyWindowEnd,
+		ResetCards: ResetCardSummary{
+			AvailableCount:  result.ResetCards.AvailableCount,
+			ExpiredCount:    result.ResetCards.ExpiredCount,
+			ConsumedCount:   result.ResetCards.ConsumedCount,
+			NextExpiryAt:    result.ResetCards.NextExpiryAt,
+			ExpiryBreakdown: resetCardExpiryFromService(result.ResetCards.ExpiryBreakdown),
+		},
+	}
+}
+
+func resetCardExpiryFromService(items []service.ResetCardExpiry) []ResetCardExpiry {
+	result := make([]ResetCardExpiry, 0, len(items))
+	for _, item := range items {
+		result = append(result, ResetCardExpiry{ExpiresAt: item.ExpiresAt, Count: item.Count})
+	}
+	return result
 }
 
 func BulkAssignResultFromService(r *service.BulkAssignResult) *BulkAssignResult {

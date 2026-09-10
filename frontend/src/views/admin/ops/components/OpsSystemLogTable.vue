@@ -41,6 +41,7 @@ const runtimeLoading = ref(false)
 const runtimeSaving = ref(false)
 const runtimeConfig = reactive<OpsRuntimeLogConfig>({
   level: 'info',
+  persist_access_logs: false,
   enable_sampling: false,
   sampling_initial: 100,
   sampling_thereafter: 100,
@@ -228,6 +229,7 @@ const loadRuntimeConfig = async () => {
   try {
     const cfg = await opsAPI.getRuntimeLogConfig()
     runtimeConfig.level = cfg.level
+    runtimeConfig.persist_access_logs = cfg.persist_access_logs
     runtimeConfig.enable_sampling = cfg.enable_sampling
     runtimeConfig.sampling_initial = cfg.sampling_initial
     runtimeConfig.sampling_thereafter = cfg.sampling_thereafter
@@ -246,6 +248,7 @@ const saveRuntimeConfig = async () => {
   try {
     const saved = await opsAPI.updateRuntimeLogConfig({ ...runtimeConfig })
     runtimeConfig.level = saved.level
+    runtimeConfig.persist_access_logs = saved.persist_access_logs
     runtimeConfig.enable_sampling = saved.enable_sampling
     runtimeConfig.sampling_initial = saved.sampling_initial
     runtimeConfig.sampling_thereafter = saved.sampling_thereafter
@@ -269,6 +272,7 @@ const resetRuntimeConfig = async () => {
   try {
     const saved = await opsAPI.resetRuntimeLogConfig()
     runtimeConfig.level = saved.level
+    runtimeConfig.persist_access_logs = saved.persist_access_logs
     runtimeConfig.enable_sampling = saved.enable_sampling
     runtimeConfig.sampling_initial = saved.sampling_initial
     runtimeConfig.sampling_thereafter = saved.sampling_thereafter
@@ -416,6 +420,7 @@ onMounted(async () => {
         <label class="views-admin-ops-components-ops-system-log-table__label">
           {{ t('admin.ops.systemLogs.retentionDays') }}
           <input v-model.number="runtimeConfig.retention_days" type="number" min="1" max="3650" class="views-admin-ops-components-ops-system-log-table__field input" />
+          <span class="ops-log-hint ops-log-hint--inline">{{ t('admin.ops.systemLogs.retentionDaysHint') }}</span>
         </label>
         <div class="views-admin-ops-components-ops-system-log-table__panel-7">
           <div class="views-admin-ops-components-ops-system-log-table__panel-8">
@@ -427,6 +432,10 @@ onMounted(async () => {
               <label class="views-admin-ops-components-ops-system-log-table__label-2">
                 <input v-model="runtimeConfig.enable_sampling" type="checkbox" />
                 {{ t('admin.ops.systemLogs.sampling') }}
+              </label>
+              <label class="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <input v-model="runtimeConfig.persist_access_logs" type="checkbox" />
+                {{ t('admin.ops.systemLogs.persistAccessLogs') }}
               </label>
             </div>
             <div class="views-admin-ops-components-ops-system-log-table__panel-10">
@@ -440,6 +449,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+      <p class="ops-log-hint">{{ t('admin.ops.systemLogs.persistAccessLogsHint') }}</p>
       <p v-if="health.last_error" class="views-admin-ops-components-ops-system-log-table__description-2">{{ t('admin.ops.systemLogs.latestWriteError') }} {{ health.last_error }}</p>
     </div>
 
@@ -566,3 +576,17 @@ onMounted(async () => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.ops-log-hint {
+  margin-top: 0.5rem;
+  font-size: var(--font-size-xs);
+  line-height: 1rem;
+  color: var(--color-text-secondary);
+}
+
+.ops-log-hint--inline {
+  display: block;
+  margin-top: 0.25rem;
+}
+</style>

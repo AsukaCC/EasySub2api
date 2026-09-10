@@ -288,9 +288,11 @@ func (s *SettingService) GetOpenAICodexClientVersion(ctx context.Context) string
 			})
 			return fallback, nil
 		}
-		version := NormalizeCodexClientVersion(values[SettingKeyOpenAICodexClientVersion])
+		// AcceptCodexClientVersion 同时承担形态校验与预发布门禁：生产模式下
+		// 面板误填或历史同步值中的 -alpha 版本按非法处理，回退下一来源。
+		version := AcceptCodexClientVersion(values[SettingKeyOpenAICodexClientVersion])
 		if version == "" {
-			version = NormalizeCodexClientVersion(values[SettingKeyOpenAICodexClientVersionSynced])
+			version = AcceptCodexClientVersion(values[SettingKeyOpenAICodexClientVersionSynced])
 		}
 		if version == "" {
 			version = fallback

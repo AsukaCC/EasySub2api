@@ -92,6 +92,48 @@ func (_u *PendingSubscriptionUpdate) AddValidityDays(v int) *PendingSubscription
 	return _u
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (_u *PendingSubscriptionUpdate) SetResetCardCount(v int) *PendingSubscriptionUpdate {
+	_u.mutation.ResetResetCardCount()
+	_u.mutation.SetResetCardCount(v)
+	return _u
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_u *PendingSubscriptionUpdate) SetNillableResetCardCount(v *int) *PendingSubscriptionUpdate {
+	if v != nil {
+		_u.SetResetCardCount(*v)
+	}
+	return _u
+}
+
+// AddResetCardCount adds value to the "reset_card_count" field.
+func (_u *PendingSubscriptionUpdate) AddResetCardCount(v int) *PendingSubscriptionUpdate {
+	_u.mutation.AddResetCardCount(v)
+	return _u
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (_u *PendingSubscriptionUpdate) SetResetCardValidityDays(v int) *PendingSubscriptionUpdate {
+	_u.mutation.ResetResetCardValidityDays()
+	_u.mutation.SetResetCardValidityDays(v)
+	return _u
+}
+
+// SetNillableResetCardValidityDays sets the "reset_card_validity_days" field if the given value is not nil.
+func (_u *PendingSubscriptionUpdate) SetNillableResetCardValidityDays(v *int) *PendingSubscriptionUpdate {
+	if v != nil {
+		_u.SetResetCardValidityDays(*v)
+	}
+	return _u
+}
+
+// AddResetCardValidityDays adds value to the "reset_card_validity_days" field.
+func (_u *PendingSubscriptionUpdate) AddResetCardValidityDays(v int) *PendingSubscriptionUpdate {
+	_u.mutation.AddResetCardValidityDays(v)
+	return _u
+}
+
 // SetSourceType sets the "source_type" field.
 func (_u *PendingSubscriptionUpdate) SetSourceType(v string) *PendingSubscriptionUpdate {
 	_u.mutation.SetSourceType(v)
@@ -418,6 +460,18 @@ func (_u *PendingSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, er
 	if value, ok := _u.mutation.AddedValidityDays(); ok {
 		_spec.AddField(pendingsubscription.FieldValidityDays, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ResetCardCount(); ok {
+		_spec.SetField(pendingsubscription.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardCount(); ok {
+		_spec.AddField(pendingsubscription.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResetCardValidityDays(); ok {
+		_spec.SetField(pendingsubscription.FieldResetCardValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardValidityDays(); ok {
+		_spec.AddField(pendingsubscription.FieldResetCardValidityDays, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.SourceType(); ok {
 		_spec.SetField(pendingsubscription.FieldSourceType, field.TypeString, value)
 	}
@@ -566,6 +620,48 @@ func (_u *PendingSubscriptionUpdateOne) SetNillableValidityDays(v *int) *Pending
 // AddValidityDays adds value to the "validity_days" field.
 func (_u *PendingSubscriptionUpdateOne) AddValidityDays(v int) *PendingSubscriptionUpdateOne {
 	_u.mutation.AddValidityDays(v)
+	return _u
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (_u *PendingSubscriptionUpdateOne) SetResetCardCount(v int) *PendingSubscriptionUpdateOne {
+	_u.mutation.ResetResetCardCount()
+	_u.mutation.SetResetCardCount(v)
+	return _u
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_u *PendingSubscriptionUpdateOne) SetNillableResetCardCount(v *int) *PendingSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetResetCardCount(*v)
+	}
+	return _u
+}
+
+// AddResetCardCount adds value to the "reset_card_count" field.
+func (_u *PendingSubscriptionUpdateOne) AddResetCardCount(v int) *PendingSubscriptionUpdateOne {
+	_u.mutation.AddResetCardCount(v)
+	return _u
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (_u *PendingSubscriptionUpdateOne) SetResetCardValidityDays(v int) *PendingSubscriptionUpdateOne {
+	_u.mutation.ResetResetCardValidityDays()
+	_u.mutation.SetResetCardValidityDays(v)
+	return _u
+}
+
+// SetNillableResetCardValidityDays sets the "reset_card_validity_days" field if the given value is not nil.
+func (_u *PendingSubscriptionUpdateOne) SetNillableResetCardValidityDays(v *int) *PendingSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetResetCardValidityDays(*v)
+	}
+	return _u
+}
+
+// AddResetCardValidityDays adds value to the "reset_card_validity_days" field.
+func (_u *PendingSubscriptionUpdateOne) AddResetCardValidityDays(v int) *PendingSubscriptionUpdateOne {
+	_u.mutation.AddResetCardValidityDays(v)
 	return _u
 }
 
@@ -924,6 +1020,18 @@ func (_u *PendingSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *Pen
 	}
 	if value, ok := _u.mutation.AddedValidityDays(); ok {
 		_spec.AddField(pendingsubscription.FieldValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResetCardCount(); ok {
+		_spec.SetField(pendingsubscription.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardCount(); ok {
+		_spec.AddField(pendingsubscription.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResetCardValidityDays(); ok {
+		_spec.SetField(pendingsubscription.FieldResetCardValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardValidityDays(); ok {
+		_spec.AddField(pendingsubscription.FieldResetCardValidityDays, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.SourceType(); ok {
 		_spec.SetField(pendingsubscription.FieldSourceType, field.TypeString, value)

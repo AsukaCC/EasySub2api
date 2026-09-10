@@ -459,7 +459,8 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	refreshIngressRouteState := func(payload openAIWSClientPayload) {
 		sessionHash = s.GenerateSessionHash(c, payload.rawForHash)
 		if turnState == "" && stateStore != nil && sessionHash != "" {
-			if savedTurnState, ok := stateStore.GetSessionTurnState(groupID, sessionHash); ok {
+			// 仅回放同账号铸造的 turn-state：failover 换号后旧账号的 blob 不进新账号握手。
+			if savedTurnState, ok := stateStore.GetSessionTurnStateForAccount(groupID, sessionHash, account.ID); ok {
 				turnState = savedTurnState
 			}
 		}
@@ -608,8 +609,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			if bridgeTurnState := strings.TrimSpace(result.ResponseHeaders.Get(openAIWSTurnStateHeader)); bridgeTurnState != "" {
 				turnState = bridgeTurnState
 				if stateStore != nil && sessionHash != "" {
-					stateStore.BindSessionTurnState(groupID, sessionHash, bridgeTurnState, s.openAIWSSessionStickyTTL())
+					stateStore.BindSessionTurnStateForAccount(groupID, sessionHash, account.ID, bridgeTurnState, s.openAIWSSessionStickyTTL())
 				}
+				s.noteOpenAICodexTurnStateProvenance(c, account)
 			}
 			responseID := strings.TrimSpace(result.RequestID)
 			if responseID != "" && stateStore != nil {
@@ -796,8 +798,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		if handshakeTurnState := strings.TrimSpace(lease.HandshakeHeader(openAIWSTurnStateHeader)); handshakeTurnState != "" {
 			turnState = handshakeTurnState
 			if stateStore != nil && sessionHash != "" {
-				stateStore.BindSessionTurnState(groupID, sessionHash, handshakeTurnState, s.openAIWSSessionStickyTTL())
+				stateStore.BindSessionTurnStateForAccount(groupID, sessionHash, account.ID, handshakeTurnState, s.openAIWSSessionStickyTTL())
 			}
+			s.noteOpenAICodexTurnStateProvenance(c, account)
 			updatedHeaders := cloneHeader(baseAcquireReq.Headers)
 			if updatedHeaders == nil {
 				updatedHeaders = make(http.Header)

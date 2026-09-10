@@ -61,7 +61,7 @@ const (
 	// 陈旧版本会被优先丢弃（HTTP 200 + 流内 server_is_overloaded）；非官方客户端配不出
 	// 官方身份时整体回退到本常量，因此它必须跟随官方 CLI 的当前发布版本，
 	// 落后多个版本会让这些请求稳定落在被优先丢弃的一侧。
-	codexCLIVersion = "0.146.0"
+	codexCLIVersion = "0.153.4"
 	// Codex 限额快照仅用于后台展示/诊断，不需要每个成功请求都立即落库。
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
 	// 配额自动暂停时，超过该时长仍未刷新的 used% 快照视为陈旧，不再据此暂停账号。
@@ -545,6 +545,7 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	// 拿不到配置，故在此发布进程级开关快照。配置取反义，零值即「强制统一出口开启」。
 	if cfg != nil {
 		SetCodexIdentityEnforcementEnabled(!cfg.Gateway.DisableCodexIdentityEnforcement)
+		SetCodexPrereleaseVersionAllowed(cfg.Gateway.CodexAllowPrereleaseVersion)
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo:         accountRepo,
@@ -1159,11 +1160,12 @@ func appendCodexCLIOnlyRejectedRequestFields(fields []zap.Field, c *gin.Context,
 	fields = append(fields,
 		zap.String("request_method", strings.TrimSpace(req.Method)),
 		zap.String("request_path", strings.TrimSpace(req.URL.Path)),
-		zap.String("request_query", strings.TrimSpace(req.URL.RawQuery)),
+		zap.String("request_query", strings.TrimPrefix(sanitizeUpstreamErrorMessage("?"+strings.TrimSpace(req.URL.RawQuery)), "?")),
 		zap.String("request_host", strings.TrimSpace(req.Host)),
 		zap.String("request_client_ip", strings.TrimSpace(ip.GetClientIP(c))),
 		zap.String("request_remote_addr", strings.TrimSpace(req.RemoteAddr)),
-		zap.String("request_user_agent", strings.TrimSpace(req.Header.Get("User-Agent"))),
+		// 入站 UA 只用于 codex_cli_only 拒绝诊断：与 request_headers 快照同一截断上限，不落任意长度原文。
+		zap.String("request_user_agent", truncateString(strings.TrimSpace(req.Header.Get("User-Agent")), codexCLIOnlyHeaderValueMaxBytes)),
 		zap.String("request_content_type", strings.TrimSpace(req.Header.Get("Content-Type"))),
 		zap.Int64("request_content_length", req.ContentLength),
 		zap.Bool("request_stream", requestStream),

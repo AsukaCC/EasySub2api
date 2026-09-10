@@ -629,7 +629,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "name", Type: field.TypeString, Size: 100},
-		{Name: "provider", Type: field.TypeEnum, Enums: []string{"openai", "anthropic", "gemini", "grok", "antigravity", "kimi", "zhipu", "deepseek"}},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"openai", "anthropic", "gemini", "grok", "antigravity", "kimi", "zhipu", "deepseek", "minimax"}},
 		{Name: "check_mode", Type: field.TypeString, Size: 32, Default: "probe"},
 		{Name: "account_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "api_mode", Type: field.TypeString, Size: 32, Default: "chat_completions"},
@@ -782,7 +782,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "name", Type: field.TypeString, Size: 100},
-		{Name: "provider", Type: field.TypeEnum, Enums: []string{"openai", "anthropic", "gemini", "grok", "antigravity", "kimi", "zhipu", "deepseek"}},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"openai", "anthropic", "gemini", "grok", "antigravity", "kimi", "zhipu", "deepseek", "minimax"}},
 		{Name: "api_mode", Type: field.TypeString, Size: 32, Default: "chat_completions"},
 		{Name: "description", Type: field.TypeString, Nullable: true, Size: 500, Default: ""},
 		{Name: "extra_headers", Type: field.TypeJSON},
@@ -1171,6 +1171,8 @@ var (
 		{Name: "plan_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "subscription_group_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "subscription_days", Type: field.TypeInt, Nullable: true},
+		{Name: "subscription_reset_card_count", Type: field.TypeInt, Default: 0},
+		{Name: "subscription_reset_card_validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "provider_instance_id", Type: field.TypeString, Nullable: true, Size: 64, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "provider_key", Type: field.TypeString, Nullable: true, Size: 30},
 		{Name: "provider_snapshot", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
@@ -1207,7 +1209,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "payment_orders_users_payment_orders",
-				Columns:    []*schema.Column{PaymentOrdersColumns[67]},
+				Columns:    []*schema.Column{PaymentOrdersColumns[69]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1224,32 +1226,32 @@ var (
 			{
 				Name:    "paymentorder_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[67]},
+				Columns: []*schema.Column{PaymentOrdersColumns[69]},
 			},
 			{
 				Name:    "paymentorder_status",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[44]},
+				Columns: []*schema.Column{PaymentOrdersColumns[46]},
 			},
 			{
 				Name:    "paymentorder_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[56]},
+				Columns: []*schema.Column{PaymentOrdersColumns[58]},
 			},
 			{
 				Name:    "paymentorder_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[64]},
+				Columns: []*schema.Column{PaymentOrdersColumns[66]},
 			},
 			{
 				Name:    "paymentorder_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[57]},
+				Columns: []*schema.Column{PaymentOrdersColumns[59]},
 			},
 			{
 				Name:    "paymentorder_payment_type_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[32], PaymentOrdersColumns[57]},
+				Columns: []*schema.Column{PaymentOrdersColumns[32], PaymentOrdersColumns[59]},
 			},
 			{
 				Name:    "paymentorder_order_type",
@@ -1259,7 +1261,7 @@ var (
 			{
 				Name:    "paymentorder_plan_id_inventory_status",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[38], PaymentOrdersColumns[45]},
+				Columns: []*schema.Column{PaymentOrdersColumns[38], PaymentOrdersColumns[47]},
 			},
 		},
 	}
@@ -1445,6 +1447,8 @@ var (
 		{Name: "group_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "platform", Type: field.TypeString, Size: 50},
 		{Name: "validity_days", Type: field.TypeInt},
+		{Name: "reset_card_count", Type: field.TypeInt, Default: 0},
+		{Name: "reset_card_validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "source_type", Type: field.TypeString, Size: 32},
 		{Name: "source_id", Type: field.TypeString, Size: 128, Default: ""},
 		{Name: "blocked_by_subscription_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
@@ -1478,7 +1482,7 @@ var (
 			{
 				Name:    "pendingsubscription_source_type_source_id",
 				Unique:  true,
-				Columns: []*schema.Column{PendingSubscriptionsColumns[5], PendingSubscriptionsColumns[6]},
+				Columns: []*schema.Column{PendingSubscriptionsColumns[7], PendingSubscriptionsColumns[8]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "source_id <> ''",
 				},
@@ -1486,7 +1490,7 @@ var (
 			{
 				Name:    "pendingsubscription_status_expected_activation_at",
 				Unique:  false,
-				Columns: []*schema.Column{PendingSubscriptionsColumns[9], PendingSubscriptionsColumns[8]},
+				Columns: []*schema.Column{PendingSubscriptionsColumns[11], PendingSubscriptionsColumns[10]},
 			},
 			{
 				Name:    "pendingsubscription_group_id",
@@ -1588,7 +1592,7 @@ var (
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "fallback_mode", Type: field.TypeString, Size: 20, Default: "none"},
 		{Name: "expiry_warn_days", Type: field.TypeInt, Default: 7},
-		{Name: "backup_proxy_id", Type: field.TypeString, Unique: true, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "backup_proxy_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 	}
 	// ProxiesTable holds the schema information for the "proxies" table.
 	ProxiesTable = &schema.Table{
@@ -1722,6 +1726,8 @@ var (
 		{Name: "currency", Type: field.TypeString, Size: 3, Default: ""},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "validity_unit", Type: field.TypeString, Size: 10, Default: "day"},
+		{Name: "reset_card_count", Type: field.TypeInt, Default: 0},
+		{Name: "reset_card_validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "features", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "product_name", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "for_sale", Type: field.TypeBool, Default: true},
@@ -1745,7 +1751,59 @@ var (
 			{
 				Name:    "subscriptionplan_for_sale",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[11]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[13]},
+			},
+		},
+	}
+	// SubscriptionResetCardsColumns holds the columns for the "subscription_reset_cards" table.
+	SubscriptionResetCardsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "subscription_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "group_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "available"},
+		{Name: "issued_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "expires_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "consumed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "issued_by", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "consumed_by", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "source_type", Type: field.TypeString, Size: 40, Default: "manual"},
+		{Name: "source_id", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "grant_batch_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "grant_index", Type: field.TypeInt},
+	}
+	// SubscriptionResetCardsTable holds the schema information for the "subscription_reset_cards" table.
+	SubscriptionResetCardsTable = &schema.Table{
+		Name:       "subscription_reset_cards",
+		Columns:    SubscriptionResetCardsColumns,
+		PrimaryKey: []*schema.Column{SubscriptionResetCardsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "subscriptionresetcard_subscription_id_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[3], SubscriptionResetCardsColumns[6], SubscriptionResetCardsColumns[8]},
+			},
+			{
+				Name:    "subscriptionresetcard_user_id_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[4], SubscriptionResetCardsColumns[6], SubscriptionResetCardsColumns[8]},
+			},
+			{
+				Name:    "subscriptionresetcard_expires_at_status",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[8], SubscriptionResetCardsColumns[6]},
+			},
+			{
+				Name:    "subscriptionresetcard_source_type_source_id_subscription_id_grant_index",
+				Unique:  true,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[12], SubscriptionResetCardsColumns[13], SubscriptionResetCardsColumns[3], SubscriptionResetCardsColumns[15]},
+			},
+			{
+				Name:    "subscriptionresetcard_grant_batch_id_grant_index",
+				Unique:  true,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[14], SubscriptionResetCardsColumns[15]},
 			},
 		},
 	}
@@ -2413,6 +2471,7 @@ var (
 		SecuritySecretsTable,
 		SettingsTable,
 		SubscriptionPlansTable,
+		SubscriptionResetCardsTable,
 		SupportTicketsTable,
 		SupportTicketMessagesTable,
 		SupportTicketReadsTable,
@@ -2510,8 +2569,10 @@ func init() {
 		Table: "payment_orders",
 	}
 	PaymentOrdersTable.Annotation.Checks = map[string]string{
-		"payment_orders_inventory_status_valid": "inventory_status IN ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED')",
-		"payment_orders_order_type_valid":       "order_type IN ('balance', 'subscription')",
+		"payment_orders_inventory_status_valid":       "inventory_status IN ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED')",
+		"payment_orders_order_type_valid":             "order_type IN ('balance', 'subscription')",
+		"payment_orders_reset_card_count_nonnegative": "subscription_reset_card_count >= 0",
+		"payment_orders_reset_card_validity_positive": "subscription_reset_card_validity_days > 0",
 	}
 	PaymentProviderInstancesTable.Annotation = &entsql.Annotation{
 		Table: "payment_provider_instances",
@@ -2536,8 +2597,10 @@ func init() {
 		Table: "pending_subscriptions",
 	}
 	PendingSubscriptionsTable.Annotation.Checks = map[string]string{
-		"pending_subscriptions_status_valid":      "status IN ('PENDING', 'ACTIVATED', 'CANCELLED')",
-		"pending_subscriptions_validity_positive": "validity_days > 0",
+		"pending_subscriptions_reset_card_count_nonnegative": "reset_card_count >= 0",
+		"pending_subscriptions_reset_card_validity_positive": "reset_card_validity_days > 0",
+		"pending_subscriptions_status_valid":                 "status IN ('PENDING', 'ACTIVATED', 'CANCELLED')",
+		"pending_subscriptions_validity_positive":            "validity_days > 0",
 	}
 	PromoCodesTable.Annotation = &entsql.Annotation{
 		Table: "promo_codes",
@@ -2566,9 +2629,17 @@ func init() {
 		Table: "subscription_plans",
 	}
 	SubscriptionPlansTable.Annotation.Checks = map[string]string{
-		"subscription_plans_frozen_nonnegative":  "stock_frozen >= 0",
-		"subscription_plans_stock_covers_frozen": "stock_quantity IS NULL OR stock_quantity >= stock_frozen",
-		"subscription_plans_stock_nonnegative":   "stock_quantity IS NULL OR stock_quantity >= 0",
+		"subscription_plans_frozen_nonnegative":           "stock_frozen >= 0",
+		"subscription_plans_reset_card_count_nonnegative": "reset_card_count >= 0",
+		"subscription_plans_reset_card_validity_positive": "reset_card_validity_days > 0",
+		"subscription_plans_stock_covers_frozen":          "stock_quantity IS NULL OR stock_quantity >= stock_frozen",
+		"subscription_plans_stock_nonnegative":            "stock_quantity IS NULL OR stock_quantity >= 0",
+	}
+	SubscriptionResetCardsTable.Annotation = &entsql.Annotation{
+		Table: "subscription_reset_cards",
+	}
+	SubscriptionResetCardsTable.Annotation.Checks = map[string]string{
+		"subscription_reset_cards_status_valid": "status IN ('available', 'consumed', 'expired', 'revoked')",
 	}
 	SupportTicketsTable.Annotation = &entsql.Annotation{
 		Table: "support_tickets",

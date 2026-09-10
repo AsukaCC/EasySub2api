@@ -344,6 +344,7 @@ function platformLabel(value: string) {
       kimi: 'Kimi',
       zhipu: 'Zhipu',
       deepseek: 'DeepSeek',
+      minimax: 'MiniMax',
     } as Record<string, string>
   )[value] || value
 }

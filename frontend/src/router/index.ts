@@ -189,6 +189,18 @@ const routes: RouteRecordRaw[] = [
       settingsSection: 'feature-model-plaza',
     },
   },
+  {
+    path: '/admin/usage-guide/settings',
+    name: 'AdminUsageGuideSettings',
+    component: () => import('@/views/admin/UsageGuideSettingsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Usage Guide Settings',
+      titleKey: 'admin.settings.sections.feature-usage-guide',
+      descriptionKey: 'admin.settings.sectionDescriptions.feature-usage-guide',
+    },
+  },
 
   // ==================== User Routes ====================
   {
@@ -206,6 +218,19 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'dashboard.title',
       descriptionKey: 'dashboard.welcomeMessage'
     }
+  },
+  {
+    path: '/usage-guide',
+    name: 'UsageGuide',
+    component: () => import('@/views/user/UsageGuideView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Usage Guide',
+      titleKey: 'usageGuide.title',
+      descriptionKey: 'usageGuide.description',
+      userFeature: 'usage-guide',
+    },
   },
   {
     path: '/keys',
@@ -677,6 +702,10 @@ const routes: RouteRecordRaw[] = [
     redirect: '/admin/model-plaza/settings',
   },
   {
+    path: '/admin/settings/features/usage-guide',
+    redirect: '/admin/usage-guide/settings',
+  },
+  {
     path: '/admin/settings/features/payment',
     redirect: '/admin/orders/settings',
   },
@@ -793,7 +822,15 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin/usage',
-    redirect: '/admin/usage/users'
+    name: 'AdminUsageCombined',
+    component: () => import('@/views/admin/UsageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Usage Records',
+      titleKey: 'nav.usage',
+      descriptionKey: 'admin.usage.description'
+    }
   },
   {
     path: '/admin/usage/users',
@@ -1002,6 +1039,7 @@ function publicUserFeatureEnabled(settings: ReturnType<typeof useAppStore>['cach
     'channel-monitor': settings.channel_monitor_enabled,
     'available-channels': settings.available_channels_enabled,
     'model-plaza': settings.model_plaza_enabled,
+    'usage-guide': settings.usage_guide_enabled,
     payment: settings.payment_enabled,
     affiliate: settings.affiliate_enabled,
   }

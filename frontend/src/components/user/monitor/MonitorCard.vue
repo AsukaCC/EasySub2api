@@ -98,6 +98,7 @@ const PROVIDER_TINT: Record<string, string> = {
   kimi: 'components-user-monitor-monitor-card__state-6',
   zhipu: 'components-user-monitor-monitor-card__state-7',
   deepseek: 'components-user-monitor-monitor-card__state-8',
+  minimax: 'components-user-monitor-monitor-card__state-6',
 }
 
 const props = defineProps<{

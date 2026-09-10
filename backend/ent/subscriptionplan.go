@@ -33,6 +33,10 @@ type SubscriptionPlan struct {
 	ValidityDays int `json:"validity_days,omitempty"`
 	// ValidityUnit holds the value of the "validity_unit" field.
 	ValidityUnit string `json:"validity_unit,omitempty"`
+	// ResetCardCount holds the value of the "reset_card_count" field.
+	ResetCardCount int `json:"reset_card_count,omitempty"`
+	// ResetCardValidityDays holds the value of the "reset_card_validity_days" field.
+	ResetCardValidityDays int `json:"reset_card_validity_days,omitempty"`
 	// Features holds the value of the "features" field.
 	Features string `json:"features,omitempty"`
 	// ProductName holds the value of the "product_name" field.
@@ -61,7 +65,7 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldValidityDays, subscriptionplan.FieldStockQuantity, subscriptionplan.FieldStockFrozen, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldValidityDays, subscriptionplan.FieldResetCardCount, subscriptionplan.FieldResetCardValidityDays, subscriptionplan.FieldStockQuantity, subscriptionplan.FieldStockFrozen, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
 			values[i] = new(sql.NullString)
@@ -136,6 +140,18 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field validity_unit", values[i])
 			} else if value.Valid {
 				_m.ValidityUnit = value.String
+			}
+		case subscriptionplan.FieldResetCardCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reset_card_count", values[i])
+			} else if value.Valid {
+				_m.ResetCardCount = int(value.Int64)
+			}
+		case subscriptionplan.FieldResetCardValidityDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reset_card_validity_days", values[i])
+			} else if value.Valid {
+				_m.ResetCardValidityDays = int(value.Int64)
 			}
 		case subscriptionplan.FieldFeatures:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -247,6 +263,12 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("validity_unit=")
 	builder.WriteString(_m.ValidityUnit)
+	builder.WriteString(", ")
+	builder.WriteString("reset_card_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResetCardCount))
+	builder.WriteString(", ")
+	builder.WriteString("reset_card_validity_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResetCardValidityDays))
 	builder.WriteString(", ")
 	builder.WriteString("features=")
 	builder.WriteString(_m.Features)

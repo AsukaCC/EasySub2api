@@ -46,6 +46,17 @@
         <div><label class="input-label">{{ t('payment.admin.validity') }} <span class="views-admin-orders-plan-edit-dialog__text">*</span></label><input v-model.number="planForm.validity_days" type="number" min="1" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="views-admin-orders-plan-edit-dialog__text">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
       </div>
+      <div class="views-admin-orders-plan-edit-dialog__panel">
+        <div>
+          <label class="input-label">{{ t('payment.admin.resetCardCount') }}</label>
+          <input v-model.number="planForm.reset_card_count" type="number" min="0" max="1000" step="1" class="input" />
+          <p class="views-admin-orders-plan-edit-dialog__description">{{ t('payment.admin.resetCardCountHint') }}</p>
+        </div>
+        <div>
+          <label class="input-label">{{ t('payment.admin.resetCardValidityDays') }}</label>
+          <input v-model.number="planForm.reset_card_validity_days" type="number" min="1" max="3650" step="1" class="input" />
+        </div>
+      </div>
       <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
       <div class="plan-stock">
         <div class="plan-stock__toggle-row">
@@ -128,7 +139,7 @@ const localeCode = computed(() => String(locale?.value || ''))
 const appStore = useAppStore()
 
 const saving = ref(false)
-const planForm = reactive({ name: '', group_id: null as string | null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, stock_enabled: false, stock_quantity: 0 })
+const planForm = reactive({ name: '', group_id: null as string | null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', reset_card_count: 0, reset_card_validity_days: 30, sort_order: 0, for_sale: true, stock_enabled: false, stock_quantity: 0 })
 const planFeaturesText = ref('')
 
 const validityUnitOptions = computed(() => [
@@ -161,10 +172,10 @@ function groupLimitPoints(points: number | null | undefined, legacy: number | nu
 watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price_points ?? props.plan.price, original_price: props.plan.original_price_points ?? props.plan.original_price ?? 0, validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, stock_enabled: props.plan.stock_enabled === true, stock_quantity: props.plan.stock_quantity ?? 0 })
+    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price_points ?? props.plan.price, original_price: props.plan.original_price_points ?? props.plan.original_price ?? 0, validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', reset_card_count: props.plan.reset_card_count ?? 0, reset_card_validity_days: props.plan.reset_card_validity_days ?? 30, sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale, stock_enabled: props.plan.stock_enabled === true, stock_quantity: props.plan.stock_quantity ?? 0 })
     planFeaturesText.value = (props.plan.features || []).join('\n')
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true, stock_enabled: false, stock_quantity: 0 })
+    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', reset_card_count: 0, reset_card_validity_days: 30, sort_order: 0, for_sale: true, stock_enabled: false, stock_quantity: 0 })
     planFeaturesText.value = ''
   }
 })
@@ -180,6 +191,8 @@ function buildPlanPayload() {
     original_price: planForm.original_price || 0,
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
+    reset_card_count: planForm.reset_card_count,
+    reset_card_validity_days: planForm.reset_card_validity_days,
     sort_order: planForm.sort_order,
     for_sale: planForm.for_sale,
     stock_enabled: planForm.stock_enabled,
@@ -199,6 +212,14 @@ async function handleSavePlan() {
   }
   if (!planForm.validity_days || planForm.validity_days < 1) {
     appStore.showError(t('payment.admin.validityRequired'))
+    return
+  }
+  if (!Number.isInteger(planForm.reset_card_count) || planForm.reset_card_count < 0 || planForm.reset_card_count > 1000) {
+    appStore.showError(t('payment.admin.resetCardCountInvalid'))
+    return
+  }
+  if (!Number.isInteger(planForm.reset_card_validity_days) || planForm.reset_card_validity_days < 1 || planForm.reset_card_validity_days > 3650) {
+    appStore.showError(t('payment.admin.resetCardValidityInvalid'))
     return
   }
   if (planForm.stock_enabled && (

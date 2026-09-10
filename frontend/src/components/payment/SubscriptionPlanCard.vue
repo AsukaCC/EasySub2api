@@ -75,6 +75,12 @@
           <span class="subscription-plan-card__quota-label">{{ t('payment.planCard.monthlyLimit') }}</span>
           <span class="subscription-plan-card__quota-value">{{ formatPoints(monthlyLimitPoints, localeCode) }}</span>
         </div>
+        <div v-if="resetCardCount > 0" class="subscription-plan-card__quota-row">
+          <span class="subscription-plan-card__quota-label">{{ t('payment.planCard.resetCards') }}</span>
+          <span class="subscription-plan-card__quota-value">
+            {{ t('payment.planCard.resetCardsValue', { count: resetCardCount, days: resetCardValidityDays }) }}
+          </span>
+        </div>
         <div v-if="!planHasQuota" class="subscription-plan-card__quota-row">
           <span class="subscription-plan-card__quota-label">{{ t('payment.planCard.quota') }}</span>
           <span class="subscription-plan-card__quota-value">{{ t('payment.planCard.unlimited') }}</span>
@@ -164,6 +170,8 @@ const planOriginalPricePoints = computed(() => subscriptionPlanOriginalPricePoin
 const dailyLimitPoints = computed(() => subscriptionPlanLimitPoints(props.plan, 'daily'))
 const weeklyLimitPoints = computed(() => subscriptionPlanLimitPoints(props.plan, 'weekly'))
 const monthlyLimitPoints = computed(() => subscriptionPlanLimitPoints(props.plan, 'monthly'))
+const resetCardCount = computed(() => Math.max(0, props.plan.reset_card_count ?? 0))
+const resetCardValidityDays = computed(() => props.plan.reset_card_validity_days ?? 30)
 const planHasQuota = computed(() => subscriptionPlanHasQuota(props.plan))
 const soldOut = computed(() => props.plan.stock_enabled === true && (props.plan.stock_available ?? 0) <= 0)
 const pendingBlocked = computed(() => props.pendingPlatforms?.includes(platform.value) ?? false)

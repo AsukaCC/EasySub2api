@@ -50,6 +50,14 @@ func (h *SettingHandler) DeleteAdminAPIKey(c *gin.Context) {
 	response.Success(c, gin.H{"message": "Admin API key deleted"})
 }
 
+// GetCodexOutboundDiagnostics 获取 Codex 出站身份与连接 Profile 诊断快照
+// GET /api/v1/admin/settings/codex-outbound-diagnostics
+// 仅返回非敏感摘要：版本链（生效 / 手工覆写 / 自动同步 / 内置 / 最低门槛）、身份三元组与
+// 进程级连接策略；不含 token、Cookie、Authorization 或完整请求头。
+func (h *SettingHandler) GetCodexOutboundDiagnostics(c *gin.Context) {
+	response.Success(c, h.settingService.GetCodexOutboundDiagnostics(c.Request.Context()))
+}
+
 // GetOverloadCooldownSettings 获取529过载冷却配置
 // GET /api/v1/admin/settings/overload-cooldown
 func (h *SettingHandler) GetOverloadCooldownSettings(c *gin.Context) {

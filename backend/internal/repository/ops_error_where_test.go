@@ -151,3 +151,26 @@ func TestBuildOpsErrorLogsWhere_UserOwnershipIsDirectOnly(t *testing.T) {
 		t.Fatalf("user ownership must not depend on deleted-key attribution: %s", where)
 	}
 }
+
+func TestBuildOpsErrorLogsWhere_UserRoleScope(t *testing.T) {
+	for _, scope := range []string{"admin", "regular"} {
+		where, args := buildOpsErrorLogsWhere(&service.OpsErrorLogFilter{UserRoleScope: scope})
+		if !strings.Contains(where, "EXISTS (SELECT 1 FROM users usage_scope_user") {
+			t.Fatalf("%s scope should constrain the owning user role: %s", scope, where)
+		}
+		if len(args) != 0 {
+			t.Fatalf("%s scope should not add query args, got %v", scope, args)
+		}
+		if scope == "admin" && !strings.Contains(where, "usage_scope_user.role = 'admin'") {
+			t.Fatalf("admin scope missing admin role predicate: %s", where)
+		}
+		if scope == "regular" && !strings.Contains(where, "usage_scope_user.role <> 'admin'") {
+			t.Fatalf("regular scope missing non-admin role predicate: %s", where)
+		}
+	}
+
+	where, _ := buildOpsErrorLogsWhere(&service.OpsErrorLogFilter{UserRoleScope: "all"})
+	if strings.Contains(where, "usage_scope_user.role") {
+		t.Fatalf("all scope must not constrain user roles: %s", where)
+	}
+}

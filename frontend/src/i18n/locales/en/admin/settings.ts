@@ -17,6 +17,7 @@ export default {
         platform: 'Platform',
         'feature-channel-monitor': 'Channel Monitor Settings',
         'feature-model-plaza': 'Model Plaza Settings',
+        'feature-usage-guide': 'Usage Guide Settings',
         'feature-affiliate': 'Affiliate Settings',
         compliance: 'Login & Compliance',
         access: 'Access & Users',
@@ -28,12 +29,26 @@ export default {
         platform: 'Manage runtime mode, site branding, API links, homepage presentation, and extensions by module.',
         'feature-channel-monitor': 'Configure passive monitoring display and privacy options.',
         'feature-model-plaza': 'Configure Model Plaza authentication and explanatory content.',
+        'feature-usage-guide': 'Edit the Markdown usage guide available to signed-in users.',
         'feature-affiliate': 'Configure rebates, freeze periods, point caps, and dedicated users.',
         compliance: 'Manage login agreements, usage policies, and user confirmation flows.',
         access: 'Manage registration, authentication, security policies, and user defaults.',
         gateway: 'Manage gateway forwarding, scheduling, client restrictions, and runtime controls.',
         payment: 'Manage payment switches, methods, rates, and order limits.',
         operations: 'Manage email notifications, SMTP, and data backups.',
+      },
+      usageGuide: {
+        title: 'Usage Guide Settings',
+        description: 'Edit the Markdown usage guide available to signed-in users.',
+        manageFeature: 'Open Feature Management',
+        contentLabel: 'Markdown content',
+        enabledLabel: 'Enable usage guide',
+        placeholder: 'Write API key, group, billing, and request instructions here.',
+        enabledHint: 'Enabled. Signed-in users can open this document from the navigation.',
+        disabledHint: 'Disabled. Save the content, then enable the feature in Feature Management.',
+        loadFailed: 'Failed to load usage guide settings',
+        saved: 'Usage guide saved',
+        saveFailed: 'Failed to save the usage guide',
       },
       systemUpdates: {
         title: 'System Updates',
@@ -66,6 +81,10 @@ export default {
           opsMonitoring: 'Operations Monitoring',
           supportTickets: 'Support Tickets',
         },
+        usageGuide: {
+          title: 'Usage Guide',
+          description: 'Provide signed-in users with API key, group, billing, and request instructions. Disabled by default.',
+        },
         moduleDescriptions: {
           payment: 'Manage recharge channels, limits, rates, and payment parameters.',
           opsMonitoring: 'Manage real-time monitoring, query mode, collection intervals, and operations panels.',
@@ -97,6 +116,9 @@ export default {
           hideThroughput: 'Hide throughput rates from users (RPM / TPM)',
           hideThroughputHint:
             'When on, the user Channel Monitor page and user APIs omit RPM and TPM so fleet volume cannot be reverse-estimated from rates × window. Admins still see full metrics. Error rates, latency, and cache rates remain visible.',
+          hideUserRanking: 'Hide user ranking from users',
+          hideUserRankingHint:
+            'When on, the user Channel Monitor V2 page hides the user ranking tab and the user API returns no ranking rows. Admins still see the ranking.',
         },
         availableChannels: {
           title: 'Available Channels',
@@ -114,6 +136,10 @@ export default {
           requireAuthHint: 'When on, anonymous visitors are redirected to the login page; when off, the page is public and anonymous visitors only see non-exclusive groups.',
           priceDescription: 'Pricing notes (Markdown)',
           priceDescriptionHint: 'Rendered at the top of the plaza page. Use it for billing rules, exchange rates, promotions, etc.',
+        },
+        usageGuide: {
+          title: 'Usage Guide',
+          description: 'Provide signed-in users with API key, group, billing, and request instructions. Disabled by default.',
         },
         riskControl: {
           title: 'Risk Control',
@@ -603,6 +629,20 @@ export default {
         openaiCodexVersionAutoSync: 'Auto-sync Codex version',
         openaiCodexVersionAutoSyncHint: 'Fetches the latest stable client version from the official repository every 6 hours, so you never need to upgrade this service just to keep the version current. When disabled, only the version above or the built-in default is used.',
         openaiCodexVersionSyncedValue: 'Currently synced: {version}',
+        codexOutboundDiagnostics: {
+          title: 'Codex outbound diagnostics (read-only)',
+          effectiveVersion: 'Effective version: {version} (source: {source})',
+          versionChain: 'Manual override: {manual} · Auto-synced: {synced} · Built-in default: {builtin} · Minimum supported: {minimum}',
+          identity: 'Identity: originator={originator} · User-Agent={userAgent}',
+          connection: 'Connection: protocol={protocol} · TLS fingerprint: {tls} · Direct fallback on proxy error: {directFallback}',
+          rejectedManual: 'Manual override "{version}" is ignored: pre-release or invalid versions are rejected unless gateway.codex_allow_prerelease_version is enabled.',
+          rejectedSynced: 'Synced value "{version}" is ignored: pre-release or invalid versions fall back to the next source.',
+          source: {
+            manual_override: 'manual override',
+            auto_sync: 'auto-sync',
+            builtin_default: 'built-in default',
+          },
+        },
         codexHardeningTitle: "Codex Settings",
         codexClientRestrictionTitle: "Codex client restriction",
         codexHardeningDesc:

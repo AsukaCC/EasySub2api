@@ -5531,6 +5531,29 @@
                 <Toggle v-model="form.openai_codex_version_auto_sync_enabled" />
               </div>
 
+              <!-- Codex 出站诊断（只读） -->
+              <div
+                v-if="codexOutboundDiagnosticsLines.length > 0"
+                class="views-admin-settings-view__panel-10"
+              >
+                <div>
+                  <label class="views-admin-settings-view__label-4">
+                    {{
+                      t(
+                        "admin.settings.gatewayForwarding.codexOutboundDiagnostics.title",
+                      )
+                    }}
+                  </label>
+                  <p
+                    v-for="line in codexOutboundDiagnosticsLines"
+                    :key="line"
+                    class="views-admin-settings-view__description-21"
+                  >
+                    {{ line }}
+                  </p>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -6817,6 +6840,17 @@
                   </p>
                 </div>
                 <Toggle v-model="form.channel_monitor_hide_throughput" />
+              </div>
+              <div class="views-admin-settings-view__panel-36">
+                <div class="views-admin-settings-view__panel-88">
+                  <p class="views-admin-settings-view__text-2">
+                    {{ t('admin.settings.features.channelMonitor.hideUserRanking') }}
+                  </p>
+                  <p class="views-admin-settings-view__description-16">
+                    {{ t('admin.settings.features.channelMonitor.hideUserRankingHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.channel_monitor_hide_user_ranking" />
               </div>
             </div>
           </div>
@@ -8515,6 +8549,7 @@ import {
 import type {
   AuthSourceDefaultsState,
   AuthSourceType,
+  CodexOutboundDiagnostics,
   SystemSettings,
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
@@ -8668,7 +8703,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
     "allow_user_view_error_requests",
   ]),
   "feature-channel-monitor": new Set([
-    "channel_monitor_hide_throughput",
+    "channel_monitor_hide_throughput", "channel_monitor_hide_user_ranking",
   ]),
   "feature-model-plaza": new Set([
     "model_plaza_require_auth", "model_plaza_description",
@@ -9344,6 +9379,7 @@ type SettingsForm = Omit<
   /** Form always binds a concrete boolean (SystemSettings marks this optional). */
   channel_monitor_hide_throughput: boolean;
   channel_monitor_show_quota: boolean;
+  channel_monitor_hide_user_ranking: boolean;
   smtp_password: string;
   turnstile_secret_key: string;
   tencent_captcha_app_secret_key: string;
@@ -9662,6 +9698,7 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   channel_monitor_hide_throughput: false,
   channel_monitor_show_quota: false,
+  channel_monitor_hide_user_ranking: false,
   // Available Channels feature switch
   available_channels_enabled: false,
   available_channels_user_visible: false,
@@ -9670,6 +9707,8 @@ const form = reactive<SettingsForm>({
   model_plaza_user_visible: false,
   model_plaza_require_auth: false,
   model_plaza_description: '',
+  usage_guide_enabled: false,
+  usage_guide_content_md: '',
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
   affiliate_user_visible: false,
@@ -10694,9 +10733,68 @@ const codexSyncedVersionLabel = computed(() => {
   });
 });
 
+// Codex 出站诊断（只读，非敏感摘要）：与设置一同加载，失败不影响设置页可用性。
+const codexOutboundDiagnostics = ref<CodexOutboundDiagnostics | null>(null);
+
+async function loadCodexOutboundDiagnostics() {
+  try {
+    codexOutboundDiagnostics.value =
+      await adminAPI.settings.getCodexOutboundDiagnostics();
+  } catch {
+    codexOutboundDiagnostics.value = null;
+  }
+}
+
+const codexOutboundDiagnosticsLines = computed<string[]>(() => {
+  const diag = codexOutboundDiagnostics.value;
+  if (!diag) return [];
+  const prefix = "admin.settings.gatewayForwarding.codexOutboundDiagnostics";
+  const lines: string[] = [
+    t(`${prefix}.effectiveVersion`, {
+      version: diag.effective_version,
+      source: t(`${prefix}.source.${diag.version_source}`),
+    }),
+    t(`${prefix}.versionChain`, {
+      manual: diag.manual_override_version || "-",
+      synced: diag.synced_version || "-",
+      builtin: diag.builtin_default_version,
+      minimum: diag.minimum_supported_version,
+    }),
+    t(`${prefix}.identity`, {
+      originator: diag.originator,
+      userAgent: diag.user_agent,
+    }),
+    t(`${prefix}.connection`, {
+      protocol: diag.protocol_mode,
+      tls: diag.tls_fingerprint_enabled
+        ? t("common.enabled")
+        : t("common.disabled"),
+      directFallback: diag.proxy_direct_fallback_allowed
+        ? t("common.enabled")
+        : t("common.disabled"),
+    }),
+  ];
+  if (diag.rejected_manual_override_version) {
+    lines.push(
+      t(`${prefix}.rejectedManual`, {
+        version: diag.rejected_manual_override_version,
+      }),
+    );
+  }
+  if (diag.rejected_synced_version) {
+    lines.push(
+      t(`${prefix}.rejectedSynced`, {
+        version: diag.rejected_synced_version,
+      }),
+    );
+  }
+  return lines;
+});
+
 async function loadSettings() {
   loading.value = true;
   loadFailed.value = false;
+  void loadCodexOutboundDiagnostics();
   try {
     const settings = await adminAPI.settings.getSettings();
     settings.payment_load_balance_strategy =
@@ -10743,6 +10841,9 @@ async function loadSettings() {
     );
     form.channel_monitor_show_quota = Boolean(
       settings.channel_monitor_show_quota
+    );
+    form.channel_monitor_hide_user_ranking = Boolean(
+      settings.channel_monitor_hide_user_ranking
     );
     form.login_agreement_updated_at =
       settings.login_agreement_updated_at || "2026-03-31";
@@ -11438,12 +11539,15 @@ async function saveSettings(section?: SettingsSection) {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       channel_monitor_hide_throughput: Boolean(form.channel_monitor_hide_throughput),
       channel_monitor_show_quota: Boolean(form.channel_monitor_show_quota),
+      channel_monitor_hide_user_ranking: Boolean(form.channel_monitor_hide_user_ranking),
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
       // Model Plaza feature switches + description
       model_plaza_enabled: form.model_plaza_enabled,
       model_plaza_require_auth: form.model_plaza_require_auth,
       model_plaza_description: form.model_plaza_description,
+      usage_guide_enabled: form.usage_guide_enabled,
+      usage_guide_content_md: form.usage_guide_content_md,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,

@@ -17,6 +17,7 @@ export default {
         platform: '平台设置',
         'feature-channel-monitor': '渠道监控设置',
         'feature-model-plaza': '模型广场设置',
+        'feature-usage-guide': '使用说明设置',
         'feature-affiliate': '分销设置',
         compliance: '登录与合规',
         access: '访问与用户',
@@ -28,12 +29,26 @@ export default {
         platform: '按模块管理运行模式、站点品牌、接口链接、首页展示和扩展配置。',
         'feature-channel-monitor': '配置被动监控的数据展示与隐私选项。',
         'feature-model-plaza': '配置模型广场的登录要求和说明内容。',
+        'feature-usage-guide': '编辑登录用户可查看的使用说明 Markdown 文档。',
         'feature-affiliate': '配置返利参数、冻结周期、积分上限和专属用户。',
         compliance: '管理登录条款、使用政策和用户确认流程。',
         access: '管理注册、认证、安全策略和用户默认配额。',
         gateway: '管理网关转发、调度策略、客户端限制和运行时控制。',
         payment: '管理支付开关、支付方式、费率和订单限制。',
         operations: '管理邮件通知、SMTP 和数据备份。',
+      },
+      usageGuide: {
+        title: '使用说明设置',
+        description: '编辑登录用户可查看的使用说明 Markdown 文档。',
+        manageFeature: '前往功能管理',
+        contentLabel: 'Markdown 内容',
+        enabledLabel: '启用使用说明',
+        placeholder: '在这里填写 API Key、分组、计费和调用方式说明。',
+        enabledHint: '当前已启用，登录用户可以从导航栏打开此文档。',
+        disabledHint: '当前未启用，保存内容后请在功能管理中开启。',
+        loadFailed: '加载使用说明设置失败',
+        saved: '使用说明已保存',
+        saveFailed: '保存使用说明失败',
       },
       systemUpdates: {
         title: '系统更新',
@@ -66,6 +81,10 @@ export default {
           opsMonitoring: '运维监控',
           supportTickets: '工单中心',
         },
+        usageGuide: {
+          title: '使用说明',
+          description: '向登录用户提供 API Key、分组、计费和调用方式说明。默认关闭。',
+        },
         moduleDescriptions: {
           payment: '管理充值支付渠道、限额、费率和支付参数。',
           opsMonitoring: '管理实时监控、查询模式、采集间隔和运维面板。',
@@ -97,6 +116,9 @@ export default {
           hideThroughput: '对用户隐藏吞吐速率（RPM / TPM）',
           hideThroughputHint:
             '开启后，用户端渠道监控页面与用户 API 不返回 RPM/TPM，避免用「速率 × 时间窗」反推集群规模。管理员仍可见完整指标；错误率、延迟、缓存率照常展示。',
+          hideUserRanking: '对用户隐藏用户排行',
+          hideUserRankingHint:
+            '开启后，用户端渠道监控 V2 不再显示「用户排行」页，用户 API 也不返回排行数据。管理员仍可查看。',
         },
         availableChannels: {
           title: '可用渠道',
@@ -114,6 +136,10 @@ export default {
           requireAuthHint: '开启后未登录访问将跳转登录页；关闭则公开可见，匿名访客仅展示非专属分组。',
           priceDescription: '价格说明（Markdown）',
           priceDescriptionHint: '展示在模型广场页面顶部，可用于说明计费规则、汇率、优惠活动等。',
+        },
+        usageGuide: {
+          title: '使用说明',
+          description: '向登录用户提供 API Key、分组、计费和调用方式说明。默认关闭。',
         },
         riskControl: {
           title: '风控中心',
@@ -597,6 +623,20 @@ export default {
         openaiCodexVersionAutoSync: '自动同步 Codex 版本号',
         openaiCodexVersionAutoSyncHint: '每 6 小时从官方仓库获取最新稳定版客户端版本号，无需为了跟版本而升级本服务。关闭后仅使用上方手填版本或内置版本。',
         openaiCodexVersionSyncedValue: '当前同步到：{version}',
+        codexOutboundDiagnostics: {
+          title: 'Codex 出站诊断（只读）',
+          effectiveVersion: '生效版本：{version}（来源：{source}）',
+          versionChain: '手工覆写：{manual} · 自动同步：{synced} · 内置默认：{builtin} · 最低支持：{minimum}',
+          identity: '身份：originator={originator} · User-Agent={userAgent}',
+          connection: '连接：协议={protocol} · TLS 指纹：{tls} · 代理失败回退直连：{directFallback}',
+          rejectedManual: '手工覆写「{version}」未生效：预发布或非法版本在未开启 gateway.codex_allow_prerelease_version 时会被拒绝。',
+          rejectedSynced: '同步值「{version}」未生效：预发布或非法版本回退到下一来源。',
+          source: {
+            manual_override: '手工覆写',
+            auto_sync: '自动同步',
+            builtin_default: '内置默认',
+          },
+        },
         codexHardeningTitle: 'Codex 设置',
         codexClientRestrictionTitle: 'Codex 客户端限制',
         codexHardeningDesc:

@@ -14,6 +14,7 @@ export type Platform =
   | 'kimi'
   | 'zhipu'
   | 'deepseek'
+  | 'minimax'
   | 'composite'
 
 // ── Badge (bg + text + border, for inline badges with border) ───────
@@ -26,6 +27,7 @@ const BADGE: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-6',
   zhipu: 'utils-platform-colors__state-7',
   deepseek: 'utils-platform-colors__state-8',
+  minimax: 'utils-platform-colors__state-6',
   composite: 'utils-platform-colors__state-9',
 }
 const BADGE_DEFAULT = 'utils-platform-colors__state-10'
@@ -40,6 +42,7 @@ const BADGE_LIGHT: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-16',
   zhipu: 'utils-platform-colors__state-17',
   deepseek: 'utils-platform-colors__state-18',
+  minimax: 'utils-platform-colors__state-16',
   composite: 'utils-platform-colors__state-19',
 }
 
@@ -53,6 +56,7 @@ const BORDER: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-25',
   zhipu: 'utils-platform-colors__state-26',
   deepseek: 'utils-platform-colors__state-27',
+  minimax: 'utils-platform-colors__state-25',
   composite: 'utils-platform-colors__state-28',
 }
 const BORDER_DEFAULT = 'utils-platform-colors__state-29'
@@ -67,6 +71,7 @@ const BORDER_STRONG: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-35',
   zhipu: 'utils-platform-colors__state-36',
   deepseek: 'utils-platform-colors__state-37',
+  minimax: 'utils-platform-colors__state-35',
   composite: 'utils-platform-colors__state-38',
 }
 const BORDER_STRONG_DEFAULT = 'utils-platform-colors__state-39'
@@ -82,6 +87,7 @@ const ACCENT: Record<Platform, string> = {
   kimi: '#ec4899', // pink-500
   zhipu: '#6366f1', // indigo-500
   deepseek: '#14b8a6', // teal-500
+  minimax: '#f43f5e', // rose-500
   composite: '#06b6d4', // cyan-500
 }
 const ACCENT_DEFAULT = '#0a84ff' // primary-500 (apple blue)
@@ -96,6 +102,7 @@ const ACCENT_BAR: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-45',
   zhipu: 'utils-platform-colors__state-46',
   deepseek: 'utils-platform-colors__state-47',
+  minimax: 'utils-platform-colors__state-45',
   composite: 'utils-platform-colors__state-48',
 }
 const ACCENT_BAR_DEFAULT = 'utils-platform-colors__state-49'
@@ -110,6 +117,7 @@ const TEXT: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-55',
   zhipu: 'utils-platform-colors__state-56',
   deepseek: 'utils-platform-colors__state-57',
+  minimax: 'utils-platform-colors__state-55',
   composite: 'utils-platform-colors__state-58',
 }
 const TEXT_DEFAULT = 'utils-platform-colors__state-59'
@@ -124,6 +132,7 @@ const ICON: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-64',
   zhipu: 'utils-platform-colors__state-65',
   deepseek: 'utils-platform-colors__state-66',
+  minimax: 'utils-platform-colors__state-64',
   composite: 'utils-platform-colors__state-67',
 }
 const ICON_DEFAULT = 'utils-platform-colors__state-68'
@@ -138,6 +147,7 @@ const BUTTON: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-74',
   zhipu: 'utils-platform-colors__state-75',
   deepseek: 'utils-platform-colors__state-76',
+  minimax: 'utils-platform-colors__state-74',
   composite: 'utils-platform-colors__state-77',
 }
 const BUTTON_DEFAULT = 'utils-platform-colors__state-78'
@@ -152,6 +162,7 @@ const DISCOUNT: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-84',
   zhipu: 'utils-platform-colors__state-85',
   deepseek: 'utils-platform-colors__state-86',
+  minimax: 'utils-platform-colors__state-84',
   composite: 'utils-platform-colors__state-87',
 }
 const DISCOUNT_DEFAULT = 'utils-platform-colors__state-88'
@@ -166,6 +177,7 @@ const GRADIENT: Record<Platform, string> = {
   kimi: 'utils-platform-colors__state-94',
   zhipu: 'utils-platform-colors__state-95',
   deepseek: 'utils-platform-colors__state-96',
+  minimax: 'utils-platform-colors__state-94',
   composite: 'utils-platform-colors__state-97',
 }
 const GRADIENT_DEFAULT = 'utils-platform-colors__state-98'
@@ -180,6 +192,7 @@ const GRADIENT_TEXT: Record<Platform, string> = {
   kimi: 'status-text--accent',
   zhipu: 'status-text--info',
   deepseek: 'status-text--success',
+  minimax: 'status-text--accent',
   composite: 'status-text--info',
 }
 const GRADIENT_TEXT_DEFAULT = 'status-text--neutral'
@@ -193,6 +206,7 @@ const GRADIENT_SUBTEXT: Record<Platform, string> = {
   kimi: 'status-text--accent',
   zhipu: 'status-text--info',
   deepseek: 'status-text--success',
+  minimax: 'status-text--accent',
   composite: 'status-text--info',
 }
 const GRADIENT_SUBTEXT_DEFAULT = 'status-text--neutral'
@@ -209,6 +223,7 @@ function isPlatform(p: string): p is Platform {
     p === 'kimi' ||
     p === 'zhipu' ||
     p === 'deepseek' ||
+    p === 'minimax' ||
     p === 'composite'
   )
 }
@@ -275,6 +290,7 @@ export function platformLabel(p: string): string {
     case 'kimi': return 'Kimi'
     case 'zhipu': return 'Zhipu GLM'
     case 'deepseek': return 'DeepSeek'
+    case 'minimax': return 'MiniMax'
     case 'composite': return 'Composite'
     default: return p || 'API'
   }

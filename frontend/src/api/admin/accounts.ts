@@ -25,7 +25,9 @@ import type {
   UpstreamBillingProbeResult,
   UpstreamBillingProbeSettings,
   OllamaCloudUsageSettings,
-  OllamaCloudUsageState
+  OllamaCloudUsageState,
+  GrokMediaEligibilityMode,
+  GrokMediaEligibilityState
 } from '@/types'
 
 /**
@@ -240,6 +242,24 @@ export async function duplicate(id: string): Promise<Account> {
  */
 export async function update(id: string, updates: UpdateAccountRequest): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/admin/accounts/${id}`, updates)
+  return data
+}
+
+export async function getGrokMediaEligibility(id: string): Promise<GrokMediaEligibilityState> {
+  const { data } = await apiClient.get<GrokMediaEligibilityState>(
+    `/admin/accounts/${id}/grok-media-eligibility`
+  )
+  return data
+}
+
+export async function updateGrokMediaEligibility(
+  id: string,
+  mode: GrokMediaEligibilityMode
+): Promise<GrokMediaEligibilityState> {
+  const { data } = await apiClient.put<GrokMediaEligibilityState>(
+    `/admin/accounts/${id}/grok-media-eligibility`,
+    { mode }
+  )
   return data
 }
 
@@ -1079,6 +1099,8 @@ export const accountsAPI = {
   create,
   duplicate,
   update,
+  getGrokMediaEligibility,
+  updateGrokMediaEligibility,
   delete: deleteAccount,
   toggleStatus,
   testAccount,

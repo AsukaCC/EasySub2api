@@ -101,6 +101,10 @@ type PaymentOrder struct {
 	SubscriptionGroupID *string `json:"subscription_group_id,omitempty"`
 	// SubscriptionDays holds the value of the "subscription_days" field.
 	SubscriptionDays *int `json:"subscription_days,omitempty"`
+	// SubscriptionResetCardCount holds the value of the "subscription_reset_card_count" field.
+	SubscriptionResetCardCount int `json:"subscription_reset_card_count,omitempty"`
+	// SubscriptionResetCardValidityDays holds the value of the "subscription_reset_card_validity_days" field.
+	SubscriptionResetCardValidityDays int `json:"subscription_reset_card_validity_days,omitempty"`
 	// ProviderInstanceID holds the value of the "provider_instance_id" field.
 	ProviderInstanceID *string `json:"provider_instance_id,omitempty"`
 	// ProviderKey holds the value of the "provider_key" field.
@@ -190,7 +194,7 @@ func (*PaymentOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case paymentorder.FieldAmount, paymentorder.FieldPayAmount, paymentorder.FieldFeeRate, paymentorder.FieldWalletAmount, paymentorder.FieldWalletBonusAmount, paymentorder.FieldWalletRechargeAmount, paymentorder.FieldGatewayBaseAmount, paymentorder.FieldPrincipalAmount, paymentorder.FieldFeeAmount, paymentorder.FieldBasePoints, paymentorder.FieldBonusPoints, paymentorder.FieldCreditedPoints, paymentorder.FieldAffiliateRebatePoints, paymentorder.FieldRefundedPrincipalAmount, paymentorder.FieldRefundedFeeAmount, paymentorder.FieldRefundedGatewayAmount, paymentorder.FieldReversedBasePoints, paymentorder.FieldReversedBonusPoints, paymentorder.FieldReversedAffiliatePoints, paymentorder.FieldRefundAmount:
 			values[i] = new(sql.NullFloat64)
-		case paymentorder.FieldSubscriptionDays:
+		case paymentorder.FieldSubscriptionDays, paymentorder.FieldSubscriptionResetCardCount, paymentorder.FieldSubscriptionResetCardValidityDays:
 			values[i] = new(sql.NullInt64)
 		case paymentorder.FieldID, paymentorder.FieldUserID, paymentorder.FieldUserEmail, paymentorder.FieldUserName, paymentorder.FieldUserNotes, paymentorder.FieldWalletHoldID, paymentorder.FieldCurrency, paymentorder.FieldBonusGrantID, paymentorder.FieldRechargeCode, paymentorder.FieldOutTradeNo, paymentorder.FieldPaymentType, paymentorder.FieldPaymentTradeNo, paymentorder.FieldPayURL, paymentorder.FieldQrCode, paymentorder.FieldQrCodeImg, paymentorder.FieldOrderType, paymentorder.FieldPlanID, paymentorder.FieldSubscriptionGroupID, paymentorder.FieldProviderInstanceID, paymentorder.FieldProviderKey, paymentorder.FieldStatus, paymentorder.FieldInventoryStatus, paymentorder.FieldRefundReason, paymentorder.FieldRefundRequestReason, paymentorder.FieldRefundRequestedBy, paymentorder.FieldFailedReason, paymentorder.FieldClientIP, paymentorder.FieldSrcHost, paymentorder.FieldSrcURL:
 			values[i] = new(sql.NullString)
@@ -475,6 +479,18 @@ func (_m *PaymentOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SubscriptionDays = new(int)
 				*_m.SubscriptionDays = int(value.Int64)
+			}
+		case paymentorder.FieldSubscriptionResetCardCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_reset_card_count", values[i])
+			} else if value.Valid {
+				_m.SubscriptionResetCardCount = int(value.Int64)
+			}
+		case paymentorder.FieldSubscriptionResetCardValidityDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_reset_card_validity_days", values[i])
+			} else if value.Valid {
+				_m.SubscriptionResetCardValidityDays = int(value.Int64)
 			}
 		case paymentorder.FieldProviderInstanceID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -835,6 +851,12 @@ func (_m *PaymentOrder) String() string {
 		builder.WriteString("subscription_days=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("subscription_reset_card_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SubscriptionResetCardCount))
+	builder.WriteString(", ")
+	builder.WriteString("subscription_reset_card_validity_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SubscriptionResetCardValidityDays))
 	builder.WriteString(", ")
 	if v := _m.ProviderInstanceID; v != nil {
 		builder.WriteString("provider_instance_id=")

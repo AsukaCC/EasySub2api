@@ -22,6 +22,14 @@
         >
           U {{ formatUserCost }}
         </span>
+        <span
+          v-if="estimatedTotalCost != null"
+          data-test="estimated-total-cost"
+          class="components-account-usage-progress-bar__text usage-estimate-badge"
+          :title="t('admin.accounts.usageWindow.estimatedTotalCostTooltip')"
+        >
+          {{ t('admin.accounts.usageWindow.estimatedTotalCost', { cost: estimatedTotalCost.toFixed(2) }) }}
+        </span>
       </div>
     </div>
 
@@ -68,6 +76,7 @@ const props = defineProps<{
   resetsAt?: string | null
   color: 'indigo' | 'emerald' | 'purple' | 'amber'
   windowStats?: WindowStats | null
+  estimatedTotalCost?: number | null
   showNowWhenIdle?: boolean
   remainingCapacity?: boolean
 }>()
@@ -218,3 +227,11 @@ const formatUserCost = computed(() => {
 })
 
 </script>
+
+<style scoped>
+.usage-estimate-badge {
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+</style>

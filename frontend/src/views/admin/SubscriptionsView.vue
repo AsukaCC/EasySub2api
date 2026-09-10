@@ -93,6 +93,17 @@
 
           <!-- Right: Actions -->
           <div class="views-admin-subscriptions-view__panel-8">
+            <div v-if="selectedCount > 0" class="subscription-bulk-actions">
+              <span class="subscription-bulk-actions__count">{{ t('admin.subscriptions.selectedCount', { count: selectedCount }) }}</span>
+              <button type="button" class="btn btn-secondary btn-sm" @click="showIssueCardsModal = true">
+                <Icon name="plus" size="sm" />
+                {{ t('admin.subscriptions.issueResetCards') }}
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" @click="openBulkResetWeekly">
+                <Icon name="refresh" size="sm" />
+                {{ t('admin.subscriptions.resetWeekly') }}
+              </button>
+            </div>
             <button
               @click="loadSubscriptions"
               :disabled="loading"
@@ -173,6 +184,11 @@
           :columns="columns"
           :data="subscriptions"
           :loading="loading"
+          selectable
+          row-key="id"
+          :selected-keys="selectedIds"
+          :selection-label="(row: UserSubscription) => row.user?.email || row.id"
+          @update:selected-keys="handleSelectedKeysUpdate"
           :server-side-sort="true"
           default-sort-key="created_at"
           default-sort-order="desc"
@@ -212,7 +228,7 @@
           </template>
 
           <template #cell-usage="{ row }">
-            <div class="views-admin-subscriptions-view__panel-16">
+              <div class="views-admin-subscriptions-view__panel-16">
               <!-- Daily Usage -->
               <div v-if="subscriptionLimitPoints(row, 'daily')" class="usage-row">
                 <div class="views-admin-subscriptions-view__panel-14">
@@ -246,6 +262,11 @@
                   </svg>
                   <span>{{ formatDailyUsageWindow(row) }}</span>
                 </div>
+              </div>
+              <div v-if="row.reset_cards" class="reset-card-summary">
+                <span>{{ t('admin.subscriptions.resetCardsAvailable', { count: row.reset_cards.available_count }) }}</span>
+                <span>{{ t('admin.subscriptions.resetCardsExpired', { count: row.reset_cards.expired_count }) }}</span>
+                <span v-if="row.reset_cards.next_expiry_at">{{ t('admin.subscriptions.resetCardsNextExpiry', { time: formatDateTimeToMinute(row.reset_cards.next_expiry_at) }) }}</span>
               </div>
 
               <!-- Weekly Usage -->
@@ -393,7 +414,7 @@
                 class="views-admin-subscriptions-view__action-6"
               >
                 <Icon name="refresh" size="sm" />
-                <span class="views-admin-subscriptions-view__text-11">{{ t('admin.subscriptions.resetQuota') }}</span>
+                <span class="views-admin-subscriptions-view__text-11">{{ t('admin.subscriptions.resetWeekly') }}</span>
               </button>
               <button
                 v-if="row.status === 'active'"
@@ -580,6 +601,37 @@
       </template>
     </BaseDialog>
 
+    <!-- Issue reset cards -->
+    <BaseDialog
+      :show="showIssueCardsModal"
+      :title="t('admin.subscriptions.issueResetCards')"
+      width="narrow"
+      @close="closeIssueCardsModal"
+    >
+      <form id="issue-reset-cards-form" class="views-admin-subscriptions-view__form" @submit.prevent="issueResetCards">
+        <p class="views-admin-subscriptions-view__description">
+          {{ t('admin.subscriptions.issueResetCardsSelected', { count: selectedCount }) }}
+        </p>
+        <div>
+          <label class="input-label">{{ t('admin.subscriptions.resetCardQuantity') }}</label>
+          <input v-model.number="issueCardsForm.quantity" type="number" min="1" max="1000" step="1" class="input" required />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.subscriptions.resetCardValidityDays') }}</label>
+          <input v-model.number="issueCardsForm.validity_days" type="number" min="1" max="3650" step="1" class="input" required />
+        </div>
+        <p class="input-hint">{{ t('admin.subscriptions.issueResetCardsTotal', { count: selectedCount * issueCardsForm.quantity }) }}</p>
+      </form>
+      <template #footer>
+        <div class="views-admin-subscriptions-view__panel-22">
+          <button type="button" class="btn btn-secondary" @click="closeIssueCardsModal">{{ t('common.cancel') }}</button>
+          <button type="submit" form="issue-reset-cards-form" class="btn btn-primary" :disabled="issuingCards">
+            {{ issuingCards ? t('common.saving') : t('admin.subscriptions.issueResetCards') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
     <!-- Adjust Subscription Modal -->
     <BaseDialog
       :show="showExtendModal"
@@ -674,13 +726,57 @@
     <!-- Reset Quota Confirmation Dialog -->
     <ConfirmDialog
       :show="showResetQuotaConfirm"
-      :title="t('admin.subscriptions.resetQuotaTitle')"
-      :message="t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
-      :confirm-text="t('admin.subscriptions.resetQuota')"
+      :title="t('admin.subscriptions.resetWeeklyTitle')"
+      :message="resetWeeklyConfirmMessage"
+      :confirm-text="t('admin.subscriptions.resetWeekly')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
       @cancel="showResetQuotaConfirm = false"
     />
+
+    <!-- Batch operation result -->
+    <BaseDialog
+      :show="operationResult !== null"
+      :title="operationResultTitle"
+      width="normal"
+      @close="closeOperationResult"
+    >
+      <div class="subscription-operation-result">
+        <div class="subscription-operation-result__summary">
+          {{ operationResultSummary }}
+          <span v-if="operationResult?.kind === 'issue'">
+            {{ t('admin.subscriptions.operationResultTotalIssued', { count: operationResult.total_issued }) }}
+          </span>
+        </div>
+        <div
+          v-for="item in operationResult?.items || []"
+          :key="`${item.subscription_id}-${item.success ? 'ok' : 'error'}`"
+          class="subscription-operation-result__item"
+        >
+          <div class="subscription-operation-result__item-header">
+            <span class="subscription-operation-result__label">{{ item.label }}</span>
+            <span :class="['badge', item.success ? 'badge-success' : 'badge-danger']">
+              {{ item.success ? t('admin.subscriptions.operationResultSuccess') : t('admin.subscriptions.operationResultFailed') }}
+            </span>
+          </div>
+          <p v-if="item.detail" class="subscription-operation-result__detail">{{ item.detail }}</p>
+          <p v-if="item.error" class="subscription-operation-result__error">
+            {{ t('admin.subscriptions.operationResultError', { reason: item.error }) }}
+          </p>
+        </div>
+        <p v-if="operationResult && operationResult.items.length === 0" class="input-hint">
+          {{ t('common.noData') }}
+        </p>
+      </div>
+      <template #footer>
+        <div class="views-admin-subscriptions-view__panel-22">
+          <button type="button" class="btn btn-primary" @click="closeOperationResult">
+            {{ t('common.close') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
     <!-- Subscription Guide Modal -->
     <teleport to="body">
       <transition name="modal">
@@ -770,11 +866,13 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
+import type { ResetCardIssueResult, WeeklyResetResult } from '@/api/admin/subscriptions'
 import type { PendingSubscription, UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
 import { formatDateTimeToMinute, formatPointAmount, formatPoints } from '@/utils/format'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { useTableSelection } from '@/composables/useTableSelection'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -824,7 +922,7 @@ const showGuideModal = ref(false)
 
 const guideActionRows = computed(() => [
   { action: t('admin.subscriptions.guide.actions.adjust'), desc: t('admin.subscriptions.guide.actions.adjustDesc') },
-  { action: t('admin.subscriptions.guide.actions.resetQuota'), desc: t('admin.subscriptions.guide.actions.resetQuotaDesc') },
+  { action: t('admin.subscriptions.guide.actions.resetWeekly'), desc: t('admin.subscriptions.guide.actions.resetWeeklyDesc') },
   { action: t('admin.subscriptions.guide.actions.revoke'), desc: t('admin.subscriptions.guide.actions.revokeDesc') }
 ])
 
@@ -950,6 +1048,20 @@ const groups = ref<Group[]>([])
 const loading = ref(true)
 let abortController: AbortController | null = null
 
+const {
+  selectedIds,
+  selectedCount,
+  setSelectedIds,
+  clear: clearSelection,
+} = useTableSelection<UserSubscription>({
+  rows: subscriptions,
+  getId: (subscription) => subscription.id,
+})
+
+const handleSelectedKeysUpdate = (keys: Array<string | number>) => {
+  setSelectedIds(keys.filter((key): key is string => typeof key === 'string'))
+}
+
 // Toolbar user filter (fuzzy search -> select user_id)
 const filterUserKeyword = ref('')
 const filterUserResults = ref<SimpleUser[]>([])
@@ -991,12 +1103,53 @@ const showExtendModal = ref(false)
 const showRevokeDialog = ref(false)
 const showRestoreDialog = ref(false)
 const showResetQuotaConfirm = ref(false)
+const showIssueCardsModal = ref(false)
 const submitting = ref(false)
+const issuingCards = ref(false)
 const resettingSubscription = ref<UserSubscription | null>(null)
 const resettingQuota = ref(false)
 const extendingSubscription = ref<UserSubscription | null>(null)
 const revokingSubscription = ref<UserSubscription | null>(null)
 const restoringSubscription = ref<UserSubscription | null>(null)
+
+interface OperationResultItem {
+  subscription_id: string
+  label: string
+  success: boolean
+  detail?: string
+  error?: string
+}
+
+interface OperationResultState {
+  kind: 'issue' | 'weekly'
+  success_count: number
+  failed_count: number
+  total_issued: number
+  items: OperationResultItem[]
+}
+
+const operationResult = ref<OperationResultState | null>(null)
+
+const operationResultTitle = computed(() => {
+  if (!operationResult.value) return t('admin.subscriptions.operationResultTitle')
+  return operationResult.value.kind === 'issue'
+    ? t('admin.subscriptions.operationResultIssueTitle')
+    : t('admin.subscriptions.operationResultWeeklyTitle')
+})
+
+const operationResultSummary = computed(() => {
+  const result = operationResult.value
+  if (!result) return ''
+  return t('admin.subscriptions.operationResultSummary', {
+    success: result.success_count,
+    failed: result.failed_count,
+  })
+})
+
+const issueCardsForm = reactive({
+  quantity: 1,
+  validity_days: 30,
+})
 
 const assignForm = reactive({
   user_id: null as string | null,
@@ -1352,22 +1505,146 @@ const confirmRestore = async () => {
 }
 
 const handleResetQuota = (subscription: UserSubscription) => {
+  setSelectedIds([subscription.id])
   resettingSubscription.value = subscription
   showResetQuotaConfirm.value = true
 }
 
+const openBulkResetWeekly = () => {
+  if (selectedCount.value <= 0) return
+  resettingSubscription.value = null
+  showResetQuotaConfirm.value = true
+}
+
+const resetWeeklyConfirmMessage = computed(() => {
+  if (resettingSubscription.value) {
+    return t('admin.subscriptions.resetWeeklyConfirmSingle', {
+      user: resettingSubscription.value.user?.email || resettingSubscription.value.id,
+    })
+  }
+  return t('admin.subscriptions.resetWeeklyConfirm', { count: selectedCount.value })
+})
+
+const closeIssueCardsModal = () => {
+  if (issuingCards.value) return
+  showIssueCardsModal.value = false
+  issueCardsForm.quantity = 1
+  issueCardsForm.validity_days = 30
+}
+
+const subscriptionResultLabel = (subscriptionId: string): string => {
+  const subscription = subscriptions.value.find(item => item.id === subscriptionId)
+  if (!subscription) return subscriptionId
+  const email = subscription.user?.email
+  const group = subscription.group?.name
+  if (email && group) return `${email} · ${group}`
+  return email || group || subscriptionId
+}
+
+const setIssueOperationResult = (result: ResetCardIssueResult) => {
+  operationResult.value = {
+    kind: 'issue',
+    success_count: result.success_count,
+    failed_count: result.failed_count,
+    total_issued: result.total_issued,
+    items: result.items.map(item => ({
+      subscription_id: item.subscription_id,
+      label: subscriptionResultLabel(item.subscription_id),
+      success: item.success,
+      detail: item.success
+        ? t('admin.subscriptions.operationResultIssuedDetail', { count: item.issued_count })
+        : undefined,
+      error: item.success ? undefined : (item.error_code || item.error || t('common.error')),
+    })),
+  }
+}
+
+const setWeeklyOperationResult = (result: WeeklyResetResult) => {
+  operationResult.value = {
+    kind: 'weekly',
+    success_count: result.success_count,
+    failed_count: result.failed_count,
+    total_issued: 0,
+    items: result.items.map(item => ({
+      subscription_id: item.subscription_id,
+      label: subscriptionResultLabel(item.subscription_id),
+      success: item.success,
+      detail: item.success
+        ? t('admin.subscriptions.operationResultResetDetail', {
+          resetAt: item.reset_at ? formatDateTimeToMinute(item.reset_at) : t('common.unknown'),
+          endAt: item.weekly_window_end ? formatDateTimeToMinute(item.weekly_window_end) : t('common.unknown'),
+        })
+        : undefined,
+      error: item.success ? undefined : (item.error_code || item.error || t('common.error')),
+    })),
+  }
+}
+
+const closeOperationResult = () => {
+  operationResult.value = null
+}
+
+const issueResetCards = async () => {
+  if (selectedCount.value <= 0 || issuingCards.value) return
+  if (!Number.isInteger(issueCardsForm.quantity) || issueCardsForm.quantity < 1 || issueCardsForm.quantity > 1000) {
+    appStore.showError(t('admin.subscriptions.resetCardQuantityInvalid'))
+    return
+  }
+  if (!Number.isInteger(issueCardsForm.validity_days) || issueCardsForm.validity_days < 1 || issueCardsForm.validity_days > 3650) {
+    appStore.showError(t('admin.subscriptions.resetCardValidityInvalid'))
+    return
+  }
+  issuingCards.value = true
+  try {
+    const result = await adminAPI.subscriptions.issueResetCards({
+      subscription_ids: selectedIds.value,
+      quantity: issueCardsForm.quantity,
+      validity_days: issueCardsForm.validity_days,
+    })
+    if (result.failed_count > 0) {
+      appStore.showError(t('admin.subscriptions.issueResetCardsPartial', {
+        success: result.success_count,
+        failed: result.failed_count,
+      }))
+    } else {
+      appStore.showSuccess(t('admin.subscriptions.issueResetCardsSuccess', { count: result.total_issued }))
+    }
+    setIssueOperationResult(result)
+    showIssueCardsModal.value = false
+    issueCardsForm.quantity = 1
+    issueCardsForm.validity_days = 30
+    clearSelection()
+    await loadSubscriptions()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.issueResetCardsFailed'))
+    console.error('Error issuing reset cards:', error)
+  } finally {
+    issuingCards.value = false
+  }
+}
+
 const confirmResetQuota = async () => {
-  if (!resettingSubscription.value) return
+  const ids = resettingSubscription.value ? [resettingSubscription.value.id] : selectedIds.value
+  if (ids.length === 0) return
   if (resettingQuota.value) return
   resettingQuota.value = true
   try {
-    await adminAPI.subscriptions.resetQuota(resettingSubscription.value.id, { daily: true, weekly: true, monthly: true })
-    appStore.showSuccess(t('admin.subscriptions.quotaResetSuccess'))
+    const result = await adminAPI.subscriptions.resetWeekly(ids)
+    if (result.failed_count > 0) {
+      appStore.showError(t('admin.subscriptions.resetWeeklyPartial', {
+        success: result.success_count,
+        failed: result.failed_count,
+      }))
+    } else {
+      appStore.showSuccess(t('admin.subscriptions.resetWeeklySuccess', { count: result.success_count }))
+    }
+    setWeeklyOperationResult(result)
     showResetQuotaConfirm.value = false
     resettingSubscription.value = null
+    clearSelection()
     await loadSubscriptions()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToResetQuota'))
+    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToResetWeekly'))
     console.error('Error resetting quota:', error)
   } finally {
     resettingQuota.value = false
@@ -1509,6 +1786,82 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.subscription-bulk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.subscription-bulk-actions__count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.reset-card-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  padding-left: 3rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-3xs);
+}
+
+.subscription-operation-result {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(60vh, 32rem);
+  overflow-y: auto;
+}
+
+.subscription-operation-result__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.subscription-operation-result__item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-layer-inset-bg);
+}
+
+.subscription-operation-result__item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.subscription-operation-result__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscription-operation-result__detail {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.subscription-operation-result__error {
+  color: var(--color-danger, #dc2626);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
 .admin-pending-list {
   display: grid;
   gap: 1rem;

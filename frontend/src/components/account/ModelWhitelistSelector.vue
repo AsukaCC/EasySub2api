@@ -238,6 +238,7 @@ const canSyncPlatformAccountType = (platform: string, accountType: string) => {
     case 'kimi':
     case 'zhipu':
     case 'deepseek':
+    case 'minimax':
       return normalizedType === 'apikey'
     default:
       return false
