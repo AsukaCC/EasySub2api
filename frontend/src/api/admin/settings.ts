@@ -39,17 +39,19 @@ export type SchedulingThresholdPlatformType =
   | "grok"
   | "kimi"
   | "zhipu"
+  | "minimax"
 
 export type AccountSchedulingThresholdsMap = Record<SchedulingThresholdPlatformType, number>
 
 // 与后端 AllowedSchedulingThresholdPlatforms 保持一致（deepseek 为余额型，
-// 走余额检测而非用量阈值）。
+// 走余额检测而非用量阈值；minimax Coding/Token Plan 有 5h/weekly 窗口）。
 export const SCHEDULING_THRESHOLD_PLATFORMS: SchedulingThresholdPlatformType[] = [
   "openai",
   "anthropic",
   "grok",
   "kimi",
   "zhipu",
+  "minimax",
 ]
 
 export function normalizeAccountSchedulingThresholdsMap(
@@ -725,6 +727,7 @@ export interface SystemSettings {
   channel_monitor_default_interval_seconds: number;
   channel_monitor_hide_throughput?: boolean;
   channel_monitor_show_quota?: boolean;
+  channel_monitor_hide_user_ranking?: boolean;
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
@@ -735,6 +738,9 @@ export interface SystemSettings {
   model_plaza_user_visible: boolean;
   model_plaza_require_auth: boolean;
   model_plaza_description: string;
+
+  usage_guide_enabled: boolean;
+  usage_guide_content_md: string;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
@@ -1035,6 +1041,7 @@ export interface UpdateSettingsRequest {
   channel_monitor_default_interval_seconds?: number;
   channel_monitor_hide_throughput?: boolean;
   channel_monitor_show_quota?: boolean;
+  channel_monitor_hide_user_ranking?: boolean;
 
   // Available Channels feature switch
   available_channels_enabled?: boolean;
@@ -1045,6 +1052,9 @@ export interface UpdateSettingsRequest {
   model_plaza_user_visible?: boolean;
   model_plaza_require_auth?: boolean;
   model_plaza_description?: string;
+
+  usage_guide_enabled?: boolean;
+  usage_guide_content_md?: string;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
@@ -1305,6 +1315,47 @@ export async function updateOverloadCooldownSettings(
   const { data } = await apiClient.put<OverloadCooldownSettings>(
     "/admin/settings/overload-cooldown",
     settings,
+  );
+  return data;
+}
+
+// ==================== Codex Outbound Diagnostics ====================
+
+export type CodexVersionSource =
+  | "manual_override"
+  | "auto_sync"
+  | "builtin_default";
+
+/** Codex 出站身份与连接 Profile 诊断快照（只读、非敏感摘要）。 */
+export interface CodexOutboundDiagnostics {
+  effective_version: string;
+  version_source: CodexVersionSource;
+  manual_override_version: string;
+  manual_override_enabled: boolean;
+  synced_version: string;
+  auto_sync_enabled: boolean;
+  builtin_default_version: string;
+  minimum_supported_version: string;
+  prerelease_allowed: boolean;
+  rejected_manual_override_version?: string;
+  rejected_synced_version?: string;
+  user_agent: string;
+  originator: string;
+  identity_enforcement_enabled: boolean;
+  responses_beta_header: string;
+  live_alpha_header: string;
+  proxy_direct_fallback_allowed: boolean;
+  openai_http2_enabled: boolean;
+  openai_http2_proxy_fallback_to_http1: boolean;
+  tls_fingerprint_enabled: boolean;
+  tls_fingerprint_profile_count: number;
+  protocol_mode: string;
+  generated_at: string;
+}
+
+export async function getCodexOutboundDiagnostics(): Promise<CodexOutboundDiagnostics> {
+  const { data } = await apiClient.get<CodexOutboundDiagnostics>(
+    "/admin/settings/codex-outbound-diagnostics",
   );
   return data;
 }
@@ -1613,6 +1664,7 @@ export const settingsAPI = {
   deleteAdminApiKey,
   getOverloadCooldownSettings,
   updateOverloadCooldownSettings,
+  getCodexOutboundDiagnostics,
   getRateLimit429CooldownSettings,
   updateRateLimit429CooldownSettings,
   getOpenAIImagesOAuthUnavailableCooldownSettings,

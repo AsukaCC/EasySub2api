@@ -814,6 +814,7 @@ export interface OpsAggregationSettings {
 
 export interface OpsRuntimeLogConfig {
   level: 'debug' | 'info' | 'warn' | 'error'
+  persist_access_logs: boolean
   enable_sampling: boolean
   sampling_initial: number
   sampling_thereafter: number
@@ -1091,7 +1092,8 @@ export type OpsErrorListQueryParams = {
   group_id?: string | null
   account_id?: string | null
   user_id?: string
-  api_key_id?: string
+	api_key_id?: string
+	scope?: 'all' | 'regular' | 'admin'
   // 模型过滤：后端以 COALESCE(requested_model, model) 精确匹配（admin 路径）。
   model?: string
 

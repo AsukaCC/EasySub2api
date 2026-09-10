@@ -13,7 +13,8 @@ export const ACCOUNT_PLATFORMS: readonly AccountPlatform[] = [
   'grok',
   'kimi',
   'zhipu',
-  'deepseek'
+  'deepseek',
+  'minimax'
 ] as const
 
 export type AccountPlatformOption = {

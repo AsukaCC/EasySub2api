@@ -459,6 +459,25 @@ func (f *NullableTimeField) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type NullableInt64Field struct {
+	Set   bool
+	Value *int64
+}
+
+func (f *NullableInt64Field) UnmarshalJSON(data []byte) error {
+	f.Set = true
+	if bytes.Equal(data, []byte("null")) {
+		f.Value = nil
+		return nil
+	}
+	var value int64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	f.Value = &value
+	return nil
+}
+
 type NullableStringField struct {
 	Set   bool
 	Value *string
@@ -656,6 +675,26 @@ type Setting struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type ResetCardExpiry struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Count     int       `json:"count"`
+}
+
+type ResetCardSummary struct {
+	AvailableCount  int               `json:"available_count"`
+	ExpiredCount    int               `json:"expired_count"`
+	ConsumedCount   int               `json:"consumed_count"`
+	NextExpiryAt    *time.Time        `json:"next_expiry_at"`
+	ExpiryBreakdown []ResetCardExpiry `json:"expiry_breakdown"`
+}
+
+type ResetCardConsumeResult struct {
+	Subscription    *UserSubscription `json:"subscription"`
+	ResetAt         time.Time         `json:"reset_at"`
+	WeeklyWindowEnd time.Time         `json:"weekly_window_end"`
+	ResetCards      ResetCardSummary  `json:"reset_cards"`
+}
+
 type UserSubscription struct {
 	ID      string `json:"id"`
 	UserID  string `json:"user_id"`
@@ -682,6 +721,8 @@ type UserSubscription struct {
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
+
+	ResetCards ResetCardSummary `json:"reset_cards"`
 }
 
 // AdminUserSubscription 是管理员接口使用的订阅 DTO（包含分配信息/备注等字段）。

@@ -465,6 +465,8 @@ func (s *OpenAIQuotaService) isAgentIdentityAccount(ctx context.Context, account
 
 func (s *OpenAIQuotaService) buildCodexQuotaHeaders(ctx context.Context, accountID string, accessToken, chatGPTAccountID string, fedRAMP bool) (map[string]string, string, error) {
 	headers := buildCodexCommonHeaders(accessToken, chatGPTAccountID, fedRAMP)
+	// 终态清理：与其余出站路径一致，剥离平台品牌 / 基础设施头。
+	sanitizeOutboundHeaderMap(headers)
 	if s == nil || s.accountRepo == nil {
 		return headers, "", nil
 	}
@@ -513,6 +515,11 @@ func (s *OpenAIQuotaService) redactQuotaErrorBody(ctx context.Context, accountID
 
 // buildCodexCommonHeaders sets the request headers expected by the chatgpt.com
 // backend so calls succeed past Cloudflare/WASM checks.
+//
+// 身份说明：/wham/usage 与 rate-limit-reset-credits 由 Codex Desktop（Electron/Chromium）
+// 调用，本探针配合 privacyClientFactory 的 Chrome TLS 指纹使用「Codex Desktop」originator
+// 与 sec-fetch-* 头，形成自洽的桌面端身份；不与 CLI 身份（codex_cli_rs / version 头）混用，
+// 也不注入平台品牌头。这是与推理面 resolveCodexOutboundIdentity 有意区分的第二套 Codex 身份。
 func buildCodexCommonHeaders(accessToken, chatGPTAccountID string, fedRAMP bool) map[string]string {
 	headers := map[string]string{
 		"authorization":      "Bearer " + accessToken,

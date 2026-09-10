@@ -212,6 +212,11 @@ export interface PaymentOrder {
   bonus_tier_snapshot?: { threshold_cny?: number; bonus_points?: number }
   bonus_expires_at?: string
   bonus_grant_id?: string
+  /** Snapshot of the subscription entitlement captured when the order was created. */
+  subscription_group_id?: string
+  subscription_days?: number
+  subscription_reset_card_count?: number
+  subscription_reset_card_validity_days?: number
 }
 
 // ==================== Plans & Channels ====================
@@ -244,6 +249,8 @@ export interface SubscriptionPlan {
   currency?: string
   validity_days: number
   validity_unit: string
+  reset_card_count?: number
+  reset_card_validity_days?: number
   /** Stored as JSON string in backend; API layer should parse before use */
   features: string[]
   for_sale: boolean

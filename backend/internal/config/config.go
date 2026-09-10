@@ -850,6 +850,10 @@ type GatewayConfig struct {
 	// 取反义命名是为了让零值安全：该开关会发布为进程级快照，未经 viper 加载而手工构造的
 	// Config（测试、工具）其零值必须落在「强制统一开启」这一侧，否则会静默丢掉这层保护。
 	DisableCodexIdentityEnforcement bool `mapstructure:"disable_codex_identity_enforcement"`
+	// CodexAllowPrereleaseVersion: 允许 Codex 出站身份使用预发布版本号（如 0.154.0-alpha.3）。
+	// 默认关闭：生产出站只接受官方稳定版；面板手工填写或历史同步值若为预发布形态，
+	// 一律按非法版本回退到下一优先级来源。仅在需要跟随 alpha 通道联调时显式开启。
+	CodexAllowPrereleaseVersion bool `mapstructure:"codex_allow_prerelease_version"`
 	// DisableCodexOriginatorNormalization: 已废弃，等价于 DisableCodexIdentityEnforcement。
 	// 保留以兼容既有配置文件；加载时会折叠进新键，不要在新代码里直接读取。
 	DisableCodexOriginatorNormalization bool `mapstructure:"disable_codex_originator_normalization"`
@@ -1475,10 +1479,10 @@ type OpsCleanupConfig struct {
 	Enabled  bool   `mapstructure:"enabled"`
 	Schedule string `mapstructure:"schedule"`
 
-	// Retention days (0 disables that cleanup target).
-	//
-	// vNext requirement: default 30 days across ops datasets.
+	// Retention days. Error and metrics targets accept 0 as an explicit truncate;
+	// system logs require a positive value because their runtime setting is bounded.
 	ErrorLogRetentionDays      int `mapstructure:"error_log_retention_days"`
+	SystemLogRetentionDays     int `mapstructure:"system_log_retention_days"`
 	MinuteMetricsRetentionDays int `mapstructure:"minute_metrics_retention_days"`
 	HourlyMetricsRetentionDays int `mapstructure:"hourly_metrics_retention_days"`
 }
@@ -1897,7 +1901,8 @@ func setDefaults() {
 		"api.moonshot.ai",
 		"api.moonshot.cn",
 		"open.bigmodel.cn",
-		"api.minimaxi.com",
+		"api.minimaxi.com", // MiniMax CN quota + inference
+		"api.minimax.io",   // MiniMax intl; frozen allowlists must add this host to use the intl site
 		"generativelanguage.googleapis.com",
 		"cloudcode-pa.googleapis.com",
 		"*.openai.azure.com",
@@ -2038,6 +2043,7 @@ func setDefaults() {
 	viper.SetDefault("ops.cleanup.schedule", "0 2 * * *")
 	// Retention days: vNext defaults to 30 days across ops datasets.
 	viper.SetDefault("ops.cleanup.error_log_retention_days", 30)
+	viper.SetDefault("ops.cleanup.system_log_retention_days", 30)
 	viper.SetDefault("ops.cleanup.minute_metrics_retention_days", 30)
 	viper.SetDefault("ops.cleanup.hourly_metrics_retention_days", 30)
 	viper.SetDefault("ops.aggregation.enabled", true)
@@ -2148,6 +2154,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.max_account_switches", 10)
 	viper.SetDefault("gateway.force_codex_cli", false)
 	viper.SetDefault("gateway.disable_codex_identity_enforcement", false)
+	viper.SetDefault("gateway.codex_allow_prerelease_version", false)
 	viper.SetDefault("gateway.disable_codex_originator_normalization", false)
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
@@ -3307,6 +3314,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Ops.Cleanup.ErrorLogRetentionDays < 0 {
 		return fmt.Errorf("ops.cleanup.error_log_retention_days must be non-negative")
+	}
+	if c.Ops.Cleanup.Enabled && c.Ops.Cleanup.SystemLogRetentionDays <= 0 {
+		return fmt.Errorf("ops.cleanup.system_log_retention_days must be positive when ops cleanup is enabled")
 	}
 	if c.Ops.Cleanup.MinuteMetricsRetentionDays < 0 {
 		return fmt.Errorf("ops.cleanup.minute_metrics_retention_days must be non-negative")

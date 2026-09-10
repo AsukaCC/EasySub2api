@@ -4,7 +4,14 @@
  */
 
 import { apiClient } from './client'
-import type { UserSubscription, SubscriptionProgress, PendingSubscription, SubscriptionGrantResult } from '@/types'
+import type { UserSubscription, SubscriptionProgress, PendingSubscription, SubscriptionGrantResult, ResetCardSummary } from '@/types'
+
+export interface ResetCardConsumeResult {
+  subscription: UserSubscription
+  reset_at: string
+  weekly_window_end: string
+  reset_cards: ResetCardSummary
+}
 
 /**
  * Subscription summary for user dashboard
@@ -22,6 +29,7 @@ export interface SubscriptionSummary {
     monthly_progress: number | null
     expires_at: string | null
     days_remaining: number | null
+    reset_cards?: ResetCardSummary
   }>
 }
 
@@ -81,6 +89,16 @@ export async function getSubscriptionProgress(
   return response.data
 }
 
+export async function consumeResetCard(subscriptionId: string): Promise<ResetCardConsumeResult> {
+  const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const response = await apiClient.post<ResetCardConsumeResult>(
+    `/subscriptions/${subscriptionId}/reset-card`,
+    {},
+    { headers: { 'Idempotency-Key': `subscription-reset-card-${subscriptionId}-${requestID}` } },
+  )
+  return response.data
+}
+
 export default {
   getMySubscriptions,
   getActiveSubscriptions,
@@ -88,5 +106,6 @@ export default {
 	activatePendingNow,
   getSubscriptionsProgress,
   getSubscriptionSummary,
-  getSubscriptionProgress
+  getSubscriptionProgress,
+  consumeResetCard,
 }

@@ -312,9 +312,12 @@ export interface PublicSettings {
   channel_monitor_hide_throughput?: boolean
   /** When true, user monitor shows account quota/balance snapshots (default off). */
   channel_monitor_show_quota?: boolean
-  available_channels_enabled: boolean
-  model_plaza_enabled: boolean
-  model_plaza_require_auth: boolean
+  /** When true, user monitor hides the user ranking tab and /users payload. */
+  channel_monitor_hide_user_ranking?: boolean
+	available_channels_enabled: boolean
+	model_plaza_enabled: boolean
+	model_plaza_require_auth: boolean
+	usage_guide_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   support_tickets_enabled?: boolean
@@ -586,6 +589,7 @@ export type GroupPlatform =
   | 'kimi'
   | 'zhipu'
   | 'deepseek'
+  | 'minimax'
   | 'composite'
 
 export type VideoModelPrices = Record<string, Record<string, number>>
@@ -1012,6 +1016,7 @@ export type AccountPlatform =
   | 'kimi'
   | 'zhipu'
   | 'deepseek'
+  | 'minimax'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
@@ -1612,6 +1617,15 @@ export interface UpdateAccountRequest {
   upstream_billing_rate_sync_enabled?: boolean
 }
 
+export type GrokMediaEligibilityMode = 'auto' | 'enabled' | 'disabled'
+
+export interface GrokMediaEligibilityState {
+  account_id: string
+  mode: GrokMediaEligibilityMode
+  eligible: boolean
+  reason: string
+}
+
 export interface CreateProxyRequest {
   name: string
   protocol: ProxyProtocol
@@ -2124,6 +2138,19 @@ export interface ChangePasswordRequest {
 
 // ==================== User Subscription Types ====================
 
+export interface ResetCardExpiry {
+  expires_at: string
+  count: number
+}
+
+export interface ResetCardSummary {
+  available_count: number
+  expired_count: number
+  consumed_count: number
+  next_expiry_at: string | null
+  expiry_breakdown: ResetCardExpiry[]
+}
+
 export interface UserSubscription {
   id: string
   user_id: string
@@ -2145,6 +2172,7 @@ export interface UserSubscription {
   expires_at: string | null
   user?: User
   group?: Group
+  reset_cards: ResetCardSummary
 }
 
 export interface PendingSubscription {
@@ -2153,6 +2181,8 @@ export interface PendingSubscription {
   group_id: string
   platform: string
   validity_days: number
+  reset_card_count?: number
+  reset_card_validity_days?: number
   source_type: string
   source_id?: string
   blocked_by_subscription_id?: string | null

@@ -114,3 +114,20 @@ describe('PlatformTypeBadge OpenAI authentication modes', () => {
     expect(wrapper.text()).toContain('OAuth')
   })
 })
+
+describe('PlatformTypeBadge MiniMax', () => {
+  it('labels MiniMax API keys as MiniMax, not Gemini', () => {
+    const wrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'minimax',
+        type: 'apikey',
+      },
+    })
+
+    expect(wrapper.text()).toContain('MiniMax')
+    expect(wrapper.text()).toContain('Key')
+    expect(wrapper.text()).not.toContain('Gemini')
+    expect(wrapper.html()).toContain('components-common-platform-type-badge__state-5')
+    expect(wrapper.html()).not.toContain('components-common-platform-type-badge__state-8')
+  })
+})

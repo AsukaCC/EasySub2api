@@ -14,6 +14,42 @@ import type {
 } from '@/types'
 import type { PendingSubscription, SubscriptionGrantResult } from '@/types'
 
+export interface ResetCardIssueRequest {
+  subscription_ids: string[]
+  quantity: number
+  validity_days?: number
+}
+
+export interface ResetCardIssueItem {
+  subscription_id: string
+  issued_count: number
+  success: boolean
+  error_code?: string
+  error?: string
+}
+
+export interface ResetCardIssueResult {
+  items: ResetCardIssueItem[]
+  success_count: number
+  failed_count: number
+  total_issued: number
+}
+
+export interface WeeklyResetItem {
+  subscription_id: string
+  success: boolean
+  reset_at?: string
+  weekly_window_end?: string
+  error_code?: string
+  error?: string
+}
+
+export interface WeeklyResetResult {
+  items: WeeklyResetItem[]
+  success_count: number
+  failed_count: number
+}
+
 /**
  * List all subscriptions with pagination
  * @param page - Page number (default: 1)
@@ -154,6 +190,26 @@ export async function resetQuota(
   return data
 }
 
+export async function issueResetCards(request: ResetCardIssueRequest): Promise<ResetCardIssueResult> {
+  const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const { data } = await apiClient.post<ResetCardIssueResult>(
+    '/admin/subscriptions/reset-cards/issue',
+    request,
+    { headers: { 'Idempotency-Key': `admin-subscription-reset-cards-${requestID}` } },
+  )
+  return data
+}
+
+export async function resetWeekly(subscriptionIds: string[]): Promise<WeeklyResetResult> {
+  const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const { data } = await apiClient.post<WeeklyResetResult>(
+    '/admin/subscriptions/reset-weekly',
+    { subscription_ids: subscriptionIds },
+    { headers: { 'Idempotency-Key': `admin-subscription-reset-weekly-${requestID}` } },
+  )
+  return data
+}
+
 /**
  * List subscriptions by group
  * @param groupId - Group ID
@@ -207,6 +263,8 @@ export const subscriptionsAPI = {
   revoke,
   restore,
   resetQuota,
+  issueResetCards,
+  resetWeekly,
   listByGroup,
   listByUser
 }

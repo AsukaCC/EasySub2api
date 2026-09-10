@@ -36,6 +36,12 @@ type UserSubscription struct {
 	User           *User
 	Group          *Group
 	AssignedByUser *User
+
+	// ResetCards contains the reset-card entitlements attached to this
+	// concrete subscription. It is intentionally kept on the subscription
+	// response rather than on the user so cards can never be transferred
+	// between subscriptions.
+	ResetCards ResetCardSummary
 }
 
 func (s *UserSubscription) IsActive() bool {

@@ -45,6 +45,15 @@
           <p class="components-admin-payment-admin-order-detail__description">{{ t('payment.orders.pointsPaid') }}</p>
           <p class="components-admin-payment-admin-order-detail__description-3">{{ formatPoints(subscriptionPoints, localeCode) }}</p>
         </div>
+        <div v-if="order.order_type === 'subscription' && (order.subscription_reset_card_count ?? 0) > 0">
+          <p class="components-admin-payment-admin-order-detail__description">{{ t('payment.planCard.resetCards') }}</p>
+          <p class="components-admin-payment-admin-order-detail__description-3">
+            {{ t('payment.planCard.resetCardsValue', {
+              count: order.subscription_reset_card_count,
+              days: order.subscription_reset_card_validity_days ?? 30,
+            }) }}
+          </p>
+        </div>
         <div>
           <p class="components-admin-payment-admin-order-detail__description">{{ t('payment.orders.paymentMethod') }}</p>
           <p class="components-admin-payment-admin-order-detail__description-4">

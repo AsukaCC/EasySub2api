@@ -284,8 +284,15 @@ func redactAuthHeaderValue(v string) string {
 func safeHeaderValueForLog(key string, v string) string {
 	key = strings.ToLower(strings.TrimSpace(key))
 	switch key {
-	case "authorization", "x-api-key":
+	case "authorization", "x-api-key", "proxy-authorization", "x-goog-api-key":
 		return redactAuthHeaderValue(v)
+	case "cookie", "set-cookie", "chatgpt-account-id", "x-codex-turn-state":
+		// 会话凭据与账号绑定值只留长度摘要，不落原值。
+		v = strings.TrimSpace(v)
+		if v == "" {
+			return ""
+		}
+		return "[redacted len=" + strconv.Itoa(len(v)) + "]"
 	default:
 		return strings.TrimSpace(v)
 	}

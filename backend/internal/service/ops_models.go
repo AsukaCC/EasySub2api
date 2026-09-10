@@ -126,6 +126,8 @@ type OpsErrorLogFilter struct {
 	// by admin drill-down from the usage page).
 	UserID   *string
 	APIKeyID *string
+	// UserRoleScope optionally limits admin error records to all, admin, or regular users.
+	UserRoleScope string
 
 	// Model matches against requested_model first, then model.
 	Model string

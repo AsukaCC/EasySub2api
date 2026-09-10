@@ -26,6 +26,10 @@ type PendingSubscription struct {
 	Platform string `json:"platform,omitempty"`
 	// ValidityDays holds the value of the "validity_days" field.
 	ValidityDays int `json:"validity_days,omitempty"`
+	// ResetCardCount holds the value of the "reset_card_count" field.
+	ResetCardCount int `json:"reset_card_count,omitempty"`
+	// ResetCardValidityDays holds the value of the "reset_card_validity_days" field.
+	ResetCardValidityDays int `json:"reset_card_validity_days,omitempty"`
 	// SourceType holds the value of the "source_type" field.
 	SourceType string `json:"source_type,omitempty"`
 	// SourceID holds the value of the "source_id" field.
@@ -66,7 +70,7 @@ func (*PendingSubscription) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case pendingsubscription.FieldForfeitedSubscriptionIds:
 			values[i] = new([]byte)
-		case pendingsubscription.FieldValidityDays:
+		case pendingsubscription.FieldValidityDays, pendingsubscription.FieldResetCardCount, pendingsubscription.FieldResetCardValidityDays:
 			values[i] = new(sql.NullInt64)
 		case pendingsubscription.FieldID, pendingsubscription.FieldUserID, pendingsubscription.FieldGroupID, pendingsubscription.FieldPlatform, pendingsubscription.FieldSourceType, pendingsubscription.FieldSourceID, pendingsubscription.FieldBlockedBySubscriptionID, pendingsubscription.FieldStatus, pendingsubscription.FieldActivatedSubscriptionID, pendingsubscription.FieldActivationMode, pendingsubscription.FieldLastError, pendingsubscription.FieldAssignedBy, pendingsubscription.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -116,6 +120,18 @@ func (_m *PendingSubscription) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field validity_days", values[i])
 			} else if value.Valid {
 				_m.ValidityDays = int(value.Int64)
+			}
+		case pendingsubscription.FieldResetCardCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reset_card_count", values[i])
+			} else if value.Valid {
+				_m.ResetCardCount = int(value.Int64)
+			}
+		case pendingsubscription.FieldResetCardValidityDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reset_card_validity_days", values[i])
+			} else if value.Valid {
+				_m.ResetCardValidityDays = int(value.Int64)
 			}
 		case pendingsubscription.FieldSourceType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -262,6 +278,12 @@ func (_m *PendingSubscription) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("validity_days=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ValidityDays))
+	builder.WriteString(", ")
+	builder.WriteString("reset_card_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResetCardCount))
+	builder.WriteString(", ")
+	builder.WriteString("reset_card_validity_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResetCardValidityDays))
 	builder.WriteString(", ")
 	builder.WriteString("source_type=")
 	builder.WriteString(_m.SourceType)

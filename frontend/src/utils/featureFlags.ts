@@ -109,6 +109,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Model Plaza',
   }),
+  usageGuide: defineFlag({
+    key: 'usage_guide_enabled',
+    mode: 'opt-in',
+    label: 'Usage Guide',
+  }),
   payment: defineFlag({
     key: 'payment_enabled',
     mode: 'opt-out',
@@ -179,4 +184,10 @@ export function isChannelMonitorThroughputHidden(): boolean {
 export function isChannelMonitorQuotaVisible(): boolean {
   const appStore = useAppStore()
   return appStore.cachedPublicSettings?.channel_monitor_show_quota === true
+}
+
+/** Hide the user ranking tab on user-facing monitor v2. Admin always keeps it. */
+export function isChannelMonitorUserRankingHidden(): boolean {
+  const appStore = useAppStore()
+  return Boolean(appStore.cachedPublicSettings?.channel_monitor_hide_user_ranking)
 }

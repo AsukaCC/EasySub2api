@@ -37,7 +37,7 @@ interface CcSwitchCodexImportPayload {
 }
 
 const CLAUDE_IMPORT_PLATFORMS = new Set<GroupPlatform>(['anthropic', 'gemini', 'antigravity', 'composite'])
-const CODEX_IMPORT_PLATFORMS = new Set<GroupPlatform>(['openai', 'kimi', 'zhipu', 'deepseek'])
+const CODEX_IMPORT_PLATFORMS = new Set<GroupPlatform>(['openai', 'kimi', 'zhipu', 'deepseek', 'minimax'])
 const OPENAI_COMPATIBLE_CC_SWITCH_APPS: CcSwitchApp[] = ['opencode', 'openclaw', 'hermes']
 
 function encodeBase64Utf8(value: string): string {
@@ -177,6 +177,7 @@ function inferCcSwitchImportConfig(
     case 'kimi':
     case 'zhipu':
     case 'deepseek':
+    case 'minimax':
       return {
         app: 'codex',
         endpoint: baseUrl,

@@ -44,6 +44,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent/securitysecret"
 	"github.com/AsukaCC/EasySub2api/ent/setting"
 	"github.com/AsukaCC/EasySub2api/ent/subscriptionplan"
+	"github.com/AsukaCC/EasySub2api/ent/subscriptionresetcard"
 	"github.com/AsukaCC/EasySub2api/ent/supportticket"
 	"github.com/AsukaCC/EasySub2api/ent/supportticketmessage"
 	"github.com/AsukaCC/EasySub2api/ent/supportticketread"
@@ -148,6 +149,7 @@ func checkColumn(t, c string) error {
 			securitysecret.Table:                securitysecret.ValidColumn,
 			setting.Table:                       setting.ValidColumn,
 			subscriptionplan.Table:              subscriptionplan.ValidColumn,
+			subscriptionresetcard.Table:         subscriptionresetcard.ValidColumn,
 			supportticket.Table:                 supportticket.ValidColumn,
 			supportticketmessage.Table:          supportticketmessage.ValidColumn,
 			supportticketread.Table:             supportticketread.ValidColumn,

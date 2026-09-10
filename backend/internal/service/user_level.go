@@ -528,102 +528,27 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	if group == nil {
 		return UserRatePlan{}, ErrGroupNotFound
 	}
-	staticCandidates := make([]rateCandidate, 0, 2+len(profile.CurrentTierIDs))
-	staticCandidates = append(staticCandidates, rateCandidate{value: sanitizeMultiplier(group.RateMultiplier), source: "group"})
-	for _, tierID := range profile.CurrentTierIDs {
-		if value, ok := group.LevelRateMultipliers[tierID]; ok {
-			staticCandidates = append(staticCandidates, rateCandidate{value: sanitizeMultiplier(value), source: "group_level"})
-		}
-	}
+	groupMultiplier := sanitizeMultiplier(group.RateMultiplier)
+	userMultiplier := 1.0
 	if s.userRateRepo != nil {
 		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
 		if err != nil {
 			return UserRatePlan{}, err
 		}
 		if userRate != nil {
-			staticCandidates = append(staticCandidates, rateCandidate{value: sanitizeMultiplier(*userRate), source: "user_group"})
+			userMultiplier = sanitizeMultiplier(*userRate)
 		}
 	}
-	static := lowestRateCandidate(staticCandidates)
-	userLevel := profile.UserLevelMultiplier
-
-	// Dynamic rules are evaluated against the independent group-side baseline.
-	// They are not allowed to consume quota merely because they are cheaper than
-	// a user-level candidate; SelectedDynamicRuleID below is empty in that case.
-	candidates := make([]DynamicRateCandidate, 0)
-	keys := make([]DynamicRateUsageKey, 0)
-	for _, rule := range group.DynamicRateRules {
-		quotaKey, ok := dynamicRuleApplies(rule, profile, at)
-		if !ok || !finiteNonnegative(rule.Multiplier) || rule.Multiplier >= static.value {
-			continue
-		}
-		start, end, _, validWindow := parseDynamicRateWindow(rule)
-		if !validWindow {
-			continue
-		}
-		candidate := DynamicRateCandidate{
-			RuleID: rule.ID, RuleName: rule.Name, StartAt: start.Format(time.RFC3339Nano), EndAt: end.Format(time.RFC3339Nano),
-			QuotaKey: quotaKey, Multiplier: sanitizeMultiplier(rule.Multiplier), PersonalQuotaAmount: dynamicRatePersonalQuotaAmount(rule),
-		}
-		candidates = append(candidates, candidate)
-		if candidate.PersonalQuotaAmount > 0 {
-			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
-		}
+	selectedBase := groupMultiplier * userMultiplier
+	if math.IsNaN(selectedBase) || math.IsInf(selectedBase, 0) || selectedBase < 0 {
+		return UserRatePlan{}, errors.New("effective rate multiplier is invalid")
 	}
-	if len(keys) > 0 && s.repo != nil {
-		used, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
-		if err != nil {
-			return UserRatePlan{}, err
-		}
-		for i := range candidates {
-			candidates[i].PersonalUsedAmount = used[DynamicRateUsageKey{RuleID: candidates[i].RuleID, QuotaKey: candidates[i].QuotaKey}]
-		}
-	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].Multiplier != candidates[j].Multiplier {
-			return candidates[i].Multiplier < candidates[j].Multiplier
-		}
-		return candidates[i].RuleID < candidates[j].RuleID
-	})
-	usable := candidates[:0]
-	for _, candidate := range candidates {
-		if candidate.PersonalQuotaAmount > 0 && candidate.PersonalUsedAmount >= candidate.PersonalQuotaAmount {
-			continue
-		}
-		usable = append(usable, candidate)
-	}
-	candidates = usable
-
-	groupSide := static.value
-	groupSideSource := static.source
-	selectedDynamicRuleID := ""
-	if len(candidates) > 0 && candidates[0].Multiplier < groupSide {
-		groupSide = candidates[0].Multiplier
-		groupSideSource = "dynamic"
-		selectedDynamicRuleID = candidates[0].RuleID
-	}
-
-	selectedBase := groupSide
-	selectedSource := groupSideSource
-	// A user-level candidate wins ties as well. This makes the quota decision
-	// deterministic and avoids consuming a dynamic quota when it cannot change
-	// the price paid by the user.
-	if userLevel != nil && *userLevel <= selectedBase {
-		selectedBase = sanitizeMultiplier(*userLevel)
-		selectedSource = "user_level"
-		selectedDynamicRuleID = ""
-	}
-	nonDynamicMultiplier := static.value
-	if userLevel != nil && sanitizeMultiplier(*userLevel) < nonDynamicMultiplier {
-		nonDynamicMultiplier = sanitizeMultiplier(*userLevel)
-	}
-	peak := sanitizePeakMultiplier(group.PeakMultiplierAt(at))
 	return UserRatePlan{
 		GroupID: group.ID, UserLevel: profile.Level, Usage7d: profile.Usage7d,
-		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: peak, EffectiveMultiplier: selectedBase * peak,
-		Source: selectedSource, DynamicCandidates: candidates, SelectedDynamicRuleID: selectedDynamicRuleID,
-		UserLevelMultiplier: cloneFloatPtr(userLevel), GroupRuleMultiplier: userLevelFloatPtr(groupSide),
-		EffectiveBaseMultiplier: selectedBase, EffectiveSource: selectedSource, NonDynamicMultiplier: nonDynamicMultiplier,
+		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: 1, EffectiveMultiplier: selectedBase,
+		Source: "group_times_user", DynamicCandidates: nil, SelectedDynamicRuleID: "",
+		UserLevelMultiplier: nil, GroupRuleMultiplier: rateCandidatePtr(rateCandidate{value: groupMultiplier}),
+		EffectiveBaseMultiplier: selectedBase, EffectiveSource: "group_times_user", NonDynamicMultiplier: selectedBase,
 	}, nil
 }
 

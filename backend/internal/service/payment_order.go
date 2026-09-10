@@ -361,7 +361,11 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		b.SetProviderSnapshot(providerSnapshot)
 	}
 	if plan != nil {
-		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		b.SetPlanID(plan.ID).
+			SetSubscriptionGroupID(plan.GroupID).
+			SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit)).
+			SetSubscriptionResetCardCount(plan.ResetCardCount).
+			SetSubscriptionResetCardValidityDays(normalizeResetCardValidityDays(plan.ResetCardValidityDays))
 		if inventoryReserved {
 			b.SetInventoryStatus(InventoryStatusReserved).SetInventoryReservedAt(createdAt)
 		}

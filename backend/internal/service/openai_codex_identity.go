@@ -24,9 +24,44 @@ var codexClientVersionPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+){1,3}(-[0-9
 // NormalizeCodexClientVersion 校验并归一化 Codex 客户端版本号，非法值返回空串。
 // 该值会被拼进出站 User-Agent 与 version 头，必须拒绝任意字节，避免管理员误填或
 // 自动同步拿到异常值时把不可控内容透给上游。
+// 本函数只做形态校验（稳定版与预发布均合法）；出站是否接受预发布由
+// AcceptCodexClientVersion 依据 gateway.codex_allow_prerelease_version 决定。
 func NormalizeCodexClientVersion(version string) string {
 	version = strings.TrimSpace(version)
 	if version == "" || len(version) > codexClientVersionMaxLen || !codexClientVersionPattern.MatchString(version) {
+		return ""
+	}
+	return version
+}
+
+// IsCodexPrereleaseVersion 报告一个（已归一化的）版本号是否为预发布形态（带 -alpha/-beta 等后缀）。
+func IsCodexPrereleaseVersion(version string) bool {
+	return strings.Contains(version, "-")
+}
+
+// codexPrereleaseVersionAllowed 是否允许预发布版本进入出站身份，
+// 由 gateway.codex_allow_prerelease_version 在服务构造时发布。零值即「生产模式：拒绝预发布」。
+var codexPrereleaseVersionAllowed atomic.Bool
+
+// SetCodexPrereleaseVersionAllowed 发布预发布版本放行开关。
+func SetCodexPrereleaseVersionAllowed(allowed bool) {
+	codexPrereleaseVersionAllowed.Store(allowed)
+}
+
+// CodexPrereleaseVersionAllowed 返回当前是否允许预发布版本出站。
+func CodexPrereleaseVersionAllowed() bool {
+	return codexPrereleaseVersionAllowed.Load()
+}
+
+// AcceptCodexClientVersion 是出站版本的最终准入：形态合法，且（生产模式下）不是预发布版本。
+// 不满足时返回空串，调用方回退到下一优先级来源（同步值 → 编译期常量）。
+// 面板覆写、自动同步值与 UA 中的版本段都必须经过本函数，保证没有任何来源能绕过预发布门禁。
+func AcceptCodexClientVersion(version string) string {
+	version = NormalizeCodexClientVersion(version)
+	if version == "" {
+		return ""
+	}
+	if IsCodexPrereleaseVersion(version) && !CodexPrereleaseVersionAllowed() {
 		return ""
 	}
 	return version
@@ -159,9 +194,9 @@ func resolveCodexOutboundIdentity(candidateUA string) codexOutboundIdentity {
 }
 
 // codexClientVersionFromUA 取 UA 的版本段作为生效版本；
-// 非法或低于上游门槛（低于则上游 404，issue #3901）时回退编译期常量。
+// 非法、生产模式下为预发布、或低于上游门槛（低于则上游 404，issue #3901）时回退编译期常量。
 func codexClientVersionFromUA(ua string) string {
-	version := NormalizeCodexClientVersion(openai.CodexUserAgentVersion(ua))
+	version := AcceptCodexClientVersion(openai.CodexUserAgentVersion(ua))
 	if version == "" || CompareVersions(version, codexUpstreamMinVersion) < 0 {
 		return codexCLIVersion
 	}

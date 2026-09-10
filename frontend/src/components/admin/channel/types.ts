@@ -381,6 +381,7 @@ export function getPlatformTagClass(platform: string): string {
     case 'kimi': return 'components-admin-channel-types__state-6'
     case 'zhipu': return 'components-admin-channel-types__state-7'
     case 'deepseek': return 'components-admin-channel-types__state-8'
+    case 'minimax': return 'components-admin-channel-types__state-6'
     default: return 'components-admin-channel-types__state-9'
   }
 }
@@ -394,6 +395,7 @@ export function getPlatformTextClass(platform: string): string {
     case 'kimi': return 'components-admin-channel-types__state-15'
     case 'zhipu': return 'components-admin-channel-types__state-16'
     case 'deepseek': return 'components-admin-channel-types__state-17'
+    case 'minimax': return 'components-admin-channel-types__state-15'
     default: return ''
   }
 }

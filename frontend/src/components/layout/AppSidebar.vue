@@ -788,6 +788,7 @@ const ChevronDownIcon = {
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
+const flagUsageGuide = makeSidebarFlag(FeatureFlags.usageGuide)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
@@ -817,6 +818,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    { path: '/usage-guide', label: t('nav.usageGuide'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagUsageGuide },
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
@@ -1004,11 +1006,6 @@ const adminNavSections = computed((): NavSection[] => {
           path: '/admin/usage',
           label: t('nav.usage'),
           icon: ChartIcon,
-          expandOnly: true,
-          children: [
-            { path: '/admin/usage/users', label: t('nav.userUsage'), icon: ChartIcon },
-            { path: '/admin/usage/admin', label: t('nav.adminUsage'), icon: ChartIcon },
-          ],
         },
         {
           path: '/admin/ops',
@@ -1151,7 +1148,7 @@ function isActive(path: string): boolean {
 
 function isGroupActive(item: NavItem): boolean {
   if (!item.children) return false
-  return item.children.some(child => route.path === child.path)
+  return route.path === item.path || item.children.some(child => route.path === child.path)
 }
 
 function isGroupExpanded(item: NavItem): boolean {

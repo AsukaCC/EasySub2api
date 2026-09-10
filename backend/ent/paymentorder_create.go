@@ -526,6 +526,34 @@ func (_c *PaymentOrderCreate) SetNillableSubscriptionDays(v *int) *PaymentOrderC
 	return _c
 }
 
+// SetSubscriptionResetCardCount sets the "subscription_reset_card_count" field.
+func (_c *PaymentOrderCreate) SetSubscriptionResetCardCount(v int) *PaymentOrderCreate {
+	_c.mutation.SetSubscriptionResetCardCount(v)
+	return _c
+}
+
+// SetNillableSubscriptionResetCardCount sets the "subscription_reset_card_count" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableSubscriptionResetCardCount(v *int) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetSubscriptionResetCardCount(*v)
+	}
+	return _c
+}
+
+// SetSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field.
+func (_c *PaymentOrderCreate) SetSubscriptionResetCardValidityDays(v int) *PaymentOrderCreate {
+	_c.mutation.SetSubscriptionResetCardValidityDays(v)
+	return _c
+}
+
+// SetNillableSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableSubscriptionResetCardValidityDays(v *int) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetSubscriptionResetCardValidityDays(*v)
+	}
+	return _c
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_c *PaymentOrderCreate) SetProviderInstanceID(v string) *PaymentOrderCreate {
 	_c.mutation.SetProviderInstanceID(v)
@@ -996,6 +1024,14 @@ func (_c *PaymentOrderCreate) defaults() {
 		v := paymentorder.DefaultOrderType
 		_c.mutation.SetOrderType(v)
 	}
+	if _, ok := _c.mutation.SubscriptionResetCardCount(); !ok {
+		v := paymentorder.DefaultSubscriptionResetCardCount
+		_c.mutation.SetSubscriptionResetCardCount(v)
+	}
+	if _, ok := _c.mutation.SubscriptionResetCardValidityDays(); !ok {
+		v := paymentorder.DefaultSubscriptionResetCardValidityDays
+		_c.mutation.SetSubscriptionResetCardValidityDays(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := paymentorder.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -1154,6 +1190,12 @@ func (_c *PaymentOrderCreate) check() error {
 		if err := paymentorder.OrderTypeValidator(v); err != nil {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.SubscriptionResetCardCount(); !ok {
+		return &ValidationError{Name: "subscription_reset_card_count", err: errors.New(`ent: missing required field "PaymentOrder.subscription_reset_card_count"`)}
+	}
+	if _, ok := _c.mutation.SubscriptionResetCardValidityDays(); !ok {
+		return &ValidationError{Name: "subscription_reset_card_validity_days", err: errors.New(`ent: missing required field "PaymentOrder.subscription_reset_card_validity_days"`)}
 	}
 	if v, ok := _c.mutation.ProviderInstanceID(); ok {
 		if err := paymentorder.ProviderInstanceIDValidator(v); err != nil {
@@ -1410,6 +1452,14 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.SubscriptionDays(); ok {
 		_spec.SetField(paymentorder.FieldSubscriptionDays, field.TypeInt, value)
 		_node.SubscriptionDays = &value
+	}
+	if value, ok := _c.mutation.SubscriptionResetCardCount(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionResetCardCount, field.TypeInt, value)
+		_node.SubscriptionResetCardCount = value
+	}
+	if value, ok := _c.mutation.SubscriptionResetCardValidityDays(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionResetCardValidityDays, field.TypeInt, value)
+		_node.SubscriptionResetCardValidityDays = value
 	}
 	if value, ok := _c.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
@@ -2265,6 +2315,42 @@ func (u *PaymentOrderUpsert) AddSubscriptionDays(v int) *PaymentOrderUpsert {
 // ClearSubscriptionDays clears the value of the "subscription_days" field.
 func (u *PaymentOrderUpsert) ClearSubscriptionDays() *PaymentOrderUpsert {
 	u.SetNull(paymentorder.FieldSubscriptionDays)
+	return u
+}
+
+// SetSubscriptionResetCardCount sets the "subscription_reset_card_count" field.
+func (u *PaymentOrderUpsert) SetSubscriptionResetCardCount(v int) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldSubscriptionResetCardCount, v)
+	return u
+}
+
+// UpdateSubscriptionResetCardCount sets the "subscription_reset_card_count" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateSubscriptionResetCardCount() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldSubscriptionResetCardCount)
+	return u
+}
+
+// AddSubscriptionResetCardCount adds v to the "subscription_reset_card_count" field.
+func (u *PaymentOrderUpsert) AddSubscriptionResetCardCount(v int) *PaymentOrderUpsert {
+	u.Add(paymentorder.FieldSubscriptionResetCardCount, v)
+	return u
+}
+
+// SetSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field.
+func (u *PaymentOrderUpsert) SetSubscriptionResetCardValidityDays(v int) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldSubscriptionResetCardValidityDays, v)
+	return u
+}
+
+// UpdateSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateSubscriptionResetCardValidityDays() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldSubscriptionResetCardValidityDays)
+	return u
+}
+
+// AddSubscriptionResetCardValidityDays adds v to the "subscription_reset_card_validity_days" field.
+func (u *PaymentOrderUpsert) AddSubscriptionResetCardValidityDays(v int) *PaymentOrderUpsert {
+	u.Add(paymentorder.FieldSubscriptionResetCardValidityDays, v)
 	return u
 }
 
@@ -3522,6 +3608,48 @@ func (u *PaymentOrderUpsertOne) UpdateSubscriptionDays() *PaymentOrderUpsertOne 
 func (u *PaymentOrderUpsertOne) ClearSubscriptionDays() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearSubscriptionDays()
+	})
+}
+
+// SetSubscriptionResetCardCount sets the "subscription_reset_card_count" field.
+func (u *PaymentOrderUpsertOne) SetSubscriptionResetCardCount(v int) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetSubscriptionResetCardCount(v)
+	})
+}
+
+// AddSubscriptionResetCardCount adds v to the "subscription_reset_card_count" field.
+func (u *PaymentOrderUpsertOne) AddSubscriptionResetCardCount(v int) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddSubscriptionResetCardCount(v)
+	})
+}
+
+// UpdateSubscriptionResetCardCount sets the "subscription_reset_card_count" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateSubscriptionResetCardCount() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateSubscriptionResetCardCount()
+	})
+}
+
+// SetSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field.
+func (u *PaymentOrderUpsertOne) SetSubscriptionResetCardValidityDays(v int) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetSubscriptionResetCardValidityDays(v)
+	})
+}
+
+// AddSubscriptionResetCardValidityDays adds v to the "subscription_reset_card_validity_days" field.
+func (u *PaymentOrderUpsertOne) AddSubscriptionResetCardValidityDays(v int) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddSubscriptionResetCardValidityDays(v)
+	})
+}
+
+// UpdateSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateSubscriptionResetCardValidityDays() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateSubscriptionResetCardValidityDays()
 	})
 }
 
@@ -5014,6 +5142,48 @@ func (u *PaymentOrderUpsertBulk) UpdateSubscriptionDays() *PaymentOrderUpsertBul
 func (u *PaymentOrderUpsertBulk) ClearSubscriptionDays() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearSubscriptionDays()
+	})
+}
+
+// SetSubscriptionResetCardCount sets the "subscription_reset_card_count" field.
+func (u *PaymentOrderUpsertBulk) SetSubscriptionResetCardCount(v int) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetSubscriptionResetCardCount(v)
+	})
+}
+
+// AddSubscriptionResetCardCount adds v to the "subscription_reset_card_count" field.
+func (u *PaymentOrderUpsertBulk) AddSubscriptionResetCardCount(v int) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddSubscriptionResetCardCount(v)
+	})
+}
+
+// UpdateSubscriptionResetCardCount sets the "subscription_reset_card_count" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateSubscriptionResetCardCount() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateSubscriptionResetCardCount()
+	})
+}
+
+// SetSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field.
+func (u *PaymentOrderUpsertBulk) SetSubscriptionResetCardValidityDays(v int) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetSubscriptionResetCardValidityDays(v)
+	})
+}
+
+// AddSubscriptionResetCardValidityDays adds v to the "subscription_reset_card_validity_days" field.
+func (u *PaymentOrderUpsertBulk) AddSubscriptionResetCardValidityDays(v int) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddSubscriptionResetCardValidityDays(v)
+	})
+}
+
+// UpdateSubscriptionResetCardValidityDays sets the "subscription_reset_card_validity_days" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateSubscriptionResetCardValidityDays() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateSubscriptionResetCardValidityDays()
 	})
 }
 

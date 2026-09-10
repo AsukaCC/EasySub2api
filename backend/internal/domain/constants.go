@@ -27,6 +27,7 @@ const (
 	PlatformKimi      = "kimi"     // Kimi (月之暗面 / Moonshot)
 	PlatformZhipu     = "zhipu"    // 智谱 GLM (bigmodel)
 	PlatformDeepseek  = "deepseek" // DeepSeek
+	PlatformMiniMax   = "minimax"  // MiniMax (M 系列)
 	PlatformComposite = "composite"
 )
 
@@ -42,6 +43,7 @@ var AccountPlatforms = []string{
 	PlatformKimi,
 	PlatformZhipu,
 	PlatformDeepseek,
+	PlatformMiniMax,
 }
 
 // IsAccountPlatform reports whether platform is supported for an account.

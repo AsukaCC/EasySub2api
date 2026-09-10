@@ -237,7 +237,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatScaled } from '@/utils/pricing'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
-import { lowestAvailableGroupRate } from '@/utils/formatters'
+import { combinedGroupUserRate } from '@/utils/formatters'
 import GroupRateDisplay from '@/components/common/GroupRateDisplay.vue'
 import {
   BILLING_MODE_TOKEN,
@@ -288,7 +288,7 @@ const sortedModels = computed(() => {
 })
 
 const effectiveRate = computed(
-  () => lowestAvailableGroupRate(props.rateMultiplier, props.userRateMultiplier) ?? props.rateMultiplier
+  () => combinedGroupUserRate(props.rateMultiplier, props.userRateMultiplier) ?? props.rateMultiplier
 )
 
 function billingMode(m: PlazaModel): BillingMode {

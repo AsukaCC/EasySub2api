@@ -8,10 +8,27 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLiveSidebandOriginPatterns(t *testing.T) {
+	require.Nil(t, liveSidebandOriginPatterns(nil))
+	require.Nil(t, liveSidebandOriginPatterns(&config.Config{}))
+
+	cfg := &config.Config{}
+	cfg.CORS.AllowedOrigins = []string{
+		" https://Console.Example.com ",
+		"http://localhost:5173",
+		"https://console.example.com",
+		"",
+		"ftp://[bad",
+		"*",
+	}
+	require.Equal(t, []string{"console.example.com", "localhost:5173", "*"}, liveSidebandOriginPatterns(cfg))
+}
 
 func TestParseLiveCallRequestMultipartPreservesSession(t *testing.T) {
 	gin.SetMode(gin.TestMode)

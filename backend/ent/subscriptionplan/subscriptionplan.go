@@ -29,6 +29,10 @@ const (
 	FieldValidityDays = "validity_days"
 	// FieldValidityUnit holds the string denoting the validity_unit field in the database.
 	FieldValidityUnit = "validity_unit"
+	// FieldResetCardCount holds the string denoting the reset_card_count field in the database.
+	FieldResetCardCount = "reset_card_count"
+	// FieldResetCardValidityDays holds the string denoting the reset_card_validity_days field in the database.
+	FieldResetCardValidityDays = "reset_card_validity_days"
 	// FieldFeatures holds the string denoting the features field in the database.
 	FieldFeatures = "features"
 	// FieldProductName holds the string denoting the product_name field in the database.
@@ -60,6 +64,8 @@ var Columns = []string{
 	FieldCurrency,
 	FieldValidityDays,
 	FieldValidityUnit,
+	FieldResetCardCount,
+	FieldResetCardValidityDays,
 	FieldFeatures,
 	FieldProductName,
 	FieldForSale,
@@ -95,6 +101,10 @@ var (
 	DefaultValidityUnit string
 	// ValidityUnitValidator is a validator for the "validity_unit" field. It is called by the builders before save.
 	ValidityUnitValidator func(string) error
+	// DefaultResetCardCount holds the default value on creation for the "reset_card_count" field.
+	DefaultResetCardCount int
+	// DefaultResetCardValidityDays holds the default value on creation for the "reset_card_validity_days" field.
+	DefaultResetCardValidityDays int
 	// DefaultFeatures holds the default value on creation for the "features" field.
 	DefaultFeatures string
 	// DefaultProductName holds the default value on creation for the "product_name" field.
@@ -163,6 +173,16 @@ func ByValidityDays(opts ...sql.OrderTermOption) OrderOption {
 // ByValidityUnit orders the results by the validity_unit field.
 func ByValidityUnit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldValidityUnit, opts...).ToFunc()
+}
+
+// ByResetCardCount orders the results by the reset_card_count field.
+func ByResetCardCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResetCardCount, opts...).ToFunc()
+}
+
+// ByResetCardValidityDays orders the results by the reset_card_validity_days field.
+func ByResetCardValidityDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResetCardValidityDays, opts...).ToFunc()
 }
 
 // ByFeatures orders the results by the features field.

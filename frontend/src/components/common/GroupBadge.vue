@@ -159,6 +159,10 @@ const labelClass = computed(() => {
   if (props.platform === 'deepseek') {
     return `${base} group-badge__label--deepseek`
   }
+  if (props.platform === 'minimax') {
+    // MiniMax 复用 Kimi 的玫红色系（与 platformColors 取色一致）。
+    return `${base} group-badge__label--kimi`
+  }
   if (props.platform === 'composite') {
     return `${base} group-badge__label--composite`
   }
@@ -201,6 +205,11 @@ const badgeClass = computed(() => {
     return isSubscription.value
       ? 'components-common-group-badge__state-17'
       : 'components-common-group-badge__state-18'
+  }
+  if (props.platform === 'minimax') {
+    return isSubscription.value
+      ? 'components-common-group-badge__state-13'
+      : 'components-common-group-badge__state-14'
   }
   if (props.platform === 'composite') {
     return isSubscription.value

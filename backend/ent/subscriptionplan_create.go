@@ -111,6 +111,34 @@ func (_c *SubscriptionPlanCreate) SetNillableValidityUnit(v *string) *Subscripti
 	return _c
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (_c *SubscriptionPlanCreate) SetResetCardCount(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetResetCardCount(v)
+	return _c
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableResetCardCount(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetResetCardCount(*v)
+	}
+	return _c
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (_c *SubscriptionPlanCreate) SetResetCardValidityDays(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetResetCardValidityDays(v)
+	return _c
+}
+
+// SetNillableResetCardValidityDays sets the "reset_card_validity_days" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableResetCardValidityDays(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetResetCardValidityDays(*v)
+	}
+	return _c
+}
+
 // SetFeatures sets the "features" field.
 func (_c *SubscriptionPlanCreate) SetFeatures(v string) *SubscriptionPlanCreate {
 	_c.mutation.SetFeatures(v)
@@ -288,6 +316,14 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultValidityUnit
 		_c.mutation.SetValidityUnit(v)
 	}
+	if _, ok := _c.mutation.ResetCardCount(); !ok {
+		v := subscriptionplan.DefaultResetCardCount
+		_c.mutation.SetResetCardCount(v)
+	}
+	if _, ok := _c.mutation.ResetCardValidityDays(); !ok {
+		v := subscriptionplan.DefaultResetCardValidityDays
+		_c.mutation.SetResetCardValidityDays(v)
+	}
 	if _, ok := _c.mutation.Features(); !ok {
 		v := subscriptionplan.DefaultFeatures
 		_c.mutation.SetFeatures(v)
@@ -359,6 +395,12 @@ func (_c *SubscriptionPlanCreate) check() error {
 		if err := subscriptionplan.ValidityUnitValidator(v); err != nil {
 			return &ValidationError{Name: "validity_unit", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.validity_unit": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ResetCardCount(); !ok {
+		return &ValidationError{Name: "reset_card_count", err: errors.New(`ent: missing required field "SubscriptionPlan.reset_card_count"`)}
+	}
+	if _, ok := _c.mutation.ResetCardValidityDays(); !ok {
+		return &ValidationError{Name: "reset_card_validity_days", err: errors.New(`ent: missing required field "SubscriptionPlan.reset_card_validity_days"`)}
 	}
 	if _, ok := _c.mutation.Features(); !ok {
 		return &ValidationError{Name: "features", err: errors.New(`ent: missing required field "SubscriptionPlan.features"`)}
@@ -453,6 +495,14 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ValidityUnit(); ok {
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
 		_node.ValidityUnit = value
+	}
+	if value, ok := _c.mutation.ResetCardCount(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardCount, field.TypeInt, value)
+		_node.ResetCardCount = value
+	}
+	if value, ok := _c.mutation.ResetCardValidityDays(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardValidityDays, field.TypeInt, value)
+		_node.ResetCardValidityDays = value
 	}
 	if value, ok := _c.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
@@ -655,6 +705,42 @@ func (u *SubscriptionPlanUpsert) SetValidityUnit(v string) *SubscriptionPlanUpse
 // UpdateValidityUnit sets the "validity_unit" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateValidityUnit() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldValidityUnit)
+	return u
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *SubscriptionPlanUpsert) SetResetCardCount(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldResetCardCount, v)
+	return u
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateResetCardCount() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldResetCardCount)
+	return u
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *SubscriptionPlanUpsert) AddResetCardCount(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldResetCardCount, v)
+	return u
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (u *SubscriptionPlanUpsert) SetResetCardValidityDays(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldResetCardValidityDays, v)
+	return u
+}
+
+// UpdateResetCardValidityDays sets the "reset_card_validity_days" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateResetCardValidityDays() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldResetCardValidityDays)
+	return u
+}
+
+// AddResetCardValidityDays adds v to the "reset_card_validity_days" field.
+func (u *SubscriptionPlanUpsert) AddResetCardValidityDays(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldResetCardValidityDays, v)
 	return u
 }
 
@@ -954,6 +1040,48 @@ func (u *SubscriptionPlanUpsertOne) SetValidityUnit(v string) *SubscriptionPlanU
 func (u *SubscriptionPlanUpsertOne) UpdateValidityUnit() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateValidityUnit()
+	})
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertOne) SetResetCardCount(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardCount(v)
+	})
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertOne) AddResetCardCount(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardCount(v)
+	})
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateResetCardCount() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardCount()
+	})
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (u *SubscriptionPlanUpsertOne) SetResetCardValidityDays(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardValidityDays(v)
+	})
+}
+
+// AddResetCardValidityDays adds v to the "reset_card_validity_days" field.
+func (u *SubscriptionPlanUpsertOne) AddResetCardValidityDays(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardValidityDays(v)
+	})
+}
+
+// UpdateResetCardValidityDays sets the "reset_card_validity_days" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateResetCardValidityDays() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardValidityDays()
 	})
 }
 
@@ -1438,6 +1566,48 @@ func (u *SubscriptionPlanUpsertBulk) SetValidityUnit(v string) *SubscriptionPlan
 func (u *SubscriptionPlanUpsertBulk) UpdateValidityUnit() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateValidityUnit()
+	})
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertBulk) SetResetCardCount(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardCount(v)
+	})
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertBulk) AddResetCardCount(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardCount(v)
+	})
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateResetCardCount() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardCount()
+	})
+}
+
+// SetResetCardValidityDays sets the "reset_card_validity_days" field.
+func (u *SubscriptionPlanUpsertBulk) SetResetCardValidityDays(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardValidityDays(v)
+	})
+}
+
+// AddResetCardValidityDays adds v to the "reset_card_validity_days" field.
+func (u *SubscriptionPlanUpsertBulk) AddResetCardValidityDays(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardValidityDays(v)
+	})
+}
+
+// UpdateResetCardValidityDays sets the "reset_card_validity_days" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateResetCardValidityDays() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardValidityDays()
 	})
 }
 

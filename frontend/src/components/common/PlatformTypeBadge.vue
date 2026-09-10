@@ -99,6 +99,7 @@ const platformLabel = computed(() => {
   if (props.platform === 'kimi') return 'Kimi'
   if (props.platform === 'zhipu') return 'Zhipu GLM'
   if (props.platform === 'deepseek') return 'DeepSeek'
+  if (props.platform === 'minimax') return 'MiniMax'
   return props.platform
 })
 
@@ -203,6 +204,9 @@ const platformClass = computed(() => {
   if (props.platform === 'deepseek') {
     return 'components-common-platform-type-badge__state-7'
   }
+  if (props.platform === 'minimax') {
+    return 'components-common-platform-type-badge__state-5'
+  }
   return 'components-common-platform-type-badge__state-8'
 })
 
@@ -224,6 +228,9 @@ const typeClass = computed(() => {
   }
   if (props.platform === 'deepseek') {
     return 'components-common-platform-type-badge__state-15'
+  }
+  if (props.platform === 'minimax') {
+    return 'components-common-platform-type-badge__state-13'
   }
   return 'components-common-platform-type-badge__state-16'
 })

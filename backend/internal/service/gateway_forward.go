@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/proxyurl"
 	"github.com/tidwall/gjson"
 
 	"github.com/gin-gonic/gin"
@@ -300,9 +301,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	// 解析 TLS 指纹 profile（同一请求生命周期内不变，避免重试循环中重复解析）
 	tlsProfile := s.tlsFPProfileService.ResolveTLSProfile(account)
 
-	// 调试日志：记录即将转发的账号信息
+	// 调试日志：记录即将转发的账号信息。代理地址必须脱敏：Proxy.URL() 携带明文凭据。
 	logger.LegacyPrintf("service.gateway", "[Forward] Using account: ID=%v Name=%s Platform=%s Type=%s TLSFingerprint=%v Proxy=%s",
-		account.ID, account.Name, account.Platform, account.Type, tlsProfile, proxyURL)
+		account.ID, account.Name, account.Platform, account.Type, tlsProfile, proxyurl.Redact(proxyURL))
 	// Pre-filter: strip empty text blocks (including nested in tool_result) to prevent upstream 400.
 	if err := replaceBody(StripEmptyTextBlocks(body)); err != nil {
 		return nil, err

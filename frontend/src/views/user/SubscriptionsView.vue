@@ -179,6 +179,37 @@
               </p>
             </div>
 
+            <!-- Subscription-bound reset cards -->
+            <div class="subscription-reset-cards">
+              <div class="subscription-reset-cards__header">
+                <div>
+                  <span class="views-user-subscriptions-view__text-3">{{ t('userSubscriptions.resetCards.title') }}</span>
+                  <p class="views-user-subscriptions-view__description-3">
+                    {{ t('userSubscriptions.resetCards.summary', {
+                      available: subscription.reset_cards?.available_count ?? 0,
+                      expired: subscription.reset_cards?.expired_count ?? 0
+                    }) }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  :disabled="resettingCard || !canUseResetCard(subscription) || (subscription.reset_cards?.available_count ?? 0) <= 0"
+                  @click="openResetCardConfirm(subscription)"
+                >
+                  {{ t('userSubscriptions.resetCards.use') }}
+                </button>
+              </div>
+              <div v-if="subscription.reset_cards?.next_expiry_at" class="subscription-reset-cards__expiry">
+                {{ t('userSubscriptions.resetCards.nextExpiry', { time: formatDateTimeToMinute(subscription.reset_cards.next_expiry_at) }) }}
+              </div>
+              <ul v-if="subscription.reset_cards?.expiry_breakdown?.length" class="subscription-reset-cards__breakdown">
+                <li v-for="batch in subscription.reset_cards.expiry_breakdown" :key="batch.expires_at">
+                  {{ t('userSubscriptions.resetCards.batch', { count: batch.count, time: formatDateTimeToMinute(batch.expires_at) }) }}
+                </li>
+              </ul>
+            </div>
+
             <!-- Monthly Usage -->
             <div v-if="subscriptionLimitPoints(subscription, 'monthly')" class="views-user-subscriptions-view__panel-14">
               <div class="views-user-subscriptions-view__panel-15">
@@ -318,6 +349,16 @@
       @confirm="activatePendingNow"
       @cancel="closeActivationConfirm"
     />
+    <ConfirmDialog
+      :show="showResetCardConfirm"
+      :title="t('userSubscriptions.resetCards.confirmTitle')"
+      :message="resetCardConfirmMessage"
+      :confirm-text="t('userSubscriptions.resetCards.confirm')"
+      :cancel-text="t('common.cancel')"
+      :danger="true"
+      @confirm="consumeResetCard"
+      @cancel="closeResetCardConfirm"
+    />
   </AppLayout>
 </template>
 
@@ -361,6 +402,9 @@ const loading = ref(true)
 const activating = ref(false)
 const selectedPending = ref<PendingSubscription | null>(null)
 const showActivationConfirm = computed(() => selectedPending.value !== null)
+const selectedResetCardSubscription = ref<UserSubscription | null>(null)
+const resettingCard = ref(false)
+const showResetCardConfirm = computed(() => selectedResetCardSubscription.value !== null)
 const paymentEnabled = computed(
   () => appStore.cachedPublicSettings?.payment_enabled === true,
 )
@@ -379,6 +423,14 @@ function subscriptionUsagePoints(subscription: UserSubscription, window: PointQu
 
 function subscriptionLimitPoints(subscription: UserSubscription, window: PointQuotaWindow): number | null {
   return subscription.group?.[`${window}_limit_points`] ?? subscription.group?.[`${window}_limit_usd`] ?? null
+}
+
+function canUseResetCard(subscription: UserSubscription): boolean {
+  const weeklyLimit = subscriptionLimitPoints(subscription, 'weekly')
+  return subscription.status === 'active'
+    && subscription.group?.status === 'active'
+    && weeklyLimit != null
+    && weeklyLimit > 0
 }
 
 function formatPointRange(used: number, limit: number | null): string {
@@ -449,6 +501,45 @@ async function activatePendingNow() {
     appStore.showError(t('userSubscriptions.activateNowFailed'))
   } finally {
     activating.value = false
+  }
+}
+
+function openResetCardConfirm(subscription: UserSubscription) {
+  if ((subscription.reset_cards?.available_count ?? 0) <= 0) return
+  selectedResetCardSubscription.value = subscription
+}
+
+function closeResetCardConfirm() {
+  if (!resettingCard.value) selectedResetCardSubscription.value = null
+}
+
+const resetCardConfirmMessage = computed(() => {
+  const subscription = selectedResetCardSubscription.value
+  if (!subscription) return ''
+  return t('userSubscriptions.resetCards.confirmMessage', {
+    available: subscription.reset_cards?.available_count ?? 0,
+    group: subscription.group?.name || `#${subscription.group_id}`,
+  })
+})
+
+async function consumeResetCard() {
+  const subscription = selectedResetCardSubscription.value
+  if (!subscription || resettingCard.value) return
+  resettingCard.value = true
+  try {
+    await subscriptionsAPI.consumeResetCard(subscription.id)
+    appStore.showSuccess(t('userSubscriptions.resetCards.success'))
+    selectedResetCardSubscription.value = null
+    subscriptionStore.invalidateCache()
+    await Promise.all([
+      loadSubscriptions(),
+      subscriptionStore.fetchActiveSubscriptions(true),
+    ])
+  } catch (error) {
+    console.error('Failed to consume reset card:', error)
+    appStore.showError(t('userSubscriptions.resetCards.failed'))
+  } finally {
+    resettingCard.value = false
   }
 }
 
@@ -543,6 +634,35 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.subscription-reset-cards {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.subscription-reset-cards__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.subscription-reset-cards__expiry,
+.subscription-reset-cards__breakdown {
+  color: var(--color-text-tertiary);
+  font-size: var(--type-caption-size);
+}
+
+.subscription-reset-cards__breakdown {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
 .pending-subscriptions,
 .pending-subscriptions__grid {
   display: grid;

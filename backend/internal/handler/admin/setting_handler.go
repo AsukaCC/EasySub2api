@@ -388,6 +388,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
+		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 
 		GrokDefaultTextModel:           settings.GrokDefaultTextModel,
 		GrokCrossClientModelMapEnabled: settings.GrokCrossClientModelMapEnabled,
@@ -400,6 +401,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ModelPlazaUserVisible: settings.ModelPlazaUserVisible,
 		ModelPlazaRequireAuth: settings.ModelPlazaRequireAuth,
 		ModelPlazaDescription: settings.ModelPlazaDescription,
+		UsageGuideEnabled:     settings.UsageGuideEnabled,
+		UsageGuideContentMD:   settings.UsageGuideContentMD,
 
 		AffiliateEnabled:     settings.AffiliateEnabled,
 		AffiliateUserVisible: settings.AffiliateUserVisible,

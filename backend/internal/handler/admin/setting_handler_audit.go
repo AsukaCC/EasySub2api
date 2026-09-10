@@ -591,6 +591,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ModelPlazaDescription != after.ModelPlazaDescription {
 		changed = append(changed, "model_plaza_description")
 	}
+	if before.UsageGuideEnabled != after.UsageGuideEnabled {
+		changed = append(changed, "usage_guide_enabled")
+	}
+	if before.UsageGuideContentMD != after.UsageGuideContentMD {
+		changed = append(changed, "usage_guide_content_md")
+	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
 	}

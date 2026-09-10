@@ -51,36 +51,38 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 	}
 	// Enrich plans with group platform for frontend color coding
 	type planWithPlatform struct {
-		ID                  string   `json:"id"`
-		GroupID             string   `json:"group_id"`
-		GroupPlatform       string   `json:"group_platform"`
-		GroupName           string   `json:"group_name"`
-		RateMultiplier      float64  `json:"rate_multiplier"`
-		PeakRateEnabled     bool     `json:"peak_rate_enabled"`
-		PeakStart           string   `json:"peak_start"`
-		PeakEnd             string   `json:"peak_end"`
-		PeakRateMultiplier  float64  `json:"peak_rate_multiplier"`
-		DailyLimitUSD       *float64 `json:"daily_limit_usd"`
-		DailyLimitPoints    *float64 `json:"daily_limit_points"`
-		WeeklyLimitUSD      *float64 `json:"weekly_limit_usd"`
-		WeeklyLimitPoints   *float64 `json:"weekly_limit_points"`
-		MonthlyLimitUSD     *float64 `json:"monthly_limit_usd"`
-		MonthlyLimitPoints  *float64 `json:"monthly_limit_points"`
-		Name                string   `json:"name"`
-		Description         string   `json:"description"`
-		Price               float64  `json:"price"`
-		PricePoints         float64  `json:"price_points"`
-		OriginalPrice       *float64 `json:"original_price,omitempty"`
-		OriginalPricePoints *float64 `json:"original_price_points,omitempty"`
-		Currency            string   `json:"currency,omitempty"`
-		ValidityDays        int      `json:"validity_days"`
-		ValidityUnit        string   `json:"validity_unit"`
-		Features            string   `json:"features"`
-		ProductName         string   `json:"product_name"`
-		ForSale             bool     `json:"for_sale"`
-		SortOrder           int      `json:"sort_order"`
-		StockEnabled        bool     `json:"stock_enabled"`
-		StockAvailable      *int     `json:"stock_available"`
+		ID                    string   `json:"id"`
+		GroupID               string   `json:"group_id"`
+		GroupPlatform         string   `json:"group_platform"`
+		GroupName             string   `json:"group_name"`
+		RateMultiplier        float64  `json:"rate_multiplier"`
+		PeakRateEnabled       bool     `json:"peak_rate_enabled"`
+		PeakStart             string   `json:"peak_start"`
+		PeakEnd               string   `json:"peak_end"`
+		PeakRateMultiplier    float64  `json:"peak_rate_multiplier"`
+		DailyLimitUSD         *float64 `json:"daily_limit_usd"`
+		DailyLimitPoints      *float64 `json:"daily_limit_points"`
+		WeeklyLimitUSD        *float64 `json:"weekly_limit_usd"`
+		WeeklyLimitPoints     *float64 `json:"weekly_limit_points"`
+		MonthlyLimitUSD       *float64 `json:"monthly_limit_usd"`
+		MonthlyLimitPoints    *float64 `json:"monthly_limit_points"`
+		Name                  string   `json:"name"`
+		Description           string   `json:"description"`
+		Price                 float64  `json:"price"`
+		PricePoints           float64  `json:"price_points"`
+		OriginalPrice         *float64 `json:"original_price,omitempty"`
+		OriginalPricePoints   *float64 `json:"original_price_points,omitempty"`
+		Currency              string   `json:"currency,omitempty"`
+		ValidityDays          int      `json:"validity_days"`
+		ValidityUnit          string   `json:"validity_unit"`
+		ResetCardCount        int      `json:"reset_card_count"`
+		ResetCardValidityDays int      `json:"reset_card_validity_days"`
+		Features              string   `json:"features"`
+		ProductName           string   `json:"product_name"`
+		ForSale               bool     `json:"for_sale"`
+		SortOrder             int      `json:"sort_order"`
+		StockEnabled          bool     `json:"stock_enabled"`
+		StockAvailable        *int     `json:"stock_available"`
 	}
 	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
 	result := make([]planWithPlatform, 0, len(plans))
@@ -103,6 +105,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			OriginalPrice: p.OriginalPrice, OriginalPricePoints: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
+			ResetCardCount: p.ResetCardCount, ResetCardValidityDays: p.ResetCardValidityDays,
 			ProductName: p.ProductName, ForSale: p.ForSale, SortOrder: p.SortOrder,
 			StockEnabled: p.StockQuantity != nil, StockAvailable: stockAvailable,
 		})
@@ -190,34 +193,36 @@ type checkoutInfoResponse struct {
 }
 
 type checkoutPlan struct {
-	ID                  string   `json:"id"`
-	GroupID             string   `json:"group_id"`
-	GroupPlatform       string   `json:"group_platform"`
-	GroupName           string   `json:"group_name"`
-	RateMultiplier      float64  `json:"rate_multiplier"`
-	PeakRateEnabled     bool     `json:"peak_rate_enabled"`
-	PeakStart           string   `json:"peak_start"`
-	PeakEnd             string   `json:"peak_end"`
-	PeakRateMultiplier  float64  `json:"peak_rate_multiplier"`
-	DailyLimitUSD       *float64 `json:"daily_limit_usd"`
-	DailyLimitPoints    *float64 `json:"daily_limit_points"`
-	WeeklyLimitUSD      *float64 `json:"weekly_limit_usd"`
-	WeeklyLimitPoints   *float64 `json:"weekly_limit_points"`
-	MonthlyLimitUSD     *float64 `json:"monthly_limit_usd"`
-	MonthlyLimitPoints  *float64 `json:"monthly_limit_points"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	Price               float64  `json:"price"`
-	PricePoints         float64  `json:"price_points"`
-	OriginalPrice       *float64 `json:"original_price,omitempty"`
-	OriginalPricePoints *float64 `json:"original_price_points,omitempty"`
-	Currency            string   `json:"currency,omitempty"`
-	ValidityDays        int      `json:"validity_days"`
-	ValidityUnit        string   `json:"validity_unit"`
-	Features            []string `json:"features"`
-	ProductName         string   `json:"product_name"`
-	StockEnabled        bool     `json:"stock_enabled"`
-	StockAvailable      *int     `json:"stock_available"`
+	ID                    string   `json:"id"`
+	GroupID               string   `json:"group_id"`
+	GroupPlatform         string   `json:"group_platform"`
+	GroupName             string   `json:"group_name"`
+	RateMultiplier        float64  `json:"rate_multiplier"`
+	PeakRateEnabled       bool     `json:"peak_rate_enabled"`
+	PeakStart             string   `json:"peak_start"`
+	PeakEnd               string   `json:"peak_end"`
+	PeakRateMultiplier    float64  `json:"peak_rate_multiplier"`
+	DailyLimitUSD         *float64 `json:"daily_limit_usd"`
+	DailyLimitPoints      *float64 `json:"daily_limit_points"`
+	WeeklyLimitUSD        *float64 `json:"weekly_limit_usd"`
+	WeeklyLimitPoints     *float64 `json:"weekly_limit_points"`
+	MonthlyLimitUSD       *float64 `json:"monthly_limit_usd"`
+	MonthlyLimitPoints    *float64 `json:"monthly_limit_points"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Price                 float64  `json:"price"`
+	PricePoints           float64  `json:"price_points"`
+	OriginalPrice         *float64 `json:"original_price,omitempty"`
+	OriginalPricePoints   *float64 `json:"original_price_points,omitempty"`
+	Currency              string   `json:"currency,omitempty"`
+	ValidityDays          int      `json:"validity_days"`
+	ValidityUnit          string   `json:"validity_unit"`
+	ResetCardCount        int      `json:"reset_card_count"`
+	ResetCardValidityDays int      `json:"reset_card_validity_days"`
+	Features              []string `json:"features"`
+	ProductName           string   `json:"product_name"`
+	StockEnabled          bool     `json:"stock_enabled"`
+	StockAvailable        *int     `json:"stock_available"`
 }
 
 func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[string]service.PlanGroupInfo) []checkoutPlan {
@@ -245,6 +250,7 @@ func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[str
 			OriginalPrice: p.OriginalPrice, OriginalPricePoints: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
+			ResetCardCount: p.ResetCardCount, ResetCardValidityDays: p.ResetCardValidityDays,
 			ProductName: p.ProductName, StockEnabled: p.StockQuantity != nil, StockAvailable: stockAvailable,
 		})
 	}
@@ -636,46 +642,50 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 // proves possession of the checkout session, so the result keeps the legacy
 // frontend contract needed by payment result pages.
 type PublicOrderResult struct {
-	ID                      string         `json:"id"`
-	OutTradeNo              string         `json:"out_trade_no"`
-	Amount                  float64        `json:"amount"`
-	PayAmount               float64        `json:"pay_amount"`
-	WalletAmount            float64        `json:"wallet_amount"`
-	WalletBonusAmount       float64        `json:"wallet_bonus_amount"`
-	WalletRechargeAmount    float64        `json:"wallet_recharge_amount"`
-	GatewayBaseAmount       float64        `json:"gateway_base_amount"`
-	WalletOnly              bool           `json:"wallet_only"`
-	FeeRate                 float64        `json:"fee_rate"`
-	PrincipalAmount         float64        `json:"principal_amount"`
-	FeeAmount               float64        `json:"fee_amount"`
-	BasePoints              float64        `json:"base_points"`
-	BonusPoints             float64        `json:"bonus_points"`
-	CreditedPoints          float64        `json:"credited_points"`
-	BonusTierSnapshot       map[string]any `json:"bonus_tier_snapshot,omitempty"`
-	BonusExpiresAt          *time.Time     `json:"bonus_expires_at,omitempty"`
-	BonusGrantID            *string        `json:"bonus_grant_id,omitempty"`
-	AffiliateRebatePoints   float64        `json:"affiliate_rebate_points"`
-	RefundDeadline          *time.Time     `json:"refund_deadline,omitempty"`
-	Currency                string         `json:"currency"`
-	PaymentType             string         `json:"payment_type"`
-	OrderType               string         `json:"order_type"`
-	Status                  string         `json:"status"`
-	CreatedAt               time.Time      `json:"created_at"`
-	ExpiresAt               time.Time      `json:"expires_at"`
-	PaidAt                  *time.Time     `json:"paid_at,omitempty"`
-	CompletedAt             *time.Time     `json:"completed_at,omitempty"`
-	RefundAmount            float64        `json:"refund_amount"`
-	RefundedPrincipalAmount float64        `json:"refunded_principal_amount"`
-	RefundedFeeAmount       float64        `json:"refunded_fee_amount"`
-	RefundedGatewayAmount   float64        `json:"refunded_gateway_amount"`
-	ReversedBasePoints      float64        `json:"reversed_base_points"`
-	ReversedBonusPoints     float64        `json:"reversed_bonus_points"`
-	ReversedAffiliatePoints float64        `json:"reversed_affiliate_points"`
-	RefundReason            *string        `json:"refund_reason,omitempty"`
-	RefundRequestedAt       *time.Time     `json:"refund_requested_at,omitempty"`
-	RefundRequestedBy       *string        `json:"refund_requested_by,omitempty"`
-	RefundRequestReason     *string        `json:"refund_request_reason,omitempty"`
-	PlanID                  *string        `json:"plan_id,omitempty"`
+	ID                                string         `json:"id"`
+	OutTradeNo                        string         `json:"out_trade_no"`
+	Amount                            float64        `json:"amount"`
+	PayAmount                         float64        `json:"pay_amount"`
+	WalletAmount                      float64        `json:"wallet_amount"`
+	WalletBonusAmount                 float64        `json:"wallet_bonus_amount"`
+	WalletRechargeAmount              float64        `json:"wallet_recharge_amount"`
+	GatewayBaseAmount                 float64        `json:"gateway_base_amount"`
+	WalletOnly                        bool           `json:"wallet_only"`
+	FeeRate                           float64        `json:"fee_rate"`
+	PrincipalAmount                   float64        `json:"principal_amount"`
+	FeeAmount                         float64        `json:"fee_amount"`
+	BasePoints                        float64        `json:"base_points"`
+	BonusPoints                       float64        `json:"bonus_points"`
+	CreditedPoints                    float64        `json:"credited_points"`
+	BonusTierSnapshot                 map[string]any `json:"bonus_tier_snapshot,omitempty"`
+	BonusExpiresAt                    *time.Time     `json:"bonus_expires_at,omitempty"`
+	BonusGrantID                      *string        `json:"bonus_grant_id,omitempty"`
+	AffiliateRebatePoints             float64        `json:"affiliate_rebate_points"`
+	RefundDeadline                    *time.Time     `json:"refund_deadline,omitempty"`
+	Currency                          string         `json:"currency"`
+	PaymentType                       string         `json:"payment_type"`
+	OrderType                         string         `json:"order_type"`
+	Status                            string         `json:"status"`
+	CreatedAt                         time.Time      `json:"created_at"`
+	ExpiresAt                         time.Time      `json:"expires_at"`
+	PaidAt                            *time.Time     `json:"paid_at,omitempty"`
+	CompletedAt                       *time.Time     `json:"completed_at,omitempty"`
+	RefundAmount                      float64        `json:"refund_amount"`
+	RefundedPrincipalAmount           float64        `json:"refunded_principal_amount"`
+	RefundedFeeAmount                 float64        `json:"refunded_fee_amount"`
+	RefundedGatewayAmount             float64        `json:"refunded_gateway_amount"`
+	ReversedBasePoints                float64        `json:"reversed_base_points"`
+	ReversedBonusPoints               float64        `json:"reversed_bonus_points"`
+	ReversedAffiliatePoints           float64        `json:"reversed_affiliate_points"`
+	RefundReason                      *string        `json:"refund_reason,omitempty"`
+	RefundRequestedAt                 *time.Time     `json:"refund_requested_at,omitempty"`
+	RefundRequestedBy                 *string        `json:"refund_requested_by,omitempty"`
+	RefundRequestReason               *string        `json:"refund_request_reason,omitempty"`
+	PlanID                            *string        `json:"plan_id,omitempty"`
+	SubscriptionGroupID               *string        `json:"subscription_group_id,omitempty"`
+	SubscriptionDays                  *int           `json:"subscription_days,omitempty"`
+	SubscriptionResetCardCount        *int           `json:"subscription_reset_card_count,omitempty"`
+	SubscriptionResetCardValidityDays *int           `json:"subscription_reset_card_validity_days,omitempty"`
 }
 
 // PublicOrderVerifyResult is returned by the legacy anonymous out_trade_no
@@ -691,7 +701,7 @@ type PublicOrderVerifyResult struct {
 }
 
 func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
-	return PublicOrderResult{
+	result := PublicOrderResult{
 		ID:                      order.ID,
 		OutTradeNo:              order.OutTradeNo,
 		Amount:                  order.Amount,
@@ -733,6 +743,8 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 		RefundRequestReason:     order.RefundRequestReason,
 		PlanID:                  order.PlanID,
 	}
+	result.SubscriptionGroupID, result.SubscriptionDays, result.SubscriptionResetCardCount, result.SubscriptionResetCardValidityDays = subscriptionSnapshotPointers(order)
+	return result
 }
 
 func buildPublicOrderVerifyResult(order *dbent.PaymentOrder) PublicOrderVerifyResult {
@@ -821,48 +833,52 @@ func isMobile(c *gin.Context) bool {
 }
 
 type PaymentOrderResult struct {
-	ID                      string         `json:"id"`
-	UserID                  string         `json:"user_id"`
-	Amount                  float64        `json:"amount"`
-	PayAmount               float64        `json:"pay_amount"`
-	WalletAmount            float64        `json:"wallet_amount"`
-	WalletBonusAmount       float64        `json:"wallet_bonus_amount"`
-	WalletRechargeAmount    float64        `json:"wallet_recharge_amount"`
-	GatewayBaseAmount       float64        `json:"gateway_base_amount"`
-	WalletOnly              bool           `json:"wallet_only"`
-	FeeRate                 float64        `json:"fee_rate"`
-	PrincipalAmount         float64        `json:"principal_amount"`
-	FeeAmount               float64        `json:"fee_amount"`
-	BasePoints              float64        `json:"base_points"`
-	BonusPoints             float64        `json:"bonus_points"`
-	CreditedPoints          float64        `json:"credited_points"`
-	BonusTierSnapshot       map[string]any `json:"bonus_tier_snapshot,omitempty"`
-	BonusExpiresAt          *time.Time     `json:"bonus_expires_at,omitempty"`
-	BonusGrantID            *string        `json:"bonus_grant_id,omitempty"`
-	AffiliateRebatePoints   float64        `json:"affiliate_rebate_points"`
-	RefundDeadline          *time.Time     `json:"refund_deadline,omitempty"`
-	Currency                string         `json:"currency"`
-	PaymentType             string         `json:"payment_type"`
-	OutTradeNo              string         `json:"out_trade_no"`
-	Status                  string         `json:"status"`
-	OrderType               string         `json:"order_type"`
-	CreatedAt               time.Time      `json:"created_at"`
-	ExpiresAt               time.Time      `json:"expires_at"`
-	PaidAt                  *time.Time     `json:"paid_at,omitempty"`
-	CompletedAt             *time.Time     `json:"completed_at,omitempty"`
-	RefundAmount            float64        `json:"refund_amount"`
-	RefundedPrincipalAmount float64        `json:"refunded_principal_amount"`
-	RefundedFeeAmount       float64        `json:"refunded_fee_amount"`
-	RefundedGatewayAmount   float64        `json:"refunded_gateway_amount"`
-	ReversedBasePoints      float64        `json:"reversed_base_points"`
-	ReversedBonusPoints     float64        `json:"reversed_bonus_points"`
-	ReversedAffiliatePoints float64        `json:"reversed_affiliate_points"`
-	RefundReason            *string        `json:"refund_reason,omitempty"`
-	RefundRequestedAt       *time.Time     `json:"refund_requested_at,omitempty"`
-	RefundRequestedBy       *string        `json:"refund_requested_by,omitempty"`
-	RefundRequestReason     *string        `json:"refund_request_reason,omitempty"`
-	PlanID                  *string        `json:"plan_id,omitempty"`
-	ProviderInstanceID      *string        `json:"provider_instance_id,omitempty"`
+	ID                                string         `json:"id"`
+	UserID                            string         `json:"user_id"`
+	Amount                            float64        `json:"amount"`
+	PayAmount                         float64        `json:"pay_amount"`
+	WalletAmount                      float64        `json:"wallet_amount"`
+	WalletBonusAmount                 float64        `json:"wallet_bonus_amount"`
+	WalletRechargeAmount              float64        `json:"wallet_recharge_amount"`
+	GatewayBaseAmount                 float64        `json:"gateway_base_amount"`
+	WalletOnly                        bool           `json:"wallet_only"`
+	FeeRate                           float64        `json:"fee_rate"`
+	PrincipalAmount                   float64        `json:"principal_amount"`
+	FeeAmount                         float64        `json:"fee_amount"`
+	BasePoints                        float64        `json:"base_points"`
+	BonusPoints                       float64        `json:"bonus_points"`
+	CreditedPoints                    float64        `json:"credited_points"`
+	BonusTierSnapshot                 map[string]any `json:"bonus_tier_snapshot,omitempty"`
+	BonusExpiresAt                    *time.Time     `json:"bonus_expires_at,omitempty"`
+	BonusGrantID                      *string        `json:"bonus_grant_id,omitempty"`
+	AffiliateRebatePoints             float64        `json:"affiliate_rebate_points"`
+	RefundDeadline                    *time.Time     `json:"refund_deadline,omitempty"`
+	Currency                          string         `json:"currency"`
+	PaymentType                       string         `json:"payment_type"`
+	OutTradeNo                        string         `json:"out_trade_no"`
+	Status                            string         `json:"status"`
+	OrderType                         string         `json:"order_type"`
+	CreatedAt                         time.Time      `json:"created_at"`
+	ExpiresAt                         time.Time      `json:"expires_at"`
+	PaidAt                            *time.Time     `json:"paid_at,omitempty"`
+	CompletedAt                       *time.Time     `json:"completed_at,omitempty"`
+	RefundAmount                      float64        `json:"refund_amount"`
+	RefundedPrincipalAmount           float64        `json:"refunded_principal_amount"`
+	RefundedFeeAmount                 float64        `json:"refunded_fee_amount"`
+	RefundedGatewayAmount             float64        `json:"refunded_gateway_amount"`
+	ReversedBasePoints                float64        `json:"reversed_base_points"`
+	ReversedBonusPoints               float64        `json:"reversed_bonus_points"`
+	ReversedAffiliatePoints           float64        `json:"reversed_affiliate_points"`
+	RefundReason                      *string        `json:"refund_reason,omitempty"`
+	RefundRequestedAt                 *time.Time     `json:"refund_requested_at,omitempty"`
+	RefundRequestedBy                 *string        `json:"refund_requested_by,omitempty"`
+	RefundRequestReason               *string        `json:"refund_request_reason,omitempty"`
+	PlanID                            *string        `json:"plan_id,omitempty"`
+	ProviderInstanceID                *string        `json:"provider_instance_id,omitempty"`
+	SubscriptionGroupID               *string        `json:"subscription_group_id,omitempty"`
+	SubscriptionDays                  *int           `json:"subscription_days,omitempty"`
+	SubscriptionResetCardCount        *int           `json:"subscription_reset_card_count,omitempty"`
+	SubscriptionResetCardValidityDays *int           `json:"subscription_reset_card_validity_days,omitempty"`
 }
 
 func sanitizePaymentOrdersForResponse(orders []*dbent.PaymentOrder) []PaymentOrderResult {
@@ -879,7 +895,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 	if order == nil {
 		return nil
 	}
-	return &PaymentOrderResult{
+	result := &PaymentOrderResult{
 		ID:                      order.ID,
 		UserID:                  order.UserID,
 		Amount:                  order.Amount,
@@ -923,6 +939,17 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		PlanID:                  order.PlanID,
 		ProviderInstanceID:      order.ProviderInstanceID,
 	}
+	result.SubscriptionGroupID, result.SubscriptionDays, result.SubscriptionResetCardCount, result.SubscriptionResetCardValidityDays = subscriptionSnapshotPointers(order)
+	return result
+}
+
+func subscriptionSnapshotPointers(order *dbent.PaymentOrder) (*string, *int, *int, *int) {
+	if order == nil || order.OrderType != payment.OrderTypeSubscription {
+		return nil, nil, nil, nil
+	}
+	count := order.SubscriptionResetCardCount
+	validity := order.SubscriptionResetCardValidityDays
+	return order.SubscriptionGroupID, order.SubscriptionDays, &count, &validity
 }
 
 func isWeChatBrowser(c *gin.Context) bool {

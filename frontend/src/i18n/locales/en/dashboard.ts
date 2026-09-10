@@ -312,6 +312,10 @@ export default {
   // Usage
   usage: {
     title: 'Usage Records',
+    roleScope: 'User Type',
+    roleAll: 'All',
+    roleAdmin: 'Administrators',
+    roleUser: 'Users',
     description: 'View and analyze your API usage history',
     costDetails: 'Cost Breakdown',
     tokenDetails: 'Token Breakdown',
@@ -495,7 +499,8 @@ export default {
       antigravity: 'Antigravity',
       kimi: 'Kimi',
       zhipu: 'Zhipu GLM',
-      deepseek: 'DeepSeek'
+      deepseek: 'DeepSeek',
+      minimax: 'MiniMax'
     },
     // Check modes (how a monitor performs its checks)
     checkMode: {

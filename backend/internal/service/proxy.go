@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/AsukaCC/EasySub2api/internal/pkg/proxyurl"
 )
 
 const (
@@ -48,6 +50,15 @@ func (p *Proxy) URL() string {
 		u.User = url.UserPassword(p.Username, p.Password)
 	}
 	return u.String()
+}
+
+// RedactedURL 返回不含用户名/密码的代理地址（scheme://host:port），仅供日志与诊断输出。
+// 日志中禁止使用 URL()：其结果携带明文凭据。
+func (p *Proxy) RedactedURL() string {
+	if p == nil {
+		return ""
+	}
+	return proxyurl.Redact(p.URL())
 }
 
 type ProxyWithAccountCount struct {

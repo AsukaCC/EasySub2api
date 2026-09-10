@@ -895,6 +895,9 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	clauses := make([]string, 0, 12)
 	args := make([]any, 0, 12)
 	clauses = append(clauses, "1=1")
+	if filter != nil {
+		clauses, args = appendUsageLogUserRoleScopeCondition(clauses, args, filter.UserRoleScope, "e")
+	}
 
 	phaseFilter := ""
 	if filter != nil {

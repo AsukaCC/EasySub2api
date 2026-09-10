@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+
 	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	middleware2 "github.com/AsukaCC/EasySub2api/internal/server/middleware"
@@ -15,23 +17,24 @@ type activatePendingSubscriptionRequest struct {
 
 // SubscriptionSummaryItem represents a subscription item in summary
 type SubscriptionSummaryItem struct {
-	ID                 string  `json:"id"`
-	GroupID            string  `json:"group_id"`
-	GroupName          string  `json:"group_name"`
-	Status             string  `json:"status"`
-	DailyUsedUSD       float64 `json:"daily_used_usd,omitempty"`
-	DailyUsedPoints    float64 `json:"daily_used_points,omitempty"`
-	DailyLimitUSD      float64 `json:"daily_limit_usd,omitempty"`
-	DailyLimitPoints   float64 `json:"daily_limit_points,omitempty"`
-	WeeklyUsedUSD      float64 `json:"weekly_used_usd,omitempty"`
-	WeeklyUsedPoints   float64 `json:"weekly_used_points,omitempty"`
-	WeeklyLimitUSD     float64 `json:"weekly_limit_usd,omitempty"`
-	WeeklyLimitPoints  float64 `json:"weekly_limit_points,omitempty"`
-	MonthlyUsedUSD     float64 `json:"monthly_used_usd,omitempty"`
-	MonthlyUsedPoints  float64 `json:"monthly_used_points,omitempty"`
-	MonthlyLimitUSD    float64 `json:"monthly_limit_usd,omitempty"`
-	MonthlyLimitPoints float64 `json:"monthly_limit_points,omitempty"`
-	ExpiresAt          *string `json:"expires_at,omitempty"`
+	ID                 string               `json:"id"`
+	GroupID            string               `json:"group_id"`
+	GroupName          string               `json:"group_name"`
+	Status             string               `json:"status"`
+	DailyUsedUSD       float64              `json:"daily_used_usd,omitempty"`
+	DailyUsedPoints    float64              `json:"daily_used_points,omitempty"`
+	DailyLimitUSD      float64              `json:"daily_limit_usd,omitempty"`
+	DailyLimitPoints   float64              `json:"daily_limit_points,omitempty"`
+	WeeklyUsedUSD      float64              `json:"weekly_used_usd,omitempty"`
+	WeeklyUsedPoints   float64              `json:"weekly_used_points,omitempty"`
+	WeeklyLimitUSD     float64              `json:"weekly_limit_usd,omitempty"`
+	WeeklyLimitPoints  float64              `json:"weekly_limit_points,omitempty"`
+	MonthlyUsedUSD     float64              `json:"monthly_used_usd,omitempty"`
+	MonthlyUsedPoints  float64              `json:"monthly_used_points,omitempty"`
+	MonthlyLimitUSD    float64              `json:"monthly_limit_usd,omitempty"`
+	MonthlyLimitPoints float64              `json:"monthly_limit_points,omitempty"`
+	ExpiresAt          *string              `json:"expires_at,omitempty"`
+	ResetCards         dto.ResetCardSummary `json:"reset_cards"`
 }
 
 // SubscriptionProgressInfo represents subscription with progress info
@@ -199,6 +202,19 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 			WeeklyUsedPoints:  sub.WeeklyUsageUSD,
 			MonthlyUsedUSD:    sub.MonthlyUsageUSD,
 			MonthlyUsedPoints: sub.MonthlyUsageUSD,
+			ResetCards: dto.ResetCardSummary{
+				AvailableCount:  sub.ResetCards.AvailableCount,
+				ExpiredCount:    sub.ResetCards.ExpiredCount,
+				ConsumedCount:   sub.ResetCards.ConsumedCount,
+				NextExpiryAt:    sub.ResetCards.NextExpiryAt,
+				ExpiryBreakdown: make([]dto.ResetCardExpiry, 0, len(sub.ResetCards.ExpiryBreakdown)),
+			},
+		}
+		for _, cardExpiry := range sub.ResetCards.ExpiryBreakdown {
+			item.ResetCards.ExpiryBreakdown = append(item.ResetCards.ExpiryBreakdown, dto.ResetCardExpiry{
+				ExpiresAt: cardExpiry.ExpiresAt,
+				Count:     cardExpiry.Count,
+			})
 		}
 
 		// Add group info if preloaded
@@ -247,4 +263,25 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 	}
 
 	response.Success(c, summary)
+}
+
+// ConsumeResetCard consumes one reset card attached to the authenticated
+// subscription and restarts only its rolling seven-day window.
+// POST /api/v1/subscriptions/:id/reset-card
+func (h *SubscriptionHandler) ConsumeResetCard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	payload := struct {
+		SubscriptionID string `json:"subscription_id"`
+	}{SubscriptionID: c.Param("id")}
+	executeUserIdempotentJSON(c, "user.subscriptions.consume_reset_card", payload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		result, err := h.subscriptionService.ConsumeResetCard(ctx, subject.UserID, c.Param("id"))
+		if err != nil {
+			return nil, err
+		}
+		return dto.ResetCardConsumeResultFromService(result), nil
+	})
 }

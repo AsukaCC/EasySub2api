@@ -151,7 +151,9 @@
                             ? 'views-admin-groups-view__text-32'
                             : value === 'deepseek'
                               ? 'views-admin-groups-view__text-33'
-                              : 'views-admin-groups-view__text-34',
+                              : value === 'minimax'
+                                ? 'views-admin-groups-view__text-31'
+                                : 'views-admin-groups-view__text-34',
               ]"
             >
               <PlatformIcon :platform="value" size="xs" />
@@ -3576,7 +3578,9 @@
                                 ? 'views-admin-groups-view__text-32'
                                 : group.platform === 'deepseek'
                                   ? 'views-admin-groups-view__text-33'
-                                  : 'views-admin-groups-view__text-34',
+                                  : group.platform === 'minimax'
+                                    ? 'views-admin-groups-view__text-31'
+                                    : 'views-admin-groups-view__text-34',
                   ]"
                 >
                   {{ t("admin.groups.platforms." + group.platform) }}
@@ -4367,6 +4371,7 @@ const platformOptions = computed(() => [
   { value: "kimi", label: "Kimi" },
   { value: "zhipu", label: "Zhipu GLM" },
   { value: "deepseek", label: "DeepSeek" },
+  { value: "minimax", label: "MiniMax" },
   { value: "composite", label: "Composite" },
 ]);
 
@@ -4380,6 +4385,7 @@ const platformFilterOptions = computed(() => [
   { value: "kimi", label: "Kimi" },
   { value: "zhipu", label: "Zhipu GLM" },
   { value: "deepseek", label: "DeepSeek" },
+  { value: "minimax", label: "MiniMax" },
   { value: "composite", label: "Composite" },
 ]);
 

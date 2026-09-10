@@ -265,6 +265,16 @@ func SubscriptionDays(v int) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionDays, v))
 }
 
+// SubscriptionResetCardCount applies equality check predicate on the "subscription_reset_card_count" field. It's identical to SubscriptionResetCardCountEQ.
+func SubscriptionResetCardCount(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardValidityDays applies equality check predicate on the "subscription_reset_card_validity_days" field. It's identical to SubscriptionResetCardValidityDaysEQ.
+func SubscriptionResetCardValidityDays(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionResetCardValidityDays, v))
+}
+
 // ProviderInstanceID applies equality check predicate on the "provider_instance_id" field. It's identical to ProviderInstanceIDEQ.
 func ProviderInstanceID(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldProviderInstanceID, v))
@@ -2503,6 +2513,86 @@ func SubscriptionDaysIsNil() predicate.PaymentOrder {
 // SubscriptionDaysNotNil applies the NotNil predicate on the "subscription_days" field.
 func SubscriptionDaysNotNil() predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldNotNull(FieldSubscriptionDays))
+}
+
+// SubscriptionResetCardCountEQ applies the EQ predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountEQ(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardCountNEQ applies the NEQ predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountNEQ(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardCountIn applies the In predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountIn(vs ...int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldSubscriptionResetCardCount, vs...))
+}
+
+// SubscriptionResetCardCountNotIn applies the NotIn predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountNotIn(vs ...int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldSubscriptionResetCardCount, vs...))
+}
+
+// SubscriptionResetCardCountGT applies the GT predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountGT(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardCountGTE applies the GTE predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountGTE(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardCountLT applies the LT predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountLT(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardCountLTE applies the LTE predicate on the "subscription_reset_card_count" field.
+func SubscriptionResetCardCountLTE(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldSubscriptionResetCardCount, v))
+}
+
+// SubscriptionResetCardValidityDaysEQ applies the EQ predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysEQ(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionResetCardValidityDays, v))
+}
+
+// SubscriptionResetCardValidityDaysNEQ applies the NEQ predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysNEQ(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldSubscriptionResetCardValidityDays, v))
+}
+
+// SubscriptionResetCardValidityDaysIn applies the In predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysIn(vs ...int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldSubscriptionResetCardValidityDays, vs...))
+}
+
+// SubscriptionResetCardValidityDaysNotIn applies the NotIn predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysNotIn(vs ...int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldSubscriptionResetCardValidityDays, vs...))
+}
+
+// SubscriptionResetCardValidityDaysGT applies the GT predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysGT(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldSubscriptionResetCardValidityDays, v))
+}
+
+// SubscriptionResetCardValidityDaysGTE applies the GTE predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysGTE(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldSubscriptionResetCardValidityDays, v))
+}
+
+// SubscriptionResetCardValidityDaysLT applies the LT predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysLT(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldSubscriptionResetCardValidityDays, v))
+}
+
+// SubscriptionResetCardValidityDaysLTE applies the LTE predicate on the "subscription_reset_card_validity_days" field.
+func SubscriptionResetCardValidityDaysLTE(v int) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldSubscriptionResetCardValidityDays, v))
 }
 
 // ProviderInstanceIDEQ applies the EQ predicate on the "provider_instance_id" field.

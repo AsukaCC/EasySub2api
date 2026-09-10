@@ -336,6 +336,7 @@ type UpdateSettingsRequest struct {
 	ChannelMonitorDefaultIntervalSeconds *int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         *bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              *bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        *bool   `json:"channel_monitor_hide_user_ranking"`
 
 	// Grok model mapping policy
 	GrokDefaultTextModel           *string `json:"grok_default_text_model"`
@@ -351,6 +352,8 @@ type UpdateSettingsRequest struct {
 	ModelPlazaUserVisible *bool   `json:"model_plaza_user_visible"`
 	ModelPlazaRequireAuth *bool   `json:"model_plaza_require_auth"`
 	ModelPlazaDescription *string `json:"model_plaza_description"`
+	UsageGuideEnabled     *bool   `json:"usage_guide_enabled"`
+	UsageGuideContentMD   *string `json:"usage_guide_content_md"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled     *bool `json:"affiliate_enabled"`
@@ -534,6 +537,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	channelMonitorEnabled := boolValueOrDefault(req.ChannelMonitorEnabled, previousSettings.ChannelMonitorEnabled)
 	availableChannelsEnabled := boolValueOrDefault(req.AvailableChannelsEnabled, previousSettings.AvailableChannelsEnabled)
 	modelPlazaEnabled := boolValueOrDefault(req.ModelPlazaEnabled, previousSettings.ModelPlazaEnabled)
+	usageGuideEnabled := boolValueOrDefault(req.UsageGuideEnabled, previousSettings.UsageGuideEnabled)
+	if req.UsageGuideContentMD != nil && len([]byte(*req.UsageGuideContentMD)) > service.MaxUsageGuideContentBytes {
+		response.BadRequest(c, "Usage guide content is too large (max 1 MiB)")
+		return
+	}
 	affiliateEnabled := boolValueOrDefault(req.AffiliateEnabled, previousSettings.AffiliateEnabled)
 	paymentEnabled := boolValueOrDefault(req.PaymentEnabled, previousPaymentEnabled)
 
@@ -1537,7 +1545,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		// 该值会被拼进出站 User-Agent 与 version 头，必须是合法版本号；空串表示跟随自动同步。
 		normalized := strings.TrimSpace(*req.OpenAICodexClientVersion)
 		if normalized != "" && service.NormalizeCodexClientVersion(normalized) == "" {
-			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.146.0)")
+			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.153.4)")
+			return
+		}
+		// 预发布版本仅在 gateway.codex_allow_prerelease_version 开启时可作为出站版本；
+		// 生产模式下直接拒绝保存，避免写入后被静默回退而让运维误以为已生效。
+		if normalized != "" && service.AcceptCodexClientVersion(normalized) == "" {
+			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be a stable release (pre-release versions such as 0.154.0-alpha.1 require gateway.codex_allow_prerelease_version)")
 			return
 		}
 		req.OpenAICodexClientVersion = &normalized
@@ -1990,6 +2004,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ChannelMonitorShowQuota
 		}(),
+		ChannelMonitorHideUserRanking: func() bool {
+			if req.ChannelMonitorHideUserRanking != nil {
+				return *req.ChannelMonitorHideUserRanking
+			}
+			return previousSettings.ChannelMonitorHideUserRanking
+		}(),
 		GrokDefaultTextModel: func() string {
 			if req.GrokDefaultTextModel != nil {
 				return *req.GrokDefaultTextModel
@@ -2023,6 +2043,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.ModelPlazaDescription
 			}
 			return previousSettings.ModelPlazaDescription
+		}(),
+		UsageGuideEnabled: usageGuideEnabled,
+		UsageGuideContentMD: func() string {
+			if req.UsageGuideContentMD != nil {
+				return *req.UsageGuideContentMD
+			}
+			return previousSettings.UsageGuideContentMD
 		}(),
 		RiskControlEnabled: func() bool {
 			if req.RiskControlEnabled != nil {
@@ -2465,6 +2492,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         updatedSettings.ChannelMonitorHideThroughput,
 		ChannelMonitorShowQuota:              updatedSettings.ChannelMonitorShowQuota,
+		ChannelMonitorHideUserRanking:        updatedSettings.ChannelMonitorHideUserRanking,
 
 		GrokDefaultTextModel:           updatedSettings.GrokDefaultTextModel,
 		GrokCrossClientModelMapEnabled: updatedSettings.GrokCrossClientModelMapEnabled,
@@ -2477,6 +2505,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelPlazaUserVisible: updatedSettings.ModelPlazaUserVisible,
 		ModelPlazaRequireAuth: updatedSettings.ModelPlazaRequireAuth,
 		ModelPlazaDescription: updatedSettings.ModelPlazaDescription,
+		UsageGuideEnabled:     updatedSettings.UsageGuideEnabled,
+		UsageGuideContentMD:   updatedSettings.UsageGuideContentMD,
 
 		AffiliateEnabled:     updatedSettings.AffiliateEnabled,
 		AffiliateUserVisible: updatedSettings.AffiliateUserVisible,

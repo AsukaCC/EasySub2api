@@ -76,6 +76,7 @@ export default {
     noGroupsAvailable: 'No groups available',
     unknownError: 'Unknown error occurred',
     saving: 'Saving...',
+    retry: 'Retry',
     selectedCount: '({count} selected)',
     refresh: 'Refresh',
     autoRefresh: {
@@ -146,6 +147,13 @@ export default {
     acceptFailed: 'Failed to submit acknowledgment'
   },
 
+  usageGuide: {
+    title: 'Usage Guide',
+    description: 'Learn about API keys, groups, billing, and model requests',
+    loadFailed: 'Failed to load the usage guide',
+    empty: 'No usage guide content is available',
+  },
+
   legal: {
     loadFailed: 'Failed to load document',
     retryLater: 'Refresh the page and try again later.',
@@ -180,6 +188,7 @@ export default {
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     usage: 'Usage',
+    usageGuide: 'Usage Guide',
     userUsage: 'User Usage Records',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',

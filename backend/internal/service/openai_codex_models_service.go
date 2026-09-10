@@ -324,11 +324,13 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 	// 门槛时原样使用；否则回退规范版本，避免陈旧 version 触发上游 404（issue #3901）。
 	// client_version 查询参数本身始终按客户端原值透传（内容协商语义，契约见
 	// TestFetchCodexModelsManifestPassthrough）。
-	headerVersion := NormalizeCodexClientVersion(clientVersion)
+	headerVersion := AcceptCodexClientVersion(clientVersion)
 	if headerVersion == "" || CompareVersions(headerVersion, codexUpstreamMinVersion) < 0 {
 		headerVersion = identity.version
 	}
 	headers.Set("Version", headerVersion)
+	// 终态清理：账号级覆写（API Key 上游）可能带入平台品牌 / 基础设施头。
+	sanitizeOpenAIOutboundHeaders(headers)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {

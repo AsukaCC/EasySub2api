@@ -70,6 +70,14 @@ func TestServerTimingScopesAndRoleGate(t *testing.T) {
 		{name: "payment public excluded", enabled: true, path: "/api/v1/payment/public/orders/verify", userMarker: "1", role: "user"},
 		{name: "payment webhook excluded", enabled: true, path: "/api/v1/payment/webhook/stripe", userMarker: "1", role: "user"},
 		{name: "channel monitors path", enabled: true, path: "/api/v1/channel-monitors/1/status", role: "user", wantHeader: true},
+		// Gateway surfaces: API-key auth also sets a user role, and clients may
+		// forge UI markers. Timing must never reach upstream-facing responses.
+		{name: "gateway admin api key with admin marker", enabled: true, path: "/v1/responses", adminMarker: "1", role: "admin"},
+		{name: "gateway admin api key with user marker", enabled: true, path: "/v1/chat/completions", userMarker: "1", role: "admin"},
+		{name: "gateway user api key with user marker", enabled: true, path: "/v1/messages", userMarker: "1", role: "user"},
+		{name: "gateway path without markers", enabled: true, path: "/v1/models", role: "admin"},
+		{name: "antigravity gateway with admin marker", enabled: true, path: "/antigravity/v1/messages", adminMarker: "1", role: "admin"},
+		{name: "web api prefix boundary", enabled: true, path: "/api/v10/admin/users", adminMarker: "1", role: "admin"},
 	}
 
 	for _, tt := range tests {
@@ -86,6 +94,34 @@ func TestServerTimingScopesAndRoleGate(t *testing.T) {
 			}
 			if header != "" && (!strings.Contains(header, "total;dur=") || !strings.Contains(header, `cache;desc="bypass"`)) {
 				t.Fatalf("incomplete timing header: %q", header)
+			}
+		})
+	}
+}
+
+func TestServerTimingDoesNotInstrumentGatewayRequests(t *testing.T) {
+	tests := []struct {
+		name        string
+		path        string
+		adminMarker string
+		userMarker  string
+		wantActive  bool
+	}{
+		{name: "gateway with admin marker", path: "/v1/responses", adminMarker: "1"},
+		{name: "gateway with user marker", path: "/v1/chat/completions", userMarker: "1"},
+		{name: "antigravity gateway", path: "/antigravity/v1/messages", adminMarker: "1"},
+		{name: "admin web api", path: "/api/v1/admin/users", wantActive: true},
+		{name: "shared web api with admin marker", path: "/api/v1/groups/available", adminMarker: "1", wantActive: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var active bool
+			runServerTimingRequest(t, true, tt.path, tt.adminMarker, tt.userMarker, "admin", func(c *gin.Context) {
+				active = servertiming.Active(c.Request.Context())
+				c.Status(http.StatusOK)
+			})
+			if active != tt.wantActive {
+				t.Fatalf("collector active = %v, want %v", active, tt.wantActive)
 			}
 		})
 	}

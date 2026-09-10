@@ -241,7 +241,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if ratePlan != nil {
 		multiplier = ratePlan.EffectiveMultiplier
 	}
-	videoMultiplier := resolveVideoRateMultiplier(apiKey, baseMultiplier)
+	videoMultiplier := baseMultiplier
 
 	var cost *CostBreakdown
 	var err error

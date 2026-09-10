@@ -173,7 +173,7 @@ func (f *ChannelMonitorQuotaFetcher) fetchUncached(ctx context.Context, accountI
 	}
 
 	switch account.Platform {
-	case domain.PlatformKimi, domain.PlatformZhipu, domain.PlatformDeepseek:
+	case domain.PlatformKimi, domain.PlatformZhipu, domain.PlatformDeepseek, domain.PlatformMiniMax:
 		if account.IsCodingPlan() {
 			return f.fetchCNQuota(ctx, accountID, now)
 		}

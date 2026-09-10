@@ -89,8 +89,14 @@ func (w *serverTimingResponseWriter) finalize() {
 // Admins may receive timing for any collected Admin/User UI request. Non-admin
 // authenticated users may receive timing only on allowlisted user-facing paths.
 // X-User-UI-Request is a scope signal and is never used as authorization.
+// Gateway surfaces (/v1/*, /antigravity/*, ...) never emit timing: API-key
+// callers also carry a user role, so the header must be bound to the web API
+// prefix rather than to authentication alone.
 func ServerTimingHeaderValue(c *gin.Context) string {
-	if c == nil || c.Request == nil {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return ""
+	}
+	if !isWebAPIPath(c.Request.URL.Path) {
 		return ""
 	}
 	role, ok := GetUserRoleFromContext(c)
@@ -113,7 +119,22 @@ func ServerTimingResponseHeader(c *gin.Context) http.Header {
 }
 
 func shouldCollectServerTiming(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	// UI markers only widen the scope inside the web API prefix. Gateway
+	// requests are never instrumented, so no timing collector (and no wrapped
+	// writer) ever exists on the upstream forwarding path.
+	if !isWebAPIPath(c.Request.URL.Path) {
+		return false
+	}
 	return isAdminUIRequest(c) || isUserUIRequest(c)
+}
+
+// isWebAPIPath reports whether the path belongs to the Admin/User web API.
+func isWebAPIPath(path string) bool {
+	path = strings.TrimSpace(path)
+	return path == "/api/v1" || strings.HasPrefix(path, "/api/v1/")
 }
 
 func isAdminUIRequest(c *gin.Context) bool {

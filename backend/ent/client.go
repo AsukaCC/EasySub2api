@@ -47,6 +47,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/ent/securitysecret"
 	"github.com/AsukaCC/EasySub2api/ent/setting"
 	"github.com/AsukaCC/EasySub2api/ent/subscriptionplan"
+	"github.com/AsukaCC/EasySub2api/ent/subscriptionresetcard"
 	"github.com/AsukaCC/EasySub2api/ent/supportticket"
 	"github.com/AsukaCC/EasySub2api/ent/supportticketmessage"
 	"github.com/AsukaCC/EasySub2api/ent/supportticketread"
@@ -132,6 +133,8 @@ type Client struct {
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// SubscriptionResetCard is the client for interacting with the SubscriptionResetCard builders.
+	SubscriptionResetCard *SubscriptionResetCardClient
 	// SupportTicket is the client for interacting with the SupportTicket builders.
 	SupportTicket *SupportTicketClient
 	// SupportTicketMessage is the client for interacting with the SupportTicketMessage builders.
@@ -199,6 +202,7 @@ func (c *Client) init() {
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
+	c.SubscriptionResetCard = NewSubscriptionResetCardClient(c.config)
 	c.SupportTicket = NewSupportTicketClient(c.config)
 	c.SupportTicketMessage = NewSupportTicketMessageClient(c.config)
 	c.SupportTicketRead = NewSupportTicketReadClient(c.config)
@@ -335,6 +339,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
+		SubscriptionResetCard:         NewSubscriptionResetCardClient(cfg),
 		SupportTicket:                 NewSupportTicketClient(cfg),
 		SupportTicketMessage:          NewSupportTicketMessageClient(cfg),
 		SupportTicketRead:             NewSupportTicketReadClient(cfg),
@@ -398,6 +403,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
+		SubscriptionResetCard:         NewSubscriptionResetCardClient(cfg),
 		SupportTicket:                 NewSupportTicketClient(cfg),
 		SupportTicketMessage:          NewSupportTicketMessageClient(cfg),
 		SupportTicketRead:             NewSupportTicketReadClient(cfg),
@@ -447,11 +453,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PaymentRefund, c.PendingAuthSession,
 		c.PendingSubscription, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
-		c.SupportTicketMessage, c.SupportTicketRead, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionResetCard,
+		c.SupportTicket, c.SupportTicketMessage, c.SupportTicketRead,
+		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -469,11 +475,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PaymentRefund, c.PendingAuthSession,
 		c.PendingSubscription, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
-		c.SupportTicketMessage, c.SupportTicketRead, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionResetCard,
+		c.SupportTicket, c.SupportTicketMessage, c.SupportTicketRead,
+		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -546,6 +552,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Setting.mutate(ctx, m)
 	case *SubscriptionPlanMutation:
 		return c.SubscriptionPlan.mutate(ctx, m)
+	case *SubscriptionResetCardMutation:
+		return c.SubscriptionResetCard.mutate(ctx, m)
 	case *SupportTicketMutation:
 		return c.SupportTicket.mutate(ctx, m)
 	case *SupportTicketMessageMutation:
@@ -4905,6 +4913,22 @@ func (c *ProxyClient) QueryAccounts(_m *Proxy) *AccountQuery {
 	return query
 }
 
+// QueryPrimaryProxies queries the primary_proxies edge of a Proxy.
+func (c *ProxyClient) QueryPrimaryProxies(_m *Proxy) *ProxyQuery {
+	query := (&ProxyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(proxy.Table, proxy.FieldID, id),
+			sqlgraph.To(proxy.Table, proxy.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, proxy.PrimaryProxiesTable, proxy.PrimaryProxiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBackupProxy queries the backup_proxy edge of a Proxy.
 func (c *ProxyClient) QueryBackupProxy(_m *Proxy) *ProxyQuery {
 	query := (&ProxyClient{config: c.config}).Query()
@@ -4913,7 +4937,7 @@ func (c *ProxyClient) QueryBackupProxy(_m *Proxy) *ProxyQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(proxy.Table, proxy.FieldID, id),
 			sqlgraph.To(proxy.Table, proxy.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, false, proxy.BackupProxyTable, proxy.BackupProxyColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, proxy.BackupProxyTable, proxy.BackupProxyColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5509,6 +5533,139 @@ func (c *SubscriptionPlanClient) mutate(ctx context.Context, m *SubscriptionPlan
 		return (&SubscriptionPlanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown SubscriptionPlan mutation op: %q", m.Op())
+	}
+}
+
+// SubscriptionResetCardClient is a client for the SubscriptionResetCard schema.
+type SubscriptionResetCardClient struct {
+	config
+}
+
+// NewSubscriptionResetCardClient returns a client for the SubscriptionResetCard from the given config.
+func NewSubscriptionResetCardClient(c config) *SubscriptionResetCardClient {
+	return &SubscriptionResetCardClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subscriptionresetcard.Hooks(f(g(h())))`.
+func (c *SubscriptionResetCardClient) Use(hooks ...Hook) {
+	c.hooks.SubscriptionResetCard = append(c.hooks.SubscriptionResetCard, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subscriptionresetcard.Intercept(f(g(h())))`.
+func (c *SubscriptionResetCardClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SubscriptionResetCard = append(c.inters.SubscriptionResetCard, interceptors...)
+}
+
+// Create returns a builder for creating a SubscriptionResetCard entity.
+func (c *SubscriptionResetCardClient) Create() *SubscriptionResetCardCreate {
+	mutation := newSubscriptionResetCardMutation(c.config, OpCreate)
+	return &SubscriptionResetCardCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SubscriptionResetCard entities.
+func (c *SubscriptionResetCardClient) CreateBulk(builders ...*SubscriptionResetCardCreate) *SubscriptionResetCardCreateBulk {
+	return &SubscriptionResetCardCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SubscriptionResetCardClient) MapCreateBulk(slice any, setFunc func(*SubscriptionResetCardCreate, int)) *SubscriptionResetCardCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SubscriptionResetCardCreateBulk{err: fmt.Errorf("calling to SubscriptionResetCardClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SubscriptionResetCardCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SubscriptionResetCardCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) Update() *SubscriptionResetCardUpdate {
+	mutation := newSubscriptionResetCardMutation(c.config, OpUpdate)
+	return &SubscriptionResetCardUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubscriptionResetCardClient) UpdateOne(_m *SubscriptionResetCard) *SubscriptionResetCardUpdateOne {
+	mutation := newSubscriptionResetCardMutation(c.config, OpUpdateOne, withSubscriptionResetCard(_m))
+	return &SubscriptionResetCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SubscriptionResetCardClient) UpdateOneID(id string) *SubscriptionResetCardUpdateOne {
+	mutation := newSubscriptionResetCardMutation(c.config, OpUpdateOne, withSubscriptionResetCardID(id))
+	return &SubscriptionResetCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) Delete() *SubscriptionResetCardDelete {
+	mutation := newSubscriptionResetCardMutation(c.config, OpDelete)
+	return &SubscriptionResetCardDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SubscriptionResetCardClient) DeleteOne(_m *SubscriptionResetCard) *SubscriptionResetCardDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SubscriptionResetCardClient) DeleteOneID(id string) *SubscriptionResetCardDeleteOne {
+	builder := c.Delete().Where(subscriptionresetcard.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SubscriptionResetCardDeleteOne{builder}
+}
+
+// Query returns a query builder for SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) Query() *SubscriptionResetCardQuery {
+	return &SubscriptionResetCardQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubscriptionResetCard},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SubscriptionResetCard entity by its id.
+func (c *SubscriptionResetCardClient) Get(ctx context.Context, id string) (*SubscriptionResetCard, error) {
+	return c.Query().Where(subscriptionresetcard.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SubscriptionResetCardClient) GetX(ctx context.Context, id string) *SubscriptionResetCard {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SubscriptionResetCardClient) Hooks() []Hook {
+	return c.hooks.SubscriptionResetCard
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubscriptionResetCardClient) Interceptors() []Interceptor {
+	return c.inters.SubscriptionResetCard
+}
+
+func (c *SubscriptionResetCardClient) mutate(ctx context.Context, m *SubscriptionResetCardMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubscriptionResetCardCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubscriptionResetCardUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubscriptionResetCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubscriptionResetCardDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SubscriptionResetCard mutation op: %q", m.Op())
 	}
 }
 
@@ -7541,10 +7698,10 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PaymentRefund, PendingAuthSession,
 		PendingSubscription, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
-		SecuritySecret, Setting, SubscriptionPlan, SupportTicket, SupportTicketMessage,
-		SupportTicketRead, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
-		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserPlatformQuota, UserSubscription []ent.Hook
+		SecuritySecret, Setting, SubscriptionPlan, SubscriptionResetCard,
+		SupportTicket, SupportTicketMessage, SupportTicketRead, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -7554,10 +7711,10 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PaymentRefund, PendingAuthSession,
 		PendingSubscription, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
-		SecuritySecret, Setting, SubscriptionPlan, SupportTicket, SupportTicketMessage,
-		SupportTicketRead, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
-		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserPlatformQuota, UserSubscription []ent.Interceptor
+		SecuritySecret, Setting, SubscriptionPlan, SubscriptionResetCard,
+		SupportTicket, SupportTicketMessage, SupportTicketRead, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )
 

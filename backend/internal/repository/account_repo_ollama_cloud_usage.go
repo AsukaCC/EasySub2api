@@ -15,7 +15,7 @@ const (
 	ollamaCloudBaseURLRegexSQL       = `^[hH][tT][tT][pP][sS]://([wW][wW][wW]\.)?[oO][lL][lL][aA][mM][aA]\.[cC][oO][mM](:443)?(/v1)?$`
 	ollamaCloudBaseURLMatchSQLPrefix = "btrim("
 	ollamaCloudBaseURLMatchSQLSuffix = ") ~ '" + ollamaCloudBaseURLRegexSQL + "'"
-	ollamaCloudUsagePlatformsSQL     = "'openai', 'anthropic', 'kimi', 'zhipu', 'deepseek'"
+	ollamaCloudUsagePlatformsSQL     = "'openai', 'anthropic', 'kimi', 'zhipu', 'deepseek', 'minimax'"
 	ollamaCloudUsageEligibleSQL      = `
 	platform IN (` + ollamaCloudUsagePlatformsSQL + `)
 	AND type = 'apikey'

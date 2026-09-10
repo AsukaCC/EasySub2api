@@ -21,6 +21,7 @@ import {
   PROVIDER_KIMI,
   PROVIDER_ZHIPU,
   PROVIDER_DEEPSEEK,
+  PROVIDER_MINIMAX,
   PROVIDERS,
   STATUS_OPERATIONAL,
   STATUS_DEGRADED,
@@ -95,6 +96,8 @@ export function useChannelMonitorFormat() {
         return 'composables-use-channel-monitor-format__state-10'
       case PROVIDER_DEEPSEEK:
         return 'composables-use-channel-monitor-format__state-11'
+      case PROVIDER_MINIMAX:
+        return 'composables-use-channel-monitor-format__state-9'
       default:
         return NEUTRAL_BADGE
     }
@@ -139,6 +142,10 @@ export function useChannelMonitorFormat() {
         return active
           ? 'composables-use-channel-monitor-format__state-26'
           : 'composables-use-channel-monitor-format__state-27'
+      case PROVIDER_MINIMAX:
+        return active
+          ? 'composables-use-channel-monitor-format__state-22'
+          : 'composables-use-channel-monitor-format__state-23'
       default:
         return active
           ? 'composables-use-channel-monitor-format__state-28'
@@ -221,6 +228,8 @@ export function providerGradient(provider: string): string {
       return 'composables-use-channel-monitor-format__state-36'
     case PROVIDER_DEEPSEEK:
       return 'composables-use-channel-monitor-format__state-37'
+    case PROVIDER_MINIMAX:
+      return 'composables-use-channel-monitor-format__state-35'
     default:
       return 'composables-use-channel-monitor-format__state-38'
   }

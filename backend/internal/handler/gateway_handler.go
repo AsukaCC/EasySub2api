@@ -934,7 +934,7 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 	for _, platform := range []string{
 		service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI,
 		service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi,
-		service.PlatformZhipu, service.PlatformDeepseek,
+		service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax,
 	} {
 		platformModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
 		if len(platformModels) == 0 {
@@ -1156,7 +1156,7 @@ func defaultModelIDsForPlatform(platform string) []string {
 		for _, concretePlatform := range []string{
 			service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI,
 			service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi,
-			service.PlatformZhipu, service.PlatformDeepseek,
+			service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax,
 		} {
 			for _, id := range defaultModelIDsForPlatform(concretePlatform) {
 				if _, ok := seen[id]; ok {
@@ -1177,10 +1177,14 @@ func defaultModelIDsForPlatform(platform string) []string {
 }
 
 func defaultCodexModelIDsForPlatform(platform string) []string {
-	if platform == service.PlatformDeepseek {
+	switch platform {
+	case service.PlatformDeepseek:
 		return []string{"deepseek-v4-pro", "deepseek-v4-flash"}
+	case service.PlatformMiniMax:
+		return []string{"MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.5"}
+	default:
+		return defaultModelIDsForPlatform(platform)
 	}
-	return defaultModelIDsForPlatform(platform)
 }
 
 func mergeModelIDs(primary, secondary []string) []string {

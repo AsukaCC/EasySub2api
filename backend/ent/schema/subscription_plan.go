@@ -28,9 +28,11 @@ func (SubscriptionPlan) Annotations() []schema.Annotation {
 		entsql.Annotation{
 			Table: "subscription_plans",
 			Checks: map[string]string{
-				"subscription_plans_stock_nonnegative":   "stock_quantity IS NULL OR stock_quantity >= 0",
-				"subscription_plans_frozen_nonnegative":  "stock_frozen >= 0",
-				"subscription_plans_stock_covers_frozen": "stock_quantity IS NULL OR stock_quantity >= stock_frozen",
+				"subscription_plans_stock_nonnegative":            "stock_quantity IS NULL OR stock_quantity >= 0",
+				"subscription_plans_frozen_nonnegative":           "stock_frozen >= 0",
+				"subscription_plans_stock_covers_frozen":          "stock_quantity IS NULL OR stock_quantity >= stock_frozen",
+				"subscription_plans_reset_card_count_nonnegative": "reset_card_count >= 0",
+				"subscription_plans_reset_card_validity_positive": "reset_card_validity_days > 0",
 			},
 		},
 	}
@@ -63,6 +65,10 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("validity_unit").
 			MaxLen(10).
 			Default("day"),
+		field.Int("reset_card_count").
+			Default(0),
+		field.Int("reset_card_validity_days").
+			Default(30),
 		field.String("features").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),

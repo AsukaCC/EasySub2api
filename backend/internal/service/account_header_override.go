@@ -279,6 +279,12 @@ func normalizeHeaderOverrideEntry(name, value string) (string, string, error) {
 		return "", "", infraerrors.Newf(http.StatusBadRequest, "INVALID_HEADER_OVERRIDE",
 			"header %q is not allowed to be overridden", lowerName)
 	}
+	// 平台品牌 / 内部基础设施头：账号级覆写不得成为平台身份的出站通道。
+	// 与出站终态清理 sanitizeOpenAIOutboundHeaders 使用同一判定，保存即拒绝、应用即跳过。
+	if isInternalOutboundHeader(lowerName, value) {
+		return "", "", infraerrors.Newf(http.StatusBadRequest, "INVALID_HEADER_OVERRIDE",
+			"header %q carries platform or infrastructure identity and cannot be overridden", lowerName)
+	}
 	if len(value) > maxHeaderOverrideValueLength {
 		return "", "", infraerrors.Newf(http.StatusBadRequest, "INVALID_HEADER_OVERRIDE",
 			"header %q value exceeds %v characters", lowerName, maxHeaderOverrideValueLength)

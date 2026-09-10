@@ -21,6 +21,10 @@ const (
 	FieldPlatform = "platform"
 	// FieldValidityDays holds the string denoting the validity_days field in the database.
 	FieldValidityDays = "validity_days"
+	// FieldResetCardCount holds the string denoting the reset_card_count field in the database.
+	FieldResetCardCount = "reset_card_count"
+	// FieldResetCardValidityDays holds the string denoting the reset_card_validity_days field in the database.
+	FieldResetCardValidityDays = "reset_card_validity_days"
 	// FieldSourceType holds the string denoting the source_type field in the database.
 	FieldSourceType = "source_type"
 	// FieldSourceID holds the string denoting the source_id field in the database.
@@ -62,6 +66,8 @@ var Columns = []string{
 	FieldGroupID,
 	FieldPlatform,
 	FieldValidityDays,
+	FieldResetCardCount,
+	FieldResetCardValidityDays,
 	FieldSourceType,
 	FieldSourceID,
 	FieldBlockedBySubscriptionID,
@@ -92,6 +98,10 @@ func ValidColumn(column string) bool {
 var (
 	// PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
 	PlatformValidator func(string) error
+	// DefaultResetCardCount holds the default value on creation for the "reset_card_count" field.
+	DefaultResetCardCount int
+	// DefaultResetCardValidityDays holds the default value on creation for the "reset_card_validity_days" field.
+	DefaultResetCardValidityDays int
 	// SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
 	SourceTypeValidator func(string) error
 	// DefaultSourceID holds the default value on creation for the "source_id" field.
@@ -146,6 +156,16 @@ func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
 // ByValidityDays orders the results by the validity_days field.
 func ByValidityDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldValidityDays, opts...).ToFunc()
+}
+
+// ByResetCardCount orders the results by the reset_card_count field.
+func ByResetCardCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResetCardCount, opts...).ToFunc()
+}
+
+// ByResetCardValidityDays orders the results by the reset_card_validity_days field.
+func ByResetCardValidityDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResetCardValidityDays, opts...).ToFunc()
 }
 
 // BySourceType orders the results by the source_type field.
