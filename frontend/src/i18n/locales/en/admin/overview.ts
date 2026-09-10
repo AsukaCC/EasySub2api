@@ -915,17 +915,17 @@ export default {
       accountsCount: '{count} accounts',
       rateLabel: 'rate',
       levelRates: {
-        action: 'Levels / dynamic rates', title: 'Level and dynamic rates',
-        hint: 'Rates match the user level and time window; the lowest effective multiplier always wins.',
-        independentQuotaHint: 'Quota is tracked independently per user and effective rule; it is never shared with other users. A request consumes the lowest eligible multiplier first.',
-        levelOverrides: 'User level overrides', dynamicRules: 'Time-window dynamic rates', addRule: 'Add rule', noRules: 'No dynamic rules', noLevelRules: 'No user level rules available', levelRulesLoadFailed: 'Failed to load user level rules. Refresh and try again.',
-        level: 'Level {level}', inherit: 'Inherit group default', name: 'Rule name', start: 'Start', end: 'End', startAt: 'Start time', endAt: 'End time', multiplier: 'Multiplier',
+        action: 'Time-window discounts', title: 'Time-window discounts',
+        hint: 'Match an offer coefficient by time window; 1 means original price. Overlapping rules use the lowest coefficient.',
+        independentQuotaHint: 'Discount quota is tracked independently per user and rule. After quota is exhausted, billing returns to group rate × user rate.',
+        dynamicRules: 'Time-window discounts', addRule: 'Add rule', noRules: 'No discount rules',
+        name: 'Rule name', start: 'Start', end: 'End', startAt: 'Start time', endAt: 'End time', discountCoefficient: 'Discount coefficient',
         activationSpend: 'Activation spend (7-day points)', sharedQuotaAmount: 'Legacy shared quota (converted to independent quota)', personalQuotaAmount: 'Independent rule quota USD (per user, 0 = unlimited)',
-        sharedUsage: 'Tracked independently per user', unlimited: 'Unlimited', enabled: 'Enabled', levels: 'Levels', allLevels: 'All levels',
+        sharedUsage: 'Tracked independently per user', unlimited: 'Unlimited', enabled: 'Enabled',
         notStarted: 'Not started', active: 'Active', expired: 'Expired', legacy: 'Legacy rule disabled', invalid: 'Invalid time configuration',
         legacyHint: 'Legacy daily clock rules are no longer effective. Reconfigure them with dates and times or delete them.', legacyRules: 'Reconfigure or delete legacy rules first',
-        timeRequired: 'Set both a start and end time', invalidRange: 'Start time must be before end time', invalidQuota: 'Quotas must be numbers greater than or equal to 0',
-        saveFailed: 'Failed to save level and dynamic rates'
+        timeRequired: 'Set both a start and end time', invalidRange: 'Start time must be before end time', invalidQuota: 'Quotas must be numbers greater than or equal to 0', invalidCoefficient: 'Discount coefficient must be between 0.01 and 1',
+        saveFailed: 'Failed to save time-window discounts'
       },
       accountFilters: {
         title: 'Account Filter Controls',

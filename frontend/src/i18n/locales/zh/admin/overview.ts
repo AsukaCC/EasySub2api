@@ -1007,17 +1007,17 @@ export default {
       accountsCount: '{count} 个账号',
       rateLabel: '倍率',
       levelRates: {
-        action: '等级/动态倍率', title: '等级与动态倍率',
-        hint: '按用户等级和时间区间匹配倍率，实际生效时优先使用更低倍率。',
-        independentQuotaHint: '额度按用户和实际生效规则独立计算，不与其他用户共享；同一请求按实际命中的最低倍率规则消耗额度。',
-        levelOverrides: '用户等级倍率覆盖', dynamicRules: '分时动态倍率', addRule: '新增规则', noRules: '暂无动态规则', noLevelRules: '暂无可用用户等级规则', levelRulesLoadFailed: '用户等级规则加载失败，请刷新后重试',
-        level: '等级 {level}', inherit: '继承分组默认', name: '规则名称', start: '开始', end: '结束', startAt: '开始时间', endAt: '结束时间', multiplier: '倍率',
+        action: '分时动态倍率', title: '分时动态倍率',
+        hint: '按时间区间匹配优惠系数；1 表示原价，多个规则同时命中时取最低系数。',
+        independentQuotaHint: '动态优惠额度按用户和规则独立计算；额度用完后恢复分组倍率 × 用户倍率。',
+        dynamicRules: '分时动态倍率', addRule: '新增规则', noRules: '暂无动态规则',
+        name: '规则名称', start: '开始', end: '结束', startAt: '开始时间', endAt: '结束时间', discountCoefficient: '优惠系数',
         activationSpend: '触发消费（近 7 天积分）', sharedQuotaAmount: '旧版共享额度（已转为独立额度）', personalQuotaAmount: '规则独立额度 U（每用户，0=不限）',
-        sharedUsage: '按用户独立使用', unlimited: '不限', enabled: '启用', levels: '适用等级', allLevels: '全部等级',
+        sharedUsage: '按用户独立使用', unlimited: '不限', enabled: '启用',
         notStarted: '未开始', active: '生效中', expired: '已过期', legacy: '旧规则已失效', invalid: '时间配置无效',
         legacyHint: '旧的每日时分规则已停止生效，请重新配置日期时间或删除。', legacyRules: '请先重新配置或删除旧规则',
-        timeRequired: '请设置完整的开始和结束时间', invalidRange: '开始时间必须早于结束时间', invalidQuota: '额度必须为不小于 0 的数字',
-        saveFailed: '保存等级与动态倍率失败'
+        timeRequired: '请设置完整的开始和结束时间', invalidRange: '开始时间必须早于结束时间', invalidQuota: '额度必须为不小于 0 的数字', invalidCoefficient: '优惠系数必须在 0.01 到 1 之间',
+        saveFailed: '保存分时动态倍率失败'
       },
       accountFilters: {
         title: '账号过滤控制',

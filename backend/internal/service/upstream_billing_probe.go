@@ -807,10 +807,11 @@ func parseUpstreamBillingProbeResponse(body []byte) (map[string]any, error) {
 	if response.UserRateMultiplier != nil && (*response.UserRateMultiplier < 0 || math.IsNaN(*response.UserRateMultiplier) || math.IsInf(*response.UserRateMultiplier, 0)) {
 		return nil, fmt.Errorf("invalid user billing multiplier")
 	}
-	expectedResolved := *response.GroupRateMultiplier
+	userRateMultiplier := 1.0
 	if response.UserRateMultiplier != nil {
-		expectedResolved = *response.UserRateMultiplier
+		userRateMultiplier = *response.UserRateMultiplier
 	}
+	expectedResolved := *response.GroupRateMultiplier * userRateMultiplier
 	if !equalBillingMultiplier(*response.ResolvedRateMultiplier, expectedResolved) {
 		return nil, fmt.Errorf("inconsistent resolved billing multiplier")
 	}

@@ -34,8 +34,9 @@ type CodexOutboundDiagnostics struct {
 	UserAgent                  string `json:"user_agent"`
 	Originator                 string `json:"originator"`
 	IdentityEnforcementEnabled bool   `json:"identity_enforcement_enabled"`
-	ResponsesBetaHeader        string `json:"responses_beta_header"`
-	LiveAlphaHeader            string `json:"live_alpha_header"`
+	// ResponsesBetaHeader 为空表示 HTTP 推理面不发送 OpenAI-Beta（当前策略）。
+	ResponsesBetaHeader string `json:"responses_beta_header"`
+	LiveAlphaHeader     string `json:"live_alpha_header"`
 
 	// 连接层 Profile（进程级配置快照；账号级代理 / TLS 模板在账号详情查看）
 	ProxyDirectFallbackAllowed bool   `json:"proxy_direct_fallback_allowed"`
@@ -57,7 +58,7 @@ func (s *SettingService) GetCodexOutboundDiagnostics(ctx context.Context) CodexO
 		MinimumSupportedVersion:    codexUpstreamMinVersion,
 		PrereleaseAllowed:          CodexPrereleaseVersionAllowed(),
 		IdentityEnforcementEnabled: codexIdentityEnforcement.Load(),
-		ResponsesBetaHeader:        "responses=experimental",
+		ResponsesBetaHeader:        "",
 		LiveAlphaHeader:            "quicksilver=v2",
 		AutoSyncEnabled:            true,
 		GeneratedAt:                time.Now(),

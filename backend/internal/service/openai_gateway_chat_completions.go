@@ -297,11 +297,11 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 
 	if promptCacheKey != "" {
 		apiKeyID := getAPIKeyIDFromContext(c)
-		sessionKey := promptCacheKey
+		sessionHeader := generateSessionUUID(promptCacheKey)
 		if !compatPromptCacheTenantIsolated {
-			sessionKey = isolateOpenAISessionID(apiKeyID, promptCacheKey)
+			sessionHeader = isolateOpenAISessionHeader(apiKeyID, promptCacheKey)
 		}
-		upstreamReq.Header.Set("session_id", generateSessionUUID(sessionKey))
+		upstreamReq.Header.Set("session_id", sessionHeader)
 	}
 
 	// 7. Send request

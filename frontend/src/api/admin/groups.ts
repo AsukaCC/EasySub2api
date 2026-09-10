@@ -29,6 +29,7 @@ export interface DynamicRateUsageSummary {
   start_at: string
   end_at: string
   status: DynamicRateUsageStatus
+  discount_coefficient: number
   shared_quota_amount: number
   shared_used_amount: number
   shared_remaining_amount: number | null

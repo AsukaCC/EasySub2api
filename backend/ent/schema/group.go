@@ -55,7 +55,7 @@ func (Group) Fields() []ent.Field {
 		field.JSON("dynamic_rate_rules", []domain.GroupDynamicRateRule{}).
 			Default([]domain.GroupDynamicRateRule{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
-			Comment("分时动态倍率规则，包含等级范围、触发消费和用户独立日额度"),
+			Comment("分时动态优惠规则，包含时间窗口、触发消费、优惠系数和用户独立额度"),
 		// 高峰时段倍率（added by migration 158）
 		field.Bool("peak_rate_enabled").
 			Default(false).

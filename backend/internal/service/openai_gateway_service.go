@@ -1118,6 +1118,21 @@ func isolateOpenAISessionID(apiKeyID string, raw string) string {
 	return fmt.Sprintf("%016x", h.Sum64())
 }
 
+// isolateOpenAISessionHeader 返回可直接写入上游 session_id / conversation_id 头的隔离值。
+//
+// isolateOpenAISessionID 的 16 位十六进制串只适合做内部键（粘性会话、cyber 屏蔽表）；
+// 真实 Codex 客户端在这两个头里携带的是 UUID，网关若把裸哈希送到上游，会在头形态上
+// 与规范身份（codex-tui UA / originator）自相矛盾。此处在同一隔离哈希之上派生确定性
+// UUIDv4：同一 (apiKeyID, raw) 永远得到同一个 UUID，跨 API Key 仍然互不碰撞，且与
+// Messages / Chat Completions 桥接路径既有的 generateSessionUUID(isolate(...)) 形态一致。
+func isolateOpenAISessionHeader(apiKeyID string, raw string) string {
+	isolated := isolateOpenAISessionID(apiKeyID, raw)
+	if isolated == "" {
+		return ""
+	}
+	return generateSessionUUID(isolated)
+}
+
 func logCodexCLIOnlyDetection(ctx context.Context, c *gin.Context, account *Account, apiKeyID string, result CodexClientRestrictionDetectionResult, body []byte) {
 	if !result.Enabled {
 		return

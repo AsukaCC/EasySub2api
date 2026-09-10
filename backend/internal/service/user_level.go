@@ -106,7 +106,8 @@ type DynamicRateCandidate struct {
 	StartAt             string  `json:"start_at"`
 	EndAt               string  `json:"end_at"`
 	QuotaKey            string  `json:"quota_key"`
-	Multiplier          float64 `json:"multiplier"`
+	Multiplier          float64 `json:"-"`
+	DiscountCoefficient float64 `json:"discount_coefficient"`
 	SharedQuotaAmount   float64 `json:"shared_quota_amount"`
 	SharedUsedAmount    float64 `json:"shared_used_amount"`
 	PersonalQuotaAmount float64 `json:"personal_quota_amount"`
@@ -127,6 +128,7 @@ type DynamicRateUsageSummary struct {
 	StartAt  string `json:"start_at"`
 	EndAt    string `json:"end_at"`
 	Status   string `json:"status"`
+	DiscountCoefficient float64 `json:"discount_coefficient"`
 	// Shared fields are retained for old response consumers. Live selection is
 	// per-user and never reads the group-wide counter.
 	SharedQuotaAmount     float64  `json:"shared_quota_amount"`
@@ -153,6 +155,7 @@ type UserRatePlan struct {
 	DynamicCandidates       []DynamicRateCandidate `json:"dynamic_candidates"`
 	SelectedDynamicRuleID   string                 `json:"selected_dynamic_rule_id,omitempty"`
 	UserLevelMultiplier     *float64               `json:"user_level_multiplier,omitempty"`
+	UserRateMultiplier      *float64               `json:"user_rate_multiplier,omitempty"`
 	GroupRuleMultiplier     *float64               `json:"group_rule_multiplier,omitempty"`
 	EffectiveBaseMultiplier float64                `json:"effective_base_multiplier"`
 	EffectiveSource         string                 `json:"effective_source"`
@@ -495,28 +498,6 @@ func dynamicRuleApplies(rule GroupDynamicRateRule, profile UserLevelProfile, at 
 	if !rule.Enabled || profile.Usage7d < rule.ActivationSpend {
 		return "", false
 	}
-	// A legacy numeric target is never broadened to all users. Empty
-	// level_tier_ids means unscoped; non-empty values match current tier UUIDs.
-	if len(rule.Levels) > 0 {
-		return "", false
-	}
-	if len(rule.LevelTierIDs) > 0 {
-		matched := false
-		for _, target := range rule.LevelTierIDs {
-			for _, current := range profile.CurrentTierIDs {
-				if target == current {
-					matched = true
-					break
-				}
-			}
-			if matched {
-				break
-			}
-		}
-		if !matched {
-			return "", false
-		}
-	}
 	start, end, quotaKey, ok := parseDynamicRateWindow(rule)
 	if !ok || at.Before(start) || !at.Before(end) {
 		return "", false
@@ -528,7 +509,10 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	if group == nil {
 		return UserRatePlan{}, ErrGroupNotFound
 	}
-	groupMultiplier := sanitizeMultiplier(group.RateMultiplier)
+	if !finiteNonnegative(group.RateMultiplier) {
+		return UserRatePlan{}, errors.New("group rate multiplier is invalid")
+	}
+	groupMultiplier := group.RateMultiplier
 	userMultiplier := 1.0
 	if s.userRateRepo != nil {
 		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
@@ -536,18 +520,74 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 			return UserRatePlan{}, err
 		}
 		if userRate != nil {
-			userMultiplier = sanitizeMultiplier(*userRate)
+			if !finiteNonnegative(*userRate) {
+				return UserRatePlan{}, errors.New("user rate multiplier is invalid")
+			}
+			userMultiplier = *userRate
 		}
 	}
 	selectedBase := groupMultiplier * userMultiplier
 	if math.IsNaN(selectedBase) || math.IsInf(selectedBase, 0) || selectedBase < 0 {
 		return UserRatePlan{}, errors.New("effective rate multiplier is invalid")
 	}
+	// Dynamic rules are discounts on top of the static group*user multiplier.
+	// A rule is eligible only while its absolute window is active, its rolling
+	// spend threshold is met, and its independent per-user quota has remaining
+	// capacity. Overlapping eligible rules resolve to the lowest coefficient.
+	candidates := make([]DynamicRateCandidate, 0)
+	keys := make([]DynamicRateUsageKey, 0)
+	for _, rule := range group.DynamicRateRules {
+		quotaKey, ok := dynamicRuleApplies(rule, profile, at)
+		if !ok {
+			continue
+		}
+		coefficient := rule.DiscountCoefficient
+		if coefficient == 0 {
+			coefficient = rule.Multiplier
+		}
+		if !finitePositive(coefficient) || coefficient < 0.01 || coefficient > 1 {
+			continue
+		}
+		keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
+		candidates = append(candidates, DynamicRateCandidate{
+			RuleID: rule.ID, RuleName: rule.Name, StartAt: rule.StartAt, EndAt: rule.EndAt,
+			QuotaKey: quotaKey, Multiplier: coefficient, DiscountCoefficient: coefficient,
+			PersonalQuotaAmount: dynamicRatePersonalQuotaAmount(rule),
+		})
+	}
+	if len(keys) > 0 && s.repo != nil {
+		used, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
+		if err != nil {
+			return UserRatePlan{}, err
+		}
+		filtered := candidates[:0]
+		for _, candidate := range candidates {
+			key := DynamicRateUsageKey{RuleID: candidate.RuleID, QuotaKey: candidate.QuotaKey}
+			candidate.PersonalUsedAmount = used[key]
+			if candidate.PersonalQuotaAmount > 0 && candidate.PersonalUsedAmount >= candidate.PersonalQuotaAmount {
+				continue
+			}
+			filtered = append(filtered, candidate)
+		}
+		candidates = filtered
+	}
+	selectedRuleID := ""
+	effectiveMultiplier := selectedBase
+	if len(candidates) > 0 {
+		sort.SliceStable(candidates, func(i, j int) bool {
+			if candidates[i].DiscountCoefficient != candidates[j].DiscountCoefficient {
+				return candidates[i].DiscountCoefficient < candidates[j].DiscountCoefficient
+			}
+			return candidates[i].RuleID < candidates[j].RuleID
+		})
+		selectedRuleID = candidates[0].RuleID
+		effectiveMultiplier = selectedBase * candidates[0].DiscountCoefficient
+	}
 	return UserRatePlan{
 		GroupID: group.ID, UserLevel: profile.Level, Usage7d: profile.Usage7d,
-		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: 1, EffectiveMultiplier: selectedBase,
-		Source: "group_times_user", DynamicCandidates: nil, SelectedDynamicRuleID: "",
-		UserLevelMultiplier: nil, GroupRuleMultiplier: rateCandidatePtr(rateCandidate{value: groupMultiplier}),
+		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: 1, EffectiveMultiplier: effectiveMultiplier,
+		Source: "group_times_user", DynamicCandidates: candidates, SelectedDynamicRuleID: selectedRuleID,
+		UserLevelMultiplier: nil, UserRateMultiplier: rateCandidatePtr(rateCandidate{value: userMultiplier}), GroupRuleMultiplier: rateCandidatePtr(rateCandidate{value: groupMultiplier}),
 		EffectiveBaseMultiplier: selectedBase, EffectiveSource: "group_times_user", NonDynamicMultiplier: selectedBase,
 	}, nil
 }
@@ -579,11 +619,8 @@ func userLevelFloatPtr(value float64) *float64 {
 	return &value
 }
 
-func sanitizeMultiplier(value float64) float64 {
-	if !finiteNonnegative(value) {
-		return 1
-	}
-	return value
+func finitePositive(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func sanitizePeakMultiplier(value float64) float64 {
@@ -639,6 +676,7 @@ func (s *UserLevelService) GetDynamicRateUsageSummary(ctx context.Context, group
 		start, end, _, validWindow := parseDynamicRateWindow(rule)
 		summary := DynamicRateUsageSummary{
 			RuleID: rule.ID, RuleName: rule.Name, Status: dynamicRateRuleStatus(rule, at),
+			DiscountCoefficient: func() float64 { if rule.DiscountCoefficient > 0 { return rule.DiscountCoefficient }; if rule.Multiplier > 0 { return rule.Multiplier }; return 1 }(),
 			PersonalQuotaAmount: QuantizeUsageBillingAmount(dynamicRatePersonalQuotaAmount(rule)), UsageScope: "per_user",
 		}
 		if validWindow {

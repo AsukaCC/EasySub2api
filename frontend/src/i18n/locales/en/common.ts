@@ -4,7 +4,7 @@ export default {
     submitting: 'Submitting...',
     justNow: 'just now',
     peakRateTooltip: 'Peak rate: {window}',
-    groupRateComparison: 'Original rate {original}x; lowest available rate {lowest}x',
+    groupRateComparison: 'Group rate {original}x multiplied by the user factor gives {lowest}x',
     groupRateActualComparison: 'Original rate {original}x; current billed rate {actual}x',
     peakRateImageNote: '; image tokens billed as tokens are also affected, per-image billing is unaffected',
     save: 'Save',

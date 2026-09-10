@@ -205,6 +205,10 @@ func codexClientVersionFromUA(ua string) string {
 
 // ensureCodexIdentityHeaders 补齐 OAuth（ChatGPT 内部接口）出站请求所需的 Codex 身份头。
 // 已有 User-Agent 与 version 保持不变，交给紧随其后的 enforceCodexIdentityHeaders 收口。
+//
+// 不再写入 OpenAI-Beta: responses=experimental：当前 Codex 客户端的 HTTP 推理面已不携带
+// 该实验协商头（透传路径对客户端带来的该 token 也做剥离），推理主路径从未发送且工作正常。
+// 探针 / 桥接 / 账号测试若单独发送，会让同一账号在上游呈现两种互相矛盾的头形态。
 func ensureCodexIdentityHeaders(h http.Header) {
 	if h == nil {
 		return
@@ -219,7 +223,7 @@ func ensureCodexIdentityHeaders(h http.Header) {
 	if strings.TrimSpace(h.Get("version")) == "" {
 		h.Set("version", identity.version)
 	}
-	h.Set("OpenAI-Beta", "responses=experimental")
+	stripOpenAILegacyResponsesBeta(h)
 }
 
 // applyOpenAICodexProbeHeaders 为合成探测请求补齐 Codex 身份和引擎指纹。

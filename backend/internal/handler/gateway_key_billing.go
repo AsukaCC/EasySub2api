@@ -123,10 +123,16 @@ func (h *GatewayHandler) resolveKeyBillingRate(c *gin.Context, apiKey *service.A
 func buildKeyBillingInfo(apiKey *service.APIKey, resolvedRate float64, now time.Time) keyBillingInfoResponse {
 	groupRate := apiKey.Group.RateMultiplier
 	var userRate *float64
-	if resolvedRate != groupRate {
-		userRate = &resolvedRate
+	if groupRate > 0 {
+		factor := resolvedRate / groupRate
+		if factor != 1 {
+			userRate = &factor
+		}
 	}
-	appliedPeak := apiKey.Group.PeakMultiplierAt(now)
+	// Peak pricing is retained as a compatibility/configuration field, but it
+	// no longer changes user billing. The strict formula is group x user (and,
+	// when applicable, the transactional time-window discount coefficient).
+	appliedPeak := 1.0
 
 	response := keyBillingInfoResponse{
 		Object:                  "easysub2api.key_billing",
@@ -137,7 +143,7 @@ func buildKeyBillingInfo(apiKey *service.APIKey, resolvedRate float64, now time.
 		ResolvedRateMultiplier:  resolvedRate,
 		EffectiveBaseMultiplier: resolvedRate,
 		PeakRateEnabled:         apiKey.Group.PeakRateEnabled,
-		EffectiveRateMultiplier: resolvedRate * appliedPeak,
+		EffectiveRateMultiplier: resolvedRate,
 		ObservedAt:              now.UTC(),
 	}
 	if apiKey.Group.PeakRateEnabled {
@@ -159,7 +165,7 @@ func buildKeyBillingInfoWithPlan(apiKey *service.APIKey, plan *service.UserRateP
 	// Keep the legacy field's meaning stable: it is the configured group base
 	// rate, while GroupRuleMultiplier explains the complete group-side minimum.
 	response.GroupRateMultiplier = apiKey.Group.RateMultiplier
-	response.UserRateMultiplier = cloneBillingFloat(plan.UserLevelMultiplier)
+	response.UserRateMultiplier = cloneBillingFloat(plan.UserRateMultiplier)
 	response.UserLevelMultiplier = cloneBillingFloat(plan.UserLevelMultiplier)
 	response.GroupRuleMultiplier = cloneBillingFloat(plan.GroupRuleMultiplier)
 	response.ResolvedRateMultiplier = plan.EffectiveBaseMultiplier

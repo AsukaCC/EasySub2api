@@ -51,6 +51,26 @@ func stagedCodexFingerprintIDs(c *gin.Context, account *Account) *codexFingerpri
 // snapshot 的 OAuth 账号可读取，避免 stale context 跨账号 failover 泄漏。
 func applyStagedCodexFingerprintHeaders(c *gin.Context, account *Account, h http.Header) {
 	applyCodexFingerprintHeaders(h, stagedCodexFingerprintIDs(c, account))
+	applyCodexInstallationIDHeaderFallback(account, h)
+}
+
+// applyCodexInstallationIDHeaderFallback 在指纹收敛关闭（默认）时，为缺失
+// x-codex-installation-id 的 OAuth 出站请求补上账号级真实 device_id。
+//
+// 请求体侧的 applyCodexClientMetadata 已经用同一个 device_id 补 client_metadata.x-codex-installation-id，
+// 头侧却依赖客户端透传：非 Codex 客户端（Cursor / Claude Code 桥接 / opencode）不带该头时，
+// 上游会看到"自称 codex-tui、body 有安装标识、头却没有"的自相矛盾形态。头与体必须同源。
+// 未配置 device_id 时不臆造标识，保持原样。
+func applyCodexInstallationIDHeaderFallback(account *Account, h http.Header) {
+	if h == nil || account == nil || !account.IsOpenAIOAuth() {
+		return
+	}
+	if strings.TrimSpace(h.Get("x-codex-installation-id")) != "" {
+		return
+	}
+	if deviceID := account.GetOpenAIDeviceID(); deviceID != "" {
+		h.Set("x-codex-installation-id", deviceID)
+	}
 }
 
 func applyStagedCodexFingerprintClientMetadata(c *gin.Context, account *Account, reqBody map[string]any) bool {

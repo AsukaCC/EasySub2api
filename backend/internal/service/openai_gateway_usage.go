@@ -239,7 +239,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	baseMultiplier := multiplier
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, baseMultiplier, pricingAt)
 	if ratePlan != nil {
-		multiplier = ratePlan.EffectiveMultiplier
+		multiplier = ratePlan.NonDynamicMultiplier
+		if len(ratePlan.DynamicCandidates) == 0 {
+			multiplier = ratePlan.EffectiveMultiplier
+		}
 	}
 	videoMultiplier := baseMultiplier
 
@@ -611,7 +614,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 		// Codex alpha/search 网页搜索按次计费：上游不返回 usage/token 字段，单价只取
 		// 分组覆盖价（nil 时默认 0.01 = 官方 $10/1000 次），不参与渠道级模型定价。
 		// 倍率与 image/video 按次口径一致：使用不含高峰因子的基础倍率
-		//（用户专属 > 分组 rate_multiplier > 系统默认），与分组表单的价格预览承诺一致。
+		// 使用统一的分组倍率 × 用户专属分组倍率快照，与计费链路保持一致。
 		return s.billingService.CalculateWebSearchCost(result.WebSearchCalls, webSearchPricePerCallFromAPIKey(apiKey), webSearchMultiplier), nil
 	}
 	if isGrokVideoUsageResult(result, billingModels) {

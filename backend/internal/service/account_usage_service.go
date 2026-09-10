@@ -844,7 +844,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 		req.Header.Set("Authorization", "Bearer "+accessToken)
 	}
 	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("OpenAI-Beta", "responses=experimental")
+	// 与推理主路径一致：不发送 OpenAI-Beta: responses=experimental（见 ensureCodexIdentityHeaders）。
 	canonical := resolveCodexOutboundIdentity("")
 	req.Header.Set("Originator", canonical.originator)
 	req.Header.Set("Version", canonical.version)
