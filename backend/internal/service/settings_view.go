@@ -222,9 +222,9 @@ type SystemSettings struct {
 	ModelPlazaDescription string `json:"model_plaza_description"`
 
 	// Authenticated user usage guide.
-	UsageGuideEnabled   bool   `json:"usage_guide_enabled"`
-	UsageGuideContentMD string `json:"usage_guide_content_md"`
-	ImageWorkbenchEnabled bool `json:"image_workbench_enabled"`
+	UsageGuideEnabled     bool   `json:"usage_guide_enabled"`
+	UsageGuideContentMD   string `json:"usage_guide_content_md"`
+	ImageWorkbenchEnabled bool   `json:"image_workbench_enabled"`
 
 	// Claude Code version check
 	MinClaudeCodeVersion string
