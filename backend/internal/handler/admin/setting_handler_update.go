@@ -2046,7 +2046,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ModelPlazaDescription
 		}(),
-		UsageGuideEnabled: usageGuideEnabled,
+		UsageGuideEnabled:     usageGuideEnabled,
 		ImageWorkbenchEnabled: imageWorkbenchEnabled,
 		UsageGuideContentMD: func() string {
 			if req.UsageGuideContentMD != nil {
