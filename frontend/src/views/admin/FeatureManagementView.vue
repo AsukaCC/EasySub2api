@@ -89,6 +89,7 @@ type EnabledKey =
   | 'available_channels_enabled'
   | 'model_plaza_enabled'
   | 'usage_guide_enabled'
+  | 'image_workbench_enabled'
   | 'payment_enabled'
   | 'affiliate_enabled'
   | 'risk_control_enabled'
@@ -128,6 +129,7 @@ const state = reactive<FeatureState>({
   available_channels_user_visible: false,
   model_plaza_enabled: false,
   usage_guide_enabled: false,
+  image_workbench_enabled: false,
   model_plaza_user_visible: false,
   payment_enabled: false,
   payment_user_visible: false,
@@ -146,6 +148,7 @@ const features: FeatureDefinition[] = [
   { id: 'available-channels', titleKey: 'admin.settings.features.availableChannels.title', descriptionKey: 'admin.settings.features.availableChannels.description', enabledKey: 'available_channels_enabled', visibleKey: 'available_channels_user_visible', configPath: '/admin/channels/pricing', icon: 'globe' },
   { id: 'model-plaza', titleKey: 'admin.settings.features.modelPlaza.title', descriptionKey: 'admin.settings.features.modelPlaza.description', enabledKey: 'model_plaza_enabled', visibleKey: 'model_plaza_user_visible', configPath: '/admin/model-plaza/settings', icon: 'grid' },
   { id: 'usage-guide', titleKey: 'admin.settings.features.usageGuide.title', descriptionKey: 'admin.settings.features.usageGuide.description', enabledKey: 'usage_guide_enabled', configPath: '/admin/usage-guide/settings', icon: 'document' },
+  { id: 'image-workbench', titleKey: 'admin.settings.features.imageWorkbench.title', descriptionKey: 'admin.settings.features.imageWorkbench.description', enabledKey: 'image_workbench_enabled', configPath: '/image-workbench', icon: 'grid' },
   { id: 'payment', titleKey: 'admin.settings.featureManagement.modules.payment', descriptionKey: 'admin.settings.featureManagement.moduleDescriptions.payment', enabledKey: 'payment_enabled', visibleKey: 'payment_user_visible', configPath: '/admin/orders/settings', icon: 'creditCard' },
   {
     id: 'support-tickets',

@@ -189,6 +189,7 @@ export default {
     apiKeys: 'API Keys',
     usage: 'Usage',
     usageGuide: 'Usage Guide',
+    imageWorkbench: 'Image Workbench',
     userUsage: 'User Usage Records',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',

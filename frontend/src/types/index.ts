@@ -318,6 +318,7 @@ export interface PublicSettings {
 	model_plaza_enabled: boolean
 	model_plaza_require_auth: boolean
 	usage_guide_enabled: boolean
+	image_workbench_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   support_tickets_enabled?: boolean

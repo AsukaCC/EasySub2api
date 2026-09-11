@@ -85,6 +85,10 @@ export default {
           title: 'Usage Guide',
           description: 'Provide signed-in users with API key, group, billing, and request instructions. Disabled by default.',
         },
+        imageWorkbench: {
+          title: 'Image Workbench',
+          description: 'Provide signed-in users with GPT image generation, editing, and history management. Disabled by default.',
+        },
         moduleDescriptions: {
           payment: 'Manage recharge channels, limits, rates, and payment parameters.',
           opsMonitoring: 'Manage real-time monitoring, query mode, collection intervals, and operations panels.',
@@ -140,6 +144,10 @@ export default {
         usageGuide: {
           title: 'Usage Guide',
           description: 'Provide signed-in users with API key, group, billing, and request instructions. Disabled by default.',
+        },
+        imageWorkbench: {
+          title: 'Image Workbench',
+          description: 'Provide signed-in users with GPT image generation, editing, and history management. Disabled by default.',
         },
         riskControl: {
           title: 'Risk Control',

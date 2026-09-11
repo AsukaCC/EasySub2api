@@ -250,6 +250,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyModelPlazaDescription: "",
 		SettingKeyUsageGuideEnabled:     "false",
 		SettingKeyUsageGuideContent:     defaultUsageGuideContent,
+		SettingKeyImageWorkbenchEnabled: "false",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
@@ -846,6 +847,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ModelPlazaDescription = settings[SettingKeyModelPlazaDescription]
 	result.UsageGuideEnabled = settings[SettingKeyUsageGuideEnabled] == "true"
 	result.UsageGuideContentMD = usageGuideContent
+	result.ImageWorkbenchEnabled = settings[SettingKeyImageWorkbenchEnabled] == "true"
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"

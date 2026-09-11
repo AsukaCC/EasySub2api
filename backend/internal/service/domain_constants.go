@@ -550,6 +550,8 @@ const (
 	SettingKeyUsageGuideEnabled = "usage_guide_enabled"
 	// SettingKeyUsageGuideContent stores the administrator-authored Markdown guide.
 	SettingKeyUsageGuideContent = "usage_guide_content_md"
+	// SettingKeyImageWorkbenchEnabled controls the authenticated image workbench.
+	SettingKeyImageWorkbenchEnabled = "image_workbench_enabled"
 
 	// SettingKeyUpstreamBillingProbeSettings stores the global enable switch and interval
 	// for probing remote EasySub2api API-key billing metadata.

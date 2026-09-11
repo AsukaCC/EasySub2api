@@ -85,6 +85,10 @@ export default {
           title: '使用说明',
           description: '向登录用户提供 API Key、分组、计费和调用方式说明。默认关闭。',
         },
+        imageWorkbench: {
+          title: '生图工作台',
+          description: '向登录用户提供 GPT 生图、图片编辑与历史管理工作台。默认关闭。',
+        },
         moduleDescriptions: {
           payment: '管理充值支付渠道、限额、费率和支付参数。',
           opsMonitoring: '管理实时监控、查询模式、采集间隔和运维面板。',
@@ -140,6 +144,10 @@ export default {
         usageGuide: {
           title: '使用说明',
           description: '向登录用户提供 API Key、分组、计费和调用方式说明。默认关闭。',
+        },
+        imageWorkbench: {
+          title: '生图工作台',
+          description: '向登录用户提供 GPT 生图、图片编辑与历史管理工作台。默认关闭。',
         },
         riskControl: {
           title: '风控中心',
