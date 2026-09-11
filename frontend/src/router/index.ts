@@ -257,6 +257,19 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/image-workbench',
+    name: 'ImageWorkbench',
+    component: () => import('@/views/user/ImageWorkbenchView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Workbench',
+      titleKey: 'imageWorkbench.title',
+      descriptionKey: 'imageWorkbench.description',
+      userFeature: 'image-workbench',
+    },
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),
@@ -1040,6 +1053,7 @@ function publicUserFeatureEnabled(settings: ReturnType<typeof useAppStore>['cach
     'available-channels': settings.available_channels_enabled,
     'model-plaza': settings.model_plaza_enabled,
     'usage-guide': settings.usage_guide_enabled,
+    'image-workbench': settings.image_workbench_enabled,
     payment: settings.payment_enabled,
     affiliate: settings.affiliate_enabled,
   }

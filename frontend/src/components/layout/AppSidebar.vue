@@ -789,6 +789,7 @@ const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagUsageGuide = makeSidebarFlag(FeatureFlags.usageGuide)
+const flagImageWorkbench = makeSidebarFlag(FeatureFlags.imageWorkbench)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
@@ -818,6 +819,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: PriceTagIcon, hideInSimpleMode: true, featureFlag: flagImageWorkbench },
     { path: '/usage-guide', label: t('nav.usageGuide'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagUsageGuide },
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },

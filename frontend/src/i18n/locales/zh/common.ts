@@ -176,6 +176,7 @@ export default {
     apiKeys: 'API 密钥',
     usage: '使用记录',
     usageGuide: '使用说明',
+    imageWorkbench: '生图工作台',
     userUsage: '用户使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',

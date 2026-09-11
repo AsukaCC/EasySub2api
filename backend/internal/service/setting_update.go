@@ -460,6 +460,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyModelPlazaDescription] = settings.ModelPlazaDescription
 	updates[SettingKeyUsageGuideEnabled] = strconv.FormatBool(settings.UsageGuideEnabled)
 	updates[SettingKeyUsageGuideContent] = settings.UsageGuideContentMD
+	updates[SettingKeyImageWorkbenchEnabled] = strconv.FormatBool(settings.ImageWorkbenchEnabled)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)

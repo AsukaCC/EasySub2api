@@ -241,6 +241,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyModelPlazaUserVisible,
 		SettingKeyModelPlazaRequireAuth,
 		SettingKeyUsageGuideEnabled,
+		SettingKeyImageWorkbenchEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyAffiliateUserVisible,
 		SettingKeyRiskControlEnabled,
@@ -370,6 +371,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ModelPlazaEnabled:     userFeatureAvailable(settings, SettingKeyModelPlazaEnabled, SettingKeyModelPlazaUserVisible, false),
 		ModelPlazaRequireAuth: settings[SettingKeyModelPlazaRequireAuth] == "true",
 		UsageGuideEnabled:     settings[SettingKeyUsageGuideEnabled] == "true",
+		ImageWorkbenchEnabled: settings[SettingKeyImageWorkbenchEnabled] == "true",
 
 		AffiliateEnabled: userFeatureAvailable(settings, SettingKeyAffiliateEnabled, SettingKeyAffiliateUserVisible, false),
 
@@ -635,6 +637,7 @@ type PublicSettingsInjectionPayload struct {
 	ModelPlazaEnabled             bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth         bool `json:"model_plaza_require_auth"`
 	UsageGuideEnabled             bool `json:"usage_guide_enabled"`
+	ImageWorkbenchEnabled         bool `json:"image_workbench_enabled"`
 	AffiliateEnabled              bool `json:"affiliate_enabled"`
 	RiskControlEnabled            bool `json:"risk_control_enabled"`
 	SupportTicketsEnabled         bool `json:"support_tickets_enabled"`
@@ -720,6 +723,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		UsageGuideEnabled:                    settings.UsageGuideEnabled,
+		ImageWorkbenchEnabled:                settings.ImageWorkbenchEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		SupportTicketsEnabled:                settings.SupportTicketsEnabled,

@@ -224,6 +224,7 @@ type SystemSettings struct {
 	// Authenticated user usage guide.
 	UsageGuideEnabled   bool   `json:"usage_guide_enabled"`
 	UsageGuideContentMD string `json:"usage_guide_content_md"`
+	ImageWorkbenchEnabled bool `json:"image_workbench_enabled"`
 
 	// Claude Code version check
 	MinClaudeCodeVersion string
@@ -403,6 +404,7 @@ type PublicSettings struct {
 	ModelPlazaEnabled     bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth bool `json:"model_plaza_require_auth"`
 	UsageGuideEnabled     bool `json:"usage_guide_enabled"`
+	ImageWorkbenchEnabled bool `json:"image_workbench_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`

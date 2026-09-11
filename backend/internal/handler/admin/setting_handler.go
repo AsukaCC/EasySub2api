@@ -403,6 +403,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ModelPlazaDescription: settings.ModelPlazaDescription,
 		UsageGuideEnabled:     settings.UsageGuideEnabled,
 		UsageGuideContentMD:   settings.UsageGuideContentMD,
+		ImageWorkbenchEnabled: settings.ImageWorkbenchEnabled,
 
 		AffiliateEnabled:     settings.AffiliateEnabled,
 		AffiliateUserVisible: settings.AffiliateUserVisible,

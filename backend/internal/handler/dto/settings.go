@@ -325,6 +325,7 @@ type SystemSettings struct {
 	ModelPlazaDescription string `json:"model_plaza_description"`
 	UsageGuideEnabled     bool   `json:"usage_guide_enabled"`
 	UsageGuideContentMD   string `json:"usage_guide_content_md"`
+	ImageWorkbenchEnabled bool   `json:"image_workbench_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled          bool `json:"risk_control_enabled"`
@@ -434,6 +435,7 @@ type PublicSettings struct {
 	ModelPlazaEnabled     bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth bool `json:"model_plaza_require_auth"`
 	UsageGuideEnabled     bool `json:"usage_guide_enabled"`
+	ImageWorkbenchEnabled bool `json:"image_workbench_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

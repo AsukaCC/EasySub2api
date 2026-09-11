@@ -354,6 +354,7 @@ type UpdateSettingsRequest struct {
 	ModelPlazaDescription *string `json:"model_plaza_description"`
 	UsageGuideEnabled     *bool   `json:"usage_guide_enabled"`
 	UsageGuideContentMD   *string `json:"usage_guide_content_md"`
+	ImageWorkbenchEnabled *bool   `json:"image_workbench_enabled"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled     *bool `json:"affiliate_enabled"`
@@ -538,6 +539,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	availableChannelsEnabled := boolValueOrDefault(req.AvailableChannelsEnabled, previousSettings.AvailableChannelsEnabled)
 	modelPlazaEnabled := boolValueOrDefault(req.ModelPlazaEnabled, previousSettings.ModelPlazaEnabled)
 	usageGuideEnabled := boolValueOrDefault(req.UsageGuideEnabled, previousSettings.UsageGuideEnabled)
+	imageWorkbenchEnabled := boolValueOrDefault(req.ImageWorkbenchEnabled, previousSettings.ImageWorkbenchEnabled)
 	if req.UsageGuideContentMD != nil && len([]byte(*req.UsageGuideContentMD)) > service.MaxUsageGuideContentBytes {
 		response.BadRequest(c, "Usage guide content is too large (max 1 MiB)")
 		return
@@ -2045,6 +2047,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return previousSettings.ModelPlazaDescription
 		}(),
 		UsageGuideEnabled: usageGuideEnabled,
+		ImageWorkbenchEnabled: imageWorkbenchEnabled,
 		UsageGuideContentMD: func() string {
 			if req.UsageGuideContentMD != nil {
 				return *req.UsageGuideContentMD
@@ -2507,6 +2510,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelPlazaDescription: updatedSettings.ModelPlazaDescription,
 		UsageGuideEnabled:     updatedSettings.UsageGuideEnabled,
 		UsageGuideContentMD:   updatedSettings.UsageGuideContentMD,
+		ImageWorkbenchEnabled: updatedSettings.ImageWorkbenchEnabled,
 
 		AffiliateEnabled:     updatedSettings.AffiliateEnabled,
 		AffiliateUserVisible: updatedSettings.AffiliateUserVisible,

@@ -114,6 +114,7 @@ const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagUsageGuide = makeSidebarFlag(FeatureFlags.usageGuide)
+const flagImageWorkbench = makeSidebarFlag(FeatureFlags.imageWorkbench)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const supportSummary = ref({ total: 0, unread: 0, featureEnabled: false, loaded: false })
 const flagSupportTickets = () =>
@@ -149,6 +150,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: 'key' },
     { path: '/usage', label: t('nav.usage'), icon: 'chart', hideInSimpleMode: true },
+    { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: 'photo', hideInSimpleMode: true, featureFlag: flagImageWorkbench },
     { path: '/usage-guide', label: t('nav.usageGuide'), icon: 'document', hideInSimpleMode: true, featureFlag: flagUsageGuide },
     {
       path: '/purchase',

@@ -741,6 +741,7 @@ export interface SystemSettings {
 
   usage_guide_enabled: boolean;
   usage_guide_content_md: string;
+  image_workbench_enabled: boolean;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
@@ -1055,6 +1056,7 @@ export interface UpdateSettingsRequest {
 
   usage_guide_enabled?: boolean;
   usage_guide_content_md?: string;
+  image_workbench_enabled?: boolean;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;

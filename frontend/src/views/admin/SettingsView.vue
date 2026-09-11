@@ -9708,6 +9708,7 @@ const form = reactive<SettingsForm>({
   model_plaza_require_auth: false,
   model_plaza_description: '',
   usage_guide_enabled: false,
+  image_workbench_enabled: false,
   usage_guide_content_md: '',
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
