@@ -84,6 +84,66 @@ export interface ImageResult {
   revised_prompt?: string
 }
 
+export interface ImageTaskError {
+  message?: string
+  type?: string
+  code?: string
+  request_id?: string
+  [key: string]: unknown
+}
+
+export interface ImageTask {
+  id: string
+  task_id: string
+  object?: string
+  status: 'processing' | 'completed' | 'failed' | 'canceled' | 'cancelled'
+  result?: { data?: ImageResult[]; created?: number; [key: string]: unknown }
+  error?: ImageTaskError
+  http_status?: number
+  created_at?: number
+  completed_at?: number
+  expires_at?: number
+  poll_url?: string
+}
+
+function parseTaskError(payload: any, status: number): Error {
+  const error = payload?.error || payload
+  const message = error?.message || payload?.message || `Image task request failed (${status})`
+  const result = new Error(message) as Error & { details?: ImageTaskError }
+  result.details = error
+  return result
+}
+
+export async function submitImageTask(key: string, params: ImageGenerationParams, reference?: File): Promise<ImageTask> {
+  const endpoint = reference ? '/v1/images/edits/async' : '/v1/images/generations/async'
+  let response: Response
+  if (reference) {
+    const body = new FormData()
+    for (const [name, value] of Object.entries(params)) body.append(name, String(value))
+    body.append('image', reference)
+    response = await fetch(buildGatewayUrl(endpoint), { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body })
+  } else {
+    response = await fetch(buildGatewayUrl(endpoint), { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(params) })
+  }
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw parseTaskError(payload, response.status)
+  return payload as ImageTask
+}
+
+export async function getImageTask(key: string, taskId: string): Promise<ImageTask> {
+  const response = await fetch(buildGatewayUrl(`/v1/images/tasks/${encodeURIComponent(taskId)}`), { headers: { Authorization: `Bearer ${key}` } })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw parseTaskError(payload, response.status)
+  return payload as ImageTask
+}
+
+export async function cancelImageTask(key: string, taskId: string): Promise<ImageTask> {
+  const response = await fetch(buildGatewayUrl(`/v1/images/tasks/${encodeURIComponent(taskId)}`), { method: 'DELETE', headers: { Authorization: `Bearer ${key}` } })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw parseTaskError(payload, response.status)
+  return payload as ImageTask
+}
+
 export async function loadWorkbenchCredentials(): Promise<{ keys: ApiKey[]; groups: Group[] }> {
   const [keyPage, groups] = await Promise.all([
     keysAPI.list(1, 200, { status: 'active' }),

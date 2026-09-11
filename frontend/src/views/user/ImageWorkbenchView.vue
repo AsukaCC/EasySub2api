@@ -77,13 +77,17 @@
           <strong>{{ emptyMessage }}</strong>
         </div>
         <div v-else class="gallery-grid">
-          <article v-if="generating" class="history-card history-card--pending">
+          <article v-for="task in taskItems" :key="task.taskId" class="history-card history-card--pending">
             <div class="history-card__thumb history-card__thumb--pending">
-              <Icon name="sparkles" size="md" />
+              <Icon :name="task.status === 'failed' ? 'exclamationCircle' : task.status === 'canceled' ? 'x' : 'sparkles'" size="md" />
             </div>
             <div class="history-card__body">
-              <h3>{{ prompt.trim() || t('imageWorkbench.generating') }}</h3>
-              <p>{{ t('imageWorkbench.generating') }}</p>
+              <h3>{{ task.prompt }}</h3>
+              <p>{{ task.status === 'processing' ? t('imageWorkbench.generating') : task.status === 'failed' ? (task.error?.message || t('imageWorkbench.generateFailed')) : t('imageWorkbench.canceled') }}</p>
+              <div class="history-card__actions">
+                <button v-if="task.status === 'processing'" type="button" :title="t('imageWorkbench.cancelTask')" @click.stop="cancelTask(task)"><Icon name="x" size="xs" /></button>
+                <button v-if="task.status === 'failed'" type="button" :title="t('imageWorkbench.retryTask')" @click.stop="retryTask(task)"><Icon name="refresh" size="xs" /></button>
+              </div>
             </div>
           </article>
           <article
@@ -94,14 +98,17 @@
           >
             <button class="history-card__thumb" type="button" :title="t('imageWorkbench.preview')" @click.stop="previewItem = item">
               <img :src="item.src" :alt="item.prompt" loading="lazy" />
-              <span v-if="aspectLabel(item)" class="thumb-badge">{{ aspectLabel(item) }}</span>
-              <span v-if="resolutionLabel(item)" class="thumb-badge thumb-badge--size">{{ resolutionLabel(item) }}</span>
+              <div v-if="aspectLabel(item) || resolutionLabel(item)" class="thumb-badge">
+                <span v-if="aspectLabel(item)" class="thumb-badge__ratio">{{ aspectLabel(item) }}</span>
+                <span v-if="aspectLabel(item) && resolutionLabel(item)" class="thumb-badge__divider">·</span>
+                <span v-if="resolutionLabel(item)" class="thumb-badge__res">{{ resolutionLabel(item) }}</span>
+              </div>
             </button>
             <div class="history-card__body">
               <h3>{{ item.prompt }}</h3>
               <div class="history-card__tags">
-                <span><Icon name="key" size="xs" />{{ item.keyName || t('imageWorkbench.apiKey') }}</span>
-                <span><Icon name="sparkles" size="xs" />{{ item.model }}</span>
+                <span :title="item.keyName"><Icon name="key" size="xs" />{{ item.keyName || t('imageWorkbench.apiKey') }}</span>
+                <span :title="item.model"><Icon name="sparkles" size="xs" />{{ item.model }}</span>
                 <span>{{ t('imageWorkbench.quality') }} {{ qualityLabel(item) }}</span>
               </div>
               <div class="history-card__actions">
@@ -114,7 +121,7 @@
                 <button type="button" :title="t('imageWorkbench.copyPrompt')" @click.stop="copyPrompt(item)">
                   <Icon name="copy" size="xs" />
                 </button>
-                <button type="button" :title="t('imageWorkbench.delete')" @click.stop="removeItem(item)">
+                <button class="action-btn-del" type="button" :title="t('imageWorkbench.delete')" @click.stop="removeItem(item)">
                   <Icon name="trash" size="xs" />
                 </button>
               </div>
@@ -380,7 +387,9 @@ import { useAppStore } from '@/stores'
 import { useClipboard } from '@/composables/useClipboard'
 import {
   eligibleImageKeys,
-  generateImage,
+  submitImageTask,
+  getImageTask,
+  cancelImageTask,
   imagePlatformAdapters,
   listImageModels,
   loadWorkbenchCredentials,
@@ -388,7 +397,7 @@ import {
   type ImagePlatform,
   type ImagePlatformAdapter,
 } from '@/api/imageWorkbench'
-import { clearHistory, deleteHistory, exportHistory, importHistory, listHistory, putHistory, type ImageHistoryItem } from '@/features/image-workbench/storage'
+import { clearHistory, deleteHistory, exportHistory, importHistory, listHistory, putHistory, listTasks, putTask, deleteTask, type ImageHistoryItem, type ImageTaskItem } from '@/features/image-workbench/storage'
 import {
   ALL_FAVORITES_COLLECTION_ID,
   createFavoriteCollection,
@@ -412,7 +421,9 @@ const defaultPlatform = imagePlatformAdapters.find((item) => item.enabled)?.id |
 const activePlatform = ref<ImagePlatform>(defaultPlatform)
 const credentials = ref<{ keys: import('@/types').ApiKey[]; groups: import('@/types').Group[] }>({ keys: [], groups: [] })
 const loadingHistory = ref(true)
-const generating = ref(false)
+const taskItems = ref<ImageTaskItem[]>([])
+const generating = computed(() => taskItems.value.some((task) => task.status === 'processing'))
+const pollTimers = new Map<string, number>()
 const settingsOpen = ref(false)
 const settingsTab = ref<'connection' | 'preferences' | 'data'>('connection')
 const sizePickerOpen = ref(false)
@@ -566,11 +577,37 @@ function itemSize(item: ImageHistoryItem): { width: number; height: number } | n
   return parseSize(item.params?.size)
 }
 
+const COMMON_ASPECT_RATIOS = [
+  { ratio: 1, label: '1:1' },
+  { ratio: 16 / 9, label: '16:9' },
+  { ratio: 9 / 16, label: '9:16' },
+  { ratio: 4 / 3, label: '4:3' },
+  { ratio: 3 / 4, label: '3:4' },
+  { ratio: 3 / 2, label: '3:2' },
+  { ratio: 2 / 3, label: '2:3' },
+  { ratio: 21 / 9, label: '21:9' },
+  { ratio: 5 / 4, label: '5:4' },
+  { ratio: 4 / 5, label: '4:5' },
+  { ratio: 6 / 5, label: '6:5' },
+  { ratio: 5 / 6, label: '5:6' },
+]
+
 function aspectLabel(item: ImageHistoryItem): string {
   const size = itemSize(item)
-  if (!size) return ''
+  if (!size || !size.width || !size.height) return ''
+  const r = size.width / size.height
+  for (const entry of COMMON_ASPECT_RATIOS) {
+    if (Math.abs(r - entry.ratio) / entry.ratio < 0.035) {
+      return entry.label
+    }
+  }
   const divisor = gcd(size.width, size.height)
-  return `${size.width / divisor}:${size.height / divisor}`
+  const sw = size.width / divisor
+  const sh = size.height / divisor
+  if (sw <= 20 && sh <= 20) {
+    return `${sw}:${sh}`
+  }
+  return `${r.toFixed(2)}:1`
 }
 
 function resolutionLabel(item: ImageHistoryItem): string {
@@ -669,10 +706,9 @@ async function submitGeneration() {
     errorMessage.value = t('imageWorkbench.promptRequired')
     return
   }
-  generating.value = true
   errorMessage.value = ''
   try {
-    const results = await generateImage(
+    const accepted = await submitImageTask(
       selectedKey.value.key,
       {
         prompt: prompt.value.trim(),
@@ -687,31 +723,46 @@ async function submitGeneration() {
       },
       referenceFile.value || undefined,
     )
-    for (const result of results) {
-      const src = imageSource(result)
-      if (!src) continue
-      const measured = await measureImage(src)
-      await putHistory({
-        id: crypto.randomUUID(),
-        createdAt: Date.now(),
-        prompt: prompt.value.trim(),
-        model: selectedModel.value,
-        platform: activePlatform.value,
-        src,
-        revisedPrompt: result.revised_prompt,
-        favorite: false,
-        keyName: selectedKey.value.name,
-        width: measured?.width,
-        height: measured?.height,
-        params: { ...params },
-      })
-    }
-    history.value = await listHistory()
+    const task: ImageTaskItem = { taskId: accepted.task_id || accepted.id, keyId: selectedKeyId.value, keyName: selectedKey.value.name, platform: activePlatform.value, prompt: prompt.value.trim(), model: selectedModel.value, params: { ...params }, status: accepted.status || 'processing', createdAt: Date.now() }
+    taskItems.value = [task, ...taskItems.value.filter((item) => item.taskId !== task.taskId)]
+    await putTask(task)
+    startTaskPolling(task)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed')
-  } finally {
-    generating.value = false
   }
+}
+
+function startTaskPolling(task: ImageTaskItem) {
+  if (pollTimers.has(task.taskId)) return
+  const poll = async () => {
+    const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
+    if (!key) { task.status = 'failed'; task.error = { message: t('imageWorkbench.keyUnavailable') }; await putTask(task); return }
+    try {
+      const remote = await getImageTask(key, task.taskId)
+      task.status = remote.status; task.completedAt = remote.completed_at
+      if (remote.error) task.error = remote.error
+      if (remote.status === 'completed') {
+        for (const result of remote.result?.data || []) { const src = imageSource(result); if (!src) continue; const measured = await measureImage(src); await putHistory({ id: crypto.randomUUID(), createdAt: Date.now(), prompt: task.prompt, model: task.model, platform: task.platform, src, revisedPrompt: result.revised_prompt, favorite: false, keyName: task.keyName, width: measured?.width, height: measured?.height, params: task.params }) }
+        await deleteTask(task.taskId); taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId); history.value = await listHistory(); return
+      }
+      await putTask(task); taskItems.value = [...taskItems.value]
+      if (['failed', 'canceled', 'cancelled'].includes(task.status)) return
+    } catch (error) { task.error = { message: error instanceof Error ? error.message : t('imageWorkbench.generateFailed') }; await putTask(task) }
+    const timer = window.setTimeout(poll, 3000); pollTimers.set(task.taskId, timer)
+  }
+  void poll()
+}
+
+async function cancelTask(task: ImageTaskItem) {
+  const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
+  if (!key) return
+  try { const remote = await cancelImageTask(key, task.taskId); task.status = remote.status; task.error = remote.error; await putTask(task); taskItems.value = [...taskItems.value] } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed') }
+}
+
+function retryTask(task: ImageTaskItem) {
+  prompt.value = task.prompt
+  Object.assign(params, task.params)
+  void submitGeneration()
 }
 
 function persistFavorites() {
@@ -969,6 +1020,10 @@ onMounted(async () => {
       migrated = true
     }
     if (migrated) history.value = await listHistory()
+    taskItems.value = await listTasks()
+    for (const task of taskItems.value) {
+      if (task.status === 'processing') startTaskPolling(task)
+    }
   } finally {
     loadingHistory.value = false
   }
@@ -978,6 +1033,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
+  for (const timer of pollTimers.values()) window.clearTimeout(timer)
+  pollTimers.clear()
 })
 </script>
 
@@ -1120,36 +1177,57 @@ onUnmounted(() => {
 }
 
 .gallery-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: .85rem;
   align-content: start;
+  width: 100%;
 }
 
 .history-card {
   display: flex;
   overflow: hidden;
-  width: min(100%, 24.5rem);
-  min-height: 6.6rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  width: 100%;
+  min-height: 7.4rem;
+  border: 1px solid var(--color-border);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   cursor: pointer;
+  transition: transform .18s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color .18s ease,
+              box-shadow .18s ease;
+  box-sizing: border-box;
+}
+
+.history-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, .14), 0 2px 6px rgba(0, 0, 0, .04);
 }
 
 .history-card--pending {
-  opacity: .72;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  animation: card-pulse 1.8s ease-in-out infinite alternate;
   pointer-events: none;
+}
+
+@keyframes card-pulse {
+  from { opacity: .65; }
+  to { opacity: .95; }
 }
 
 .history-card__thumb {
   position: relative;
-  flex: 0 0 9.4rem;
-  width: 9.4rem;
+  flex: 0 0 9.8rem;
+  width: 9.8rem;
   padding: 0;
   border: 0;
   background: var(--color-surface-muted);
   cursor: zoom-in;
+  overflow: hidden;
 }
 
 .history-card__thumb img,
@@ -1157,27 +1235,51 @@ onUnmounted(() => {
   display: grid;
   width: 100%;
   height: 100%;
-  min-height: 6.6rem;
+  min-height: 7.4rem;
   object-fit: cover;
   place-items: center;
   color: var(--color-text-secondary);
+  transition: transform .3s ease;
+}
+
+.history-card:hover .history-card__thumb img {
+  transform: scale(1.03);
 }
 
 .thumb-badge {
   position: absolute;
-  top: .4rem;
-  left: .4rem;
-  border-radius: .4rem;
-  background: rgba(0, 0, 0, .55);
+  top: .45rem;
+  left: .45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, .68);
+  border: 1px solid rgba(255, 255, 255, .16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #fff;
-  padding: .12rem .38rem;
+  padding: .15rem .45rem;
   font-size: .68rem;
   line-height: 1.2;
+  letter-spacing: .02em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+  pointer-events: none;
+  max-width: calc(100% - .9rem);
 }
 
-.thumb-badge--size {
-  left: auto;
-  right: .4rem;
+.thumb-badge__ratio {
+  font-weight: 600;
+  color: #fff;
+}
+
+.thumb-badge__divider {
+  opacity: .5;
+}
+
+.thumb-badge__res {
+  opacity: .88;
+  font-variant-numeric: tabular-nums;
 }
 
 .history-card__body {
@@ -1186,7 +1288,7 @@ onUnmounted(() => {
   min-width: 0;
   flex-direction: column;
   gap: .45rem;
-  padding: .7rem .75rem .55rem;
+  padding: .75rem .85rem .6rem;
 }
 
 .history-card__body h3 {
@@ -1194,10 +1296,16 @@ onUnmounted(() => {
   margin: 0;
   overflow: hidden;
   color: var(--color-text-primary);
-  font-size: .92rem;
+  font-size: .88rem;
   font-weight: 600;
+  line-height: 1.36;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  transition: color .15s ease;
+}
+
+.history-card:hover .history-card__body h3 {
+  color: var(--theme-accent);
 }
 
 .collection-card .history-card__body p {
@@ -1214,7 +1322,7 @@ onUnmounted(() => {
 .history-card__actions {
   display: flex;
   align-items: center;
-  gap: .4rem;
+  gap: .35rem;
 }
 
 .history-card__tags {
@@ -1226,19 +1334,29 @@ onUnmounted(() => {
 .history-card__tags span {
   display: inline-flex;
   align-items: center;
-  gap: .22rem;
+  gap: .25rem;
   max-width: 100%;
   overflow: hidden;
-  border-radius: .4rem;
+  border-radius: var(--radius-sm, .375rem);
   background: color-mix(in srgb, var(--color-surface-muted) 80%, transparent);
-  padding: .12rem .4rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  padding: .12rem .42rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: .7rem;
+  line-height: 1.25;
+}
+
+.history-card__tags span :deep(.app-icon) {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
 }
 
 .history-card__actions {
   justify-content: flex-end;
   margin-top: auto;
+  gap: .25rem;
+  padding-top: .2rem;
 }
 
 .history-card__actions button,
@@ -1256,14 +1374,29 @@ onUnmounted(() => {
 }
 
 .history-card__actions button {
-  width: 1.7rem;
-  height: 1.7rem;
+  width: 1.85rem;
+  height: 1.85rem;
   border-radius: var(--radius-full);
+  color: var(--color-text-tertiary);
+  transition: all .15s ease;
 }
 
-.history-card__actions button:hover,
+.history-card__actions button:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-muted) 90%, transparent);
+}
+
 .history-card__actions button.active {
-  color: var(--theme-accent);
+  color: #f59e0b;
+}
+
+.history-card__actions button.active:hover {
+  color: #d97706;
+}
+
+.history-card__actions button.action-btn-del:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, .12);
 }
 
 .empty-state {

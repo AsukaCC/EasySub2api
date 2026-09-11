@@ -272,130 +272,119 @@
     </div>
 
     <!-- Cloudflare R2 Setup Guide Modal -->
-    <teleport to="body">
-      <transition name="modal">
-        <div v-if="showR2Guide" class="views-admin-backup-view__panel-13" @mousedown.self="showR2Guide = false">
-          <div class="views-admin-backup-view__panel-14" @click="showR2Guide = false"></div>
-          <div class="views-admin-backup-view__panel-15 card-body">
-            <button type="button" class="views-admin-backup-view__action-2" @click="showR2Guide = false">
-              <svg class="views-admin-backup-view__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+    <BaseDialog
+      :show="showR2Guide"
+      :title="t('admin.backup.r2Guide.title')"
+      width="wide"
+      close-on-click-outside
+      @close="showR2Guide = false"
+    >
+      <div class="r2-guide-dialog">
+        <p class="r2-guide-dialog__intro">{{ t('admin.backup.r2Guide.intro') }}</p>
 
-            <h2 class="views-admin-backup-view__heading-4">{{ t('admin.backup.r2Guide.title') }}</h2>
-            <p class="views-admin-backup-view__description-3">{{ t('admin.backup.r2Guide.intro') }}</p>
+        <!-- Step 1 -->
+        <div class="r2-guide-step">
+          <div class="r2-guide-step__header">
+            <span class="r2-guide-step__badge">1</span>
+            <h4 class="r2-guide-step__title">{{ t('admin.backup.r2Guide.step1.title') }}</h4>
+          </div>
+          <ol class="r2-guide-step__list">
+            <li>{{ t('admin.backup.r2Guide.step1.line1') }}</li>
+            <li>{{ t('admin.backup.r2Guide.step1.line2') }}</li>
+            <li>{{ t('admin.backup.r2Guide.step1.line3') }}</li>
+          </ol>
+        </div>
 
-            <!-- Step 1 -->
-            <div class="views-admin-backup-view__panel-16">
-              <h3 class="views-admin-backup-view__heading-5">
-                <span class="views-admin-backup-view__text-2">1</span>
-                {{ t('admin.backup.r2Guide.step1.title') }}
-              </h3>
-              <ol class="views-admin-backup-view__list">
-                <li>{{ t('admin.backup.r2Guide.step1.line1') }}</li>
-                <li>{{ t('admin.backup.r2Guide.step1.line2') }}</li>
-                <li>{{ t('admin.backup.r2Guide.step1.line3') }}</li>
-              </ol>
-            </div>
-
-            <!-- Step 2 -->
-            <div class="views-admin-backup-view__panel-16">
-              <h3 class="views-admin-backup-view__heading-5">
-                <span class="views-admin-backup-view__text-2">2</span>
-                {{ t('admin.backup.r2Guide.step2.title') }}
-              </h3>
-              <ol class="views-admin-backup-view__list">
-                <li>{{ t('admin.backup.r2Guide.step2.line1') }}</li>
-                <li>{{ t('admin.backup.r2Guide.step2.line2') }}</li>
-                <li>{{ t('admin.backup.r2Guide.step2.line3') }}</li>
-                <li>{{ t('admin.backup.r2Guide.step2.line4') }}</li>
-              </ol>
-              <div class="views-admin-backup-view__panel-17">
-                {{ t('admin.backup.r2Guide.step2.warning') }}
-              </div>
-            </div>
-
-            <!-- Step 3 -->
-            <div class="views-admin-backup-view__panel-16">
-              <h3 class="views-admin-backup-view__heading-5">
-                <span class="views-admin-backup-view__text-2">3</span>
-                {{ t('admin.backup.r2Guide.step3.title') }}
-              </h3>
-              <p class="views-admin-backup-view__description-4">{{ t('admin.backup.r2Guide.step3.desc') }}</p>
-              <code class="views-admin-backup-view__code">https://&lt;{{ t('admin.backup.r2Guide.step3.accountId') }}&gt;.r2.cloudflarestorage.com</code>
-            </div>
-
-            <!-- Step 4: Fill form -->
-            <div class="views-admin-backup-view__panel-16">
-              <h3 class="views-admin-backup-view__heading-5">
-                <span class="views-admin-backup-view__text-2">4</span>
-                {{ t('admin.backup.r2Guide.step4.title') }}
-              </h3>
-              <div class="views-admin-backup-view__panel-18">
-                <table class="views-admin-backup-view__table-2">
-                  <tbody>
-                    <tr v-for="(row, i) in r2ConfigRows" :key="i" class="views-admin-backup-view__row-3">
-                      <td class="views-admin-backup-view__cell-6">{{ row.field }}</td>
-                      <td class="views-admin-backup-view__cell-7"><code class="views-admin-backup-view__code-2">{{ row.value }}</code></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Free tier note -->
-            <div class="views-admin-backup-view__panel-19">
-              {{ t('admin.backup.r2Guide.freeTier') }}
-            </div>
-
-            <div class="views-admin-backup-view__panel-20">
-              <button type="button" class="btn btn-primary btn-sm" @click="showR2Guide = false">{{ t('common.close') }}</button>
-            </div>
+        <!-- Step 2 -->
+        <div class="r2-guide-step">
+          <div class="r2-guide-step__header">
+            <span class="r2-guide-step__badge">2</span>
+            <h4 class="r2-guide-step__title">{{ t('admin.backup.r2Guide.step2.title') }}</h4>
+          </div>
+          <ol class="r2-guide-step__list">
+            <li>{{ t('admin.backup.r2Guide.step2.line1') }}</li>
+            <li>{{ t('admin.backup.r2Guide.step2.line2') }}</li>
+            <li>{{ t('admin.backup.r2Guide.step2.line3') }}</li>
+            <li>{{ t('admin.backup.r2Guide.step2.line4') }}</li>
+          </ol>
+          <div class="r2-guide-alert r2-guide-alert--warning">
+            <Icon name="exclamationTriangle" size="xs" />
+            <span>{{ t('admin.backup.r2Guide.step2.warning') }}</span>
           </div>
         </div>
-      </transition>
-    </teleport>
+
+        <!-- Step 3 -->
+        <div class="r2-guide-step">
+          <div class="r2-guide-step__header">
+            <span class="r2-guide-step__badge">3</span>
+            <h4 class="r2-guide-step__title">{{ t('admin.backup.r2Guide.step3.title') }}</h4>
+          </div>
+          <p class="r2-guide-step__desc">{{ t('admin.backup.r2Guide.step3.desc') }}</p>
+          <div class="r2-guide-code-box">
+            <code>https://&lt;{{ t('admin.backup.r2Guide.step3.accountId') }}&gt;.r2.cloudflarestorage.com</code>
+          </div>
+        </div>
+
+        <!-- Step 4: Fill form -->
+        <div class="r2-guide-step">
+          <div class="r2-guide-step__header">
+            <span class="r2-guide-step__badge">4</span>
+            <h4 class="r2-guide-step__title">{{ t('admin.backup.r2Guide.step4.title') }}</h4>
+          </div>
+          <div class="r2-guide-table-wrap">
+            <table class="table r2-guide-table">
+              <tbody>
+                <tr v-for="(row, i) in r2ConfigRows" :key="i">
+                  <td class="r2-guide-table__key">{{ row.field }}</td>
+                  <td class="r2-guide-table__val"><code>{{ row.value }}</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Free tier note -->
+        <div class="r2-guide-alert r2-guide-alert--info">
+          <Icon name="infoCircle" size="xs" />
+          <span>{{ t('admin.backup.r2Guide.freeTier') }}</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" class="btn btn-secondary btn-sm" @click="showR2Guide = false">{{ t('common.close') }}</button>
+      </template>
+    </BaseDialog>
+
     <!-- 分卷下载链接 -->
-    <teleport to="body">
-      <transition name="modal">
-        <div
-          v-if="downloadPartsModalOpen"
-          class="views-admin-backup-view__panel-13"
-          @mousedown.self="closeDownloadParts"
-        >
-          <div class="views-admin-backup-view__panel-14" @click="closeDownloadParts"></div>
-          <div class="views-admin-backup-view__panel-21 card-body">
-            <button
-              type="button"
-              class="views-admin-backup-view__action-2"
-              :aria-label="t('common.close')"
-              @click="closeDownloadParts"
-            >
-              <svg class="views-admin-backup-view__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <h2 class="views-admin-backup-view__heading-6">{{ t('admin.backup.actions.downloadParts') }}</h2>
-            <p class="views-admin-backup-view__description-3">{{ t('admin.backup.actions.downloadPartsHint') }}</p>
-            <div class="views-admin-backup-view__panel-22">
-              <div
-                v-for="part in downloadParts"
-                :key="part.index"
-                class="views-admin-backup-view__panel-23"
-              >
-                <span class="views-admin-backup-view__text-3">
-                  {{ t('admin.backup.actions.partLabel', { index: part.index }) }}
-                  <span class="views-admin-backup-view__text-4">{{ formatSize(part.size_bytes) }}</span>
-                </span>
-                <a :href="part.url" class="btn btn-secondary btn-xs" rel="noopener">
-                  {{ t('admin.backup.actions.download') }}
-                </a>
-              </div>
+    <BaseDialog
+      :show="downloadPartsModalOpen"
+      :title="t('admin.backup.actions.downloadParts')"
+      width="normal"
+      close-on-click-outside
+      @close="closeDownloadParts"
+    >
+      <div class="parts-dialog">
+        <p class="parts-dialog__hint">{{ t('admin.backup.actions.downloadPartsHint') }}</p>
+        <div class="parts-dialog__list">
+          <div
+            v-for="part in downloadParts"
+            :key="part.index"
+            class="parts-dialog__item"
+          >
+            <div class="parts-dialog__meta">
+              <span class="parts-dialog__name">{{ t('admin.backup.actions.partLabel', { index: part.index }) }}</span>
+              <span class="parts-dialog__size">{{ formatSize(part.size_bytes) }}</span>
             </div>
-            <div class="views-admin-backup-view__panel-20">
-              <button type="button" class="btn btn-primary btn-sm" @click="closeDownloadParts">{{ t('common.close') }}</button>
-            </div>
+            <a :href="part.url" class="btn btn-secondary btn-xs" rel="noopener">
+              {{ t('admin.backup.actions.download') }}
+            </a>
           </div>
         </div>
-      </transition>
-    </teleport>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-secondary btn-sm" @click="closeDownloadParts">{{ t('common.close') }}</button>
+      </template>
+    </BaseDialog>
     <TotpStepUpDialog :controller="backupStepUp" />
 </template>
 
@@ -412,6 +401,8 @@ import type {
   ImageStorageConfig,
 } from '@/api/admin/backup'
 import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
+import BaseDialog from '@/components/common/BaseDialog.vue'
+import Icon from '@/components/icons/Icon.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 
 const { t } = useI18n()
@@ -884,12 +875,205 @@ onBeforeUnmount(() => {
   }
 }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
+.r2-guide-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
+
+.r2-guide-dialog__intro {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.r2-guide-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.r2-guide-step__header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.r2-guide-step__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--theme-accent) 16%, transparent);
+  color: var(--theme-accent);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.r2-guide-step__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.r2-guide-step__list {
+  margin: 0;
+  padding-left: 2.125rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.r2-guide-step__list li + li {
+  margin-top: 0.25rem;
+}
+
+.r2-guide-step__desc {
+  margin: 0;
+  padding-left: 2.125rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.r2-guide-code-box {
+  margin-left: 2.125rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  overflow-x: auto;
+}
+
+.r2-guide-code-box code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
+.r2-guide-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-left: 2.125rem;
+  padding: 0.625rem 0.85rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+.r2-guide-alert--warning {
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+  background: color-mix(in srgb, #f59e0b 10%, transparent);
+  color: #d97706;
+}
+
+:is(.dark) .r2-guide-alert--warning {
+  color: #fbbf24;
+}
+
+.r2-guide-alert--info {
+  margin-left: 0;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.r2-guide-alert :deep(.app-icon) {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.r2-guide-table-wrap {
+  margin-left: 2.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.r2-guide-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+}
+
+.r2-guide-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.r2-guide-table tr:last-child td {
+  border-bottom: none;
+}
+
+.r2-guide-table__key {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  width: 38%;
+  background: color-mix(in srgb, var(--color-surface-muted) 50%, transparent);
+}
+
+.r2-guide-table__val {
+  color: var(--color-text-primary);
+}
+
+.r2-guide-table__val code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--color-surface-muted);
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.parts-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.parts-dialog__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.parts-dialog__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.parts-dialog__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.parts-dialog__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.parts-dialog__name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.parts-dialog__size {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
 }
 </style>

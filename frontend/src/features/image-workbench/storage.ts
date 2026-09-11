@@ -14,9 +14,24 @@ export interface ImageHistoryItem {
   height?: number
 }
 
+export interface ImageTaskItem {
+  taskId: string
+  keyId: string
+  keyName?: string
+  platform: string
+  prompt: string
+  model: string
+  params: Record<string, unknown>
+  status: string
+  createdAt: number
+  completedAt?: number
+  error?: Record<string, unknown>
+}
+
 const DB_NAME = 'easysub2api-image-workbench'
 const STORE_NAME = 'history'
-const DB_VERSION = 1
+const TASK_STORE_NAME = 'tasks'
+const DB_VERSION = 2
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -27,9 +42,38 @@ function openDatabase(): Promise<IDBDatabase> {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
         store.createIndex('createdAt', 'createdAt')
       }
+      if (!db.objectStoreNames.contains(TASK_STORE_NAME)) {
+        const store = db.createObjectStore(TASK_STORE_NAME, { keyPath: 'taskId' })
+        store.createIndex('createdAt', 'createdAt')
+      }
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error || new Error('IndexedDB unavailable'))
+  })
+}
+
+export async function listTasks(): Promise<ImageTaskItem[]> {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(TASK_STORE_NAME).objectStore(TASK_STORE_NAME).getAll()
+    request.onsuccess = () => resolve((request.result as ImageTaskItem[]).sort((a, b) => b.createdAt - a.createdAt))
+    request.onerror = () => reject(request.error)
+  })
+}
+
+export async function putTask(item: ImageTaskItem): Promise<void> {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(TASK_STORE_NAME, 'readwrite').objectStore(TASK_STORE_NAME).put(item)
+    request.onsuccess = () => resolve(); request.onerror = () => reject(request.error)
+  })
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(TASK_STORE_NAME, 'readwrite').objectStore(TASK_STORE_NAME).delete(taskId)
+    request.onsuccess = () => resolve(); request.onerror = () => reject(request.error)
   })
 }
 

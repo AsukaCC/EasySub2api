@@ -27,6 +27,15 @@ type ImageStorage interface {
 	Save(ctx context.Context, key, contentType string, data []byte) (url string, err error)
 }
 
+// ImageTaskArtifactStore stores private request bodies for queued image tasks.
+// It is intentionally separate from ImageStorage so request artifacts never
+// inherit the public/presigned URL behavior used for generated images.
+type ImageTaskArtifactStore interface {
+	Put(ctx context.Context, key, contentType string, data []byte) error
+	Get(ctx context.Context, key string) (data []byte, contentType string, err error)
+	Delete(ctx context.Context, key string) error
+}
+
 // ImageResultUploader 是 ImageStorage 的上层编排器（与具体厂商无关）：
 // 把上游生图响应里的每张图片（b64_json 解码 / url 下载）转存到对象存储，
 // 并把响应结果改写为只含短链接的紧凑 JSON，从而避免大 base64 落 Redis。
@@ -35,6 +44,12 @@ type ImageResultUploader struct {
 	httpClient       *http.Client
 	prefix           string
 	maxDownloadBytes int64
+}
+
+func (u *ImageResultUploader) ArtifactStore() ImageTaskArtifactStore {
+	if u == nil { return nil }
+	if store, ok := u.storage.(ImageTaskArtifactStore); ok { return store }
+	return nil
 }
 
 // NewImageResultUploader 构造一个 uploader；storage 为 nil 时 Rewrite 直接透传。

@@ -330,7 +330,7 @@ func isOpenAICompatibleAPIKeyRequest(c *gin.Context) bool {
 }
 
 func isAsyncImageTaskRead(method, path string) bool {
-	if method != http.MethodGet {
+	if method != http.MethodGet && method != http.MethodDelete {
 		return false
 	}
 	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/")
