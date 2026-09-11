@@ -1106,6 +1106,8 @@ export default {
     transparent: 'Transparent background',
     moderation: 'Moderation',
     compression: 'Compression',
+    advancedParams: 'Advanced',
+    moreParams: 'More options',
     history: 'History',
     favorites: 'Favorites',
     allFavorites: 'All',

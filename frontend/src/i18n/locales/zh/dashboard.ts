@@ -1108,6 +1108,8 @@ export default {
     transparent: '透明背景',
     moderation: '审核',
     compression: '压缩',
+    advancedParams: '高级参数',
+    moreParams: '更多设置',
     history: '历史记录',
     favorites: '收藏夹',
     allFavorites: '全部',

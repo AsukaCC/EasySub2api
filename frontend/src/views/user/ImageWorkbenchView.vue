@@ -124,6 +124,18 @@
       </section>
 
       <form class="composer" @submit.prevent="submitGeneration">
+        <div v-if="referenceFile || errorMessage" class="composer__context">
+          <button v-if="referenceFile" class="reference-chip" type="button" :title="t('imageWorkbench.clearReference')" @click="clearReference">
+            <Icon name="photo" size="xs" />
+            <span class="reference-chip__name">{{ referenceFile.name }}</span>
+            <Icon name="x" size="xs" />
+          </button>
+          <span v-if="errorMessage" class="error-message">
+            <Icon name="exclamationCircle" size="xs" />
+            <span>{{ errorMessage }}</span>
+          </span>
+        </div>
+
         <div class="composer__prompt">
           <textarea
             ref="promptInput"
@@ -138,66 +150,111 @@
           </button>
         </div>
 
-        <div class="composer__params">
-          <button class="icon-action composer__settings" type="button" :title="t('imageWorkbench.settings')" @click="openSettings">
-            <Icon name="cog" size="sm" />
-          </button>
-          <button class="param-field param-field--button" type="button" @click="openSizePicker('params')">
-            <span>{{ t('imageWorkbench.size') }}</span>
-            <span class="param-field__value">{{ params.size || 'auto' }}</span>
-          </button>
-          <label v-if="adapter.capabilities.quality" class="param-field">
-            <span>{{ t('imageWorkbench.quality') }}</span>
-            <select v-model="params.quality">
-              <option value="auto">auto</option>
-              <option value="low">low</option>
-              <option value="medium">medium</option>
-              <option value="high">high</option>
-            </select>
-          </label>
-          <label v-if="adapter.capabilities.outputFormat" class="param-field">
-            <span>{{ t('imageWorkbench.format') }}</span>
-            <select v-model="params.output_format">
-              <option value="png">PNG</option>
-              <option value="jpeg">JPEG</option>
-              <option value="webp">WebP</option>
-            </select>
-          </label>
-          <label v-if="adapter.capabilities.transparency" class="param-field">
-            <span>{{ t('imageWorkbench.transparent') }}</span>
-            <select v-model="params.background">
-              <option value="auto">auto</option>
-              <option value="transparent">true</option>
-              <option value="opaque">false</option>
-            </select>
-          </label>
-          <label v-if="adapter.capabilities.quality" class="param-field">
-            <span>{{ t('imageWorkbench.moderation') }}</span>
-            <select v-model="params.moderation">
-              <option value="auto">auto</option>
-              <option value="low">low</option>
-            </select>
-          </label>
-          <label class="param-field param-field--quantity">
-            <span>{{ t('imageWorkbench.quantity') }}</span>
-            <input v-model.number="params.n" type="number" min="1" max="4" />
-          </label>
-          <label class="icon-action" :class="{ 'icon-action--filled': referenceFile }" :title="referenceFile?.name || t('imageWorkbench.uploadReference')">
-            <Icon name="paperclip" size="sm" />
-            <input type="file" accept="image/png,image/jpeg,image/webp" hidden @change="onReferenceChange" />
-          </label>
-          <button class="send-button" type="submit" :disabled="generating || !prompt.trim()" :title="generating ? t('imageWorkbench.generating') : t('imageWorkbench.generate')">
-            <Icon name="arrowRight" size="sm" />
-          </button>
-        </div>
+        <Transition name="advanced-slide">
+          <div v-if="showAdvanced && hasAdvancedCapabilities" class="composer__advanced">
+            <label v-if="adapter.capabilities.outputFormat" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.format')">
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.format') }}</span>
+              <select v-model="params.output_format">
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WebP</option>
+              </select>
+              <Icon name="chevronDown" size="xs" />
+            </label>
+            <label v-if="adapter.capabilities.outputFormat" class="toolbar-pill toolbar-pill--input" :title="t('imageWorkbench.compression')">
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.compression') }}</span>
+              <input v-model.number="params.output_compression" type="number" min="0" max="100" step="1" />
+              <span class="toolbar-pill__suffix">%</span>
+            </label>
+            <label v-if="adapter.capabilities.transparency" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.transparent')">
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.transparent') }}</span>
+              <select v-model="params.background">
+                <option value="auto">auto</option>
+                <option value="transparent">transparent</option>
+                <option value="opaque">opaque</option>
+              </select>
+              <Icon name="chevronDown" size="xs" />
+            </label>
+            <label v-if="adapter.capabilities.quality" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.moderation')">
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.moderation') }}</span>
+              <select v-model="params.moderation">
+                <option value="auto">auto</option>
+                <option value="low">low</option>
+              </select>
+              <Icon name="chevronDown" size="xs" />
+            </label>
+          </div>
+        </Transition>
 
-        <div v-if="referenceFile || errorMessage" class="composer__meta">
-          <button v-if="referenceFile" class="reference-chip" type="button" @click="clearReference">
-            <Icon name="photo" size="xs" />
-            <span>{{ referenceFile.name }}</span>
-            <Icon name="x" size="xs" />
-          </button>
-          <span v-if="errorMessage" class="error-message">{{ errorMessage }}</span>
+        <div class="composer__toolbar">
+          <div class="composer__toolbar-left">
+            <button
+              class="toolbar-pill toolbar-pill--model"
+              type="button"
+              :title="t('imageWorkbench.settings')"
+              @click="openSettings"
+            >
+              <Icon name="cog" size="xs" />
+              <span class="toolbar-pill__label">{{ activeModelBadge }}</span>
+            </button>
+            <button
+              v-if="adapter.capabilities.size"
+              class="toolbar-pill toolbar-pill--button"
+              type="button"
+              :title="t('imageWorkbench.sizePickerTitle')"
+              @click="openSizePicker('params')"
+            >
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.size') }}</span>
+              <span class="toolbar-pill__val">{{ params.size || 'auto' }}</span>
+              <Icon name="chevronDown" size="xs" />
+            </button>
+            <label v-if="adapter.capabilities.quality" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.quality')">
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.quality') }}</span>
+              <select v-model="params.quality">
+                <option value="auto">auto</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+              <Icon name="chevronDown" size="xs" />
+            </label>
+            <label class="toolbar-pill toolbar-pill--number" :title="t('imageWorkbench.quantity')">
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.quantity') }}</span>
+              <input v-model.number="params.n" type="number" min="1" max="4" step="1" />
+            </label>
+            <button
+              v-if="hasAdvancedCapabilities"
+              class="toolbar-pill toolbar-pill--toggle"
+              :class="{ 'toolbar-pill--active': showAdvanced, 'toolbar-pill--has-custom': hasCustomAdvanced }"
+              type="button"
+              :title="t('imageWorkbench.advancedParams')"
+              @click="showAdvanced = !showAdvanced"
+            >
+              <span class="toolbar-pill__prefix">{{ t('imageWorkbench.advancedParams') }}</span>
+              <span v-if="hasCustomAdvanced" class="toolbar-pill__dot"></span>
+              <Icon :name="showAdvanced ? 'chevronUp' : 'chevronDown'" size="xs" />
+            </button>
+          </div>
+
+          <div class="composer__toolbar-right">
+            <label
+              class="action-btn"
+              :class="{ 'action-btn--filled': referenceFile }"
+              :title="referenceFile?.name || t('imageWorkbench.uploadReference')"
+            >
+              <Icon name="paperclip" size="sm" />
+              <input type="file" accept="image/png,image/jpeg,image/webp" hidden @change="onReferenceChange" />
+            </label>
+            <button
+              class="action-btn action-btn--send"
+              type="submit"
+              :disabled="generating || !prompt.trim()"
+              :title="generating ? t('imageWorkbench.generating') : `${t('imageWorkbench.generate')} (Ctrl+Enter)`"
+            >
+              <Icon v-if="!generating" name="arrowRight" size="sm" />
+              <span v-else class="btn-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -351,7 +408,8 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
 const enabledAdapters = computed(() => imagePlatformAdapters.filter((adapter) => adapter.enabled))
-const activePlatform = ref<ImagePlatform>('openai')
+const defaultPlatform = imagePlatformAdapters.find((item) => item.enabled)?.id || 'openai'
+const activePlatform = ref<ImagePlatform>(defaultPlatform)
 const credentials = ref<{ keys: import('@/types').ApiKey[]; groups: import('@/types').Group[] }>({ keys: [], groups: [] })
 const loadingHistory = ref(true)
 const generating = ref(false)
@@ -405,6 +463,26 @@ const selectedModel = computed({
   },
 })
 const selectedKey = computed(() => eligibleKeys.value.find((key) => key.id === selectedKeyId.value))
+const showAdvanced = ref(false)
+const hasAdvancedCapabilities = computed(() => {
+  return Boolean(
+    adapter.value.capabilities.outputFormat ||
+    adapter.value.capabilities.transparency ||
+    adapter.value.capabilities.quality
+  )
+})
+const hasCustomAdvanced = computed(() => {
+  return (
+    params.output_format !== 'png' ||
+    params.output_compression !== 100 ||
+    params.background !== 'opaque' ||
+    params.moderation !== 'auto'
+  )
+})
+const activeModelBadge = computed(() => {
+  if (selectedModel.value) return selectedModel.value
+  return adapter.value.label || activePlatform.value
+})
 const inCollectionOverview = computed(() => favoritesOnly.value && !activeFavoriteCollectionId.value)
 const favoriteButtonTitle = computed(() => {
   if (activeFavoriteCollectionId.value) return t('imageWorkbench.backToCollections')
@@ -573,6 +651,7 @@ function reuseItem(item: ImageHistoryItem) {
   if (typeof item.params?.size === 'string') params.size = item.params.size
   if (typeof item.params?.quality === 'string') params.quality = item.params.quality
   if (typeof item.params?.output_format === 'string') params.output_format = item.params.output_format
+  if (typeof item.params?.output_compression === 'number') params.output_compression = item.params.output_compression
   if (typeof item.params?.background === 'string') params.background = item.params.background
   if (typeof item.params?.moderation === 'string') params.moderation = item.params.moderation
   if (typeof item.params?.n === 'number') params.n = item.params.n
@@ -859,7 +938,9 @@ onMounted(async () => {
     }
     if (typeof saved.size === 'string') preferences.size = saved.size
     if (typeof saved.quality === 'string') preferences.quality = saved.quality
-    if (saved.platform === 'openai' || saved.platform === 'grok') activePlatform.value = saved.platform
+    if ((saved.platform === 'openai' || saved.platform === 'grok') && imagePlatformAdapters.some((item) => item.id === saved.platform && item.enabled)) {
+      activePlatform.value = saved.platform
+    }
     if (saved.selectedByPlatform) {
       if (saved.selectedByPlatform.openai) Object.assign(selectedByPlatform.openai, saved.selectedByPlatform.openai)
       if (saved.selectedByPlatform.grok) Object.assign(selectedByPlatform.grok, saved.selectedByPlatform.grok)
@@ -956,22 +1037,56 @@ onUnmounted(() => {
 .pill-select {
   position: relative;
   min-width: 5.4rem;
-  padding: 0 1.65rem 0 .9rem;
+  padding: 0 1.85rem 0 .95rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  color: var(--color-text-secondary);
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
 }
 
-.pill-select select {
+.pill-select:hover,
+.pill-select:focus-within {
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--theme-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 98%, transparent);
+}
+
+.pill-select:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 25%, transparent);
+}
+
+.pill-select select,
+.pill-select select:hover,
+.pill-select select:focus,
+.pill-select select:active {
   width: 100%;
-  border: 0;
-  background: transparent;
-  color: inherit;
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  color: var(--color-text-primary) !important;
   font: inherit;
-  appearance: none;
+  cursor: pointer;
 }
 
 .pill-select :deep(.app-icon) {
   position: absolute;
-  right: .65rem;
+  right: .75rem;
   pointer-events: none;
+  color: var(--color-text-tertiary);
+  transition: color .15s ease;
+}
+
+.pill-select:hover :deep(.app-icon),
+.pill-select:focus-within :deep(.app-icon) {
+  color: var(--color-text-primary);
 }
 
 .search-field {
@@ -1166,33 +1281,389 @@ onUnmounted(() => {
   z-index: 5;
   left: 50%;
   bottom: .85rem;
-  display: grid;
-  width: min(46rem, calc(100% - 1.5rem));
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  width: min(48rem, calc(100% - 1.5rem));
   box-sizing: border-box;
   transform: translateX(-50%);
-  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
-  border-radius: 1.35rem;
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
-  padding: .7rem 1rem .75rem 3.15rem;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
-  backdrop-filter: blur(18px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  padding: .75rem .85rem .65rem;
+  box-shadow: 0 16px 44px -8px rgba(0, 0, 0, .28), 0 2px 10px rgba(0, 0, 0, .06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
 
-.composer__params {
+.composer:focus-within {
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  box-shadow: 0 20px 50px -6px rgba(0, 0, 0, .32), 0 0 0 1px color-mix(in srgb, var(--theme-accent) 25%, transparent);
+}
+
+.composer__context {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: center;
   gap: .45rem;
+  min-height: 0;
 }
 
-.composer__settings {
+.reference-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  max-width: 100%;
+  height: 1.75rem;
+  padding: 0 .6rem;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 35%, var(--color-border));
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--theme-accent) 12%, var(--color-surface));
+  color: var(--color-text-primary);
+  font-size: .75rem;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.reference-chip:hover {
+  background: color-mix(in srgb, var(--theme-accent) 18%, var(--color-surface));
+  border-color: var(--theme-accent);
+}
+
+.reference-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
+}
+
+.error-message {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  color: #ef4444;
+  font-size: .75rem;
+}
+
+.composer__prompt {
+  position: relative;
+  width: 100%;
+}
+
+.composer__prompt textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.35rem;
+  max-height: 7.5rem;
+  border: 0;
+  border-radius: .75rem;
+  background: transparent;
+  color: var(--color-text-primary);
+  padding: .3rem 2rem .3rem .15rem;
+  resize: none;
+  font: inherit;
+  font-size: .88rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.composer__prompt textarea::placeholder {
+  color: color-mix(in srgb, var(--color-text-secondary) 85%, transparent);
+}
+
+.composer__clear {
   position: absolute;
-  left: .65rem;
-  bottom: .65rem;
-  z-index: 1;
+  top: .25rem;
+  right: .2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface-muted) 80%, transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  transition: all .15s ease;
 }
 
-.composer__creds label,
+.composer__clear:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-muted);
+}
+
+.composer__advanced {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .45rem;
+  padding: .45rem .6rem;
+  border-radius: .75rem;
+  background: color-mix(in srgb, var(--color-surface-muted) 55%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+.advanced-slide-enter-active,
+.advanced-slide-leave-active {
+  transition: all .2s ease;
+}
+
+.advanced-slide-enter-from,
+.advanced-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.composer__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+  width: 100%;
+}
+
+.composer__toolbar-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .45rem;
+  min-width: 0;
+}
+
+.composer__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-shrink: 0;
+}
+
+.toolbar-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  height: 2rem;
+  padding: 0 .65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: .78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, color .15s ease;
+  box-sizing: border-box;
+}
+
+.toolbar-pill:hover,
+.toolbar-pill:focus-within {
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--theme-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 98%, transparent);
+}
+
+.toolbar-pill:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 25%, transparent);
+}
+
+.toolbar-pill__prefix {
+  color: var(--color-text-secondary);
+  font-size: .74rem;
+  opacity: .9;
+}
+
+.toolbar-pill__val {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar-pill--model {
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  font-weight: 500;
+  max-width: 11.5rem;
+}
+
+.toolbar-pill--model .toolbar-pill__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-pill--model:hover {
+  color: var(--theme-accent);
+}
+
+.toolbar-pill--button {
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+}
+
+.toolbar-pill--select select,
+.toolbar-pill--select select:hover,
+.toolbar-pill--select select:focus,
+.toolbar-pill--select select:active {
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  color: var(--color-text-primary) !important;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 .15rem 0 0;
+  margin: 0;
+}
+
+.toolbar-pill--select :deep(.app-icon) {
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  transition: transform .15s ease, color .15s ease;
+}
+
+.toolbar-pill--select:hover :deep(.app-icon),
+.toolbar-pill--select:focus-within :deep(.app-icon) {
+  color: var(--color-text-primary);
+}
+
+.toolbar-pill--number input,
+.toolbar-pill--input input {
+  width: 2.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  text-align: center;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.toolbar-pill--number input::-webkit-outer-spin-button,
+.toolbar-pill--number input::-webkit-inner-spin-button,
+.toolbar-pill--input input::-webkit-outer-spin-button,
+.toolbar-pill--input input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.toolbar-pill__suffix {
+  color: var(--color-text-secondary);
+  font-size: .74rem;
+  margin-left: -.2rem;
+}
+
+.toolbar-pill--toggle {
+  background: transparent;
+}
+
+.toolbar-pill--active {
+  color: var(--theme-accent);
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--theme-accent) 10%, var(--color-surface));
+}
+
+.toolbar-pill__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  display: inline-block;
+}
+
+.action-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface-muted) 80%, transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all .15s ease;
+  box-sizing: border-box;
+}
+
+.action-btn:hover {
+  color: var(--theme-accent);
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  background: var(--color-surface);
+}
+
+.action-btn--filled {
+  color: var(--theme-accent);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 12%, var(--color-surface));
+}
+
+.action-btn--send {
+  border: 0;
+  border-radius: var(--radius-md, .75rem);
+  background: var(--theme-accent);
+  color: #fff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-accent) 35%, transparent);
+}
+
+.action-btn--send:hover:not(:disabled) {
+  opacity: .92;
+  transform: translateY(-1px);
+  color: #fff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--theme-accent) 45%, transparent);
+}
+
+.action-btn--send:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.action-btn--send:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin .7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+select {
+  color-scheme: light dark;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #09090b;
+  padding: .4rem .6rem;
+}
+
+:global(html.dark) select option,
+:global(.dark) select option {
+  background-color: #1e1e28;
+  color: #f4f4f6;
+}
+
 .param-field,
 .settings-form label,
 .settings-step {
@@ -1202,76 +1673,54 @@ onUnmounted(() => {
   font-size: .72rem;
 }
 
-.composer__creds select,
 .param-field select,
 .param-field input,
 .param-field__value,
 .settings-form select,
-.settings-form input,
-.composer__prompt textarea {
+.settings-form input {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-surface-muted) 88%, transparent);
+  background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
   color: var(--color-text-primary);
-  padding: .42rem .7rem;
+  padding: .45rem .8rem;
   font: inherit;
   font-size: .82rem;
+  transition: border-color .15s ease, background-color .15s ease;
 }
 
 .param-field select,
-.composer__creds select,
 .settings-form select,
 .param-field__value {
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right .55rem center;
+  background-position: right .65rem center;
   background-size: .8rem;
-  padding-right: 1.55rem;
+  padding-right: 1.65rem;
 }
 
-.param-field input[type='number'] {
-  appearance: textfield;
+.settings-form select:hover,
+.param-field select:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
+  background-color: color-mix(in srgb, var(--color-surface) 98%, transparent);
 }
 
-.param-field input[type='number']::-webkit-outer-spin-button,
-.param-field input[type='number']::-webkit-inner-spin-button {
-  appearance: none;
+.settings-form select:focus,
+.param-field select:focus {
+  border-color: var(--theme-accent);
+  background-color: var(--color-surface);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  outline: none;
 }
 
-.composer__prompt {
-  position: relative;
-  margin-bottom: .55rem;
-}
-
-.composer__prompt textarea {
-  min-height: 2.4rem;
-  max-height: 7rem;
-  border-radius: .9rem;
-  padding: .65rem 2.1rem .65rem .9rem;
-  resize: none;
-  line-height: 1.45;
-}
-
-.composer__clear {
-  position: absolute;
-  top: .55rem;
-  right: .45rem;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-full);
-}
-
-.param-field {
-  flex: 1 1 0;
-  min-width: 5.1rem;
-}
-
-.param-field--quantity {
-  flex: 0 0 4.1rem;
-  min-width: 3.8rem;
+.settings-form select:disabled,
+.param-field select:disabled {
+  opacity: .5;
+  cursor: not-allowed;
 }
 
 .param-field--button {
@@ -1290,56 +1739,6 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.icon-action,
-.send-button {
-  flex: 0 0 auto;
-  width: 2.35rem;
-  height: 2.35rem;
-  margin-bottom: .05rem;
-}
-
-.icon-action {
-  border-radius: var(--radius-full);
-}
-
-.send-button {
-  border-radius: .8rem;
-}
-
-.icon-action {
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface-muted) 88%, transparent);
-}
-
-.icon-action--filled,
-.icon-action:hover {
-  color: var(--theme-accent);
-  border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
-}
-
-.send-button {
-  background: #3b82f6;
-  color: #fff;
-}
-
-.send-button:hover {
-  background: #2563eb;
-  color: #fff;
-}
-
-.send-button:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-}
-
-.composer__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .5rem;
-  margin-top: .55rem;
 }
 
 .reference-chip,
@@ -1530,7 +1929,7 @@ onUnmounted(() => {
 
 @media (max-width: 720px) {
   .gallery {
-    padding-bottom: 11rem;
+    padding-bottom: 9.5rem;
   }
 
   .history-card {
@@ -1539,12 +1938,31 @@ onUnmounted(() => {
 
   .composer {
     width: calc(100% - .75rem);
-    bottom: .5rem;
-    padding: .6rem .7rem .7rem 3rem;
+    bottom: .45rem;
+    padding: .65rem .75rem .6rem;
+    border-radius: 1rem;
   }
 
-  .param-field {
-    flex: 1 1 calc(50% - .45rem);
+  .composer__toolbar {
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  .composer__toolbar-left {
+    flex: 1 1 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: .25rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .composer__toolbar-left::-webkit-scrollbar {
+    display: none;
+  }
+
+  .composer__toolbar-right {
+    margin-left: auto;
   }
 }
 </style>

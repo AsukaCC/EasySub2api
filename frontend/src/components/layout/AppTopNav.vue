@@ -140,17 +140,24 @@ function finalizeNav(items: NavItem[]): NavItem[] {
   return visible.filter((item) => !item.hideInSimpleMode)
 }
 
-// 菜单顺序:高频核心(仪表盘/密钥/用量)→ 账务闭环(购买/订阅/订单/兑换)
+// 菜单顺序:高频核心(仪表盘/生图/密钥/用量)→ 账务闭环(购买/订阅/订单/兑换)
 // → 渠道信息(可用渠道/渠道状态)→ 其他(推广/自定义),同类相邻。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
   if (withDashboard) {
-    items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: 'home' })
+    items.push(
+      { path: '/dashboard', label: t('nav.dashboard'), icon: 'home' },
+      { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: 'photo', hideInSimpleMode: true, featureFlag: flagImageWorkbench },
+    )
+  } else {
+    items.push(
+      { path: '/keys', label: t('nav.apiKeys'), icon: 'key' },
+      { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: 'photo', hideInSimpleMode: true, featureFlag: flagImageWorkbench },
+    )
   }
   items.push(
-    { path: '/keys', label: t('nav.apiKeys'), icon: 'key' },
+    ...(withDashboard ? [{ path: '/keys', label: t('nav.apiKeys'), icon: 'key' }] : []),
     { path: '/usage', label: t('nav.usage'), icon: 'chart', hideInSimpleMode: true },
-    { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: 'photo', hideInSimpleMode: true, featureFlag: flagImageWorkbench },
     { path: '/usage-guide', label: t('nav.usageGuide'), icon: 'document', hideInSimpleMode: true, featureFlag: flagUsageGuide },
     {
       path: '/purchase',

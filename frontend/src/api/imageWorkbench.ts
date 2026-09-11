@@ -44,7 +44,8 @@ export const imagePlatformAdapters: ImagePlatformAdapter[] = [
   {
     id: 'grok',
     label: 'Grok',
-    enabled: true,
+    // Keep the adapter ready for a future rollout without exposing it in the first release.
+    enabled: false,
     groupPlatform: 'grok',
     defaultModel: 'grok-imagine-image-quality',
     isImageModel: (model) => /^grok-imagine-image/i.test(model),
