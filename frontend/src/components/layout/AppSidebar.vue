@@ -809,17 +809,24 @@ const flagSupportTickets = () =>
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
-// 条目顺序与顶部导航(AppTopNav)保持一致：高频核心（密钥/用量）→
+// 条目顺序与顶部导航(AppTopNav)保持一致：高频核心（仪表盘/生图/密钥/用量）→
 // 账务闭环（购买/订阅/订单/兑换）→ 渠道信息（可用渠道/渠道状态）→ 其他（推广/资料）。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
   if (withDashboard) {
-    items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
+    items.push(
+      { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+      { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: PriceTagIcon, hideInSimpleMode: true, featureFlag: flagImageWorkbench },
+    )
+  } else {
+    items.push(
+      { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+      { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: PriceTagIcon, hideInSimpleMode: true, featureFlag: flagImageWorkbench },
+    )
   }
   items.push(
-    { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+    ...(withDashboard ? [{ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon }] : []),
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
-    { path: '/image-workbench', label: t('nav.imageWorkbench'), icon: PriceTagIcon, hideInSimpleMode: true, featureFlag: flagImageWorkbench },
     { path: '/usage-guide', label: t('nav.usageGuide'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagUsageGuide },
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
