@@ -813,6 +813,7 @@ const (
 
 // GatewayConfig API网关相关配置
 type GatewayConfig struct {
+	ImageTaskQueue ImageTaskQueueConfig `mapstructure:"image_task_queue"`
 	// Antigravity 429 fallback cooldown when the upstream omits a reset time.
 	AntigravityFallbackCooldownMinutes int   `mapstructure:"antigravity_fallback_cooldown_minutes"`
 	ModelsListReadMaxBytes             int64 `mapstructure:"models_list_read_max_bytes"`
@@ -963,6 +964,12 @@ type GatewayConfig struct {
 	// CNProviders: 国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）的余额检测配置。
 	// 仅作用于 payg（按量付费）账号：周期探测余额，低于阈值则临时停调。
 	CNProviders GatewayCNProvidersConfig `mapstructure:"cn_providers"`
+}
+
+type ImageTaskQueueConfig struct {
+	WorkerCount int `mapstructure:"worker_count"`
+	MaxAttempts int `mapstructure:"max_attempts"`
+	ClaimIdleSeconds int `mapstructure:"claim_idle_seconds"`
 }
 
 // GatewayGrokConfig holds Grok-specific gateway scheduling knobs.
@@ -2245,6 +2252,9 @@ func setDefaults() {
 	viper.SetDefault("gateway.image_concurrency.overflow_mode", ImageConcurrencyOverflowModeReject)
 	viper.SetDefault("gateway.image_concurrency.wait_timeout_seconds", 30)
 	viper.SetDefault("gateway.image_concurrency.max_waiting_requests", 100)
+	viper.SetDefault("gateway.image_task_queue.worker_count", 2)
+	viper.SetDefault("gateway.image_task_queue.max_attempts", 3)
+	viper.SetDefault("gateway.image_task_queue.claim_idle_seconds", 300)
 	viper.SetDefault("gateway.max_body_size", int64(256*1024*1024))
 	viper.SetDefault("gateway.text_max_body_size", int64(32*1024*1024))
 	viper.SetDefault("gateway.upstream_response_read_max_bytes", DefaultUpstreamResponseReadMaxBytes)

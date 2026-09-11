@@ -198,6 +198,10 @@ security:
 # 网关配置
 # =============================================================================
 gateway:
+  image_task_queue:
+    worker_count: 2
+    max_attempts: 3
+    claim_idle_seconds: 300
   # Timeout for waiting upstream response headers (seconds)
   # 等待上游响应头超时时间（秒）
   response_header_timeout: 600
