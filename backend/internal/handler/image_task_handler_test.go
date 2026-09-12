@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,6 +43,13 @@ func (s *asyncImageMemoryStore) Get(_ context.Context, id string) (*service.Imag
 	copy.Result = append(json.RawMessage(nil), task.Result...)
 	copy.Error = append(json.RawMessage(nil), task.Error...)
 	return &copy, nil
+}
+
+func (s *asyncImageMemoryStore) Delete(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.tasks, id)
+	return nil
 }
 
 func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
@@ -142,6 +150,71 @@ func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 
 	// No task was created / persisted.
 	require.Empty(t, store.tasks)
+}
+
+func TestAsyncImageHandlerRetriesExistingTaskAndDeletesTerminalTask(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	var calls atomic.Int32
+	h := &AsyncImageHandler{tasks: tasks}
+	h.execute = func(_ string, c *gin.Context) {
+		if calls.Add(1) == 1 {
+			c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"type": "api_error", "message": "temporary upstream failure"}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"created": 123, "data": []gin.H{{"url": "https://example.test/image.png"}}})
+	}
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		groupID := int64(3)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+			ID: 9, UserID: 7, GroupID: &groupID,
+			Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
+		})
+		c.Next()
+	})
+	router.POST("/v1/images/generations/async", h.Submit)
+	router.POST("/v1/images/tasks/:task_id/retry", h.Retry)
+	router.GET("/v1/images/tasks/:task_id", h.Get)
+	router.DELETE("/v1/images/tasks/:task_id", h.Cancel)
+
+	submit := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations/async", strings.NewReader(`{"model":"gpt-image-1","prompt":"cat"}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(submit, req)
+	require.Equal(t, http.StatusAccepted, submit.Code)
+	var accepted struct {
+		TaskID string `json:"task_id"`
+	}
+	require.NoError(t, json.Unmarshal(submit.Body.Bytes(), &accepted))
+	require.NotEmpty(t, accepted.TaskID)
+
+	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	require.Eventually(t, func() bool {
+		task, err := tasks.Get(context.Background(), owner, accepted.TaskID)
+		return err == nil && task.Status == service.ImageTaskStatusFailed
+	}, time.Second, 10*time.Millisecond)
+
+	retry := httptest.NewRecorder()
+	router.ServeHTTP(retry, httptest.NewRequest(http.MethodPost, "/v1/images/tasks/"+accepted.TaskID+"/retry", nil))
+	require.Equal(t, http.StatusAccepted, retry.Code)
+	var retried struct {
+		TaskID string `json:"task_id"`
+	}
+	require.NoError(t, json.Unmarshal(retry.Body.Bytes(), &retried))
+	require.Equal(t, accepted.TaskID, retried.TaskID)
+	require.Eventually(t, func() bool {
+		task, err := tasks.Get(context.Background(), owner, accepted.TaskID)
+		return err == nil && task.Status == service.ImageTaskStatusCompleted
+	}, time.Second, 10*time.Millisecond)
+
+	remove := httptest.NewRecorder()
+	router.ServeHTTP(remove, httptest.NewRequest(http.MethodDelete, "/v1/images/tasks/"+accepted.TaskID, nil))
+	require.Equal(t, http.StatusNoContent, remove.Code)
+	_, err := tasks.Get(context.Background(), owner, accepted.TaskID)
+	require.ErrorIs(t, err, service.ErrImageTaskNotFound)
 }
 
 func TestShouldRetryQueuedImageTaskSkipsOpenAICapacityShed(t *testing.T) {

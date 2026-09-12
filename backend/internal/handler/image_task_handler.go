@@ -36,6 +36,15 @@ type AsyncImageHandler struct {
 	claimIdle   time.Duration
 	cancelMu    sync.Mutex
 	cancel      map[string]context.CancelFunc
+	detachedMu  sync.RWMutex
+	detached    map[string]detachedImageRequest
+}
+
+type detachedImageRequest struct {
+	body        []byte
+	contentType string
+	path        string
+	platform    string
 }
 
 type imageTaskQueue interface {
@@ -47,7 +56,7 @@ type imageTaskQueue interface {
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler) *AsyncImageHandler {
-	h := &AsyncImageHandler{tasks: tasks, openAI: openAI, cancel: make(map[string]context.CancelFunc)}
+	h := &AsyncImageHandler{tasks: tasks, openAI: openAI, cancel: make(map[string]context.CancelFunc), detached: make(map[string]detachedImageRequest)}
 	h.execute = h.executeWithGateway
 	return h
 }
@@ -153,7 +162,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		store := h.tasks.ArtifactStore()
 		if store == nil {
 			submitLog.Warn("image_task.artifact_store_unavailable")
-			h.submitDetached(c, body, platform, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+			h.submitDetached(c, body, platform, endpoint, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
 			return
 		}
 		taskID := "imgtask_" + strings.ReplaceAll(uuid.NewString(), "-", "")
@@ -164,8 +173,8 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 			// temporarily unavailable. The detached path retains the request only
 			// for the task execution window; generated results still use the normal
 			// uploader and report storage failures through task status.
-			_ = store.Delete(context.Background(), payloadKey)
-			h.submitDetached(c, body, platform, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+			go cleanupImageTaskArtifact(store, payloadKey)
+			h.submitDetached(c, body, platform, endpoint, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
 			return
 		}
 		task, err := h.tasks.CreateQueued(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}, platform, endpoint, c.GetHeader("Content-Type"), payloadKey)
@@ -180,7 +189,8 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 			if failErr := h.tasks.Fail(context.Background(), task.ID, http.StatusServiceUnavailable, imageTaskErrorPayload("api_error", "image task queue is unavailable")); failErr != nil {
 				submitLog.Error("image_task.queue_failure_record_failed", zap.String("task_id", task.ID), zap.Error(failErr))
 			}
-			_ = store.Delete(context.Background(), payloadKey)
+			// Keep the request artifact until the task expires so a caller can
+			// retry this same task after the queue recovers.
 			imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
 			return
 		}
@@ -192,17 +202,30 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		return
 	}
 
-	h.submitDetached(c, body, platform, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+	h.submitDetached(c, body, platform, endpoint, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
 }
 
-func (h *AsyncImageHandler) submitDetached(c *gin.Context, body []byte, platform string, owner service.ImageTaskOwner) {
-	taskCtx, recorder, cancel := newAsyncImageContext(c, body, h.tasks.ExecutionTimeout())
+func (h *AsyncImageHandler) submitDetached(c *gin.Context, body []byte, platform, endpoint string, owner service.ImageTaskOwner) {
 	task, err := h.tasks.Create(c.Request.Context(), owner)
 	if err != nil {
-		cancel()
 		imageTaskError(c, err)
 		return
 	}
+	record, err := h.tasks.Record(c.Request.Context(), task.ID)
+	if err != nil {
+		_ = h.tasks.Delete(context.Background(), owner, task.ID)
+		imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
+		return
+	}
+	record.Platform = platform
+	record.Endpoint = endpoint
+	record.ContentType = c.GetHeader("Content-Type")
+	if err := h.tasks.SaveRecord(c.Request.Context(), record); err != nil {
+		_ = h.tasks.Delete(context.Background(), owner, task.ID)
+		imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
+		return
+	}
+	taskCtx, recorder, cancel := newAsyncImageContext(c, body, h.tasks.ExecutionTimeout())
 
 	pollURL := imageTaskPollURL(c.Request.URL.Path, task.ID)
 	c.Header("Cache-Control", "no-store")
@@ -218,16 +241,36 @@ func (h *AsyncImageHandler) submitDetached(c *gin.Context, body []byte, platform
 		"poll_url":   pollURL,
 	})
 
+	h.rememberDetached(task.ID, detachedImageRequest{
+		body: append([]byte(nil), body...), contentType: c.GetHeader("Content-Type"),
+		path: c.Request.URL.Path, platform: platform,
+	})
 	go h.run(task.ID, platform, taskCtx, recorder, cancel)
 }
 
 func (h *AsyncImageHandler) Cancel(c *gin.Context) {
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
-	if !ok || apiKey == nil {
+	if !ok || apiKey == nil || apiKey.UserID == "" || apiKey.ID == "" {
 		imageTaskError(c, service.ErrImageTaskForbidden)
 		return
 	}
-	task, err := h.tasks.Cancel(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}, c.Param("task_id"))
+	owner := service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}
+	task, err := h.tasks.Get(c.Request.Context(), owner, c.Param("task_id"))
+	if err != nil {
+		imageTaskError(c, err)
+		return
+	}
+	if task.Status != service.ImageTaskStatusQueued && task.Status != service.ImageTaskStatusProcessing {
+		if err := h.tasks.Delete(c.Request.Context(), owner, c.Param("task_id")); err != nil {
+			imageTaskError(c, err)
+			return
+		}
+		h.forgetDetached(task.ID)
+		c.Header("Cache-Control", "no-store")
+		c.Status(http.StatusNoContent)
+		return
+	}
+	task, err = h.tasks.Cancel(c.Request.Context(), owner, c.Param("task_id"))
 	if err != nil {
 		imageTaskError(c, err)
 		return
@@ -240,6 +283,160 @@ func (h *AsyncImageHandler) Cancel(c *gin.Context) {
 	h.cancelMu.Unlock()
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, task)
+}
+
+// Retry requeues a failed or canceled task without changing its ID.
+func (h *AsyncImageHandler) Retry(c *gin.Context) {
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.UserID == "" || apiKey.ID == "" {
+		imageTaskError(c, service.ErrImageTaskForbidden)
+		return
+	}
+	owner := service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}
+	record, err := h.tasks.Record(c.Request.Context(), c.Param("task_id"))
+	if err != nil {
+		if errors.Is(err, service.ErrImageTaskNotFound) {
+			imageTaskError(c, err)
+		} else {
+			imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
+		}
+		return
+	}
+	if record.UserID != owner.UserID || record.APIKeyID != owner.APIKeyID {
+		imageTaskError(c, service.ErrImageTaskNotFound)
+		return
+	}
+	if record.Status != service.ImageTaskStatusFailed && record.Status != service.ImageTaskStatusCanceled {
+		imageTaskError(c, service.ErrImageTaskNotRetryable)
+		return
+	}
+	retryBody, retryContentType, err := readOptionalImageTaskBody(c)
+	if err != nil {
+		imageTaskJSONError(c, http.StatusBadRequest, "invalid_request_error", "Failed to read retry request body")
+		return
+	}
+
+	// Queue-backed tasks retain their request artifact after failure. Detached
+	// fallback tasks retain their body in-process for the same retry behavior.
+	detached, hasDetached := h.getDetached(record.ID)
+	store := h.tasks.ArtifactStore()
+	hasArtifact := false
+	if record.PayloadKey != "" && store != nil {
+		_, _, artifactErr := store.Get(c.Request.Context(), record.PayloadKey)
+		hasArtifact = artifactErr == nil
+	}
+	if !hasDetached && !hasArtifact && len(retryBody) == 0 {
+		imageTaskError(c, service.ErrImageTaskUnavailable)
+		return
+	}
+	if !hasArtifact && len(retryBody) > 0 && store != nil && record.PayloadKey != "" {
+		if err := store.Put(c.Request.Context(), record.PayloadKey, retryContentType, retryBody); err != nil {
+			imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
+			return
+		}
+		hasArtifact = true
+	}
+	retried, err := h.tasks.Retry(c.Request.Context(), owner, record.ID)
+	if err != nil {
+		imageTaskError(c, err)
+		return
+	}
+	if h.queue != nil && hasArtifact && !hasDetached {
+		if err := h.queue.Enqueue(c.Request.Context(), record.ID); err != nil {
+			_ = h.tasks.Fail(context.Background(), record.ID, http.StatusServiceUnavailable, imageTaskErrorPayload("api_error", "image task queue is unavailable"))
+			imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
+			return
+		}
+	} else {
+		if !hasDetached {
+			if hasArtifact && store != nil {
+				body, contentType, getErr := store.Get(c.Request.Context(), record.PayloadKey)
+				if getErr != nil {
+					_ = h.tasks.Fail(context.Background(), record.ID, http.StatusBadGateway, imageTaskErrorPayload("api_error", "failed to read image task request"))
+					imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(getErr))
+					return
+				}
+				detached = detachedImageRequest{body: body, contentType: contentType, path: "/v1/images/" + record.Endpoint + "/async", platform: record.Platform}
+			} else {
+				detached = detachedImageRequest{body: retryBody, contentType: retryContentType, path: "/v1/images/" + record.Endpoint + "/async", platform: record.Platform}
+			}
+			h.rememberDetached(record.ID, detached)
+		}
+		if err := h.startDetachedExisting(c, retried.ID, detached); err != nil {
+			_ = h.tasks.Fail(context.Background(), retried.ID, http.StatusServiceUnavailable, imageTaskErrorPayload("api_error", "image task worker is unavailable"))
+			imageTaskError(c, err)
+			return
+		}
+	}
+
+	c.Header("Cache-Control", "no-store")
+	c.Header("Location", imageTaskPollURL(c.Request.URL.Path, retried.ID))
+	c.Header("Retry-After", "3")
+	c.JSON(http.StatusAccepted, retried)
+}
+
+func readOptionalImageTaskBody(c *gin.Context) ([]byte, string, error) {
+	if c == nil || c.Request == nil || c.Request.Body == nil {
+		return nil, "", nil
+	}
+	if c.Request.ContentLength == 0 {
+		return nil, c.GetHeader("Content-Type"), nil
+	}
+	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
+	return body, c.GetHeader("Content-Type"), err
+}
+
+func (h *AsyncImageHandler) startDetachedExisting(c *gin.Context, taskID string, request detachedImageRequest) error {
+	record, err := h.tasks.Record(context.Background(), taskID)
+	if err != nil {
+		return service.ErrImageTaskUnavailable.WithCause(err)
+	}
+	record.Status = service.ImageTaskStatusProcessing
+	if err := h.tasks.SaveRecord(context.Background(), record); err != nil {
+		return service.ErrImageTaskUnavailable.WithCause(err)
+	}
+	retryContext := c.Copy()
+	if retryContext.Request != nil {
+		retryContext.Request = retryContext.Request.Clone(retryContext.Request.Context())
+		retryContext.Request.URL.Path = request.path
+		retryContext.Request.Header.Set("Content-Type", request.contentType)
+	}
+	taskCtx, recorder, cancel := newAsyncImageContext(retryContext, request.body, h.tasks.ExecutionTimeout())
+	go h.run(taskID, request.platform, taskCtx, recorder, cancel)
+	return nil
+}
+
+func (h *AsyncImageHandler) rememberDetached(taskID string, request detachedImageRequest) {
+	h.detachedMu.Lock()
+	defer h.detachedMu.Unlock()
+	if h.detached == nil {
+		h.detached = make(map[string]detachedImageRequest)
+	}
+	h.detached[taskID] = request
+}
+
+func (h *AsyncImageHandler) getDetached(taskID string) (detachedImageRequest, bool) {
+	h.detachedMu.RLock()
+	defer h.detachedMu.RUnlock()
+	request, ok := h.detached[taskID]
+	return request, ok
+}
+
+func (h *AsyncImageHandler) forgetDetached(taskID string) {
+	h.detachedMu.Lock()
+	delete(h.detached, taskID)
+	h.detachedMu.Unlock()
+}
+
+func cleanupImageTaskArtifact(store service.ImageTaskArtifactStore, key string) {
+	if store == nil || strings.TrimSpace(key) == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := store.Delete(ctx, key); err != nil {
+		logger.L().Debug("image_task.artifact_cleanup_failed", zap.String("key", key), zap.Error(err))
+	}
 }
 
 func (h *AsyncImageHandler) startWorkers() {
@@ -315,7 +512,10 @@ func (h *AsyncImageHandler) processQueuedTask(taskID string) {
 		h.cancelMu.Lock()
 		delete(h.cancel, taskID)
 		h.cancelMu.Unlock()
-		_ = store.Delete(context.Background(), record.PayloadKey)
+		current, getErr := h.tasks.Record(context.Background(), taskID)
+		if getErr == nil && current.Status == service.ImageTaskStatusCompleted {
+			_ = store.Delete(context.Background(), record.PayloadKey)
+		}
 	}()
 	ctx = context.WithValue(ctx, ctxkey.UserID, apiKey.UserID)
 	ctx = context.WithValue(ctx, ctxkey.APIKeyGroupIDs, apiKey.BoundGroupIDs())
@@ -464,6 +664,12 @@ func (h *AsyncImageHandler) executeWithGateway(platform string, c *gin.Context) 
 
 func (h *AsyncImageHandler) run(taskID, platform string, taskCtx *gin.Context, recorder *httptest.ResponseRecorder, cancel context.CancelFunc) {
 	defer cancel()
+	defer func() {
+		task, err := h.tasks.Record(context.Background(), taskID)
+		if err == nil && (task.Status == service.ImageTaskStatusCompleted || task.Status == service.ImageTaskStatusCanceled) {
+			h.forgetDetached(taskID)
+		}
+	}()
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			logger.L().Error("image_task.execution_panicked", zap.String("task_id", taskID), zap.Any("panic", recovered))

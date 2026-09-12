@@ -1149,6 +1149,7 @@ export default {
     canceled: '已中止',
     cancelTask: '中止任务',
     retryTask: '使用相同参数重试',
+    deleteTask: '删除任务',
     viewProblem: '查看问题',
     keyUnavailable: '原 Key 不可用，无法继续读取任务',
     referenceHint: '上传图片后将使用图片编辑接口',

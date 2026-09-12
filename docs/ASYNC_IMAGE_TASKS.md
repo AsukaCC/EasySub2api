@@ -10,9 +10,11 @@ The authenticated gateway exposes both `/v1` paths and their existing no-prefix 
 POST /v1/images/generations/async
 POST /v1/images/edits/async
 GET  /v1/images/tasks/{task_id}
+DELETE /v1/images/tasks/{task_id}
+POST /v1/images/tasks/{task_id}/retry
 ```
 
-The aliases are `/images/generations/async`, `/images/edits/async`, and `/images/tasks/{task_id}`.
+The aliases use the same paths without the `/v1` prefix.
 
 Only OpenAI and Grok groups are supported. Requests use the same JSON or multipart payload as the corresponding synchronous endpoint. Streaming image requests are rejected because a polled task returns one final JSON result.
 
@@ -186,6 +188,13 @@ For URL responses, `image_url` mirrors the first `data[].url` for simple clients
   "expires_at": 1784179323
 }
 ```
+
+Failed or canceled tasks can be retried with `POST /v1/images/tasks/{task_id}/retry`.
+The server resets and requeues the existing task record, so the task ID and
+polling URL stay unchanged. The original request body is retained until task
+expiry; a request body may also be supplied when the original body is no
+longer available. `DELETE /v1/images/tasks/{task_id}` removes a terminal task
+and its Redis record; request-artifact cleanup is best effort.
 
 All submit and poll responses include `Cache-Control: no-store`, preventing a CDN from caching the `processing` state. Tasks and results expire 24 hours after their latest state update. A task executes for at most 30 minutes.
 

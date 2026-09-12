@@ -26,10 +26,11 @@ const (
 )
 
 var (
-	ErrImageTaskNotFound    = infraerrors.New(http.StatusNotFound, "IMAGE_TASK_NOT_FOUND", "image task not found")
-	ErrImageTaskForbidden   = infraerrors.New(http.StatusForbidden, "IMAGE_TASK_FORBIDDEN", "image task does not belong to this API key")
-	ErrImageTaskUnavailable = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "image task storage is unavailable")
-	ErrImageTaskCanceled    = infraerrors.New(http.StatusConflict, "IMAGE_TASK_CANCELED", "image generation task was canceled")
+	ErrImageTaskNotFound     = infraerrors.New(http.StatusNotFound, "IMAGE_TASK_NOT_FOUND", "image task not found")
+	ErrImageTaskForbidden    = infraerrors.New(http.StatusForbidden, "IMAGE_TASK_FORBIDDEN", "image task does not belong to this API key")
+	ErrImageTaskUnavailable  = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "image task storage is unavailable")
+	ErrImageTaskCanceled     = infraerrors.New(http.StatusConflict, "IMAGE_TASK_CANCELED", "image generation task was canceled")
+	ErrImageTaskNotRetryable = infraerrors.New(http.StatusConflict, "IMAGE_TASK_NOT_RETRYABLE", "image generation task cannot be retried in its current state")
 )
 
 // ImageTaskRecord is the private Redis representation of an asynchronous image
@@ -237,6 +238,80 @@ func (s *ImageTaskService) SaveRecord(ctx context.Context, task *ImageTaskRecord
 		return ErrImageTaskUnavailable
 	}
 	return s.store.Save(ctx, task, s.ttl)
+}
+
+// Retry resets a failed or canceled task in place. The task ID and ownership
+// stay unchanged so clients can keep polling the same resource.
+func (s *ImageTaskService) Retry(ctx context.Context, owner ImageTaskOwner, id string) (*ImageTask, error) {
+	if s == nil || s.store == nil {
+		return nil, ErrImageTaskUnavailable
+	}
+	task, err := s.store.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		if errors.Is(err, ErrImageTaskNotFound) {
+			return nil, ErrImageTaskNotFound
+		}
+		return nil, ErrImageTaskUnavailable.WithCause(err)
+	}
+	if task.UserID != owner.UserID || task.APIKeyID != owner.APIKeyID {
+		return nil, ErrImageTaskNotFound
+	}
+	if task.Status != ImageTaskStatusFailed && task.Status != ImageTaskStatusCanceled {
+		return nil, ErrImageTaskNotRetryable
+	}
+	now := time.Now().UTC()
+	task.Status = ImageTaskStatusQueued
+	task.HTTPStatus = 0
+	task.Result = nil
+	task.Error = nil
+	task.CompletedAt = nil
+	task.CancelRequestedAt = nil
+	task.Attempt = 0
+	task.ExpiresAt = now.Add(s.ttl).Unix()
+	if err := s.store.Save(ctx, task, s.ttl); err != nil {
+		return nil, ErrImageTaskUnavailable.WithCause(err)
+	}
+	return imageTaskToPublic(task), nil
+}
+
+// Delete removes a task owned by the caller. Artifact cleanup is best effort:
+// the task record must not remain undeletable just because object storage is
+// currently unavailable.
+func (s *ImageTaskService) Delete(ctx context.Context, owner ImageTaskOwner, id string) error {
+	if s == nil || s.store == nil {
+		return ErrImageTaskUnavailable
+	}
+	task, err := s.store.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		if errors.Is(err, ErrImageTaskNotFound) {
+			return ErrImageTaskNotFound
+		}
+		return ErrImageTaskUnavailable.WithCause(err)
+	}
+	if task.UserID != owner.UserID || task.APIKeyID != owner.APIKeyID {
+		return ErrImageTaskNotFound
+	}
+	deleter, ok := s.store.(interface {
+		Delete(context.Context, string) error
+	})
+	if !ok {
+		return ErrImageTaskUnavailable
+	}
+	if err := deleter.Delete(ctx, task.ID); err != nil {
+		return ErrImageTaskUnavailable.WithCause(err)
+	}
+	if task.PayloadKey != "" {
+		if artifact := s.ArtifactStore(); artifact != nil {
+			go func(taskID, payloadKey string, artifact ImageTaskArtifactStore) {
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := artifact.Delete(cleanupCtx, payloadKey); err != nil {
+					logger.L().Warn("image_task.artifact_delete_failed", zap.String("task_id", taskID), zap.Error(err))
+				}
+			}(task.ID, task.PayloadKey, artifact)
+		}
+	}
+	return nil
 }
 
 func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode int, result json.RawMessage) error {

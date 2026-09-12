@@ -1147,6 +1147,7 @@ export default {
     canceled: 'Canceled',
     cancelTask: 'Cancel task',
     retryTask: 'Retry with same parameters',
+    deleteTask: 'Delete task',
     viewProblem: 'View problem',
     keyUnavailable: 'The original Key is unavailable, so this task cannot be read',
     referenceHint: 'Uploading an image uses the image edits endpoint',
