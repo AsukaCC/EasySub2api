@@ -86,8 +86,9 @@ JSON error code identifies the remaining usual cases:
 - `IMAGE_TASK_UNAVAILABLE` means the Redis task record or queue entry could not
   be created. Check the `image_task.record_create_failed` and
   `image_task.queue_enqueue_failed` server log events. The admin **Test
-  connection** action performs an S3 `HeadBucket` check when the configured
-  adapter supports it.
+  connection** action probes the configured object prefix with a temporary
+  upload/read/delete cycle, so R2 object-read/write tokens work without the
+  extra bucket-level `ListBucket` permission required by `HeadBucket`.
 - A security-audit error such as `prompt_guard_unavailable` means the prompt
   guard could not complete. It is returned unchanged and is not retried as a
   storage failure.

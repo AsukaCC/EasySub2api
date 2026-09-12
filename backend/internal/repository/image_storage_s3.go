@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/servertiming"
@@ -19,6 +20,7 @@ import (
 type S3ImageStorage struct {
 	client        *s3.Client
 	bucket        string
+	prefix        string
 	publicBaseURL string
 	presignExpiry time.Duration
 }
@@ -26,6 +28,7 @@ type S3ImageStorage struct {
 var _ service.ImageStorage = (*S3ImageStorage)(nil)
 var _ service.ImageTaskArtifactStore = (*S3ImageStorage)(nil)
 var _ service.ImageStorageConnectionTester = (*S3ImageStorage)(nil)
+var _ service.ImageStorageObjectAccessTester = (*S3ImageStorage)(nil)
 
 // NewS3ImageStorage 依据配置构造 S3 图片存储（调用方应先确认 cfg.Active()）。
 func NewS3ImageStorage(ctx context.Context, cfg *config.ImageStorageConfig) (*S3ImageStorage, error) {
@@ -48,6 +51,7 @@ func NewS3ImageStorage(ctx context.Context, cfg *config.ImageStorageConfig) (*S3
 	return &S3ImageStorage{
 		client:        client,
 		bucket:        cfg.Bucket,
+		prefix:        strings.Trim(cfg.Prefix, "/"),
 		publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"),
 		presignExpiry: expiry,
 	}, nil
@@ -80,6 +84,35 @@ func (s *S3ImageStorage) Save(ctx context.Context, key, contentType string, data
 		return "", fmt.Errorf("presign url: %w", err)
 	}
 	return result.URL, nil
+}
+
+// CheckObjectAccess exercises the permissions required by async image tasks.
+// HeadBucket is intentionally avoided here: R2 tokens commonly grant object
+// read/write without the bucket-level ListBucket permission it requires.
+func (s *S3ImageStorage) CheckObjectAccess(ctx context.Context) error {
+	keyPrefix := strings.Trim(s.prefix, "/")
+	if keyPrefix != "" {
+		keyPrefix += "/"
+	}
+	key := keyPrefix + ".easysub2api-connection-check-" + uuid.NewString()
+	contentType := "application/octet-stream"
+	data := []byte("easysub2api-image-storage-check")
+	if err := s.Put(ctx, key, contentType, data); err != nil {
+		return fmt.Errorf("S3 PutObject: %w", err)
+	}
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.Delete(cleanupCtx, key)
+	}()
+	got, _, err := s.Get(ctx, key)
+	if err != nil {
+		return fmt.Errorf("S3 GetObject: %w", err)
+	}
+	if !bytes.Equal(got, data) {
+		return fmt.Errorf("S3 GetObject: connection check returned unexpected data")
+	}
+	return nil
 }
 
 func (s *S3ImageStorage) Put(ctx context.Context, key, contentType string, data []byte) error {

@@ -86,7 +86,7 @@
               <p>{{ task.status === 'queued' ? t('imageWorkbench.queued') : task.status === 'processing' ? t('imageWorkbench.generating') : task.status === 'failed' ? (task.error?.message || t('imageWorkbench.generateFailed')) : t('imageWorkbench.canceled') }}</p>
               <div class="history-card__actions">
                 <button v-if="task.status === 'queued' || task.status === 'processing'" type="button" :title="t('imageWorkbench.cancelTask')" @click.stop="cancelTask(task)"><Icon name="x" size="xs" /></button>
-                <button v-if="task.status === 'failed'" type="button" :title="t('imageWorkbench.retryTask')" @click.stop="retryTask(task)"><Icon name="refresh" size="xs" /></button>
+                <button v-if="task.status === 'failed' || task.status === 'canceled' || task.status === 'cancelled'" type="button" :title="t('imageWorkbench.retryTask')" @click.stop="retryTask(task)"><Icon name="refresh" size="xs" /></button>
                 <button v-if="task.status === 'failed' || task.status === 'canceled' || task.status === 'cancelled'" class="action-btn-del" type="button" :title="t('imageWorkbench.deleteTask')" @click.stop="removeTask(task)"><Icon name="trash" size="xs" /></button>
               </div>
             </div>
@@ -924,8 +924,12 @@ async function retryTask(task: ImageTaskItem) {
 
 async function removeTask(task: ImageTaskItem) {
   const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
-  if (!key) return
   stopTaskPolling(task.taskId)
+  if (!key) {
+    await deleteTask(task.taskId)
+    taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId)
+    return
+  }
   try {
     await deleteImageTask(key, task.taskId)
     await deleteTask(task.taskId)
