@@ -15,7 +15,9 @@ import (
 var monitorProviders = map[string]struct{}{
 	MonitorProviderOpenAI:    {},
 	MonitorProviderAnthropic: {},
+	MonitorProviderGemini:    {},
 	MonitorProviderGrok:      {},
+	MonitorProviderAntigravity: {},
 	MonitorProviderKimi:      {},
 	MonitorProviderZhipu:     {},
 	MonitorProviderDeepseek:  {},
