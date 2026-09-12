@@ -68,6 +68,22 @@ func TestImageTaskServiceLifecycleAndOwnership(t *testing.T) {
 	require.NotNil(t, completed.CompletedAt)
 }
 
+func TestImageTaskServiceQueuedStartsInQueuedState(t *testing.T) {
+	store := &imageTaskMemoryStore{}
+	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)
+
+	task, err := svc.CreateQueued(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 9}, PlatformOpenAI, "generations", "application/json", "image-tasks/request")
+	require.NoError(t, err)
+	require.Equal(t, ImageTaskStatusQueued, task.Status)
+	require.Equal(t, ImageTaskStatusQueued, store.task.Status)
+	require.Equal(t, PlatformOpenAI, store.task.Platform)
+	require.Equal(t, "generations", store.task.Endpoint)
+
+	canceled, err := svc.Cancel(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 9}, task.ID)
+	require.NoError(t, err)
+	require.Equal(t, ImageTaskStatusCanceled, canceled.Status)
+}
+
 func TestImageTaskServiceInvalidResultBecomesFailed(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)

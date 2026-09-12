@@ -153,14 +153,19 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		store := h.tasks.ArtifactStore()
 		if store == nil {
 			submitLog.Warn("image_task.artifact_store_unavailable")
-			imageTaskJSONError(c, http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "async image object storage is unavailable")
+			h.submitDetached(c, body, platform, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
 			return
 		}
 		taskID := "imgtask_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 		payloadKey := "image-tasks/" + taskID + "/request"
 		if err := store.Put(c.Request.Context(), payloadKey, c.GetHeader("Content-Type"), body); err != nil {
 			submitLog.Error("image_task.request_store_failed", zap.String("task_id", taskID), zap.Error(err))
-			imageTaskJSONError(c, http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "failed to store image task request")
+			// Keep the submission asynchronous even when request artifact storage is
+			// temporarily unavailable. The detached path retains the request only
+			// for the task execution window; generated results still use the normal
+			// uploader and report storage failures through task status.
+			_ = store.Delete(context.Background(), payloadKey)
+			h.submitDetached(c, body, platform, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
 			return
 		}
 		task, err := h.tasks.CreateQueued(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}, platform, endpoint, c.GetHeader("Content-Type"), payloadKey)
@@ -187,10 +192,13 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		return
 	}
 
+	h.submitDetached(c, body, platform, service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+}
+
+func (h *AsyncImageHandler) submitDetached(c *gin.Context, body []byte, platform string, owner service.ImageTaskOwner) {
 	taskCtx, recorder, cancel := newAsyncImageContext(c, body, h.tasks.ExecutionTimeout())
-	task, err := h.tasks.Create(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+	task, err := h.tasks.Create(c.Request.Context(), owner)
 	if err != nil {
-		submitLog.Error("image_task.record_create_failed", zap.Error(err))
 		cancel()
 		imageTaskError(c, err)
 		return
@@ -275,7 +283,11 @@ func (h *AsyncImageHandler) processQueuedTask(taskID string) {
 	if err != nil {
 		return
 	}
+	if record.Status != service.ImageTaskStatusQueued && record.Status != service.ImageTaskStatusProcessing {
+		return
+	}
 	record.Attempt++
+	record.Status = service.ImageTaskStatusProcessing
 	if err := h.tasks.SaveRecord(context.Background(), record); err != nil {
 		return
 	}
@@ -411,7 +423,7 @@ func (h *AsyncImageHandler) Get(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	if task.Status == service.ImageTaskStatusProcessing {
+	if task.Status == service.ImageTaskStatusQueued || task.Status == service.ImageTaskStatusProcessing {
 		c.Header("Retry-After", "3")
 	}
 	c.JSON(http.StatusOK, task)

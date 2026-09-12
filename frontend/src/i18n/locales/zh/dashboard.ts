@@ -1144,6 +1144,7 @@ export default {
     noKeys: '当前平台没有可用的生图 Key，请联系管理员或检查分组权限。',
     noModels: '当前 Key 没有可用的生图模型。',
     loading: '正在加载…',
+    queued: '等待后台处理…',
     generating: '正在生成…',
     canceled: '已中止',
     cancelTask: '中止任务',

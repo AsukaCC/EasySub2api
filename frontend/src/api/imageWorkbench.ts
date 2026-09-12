@@ -101,7 +101,7 @@ export interface ImageTask {
   id: string
   task_id: string
   object?: string
-  status: 'processing' | 'completed' | 'failed' | 'canceled' | 'cancelled'
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'canceled' | 'cancelled'
   result?: { data?: ImageResult[]; created?: number; [key: string]: unknown }
   error?: ImageTaskError
   http_status?: number

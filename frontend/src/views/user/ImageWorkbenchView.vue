@@ -83,9 +83,9 @@
             </div>
             <div class="history-card__body">
               <h3>{{ task.prompt }}</h3>
-              <p>{{ task.status === 'processing' ? t('imageWorkbench.generating') : task.status === 'failed' ? (task.error?.message || t('imageWorkbench.generateFailed')) : t('imageWorkbench.canceled') }}</p>
+              <p>{{ task.status === 'queued' ? t('imageWorkbench.queued') : task.status === 'processing' ? t('imageWorkbench.generating') : task.status === 'failed' ? (task.error?.message || t('imageWorkbench.generateFailed')) : t('imageWorkbench.canceled') }}</p>
               <div class="history-card__actions">
-                <button v-if="task.status === 'processing'" type="button" :title="t('imageWorkbench.cancelTask')" @click.stop="cancelTask(task)"><Icon name="x" size="xs" /></button>
+                <button v-if="task.status === 'queued' || task.status === 'processing'" type="button" :title="t('imageWorkbench.cancelTask')" @click.stop="cancelTask(task)"><Icon name="x" size="xs" /></button>
                 <button v-if="task.status === 'failed'" type="button" :title="t('imageWorkbench.retryTask')" @click.stop="retryTask(task)"><Icon name="refresh" size="xs" /></button>
               </div>
             </div>
@@ -428,7 +428,7 @@ const credentials = ref<{ keys: import('@/types').ApiKey[]; groups: import('@/ty
 const loadingHistory = ref(true)
 const taskItems = ref<ImageTaskItem[]>([])
 const submitting = ref(false)
-const generating = computed(() => submitting.value || taskItems.value.some((task) => task.status === 'processing'))
+const generating = computed(() => submitting.value || taskItems.value.some((task) => task.status === 'queued' || task.status === 'processing'))
 const pollTimers = new Map<string, number>()
 const settingsOpen = ref(false)
 const settingsTab = ref<'connection' | 'preferences' | 'data'>('connection')
@@ -721,6 +721,12 @@ function clearReference() {
   referenceFile.value = null
 }
 
+function resetComposerAfterSubmit() {
+  prompt.value = ''
+  clearReference()
+  void nextTick(() => autosizePrompt())
+}
+
 function reuseItem(item: ImageHistoryItem) {
   prompt.value = item.prompt
   if (typeof item.params?.size === 'string') params.size = item.params.size
@@ -788,8 +794,11 @@ async function submitGeneration() {
         keyName: key.name,
         params: paramsSnapshot,
       })
+      resetComposerAfterSubmit()
       return
     }
+
+    resetComposerAfterSubmit()
 
     if (accepted.status === 'completed' && accepted.result?.data?.length) {
       await saveImageResults(accepted.result.data, {
@@ -861,7 +870,7 @@ async function cancelTask(task: ImageTaskItem) {
   const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
   if (!key) return
   stopTaskPolling(task.taskId)
-  try { const remote = await cancelImageTask(key, task.taskId); task.status = remote.status; task.error = remote.error; await putTask(task); taskItems.value = [...taskItems.value] } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed'); if (task.status === 'processing') startTaskPolling(task) }
+  try { const remote = await cancelImageTask(key, task.taskId); task.status = remote.status; task.error = remote.error; await putTask(task); taskItems.value = [...taskItems.value] } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed'); if (task.status === 'queued' || task.status === 'processing') startTaskPolling(task) }
 }
 
 function stopTaskPolling(taskId: string) {
@@ -1133,7 +1142,7 @@ onMounted(async () => {
     if (migrated) history.value = await listHistory()
     taskItems.value = await listTasks()
     for (const task of taskItems.value) {
-      if (task.status === 'processing') startTaskPolling(task)
+      if (task.status === 'queued' || task.status === 'processing') startTaskPolling(task)
     }
   } finally {
     loadingHistory.value = false

@@ -74,14 +74,16 @@ Two further causes of a 404 that are unrelated to storage: the API key's group m
 ### Troubleshooting: the submit request returns 503
 
 A `503` from `POST /v1/images/generations/async` can happen before the task is
-accepted. When the response code is `IMAGE_TASK_UNAVAILABLE`, it is an async
-infrastructure error rather than an image-model result. The JSON error code
-identifies the usual cases:
+accepted when the task record or queue cannot be created. When the response
+code is `IMAGE_TASK_UNAVAILABLE`, it is an async infrastructure error rather
+than an image-model result. A request artifact upload failure is handled by a
+short-lived detached task when possible, so the workbench can still receive a
+task ID and show the eventual result or storage failure through polling. The
+JSON error code identifies the remaining usual cases:
 
-- `IMAGE_TASK_UNAVAILABLE` means the request artifact could not be written to
-  object storage, or the Redis task record/queue entry could not be created.
-  Check the `image_task.request_store_failed`, `image_task.record_create_failed`,
-  and `image_task.queue_enqueue_failed` server log events. The admin **Test
+- `IMAGE_TASK_UNAVAILABLE` means the Redis task record or queue entry could not
+  be created. Check the `image_task.record_create_failed` and
+  `image_task.queue_enqueue_failed` server log events. The admin **Test
   connection** action performs an S3 `HeadBucket` check when the configured
   adapter supports it.
 - A security-audit error such as `prompt_guard_unavailable` means the prompt

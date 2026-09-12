@@ -15,6 +15,7 @@ import (
 )
 
 const (
+	ImageTaskStatusQueued     = "queued"
 	ImageTaskStatusProcessing = "processing"
 	ImageTaskStatusCompleted  = "completed"
 	ImageTaskStatusFailed     = "failed"
@@ -199,6 +200,7 @@ func (s *ImageTaskService) CreateQueued(ctx context.Context, owner ImageTaskOwne
 		return nil, ErrImageTaskUnavailable.WithCause(err)
 	}
 	record.Platform, record.Endpoint, record.ContentType, record.PayloadKey = platform, endpoint, contentType, payloadKey
+	record.Status = ImageTaskStatusQueued
 	if err := s.store.Save(ctx, record, s.ttl); err != nil {
 		return nil, ErrImageTaskUnavailable.WithCause(err)
 	}
@@ -260,7 +262,7 @@ func (s *ImageTaskService) Fail(ctx context.Context, id string, statusCode int, 
 	return s.finish(ctx, id, ImageTaskStatusFailed, statusCode, nil, taskErr)
 }
 
-// Cancel atomically transitions a processing task to canceled when the backing
+// Cancel atomically transitions a queued or processing task to canceled when the backing
 // store supports CAS; the fallback keeps compatibility with lightweight stores.
 func (s *ImageTaskService) Cancel(ctx context.Context, owner ImageTaskOwner, id string) (*ImageTask, error) {
 	if s == nil || s.store == nil {
@@ -276,7 +278,8 @@ func (s *ImageTaskService) Cancel(ctx context.Context, owner ImageTaskOwner, id 
 	if task.UserID != owner.UserID || task.APIKeyID != owner.APIKeyID {
 		return nil, ErrImageTaskNotFound
 	}
-	if task.Status == ImageTaskStatusProcessing {
+	if task.Status == ImageTaskStatusQueued || task.Status == ImageTaskStatusProcessing {
+		expectedStatus := task.Status
 		now := time.Now().UTC().Unix()
 		task.Status = ImageTaskStatusCanceled
 		task.HTTPStatus = http.StatusConflict
@@ -286,7 +289,7 @@ func (s *ImageTaskService) Cancel(ctx context.Context, owner ImageTaskOwner, id 
 		if cas, ok := s.store.(interface {
 			CompareAndSetStatus(context.Context, string, string, *ImageTaskRecord, time.Duration) error
 		}); ok {
-			if err := cas.CompareAndSetStatus(ctx, id, ImageTaskStatusProcessing, task, s.ttl); err != nil {
+			if err := cas.CompareAndSetStatus(ctx, id, expectedStatus, task, s.ttl); err != nil {
 				return nil, ErrImageTaskUnavailable.WithCause(err)
 			}
 		} else if err := s.store.Save(ctx, task, s.ttl); err != nil {
