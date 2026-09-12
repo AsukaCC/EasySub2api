@@ -28,6 +28,17 @@ export interface ImageTaskItem {
   error?: Record<string, unknown>
 }
 
+// Vue wraps objects stored in refs/reactive collections with Proxies. IndexedDB
+// structured clone rejects those proxies, so task records must cross the
+// persistence boundary as plain JSON data.
+export function toPersistedTask(item: ImageTaskItem): ImageTaskItem {
+  try {
+    return JSON.parse(JSON.stringify(item)) as ImageTaskItem
+  } catch {
+    throw new Error('Image task contains data that cannot be persisted')
+  }
+}
+
 const DB_NAME = 'easysub2api-image-workbench'
 const STORE_NAME = 'history'
 const TASK_STORE_NAME = 'tasks'
@@ -63,8 +74,9 @@ export async function listTasks(): Promise<ImageTaskItem[]> {
 
 export async function putTask(item: ImageTaskItem): Promise<void> {
   const db = await openDatabase()
+  const persisted = toPersistedTask(item)
   return new Promise((resolve, reject) => {
-    const request = db.transaction(TASK_STORE_NAME, 'readwrite').objectStore(TASK_STORE_NAME).put(item)
+    const request = db.transaction(TASK_STORE_NAME, 'readwrite').objectStore(TASK_STORE_NAME).put(persisted)
     request.onsuccess = () => resolve(); request.onerror = () => reject(request.error)
   })
 }
