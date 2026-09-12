@@ -724,7 +724,18 @@ func (e *UpstreamFailoverError) ShouldReportAccountScheduleFailure() bool {
 	if e == nil {
 		return false
 	}
+	if e.IsRequestScopedCapacityShed() {
+		return false
+	}
 	return !e.IsCredentialFailure() || e.Scope == GatewayFailureScopeAccount
+}
+
+// IsRequestScopedCapacityShed identifies the Codex/OpenAI capacity-shed
+// signal (server_is_overloaded / slow_down). It is deliberately separate from
+// the HTTP status: the same 502/503 status can represent an account or
+// provider failure and must keep the normal account-pool policy.
+func (e *UpstreamFailoverError) IsRequestScopedCapacityShed() bool {
+	return e != nil && e.RequestScopedTransient
 }
 
 // sseStreamErrorEventError 表示上游 SSE 流体内出现 event:error 帧。

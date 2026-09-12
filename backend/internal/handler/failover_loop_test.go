@@ -60,6 +60,32 @@ func TestSameAccountRetryDelayFor(t *testing.T) {
 	})
 }
 
+func TestSameAccountRetryLimitForCapacityShed(t *testing.T) {
+	capacityErr := &service.UpstreamFailoverError{RequestScopedTransient: true}
+	ordinaryErr := &service.UpstreamFailoverError{RetryableOnSameAccount: true}
+
+	require.Equal(t, 0, sameAccountRetryLimitFor(capacityErr, 0), "显式关闭同账号重试时仍应保持关闭")
+	require.Equal(t, 1, sameAccountRetryLimitFor(capacityErr, 3))
+	require.Equal(t, 3, sameAccountRetryLimitFor(ordinaryErr, 3))
+	require.Equal(t, 0, sameAccountRetryLimitFor(ordinaryErr, 0))
+}
+
+func TestCapacityShedErrorResponse(t *testing.T) {
+	err := &service.UpstreamFailoverError{
+		RequestScopedTransient: true,
+		ResponseBody:           []byte(`{"error":{"message":"Our servers are currently overloaded"}}`),
+	}
+
+	status, errType, message, ok := capacityShedErrorResponse(err)
+	require.True(t, ok)
+	require.Equal(t, http.StatusServiceUnavailable, status)
+	require.Equal(t, "server_error", errType)
+	require.Equal(t, "Our servers are currently overloaded", message)
+
+	_, _, _, ok = capacityShedErrorResponse(&service.UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable})
+	require.False(t, ok, "普通 503 不应进入容量降载响应映射")
+}
+
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------

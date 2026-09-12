@@ -649,9 +649,14 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				// 流式内容已写入客户端，无法撤销，禁止 failover 以防止流拼接腐化
-				if c.Writer.Size() != writerSizeBeforeForward {
+				if !gatewayForwardMayFailover(c, writerSizeBeforeForward, account.Platform, failoverErr) {
 					h.handleFailoverExhausted(c, failoverErr, account.Platform, true)
 					return
+				}
+				if c.Writer.Written() {
+					// A non-semantic OpenAI heartbeat may have committed HTTP 200;
+					// exhaustion must finish the request as an SSE error.
+					streamStarted = true
 				}
 				action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
 				switch action {
@@ -1550,6 +1555,11 @@ func (h *GatewayHandler) handleConcurrencyError(c *gin.Context, err error, slotT
 func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, platform string, streamStarted bool) {
 	statusCode := failoverErr.StatusCode
 	responseBody := failoverErr.ResponseBody
+	if status, errType, errMsg, ok := capacityShedErrorResponse(failoverErr); ok {
+		service.SetOpsUpstreamError(c, status, errMsg, "")
+		h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
+		return
+	}
 	if service.IsOpenAISilentRefusalErrorBody(responseBody) {
 		service.SetOpsUpstreamError(c, statusCode, service.OpenAISilentRefusalClientMessage(), "")
 		h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", service.OpenAISilentRefusalClientMessage(), streamStarted)

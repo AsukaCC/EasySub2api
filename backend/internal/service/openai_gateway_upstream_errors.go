@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -117,7 +118,7 @@ func isOpenAIInstructionsRequiredError(upstreamStatusCode int, upstreamMsg strin
 }
 
 func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string, upstreamBody []byte) bool {
-	if upstreamStatusCode != http.StatusBadRequest && upstreamStatusCode != http.StatusServiceUnavailable {
+	if upstreamStatusCode < http.StatusBadRequest {
 		return false
 	}
 
@@ -126,10 +127,20 @@ func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string
 		if code == "" {
 			code = strings.ToLower(strings.TrimSpace(gjson.GetBytes(payload, "response.error.code").String()))
 		}
-		return code == "server_is_overloaded" || code == "slow_down"
+		if code == "" {
+			code = strings.ToLower(strings.TrimSpace(gjson.GetBytes(payload, "code").String()))
+		}
+		return isOpenAICapacityShedCode(code)
 	}
 
 	if len(upstreamBody) > 0 && hasOpenAIServerOverloadedCode(upstreamBody) {
+		return true
+	}
+	if isOpenAICapacityShedMessage(upstreamMsg) ||
+		isOpenAICapacityShedMessage(gjson.GetBytes(upstreamBody, "error.message").String()) ||
+		isOpenAICapacityShedMessage(gjson.GetBytes(upstreamBody, "response.error.message").String()) ||
+		isOpenAICapacityShedMessage(gjson.GetBytes(upstreamBody, "message").String()) ||
+		(!gjson.ValidBytes(upstreamBody) && isOpenAICapacityShedMessage(string(upstreamBody))) {
 		return true
 	}
 	if upstreamStatusCode != http.StatusBadRequest {
@@ -161,7 +172,48 @@ func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string
 	if match(gjson.GetBytes(upstreamBody, "error.message").String()) {
 		return true
 	}
-	return match(string(upstreamBody))
+	if match(gjson.GetBytes(upstreamBody, "response.error.message").String()) ||
+		match(gjson.GetBytes(upstreamBody, "message").String()) {
+		return true
+	}
+	// A valid JSON error may echo arbitrary request content. Only explicit
+	// error fields are authoritative; scan the whole body for plain-text errors.
+	return !gjson.ValidBytes(upstreamBody) && match(string(upstreamBody))
+}
+
+func isOpenAICapacityShedCode(code string) bool {
+	switch strings.ToLower(strings.TrimSpace(code)) {
+	case "server_is_overloaded", "server_overloaded", "slow_down":
+		return true
+	default:
+		return false
+	}
+}
+
+// isOpenAICapacityShedMessage recognizes the provider's request-scoped
+// capacity messages. Keep this list deliberately narrow so ordinary 429/5xx
+// responses continue through the configured account-health policy.
+func isOpenAICapacityShedMessage(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	return strings.Contains(lower, "server is overloaded") ||
+		strings.Contains(lower, "servers are overloaded") ||
+		strings.Contains(lower, "servers are currently overloaded")
+}
+
+func isOpenAICapacityShedSignalText(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	return isOpenAICapacityShedMessage(lower) ||
+		strings.Contains(lower, "server_is_overloaded") ||
+		strings.Contains(lower, "server_overloaded") ||
+		strings.Contains(lower, "slow_down")
+}
+
+// isOpenAIRequestScopedCapacityShed identifies a capacity-shed response from
+// either its structured code/message or a plain-text provider response.
+func isOpenAIRequestScopedCapacityShed(upstreamMsg string, upstreamBody []byte) bool {
+	return isOpenAIUpstreamCapacityShedEvent(upstreamBody) ||
+		isOpenAICapacityShedSignalText(upstreamMsg) ||
+		(!gjson.ValidBytes(upstreamBody) && isOpenAICapacityShedSignalText(string(upstreamBody)))
 }
 
 func isOpenAIContextWindowError(upstreamMsg string, upstreamBody []byte) bool {
@@ -222,6 +274,9 @@ func (s *OpenAIGatewayService) shouldFailoverOpenAIUpstreamResponse(statusCode i
 	if isOpenAIContextWindowError(upstreamMsg, upstreamBody) {
 		return false
 	}
+	if isOpenAIRequestScopedCapacityShed(upstreamMsg, upstreamBody) {
+		return true
+	}
 	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, upstreamBody) {
 		return true
 	}
@@ -248,21 +303,138 @@ func newOpenAIUpstreamFailoverError(
 	upstreamMsg string,
 	retryableOnSameAccount bool,
 ) *UpstreamFailoverError {
+	requestScopedCapacity := isOpenAIRequestScopedCapacityShed(upstreamMsg, responseBody)
 	failoverErr := &UpstreamFailoverError{
 		StatusCode:             statusCode,
 		ResponseBody:           responseBody,
 		ResponseHeaders:        responseHeaders.Clone(),
-		RetryableOnSameAccount: retryableOnSameAccount,
+		RetryableOnSameAccount: retryableOnSameAccount || requestScopedCapacity,
+		RequestScopedTransient: requestScopedCapacity,
 	}
 	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, responseBody) {
 		failoverErr.RetryableOnSameAccount = false
+		failoverErr.RequestScopedTransient = false
 		failoverErr.Scope = GatewayFailureScopeAccount
 		failoverErr.Reason = openAIRequestBodyTooLargeReason
 		failoverErr.NextAccountAction = NextAccountRetry
 		failoverErr.ClientStatusCode = http.StatusRequestEntityTooLarge
 		failoverErr.ClientMessage = OpenAIRequestBodyTooLargeClientMessage
+	} else if requestScopedCapacity {
+		failoverErr.ClientStatusCode = http.StatusServiceUnavailable
+		failoverErr.ClientMessage = openAICapacityShedClientMessage(upstreamMsg, responseBody)
 	}
 	return failoverErr
+}
+
+// newOpenAIUpstreamFailoverErrorForPlatform keeps the legacy generic
+// constructor usable by bridge code while scoping the capacity marker to the
+// OpenAI platform. Grok can return similar prose, but its account policy is
+// intentionally unchanged.
+func newOpenAIUpstreamFailoverErrorForPlatform(
+	platform string,
+	statusCode int,
+	responseHeaders http.Header,
+	responseBody []byte,
+	upstreamMsg string,
+	retryableOnSameAccount bool,
+) *UpstreamFailoverError {
+	requestScopedCapacity := platform == PlatformOpenAI &&
+		isOpenAIRequestScopedCapacityShed(upstreamMsg, responseBody)
+	failoverErr := &UpstreamFailoverError{
+		StatusCode:             statusCode,
+		ResponseBody:           responseBody,
+		ResponseHeaders:        responseHeaders.Clone(),
+		RetryableOnSameAccount: retryableOnSameAccount || requestScopedCapacity,
+		RequestScopedTransient: requestScopedCapacity,
+	}
+	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, responseBody) {
+		// Preserve the account-specific body-limit contract for callers that use
+		// the platform-aware constructor: a 413 is retryable on another account,
+		// but never on the same account, and must surface as a 413 to the client.
+		failoverErr.RetryableOnSameAccount = false
+		failoverErr.RequestScopedTransient = false
+		failoverErr.Scope = GatewayFailureScopeAccount
+		failoverErr.Reason = openAIRequestBodyTooLargeReason
+		failoverErr.NextAccountAction = NextAccountRetry
+		failoverErr.ClientStatusCode = http.StatusRequestEntityTooLarge
+		failoverErr.ClientMessage = OpenAIRequestBodyTooLargeClientMessage
+	} else if requestScopedCapacity {
+		failoverErr.ClientStatusCode = http.StatusServiceUnavailable
+		failoverErr.ClientMessage = openAICapacityShedClientMessage(upstreamMsg, responseBody)
+	}
+	return failoverErr
+}
+
+func openAICapacityShedClientMessage(upstreamMsg string, body []byte) string {
+	for _, candidate := range []string{
+		upstreamMsg,
+		gjson.GetBytes(body, "error.message").String(),
+		gjson.GetBytes(body, "response.error.message").String(),
+		gjson.GetBytes(body, "message").String(),
+	} {
+		candidate = sanitizeUpstreamErrorMessage(strings.TrimSpace(candidate))
+		if candidate != "" && isOpenAICapacityShedMessage(candidate) {
+			return candidate
+		}
+	}
+	return "Upstream service is temporarily overloaded, please retry later"
+}
+
+// IsOpenAICapacityShed reports whether this failover carries the request-scoped
+// OpenAI capacity signal. The marker is set only by the constructor and stream
+// classifier, so callers do not need to infer it from an HTTP status alone.
+func (e *UpstreamFailoverError) IsOpenAICapacityShed() bool {
+	return e != nil && e.RequestScopedTransient
+}
+
+// openAICapacityShedStreamError preserves the original stream error text while
+// carrying the request-scoped capacity marker after semantic output has made a
+// retry impossible. The handler can use the marker to avoid penalizing the
+// account even when the upstream payload only contained an overload code.
+type openAICapacityShedStreamError struct {
+	cause error
+}
+
+func (e *openAICapacityShedStreamError) Error() string {
+	if e == nil || e.cause == nil {
+		return "OpenAI stream capacity shed"
+	}
+	return e.cause.Error()
+}
+
+func (e *openAICapacityShedStreamError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.cause
+}
+
+func (e *openAICapacityShedStreamError) IsOpenAICapacityShed() bool { return e != nil }
+
+func wrapOpenAICapacityShedStreamError(err error, message string, payload []byte) error {
+	if err == nil || !isOpenAIRequestScopedCapacityShed(message, payload) {
+		return err
+	}
+	return &openAICapacityShedStreamError{cause: err}
+}
+
+// IsOpenAICapacityShedError reports the same request-scoped capacity signal
+// when a stream has already emitted semantic output and therefore cannot
+// return an UpstreamFailoverError to the handler. Such errors must not feed
+// account-health failure metrics.
+func IsOpenAICapacityShedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var marked interface{ IsOpenAICapacityShed() bool }
+	if errors.As(err, &marked) && marked.IsOpenAICapacityShed() {
+		return true
+	}
+	var failoverErr *UpstreamFailoverError
+	if errors.As(err, &failoverErr) {
+		return failoverErr.IsOpenAICapacityShed()
+	}
+	return isOpenAICapacityShedSignalText(err.Error())
 }
 
 // newOpenAIAccountFailoverError augments the generic failover metadata with
@@ -303,13 +475,25 @@ func (s *OpenAIGatewayService) newOpenAIAccountFailoverErrorWithClassificationHe
 	oauth429Retry := s.shouldRetryOpenAIOAuth429OnSameAccountWithResponse(
 		account, statusCode, shouldDisable, classificationHeaders, responseBody,
 	)
-	return newOpenAIUpstreamFailoverError(
+	explicitRetryable := retryableOnSameAccount || oauth429Retry
+	failoverErr := newOpenAIUpstreamFailoverError(
 		statusCode,
 		responseHeaders,
 		responseBody,
 		upstreamMsg,
-		retryableOnSameAccount || oauth429Retry,
+		explicitRetryable,
 	)
+	// The generic constructor is shared by a few legacy paths that do not pass
+	// an account. Keep the capacity marker OpenAI-specific; Grok, unknown-account,
+	// and other compatible-provider paths retain their existing retry/account-health
+	// semantics even if they reuse the same wording.
+	if (account == nil || account.Platform != PlatformOpenAI) && failoverErr.IsRequestScopedCapacityShed() {
+		failoverErr.RequestScopedTransient = false
+		failoverErr.RetryableOnSameAccount = explicitRetryable
+		failoverErr.ClientStatusCode = 0
+		failoverErr.ClientMessage = ""
+	}
+	return failoverErr
 }
 
 // IsOpenAIRequestBodyTooLarge reports whether another account may accept the
@@ -408,6 +592,8 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+	capacityShed := account != nil && account.Platform == PlatformOpenAI &&
+		isOpenAIRequestScopedCapacityShed(upstreamMsg, body)
 	upstreamDetail := ""
 	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
 		maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
@@ -418,6 +604,18 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 	logOpenAIInstructionsRequiredDebug(ctx, c, account, resp.StatusCode, upstreamMsg, requestBody, body)
+	// A structured Codex capacity-shed response is request-scoped. Return it
+	// before passthrough/custom-code handling so the handler can apply the
+	// bounded one-retry failover without mutating account health.
+	if capacityShed {
+		return nil, newOpenAIUpstreamFailoverError(
+			resp.StatusCode,
+			resp.Header,
+			body,
+			upstreamMsg,
+			true,
+		)
+	}
 
 	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
 		logger.LegacyPrintf("service.openai_gateway",
@@ -535,7 +733,8 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 		return nil, &UpstreamFailoverError{
 			StatusCode:             resp.StatusCode,
 			ResponseBody:           body,
-			RetryableOnSameAccount: false,
+			RetryableOnSameAccount: capacityShed,
+			RequestScopedTransient: capacityShed,
 		}
 	}
 
@@ -656,6 +855,8 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 		upstreamMsg = fmt.Sprintf("Upstream error: %v", resp.StatusCode)
 	}
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+	capacityShed := account != nil && account.Platform == PlatformOpenAI &&
+		isOpenAIRequestScopedCapacityShed(upstreamMsg, body)
 
 	upstreamDetail := ""
 	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
@@ -666,6 +867,17 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 		upstreamDetail = truncateString(string(body), maxBytes)
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+	// Capacity shedding must bypass passthrough and custom error-code gates so
+	// it follows the shared one-retry-then-switch policy.
+	if capacityShed {
+		return nil, newOpenAIUpstreamFailoverError(
+			resp.StatusCode,
+			resp.Header,
+			body,
+			upstreamMsg,
+			true,
+		)
+	}
 
 	// Apply error passthrough rules
 	if status, errType, errMsg, matched := applyErrorPassthroughRule(
@@ -734,7 +946,8 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 		return nil, &UpstreamFailoverError{
 			StatusCode:             resp.StatusCode,
 			ResponseBody:           body,
-			RetryableOnSameAccount: false,
+			RetryableOnSameAccount: capacityShed,
+			RequestScopedTransient: capacityShed,
 		}
 	}
 
