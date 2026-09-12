@@ -71,6 +71,30 @@ Note that releases **before v0.1.161 silently dropped `IMAGE_STORAGE_ENDPOINT`, 
 
 Two further causes of a 404 that are unrelated to storage: the API key's group must be on the **OpenAI or Grok** platform (any other platform, or a key with no group at all, yields `Images API is not supported for this platform`), and a task may only be polled with the **same API key that submitted it** — polling with a different key of the same user returns `image task not found` by design.
 
+### Troubleshooting: the submit request returns 503
+
+A `503` from `POST /v1/images/generations/async` can happen before the task is
+accepted. When the response code is `IMAGE_TASK_UNAVAILABLE`, it is an async
+infrastructure error rather than an image-model result. The JSON error code
+identifies the usual cases:
+
+- `IMAGE_TASK_UNAVAILABLE` means the request artifact could not be written to
+  object storage, or the Redis task record/queue entry could not be created.
+  Check the `image_task.request_store_failed`, `image_task.record_create_failed`,
+  and `image_task.queue_enqueue_failed` server log events. The admin **Test
+  connection** action performs an S3 `HeadBucket` check when the configured
+  adapter supports it.
+- A security-audit error such as `prompt_guard_unavailable` means the prompt
+  guard could not complete. It is returned unchanged and is not retried as a
+  storage failure.
+
+When the submit call returns `202 Accepted` and a later task poll reports
+`http_status: 503` with an OpenAI overload message, the upstream capacity
+policy applies: one same-account retry is allowed, the next account is tried,
+and the task is failed without replaying the entire account pool. These
+request-scoped capacity failures do not update account health. Ordinary 429/5xx
+responses keep the configured queue retry limit.
+
 ## Submit a task
 
 ```bash

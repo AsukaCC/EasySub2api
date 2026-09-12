@@ -115,9 +115,17 @@ func (s *ImageStorageSettingService) resolve() (*ImageResultUploader, bool) {
 		return nil, false
 	}
 
+	if s.factory == nil {
+		logger.L().Error("image_storage.factory_unavailable; async image tasks stay disabled")
+		return nil, false
+	}
 	storage, err := s.factory(ctx, cfg)
 	if err != nil {
 		logger.L().Error("image_storage.client_build_failed; async image tasks stay disabled", zap.Error(err))
+		return nil, false
+	}
+	if storage == nil {
+		logger.L().Error("image_storage.client_build_returned_empty; async image tasks stay disabled")
 		return nil, false
 	}
 	s.uploader = NewImageResultUploader(storage, cfg.Prefix, cfg.MaxDownloadByte, nil)
@@ -218,8 +226,20 @@ func (s *ImageStorageSettingService) TestConnection(ctx context.Context, in Imag
 	if !cfg.IsConfigured() {
 		return ErrImageStorageIncomplete
 	}
-	if _, err := s.factory(ctx, cfg); err != nil {
+	if s.factory == nil {
+		return errors.New("image storage factory is unavailable")
+	}
+	storage, err := s.factory(ctx, cfg)
+	if err != nil {
 		return err
+	}
+	if storage == nil {
+		return errors.New("image storage factory returned an empty storage")
+	}
+	if tester, ok := storage.(ImageStorageConnectionTester); ok {
+		if err := tester.HeadBucket(ctx); err != nil {
+			return fmt.Errorf("image storage bucket check failed: %w", err)
+		}
 	}
 	return nil
 }

@@ -143,3 +143,13 @@ func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 	// No task was created / persisted.
 	require.Empty(t, store.tasks)
 }
+
+func TestShouldRetryQueuedImageTaskSkipsOpenAICapacityShed(t *testing.T) {
+	capacityResponse := []byte(`{"error":{"type":"server_error","code":"server_error","message":"Our servers are currently overloaded. Please try again later."}}`)
+	ordinaryResponse := []byte(`{"error":{"type":"server_error","message":"temporary upstream failure"}}`)
+
+	require.False(t, shouldRetryQueuedImageTask(service.PlatformOpenAI, http.StatusServiceUnavailable, capacityResponse))
+	require.True(t, shouldRetryQueuedImageTask(service.PlatformOpenAI, http.StatusServiceUnavailable, ordinaryResponse))
+	require.True(t, shouldRetryQueuedImageTask(service.PlatformGrok, http.StatusServiceUnavailable, capacityResponse), "Grok keeps its existing queue retry policy")
+	require.False(t, shouldRetryQueuedImageTask(service.PlatformOpenAI, http.StatusBadRequest, capacityResponse))
+}

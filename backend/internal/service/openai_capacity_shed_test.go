@@ -103,6 +103,27 @@ func TestOpenAIHTTPCapacityShedIsRequestScoped(t *testing.T) {
 	require.False(t, isOpenAITransientProcessingError(http.StatusBadRequest, "", echoed))
 }
 
+func TestOpenAIRequestScopedCapacityShedResponse(t *testing.T) {
+	capacityResponse := []byte(`{"error":{"type":"server_error","code":"server_error","message":"Our servers are currently overloaded. Please try again later."}}`)
+	for _, platform := range []string{PlatformOpenAI, " OPENAI ", "openai"} {
+		require.True(t, IsOpenAIRequestScopedCapacityShedResponse(platform, capacityResponse))
+	}
+
+	require.False(t, IsOpenAIRequestScopedCapacityShedResponse(PlatformGrok, capacityResponse), "Grok keeps its existing retry policy")
+	require.False(t, IsOpenAIRequestScopedCapacityShedResponse(PlatformOpenAI, []byte(`{"error":{"type":"server_error","message":"temporary failure"}}`)))
+	require.False(t, IsOpenAIRequestScopedCapacityShedResponse(PlatformOpenAI, []byte(`{"prompt":"Our servers are currently overloaded"}`)), "request content is not an error signal")
+	require.True(t, IsOpenAIRequestScopedCapacityShedResponse(PlatformOpenAI, []byte(`{"error":{"type":"server_error","message":"Upstream service overloaded, please retry later"}}`)), "the gateway fallback message must not replay the task")
+	require.False(t, IsOpenAIRequestScopedCapacityShedResponse(PlatformOpenAI, []byte(`{"error":{"type":"upstream_error","message":"Upstream service overloaded, please retry later"}}`)), "ordinary provider overload wording keeps its existing retry policy")
+}
+
+func TestOpenAIImagesCapacityShedError(t *testing.T) {
+	require.True(t, IsOpenAIImagesCapacityShedError(&OpenAIImagesUpstreamError{Code: "server_is_overloaded"}))
+	require.True(t, IsOpenAIImagesCapacityShedError(&OpenAIImagesUpstreamError{Message: "Our servers are currently overloaded"}))
+	require.True(t, IsOpenAIImagesCapacityShedError(&OpenAIImagesUpstreamError{ErrorType: "server_error", Message: "Upstream service is temporarily overloaded, please retry later"}))
+	require.False(t, IsOpenAIImagesCapacityShedError(&OpenAIImagesUpstreamError{ErrorType: "upstream_error", Message: "Upstream service is temporarily overloaded, please retry later"}))
+	require.False(t, IsOpenAIImagesCapacityShedError(&OpenAIImagesUpstreamError{StatusCode: http.StatusServiceUnavailable, Message: "temporary upstream failure"}))
+}
+
 // 上游降载的真实序列是「event: error → event: response.failed」。error 帧不算
 // 客户端输出：若把它当首输出 flush，clientOutputStarted 被固化，随后的 failed
 // 事件就进不了 pre-output failover 分支，只能把致命错误原样转发给客户端。

@@ -118,6 +118,30 @@ func IsOpenAIImagesRetryableUpstreamError(err *OpenAIImagesUpstreamError) bool {
 	return err != nil && err.StatusCode >= http.StatusInternalServerError
 }
 
+// IsOpenAIImagesCapacityShedError identifies a request-scoped OpenAI capacity
+// response that arrived after the Images stream had already emitted output.
+// In that case the handler receives an OpenAIImagesUpstreamError instead of an
+// UpstreamFailoverError, so it must still avoid recording the selected account
+// as unhealthy. Ordinary image 5xx errors intentionally remain distinct.
+func IsOpenAIImagesCapacityShedError(err *OpenAIImagesUpstreamError) bool {
+	if err == nil {
+		return false
+	}
+	for _, text := range []string{err.Code, err.ErrorType, err.Message} {
+		if isOpenAICapacityShedSignalText(text) {
+			return true
+		}
+	}
+	errorType := strings.ToLower(strings.TrimSpace(err.ErrorType))
+	code := strings.ToLower(strings.TrimSpace(err.Code))
+	if errorType != "server_error" && code != "server_error" {
+		return false
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Message))
+	return strings.Contains(message, "upstream service overloaded") ||
+		strings.Contains(message, "upstream service is temporarily overloaded")
+}
+
 func openAIImagesSSEErrorStatus(errType, code string) int {
 	errType = strings.ToLower(strings.TrimSpace(errType))
 	code = strings.ToLower(strings.TrimSpace(code))

@@ -437,6 +437,43 @@ func IsOpenAICapacityShedError(err error) bool {
 	return isOpenAICapacityShedSignalText(err.Error())
 }
 
+// IsOpenAIRequestScopedCapacityShedResponse reports the request-scoped
+// capacity signal from a serialized gateway error. Async image workers use
+// this after the handler has converted an upstream overload into a task error;
+// the task must not be replayed because replaying would drain the account pool
+// for a failure that is independent of any account.
+func IsOpenAIRequestScopedCapacityShedResponse(platform string, body []byte) bool {
+	if !strings.EqualFold(strings.TrimSpace(platform), PlatformOpenAI) || len(body) == 0 {
+		return false
+	}
+	if isOpenAIRequestScopedCapacityShed(ExtractUpstreamErrorMessage(body), body) {
+		return true
+	}
+	// capacityShedErrorResponse uses a stable server_error envelope when the
+	// upstream body has no recognizable message. Restrict the generic fallback
+	// wording to that envelope so a provider's ordinary 529 text cannot opt out
+	// of the queue retry policy by coincidence.
+	return isOpenAICapacityShedFallbackResponse(body)
+}
+
+func isOpenAICapacityShedFallbackResponse(body []byte) bool {
+	if !gjson.ValidBytes(body) {
+		return false
+	}
+	for _, path := range []string{"error", "response.error"} {
+		errorType := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, path+".type").String()))
+		if errorType != "server_error" {
+			continue
+		}
+		message := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, path+".message").String()))
+		if strings.Contains(message, "upstream service overloaded") ||
+			strings.Contains(message, "upstream service is temporarily overloaded") {
+			return true
+		}
+	}
+	return false
+}
+
 // newOpenAIAccountFailoverError augments the generic failover metadata with
 // the account-aware transient OAuth 429 policy. Quota 429s stay non-retryable
 // on the same account; transient 429s may use the bounded same-account retry

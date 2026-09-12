@@ -92,6 +92,11 @@ export interface ImageTaskError {
   [key: string]: unknown
 }
 
+export interface ImageTaskRequestError extends Error {
+  status?: number
+  details?: ImageTaskError
+}
+
 export interface ImageTask {
   id: string
   task_id: string
@@ -106,12 +111,45 @@ export interface ImageTask {
   poll_url?: string
 }
 
-function parseTaskError(payload: any, status: number): Error {
+function parseTaskError(payload: any, status: number): ImageTaskRequestError {
   const error = payload?.error || payload
   const message = error?.message || payload?.message || `Image task request failed (${status})`
-  const result = new Error(message) as Error & { details?: ImageTaskError }
+  const result = new Error(message) as ImageTaskRequestError
+  result.status = status
   result.details = error
   return result
+}
+
+// The async task endpoint can be unavailable when its Redis/object-storage
+// infrastructure is disabled or unreachable. The workbench can still use the
+// synchronous image endpoint in that deployment, while upstream and business
+// errors must remain terminal errors.
+export function isAsyncImageTaskUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as ImageTaskRequestError
+  if (candidate.status !== 404 && candidate.status !== 503) return false
+  const message = String(candidate.message || '').trim().toLowerCase()
+  const code = String(
+    candidate.details?.code ||
+    candidate.details?.reason ||
+    candidate.details?.type ||
+    '',
+  ).trim().toLowerCase()
+  if (code === 'image_task_unavailable') return true
+  if (message.includes('async image tasks are not enabled') ||
+    message.includes('async image object storage is unavailable') ||
+    message.includes('failed to store image task request') ||
+    message.includes('image task storage is unavailable')) return true
+
+  // Older gateways may not know the async route at all. Only treat generic
+  // route-level 404s as a compatibility signal; business 404s such as an
+  // unsupported platform must stay terminal and must not be retried as sync.
+  return candidate.status === 404 && (
+    message === 'image task request failed (404)' ||
+    message === 'not found' ||
+    message === '404 not found' ||
+    message === '404 page not found'
+  )
 }
 
 export async function submitImageTask(key: string, params: ImageGenerationParams, reference?: File): Promise<ImageTask> {
