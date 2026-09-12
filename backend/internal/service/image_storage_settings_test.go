@@ -82,6 +82,26 @@ func (s *connectionCheckingStorage) HeadBucket(context.Context) error {
 	return s.checkErr
 }
 
+type objectAccessCheckingStorage struct {
+	checkErr    error
+	objectCalls int
+	headCalls   int
+}
+
+func (s *objectAccessCheckingStorage) Save(_ context.Context, key, _ string, _ []byte) (string, error) {
+	return "https://cdn.example.com/" + key, nil
+}
+
+func (s *objectAccessCheckingStorage) CheckObjectAccess(context.Context) error {
+	s.objectCalls++
+	return s.checkErr
+}
+
+func (s *objectAccessCheckingStorage) HeadBucket(context.Context) error {
+	s.headCalls++
+	return errors.New("HeadBucket should not be called")
+}
+
 func newImageStorageFixture(t *testing.T, fallback config.ImageStorageConfig) (*ImageStorageSettingService, *stubSettingRepo, *[]config.ImageStorageConfig) {
 	return newImageStorageFixtureWithKey(t, fallback, true)
 }
@@ -289,4 +309,29 @@ func TestImageStorageSettingsTestConnectionChecksBucket(t *testing.T) {
 	err := svc.TestConnection(context.Background(), settings)
 	require.ErrorContains(t, err, "image storage bucket check failed")
 	require.ErrorContains(t, err, "permission denied")
+}
+
+func TestImageStorageSettingsTestConnectionPrefersObjectAccess(t *testing.T) {
+	repo := newStubSettingRepo()
+	encryptor := reversibleEncryptor{}
+	backup := NewBackupService(repo, &config.Config{
+		Totp: config.TotpConfig{EncryptionKeyConfigured: true},
+	}, encryptor, nil, nil)
+	storage := &objectAccessCheckingStorage{}
+	factory := func(context.Context, *config.ImageStorageConfig) (ImageStorage, error) {
+		return storage, nil
+	}
+	svc := NewImageStorageSettingService(repo, encryptor, backup, factory, config.ImageStorageConfig{})
+	settings := ImageStorageSettings{
+		Enabled: true, Bucket: "images", AccessKeyID: "access", SecretAccessKey: "secret",
+	}
+
+	require.NoError(t, svc.TestConnection(context.Background(), settings))
+	require.Equal(t, 1, storage.objectCalls)
+	require.Zero(t, storage.headCalls)
+
+	storage.checkErr = errors.New("object permission denied")
+	err := svc.TestConnection(context.Background(), settings)
+	require.ErrorContains(t, err, "image storage object access check failed")
+	require.ErrorContains(t, err, "object permission denied")
 }

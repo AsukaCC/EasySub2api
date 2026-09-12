@@ -236,6 +236,12 @@ func (s *ImageStorageSettingService) TestConnection(ctx context.Context, in Imag
 	if storage == nil {
 		return errors.New("image storage factory returned an empty storage")
 	}
+	if tester, ok := storage.(ImageStorageObjectAccessTester); ok {
+		if err := tester.CheckObjectAccess(ctx); err != nil {
+			return fmt.Errorf("image storage object access check failed: %w", err)
+		}
+		return nil
+	}
 	if tester, ok := storage.(ImageStorageConnectionTester); ok {
 		if err := tester.HeadBucket(ctx); err != nil {
 			return fmt.Errorf("image storage bucket check failed: %w", err)

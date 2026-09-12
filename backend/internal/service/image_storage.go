@@ -44,6 +44,14 @@ type ImageStorageConnectionTester interface {
 	HeadBucket(ctx context.Context) error
 }
 
+// ImageStorageObjectAccessTester verifies the object operations used by image
+// tasks. It is preferred over HeadBucket because S3-compatible providers such
+// as Cloudflare R2 may allow object read/write without granting bucket-level
+// ListBucket permission required by HeadBucket.
+type ImageStorageObjectAccessTester interface {
+	CheckObjectAccess(ctx context.Context) error
+}
+
 // ImageResultUploader 是 ImageStorage 的上层编排器（与具体厂商无关）：
 // 把上游生图响应里的每张图片（b64_json 解码 / url 下载）转存到对象存储，
 // 并把响应结果改写为只含短链接的紧凑 JSON，从而避免大 base64 落 Redis。
