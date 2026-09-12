@@ -34,6 +34,10 @@ const (
 	// maxSameAccountRetries 同账号重试次数默认上限（针对 RetryableOnSameAccount 错误）。
 	// 生产调用方通常传入账号级配置 account.GetPoolModeRetryCount()，该常量仅作兜底/测试默认值。
 	maxSameAccountRetries = 3
+	// capacityShedSameAccountRetries 是 Codex 上游容量降载（server_is_overloaded /
+	// slow_down）的专用上限。该故障属于请求级信号，继续在同一账号上递增重试只会
+	// 延迟切换并把整个账号池拖空。
+	capacityShedSameAccountRetries = 1
 	// sameAccountRetryDelay 同账号重试间隔
 	sameAccountRetryDelay = 500 * time.Millisecond
 	// maxRequestScopedRetryDelay 限制请求级瞬时错误的指数退避上限，避免高重试配置
@@ -68,6 +72,35 @@ func sameAccountRetryDelayFor(failoverErr *service.UpstreamFailoverError, retryC
 		delay *= 2
 	}
 	return delay
+}
+
+// sameAccountRetryLimitFor 返回当前 failover 错误允许的同账号重试次数。
+// 容量降载只允许一次额外尝试；其他错误继续遵循调用方传入的账号级配置。
+func sameAccountRetryLimitFor(failoverErr *service.UpstreamFailoverError, configured int) int {
+	if failoverErr != nil && failoverErr.IsRequestScopedCapacityShed() && configured > capacityShedSameAccountRetries {
+		return capacityShedSameAccountRetries
+	}
+	return configured
+}
+
+// capacityShedErrorResponse returns the client-facing response for an
+// exhausted Codex capacity-shed failover. The upstream stream is transported
+// over HTTP 200, so its semantic status must be restored to HTTP 503 before
+// any response bytes are written. The original message is retained for
+// diagnosis, while the client-facing classification is the retryable
+// server_error expected by Codex.
+func capacityShedErrorResponse(failoverErr *service.UpstreamFailoverError) (int, string, string, bool) {
+	if failoverErr == nil || !failoverErr.IsRequestScopedCapacityShed() {
+		return 0, "", "", false
+	}
+	message := failoverErr.ClientMessage
+	if message == "" {
+		message = service.ExtractUpstreamErrorMessage(failoverErr.ResponseBody)
+	}
+	if message == "" {
+		message = "Upstream service overloaded, please retry later"
+	}
+	return http.StatusServiceUnavailable, "server_error", message, true
 }
 
 // FailoverState 跨循环迭代共享的 failover 状态
@@ -158,21 +191,22 @@ func (s *FailoverState) HandleFailoverError(
 	}
 
 	// 同账号重试不算切换账号，粘性会话仅在实际切换时强制缓存计费。
-	sameAccountRetry := failoverErr.RetryableOnSameAccount && s.SameAccountRetryCount[accountID] < retryLimit
+	effectiveRetryLimit := sameAccountRetryLimitFor(failoverErr, retryLimit)
+	sameAccountRetry := failoverErr.RetryableOnSameAccount && s.SameAccountRetryCount[accountID] < effectiveRetryLimit
 	if needForceCacheBilling(s.hasBoundSession, failoverErr, sameAccountRetry) {
 		s.ForceCacheBilling = true
 	}
 
 	// 同账号重试：对 RetryableOnSameAccount 的临时性错误，先在同一账号上重试。
-	// 重试次数上限 retryLimit 由调用方传入（账号级 pool_mode_retry_count 配置）。
-	if failoverErr.RetryableOnSameAccount && s.SameAccountRetryCount[accountID] < retryLimit {
+	// 普通错误的上限由调用方传入；请求级容量降载由专用上限覆盖。
+	if failoverErr.RetryableOnSameAccount && s.SameAccountRetryCount[accountID] < effectiveRetryLimit {
 		s.SameAccountRetryCount[accountID]++
 		retryDelay := sameAccountRetryDelayFor(failoverErr, s.SameAccountRetryCount[accountID])
 		logger.FromContext(ctx).Warn("gateway.failover_same_account_retry",
 			zap.String("account_id", accountID),
 			zap.Int("upstream_status", failoverErr.StatusCode),
 			zap.Int("same_account_retry_count", s.SameAccountRetryCount[accountID]),
-			zap.Int("same_account_retry_max", retryLimit),
+			zap.Int("same_account_retry_max", effectiveRetryLimit),
 			zap.Duration("retry_delay", retryDelay),
 		)
 		if !sleepWithContext(ctx, retryDelay) {
@@ -181,8 +215,9 @@ func (s *FailoverState) HandleFailoverError(
 		return FailoverContinue
 	}
 
-	// 同账号重试用尽，执行临时封禁
-	if failoverErr.RetryableOnSameAccount {
+	// 同账号重试用尽，普通错误执行临时封禁。容量降载是请求级信号，
+	// 明确跳过调度器调用，避免把一次上游容量故障写成账号健康状态。
+	if failoverErr.RetryableOnSameAccount && !failoverErr.IsRequestScopedCapacityShed() {
 		gatewayService.TempUnscheduleRetryableError(ctx, accountID, failoverErr)
 	}
 
@@ -222,6 +257,7 @@ func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAc
 
 	if s.LastFailoverErr != nil &&
 		s.LastFailoverErr.StatusCode == http.StatusServiceUnavailable &&
+		!s.LastFailoverErr.IsRequestScopedCapacityShed() &&
 		s.SwitchCount <= s.MaxSwitches {
 
 		// 排除列表全由利润门否决贡献时，清空后会被原样恢复：退避重试拿不到

@@ -612,7 +612,11 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 			return nil, fmt.Errorf("upstream response failed (passthrough): %s", errMsg)
 		}
 		writeAnthropicError(c, http.StatusBadGateway, "api_error", message)
-		return nil, fmt.Errorf("upstream response failed: %s", message)
+		return nil, wrapOpenAICapacityShedStreamError(
+			fmt.Errorf("upstream response failed: %s", message),
+			message,
+			payload,
+		)
 	}
 
 	// When the terminal event has an empty output array, reconstruct from
@@ -1007,7 +1011,11 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 						}
 					}
 				}
-				streamNonFailoverErr = fmt.Errorf("upstream response failed: %s", errMsg)
+				streamNonFailoverErr = wrapOpenAICapacityShedStreamError(
+					fmt.Errorf("upstream response failed: %s", errMsg),
+					errMsg,
+					payloadBytes,
+				)
 				return true
 			}
 		}

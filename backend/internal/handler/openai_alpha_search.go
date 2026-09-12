@@ -109,6 +109,7 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 	sessionHash := h.gatewayService.GenerateSessionHashWithFallback(c, nil, searchID)
 	profitVetoCount := 0
 	failedAccountIDs := make(map[string]struct{})
+	sameAccountRetryCount := make(map[string]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 	switchCount := 0
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
@@ -191,7 +192,9 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 
 		var failoverErr *service.UpstreamFailoverError
 		if !errors.As(err, &failoverErr) {
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestedModel), false, nil)
+			if account.Platform != service.PlatformOpenAI || !service.IsOpenAICapacityShedError(err) {
+				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestedModel), false, nil)
+			}
 			if c.Writer.Size() == writerSizeBeforeForward {
 				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 			}
@@ -199,7 +202,9 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 			return
 		}
 
-		h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestedModel), false, nil)
+		if failoverErr.ShouldReportAccountScheduleFailure() {
+			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestedModel), false, nil)
+		}
 		if c.Writer.Size() != writerSizeBeforeForward {
 			h.handleFailoverExhausted(c, failoverErr, true)
 			return
@@ -210,6 +215,23 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 				zap.Int("upstream_status", failoverErr.StatusCode),
 			)
 			return
+		}
+		if failoverErr.IsRequestScopedCapacityShed() {
+			retryLimit := sameAccountRetryLimitFor(failoverErr, account.GetPoolModeRetryCount())
+			if sameAccountRetryCount[account.ID] < retryLimit {
+				sameAccountRetryCount[account.ID]++
+				retryCount := sameAccountRetryCount[account.ID]
+				reqLog.Warn("openai_alpha_search.capacity_shed_same_account_retry",
+					zap.String("account_id", account.ID),
+					zap.Int("upstream_status", failoverErr.StatusCode),
+					zap.Int("retry_limit", retryLimit),
+					zap.Int("retry_count", retryCount),
+				)
+				if !sleepWithContext(c.Request.Context(), sameAccountRetryDelayFor(failoverErr, retryCount)) {
+					return
+				}
+				continue
+			}
 		}
 		h.gatewayService.RecordOpenAIAccountSwitch()
 		failedAccountIDs[account.ID] = struct{}{}

@@ -260,9 +260,12 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
-				if c.Writer.Size() != writerSizeBeforeForward {
+				if !gatewayForwardMayFailover(c, writerSizeBeforeForward, account.Platform, failoverErr) {
 					h.handleCCFailoverExhausted(c, failoverErr, true)
 					return
+				}
+				if c.Writer.Written() {
+					streamStarted = true
 				}
 				action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
 				switch action {
@@ -341,15 +344,24 @@ func (h *GatewayHandler) chatCompletionsErrorResponse(c *gin.Context, status int
 
 // handleCCFailoverExhausted writes a failover-exhausted error in CC format.
 func (h *GatewayHandler) handleCCFailoverExhausted(c *gin.Context, lastErr *service.UpstreamFailoverError, streamStarted bool) {
-	if streamStarted {
-		return
-	}
 	if lastErr != nil {
 		copyFailoverRetryAfter(c, lastErr.ResponseHeaders)
 	}
 	if lastErr != nil && lastErr.IsCredentialFailure() {
 		status, message := credentialFailoverClientResponse(lastErr)
 		h.chatCompletionsErrorResponse(c, status, "server_error", message)
+		return
+	}
+	if status, errType, message, ok := capacityShedErrorResponse(lastErr); ok {
+		service.SetOpsUpstreamError(c, status, message, "")
+		if streamStarted {
+			h.handleStreamingAwareError(c, status, errType, message, true)
+		} else {
+			h.chatCompletionsErrorResponse(c, status, errType, message)
+		}
+		return
+	}
+	if streamStarted {
 		return
 	}
 	statusCode := http.StatusBadGateway

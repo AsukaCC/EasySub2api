@@ -59,6 +59,14 @@ func newOpenAIWSUnsupportedModelSwitchError(model string) error {
 }
 
 func shouldReportOpenAIWSProxyAccountFailure(err error) bool {
+	return err != nil && !errors.Is(err, errOpenAIWSUnsupportedModelSwitch) &&
+		!isOpenAILocalPolicyRejection(err) && !service.IsOpenAICapacityShedError(err)
+}
+
+func shouldReportOpenAIWSProxyAccountFailureForAccount(account *service.Account, err error) bool {
+	if account == nil || account.Platform == service.PlatformOpenAI {
+		return shouldReportOpenAIWSProxyAccountFailure(err)
+	}
 	return err != nil && !errors.Is(err, errOpenAIWSUnsupportedModelSwitch) && !isOpenAILocalPolicyRejection(err)
 }
 
@@ -742,7 +750,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
 					}
-					if failoverErr.SafeToFailoverAfterWrite && c.Writer.Written() {
+					// openAIForwardMayFailover 已确认写出的字节不含语义输出，
+					// 但重试耗尽时仍须按已提交的 SSE 响应返回流内错误。
+					if c.Writer.Written() {
 						streamStarted = true
 					}
 					if failoverErr.ShouldReportAccountScheduleFailure() {
@@ -758,7 +768,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					}
 					// 池模式：同账号重试
 					if failoverErr.RetryableOnSameAccount {
-						retryLimit := account.GetPoolModeRetryCount()
+						retryLimit := sameAccountRetryLimitFor(failoverErr, account.GetPoolModeRetryCount())
 						if sameAccountRetryCount[account.ID] < retryLimit {
 							sameAccountRetryCount[account.ID]++
 							retryDelay := sameAccountRetryDelayFor(failoverErr, sameAccountRetryCount[account.ID])
@@ -808,7 +818,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					reqLog.Warn("openai.upstream_failover_switching", failoverSwitchFields...)
 					continue
 				}
-				if !isOpenAILocalPolicyRejection(err) {
+				if !isOpenAILocalPolicyRejection(err) &&
+					(account.Platform != service.PlatformOpenAI || !service.IsOpenAICapacityShedError(err)) {
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(reqModel), false, nil)
 				}
 				upstreamErrorAlreadyCommunicated := openAIForwardErrorAlreadyCommunicated(c, writerSizeBeforeForward, err)
@@ -1300,9 +1311,12 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						)
 						return
 					}
-					if c.Writer.Size() != writerSizeBeforeForward {
+					if !gatewayForwardMayFailover(c, writerSizeBeforeForward, account.Platform, failoverErr) {
 						h.handleAnthropicFailoverExhausted(c, failoverErr, true)
 						return
+					}
+					if c.Writer.Written() {
+						streamStarted = true
 					}
 					if failoverErr.ShouldReportAccountScheduleFailure() {
 						h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(currentRoutingModel), false, nil)
@@ -1313,7 +1327,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					}
 					// 池模式：同账号重试
 					if failoverErr.RetryableOnSameAccount {
-						retryLimit := account.GetPoolModeRetryCount()
+						retryLimit := sameAccountRetryLimitFor(failoverErr, account.GetPoolModeRetryCount())
 						if sameAccountRetryCount[account.ID] < retryLimit {
 							sameAccountRetryCount[account.ID]++
 							retryDelay := sameAccountRetryDelayFor(failoverErr, sameAccountRetryCount[account.ID])
@@ -1362,7 +1376,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					submitMessagesUsage(result)
 					return
 				}
-				if !isOpenAILocalPolicyRejection(err) {
+				if !isOpenAILocalPolicyRejection(err) &&
+					(account.Platform != service.PlatformOpenAI || !service.IsOpenAICapacityShedError(err)) {
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(currentRoutingModel), false, nil)
 				}
 				wroteFallback := h.ensureAnthropicErrorResponse(c, streamStarted)
@@ -1443,6 +1458,11 @@ func (h *OpenAIGatewayHandler) handleAnthropicFailoverExhausted(c *gin.Context, 
 	}
 	if failoverErr != nil && failoverErr.IsCredentialFailure() {
 		status, message := credentialFailoverClientResponse(failoverErr)
+		h.anthropicStreamingAwareError(c, status, "api_error", message, streamStarted)
+		return
+	}
+	if status, _, message, ok := capacityShedErrorResponse(failoverErr); ok {
+		service.SetOpsUpstreamError(c, status, message, "")
 		h.anthropicStreamingAwareError(c, status, "api_error", message, streamStarted)
 		return
 	}
@@ -2426,7 +2446,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return
 			}
 
-			if shouldReportOpenAIWSProxyAccountFailure(err) {
+			if shouldReportOpenAIWSProxyAccountFailureForAccount(account, err) {
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(reqModel), false, nil)
 			}
 			closeStatus, closeReason := summarizeWSCloseErrorForLog(err)
@@ -2669,6 +2689,11 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 			service.OpenAIRequestBodyTooLargeClientMessage,
 			streamStarted,
 		)
+		return
+	}
+	if status, errType, errMsg, ok := capacityShedErrorResponse(failoverErr); ok {
+		service.SetOpsUpstreamError(c, status, errMsg, "")
+		h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
 		return
 	}
 	copyFailoverRetryAfter(c, failoverErr.ResponseHeaders)
@@ -2948,10 +2973,27 @@ func openAIForwardMayFailover(c *gin.Context, writerSizeBeforeForward int, failo
 	if c == nil || c.Writer == nil {
 		return false
 	}
-	if service.OpenAICompactKeepaliveAdjustedWrittenSize(c) == writerSizeBeforeForward {
+	adjustedWrittenSize := service.OpenAICompactKeepaliveAdjustedWrittenSize(c)
+	// A native Responses stream can commit an SSE heartbeat before the first
+	// semantic event. The adjusted helper uses gin's -1 "not written" sentinel
+	// for that case, while older callers snapshot the raw writer size (usually
+	// -1, but sometimes 0 after headers). Treat both representations as empty.
+	if adjustedWrittenSize == writerSizeBeforeForward ||
+		(adjustedWrittenSize < 0 && writerSizeBeforeForward <= 0) {
 		return true
 	}
 	return failoverErr != nil && failoverErr.SafeToFailoverAfterWrite
+}
+
+// gatewayForwardMayFailover applies the OpenAI semantic-output accounting to
+// OpenAI streams while preserving the raw writer-size rule for other
+// providers. Several compatibility handlers share the same failover loop but
+// only OpenAI native streams stage pre-output heartbeats/events.
+func gatewayForwardMayFailover(c *gin.Context, writerSizeBeforeForward int, platform string, failoverErr *service.UpstreamFailoverError) bool {
+	if platform == service.PlatformOpenAI {
+		return openAIForwardMayFailover(c, writerSizeBeforeForward, failoverErr)
+	}
+	return c != nil && c.Writer != nil && c.Writer.Size() == writerSizeBeforeForward
 }
 
 func openAIRequestAllowsFailoverReplay(c *gin.Context) bool {

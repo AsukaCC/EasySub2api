@@ -27,6 +27,22 @@ func TestOpenAIForwardMayFailoverOnlyAfterNonSemanticWrite(t *testing.T) {
 	require.False(t, openAIForwardMayFailover(c, before, &service.UpstreamFailoverError{}))
 }
 
+func TestOpenAIForwardMayFailoverAcceptsRawWriterSnapshotForHeartbeatOnly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	// Compatibility handlers still snapshot c.Writer.Size() directly. Native
+	// OpenAI streaming records the same bytes as non-semantic keepalive data, so
+	// the adjusted post-forward size must remain failover-safe.
+	before := c.Writer.Size()
+	n, err := c.Writer.Write([]byte(":\n\n"))
+	require.NoError(t, err)
+	c.Set("openai_stream_keepalive_bytes", n)
+	c.Writer.Flush()
+
+	require.True(t, openAIForwardMayFailover(c, before, &service.UpstreamFailoverError{}))
+}
+
 func TestOpenAIFirstOutputFailoverStopsAfterOneAccountSwitch(t *testing.T) {
 	failoverErr := &service.UpstreamFailoverError{SafeToFailoverAfterWrite: true}
 	count := 0
