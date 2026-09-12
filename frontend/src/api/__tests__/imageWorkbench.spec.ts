@@ -36,6 +36,8 @@ describe('image workbench async fallback signal', () => {
     requestError(503, 'failed to store image task request', { code: 'IMAGE_TASK_UNAVAILABLE' }),
     requestError(503, 'async image task storage is unavailable', { reason: 'IMAGE_TASK_UNAVAILABLE' }),
     requestError(404, 'Image task request failed (404)'),
+    requestError(503, 'Image task request failed (503)'),
+    requestError(503, 'upstream connect error or disconnect/reset before headers'),
   ])('recognizes unavailable async infrastructure', (error) => {
     expect(isAsyncImageTaskUnavailable(error)).toBe(true)
   })
