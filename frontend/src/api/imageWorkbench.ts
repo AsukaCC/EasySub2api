@@ -141,6 +141,11 @@ export function isAsyncImageTaskUnavailable(error: unknown): boolean {
     message.includes('failed to store image task request') ||
     message.includes('image task storage is unavailable')) return true
 
+  // A reverse proxy can replace the gateway JSON body with a plain 503 page.
+  // There is no upstream image request at this point, so an otherwise-untyped
+  // submit failure is still an async infrastructure compatibility signal.
+  if (candidate.status === 503 && !code) return true
+
   // Older gateways may not know the async route at all. Only treat generic
   // route-level 404s as a compatibility signal; business 404s such as an
   // unsupported platform must stay terminal and must not be retried as sync.
