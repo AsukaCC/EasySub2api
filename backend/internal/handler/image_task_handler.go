@@ -146,25 +146,37 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	if strings.Contains(c.Request.URL.Path, "/edits") {
 		endpoint = "edits"
 	}
+	submitLog := requestLogger(c, "handler.async_image.submit",
+		zap.String("platform", platform), zap.String("endpoint", endpoint),
+		zap.String("api_key_id", apiKey.ID))
 	if h.queue != nil {
 		store := h.tasks.ArtifactStore()
 		if store == nil {
+			submitLog.Warn("image_task.artifact_store_unavailable")
 			imageTaskJSONError(c, http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "async image object storage is unavailable")
 			return
 		}
 		taskID := "imgtask_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 		payloadKey := "image-tasks/" + taskID + "/request"
 		if err := store.Put(c.Request.Context(), payloadKey, c.GetHeader("Content-Type"), body); err != nil {
+			submitLog.Error("image_task.request_store_failed", zap.String("task_id", taskID), zap.Error(err))
 			imageTaskJSONError(c, http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "failed to store image task request")
 			return
 		}
 		task, err := h.tasks.CreateQueued(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}, platform, endpoint, c.GetHeader("Content-Type"), payloadKey)
-		if err == nil {
-			err = h.queue.Enqueue(c.Request.Context(), task.ID)
-		}
 		if err != nil {
+			submitLog.Error("image_task.record_create_failed", zap.Error(err))
 			_ = store.Delete(context.Background(), payloadKey)
 			imageTaskError(c, err)
+			return
+		}
+		if err := h.queue.Enqueue(c.Request.Context(), task.ID); err != nil {
+			submitLog.Error("image_task.queue_enqueue_failed", zap.String("task_id", task.ID), zap.Error(err))
+			if failErr := h.tasks.Fail(context.Background(), task.ID, http.StatusServiceUnavailable, imageTaskErrorPayload("api_error", "image task queue is unavailable")); failErr != nil {
+				submitLog.Error("image_task.queue_failure_record_failed", zap.String("task_id", task.ID), zap.Error(failErr))
+			}
+			_ = store.Delete(context.Background(), payloadKey)
+			imageTaskError(c, service.ErrImageTaskUnavailable.WithCause(err))
 			return
 		}
 		pollURL := imageTaskPollURL(c.Request.URL.Path, task.ID)
@@ -178,6 +190,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	taskCtx, recorder, cancel := newAsyncImageContext(c, body, h.tasks.ExecutionTimeout())
 	task, err := h.tasks.Create(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
 	if err != nil {
+		submitLog.Error("image_task.record_create_failed", zap.Error(err))
 		cancel()
 		imageTaskError(c, err)
 		return
@@ -318,14 +331,28 @@ func (h *AsyncImageHandler) processQueuedTask(taskID string) {
 		_ = h.tasks.Complete(context.Background(), taskID, code, response)
 		return
 	}
-	if code >= 500 && record.Attempt < h.maxAttempts {
+	capacityShed := service.IsOpenAIRequestScopedCapacityShedResponse(record.Platform, response)
+	if shouldRetryQueuedImageTask(record.Platform, code, response) && record.Attempt < h.maxAttempts {
 		time.Sleep(time.Duration(record.Attempt*record.Attempt) * 5 * time.Second)
 		if enqueueErr := h.queue.Enqueue(context.Background(), taskID); enqueueErr != nil {
 			_ = h.tasks.Fail(context.Background(), taskID, code, extractImageTaskError(response))
 		}
 		return
 	}
+	if capacityShed {
+		// Capacity shedding is scoped to this request/client identity. The gateway
+		// already tried the configured account pool, so replaying the task would
+		// repeat that work without improving the outcome or account health.
+		logger.L().Warn("image_task.capacity_shed_not_requeued", zap.String("task_id", taskID), zap.Int("attempt", record.Attempt))
+	}
 	_ = h.tasks.Fail(context.Background(), taskID, code, extractImageTaskError(response))
+}
+
+func shouldRetryQueuedImageTask(platform string, statusCode int, response []byte) bool {
+	if statusCode < http.StatusInternalServerError || statusCode >= 600 {
+		return false
+	}
+	return !service.IsOpenAIRequestScopedCapacityShedResponse(platform, response)
 }
 
 func (h *AsyncImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, apiKey *service.APIKey, platform string, body []byte) bool {

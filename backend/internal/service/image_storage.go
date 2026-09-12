@@ -36,6 +36,14 @@ type ImageTaskArtifactStore interface {
 	Delete(ctx context.Context, key string) error
 }
 
+// ImageStorageConnectionTester is an optional health check implemented by
+// storage adapters that can verify the configured bucket without writing an
+// application object. It is used by the admin "test connection" action; the
+// async task path still treats a failed operation as the authoritative check.
+type ImageStorageConnectionTester interface {
+	HeadBucket(ctx context.Context) error
+}
+
 // ImageResultUploader 是 ImageStorage 的上层编排器（与具体厂商无关）：
 // 把上游生图响应里的每张图片（b64_json 解码 / url 下载）转存到对象存储，
 // 并把响应结果改写为只含短链接的紧凑 JSON，从而避免大 base64 落 Redis。

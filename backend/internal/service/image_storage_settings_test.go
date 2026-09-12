@@ -68,6 +68,20 @@ func (s *recordingStorage) Save(_ context.Context, key, _ string, _ []byte) (str
 	return "https://cdn.example.com/" + key, nil
 }
 
+type connectionCheckingStorage struct {
+	checkErr error
+	calls    int
+}
+
+func (s *connectionCheckingStorage) Save(_ context.Context, key, _ string, _ []byte) (string, error) {
+	return "https://cdn.example.com/" + key, nil
+}
+
+func (s *connectionCheckingStorage) HeadBucket(context.Context) error {
+	s.calls++
+	return s.checkErr
+}
+
 func newImageStorageFixture(t *testing.T, fallback config.ImageStorageConfig) (*ImageStorageSettingService, *stubSettingRepo, *[]config.ImageStorageConfig) {
 	return newImageStorageFixtureWithKey(t, fallback, true)
 }
@@ -251,4 +265,28 @@ func TestImageStorageSettingsFallBackToConfigFile(t *testing.T) {
 	require.True(t, fetched.Enabled)
 	require.Equal(t, "yaml-bucket", fetched.Bucket)
 	require.Empty(t, fetched.SecretAccessKey)
+}
+
+func TestImageStorageSettingsTestConnectionChecksBucket(t *testing.T) {
+	repo := newStubSettingRepo()
+	encryptor := reversibleEncryptor{}
+	backup := NewBackupService(repo, &config.Config{
+		Totp: config.TotpConfig{EncryptionKeyConfigured: true},
+	}, encryptor, nil, nil)
+	storage := &connectionCheckingStorage{}
+	factory := func(context.Context, *config.ImageStorageConfig) (ImageStorage, error) {
+		return storage, nil
+	}
+	svc := NewImageStorageSettingService(repo, encryptor, backup, factory, config.ImageStorageConfig{})
+	settings := ImageStorageSettings{
+		Enabled: true, Bucket: "images", AccessKeyID: "access", SecretAccessKey: "secret",
+	}
+
+	require.NoError(t, svc.TestConnection(context.Background(), settings))
+	require.Equal(t, 1, storage.calls)
+
+	storage.checkErr = errors.New("permission denied")
+	err := svc.TestConnection(context.Background(), settings)
+	require.ErrorContains(t, err, "image storage bucket check failed")
+	require.ErrorContains(t, err, "permission denied")
 }

@@ -25,6 +25,7 @@ type S3ImageStorage struct {
 
 var _ service.ImageStorage = (*S3ImageStorage)(nil)
 var _ service.ImageTaskArtifactStore = (*S3ImageStorage)(nil)
+var _ service.ImageStorageConnectionTester = (*S3ImageStorage)(nil)
 
 // NewS3ImageStorage 依据配置构造 S3 图片存储（调用方应先确认 cfg.Active()）。
 func NewS3ImageStorage(ctx context.Context, cfg *config.ImageStorageConfig) (*S3ImageStorage, error) {
@@ -82,9 +83,24 @@ func (s *S3ImageStorage) Save(ctx context.Context, key, contentType string, data
 }
 
 func (s *S3ImageStorage) Put(ctx context.Context, key, contentType string, data []byte) error {
+	finish := servertiming.ObserveDependency(ctx, "s3")
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{Bucket: &s.bucket, Key: &key, Body: bytes.NewReader(data), ContentType: &contentType})
+	finish()
 	if err != nil {
 		return fmt.Errorf("S3 PutObject: %w", err)
+	}
+	return nil
+}
+
+// HeadBucket verifies that the configured endpoint, credentials, and bucket
+// are reachable. Constructing an SDK client alone does not perform any I/O, so
+// the admin connection test must explicitly exercise the bucket.
+func (s *S3ImageStorage) HeadBucket(ctx context.Context) error {
+	finish := servertiming.ObserveDependency(ctx, "s3")
+	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &s.bucket})
+	finish()
+	if err != nil {
+		return fmt.Errorf("S3 HeadBucket: %w", err)
 	}
 	return nil
 }

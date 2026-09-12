@@ -72,7 +72,7 @@
             </div>
           </article>
         </div>
-        <div v-else-if="filteredHistory.length === 0 && !generating" class="empty-state">
+        <div v-else-if="filteredHistory.length === 0 && taskItems.length === 0 && !generating" class="empty-state">
           <Icon name="photo" size="xl" />
           <strong>{{ emptyMessage }}</strong>
         </div>
@@ -387,12 +387,17 @@ import { useAppStore } from '@/stores'
 import { useClipboard } from '@/composables/useClipboard'
 import {
   eligibleImageKeys,
+  generateImage,
   submitImageTask,
   getImageTask,
   cancelImageTask,
+  isAsyncImageTaskUnavailable,
   imagePlatformAdapters,
   listImageModels,
   loadWorkbenchCredentials,
+  type ImageGenerationParams,
+  type ImageResult,
+  type ImageTask,
   type ImageModel,
   type ImagePlatform,
   type ImagePlatformAdapter,
@@ -422,7 +427,8 @@ const activePlatform = ref<ImagePlatform>(defaultPlatform)
 const credentials = ref<{ keys: import('@/types').ApiKey[]; groups: import('@/types').Group[] }>({ keys: [], groups: [] })
 const loadingHistory = ref(true)
 const taskItems = ref<ImageTaskItem[]>([])
-const generating = computed(() => taskItems.value.some((task) => task.status === 'processing'))
+const submitting = ref(false)
+const generating = computed(() => submitting.value || taskItems.value.some((task) => task.status === 'processing'))
 const pollTimers = new Map<string, number>()
 const settingsOpen = ref(false)
 const settingsTab = ref<'connection' | 'preferences' | 'data'>('connection')
@@ -634,6 +640,38 @@ function measureImage(src: string): Promise<{ width: number; height: number } | 
   })
 }
 
+async function saveImageResults(
+  results: ImageResult[],
+  metadata: {
+    prompt: string
+    model: string
+    platform: string
+    keyName?: string
+    params: Record<string, unknown>
+  },
+) {
+  for (const result of results) {
+    const src = imageSource(result)
+    if (!src) continue
+    const measured = await measureImage(src)
+    await putHistory({
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+      prompt: metadata.prompt,
+      model: metadata.model,
+      platform: metadata.platform,
+      src,
+      revisedPrompt: result.revised_prompt,
+      favorite: false,
+      keyName: metadata.keyName,
+      width: measured?.width,
+      height: measured?.height,
+      params: { ...metadata.params },
+    })
+  }
+  history.value = await listHistory()
+}
+
 async function refreshModels() {
   const key = selectedKey.value?.key
   if (!key) {
@@ -697,44 +735,100 @@ function reuseItem(item: ImageHistoryItem) {
 }
 
 async function submitGeneration() {
-  if (!selectedKey.value?.key || !selectedModel.value) {
+  if (submitting.value) return
+  const key = selectedKey.value
+  const model = selectedModel.value
+  const promptText = prompt.value.trim()
+  if (!key?.key || !model) {
     errorMessage.value = t('imageWorkbench.configureApi')
     openSettings()
     return
   }
-  if (!prompt.value.trim()) {
+  if (!promptText) {
     errorMessage.value = t('imageWorkbench.promptRequired')
     return
   }
+
+  const compression = Number(params.output_compression)
+  const generationParams: ImageGenerationParams = {
+    prompt: promptText,
+    model,
+    size: params.size,
+    quality: params.quality,
+    output_format: params.output_format,
+    output_compression: Number.isFinite(compression) ? Math.min(100, Math.max(0, compression)) : 100,
+    background: params.background,
+    moderation: params.moderation,
+    n: Math.min(4, Math.max(1, Number(params.n) || 1)),
+  }
+  const paramsSnapshot: Record<string, unknown> = {
+    ...params,
+    output_compression: generationParams.output_compression,
+    n: generationParams.n,
+  }
+  const reference = referenceFile.value || undefined
+  const platform = activePlatform.value
   errorMessage.value = ''
+  submitting.value = true
   try {
-    const accepted = await submitImageTask(
-      selectedKey.value.key,
-      {
-        prompt: prompt.value.trim(),
-        model: selectedModel.value,
-        size: params.size,
-        quality: params.quality,
-        output_format: params.output_format,
-        output_compression: params.output_compression,
-        background: params.background,
-        moderation: params.moderation,
-        n: Math.min(4, Math.max(1, Number(params.n) || 1)),
-      },
-      referenceFile.value || undefined,
-    )
-    const task: ImageTaskItem = { taskId: accepted.task_id || accepted.id, keyId: selectedKeyId.value, keyName: selectedKey.value.name, platform: activePlatform.value, prompt: prompt.value.trim(), model: selectedModel.value, params: { ...params }, status: accepted.status || 'processing', createdAt: Date.now() }
+    let accepted: ImageTask
+    try {
+      accepted = await submitImageTask(key.key, generationParams, reference)
+    } catch (error) {
+      if (!isAsyncImageTaskUnavailable(error)) throw error
+
+      // Async tasks require Redis-backed task state and object storage. A
+      // deployment that does not provide either can still use the original
+      // synchronous image endpoint, which returns the result directly.
+      const results = await generateImage(key.key, generationParams, reference)
+      await saveImageResults(results, {
+        prompt: promptText,
+        model,
+        platform,
+        keyName: key.name,
+        params: paramsSnapshot,
+      })
+      return
+    }
+
+    if (accepted.status === 'completed' && accepted.result?.data?.length) {
+      await saveImageResults(accepted.result.data, {
+        prompt: promptText,
+        model,
+        platform,
+        keyName: key.name,
+        params: paramsSnapshot,
+      })
+      return
+    }
+
+    const taskId = accepted.task_id || accepted.id
+    if (!taskId) throw new Error(t('imageWorkbench.generateFailed'))
+    const task: ImageTaskItem = {
+      taskId,
+      keyId: key.id,
+      keyName: key.name,
+      platform,
+      prompt: promptText,
+      model,
+      params: paramsSnapshot,
+      status: accepted.status || 'processing',
+      createdAt: Date.now(),
+    }
     taskItems.value = [task, ...taskItems.value.filter((item) => item.taskId !== task.taskId)]
     await putTask(task)
     startTaskPolling(task)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed')
+  } finally {
+    submitting.value = false
   }
 }
 
 function startTaskPolling(task: ImageTaskItem) {
   if (pollTimers.has(task.taskId)) return
   const poll = async () => {
+    pollTimers.delete(task.taskId)
     const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
     if (!key) { task.status = 'failed'; task.error = { message: t('imageWorkbench.keyUnavailable') }; await putTask(task); return }
     try {
@@ -742,12 +836,22 @@ function startTaskPolling(task: ImageTaskItem) {
       task.status = remote.status; task.completedAt = remote.completed_at
       if (remote.error) task.error = remote.error
       if (remote.status === 'completed') {
-        for (const result of remote.result?.data || []) { const src = imageSource(result); if (!src) continue; const measured = await measureImage(src); await putHistory({ id: crypto.randomUUID(), createdAt: Date.now(), prompt: task.prompt, model: task.model, platform: task.platform, src, revisedPrompt: result.revised_prompt, favorite: false, keyName: task.keyName, width: measured?.width, height: measured?.height, params: task.params }) }
-        await deleteTask(task.taskId); taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId); history.value = await listHistory(); return
+        await saveImageResults(remote.result?.data || [], {
+          prompt: task.prompt,
+          model: task.model,
+          platform: task.platform,
+          keyName: task.keyName,
+          params: task.params,
+        })
+        await deleteTask(task.taskId)
+        taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId)
+        pollTimers.delete(task.taskId)
+        return
       }
       await putTask(task); taskItems.value = [...taskItems.value]
       if (['failed', 'canceled', 'cancelled'].includes(task.status)) return
     } catch (error) { task.error = { message: error instanceof Error ? error.message : t('imageWorkbench.generateFailed') }; await putTask(task) }
+    if (['failed', 'canceled', 'cancelled'].includes(task.status)) return
     const timer = window.setTimeout(poll, 3000); pollTimers.set(task.taskId, timer)
   }
   void poll()
@@ -756,7 +860,14 @@ function startTaskPolling(task: ImageTaskItem) {
 async function cancelTask(task: ImageTaskItem) {
   const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
   if (!key) return
-  try { const remote = await cancelImageTask(key, task.taskId); task.status = remote.status; task.error = remote.error; await putTask(task); taskItems.value = [...taskItems.value] } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed') }
+  stopTaskPolling(task.taskId)
+  try { const remote = await cancelImageTask(key, task.taskId); task.status = remote.status; task.error = remote.error; await putTask(task); taskItems.value = [...taskItems.value] } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed'); if (task.status === 'processing') startTaskPolling(task) }
+}
+
+function stopTaskPolling(taskId: string) {
+  const timer = pollTimers.get(taskId)
+  if (timer !== undefined) window.clearTimeout(timer)
+  pollTimers.delete(taskId)
 }
 
 function retryTask(task: ImageTaskItem) {
@@ -1211,7 +1322,7 @@ onUnmounted(() => {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
   animation: card-pulse 1.8s ease-in-out infinite alternate;
-  pointer-events: none;
+  cursor: default;
 }
 
 @keyframes card-pulse {
