@@ -46,6 +46,10 @@ func (s *imageTaskStore) Get(ctx context.Context, id string) (*service.ImageTask
 	return &task, nil
 }
 
+func (s *imageTaskStore) Delete(ctx context.Context, id string) error {
+	return s.rdb.Del(ctx, imageTaskKey(id)).Err()
+}
+
 func (s *imageTaskStore) CompareAndSetStatus(ctx context.Context, id, expected string, task *service.ImageTaskRecord, ttl time.Duration) error {
 	key := imageTaskKeyPrefix + id
 	payload, err := json.Marshal(task)

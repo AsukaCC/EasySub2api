@@ -39,6 +39,11 @@ func (s *imageTaskMemoryStore) Get(_ context.Context, _ string) (*ImageTaskRecor
 	return &copy, nil
 }
 
+func (s *imageTaskMemoryStore) Delete(_ context.Context, _ string) error {
+	s.task = nil
+	return nil
+}
+
 func TestImageTaskServiceLifecycleAndOwnership(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithOptions(store, time.Hour, 10*time.Minute)
@@ -82,6 +87,23 @@ func TestImageTaskServiceQueuedStartsInQueuedState(t *testing.T) {
 	canceled, err := svc.Cancel(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 9}, task.ID)
 	require.NoError(t, err)
 	require.Equal(t, ImageTaskStatusCanceled, canceled.Status)
+}
+
+func TestImageTaskServiceRetryAndDeleteKeepTaskOwnership(t *testing.T) {
+	store := &imageTaskMemoryStore{}
+	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)
+	owner := ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	created, err := svc.Create(context.Background(), owner)
+	require.NoError(t, err)
+	require.NoError(t, svc.Fail(context.Background(), created.ID, http.StatusBadGateway, imageTaskErrorJSON("api_error", "temporary")))
+
+	retried, err := svc.Retry(context.Background(), owner, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, created.ID, retried.ID)
+	require.Equal(t, ImageTaskStatusQueued, retried.Status)
+	require.ErrorIs(t, svc.Delete(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 10}, created.ID), ErrImageTaskNotFound)
+	require.NoError(t, svc.Delete(context.Background(), owner, created.ID))
+	require.Nil(t, store.task)
 }
 
 func TestImageTaskServiceInvalidResultBecomesFailed(t *testing.T) {

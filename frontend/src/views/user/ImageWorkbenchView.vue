@@ -87,6 +87,7 @@
               <div class="history-card__actions">
                 <button v-if="task.status === 'queued' || task.status === 'processing'" type="button" :title="t('imageWorkbench.cancelTask')" @click.stop="cancelTask(task)"><Icon name="x" size="xs" /></button>
                 <button v-if="task.status === 'failed'" type="button" :title="t('imageWorkbench.retryTask')" @click.stop="retryTask(task)"><Icon name="refresh" size="xs" /></button>
+                <button v-if="task.status === 'failed' || task.status === 'canceled' || task.status === 'cancelled'" class="action-btn-del" type="button" :title="t('imageWorkbench.deleteTask')" @click.stop="removeTask(task)"><Icon name="trash" size="xs" /></button>
               </div>
             </div>
           </article>
@@ -391,6 +392,8 @@ import {
   submitImageTask,
   getImageTask,
   cancelImageTask,
+  retryImageTask,
+  deleteImageTask,
   isAsyncImageTaskUnavailable,
   imagePlatformAdapters,
   listImageModels,
@@ -870,7 +873,21 @@ async function cancelTask(task: ImageTaskItem) {
   const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
   if (!key) return
   stopTaskPolling(task.taskId)
-  try { const remote = await cancelImageTask(key, task.taskId); task.status = remote.status; task.error = remote.error; await putTask(task); taskItems.value = [...taskItems.value] } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed'); if (task.status === 'queued' || task.status === 'processing') startTaskPolling(task) }
+  try {
+    const remote = await cancelImageTask(key, task.taskId)
+    if (!remote) {
+      await deleteTask(task.taskId)
+      taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId)
+      return
+    }
+    task.status = remote.status
+    task.error = remote.error
+    await putTask(task)
+    taskItems.value = [...taskItems.value]
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed')
+    if (task.status === 'queued' || task.status === 'processing') startTaskPolling(task)
+  }
 }
 
 function stopTaskPolling(taskId: string) {
@@ -879,10 +896,49 @@ function stopTaskPolling(taskId: string) {
   pollTimers.delete(taskId)
 }
 
-function retryTask(task: ImageTaskItem) {
-  prompt.value = task.prompt
-  Object.assign(params, task.params)
-  void submitGeneration()
+async function retryTask(task: ImageTaskItem) {
+  const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
+  if (!key || submitting.value) return
+  stopTaskPolling(task.taskId)
+  submitting.value = true
+  try {
+    // The backend reuses this task's retained request artifact/body. Sending
+    // the current composer values here could turn an edit retry into a new
+    // request when the original multipart image is no longer selected.
+    const remote = await retryImageTask(key, task.taskId)
+    task.status = remote.status
+    task.error = remote.error
+    task.completedAt = remote.completed_at
+    await putTask(task)
+    taskItems.value = [...taskItems.value]
+    startTaskPolling(task)
+  } catch (error) {
+    task.error = { message: error instanceof Error ? error.message : t('imageWorkbench.generateFailed') }
+    task.status = 'failed'
+    await putTask(task)
+    taskItems.value = [...taskItems.value]
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function removeTask(task: ImageTaskItem) {
+  const key = credentials.value.keys.find((item) => item.id === task.keyId)?.key
+  if (!key) return
+  stopTaskPolling(task.taskId)
+  try {
+    await deleteImageTask(key, task.taskId)
+    await deleteTask(task.taskId)
+    taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId)
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+      await deleteTask(task.taskId)
+      taskItems.value = taskItems.value.filter((item) => item.taskId !== task.taskId)
+      return
+    }
+    errorMessage.value = error instanceof Error ? error.message : t('imageWorkbench.generateFailed')
+    taskItems.value = [...taskItems.value]
+  }
 }
 
 function persistFavorites() {

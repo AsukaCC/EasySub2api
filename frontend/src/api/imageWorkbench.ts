@@ -180,11 +180,45 @@ export async function getImageTask(key: string, taskId: string): Promise<ImageTa
   return payload as ImageTask
 }
 
-export async function cancelImageTask(key: string, taskId: string): Promise<ImageTask> {
+export async function cancelImageTask(key: string, taskId: string): Promise<ImageTask | undefined> {
   const response = await fetch(buildGatewayUrl(`/v1/images/tasks/${encodeURIComponent(taskId)}`), { method: 'DELETE', headers: { Authorization: `Bearer ${key}` } })
+  if (response.status === 204) return undefined
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw parseTaskError(payload, response.status)
   return payload as ImageTask
+}
+
+export async function retryImageTask(key: string, taskId: string, params?: ImageGenerationParams, reference?: File): Promise<ImageTask> {
+  let body: BodyInit | undefined
+  const headers: Record<string, string> = { Authorization: `Bearer ${key}` }
+  if (params && reference) {
+    const form = new FormData()
+    for (const [name, value] of Object.entries(params)) form.append(name, String(value))
+    form.append('image', reference)
+    body = form
+  } else if (params) {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify(params)
+  }
+  const response = await fetch(buildGatewayUrl(`/v1/images/tasks/${encodeURIComponent(taskId)}/retry`), {
+    method: 'POST',
+    headers,
+    body,
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw parseTaskError(payload, response.status)
+  return payload as ImageTask
+}
+
+export async function deleteImageTask(key: string, taskId: string): Promise<void> {
+  const response = await fetch(buildGatewayUrl(`/v1/images/tasks/${encodeURIComponent(taskId)}`), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${key}` },
+  })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw parseTaskError(payload, response.status)
+  }
 }
 
 export async function loadWorkbenchCredentials(): Promise<{ keys: ApiKey[]; groups: Group[] }> {
