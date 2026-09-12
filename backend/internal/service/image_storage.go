@@ -47,8 +47,12 @@ type ImageResultUploader struct {
 }
 
 func (u *ImageResultUploader) ArtifactStore() ImageTaskArtifactStore {
-	if u == nil { return nil }
-	if store, ok := u.storage.(ImageTaskArtifactStore); ok { return store }
+	if u == nil {
+		return nil
+	}
+	if store, ok := u.storage.(ImageTaskArtifactStore); ok {
+		return store
+	}
 	return nil
 }
 

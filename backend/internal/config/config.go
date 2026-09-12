@@ -967,8 +967,8 @@ type GatewayConfig struct {
 }
 
 type ImageTaskQueueConfig struct {
-	WorkerCount int `mapstructure:"worker_count"`
-	MaxAttempts int `mapstructure:"max_attempts"`
+	WorkerCount      int `mapstructure:"worker_count"`
+	MaxAttempts      int `mapstructure:"max_attempts"`
 	ClaimIdleSeconds int `mapstructure:"claim_idle_seconds"`
 }
 

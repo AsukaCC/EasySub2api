@@ -83,23 +83,33 @@ func (s *S3ImageStorage) Save(ctx context.Context, key, contentType string, data
 
 func (s *S3ImageStorage) Put(ctx context.Context, key, contentType string, data []byte) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{Bucket: &s.bucket, Key: &key, Body: bytes.NewReader(data), ContentType: &contentType})
-	if err != nil { return fmt.Errorf("S3 PutObject: %w", err) }
+	if err != nil {
+		return fmt.Errorf("S3 PutObject: %w", err)
+	}
 	return nil
 }
 
 func (s *S3ImageStorage) Get(ctx context.Context, key string) ([]byte, string, error) {
 	obj, err := s.client.GetObject(ctx, &s3.GetObjectInput{Bucket: &s.bucket, Key: &key})
-	if err != nil { return nil, "", fmt.Errorf("S3 GetObject: %w", err) }
-	defer obj.Body.Close()
+	if err != nil {
+		return nil, "", fmt.Errorf("S3 GetObject: %w", err)
+	}
+	defer func() { _ = obj.Body.Close() }()
 	data, err := io.ReadAll(obj.Body)
-	if err != nil { return nil, "", fmt.Errorf("S3 read object: %w", err) }
+	if err != nil {
+		return nil, "", fmt.Errorf("S3 read object: %w", err)
+	}
 	contentType := ""
-	if obj.ContentType != nil { contentType = strings.TrimSpace(*obj.ContentType) }
+	if obj.ContentType != nil {
+		contentType = strings.TrimSpace(*obj.ContentType)
+	}
 	return data, contentType, nil
 }
 
 func (s *S3ImageStorage) Delete(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: &s.bucket, Key: &key})
-	if err != nil { return fmt.Errorf("S3 DeleteObject: %w", err) }
+	if err != nil {
+		return fmt.Errorf("S3 DeleteObject: %w", err)
+	}
 	return nil
 }
