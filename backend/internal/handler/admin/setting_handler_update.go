@@ -2168,6 +2168,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if settings.APIKeyACLTrustForwardedIP {
+		slog.Warn("security: API key ACL is trusting raw forwarded client-IP headers; configure and firewall trusted proxies")
+	}
 	if h.opsService != nil {
 		h.opsService.SetMonitoringEnabled(settings.OpsMonitoringEnabled)
 	}

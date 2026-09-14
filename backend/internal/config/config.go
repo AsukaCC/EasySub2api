@@ -1811,7 +1811,13 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 
 	if !cfg.Security.URLAllowlist.Enabled {
-		slog.Warn("security.url_allowlist.enabled=false; allowlist/SSRF checks disabled (minimal format validation only).")
+		slog.Warn("security.url_allowlist.enabled=false; hostname allowlist disabled, but protocol and private-address protections remain active.")
+	}
+	if cfg.Security.URLAllowlist.AllowPrivateHosts {
+		slog.Warn("security.url_allowlist.allow_private_hosts=true; private upstream addresses are explicitly allowed.")
+	}
+	if cfg.Security.URLAllowlist.AllowInsecureHTTP {
+		slog.Warn("security.url_allowlist.allow_insecure_http=true; plaintext upstream URLs are explicitly allowed.")
 	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		slog.Warn("security.response_headers.enabled=false; configurable header filtering disabled (default allowlist only).")
@@ -1899,7 +1905,7 @@ func setDefaults() {
 	viper.SetDefault("webauthn.rp_origins", []string{})
 
 	// Security
-	viper.SetDefault("security.url_allowlist.enabled", false)
+	viper.SetDefault("security.url_allowlist.enabled", true)
 	viper.SetDefault("security.url_allowlist.upstream_hosts", []string{
 		"api.openai.com",
 		"api.anthropic.com",
@@ -1917,15 +1923,15 @@ func setDefaults() {
 		"raw.githubusercontent.com",
 	})
 	viper.SetDefault("security.url_allowlist.crs_hosts", []string{})
-	viper.SetDefault("security.url_allowlist.allow_private_hosts", true)
-	viper.SetDefault("security.url_allowlist.allow_insecure_http", true)
+	viper.SetDefault("security.url_allowlist.allow_private_hosts", false)
+	viper.SetDefault("security.url_allowlist.allow_insecure_http", false)
 	viper.SetDefault("security.response_headers.enabled", true)
 	viper.SetDefault("security.response_headers.additional_allowed", []string{})
 	viper.SetDefault("security.response_headers.force_remove", []string{})
 	viper.SetDefault("security.csp.enabled", true)
 	viper.SetDefault("security.csp.policy", DefaultCSPPolicy)
 	viper.SetDefault("security.proxy_probe.insecure_skip_verify", false)
-	viper.SetDefault("security.trust_forwarded_ip_for_api_key_acl", true)
+	viper.SetDefault("security.trust_forwarded_ip_for_api_key_acl", false)
 
 	// Security - disable direct fallback on proxy error
 	viper.SetDefault("security.proxy_fallback.allow_direct_on_error", false)

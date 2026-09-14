@@ -47,6 +47,29 @@ type LiveCallIdentity struct {
 	UserAgent       string
 	IPAddress       string
 	InboundEndpoint string
+	Billing         *LiveBillingSnapshot
+}
+
+// LiveBillingSnapshot freezes the pricing and quota inputs at session start.
+// Live sessions can outlive configuration changes, so finalization must use
+// this snapshot rather than re-resolving a potentially different rate card.
+type LiveBillingSnapshot struct {
+	BillingType             int8
+	Platform                string
+	GroupID                 string
+	SubscriptionID          string
+	SubscriptionType        string
+	RateMultiplier          float64
+	RealtimePricePerMin     *float64
+	APIKeyQuota             float64
+	APIKeyRateLimit5h       float64
+	APIKeyRateLimit1d       float64
+	APIKeyRateLimit7d       float64
+	AccountType             string
+	AccountRateMultiplier   float64
+	AccountQuotaLimit       float64
+	AccountQuotaDailyLimit  float64
+	AccountQuotaWeeklyLimit float64
 }
 
 type LiveCallRecord struct {
@@ -68,6 +91,7 @@ type LiveCallRecord struct {
 	InboundEndpoint string
 	// AttestationCiphertext 仅用于让同一会话的 Sideband 复用创建时的证明。
 	AttestationCiphertext string
+	Billing               *LiveBillingSnapshot
 }
 
 type LiveCallCreated struct {

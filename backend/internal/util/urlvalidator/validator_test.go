@@ -73,3 +73,15 @@ func TestValidateHTTPURL(t *testing.T) {
 		t.Fatalf("expected localhost to be blocked when allow_private_hosts is false")
 	}
 }
+
+func TestValidateConfiguredURLKeepsPrivateAndHTTPSGuardsWhenAllowlistDisabled(t *testing.T) {
+	if _, err := ValidateConfiguredURL("http://example.com", false, nil, false, false); err == nil {
+		t.Fatal("expected plaintext HTTP to remain blocked")
+	}
+	if _, err := ValidateConfiguredURL("https://127.0.0.1", false, nil, false, false); err == nil {
+		t.Fatal("expected private host to remain blocked")
+	}
+	if _, err := ValidateConfiguredURL("https://example.com", false, []string{"only.example"}, false, false); err != nil {
+		t.Fatalf("expected public HTTPS URL to pass without hostname allowlist, got %v", err)
+	}
+}

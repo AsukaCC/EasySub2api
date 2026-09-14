@@ -89,7 +89,10 @@ func TestLoadHTTPIngressSafetyDefaults(t *testing.T) {
 	require.Equal(t, 64*1024, cfg.Server.MaxHeaderBytes)
 	require.Empty(t, cfg.Server.TrustedProxies)
 	require.False(t, cfg.Server.TrustedProxiesConfigured)
-	require.True(t, cfg.TrustForwardedIPForAPIKeyACL())
+	require.False(t, cfg.TrustForwardedIPForAPIKeyACL())
+	require.True(t, cfg.Security.URLAllowlist.Enabled)
+	require.False(t, cfg.Security.URLAllowlist.AllowPrivateHosts)
+	require.False(t, cfg.Security.URLAllowlist.AllowInsecureHTTP)
 	require.Equal(t, int64(32*1024*1024), cfg.Gateway.TextMaxBodySize)
 	require.True(t, cfg.APIKeyAuth.InvalidAbuse.Enabled)
 	require.Equal(t, 120, cfg.APIKeyAuth.InvalidAbuse.Threshold)
@@ -783,14 +786,14 @@ func TestLoadDefaultSecurityToggles(t *testing.T) {
 		t.Fatalf("Load() error: %v", err)
 	}
 
-	if cfg.Security.URLAllowlist.Enabled {
-		t.Fatalf("URLAllowlist.Enabled = true, want false")
+	if !cfg.Security.URLAllowlist.Enabled {
+		t.Fatalf("URLAllowlist.Enabled = false, want true")
 	}
-	if !cfg.Security.URLAllowlist.AllowInsecureHTTP {
-		t.Fatalf("URLAllowlist.AllowInsecureHTTP = false, want true")
+	if cfg.Security.URLAllowlist.AllowInsecureHTTP {
+		t.Fatalf("URLAllowlist.AllowInsecureHTTP = true, want false")
 	}
-	if !cfg.Security.URLAllowlist.AllowPrivateHosts {
-		t.Fatalf("URLAllowlist.AllowPrivateHosts = false, want true")
+	if cfg.Security.URLAllowlist.AllowPrivateHosts {
+		t.Fatalf("URLAllowlist.AllowPrivateHosts = true, want false")
 	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		t.Fatalf("ResponseHeaders.Enabled = false, want true")

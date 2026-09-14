@@ -413,6 +413,8 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
 	accountRepo           AccountRepository
+	apiKeyRepo            APIKeyRepository
+	apiKeyQuotaUpdater    APIKeyQuotaUpdater
 	usageLogRepo          UsageLogRepository
 	usageBillingRepo      UsageBillingRepository
 	userRepo              UserRepository
@@ -482,6 +484,15 @@ type OpenAIGatewayService struct {
 	openaiCodexTurnStateWrites  atomic.Uint64
 }
 
+// SetAPIKeyQuotaUpdater wires the quota/rate-limit updater used by deferred
+// Live billing. It is kept as a setter so existing constructor call sites and
+// test fixtures remain source-compatible.
+func (s *OpenAIGatewayService) SetAPIKeyQuotaUpdater(updater APIKeyQuotaUpdater) {
+	if s != nil {
+		s.apiKeyQuotaUpdater = updater
+	}
+}
+
 // NewOpenAIGatewayService creates a new OpenAIGatewayService without optional
 // user-level pricing. Production wiring uses NewOpenAIGatewayServiceWithUserLevel.
 func NewOpenAIGatewayService(
@@ -507,6 +518,7 @@ func NewOpenAIGatewayService(
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	apiKeyRepos ...APIKeyRepository,
 ) *OpenAIGatewayService {
 	return NewOpenAIGatewayServiceWithUserLevel(
 		accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo,
@@ -514,6 +526,7 @@ func NewOpenAIGatewayService(
 		billingService, rateLimitService, billingCacheService, httpUpstream,
 		deferredService, openAITokenProvider, grokTokenProvider, resolver,
 		channelService, balanceNotifyService, settingService, userPlatformQuotaRepo, nil,
+		apiKeyRepos...,
 	)
 }
 
@@ -543,6 +556,7 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	settingService *SettingService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	userLevelService *UserLevelService,
+	apiKeyRepos ...APIKeyRepository,
 ) *OpenAIGatewayService {
 	// enforceCodexIdentityHeaders 是 HTTP / 透传 / WS / 探针 等出站路径共用的纯函数收口点，
 	// 拿不到配置，故在此发布进程级开关快照。配置取反义，零值即「强制统一出口开启」。
@@ -556,6 +570,7 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo:         accountRepo,
+		apiKeyRepo:          firstAPIKeyRepository(apiKeyRepos),
 		usageLogRepo:        usageLogRepo,
 		usageBillingRepo:    usageBillingRepo,
 		userRepo:            userRepo,
@@ -601,6 +616,13 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	}
 	svc.logOpenAIWSModeBootstrap()
 	return svc
+}
+
+func firstAPIKeyRepository(repos []APIKeyRepository) APIKeyRepository {
+	if len(repos) == 0 {
+		return nil
+	}
+	return repos[0]
 }
 
 // ResolveChannelMapping 解析渠道级模型映射（代理到 ChannelService）

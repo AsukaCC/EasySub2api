@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -221,6 +222,13 @@ func (c *gatewayCache) SaveLiveCall(ctx context.Context, record *service.LiveCal
 		"inbound_endpoint": record.InboundEndpoint,
 		"attestation":      record.AttestationCiphertext,
 	}
+	if record.Billing != nil {
+		billing, err := json.Marshal(record.Billing)
+		if err != nil {
+			return fmt.Errorf("marshal live billing snapshot: %w", err)
+		}
+		values["billing_snapshot"] = string(billing)
+	}
 	key := liveCallKey(record.CallHash)
 	pipe := c.rdb.TxPipeline()
 	pipe.HSet(ctx, key, values)
@@ -243,7 +251,7 @@ func (c *gatewayCache) GetLiveCall(ctx context.Context, callHash string) (*servi
 	}
 	createdAt := time.UnixMilli(parseInt("created_at"))
 	expiresAt := time.UnixMilli(parseInt("expires_at"))
-	return &service.LiveCallRecord{
+	record := &service.LiveCallRecord{
 		CallID:                values["call_id"],
 		CallHash:              callHash,
 		AccountID:             values["account_id"],
@@ -261,7 +269,15 @@ func (c *gatewayCache) GetLiveCall(ctx context.Context, callHash string) (*servi
 		IPAddress:             values["ip_address"],
 		InboundEndpoint:       values["inbound_endpoint"],
 		AttestationCiphertext: values["attestation"],
-	}, nil
+	}
+	if raw := strings.TrimSpace(values["billing_snapshot"]); raw != "" {
+		var snapshot service.LiveBillingSnapshot
+		if err := json.Unmarshal([]byte(raw), &snapshot); err != nil {
+			return nil, fmt.Errorf("decode live billing snapshot: %w", err)
+		}
+		record.Billing = &snapshot
+	}
+	return record, nil
 }
 
 func (c *gatewayCache) ClaimLiveController(ctx context.Context, callHash, controller, owner string) (bool, error) {

@@ -42,7 +42,13 @@ function getStoredUserID(): string | null {
 
   try {
     const id = (JSON.parse(rawUser) as { id?: unknown }).id
-    return typeof id === 'string' && id.trim() ? id : null
+    if (typeof id === 'string' && id.trim()) {
+      return id.trim()
+    }
+    if (typeof id === 'number' && Number.isSafeInteger(id)) {
+      return String(id)
+    }
+    return null
   } catch {
     return null
   }
@@ -89,6 +95,12 @@ function readPeerRefreshResult(
   snapshot: AuthSnapshot,
   failedAccessToken?: string | null
 ): RefreshTokenResponse | null {
+  // A peer token is only safe to adopt when both snapshots identify the same
+  // signed-in user. Missing or malformed identities must fail closed: an
+  // account switch can otherwise be mistaken for a normal token rotation.
+  if (!snapshot.userID || getStoredUserID() !== snapshot.userID) {
+    return null
+  }
   const storedPair = readStoredTokenPair(snapshot)
   if (!storedPair) {
     return null
