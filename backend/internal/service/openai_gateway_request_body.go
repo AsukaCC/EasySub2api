@@ -18,18 +18,11 @@ import (
 )
 
 func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, error) {
-	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
+	if s == nil || s.cfg == nil {
+		return urlvalidator.ValidateConfiguredURL(raw, false, nil, false, false)
 	}
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
-		RequireAllowlist: true,
-		AllowPrivate:     s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-	})
+	policy := s.cfg.Security.URLAllowlist
+	normalized, err := urlvalidator.ValidateConfiguredURL(raw, policy.Enabled, policy.UpstreamHosts, policy.AllowPrivateHosts, policy.AllowInsecureHTTP)
 	if err != nil {
 		return "", fmt.Errorf("invalid base_url: %w", err)
 	}
@@ -40,16 +33,10 @@ func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, erro
 // using the same allowlist policy as configured upstream base URLs.
 func (s *OpenAIGatewayService) validateOutboundURL(raw string) (string, error) {
 	if s == nil || s.cfg == nil {
-		return urlvalidator.ValidateURLFormat(raw, false)
+		return urlvalidator.ValidateConfiguredURL(raw, false, nil, false, false)
 	}
-	if !s.cfg.Security.URLAllowlist.Enabled {
-		return urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-	}
-	return urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
-		RequireAllowlist: true,
-		AllowPrivate:     s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-	})
+	policy := s.cfg.Security.URLAllowlist
+	return urlvalidator.ValidateConfiguredURL(raw, policy.Enabled, policy.UpstreamHosts, policy.AllowPrivateHosts, policy.AllowInsecureHTTP)
 }
 
 // buildOpenAIResponsesURL 组装 OpenAI Responses 端点。

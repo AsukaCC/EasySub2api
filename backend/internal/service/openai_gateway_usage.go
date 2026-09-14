@@ -36,8 +36,12 @@ type OpenAIRecordUsageInput struct {
 	// PricingAt 是请求级定价时刻（请求开始捕获，与利润门的 D 同源）：高峰因子
 	// 按该时刻计算，保证同一请求从准入到扣费不中途变价。零值回退记录时刻
 	//（既有行为），供未装配的路径（图片/异步/cyber 等）沿用。
-	PricingAt time.Time
-	Selection *AccountSelectionResult
+	PricingAt                      time.Time
+	Selection                      *AccountSelectionResult
+	RateMultiplierOverride         *float64
+	AccountRateMultiplierOverride  *float64
+	SuppressUsageLogOnBillingError bool
+	RequestTypeOverride            RequestType
 	// CyberBlocked 为 true 时把该用量行标记为 cyber（request_type=cyber），计费逻辑不变。
 	CyberBlocked bool
 	// NativeCompactionV2 is orthogonal to sync/stream/WS request_type.
@@ -237,7 +241,18 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// 变价）；未装配 PricingAt 的路径回退记录时刻，保持既有行为。不并入上面的
 	// Resolve，以免污染 user:group 倍率缓存。
 	baseMultiplier := multiplier
+	if input.RateMultiplierOverride != nil {
+		baseMultiplier = *input.RateMultiplierOverride
+		if baseMultiplier < 0 || !finiteNonnegative(baseMultiplier) {
+			baseMultiplier = 0
+		}
+		multiplier = baseMultiplier
+	}
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, baseMultiplier, pricingAt)
+	if input.RateMultiplierOverride != nil {
+		multiplier = baseMultiplier
+		imageMultiplier = baseMultiplier
+	}
 	if ratePlan != nil {
 		multiplier = ratePlan.NonDynamicMultiplier
 		if len(ratePlan.DynamicCandidates) == 0 {
@@ -245,7 +260,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		}
 	}
 	videoMultiplier := baseMultiplier
-
+	// Live sessions carry a creation-time multiplier snapshot. It must win over
+	// any rate plan resolved again during finalization.
+	if input.RateMultiplierOverride != nil {
+		multiplier = baseMultiplier
+		imageMultiplier = baseMultiplier
+		videoMultiplier = baseMultiplier
+	}
 	var cost *CostBreakdown
 	var err error
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
@@ -378,6 +399,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// Create usage log
 	durationMs := int(result.Duration.Milliseconds())
 	accountRateMultiplier := account.BillingRateMultiplier()
+	if input.AccountRateMultiplierOverride != nil {
+		accountRateMultiplier = *input.AccountRateMultiplierOverride
+		if accountRateMultiplier < 0 || !finiteNonnegative(accountRateMultiplier) {
+			accountRateMultiplier = 1
+		}
+	}
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	if result.OpenAIWSMode {
 		if upstreamRequestID := strings.TrimSpace(result.RequestID); upstreamRequestID != "" {
@@ -474,6 +501,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if input.CyberBlocked {
 		usageLog.RequestType = RequestTypeCyberBlocked
 	}
+	if input.RequestTypeOverride.IsValid() && input.RequestTypeOverride != RequestTypeUnknown {
+		usageLog.RequestType = input.RequestTypeOverride
+	}
 	usageLog.OpenAIWSMode = result.OpenAIWSMode
 	usageLog.DurationMs = &durationMs
 	usageLog.FirstTokenMs = result.FirstTokenMs
@@ -557,7 +587,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	if billingErr != nil {
 		usageLog.ActualCost = 0
-		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
+		if !input.SuppressUsageLogOnBillingError {
+			writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
+		}
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")

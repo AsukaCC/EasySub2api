@@ -65,12 +65,55 @@ func liveGroupID(groupID *string) string {
 	return *groupID
 }
 
-func liveOptionalID(value string) *string {
-	if value == "" {
+// NewLiveBillingSnapshot captures mutable billing inputs at session start so
+// finalization remains stable if pricing or quota settings change mid-session.
+func NewLiveBillingSnapshot(apiKey *APIKey, subscription *UserSubscription) *LiveBillingSnapshot {
+	if apiKey == nil {
 		return nil
 	}
-	result := value
-	return &result
+	snapshot := &LiveBillingSnapshot{
+		BillingType:       BillingTypeBalance,
+		APIKeyQuota:       apiKey.Quota,
+		APIKeyRateLimit5h: apiKey.RateLimit5h,
+		APIKeyRateLimit1d: apiKey.RateLimit1d,
+		APIKeyRateLimit7d: apiKey.RateLimit7d,
+	}
+	if apiKey.Group == nil {
+		snapshot.RateMultiplier = 1
+		if apiKey.GroupID != nil {
+			snapshot.GroupID = *apiKey.GroupID
+		}
+		return snapshot
+	}
+	group := apiKey.Group
+	snapshot.Platform = group.Platform
+	snapshot.GroupID = group.ID
+	snapshot.SubscriptionType = group.SubscriptionType
+	snapshot.RateMultiplier = group.RateMultiplier
+	snapshot.RealtimePricePerMin = group.AudioRealtimePricePerMin
+	if apiKey.GroupID != nil {
+		snapshot.GroupID = *apiKey.GroupID
+	}
+	if snapshot.RateMultiplier <= 0 {
+		snapshot.RateMultiplier = 1
+	}
+	if subscription != nil && group.IsSubscriptionType() {
+		snapshot.BillingType = BillingTypeSubscription
+		snapshot.SubscriptionID = subscription.ID
+	}
+	return snapshot
+}
+
+func cloneLiveBillingSnapshot(snapshot *LiveBillingSnapshot) *LiveBillingSnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	copy := *snapshot
+	if snapshot.RealtimePricePerMin != nil {
+		price := *snapshot.RealtimePricePerMin
+		copy.RealtimePricePerMin = &price
+	}
+	return &copy
 }
 
 func (s *OpenAIGatewayService) liveStore() (LiveCallStore, error) {
@@ -176,6 +219,18 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		}
 
 		account := selection.Account
+		billingSnapshot := cloneLiveBillingSnapshot(identity.Billing)
+		if billingSnapshot != nil {
+			billingSnapshot.RateMultiplier = s.ResolveUserGroupRateMultiplier(ctx, identity.UserID, billingSnapshot.GroupID, billingSnapshot.RateMultiplier)
+			if billingSnapshot.RateMultiplier < 0 || !finiteNonnegative(billingSnapshot.RateMultiplier) {
+				billingSnapshot.RateMultiplier = 1
+			}
+			billingSnapshot.AccountType = account.Type
+			billingSnapshot.AccountRateMultiplier = account.BillingRateMultiplier()
+			billingSnapshot.AccountQuotaLimit = account.GetQuotaLimit()
+			billingSnapshot.AccountQuotaDailyLimit = account.GetQuotaDailyLimit()
+			billingSnapshot.AccountQuotaWeeklyLimit = account.GetQuotaWeeklyLimit()
+		}
 		leaseID := generateRequestID()
 		acquired, acquireErr := liveCache.AcquireLiveLease(
 			ctx,
@@ -229,6 +284,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			IPAddress:             identity.IPAddress,
 			InboundEndpoint:       identity.InboundEndpoint,
 			AttestationCiphertext: attestationCiphertext,
+			Billing:               billingSnapshot,
 		}
 		mappingTTL := s.liveMaxSessionDuration() + 5*time.Minute
 		if saveErr := store.SaveLiveCall(ctx, record, mappingTTL); saveErr != nil {
@@ -805,6 +861,35 @@ func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
 	if err != nil {
 		return
 	}
+	// Bill before marking the record closed. The billing transaction is
+	// idempotent on CallHash, so concurrent finalizers are harmless, while a
+	// transient billing failure leaves the session retryable instead of turning
+	// it into a permanently free closed row.
+	if s.apiKeyRepo == nil || s.userRepo == nil || s.accountRepo == nil {
+		logger.LegacyPrintf("service.openai_live", "live billing unavailable: call=%s", record.CallHash)
+		return
+	}
+	var billingErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		billingErr = nil
+		if record.Billing == nil {
+			logger.LegacyPrintf("service.openai_live", "legacy live record missing billing snapshot; hydrating from current repositories: call=%s", record.CallHash)
+			billingErr = s.hydrateLegacyLiveBillingSnapshot(record)
+		}
+		if billingErr == nil {
+			billingErr = s.billLiveCall(record)
+		}
+		if billingErr == nil {
+			break
+		}
+		if attempt < 2 {
+			time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+		}
+	}
+	if billingErr != nil {
+		logger.LegacyPrintf("service.openai_live", "live billing deferred after retries: call=%s err=%v", record.CallHash, billingErr)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
 	first, err := store.MarkLiveCallClosed(ctx, record.CallHash, liveClosedRecordTTL)
 	cancel()
@@ -812,46 +897,137 @@ func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
 		return
 	}
 	s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
-	if s.usageLogRepo == nil {
-		return
+	// RecordUsage wrote the single usage log as part of the idempotent billing
+	// transaction. Do not append a second fallback log here.
+}
+
+func (s *OpenAIGatewayService) hydrateLegacyLiveBillingSnapshot(record *LiveCallRecord) error {
+	apiKey, err := s.apiKeyRepo.GetByID(context.Background(), record.APIKeyID)
+	if err != nil {
+		return err
 	}
-	duration := int(time.Since(record.CreatedAt).Milliseconds())
+	if apiKey == nil {
+		return errors.New("api key not found")
+	}
+	account, err := s.accountRepo.GetByID(context.Background(), record.AccountID)
+	if err != nil {
+		return err
+	}
+	if account == nil {
+		return errors.New("account not found")
+	}
+	snapshot := NewLiveBillingSnapshot(apiKey, nil)
+	if snapshot == nil {
+		return errors.New("billing identity unavailable")
+	}
+	snapshot.SubscriptionID = record.SubscriptionID
+	if record.SubscriptionID != "" {
+		snapshot.BillingType = BillingTypeSubscription
+	}
+	snapshot.AccountType = account.Type
+	snapshot.AccountRateMultiplier = account.BillingRateMultiplier()
+	snapshot.AccountQuotaLimit = account.GetQuotaLimit()
+	snapshot.AccountQuotaDailyLimit = account.GetQuotaDailyLimit()
+	snapshot.AccountQuotaWeeklyLimit = account.GetQuotaWeeklyLimit()
+	record.Billing = snapshot
+	return nil
+}
+
+func (s *OpenAIGatewayService) billLiveCall(record *LiveCallRecord) error {
+	apiKey, err := s.apiKeyRepo.GetByID(context.Background(), record.APIKeyID)
+	if err != nil || apiKey == nil {
+		if err == nil {
+			err = errors.New("api key not found")
+		}
+		return err
+	}
+	if apiKey.Group == nil {
+		apiKey.Group = &Group{ID: record.Billing.GroupID, Platform: record.Billing.Platform, SubscriptionType: record.Billing.SubscriptionType}
+	}
+	apiKey.Group.AudioRealtimePricePerMin = record.Billing.RealtimePricePerMin
+	apiKey.Group.RateMultiplier = record.Billing.RateMultiplier
+	apiKey.Quota = record.Billing.APIKeyQuota
+	apiKey.RateLimit5h = record.Billing.APIKeyRateLimit5h
+	apiKey.RateLimit1d = record.Billing.APIKeyRateLimit1d
+	apiKey.RateLimit7d = record.Billing.APIKeyRateLimit7d
+	user, err := s.userRepo.GetByID(context.Background(), record.UserID)
+	if err != nil || user == nil {
+		if err == nil {
+			err = errors.New("user not found")
+		}
+		return err
+	}
+	account, err := s.accountRepo.GetByID(context.Background(), record.AccountID)
+	if err != nil || account == nil {
+		if err == nil {
+			err = errors.New("account not found")
+		}
+		return err
+	}
+	account = cloneAccountForLiveBilling(account, record.Billing)
+	var subscription *UserSubscription
+	if record.Billing.SubscriptionID != "" && s.userSubRepo != nil {
+		subscription, err = s.userSubRepo.GetByID(context.Background(), record.Billing.SubscriptionID)
+		if err != nil {
+			return err
+		}
+	}
+	duration := time.Since(record.CreatedAt)
+	if !record.ExpiresAt.IsZero() && duration > record.ExpiresAt.Sub(record.CreatedAt) {
+		duration = record.ExpiresAt.Sub(record.CreatedAt)
+	}
 	if duration < 0 {
 		duration = 0
 	}
-	inboundEndpoint := record.InboundEndpoint
-	upstreamEndpoint := "/backend-api/codex/realtime/calls"
-	userAgent := record.UserAgent
-	ipAddress := record.IPAddress
-	billingType := int8(BillingTypeBalance)
-	if record.SubscriptionID != "" {
-		billingType = BillingTypeSubscription
+	minutes := duration.Seconds() / 60
+	if s.billingService == nil {
+		return errors.New("billing service unavailable")
 	}
-	// TODO(billing): Live 会话目前不计费：TotalCost/ActualCost 恒为 0，完全绕过
-	// recordUsageCore/applyUsageBilling，余额模式下极低余额也能反复开启最长
-	// liveMaxSessionDuration 的会话。若确认按时长计费，应在此接入计费管道；
-	// 若确认有意免费，删除本注释即可（零值行为由
-	// TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage 锁定）。
-	//
-	// 这是该会话唯一一次落库机会（MarkLiveCallClosed 已标记 first），失败即永久
-	// 丢失，因此走带日志与同步兜底的 writeUsageLogBestEffort（issue #3656）。
-	writeUsageLogBestEffort(context.Background(), s.usageLogRepo, &UsageLog{
-		UserID:           record.UserID,
-		APIKeyID:         record.APIKeyID,
-		AccountID:        record.AccountID,
-		RequestID:        record.CallHash,
-		Model:            record.Model,
-		RequestedModel:   record.Model,
-		GroupID:          liveOptionalID(record.GroupID),
-		SubscriptionID:   liveOptionalID(record.SubscriptionID),
-		RateMultiplier:   1,
-		BillingType:      billingType,
-		RequestType:      RequestTypeLive,
-		DurationMs:       &duration,
-		UserAgent:        &userAgent,
-		IPAddress:        &ipAddress,
-		InboundEndpoint:  &inboundEndpoint,
-		UpstreamEndpoint: &upstreamEndpoint,
-		CreatedAt:        record.CreatedAt,
-	}, "service.openai_live")
+	result := &OpenAIForwardResult{
+		RequestID:  record.CallHash,
+		Model:      record.Model,
+		Duration:   duration,
+		AudioUsage: &AudioUsage{Mode: "realtime", DurationOrUnits: minutes},
+	}
+	return s.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result:                         result,
+		APIKey:                         apiKey,
+		User:                           user,
+		Account:                        account,
+		Subscription:                   subscription,
+		InboundEndpoint:                record.InboundEndpoint,
+		UpstreamEndpoint:               "/backend-api/codex/realtime/calls",
+		UserAgent:                      record.UserAgent,
+		IPAddress:                      record.IPAddress,
+		RequestPayloadHash:             record.CallHash,
+		APIKeyService:                  s.apiKeyQuotaUpdater,
+		QuotaPlatform:                  record.Billing.Platform,
+		RateMultiplierOverride:         &record.Billing.RateMultiplier,
+		AccountRateMultiplierOverride:  &record.Billing.AccountRateMultiplier,
+		RequestTypeOverride:            RequestTypeLive,
+		SuppressUsageLogOnBillingError: true,
+		Selection:                      nil,
+		PricingAt:                      record.CreatedAt,
+		SessionID:                      record.CallHash,
+	})
+}
+
+func cloneAccountForLiveBilling(account *Account, snapshot *LiveBillingSnapshot) *Account {
+	if account == nil || snapshot == nil {
+		return account
+	}
+	copy := *account
+	copy.Type = snapshot.AccountType
+	if account.Extra != nil {
+		copy.Extra = make(map[string]any, len(account.Extra)+3)
+		for key, value := range account.Extra {
+			copy.Extra[key] = value
+		}
+	} else {
+		copy.Extra = make(map[string]any, 3)
+	}
+	copy.Extra["quota_limit"] = snapshot.AccountQuotaLimit
+	copy.Extra["quota_daily_limit"] = snapshot.AccountQuotaDailyLimit
+	copy.Extra["quota_weekly_limit"] = snapshot.AccountQuotaWeeklyLimit
+	return &copy
 }

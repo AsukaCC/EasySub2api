@@ -18,29 +18,23 @@ import (
 )
 
 // cnValidateProbeURL 按全局出站 URL 安全策略校验探测端点，返回规范化 URL。
-// 白名单开启时强制 UpstreamHosts（阻断私网与未列名主机）；关闭时仅做格式
-// 校验（HTTP 允许与否跟随配置）；cfg 为 nil 时退化为纯格式校验。
+// 白名单开启时强制 UpstreamHosts；关闭时仅关闭主机名匹配，但协议和私网
+// 地址保护仍跟随全局策略；cfg 为 nil 时退化为安全的 HTTPS 校验。
 func cnValidateProbeURL(cfg *config.Config, raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return "", errors.New("probe url is required")
 	}
-	if cfg != nil && cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateHTTPSURL(trimmed, urlvalidator.ValidationOptions{
-			AllowedHosts:     cfg.Security.URLAllowlist.UpstreamHosts,
-			RequireAllowlist: true,
-			AllowPrivate:     cfg.Security.URLAllowlist.AllowPrivateHosts,
-		})
-		if err != nil {
-			return "", fmt.Errorf("probe target rejected by URL security policy: %w", err)
-		}
-		return normalized, nil
-	}
-	var allowInsecureHTTP bool
+	var enabled bool
+	var allowedHosts []string
+	var allowPrivate, allowInsecureHTTP bool
 	if cfg != nil {
+		enabled = cfg.Security.URLAllowlist.Enabled
+		allowedHosts = cfg.Security.URLAllowlist.UpstreamHosts
+		allowPrivate = cfg.Security.URLAllowlist.AllowPrivateHosts
 		allowInsecureHTTP = cfg.Security.URLAllowlist.AllowInsecureHTTP
 	}
-	normalized, err := urlvalidator.ValidateURLFormat(trimmed, allowInsecureHTTP)
+	normalized, err := urlvalidator.ValidateConfiguredURL(trimmed, enabled, allowedHosts, allowPrivate, allowInsecureHTTP)
 	if err != nil {
 		return "", fmt.Errorf("probe target rejected by URL security policy: %w", err)
 	}

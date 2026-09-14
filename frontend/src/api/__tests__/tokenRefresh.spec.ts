@@ -156,6 +156,27 @@ describe('refreshAuthTokens', () => {
     await rejection
   })
 
+  it('does not adopt a peer token when the current user identity is unavailable', async () => {
+    vi.useFakeTimers()
+    seedSession()
+    localStorage.setItem('auth_user', JSON.stringify({ email: 'unknown@example.com' }))
+    mockedPost.mockRejectedValueOnce(new Error('refresh token already used'))
+    const { refreshAuthTokens } = await import('@/api/tokenRefresh')
+
+    window.setTimeout(() => {
+      localStorage.setItem('auth_user', JSON.stringify({ id: 8 }))
+      localStorage.setItem('auth_token', 'other-access')
+      localStorage.setItem('token_expires_at', String(Date.now() + 3600_000))
+      localStorage.setItem('refresh_token', 'other-refresh')
+    }, 10)
+
+    const rejection = expect(
+      refreshAuthTokens({ failedAccessToken: 'old-access' })
+    ).rejects.toThrow('refresh token already used')
+    await vi.advanceTimersByTimeAsync(1_100)
+    await rejection
+  })
+
   it('does not restore a session that was logged out while refresh was in flight', async () => {
     vi.useFakeTimers()
     seedSession()

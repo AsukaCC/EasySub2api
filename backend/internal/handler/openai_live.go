@@ -162,6 +162,7 @@ func liveCallIdentity(
 		UserAgent:       c.GetHeader("User-Agent"),
 		IPAddress:       ip.GetClientIP(c),
 		InboundEndpoint: GetInboundEndpoint(c),
+		Billing:         service.NewLiveBillingSnapshot(apiKey, subscription),
 	}
 }
 

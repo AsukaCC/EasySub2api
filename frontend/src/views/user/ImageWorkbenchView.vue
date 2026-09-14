@@ -275,82 +275,81 @@
       <p>{{ previewItem.prompt }}</p>
     </div>
 
-    <div v-if="settingsOpen" class="settings-overlay" @click.self="settingsOpen = false">
-      <section class="settings-panel" role="dialog" aria-modal="true">
-        <div class="settings-panel__header">
-          <h2>{{ t('imageWorkbench.settings') }}</h2>
-          <button class="icon-button" type="button" @click="settingsOpen = false">
-            <Icon name="x" size="sm" />
-          </button>
-        </div>
-        <div class="settings-tabs">
-          <button type="button" :class="{ active: settingsTab === 'connection' }" @click="settingsTab = 'connection'">{{ t('imageWorkbench.connection') }}</button>
-          <button type="button" :class="{ active: settingsTab === 'preferences' }" @click="settingsTab = 'preferences'">{{ t('imageWorkbench.preferences') }}</button>
-          <button type="button" :class="{ active: settingsTab === 'data' }" @click="settingsTab = 'data'">{{ t('imageWorkbench.dataManagement') }}</button>
-        </div>
-        <div v-if="settingsTab === 'connection'" class="settings-form">
-          <p class="settings-note">{{ t('imageWorkbench.platformHint') }}</p>
-          <div class="settings-step">
-            <span>{{ t('imageWorkbench.platform') }}</span>
-            <div class="platform-picks">
-              <button
-                v-for="item in enabledAdapters"
-                :key="item.id"
-                type="button"
-                :class="{ active: activePlatform === item.id }"
-                @click="activePlatform = item.id"
-              >
-                {{ item.label }}
-              </button>
-            </div>
-          </div>
-          <label>
-            <span>{{ t('imageWorkbench.apiKey') }}</span>
-            <select v-model="selectedKeyId" :disabled="eligibleKeys.length === 0">
-              <option value="">{{ eligibleKeys.length ? t('imageWorkbench.apiKey') : t('imageWorkbench.noKeys') }}</option>
-              <option v-for="key in eligibleKeys" :key="key.id" :value="key.id">{{ key.name || key.id }}</option>
-            </select>
-          </label>
-          <label>
-            <span>{{ t('imageWorkbench.model') }}</span>
-            <select v-model="selectedModel" :disabled="models.length === 0">
-              <option value="">{{ models.length ? t('imageWorkbench.model') : t('imageWorkbench.noModels') }}</option>
-              <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name || model.id }}</option>
-            </select>
-          </label>
-          <button class="primary-button" type="button" @click="saveConnection">{{ t('common.save') }}</button>
-        </div>
-        <div v-else-if="settingsTab === 'preferences'" class="settings-form">
-          <div class="settings-step">
-            <span>{{ t('imageWorkbench.size') }}</span>
-            <button class="param-field param-field--button" type="button" @click="openSizePicker('preferences')">
-              <span class="param-field__value">{{ preferences.size || 'auto' }}</span>
+    <BaseDialog
+      :show="settingsOpen"
+      :title="t('imageWorkbench.settings')"
+      width="narrow"
+      close-on-click-outside
+      :close-on-escape="false"
+      @close="settingsOpen = false"
+    >
+      <div class="settings-tabs" role="tablist">
+        <button type="button" role="tab" :aria-selected="settingsTab === 'connection'" :class="{ active: settingsTab === 'connection' }" @click="settingsTab = 'connection'">{{ t('imageWorkbench.connection') }}</button>
+        <button type="button" role="tab" :aria-selected="settingsTab === 'preferences'" :class="{ active: settingsTab === 'preferences' }" @click="settingsTab = 'preferences'">{{ t('imageWorkbench.preferences') }}</button>
+        <button type="button" role="tab" :aria-selected="settingsTab === 'data'" :class="{ active: settingsTab === 'data' }" @click="settingsTab = 'data'">{{ t('imageWorkbench.dataManagement') }}</button>
+      </div>
+      <div v-if="settingsTab === 'connection'" class="settings-form">
+        <p class="settings-note">{{ t('imageWorkbench.platformHint') }}</p>
+        <div class="settings-step">
+          <span>{{ t('imageWorkbench.platform') }}</span>
+          <div class="platform-picks">
+            <button
+              v-for="item in enabledAdapters"
+              :key="item.id"
+              type="button"
+              :class="{ active: activePlatform === item.id }"
+              @click="activePlatform = item.id"
+            >
+              {{ item.label }}
             </button>
           </div>
-          <label>
-            <span>{{ t('imageWorkbench.quality') }}</span>
-            <select v-model="preferences.quality">
-              <option value="auto">auto</option>
-              <option value="low">low</option>
-              <option value="medium">medium</option>
-              <option value="high">high</option>
-            </select>
-          </label>
-          <button class="primary-button" type="button" @click="savePreferences">{{ t('common.save') }}</button>
         </div>
-        <div v-else class="settings-form">
-          <p class="settings-note">{{ t('imageWorkbench.dataManagement') }}</p>
-          <button class="secondary-button" type="button" @click="exportData">
-            <Icon name="download" size="sm" />{{ t('imageWorkbench.exportData') }}
+        <label>
+          <span>{{ t('imageWorkbench.apiKey') }}</span>
+          <select v-model="selectedKeyId" :disabled="eligibleKeys.length === 0">
+            <option value="">{{ eligibleKeys.length ? t('imageWorkbench.apiKey') : t('imageWorkbench.noKeys') }}</option>
+            <option v-for="key in eligibleKeys" :key="key.id" :value="key.id">{{ key.name || key.id }}</option>
+          </select>
+        </label>
+        <label>
+          <span>{{ t('imageWorkbench.model') }}</span>
+          <select v-model="selectedModel" :disabled="models.length === 0">
+            <option value="">{{ models.length ? t('imageWorkbench.model') : t('imageWorkbench.noModels') }}</option>
+            <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name || model.id }}</option>
+          </select>
+        </label>
+        <button class="primary-button" type="button" @click="saveConnection">{{ t('common.save') }}</button>
+      </div>
+      <div v-else-if="settingsTab === 'preferences'" class="settings-form">
+        <div class="settings-step">
+          <span>{{ t('imageWorkbench.size') }}</span>
+          <button class="param-field param-field--button" type="button" @click="openSizePicker('preferences')">
+            <span class="param-field__value">{{ preferences.size || 'auto' }}</span>
           </button>
-          <label class="secondary-button">
-            <Icon name="upload" size="sm" />{{ t('imageWorkbench.importData') }}
-            <input type="file" accept="application/json" hidden @change="importData" />
-          </label>
-          <button class="danger-button" type="button" @click="clearAllHistory">{{ t('imageWorkbench.clearHistory') }}</button>
         </div>
-      </section>
-    </div>
+        <label>
+          <span>{{ t('imageWorkbench.quality') }}</span>
+          <select v-model="preferences.quality">
+            <option value="auto">auto</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <button class="primary-button" type="button" @click="savePreferences">{{ t('common.save') }}</button>
+      </div>
+      <div v-else class="settings-form">
+        <p class="settings-note">{{ t('imageWorkbench.dataManagement') }}</p>
+        <button class="secondary-button" type="button" @click="exportData">
+          <Icon name="download" size="sm" />{{ t('imageWorkbench.exportData') }}
+        </button>
+        <label class="secondary-button">
+          <Icon name="upload" size="sm" />{{ t('imageWorkbench.importData') }}
+          <input type="file" accept="application/json" hidden @change="importData" />
+        </label>
+        <button class="danger-button" type="button" @click="clearAllHistory">{{ t('imageWorkbench.clearHistory') }}</button>
+      </div>
+    </BaseDialog>
 
     <SizePickerModal
       :show="sizePickerOpen"
@@ -384,6 +383,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useAppStore } from '@/stores'
 import { useClipboard } from '@/composables/useClipboard'
 import {
@@ -1540,7 +1540,6 @@ onUnmounted(() => {
 }
 
 .history-card__actions button,
-.icon-button,
 .icon-action,
 .send-button,
 .composer__clear,
@@ -2117,48 +2116,11 @@ select option {
   color: #fff;
 }
 
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  background: rgba(0, 0, 0, .38);
-}
-
-.settings-panel {
-  width: min(100%, 430px);
-  border-radius: 12px;
-  background: var(--color-surface);
-  padding: 1rem;
-  box-shadow: 0 20px 55px rgba(0, 0, 0, .22);
-}
-
-.settings-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.settings-panel h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.icon-button {
-  width: 2.1rem;
-  height: 2.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-}
-
 .settings-tabs {
   display: flex;
   gap: .25rem;
-  margin: 1rem 0;
-  border-bottom: 1px solid var(--color-border);
+  margin: 0 0 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .settings-tabs button {
@@ -2169,6 +2131,9 @@ select option {
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .settings-tabs button.active {

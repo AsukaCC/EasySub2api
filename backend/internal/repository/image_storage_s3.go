@@ -98,7 +98,7 @@ func (s *S3ImageStorage) CheckObjectAccess(ctx context.Context) error {
 	contentType := "application/octet-stream"
 	data := []byte("easysub2api-image-storage-check")
 	if err := s.Put(ctx, key, contentType, data); err != nil {
-		return fmt.Errorf("S3 PutObject: %w", err)
+		return err
 	}
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -107,7 +107,7 @@ func (s *S3ImageStorage) CheckObjectAccess(ctx context.Context) error {
 	}()
 	got, _, err := s.Get(ctx, key)
 	if err != nil {
-		return fmt.Errorf("S3 GetObject: %w", err)
+		return err
 	}
 	if !bytes.Equal(got, data) {
 		return fmt.Errorf("S3 GetObject: connection check returned unexpected data")

@@ -105,6 +105,23 @@ func ValidateHTTPSURL(raw string, opts ValidationOptions) (string, error) {
 	return ValidateHTTPURL(raw, false, opts)
 }
 
+// ValidateConfiguredURL applies the configured URL policy consistently. The
+// allowlist switch controls hostname membership only; protocol and private
+// address protections remain active whenever their respective options are
+// disabled, including when the hostname allowlist is turned off.
+func ValidateConfiguredURL(raw string, enabled bool, allowedHosts []string, allowPrivate, allowInsecureHTTP bool) (string, error) {
+	if !enabled {
+		// Keep the hostname membership check disabled while retaining the
+		// protocol and resolved-address guards below.
+		allowedHosts = nil
+	}
+	return ValidateHTTPURL(raw, allowInsecureHTTP, ValidationOptions{
+		AllowedHosts:     allowedHosts,
+		RequireAllowlist: enabled,
+		AllowPrivate:     allowPrivate,
+	})
+}
+
 // ValidateResolvedIP 验证 DNS 解析后的 IP 地址是否安全
 // 用于防止 DNS Rebinding 攻击：在实际 HTTP 请求时调用此函数验证解析后的 IP
 func ValidateResolvedIP(host string) error {

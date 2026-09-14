@@ -908,18 +908,11 @@ func (s *GatewayService) buildCustomRelayURL(baseURL, path string, account *Acco
 }
 
 func (s *GatewayService) validateUpstreamBaseURL(raw string) (string, error) {
-	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
-		if err != nil {
-			return "", fmt.Errorf("invalid base_url: %w", err)
-		}
-		return normalized, nil
+	if s == nil || s.cfg == nil {
+		return urlvalidator.ValidateConfiguredURL(raw, false, nil, false, false)
 	}
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
-		RequireAllowlist: true,
-		AllowPrivate:     s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-	})
+	policy := s.cfg.Security.URLAllowlist
+	normalized, err := urlvalidator.ValidateConfiguredURL(raw, policy.Enabled, policy.UpstreamHosts, policy.AllowPrivateHosts, policy.AllowInsecureHTTP)
 	if err != nil {
 		return "", fmt.Errorf("invalid base_url: %w", err)
 	}
