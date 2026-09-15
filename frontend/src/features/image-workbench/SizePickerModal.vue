@@ -100,6 +100,9 @@
     <div class="size-picker-preview">
       <span class="input-label">{{ t('imageWorkbench.sizeWillUse') }}</span>
       <strong>{{ previewSize || t('imageWorkbench.sizeInvalid') }}</strong>
+      <p v-if="previewSize && previewSize !== 'auto'" class="input-hint">
+        {{ t('imageWorkbench.sizeBillingTier', { tier: previewBillingTier }) }}
+      </p>
       <p v-if="isClamped" class="input-hint">{{ t('imageWorkbench.sizeClamped') }}</p>
     </div>
 
@@ -121,6 +124,7 @@ import {
   SIZE_TIERS,
   calculateImageSize,
   findPresetForSize,
+  imageBillingTier,
   normalizeImageSize,
   parseRatio,
   parseSize,
@@ -174,9 +178,15 @@ const previewSize = computed(() => {
   return normalizeImageSize(`${width}x${height}`)
 })
 
+const previewBillingTier = computed(() => imageBillingTier(previewSize.value))
+
 const isClamped = computed(() => {
   if (!previewSize.value || previewSize.value === 'auto') return false
-  if (mode.value === 'ratio' && ratio.value === 'custom') return customRatioClamped.value
+  if (mode.value === 'ratio') {
+    if (previewBillingTier.value !== tier.value) return true
+    if (ratio.value === 'custom') return customRatioClamped.value
+    return false
+  }
   if (mode.value === 'resolution') {
     const width = Number.parseInt(customW.value, 10)
     const height = Number.parseInt(customH.value, 10)

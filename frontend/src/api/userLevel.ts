@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import type { DynamicRateOffer } from '@/types'
 
 export interface UserLevelDashboard {
   user_id: string
@@ -50,8 +51,14 @@ export async function getCurrent(): Promise<UserLevelDashboard> {
   return data
 }
 
+export async function getDynamicRateOffers(): Promise<DynamicRateOffer[]> {
+  const { data } = await apiClient.get<DynamicRateOffer[]>('/user/dynamic-rate-offers')
+  return Array.isArray(data) ? data : []
+}
+
 export const userLevelAPI = {
   getCurrent,
+  getDynamicRateOffers,
 }
 
 export default userLevelAPI

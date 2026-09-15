@@ -171,6 +171,17 @@ type RankedUserGroup struct {
 	Plan         UserRatePlan
 }
 
+// DynamicRateOffer is the user-safe window currently selected for a group.
+// It only includes the rule RankGroups already chose for billing.
+type DynamicRateOffer struct {
+	GroupID   string    `json:"group_id"`
+	GroupName string    `json:"group_name"`
+	RuleID    string    `json:"rule_id"`
+	RuleName  string    `json:"rule_name"`
+	StartAt   time.Time `json:"start_at"`
+	EndAt     time.Time `json:"end_at"`
+}
+
 type UserLevelService struct {
 	repo UserLevelRepository
 	// settingRepo is retained only to preserve the constructor used by Wire and
@@ -768,6 +779,45 @@ func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupI
 		return ranked[i].Group.ID < ranked[j].Group.ID
 	})
 	return ranked, nil
+}
+
+// ListActiveDynamicRateOffers returns the currently selected absolute windows
+// for the caller's available groups. Eligibility matches resolveGroupPlan.
+func (s *UserLevelService) ListActiveDynamicRateOffers(ctx context.Context, userID string, groupIDs []string, at time.Time) ([]DynamicRateOffer, error) {
+	offers := make([]DynamicRateOffer, 0)
+	ranked, err := s.RankGroups(ctx, userID, groupIDs, at, "")
+	if err != nil {
+		return offers, err
+	}
+	for _, item := range ranked {
+		if item.Group == nil || strings.TrimSpace(item.Plan.SelectedDynamicRuleID) == "" {
+			continue
+		}
+		var selected *DynamicRateCandidate
+		for i := range item.Plan.DynamicCandidates {
+			if item.Plan.DynamicCandidates[i].RuleID != item.Plan.SelectedDynamicRuleID {
+				continue
+			}
+			selected = &item.Plan.DynamicCandidates[i]
+			break
+		}
+		if selected == nil {
+			continue
+		}
+		start, end, _, ok := parseDynamicRateWindow(GroupDynamicRateRule{StartAt: selected.StartAt, EndAt: selected.EndAt})
+		if !ok {
+			continue
+		}
+		offers = append(offers, DynamicRateOffer{
+			GroupID:   item.Group.ID,
+			GroupName: item.Group.Name,
+			RuleID:    selected.RuleID,
+			RuleName:  selected.RuleName,
+			StartAt:   start,
+			EndAt:     end,
+		})
+	}
+	return offers, nil
 }
 
 // The decimal helpers keep profile cache keys independent of a settings JSON

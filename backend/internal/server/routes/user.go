@@ -37,6 +37,7 @@ func RegisterUserRoutes(
 		{
 			user.GET("/profile", h.User.GetProfile)
 			user.GET("/level", h.User.GetLevel)
+			user.GET("/dynamic-rate-offers", h.User.ListDynamicRateOffers)
 			user.PUT("/password", h.User.ChangePassword)
 			user.PUT("", h.User.UpdateProfile)
 			affiliate := user.Group("/aff")

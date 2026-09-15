@@ -616,6 +616,15 @@ export interface ReasoningEffortMapping {
 export type ReasoningEffortMatchType = 'exact' | 'prefix' | 'suffix'
 export type ReasoningEffortOverLimitPolicy = 'downgrade' | 'deny'
 
+export interface DynamicRateOffer {
+  group_id: string
+  group_name: string
+  rule_id: string
+  rule_name: string
+  start_at: string
+  end_at: string
+}
+
 export interface GroupDynamicRateRule {
 	id: string
 	name: string
