@@ -328,7 +328,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'My Subscriptions',
       titleKey: 'userSubscriptions.title',
-      descriptionKey: 'userSubscriptions.description'
+      descriptionKey: 'userSubscriptions.description',
+      requiresSubscription: true
     }
   },
   {
@@ -1265,6 +1266,16 @@ router.beforeEach(async (to, _from, next) => {
     appStore.cachedPublicSettings?.risk_control_enabled === false
   ) {
     next(authStore.isAdmin ? '/admin/settings/features' : '/dashboard')
+    return
+  }
+
+  // 订阅功能是 opt-out 开关：只有显式 false 才拦截「我的订阅」页直达。
+  if (
+    to.meta.requiresSubscription &&
+    appStore.publicSettingsLoaded &&
+    appStore.cachedPublicSettings?.subscription_enabled === false
+  ) {
+    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return
   }
 

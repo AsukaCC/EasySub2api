@@ -191,6 +191,7 @@ import { useSubscriptionStore } from '@/stores'
 import type { UserSubscription } from '@/types'
 import { useFloatingPanel } from '@/composables/useFloatingPanel'
 import { formatPointAmount, formatPoints } from '@/utils/format'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 
 const { t } = useI18n()
 
@@ -207,6 +208,8 @@ const { panelRef, style: panelStyle } = useFloatingPanel(triggerRef, tooltipOpen
 // Use store data instead of local state
 const activeSubscriptions = computed(() => subscriptionStore.activeSubscriptions)
 const hasActiveSubscriptions = computed(() => subscriptionStore.hasActiveSubscriptions)
+// 订阅功能关闭后，即使用户仍持有后台分配的订阅，顶栏也不再露出订阅进度与「查看全部订阅」入口。
+const subscriptionFeatureEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.subscription))
 
 const displaySubscriptions = computed(() => {
   // Sort by most usage (highest percentage first)
@@ -315,6 +318,7 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   // Trigger initial fetch if not already loaded
   // The actual data loading is handled by App.vue globally
+  if (!subscriptionFeatureEnabled.value) return
   subscriptionStore.fetchActiveSubscriptions().catch((error) => {
     console.error('Failed to load subscriptions in SubscriptionProgressMini:', error)
   })

@@ -392,6 +392,7 @@ const compactionOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('usage.allCompactionTypes') },
   { value: true, label: t('usage.compactionOnly') },
 ])
+// 订阅功能关闭后只剩余额计费，「计费类型」筛选（余额/订阅）失去意义，整块隐藏。
 const billingTypeOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('admin.usage.allBillingTypes') },
   { value: 0, label: t('admin.usage.billingTypeBalance') },
