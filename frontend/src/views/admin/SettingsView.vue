@@ -9488,6 +9488,7 @@ const form = reactive<SettingsForm>({
   payment_max_pending_orders: 3,
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
+  subscription_enabled: true,
   payment_balance_recharge_multiplier: 1,
   payment_recharge_bonus_tiers: [],
   payment_subscription_usd_to_cny_rate: 0,
@@ -11543,6 +11544,8 @@ async function saveSettings(section?: SettingsSection) {
       channel_monitor_hide_user_ranking: Boolean(form.channel_monitor_hide_user_ranking),
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      // Subscription feature switch
+      subscription_enabled: form.subscription_enabled,
       // Model Plaza feature switches + description
       model_plaza_enabled: form.model_plaza_enabled,
       model_plaza_require_auth: form.model_plaza_require_auth,
