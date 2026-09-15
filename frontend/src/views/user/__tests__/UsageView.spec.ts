@@ -53,6 +53,10 @@ const messages: Record<string, string> = {
   'usage.apiKeyFilter': 'API Key',
   'usage.model': 'Model',
   'usage.type': 'Type',
+  'usage.requestedReasoningEffort': 'Requested Reasoning',
+  'usage.serviceTier': 'Service tier',
+  'usage.serviceTierPriority': 'Fast',
+  'usage.nativeCompactionV2': 'Native Compaction',
   'usage.ws': 'WS',
   'usage.stream': 'Stream',
   'usage.sync': 'Sync',
@@ -65,6 +69,8 @@ const messages: Record<string, string> = {
   'usage.exportFailed': 'Export failed',
   'common.refresh': 'Refresh',
   'common.reset': 'Reset',
+  'common.yes': 'Yes',
+  'common.no': 'No',
 }
 
 vi.mock('@/api', () => ({
@@ -242,8 +248,8 @@ describe('user UsageView', () => {
     expect(showSuccess).toHaveBeenCalled()
     expect(csvContent.startsWith('\uFEFF')).toBe(true)
     expect(csvContent.slice(1)).toBe([
-      'Time,API Key Name,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Points,Standard Cost (USD),First Token (ms),Duration (ms)',
-      '2026-03-08T00:00:00Z,demo-key,gpt-5.4,"\'-",,203.0.113.10,Sync,Token,4057,101,278272,4,1,0.09288300,0.09288300,12,345',
+      'Time,API Key Name,Model,Requested Reasoning,Inbound Endpoint,IP Address,Type,Service tier,Native Compaction,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Points,Upstream Billing (USD),Standard Cost (USD),First Token (ms),Duration (ms)',
+      '2026-03-08T00:00:00Z,demo-key,gpt-5.4,"\'-",,203.0.113.10,Sync,Fast,No,Token,4057,101,278272,4,1,0.09288300,0.00000000,0.09288300,12,345',
     ].join('\n'))
     expect(csvContent).toContain('IP Address')
     expect(csvContent).toContain('203.0.113.10')
