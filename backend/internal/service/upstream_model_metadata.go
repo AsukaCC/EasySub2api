@@ -34,6 +34,7 @@ type UpstreamModelMetadata struct {
 	SupportedReasoningLevels []string                   `json:"supported_reasoning_levels,omitempty"`
 	InputModalities          []string                   `json:"input_modalities,omitempty"`
 	ContextWindow            int64                      `json:"context_window,omitempty"`
+	MaxContextWindow         int64                      `json:"max_context_window,omitempty"`
 	MaxOutputTokens          int64                      `json:"max_output_tokens,omitempty"`
 	CodexToolCapabilities    map[string]json.RawMessage `json:"codex_tool_capabilities,omitempty"`
 }
@@ -183,6 +184,26 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 	// media models are intentionally excluded from Codex capability completeness.
 	enrichIDs := dedupeAndSortModelIDs(append(append([]string{}, models...), configuredUpstreamModelsForCapabilitySync(account)...))
 	capabilityIDs := capabilitySyncModelIDs(enrichIDs)
+	if catalog.Metadata == nil {
+		catalog.Metadata = make(map[string]UpstreamModelMetadata)
+	}
+	// A partial response must not erase a previously synced context limit.
+	if previous := account.GetUpstreamModelMetadataSnapshot(); previous != nil {
+		for _, modelID := range capabilityIDs {
+			current := catalog.Metadata[modelID]
+			prior, ok := previous.Models[modelID]
+			if !ok {
+				continue
+			}
+			if current.ContextWindow <= 0 {
+				current.ContextWindow = prior.ContextWindow
+			}
+			if current.MaxContextWindow <= 0 && prior.MaxContextWindow >= current.ContextWindow {
+				current.MaxContextWindow = prior.MaxContextWindow
+			}
+			catalog.Metadata[modelID] = current
+		}
+	}
 
 	source := "upstream"
 	if upstreamCatalogNeedsRegistry(capabilityIDs, catalog.Metadata) {
@@ -478,6 +499,7 @@ func upstreamMetadataFromCapabilityEntry(modelID string, entry upstreamModelCapa
 		SupportedReasoningLevels: levels,
 		InputModalities:          normalizeCodexInputModalities(modalities),
 		ContextWindow:            contextWindow,
+		MaxContextWindow:         entry.MaxContextWindow,
 		MaxOutputTokens:          maxOutputTokens,
 		CodexToolCapabilities:    toolCapabilities,
 	}
@@ -568,6 +590,7 @@ func upstreamModelMetadataIsUseful(metadata UpstreamModelMetadata) bool {
 		len(metadata.SupportedReasoningLevels) > 0 ||
 		len(metadata.InputModalities) > 0 ||
 		metadata.ContextWindow > 0 ||
+		metadata.MaxContextWindow > 0 ||
 		metadata.MaxOutputTokens > 0
 }
 
@@ -634,6 +657,9 @@ func mergeUpstreamModelMetadata(primary, fallback UpstreamModelMetadata) (Upstre
 	}
 	if merged.ContextWindow <= 0 && fallback.ContextWindow > 0 {
 		merged.ContextWindow = fallback.ContextWindow
+		if merged.MaxContextWindow <= 0 {
+			merged.MaxContextWindow = fallback.MaxContextWindow
+		}
 		changed = true
 	}
 	if merged.MaxOutputTokens <= 0 && fallback.MaxOutputTokens > 0 {
@@ -746,6 +772,7 @@ func upstreamMetadataFromModelsDevModel(modelID string, model modelsDevModel) Up
 		SupportedReasoningLevels: levels,
 		InputModalities:          normalizeCodexInputModalities(model.Modalities.Input),
 		ContextWindow:            model.Limit.Context,
+		MaxContextWindow:         model.Limit.Context,
 		MaxOutputTokens:          model.Limit.Output,
 	}
 	if len(levels) > 0 {
