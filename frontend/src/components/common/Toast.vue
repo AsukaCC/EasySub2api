@@ -137,7 +137,7 @@ const removeToast = (id: string) => {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 9999;
+  z-index: var(--z-toast);
   pointer-events: none;
 }
 

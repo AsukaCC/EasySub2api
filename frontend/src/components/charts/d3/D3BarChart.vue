@@ -147,7 +147,7 @@ const xTicks = computed(() => {
 
 const showLegend = computed(() => chartOptions.value.plugins?.legend?.display !== false)
 const legendStyle = computed<CSSProperties>(() => ({
-  color: chartOptions.value.plugins?.legend?.labels?.color ?? '#64748b',
+  color: chartOptions.value.plugins?.legend?.labels?.color ?? 'var(--color-text-tertiary)',
   justifyContent: chartOptions.value.plugins?.legend?.align === 'end' ? 'flex-end' : 'center',
   fontSize: `${chartOptions.value.plugins?.legend?.labels?.font?.size ?? 11}px`,
   gap: `${chartOptions.value.plugins?.legend?.labels?.padding ?? 12}px`,
@@ -268,7 +268,7 @@ function showTooltip(bar: BarModel, event: MouseEvent) {
             :x2="plot.right"
             :y1="yScale(tick)"
             :y2="yScale(tick)"
-            :stroke="yOptions.grid?.color ?? '#e5e7eb'"
+            :stroke="yOptions.grid?.color ?? 'var(--color-border)'"
             :stroke-dasharray="yOptions.grid?.borderDash?.join(' ')"
           />
         </g>
@@ -288,27 +288,27 @@ function showTooltip(bar: BarModel, event: MouseEvent) {
         />
 
         <g v-if="xOptions.display !== false">
-          <line :x1="plot.left" :x2="plot.right" :y1="plot.bottom" :y2="plot.bottom" stroke="#cbd5e1" />
+          <line :x1="plot.left" :x2="plot.right" :y1="plot.bottom" :y2="plot.bottom" stroke="var(--color-border)" />
           <text
             v-for="index in xTicks"
             :key="`x-${index}`"
             :x="(xScale(index) ?? plot.left) + xScale.bandwidth() / 2"
             :y="plot.bottom + 18"
             text-anchor="middle"
-            :fill="xOptions.ticks?.color ?? '#64748b'"
+            :fill="xOptions.ticks?.color ?? 'var(--color-text-tertiary)'"
             :font-size="xOptions.ticks?.font?.size ?? 10"
           >{{ formatXTick(index) }}</text>
         </g>
 
         <g v-if="yOptions.display !== false">
-          <line :x1="plot.left" :x2="plot.left" :y1="plot.top" :y2="plot.bottom" stroke="#cbd5e1" />
+          <line :x1="plot.left" :x2="plot.left" :y1="plot.top" :y2="plot.bottom" stroke="var(--color-border)" />
           <g v-for="tick in yTicks" :key="`y-${tick}`">
-            <line :x1="plot.left - 4" :x2="plot.left" :y1="yScale(tick)" :y2="yScale(tick)" stroke="#94a3b8" />
+            <line :x1="plot.left - 4" :x2="plot.left" :y1="yScale(tick)" :y2="yScale(tick)" stroke="var(--color-text-tertiary)" />
             <text
               :x="plot.left - 8"
               :y="yScale(tick) + 3"
               text-anchor="end"
-              :fill="yOptions.ticks?.color ?? '#64748b'"
+              :fill="yOptions.ticks?.color ?? 'var(--color-text-tertiary)'"
               :font-size="yOptions.ticks?.font?.size ?? 10"
             >{{ formatYTick(tick) }}</text>
           </g>
@@ -318,7 +318,7 @@ function showTooltip(bar: BarModel, event: MouseEvent) {
             :y="(plot.top + plot.bottom) / 2"
             :transform="`rotate(-90 12 ${(plot.top + plot.bottom) / 2})`"
             text-anchor="middle"
-            :fill="yOptions.title.color ?? yOptions.ticks?.color ?? '#64748b'"
+            :fill="yOptions.title.color ?? yOptions.ticks?.color ?? 'var(--color-text-tertiary)'"
             :font-size="yOptions.title.font?.size ?? 11"
           >{{ yOptions.title.text }}</text>
         </g>

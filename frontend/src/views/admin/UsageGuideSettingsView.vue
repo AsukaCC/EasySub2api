@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <main class="usage-guide-settings-page">
+    <main class="usage-guide-settings-page page-stack">
       <header class="usage-guide-settings-header">
         <div>
           <h1>{{ t('admin.settings.usageGuide.title') }}</h1>
@@ -91,7 +91,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.usage-guide-settings-page { width: min(1220px, 100%); margin: 0 auto; padding: 2rem; }
+.usage-guide-settings-page { width: min(1220px, 100%); margin: 0 auto; }
 .usage-guide-settings-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .usage-guide-settings-header h1 { margin: 0; }
 .usage-guide-settings-header p { margin: .45rem 0 0; color: var(--color-text-secondary); }
@@ -106,5 +106,5 @@ onMounted(load)
 .usage-guide-editor__footer { margin-top: 1rem; }
 .muted { color: var(--color-text-secondary); font-size: .85rem; }
 .is-invalid { color: var(--color-text-danger); font-size: .85rem; }
-@media (max-width: 800px) { .usage-guide-settings-page { padding: 1rem; } .usage-guide-settings-header { flex-direction: column; } .usage-guide-editor__grid { grid-template-columns: 1fr; } .usage-guide-editor__textarea, .usage-guide-preview { min-height: 360px; } .usage-guide-editor__footer { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 800px) { .usage-guide-settings-header { flex-direction: column; } .usage-guide-editor__grid { grid-template-columns: 1fr; } .usage-guide-editor__textarea, .usage-guide-preview { min-height: 360px; } .usage-guide-editor__footer { align-items: flex-start; flex-direction: column; } }
 </style>

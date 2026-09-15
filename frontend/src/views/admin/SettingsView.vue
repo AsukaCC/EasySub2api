@@ -13290,147 +13290,7 @@ watch(
 }
 
 .toggle input:focus-visible + .toggle-slider {
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
-}
-
-/* ============ 系统设置 Tab 导航 ============ */
-.settings-tabs-shell {
-  top: var(--app-shell-sticky-offset);
-  box-shadow:
-    0 12px 28px rgb(12 12 14 / 0.07),
-    0 1px 0 rgb(255 255 255 / 0.9) inset;
-}
-
-.settings-tabs-scroll {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.settings-tabs-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.settings-tabs {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: max-content;
-}
-
-.settings-tab {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  gap: 0.375rem;
-  height: 2.5rem;
-  min-width: 6.75rem;
-  padding: 0 0.75rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-lg);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  white-space: nowrap;
-  outline: none;
-  transition: color 200ms ease, border-color 200ms ease, background-color 200ms ease;
-}
-
-@media (min-width: 768px) {
-  .settings-tabs {
-    min-width: 100%;
-  }
-
-  .settings-tab {
-    flex: 1 1 0%;
-    min-width: 0;
-    overflow: hidden;
-    padding: 0 0.5rem;
-    font-size: var(--font-size-xs);
-  }
-
-  .settings-tab-icon {
-    width: 1.75rem;
-    height: 1.75rem;
-  }
-}
-
-.settings-tab::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 200ms ease;
-  background: var(--glass-bg-interactive);
-  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate-hover));
-  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate-hover));
-}
-
-.settings-tab:hover::before,
-.settings-tab:focus-visible::before {
-  opacity: 1;
-}
-
-.settings-tab:focus-visible {
-  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.25);
-}
-
-.settings-tab-active {
-  border-color: var(--glass-border-active);
-  background: var(--glass-tint-brand);
-  color: var(--color-text-brand);
-  box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(var(--glass-blur-xs)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-xs)) saturate(var(--glass-saturate));
-}
-
-.settings-tab-active::before {
-  opacity: 0;
-}
-
-.settings-tab-active::after {
-  position: absolute;
-  right: 0.75rem;
-  bottom: 0.25rem;
-  left: 0.75rem;
-  height: 2px;
-  border-radius: 9999px;
-  content: "";
-  background: linear-gradient(90deg, #0a84ff, #5e5ce6);
-}
-
-.settings-tab-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-md);
-  color: var(--color-text-tertiary);
-  transition: color 200ms ease, background-color 200ms ease;
-}
-
-.settings-tab:hover .settings-tab-icon,
-.settings-tab:focus-visible .settings-tab-icon {
-  color: var(--color-text-secondary);
-}
-
-.settings-tab-active .settings-tab-icon {
-  background: rgba(10, 132, 255, 0.1);
-  color: var(--color-text-brand);
-}
-
-.settings-tab-label {
-  min-width: 0;
-  overflow: hidden;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 25%, transparent);
 }
 
 .settings-page-form {
@@ -13464,9 +13324,9 @@ watch(
   flex: 0 0 auto;
   width: 2rem;
   height: 2rem;
-  border: 1px solid rgb(10 132 255 / 0.2);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-md);
-  background: rgb(10 132 255 / 0.08);
+  background: var(--color-primary-subtle);
   color: var(--color-text-brand);
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -13484,7 +13344,7 @@ watch(
 .settings-save-bar {
   position: sticky;
   bottom: env(safe-area-inset-bottom);
-  z-index: 20;
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -13517,53 +13377,6 @@ watch(
   .settings-save-bar__button {
     width: 100%;
   }
-}
-</style>
-
-<style>
-/* Dark-mode overrides for the settings tabs shell. Kept in an UNSCOPED block
-   because Vue's scoped-CSS compiler was dropping the `:global(.dark) ...`
-   rules in the production build, leaving inactive tabs unreadable on dark. */
-.dark .settings-tabs-shell {
-  border-color: var(--glass-border);
-  background: var(--glass-bg);
-  box-shadow: var(--glass-shadow);
-}
-
-.dark .settings-tab {
-  color: var(--color-text-secondary);
-}
-
-.dark .settings-tab::before {
-  background: var(--glass-bg-interactive);
-}
-
-.dark .settings-tab-active {
-  border-color: var(--glass-border-active);
-  background: var(--glass-tint-brand);
-  color: var(--color-text-brand);
-  box-shadow: var(--glass-shadow);
-}
-
-.dark .settings-tab-active .settings-tab-icon {
-  background: rgba(10, 132, 255, 0.16);
-  color: rgb(124 194 255);
-}
-
-.dark .settings-platform-card__header {
-  border-color: rgb(38 38 43 / 0.65);
-}
-
-.dark .settings-platform-card__index {
-  border-color: rgb(124 194 255 / 0.28);
-  background: rgb(10 132 255 / 0.16);
-  color: rgb(154 207 255);
-}
-
-.dark .settings-save-bar {
-  border-color: var(--glass-border);
-  background: var(--glass-bg-thick);
-  box-shadow: var(--glass-shadow);
 }
 
 .payment-fixed-contract {

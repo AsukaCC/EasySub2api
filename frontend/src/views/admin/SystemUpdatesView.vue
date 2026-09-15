@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <main class="system-updates">
+    <main class="system-updates page-stack">
       <header class="system-updates__header">
         <div>
           <p>{{ t('admin.settings.systemUpdates.description') }}</p>
@@ -260,7 +260,7 @@ onMounted(() => checkForUpdates(false))
 </script>
 
 <style scoped>
-.system-updates { width: min(1080px, 100%); margin: 0 auto; padding: 2rem; }
+.system-updates { width: min(1080px, 100%); margin: 0 auto; }
 .system-updates__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .system-updates__header p { margin: 0; color: var(--color-text-secondary); }
 .system-updates__header .btn, .system-updates__section-heading .btn, .system-updates__restart .btn { display: inline-flex; align-items: center; gap: .45rem; }
@@ -289,5 +289,5 @@ onMounted(() => checkForUpdates(false))
 .system-updates__loading { min-height: 18rem; display: grid; place-content: center; justify-items: center; gap: .75rem; color: var(--color-text-secondary); }
 .system-updates__spin { animation: system-updates-spin 1s linear infinite; }
 @keyframes system-updates-spin { to { transform: rotate(360deg); } }
-@media (max-width: 760px) { .system-updates { padding: 1rem; } .system-updates__header, .system-updates__section-heading, .system-updates__restart { flex-direction: column; align-items: stretch; } .system-updates__header .btn, .system-updates__section-heading .btn, .system-updates__restart .btn { justify-content: center; } .system-updates__summary { grid-template-columns: auto minmax(0, 1fr); } .system-updates__update-button { grid-column: 1 / -1; justify-content: center; } }
+@media (max-width: 760px) { .system-updates__header, .system-updates__section-heading, .system-updates__restart { flex-direction: column; align-items: stretch; } .system-updates__header .btn, .system-updates__section-heading .btn, .system-updates__restart .btn { justify-content: center; } .system-updates__summary { grid-template-columns: auto minmax(0, 1fr); } .system-updates__update-button { grid-column: 1 / -1; justify-content: center; } }
 </style>

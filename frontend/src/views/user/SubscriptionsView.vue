@@ -634,6 +634,19 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.views-user-subscriptions-view__panel-6 {
+  grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr));
+  gap: 1.25rem;
+}
+
+.views-user-subscriptions-view__panel-8 {
+  padding: 1rem 1.25rem;
+}
+
+.views-user-subscriptions-view__panel-12 {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
 .subscription-reset-cards {
   display: grid;
   gap: 0.5rem;

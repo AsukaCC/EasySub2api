@@ -3,23 +3,23 @@
     <TablePageLayout>
       <!-- 筛选与操作合并为一条标准工具条卡:左筛选、右操作 -->
       <template #filters>
-        <div class="keys-toolbar card filter-toolbar">
+        <div class="keys-toolbar card">
           <div class="keys-toolbar__filters">
             <SearchInput
               v-model="filterSearch"
               :placeholder="t('keys.searchPlaceholder')"
-              class="views-user-keys-view__search-input"
+              class="keys-toolbar__search"
               @search="onFilterChange"
             />
             <Select
               :model-value="filterGroupId"
-              class="views-user-keys-view__field"
+              class="keys-toolbar__field"
               :options="groupFilterOptions"
               @update:model-value="onGroupFilterChange"
             />
             <Select
               :model-value="filterStatus"
-              class="views-user-keys-view__field"
+              class="keys-toolbar__field"
               :options="statusFilterOptions"
               @update:model-value="onStatusFilterChange"
             />
@@ -38,26 +38,26 @@
           >
             <Icon name="refresh" size="md" :class="loading ? 'views-user-keys-view__icon-7' : ''" />
           </button>
-          <div class="views-user-keys-view__panel-4 filter-toolbar" ref="columnDropdownRef">
+          <div class="keys-toolbar__columns" ref="columnDropdownRef">
             <button
               @click="showColumnDropdown = !showColumnDropdown"
-              class="views-user-keys-view__action btn btn-secondary"
+              class="btn btn-secondary"
               :title="t('keys.columnSettings')"
             >
-              <svg class="views-user-keys-view__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <svg class="keys-toolbar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
               </svg>
-              <span class="views-user-keys-view__text">{{ t('keys.columnSettings') }}</span>
+              <span>{{ t('keys.columnSettings') }}</span>
             </button>
             <div
               v-if="showColumnDropdown"
-              class="views-user-keys-view__panel-5 dropdown dropdown--menu"
+              class="keys-toolbar__menu dropdown dropdown--menu"
             >
               <button
                 v-for="col in toggleableColumns"
                 :key="col.key"
                 @click="toggleColumn(col.key)"
-                class="views-user-keys-view__action-2 dropdown-item"
+                class="dropdown-item"
               >
                 <span>{{ col.label }}</span>
                 <Icon
@@ -1738,6 +1738,20 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.75rem;
   margin-left: auto;
+}
+
+.keys-toolbar__columns {
+  position: relative;
+}
+
+.keys-toolbar__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.keys-toolbar__search,
+.keys-toolbar__field {
+  min-width: 10rem;
 }
 
 .key-groups {

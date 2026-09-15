@@ -255,7 +255,7 @@ onBeforeUnmount(() => {
 
 .locale-menu {
   position: fixed;
-  z-index: 100;
+  z-index: var(--z-dropdown);
   overflow-y: auto;
   padding: 0.375rem;
   border-radius: var(--radius-lg);

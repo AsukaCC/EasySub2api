@@ -1318,7 +1318,7 @@ defineExpose({
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 250;
+    z-index: calc(var(--z-sticky) + 8);
     display: grid;
     min-height: 6.5rem;
     place-items: center;
@@ -1413,7 +1413,7 @@ defineExpose({
   &__header {
     position: sticky;
     top: 0;
-    z-index: 200;
+    z-index: var(--z-sticky);
     background: transparent;
   }
 
@@ -1421,7 +1421,7 @@ defineExpose({
   &__header-cell {
     position: sticky;
     top: 0;
-    z-index: 210;
+    z-index: calc(var(--z-sticky) + 2);
     height: 2.75rem;
     border-bottom: 1px solid var(--color-border);
     background: var(--glass-layer-shell-bg);
@@ -1796,7 +1796,7 @@ defineExpose({
 
 .sticky-col {
   position: sticky;
-  z-index: 20;
+  z-index: var(--z-sticky);
 }
 
 .sticky-col-left,
@@ -1813,7 +1813,7 @@ defineExpose({
 }
 
 .sticky-header-cell.sticky-col {
-  z-index: 220;
+  z-index: calc(var(--z-sticky) + 4);
 }
 
 .is-scrollable {
@@ -1901,12 +1901,12 @@ defineExpose({
    放在暗色规则之后,确保同时覆盖亮/暗两套卡壳。 */
 .table-scroll-container .data-table,
 .dark .table-scroll-container .data-table {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: none;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 :global(html.data-table-column-resizing),

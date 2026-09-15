@@ -153,6 +153,15 @@ const cacheDetailLabel = () => t('usage.cacheBreakdown')
 </script>
 
 <style scoped>
+.components-admin-usage-usage-stats-cards__panel {
+  gap: 1.25rem;
+}
+
+.components-admin-usage-usage-stats-cards__panel-2 {
+  padding: 1.25rem;
+  border-radius: var(--radius-xl);
+}
+
 .usage-cache-popover {
   display: flex;
   flex-direction: column;

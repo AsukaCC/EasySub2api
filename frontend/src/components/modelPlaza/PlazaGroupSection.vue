@@ -93,3 +93,11 @@ const peakNote = computed(() => {
   })
 })
 </script>
+
+<style scoped>
+.components-model-plaza-plaza-group-section__section {
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
+}
+</style>

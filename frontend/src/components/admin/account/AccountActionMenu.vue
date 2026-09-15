@@ -164,8 +164,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.components-admin-account-account-action-menu__panel {
+  z-index: var(--z-dropdown);
+}
+
 /* 菜单高度受视口约束时允许内部滚动，避免超出视口显示不全。 */
 .action-menu-content {
+  z-index: var(--z-dropdown);
   overflow-y: auto;
   overscroll-behavior: contain;
 }

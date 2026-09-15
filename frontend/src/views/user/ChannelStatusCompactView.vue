@@ -1,6 +1,6 @@
 <template>
   <component :is="layoutComponent">
-    <div class="channel-status-compact">
+    <div class="channel-status-compact page-shell--wide">
       <!-- 页头:标题 + 更新时间 + 手动刷新(对齐全站卡片头标准) -->
       <section class="channel-status-compact__head card">
         <div class="channel-status-compact__head-main">
@@ -703,8 +703,9 @@ onBeforeUnmount(() => {
   --monitor-error-ink: #166534;
 }
 .error-band-4 {
-  --monitor-error-color: #ffffff;
-  --monitor-error-ink: #64748b;
+  --monitor-error-color: var(--color-surface-muted);
+  --monitor-error-ink: var(--color-text-tertiary);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 .error-band-5 {
   --monitor-error-color: #fecaca;
@@ -766,7 +767,7 @@ onBeforeUnmount(() => {
 .channel-status-compact__floating-tooltip {
   pointer-events: none;
   position: fixed;
-  z-index: 100000;
+  z-index: var(--z-dropdown);
   min-width: 12rem;
   max-width: min(20rem, calc(100vw - 1.5rem));
   transform: translate(-50%, calc(-100% - .5rem));
@@ -812,8 +813,8 @@ onBeforeUnmount(() => {
   --monitor-error-ink: #14532d;
 }
 :global(.dark) .error-band-4 {
-  --monitor-error-color: #ca8a04;
-  --monitor-error-ink: #fef08a;
+  --monitor-error-color: var(--color-surface-muted);
+  --monitor-error-ink: var(--color-text-tertiary);
 }
 :global(.dark) .error-band-5 {
   --monitor-error-color: #ea580c;

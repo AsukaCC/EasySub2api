@@ -177,6 +177,67 @@ function chipClass(active: boolean): string {
 </script>
 
 <style scoped>
+.components-model-plaza-plaza-filter-bar__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.components-model-plaza-plaza-filter-bar__panel-4 {
+  align-items: center;
+}
+
+.components-model-plaza-plaza-filter-bar__panel-4 .components-model-plaza-plaza-filter-bar__text {
+  padding-top: 0;
+}
+
+.components-model-plaza-plaza-filter-bar__panel-5 {
+  flex: 1;
+  width: auto;
+  min-width: 14rem;
+  max-width: 28rem;
+}
+
+.components-model-plaza-plaza-filter-bar__field {
+  min-height: 2.25rem;
+  padding: 0.4375rem 2.5rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+}
+
+.components-model-plaza-plaza-filter-bar__icon {
+  position: absolute;
+  top: 50%;
+  left: 0.875rem;
+  display: block;
+  transform: translateY(-50%);
+}
+
+.components-model-plaza-plaza-filter-bar__action-5 {
+  position: absolute;
+  top: 50%;
+  right: 0.625rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.components-model-plaza-plaza-filter-bar__action-5:hover {
+  background-color: var(--glass-bg-interactive-hover);
+}
+
 /* 平台/分组 chip 的配色统一从 --chip-accent(平台主色)派生,新增平台无需扩展样式。
    激活态与非激活态在模板上互斥挂载,避免选择器优先级互相覆盖。 */
 .chip-tinted {

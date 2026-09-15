@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <main class="ops-feature-settings">
+    <main class="ops-feature-settings page-stack">
       <header class="ops-feature-settings__header">
         <div>
           <p>{{ t('admin.settings.featureManagement.opsSettings.description') }}</p>
@@ -122,7 +122,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.ops-feature-settings { width: min(1100px, 100%); margin: 0 auto; padding: 2rem; }
+.ops-feature-settings { width: min(1100px, 100%); margin: 0 auto; }
 .ops-feature-settings__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
 .ops-feature-settings__header p { margin: 0; color: var(--color-text-secondary); }
 .ops-feature-settings__header .btn, .ops-feature-settings__actions .btn { display: inline-flex; align-items: center; gap: .45rem; }
@@ -134,5 +134,5 @@ onMounted(load)
 .ops-feature-settings__field-grid label { display: grid; gap: .5rem; font-size: var(--font-size-sm); font-weight: 600; }
 .ops-feature-settings__actions { display: flex; justify-content: space-between; gap: .75rem; }
 .ops-feature-settings__loading { min-height: 18rem; display: grid; place-items: center; color: var(--color-text-secondary); }
-@media (max-width: 700px) { .ops-feature-settings { padding: 1rem; } .ops-feature-settings__header { flex-direction: column; } .ops-feature-settings__field-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .ops-feature-settings__header { flex-direction: column; } .ops-feature-settings__field-grid { grid-template-columns: 1fr; } }
 </style>

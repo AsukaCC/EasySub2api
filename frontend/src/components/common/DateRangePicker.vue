@@ -396,7 +396,7 @@ onUnmounted(() => {
 .date-range-dropdown {
   position: absolute;
   left: 0;
-  z-index: 100;
+  z-index: var(--z-dropdown);
   min-width: 320px;
   margin-top: 0.5rem;
   overflow: hidden;

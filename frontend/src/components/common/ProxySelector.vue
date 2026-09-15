@@ -356,7 +356,7 @@ onUnmounted(() => {
 
 .select-dropdown {
   position: absolute;
-  z-index: 100;
+  z-index: var(--z-dropdown);
   width: 100%;
   margin-top: 0.5rem;
   overflow: hidden;

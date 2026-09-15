@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, nextTick } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, nextTick } from 'vue'
 
 const props = withDefaults(defineProps<{
   content?: string
@@ -14,6 +14,13 @@ const show = ref(false)
 const triggerRef = useTemplateRef<HTMLElement>('trigger')
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip')
 const tooltipStyle = ref({ top: '0px', left: '0px' })
+const tooltipZIndex = computed(() => {
+  const trigger = triggerRef.value
+  if (trigger?.closest('.modal-overlay, [role="dialog"]')) {
+    return 'var(--z-tooltip)'
+  }
+  return 'var(--z-dropdown)'
+})
 
 function openTooltip() {
   show.value = true
@@ -137,7 +144,7 @@ onBeforeUnmount(() => {
           'help-tooltip-popover glass-popover',
           props.widthClass,
         ]"
-        :style="{ top: `calc(${tooltipStyle.top} - 8px)`, left: tooltipStyle.left }"
+        :style="{ top: `calc(${tooltipStyle.top} - 8px)`, left: tooltipStyle.left, zIndex: tooltipZIndex }"
       >
         <button
           v-if="props.trigger === 'click'"
@@ -183,7 +190,7 @@ onBeforeUnmount(() => {
 <style>
 .help-tooltip-popover {
   position: fixed;
-  z-index: 99999;
+  z-index: var(--z-dropdown);
   padding: 0.75rem;
   border: 1px solid var(--glass-border-hover);
   border-radius: var(--radius-md);

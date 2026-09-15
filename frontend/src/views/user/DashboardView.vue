@@ -158,48 +158,9 @@ onMounted(refreshAll)
   padding: 2.5rem 0;
 }
 
-/* ---- 统计卡两行(每行 3 块):行距与卡内边距压缩 ---- */
 .dashboard-page__stats {
   display: grid;
   gap: 0.75rem;
-}
-
-.dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__panel) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
-}
-
-@media (min-width: 640px) {
-  .dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__panel) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1024px) {
-  .dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__panel) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__panel-2) {
-  padding: 0.75rem 0.875rem;
-}
-
-.dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__panel-3) {
-  gap: 0.625rem;
-}
-
-/* 图标容器 3rem → 2.25rem */
-.dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__panel-3 > div:first-child) {
-  width: 2.25rem;
-  height: 2.25rem;
-}
-
-.dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__description-2),
-.dashboard-page__stats :deep(.components-user-dashboard-user-dashboard-stats__description-4) {
-  font-size: var(--font-size-lg);
-  line-height: 1.5rem;
 }
 
 /* ---- 整页两栏:左统计 + 图表(2/3),右侧栏(1/3) ---- */
