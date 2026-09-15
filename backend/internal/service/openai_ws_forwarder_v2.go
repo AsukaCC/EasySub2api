@@ -119,6 +119,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		sessionHash, legacySessionHash = openAIWSSessionHashesFromID(promptCacheKey)
 		attachOpenAILegacySessionHashToGin(c, legacySessionHash)
 	}
+	if scope := c.GetString(openAIWSExecutionScopeContextKey); scope != "" {
+		sessionHash = scope
+	}
 	if turnState == "" && stateStore != nil && sessionHash != "" {
 		// 仅回放同账号铸造的 turn-state：failover 换号后旧账号的 blob 不进新账号握手。
 		if savedTurnState, ok := stateStore.GetSessionTurnStateForAccount(groupID, sessionHash, account.ID); ok {
