@@ -4363,6 +4363,7 @@ const exclusiveOptions = computed(() => [
 ]);
 
 const platformOptions = computed(() => [
+  { value: "opencode_go", label: "OpenCode" },
   { value: "anthropic", label: "Anthropic" },
   { value: "openai", label: "OpenAI" },
   { value: "gemini", label: "Gemini" },
@@ -4376,6 +4377,7 @@ const platformOptions = computed(() => [
 ]);
 
 const platformFilterOptions = computed(() => [
+  { value: "opencode_go", label: "OpenCode" },
   { value: "", label: t("admin.groups.allPlatforms") },
   { value: "anthropic", label: "Anthropic" },
   { value: "openai", label: "OpenAI" },

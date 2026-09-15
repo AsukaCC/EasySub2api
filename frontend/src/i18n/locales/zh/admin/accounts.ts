@@ -1,5 +1,6 @@
 export default {
     accounts: {
+      opencode: { mode: '账号模式', protocol: '上游协议', adaptive: '按模型自动选择', rules: '模型协议规则', defaults: '恢复默认', pattern: '模型匹配规则', addRule: '添加规则', monthly: '每月' },
       title: '账号管理',
       description: '管理 AI 平台账号和 Cookie',
       createAccount: '添加账号',
@@ -318,6 +319,7 @@ export default {
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
+        opencode_go: 'OpenCode',
       },
       reasoningEffort: '推理强度',
       reasoningEffortFollowRequest: '跟随请求',
