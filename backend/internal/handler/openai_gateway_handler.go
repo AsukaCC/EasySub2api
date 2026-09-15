@@ -2145,9 +2145,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			selection.Account = latest
 			accountReleaseFunc = fastReleaseFunc
 		}
-		// 准入完成：本次选号使用局部上下文。外层 ctx 保持不可变，确保上游
-		// failover 的下一轮选号不会继承上一个分组或利润门。
-		attemptCtx := admissionCtx
+		// Register only after admission; retain the registration across account retries.
+		sessionCtx, preemptCleanup, _ := h.gatewayService.BeginOpenAIWSIngressSessionPreemptionWithClient(ctx, c, account, firstMessage, wsConn)
+		defer preemptCleanup()
+		ctx = sessionCtx
+		// Reapply this selection's gate without carrying it into subsequent retries.
+		attemptCtx := service.ContextWithSelectionProfitGate(ctx, selection)
 		currentAccountRelease = wrapReleaseOnDone(attemptCtx, accountReleaseFunc)
 		if err := h.gatewayService.BindStickySessionAfterProfitAdmission(attemptCtx, selectedAPIKey.GroupID, sessionHash, account.ID); err != nil {
 			reqLog.Warn("openai.websocket_bind_sticky_session_after_profit_admission_failed", zap.String("account_id", account.ID), zap.Error(err))
@@ -2419,6 +2422,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		requestPayloadHash = service.HashUsageRequestPayload(wsFirstMessage)
 
 		if err := h.gatewayService.ProxyResponsesWebSocketFromClient(attemptCtx, c, wsConn, account, token, wsFirstMessage, hooks); err != nil {
+			if service.IsOpenAIWSSessionPreemptedError(err) {
+				return
+			}
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				if handleWSFailover(account, failoverErr) {

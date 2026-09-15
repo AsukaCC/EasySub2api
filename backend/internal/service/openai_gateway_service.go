@@ -452,6 +452,7 @@ type OpenAIGatewayService struct {
 	agentIdentityTaskMu            sync.Mutex
 	openaiWSPool                   *openAIWSConnPool
 	openaiWSStateStore             OpenAIWSStateStore
+	openaiWSSessionPreemptions     openAIWSSessionPreemptRegistry
 	openaiScheduler                OpenAIAccountScheduler
 	openaiWSPassthroughDialer      openAIWSClientDialer
 	openaiAccountStats             *openAIAccountRuntimeStats

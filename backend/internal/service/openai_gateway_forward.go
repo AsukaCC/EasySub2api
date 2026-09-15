@@ -34,6 +34,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	restrictionResult := s.detectCodexClientRestriction(c, account, body)
 	apiKeyID := getAPIKeyIDFromContext(c)
+	// Capture declared identity before account-specific payload normalization.
+	wsExecutionScope, _ := resolveOpenAIWSExecutionScope(c, body, apiKeyID)
+	c.Set(openAIWSExecutionScopeContextKey, wsExecutionScope)
 	logCodexCLIOnlyDetection(ctx, c, account, apiKeyID, restrictionResult, body)
 	if restrictionResult.Enabled && !restrictionResult.Matched {
 		MarkOpsClientBusinessLimited(c, OpsClientBusinessLimitedReasonLocalPolicyDenied)
