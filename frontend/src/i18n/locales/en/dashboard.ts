@@ -59,6 +59,12 @@ export default {
       description: 'See the latest platform announcements and account notices',
       unread: '{count} unread',
     },
+    dynamicRateOffer: {
+      title: 'Timed Discount',
+      description: 'Active group discount windows',
+      startsAt: 'Starts',
+      endsAt: 'Ends',
+    },
     apiKeyUsage: {
       title: 'API Key Usage',
       description: 'Usage over the last 7 days for API keys you created',
@@ -1098,6 +1104,7 @@ export default {
     sizeWidth: 'Width',
     sizeHeight: 'Height',
     sizeWillUse: 'Will use',
+    sizeBillingTier: 'Billing tier: {tier}',
     sizeInvalid: 'Invalid size',
     sizeClamped: 'The original resolution was adjusted to fit model limits',
     sizeLimitHint: 'Resolutions that exceed model limits are adjusted automatically: both sides must be multiples of 16, the longest edge is 3840px, the aspect ratio cannot exceed 3:1, and total pixels must stay between 655360 and 8294400.',

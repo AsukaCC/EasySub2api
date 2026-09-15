@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="dashboard-page">
-      <!-- 整页两栏:左 = 统计卡 + 图表 / 右 = 站内通知 + 消费等级 + 快捷操作 -->
+      <!-- 整页两栏:左 = 统计卡 + 图表 / 右 = 分时优惠 + 站内通知 + 消费等级 + 快捷操作 -->
       <div class="dashboard-page__grid">
         <div class="dashboard-page__main">
           <LoadingState v-if="loading" variant="section" class="dashboard-page__loading" />
@@ -24,6 +24,7 @@
           />
         </div>
         <div class="dashboard-page__side">
+          <UserDashboardDynamicRateOffer />
           <UserDashboardAnnouncements />
           <UserDashboardLevel :profile="levelProfile" :loading="loadingLevel" />
           <UserDashboardQuickActions />
@@ -42,6 +43,7 @@ import type { UserLevelDashboard } from '@/api/userLevel'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingState from '@/components/common/LoadingState.vue'
 import UserDashboardAnnouncements from '@/components/user/dashboard/UserDashboardAnnouncements.vue'
+import UserDashboardDynamicRateOffer from '@/components/user/dashboard/UserDashboardDynamicRateOffer.vue'
 import UserDashboardLevel from '@/components/user/dashboard/UserDashboardLevel.vue'
 import UserDashboardStats from '@/components/user/dashboard/UserDashboardStats.vue'
 import UserDashboardQuickActions from '@/components/user/dashboard/UserDashboardQuickActions.vue'
@@ -221,6 +223,15 @@ onMounted(refreshAll)
 .dashboard-page__side :deep(.dashboard-level__body) {
   gap: 0.5rem;
   padding: 0.875rem 1.25rem 1rem;
+}
+
+/* ---- 右栏:分时优惠卡紧凑 ---- */
+.dashboard-page__side :deep(.dashboard-dynamic-rate-offer__header) {
+  padding: 0.75rem 1.25rem;
+}
+
+.dashboard-page__side :deep(.dashboard-dynamic-rate-offer__item) {
+  padding: 0.75rem 1.25rem 0.875rem;
 }
 
 /* ---- 右栏:公告卡改单列紧凑列表 ---- */

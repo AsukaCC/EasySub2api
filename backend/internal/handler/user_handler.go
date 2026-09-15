@@ -86,6 +86,42 @@ func (h *UserHandler) GetLevel(c *gin.Context) {
 	response.Success(c, level)
 }
 
+// ListDynamicRateOffers returns the currently billed dynamic-rate windows.
+// GET /api/v1/user/dynamic-rate-offers
+func (h *UserHandler) ListDynamicRateOffers(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.userLevelService == nil {
+		response.InternalError(c, "User level service unavailable")
+		return
+	}
+
+	var groupIDs []string
+	if h.apiKeyService != nil {
+		if groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID); err == nil {
+			groupIDs = make([]string, 0, len(groups))
+			for i := range groups {
+				if groups[i].ID != "" {
+					groupIDs = append(groupIDs, groups[i].ID)
+				}
+			}
+		}
+	}
+
+	offers, err := h.userLevelService.ListActiveDynamicRateOffers(c.Request.Context(), subject.UserID, groupIDs, time.Now())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if offers == nil {
+		offers = []service.DynamicRateOffer{}
+	}
+	response.Success(c, offers)
+}
+
 // GetMyPlatformQuotas GET /user/platform-quotas
 // 返回当前 JWT 用户的 platform quota 状态。
 // D14: 对每条记录逐档判断窗口过期，过期档位 usage=0、window_resets_at=null（不写 DB）

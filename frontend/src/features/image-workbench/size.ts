@@ -24,32 +24,38 @@ export const RATIO_PRESETS: Array<{ label: string; value: PresetRatio }> = [
   { label: '21:9', value: '21:9' },
 ]
 
+const PRESET_RATIO_SET = new Set<string>(RATIO_PRESETS.map((item) => item.value))
+
 const TIER_PIXEL_BUDGET: Record<SizeTier, number> = {
   '1K': MAX_1K_PIXELS,
   '2K': 4_194_304,
   '4K': MAX_PIXELS,
 }
 
-const COMMON_SIZE_PRESETS: Record<SizeTier, Record<PresetRatio, string>> = {
+// Longest-edge limits must match backend ClassifyImageBillingTier.
+const TIER_MAX_EDGE: Record<SizeTier, number> = {
+  '1K': 1024,
+  '2K': 2048,
+  '4K': MAX_EDGE,
+}
+
+const COMMON_SIZE_PRESETS: Record<SizeTier, Partial<Record<PresetRatio, string>>> = {
   '1K': {
     '1:1': '1024x1024',
-    '3:2': '1536x1024',
-    '2:3': '1024x1536',
-    '16:9': '1280x720',
-    '9:16': '720x1280',
+    '3:2': '1024x688',
+    '2:3': '688x1024',
     '4:3': '1024x768',
     '3:4': '768x1024',
-    '21:9': '1280x544',
   },
   '2K': {
     '1:1': '2048x2048',
-    '3:2': '2160x1440',
-    '2:3': '1440x2160',
-    '16:9': '2560x1440',
-    '9:16': '1440x2560',
+    '3:2': '2048x1360',
+    '2:3': '1360x2048',
+    '16:9': '2048x1152',
+    '9:16': '1152x2048',
     '4:3': '2048x1536',
     '3:4': '1536x2048',
-    '21:9': '2560x1088',
+    '21:9': '2048x880',
   },
   '4K': {
     '1:1': '2880x2880',
@@ -115,7 +121,63 @@ function getPresetRatioKey(ratioWidth: number, ratioHeight: number): PresetRatio
   if (!Number.isInteger(ratioWidth) || !Number.isInteger(ratioHeight)) return null
   const divisor = gcd(ratioWidth, ratioHeight)
   const key = `${ratioWidth / divisor}:${ratioHeight / divisor}`
-  return key in COMMON_SIZE_PRESETS['1K'] ? key as PresetRatio : null
+  return PRESET_RATIO_SET.has(key) ? key as PresetRatio : null
+}
+
+function searchRatioSize(
+  ratioWidth: number,
+  ratioHeight: number,
+  maxEdge: number,
+  pixelBudget: number,
+  preferLargest: boolean,
+) {
+  const targetRatio = ratioWidth / ratioHeight
+  let bestWidth = 0
+  let bestHeight = 0
+  let bestPixels = preferLargest ? 0 : Number.POSITIVE_INFINITY
+
+  for (let w = SIZE_MULTIPLE; w <= maxEdge; w += SIZE_MULTIPLE) {
+    const idealH = w / targetRatio
+    const candidates = [
+      Math.floor(idealH / SIZE_MULTIPLE) * SIZE_MULTIPLE,
+      Math.ceil(idealH / SIZE_MULTIPLE) * SIZE_MULTIPLE,
+    ]
+
+    for (const h of candidates) {
+      if (h < SIZE_MULTIPLE || h > maxEdge) continue
+      const pixels = w * h
+      if (pixels > pixelBudget || pixels < MIN_PIXELS) continue
+      if (Math.max(w / h, h / w) > MAX_ASPECT_RATIO) continue
+      const ratioError = Math.abs(w / h - targetRatio) / targetRatio
+      if (ratioError > MAX_RATIO_ERROR) continue
+      const better = preferLargest ? pixels > bestPixels : pixels < bestPixels
+      if (better) {
+        bestPixels = pixels
+        bestWidth = w
+        bestHeight = h
+      }
+    }
+  }
+
+  if (!Number.isFinite(bestPixels) || bestPixels === 0) return null
+  return `${bestWidth}x${bestHeight}`
+}
+
+function calculateImageSizeForTier(tier: SizeTier, ratio: string) {
+  const parsed = parseRatio(ratio)
+  if (!parsed) return null
+
+  const presetRatioKey = getPresetRatioKey(parsed.width, parsed.height)
+  const preset = presetRatioKey ? COMMON_SIZE_PRESETS[tier][presetRatioKey] : undefined
+  if (preset) return preset
+
+  return searchRatioSize(
+    parsed.width,
+    parsed.height,
+    TIER_MAX_EDGE[tier],
+    TIER_PIXEL_BUDGET[tier],
+    true,
+  )
 }
 
 export function parseSize(size: string) {
@@ -141,50 +203,33 @@ export function normalizeImageSize(size: string) {
   return `${width}x${height}`
 }
 
+export function imageBillingTier(size: string): SizeTier {
+  const trimmed = size.trim()
+  if (!trimmed || trimmed.toLowerCase() === 'auto') return '2K'
+  const named = trimmed.toUpperCase()
+  if (named === '1K' || named === '2K' || named === '4K') return named
+  const parsed = parseSize(trimmed)
+  if (!parsed) return '2K'
+  const maxEdge = Math.max(parsed.width, parsed.height)
+  if (maxEdge <= TIER_MAX_EDGE['1K']) return '1K'
+  if (maxEdge <= TIER_MAX_EDGE['2K']) return '2K'
+  return '4K'
+}
+
 export function calculateImageSize(tier: SizeTier, ratio: string) {
+  const exact = calculateImageSizeForTier(tier, ratio)
+  if (exact) return exact
+
   const parsed = parseRatio(ratio)
   if (!parsed) return null
-
-  const presetRatioKey = getPresetRatioKey(parsed.width, parsed.height)
-  if (presetRatioKey) return COMMON_SIZE_PRESETS[tier][presetRatioKey]
-
-  const targetRatio = parsed.width / parsed.height
-  const pixelBudget = TIER_PIXEL_BUDGET[tier]
-  let bestWidth = 0
-  let bestHeight = 0
-  let bestPixels = 0
-
-  for (let w = SIZE_MULTIPLE; w <= MAX_EDGE; w += SIZE_MULTIPLE) {
-    const idealH = w / targetRatio
-    const candidates = [
-      Math.floor(idealH / SIZE_MULTIPLE) * SIZE_MULTIPLE,
-      Math.ceil(idealH / SIZE_MULTIPLE) * SIZE_MULTIPLE,
-    ]
-
-    for (const h of candidates) {
-      if (h < SIZE_MULTIPLE || h > MAX_EDGE) continue
-      const pixels = w * h
-      if (pixels > pixelBudget || pixels < MIN_PIXELS) continue
-      if (Math.max(w / h, h / w) > MAX_ASPECT_RATIO) continue
-      const ratioError = Math.abs(w / h - targetRatio) / targetRatio
-      if (ratioError > MAX_RATIO_ERROR) continue
-      if (pixels > bestPixels) {
-        bestPixels = pixels
-        bestWidth = w
-        bestHeight = h
-      }
-    }
-  }
-
-  if (bestPixels === 0) return null
-  return `${bestWidth}x${bestHeight}`
+  return searchRatioSize(parsed.width, parsed.height, MAX_EDGE, MAX_PIXELS, false)
 }
 
 export function findPresetForSize(size: string) {
   const normalized = normalizeImageSize(size)
   for (const tier of SIZE_TIERS) {
     for (const ratio of RATIO_PRESETS) {
-      if (calculateImageSize(tier, ratio.value) === normalized) {
+      if (calculateImageSizeForTier(tier, ratio.value) === normalized) {
         return { tier, ratio: ratio.value }
       }
     }

@@ -59,6 +59,12 @@ export default {
       description: '查看最新的平台公告和账户通知',
       unread: '{count} 条未读',
     },
+    dynamicRateOffer: {
+      title: '分时优惠',
+      description: '当前已生效的分组优惠窗口',
+      startsAt: '开始时间',
+      endsAt: '结束时间',
+    },
     apiKeyUsage: {
       title: 'API Key 使用量',
       description: '您创建的 API Key 最近 7 天使用情况',
@@ -1100,6 +1106,7 @@ export default {
     sizeWidth: '宽度',
     sizeHeight: '高度',
     sizeWillUse: '将使用',
+    sizeBillingTier: '计费档位：{tier}',
     sizeInvalid: '尺寸无效',
     sizeClamped: '由于模型限制，原始分辨率已被自动规整',
     sizeLimitHint: '由于模型限制，不符合要求的分辨率会被自动规整：宽高均为 16 的倍数，最大边长 3840px，宽高比不超过 3:1，总像素限制为 655360-8294400。',
