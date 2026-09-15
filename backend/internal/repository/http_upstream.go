@@ -158,9 +158,10 @@ type openAIHTTP2FallbackState struct {
 // 7. 代理变更时清空旧连接池，避免复用错误代理
 // 8. 账号并发数与连接池上限对应（账号隔离策略下）
 type httpUpstreamService struct {
-	cfg     *config.Config                  // 全局配置
-	mu      sync.RWMutex                    // 保护 clients map 的读写锁
-	clients map[string]*upstreamClientEntry // 客户端缓存池，key 由隔离策略决定
+	cfg                 *config.Config                  // 全局配置
+	mu                  sync.RWMutex                    // 保护 clients map 的读写锁
+	clients             map[string]*upstreamClientEntry // 客户端缓存池，key 由隔离策略决定
+	upstreamHeaderTrace *upstreamHeaderTraceGate
 	// OpenAI 走 HTTP/HTTPS 代理时的 H2->H1 回退状态（key=标准化 proxyKey）
 	openAIHTTP2Fallbacks sync.Map
 }
@@ -175,8 +176,9 @@ type httpUpstreamService struct {
 //   - service.HTTPUpstream 接口实现
 func NewHTTPUpstream(cfg *config.Config) service.HTTPUpstream {
 	return &httpUpstreamService{
-		cfg:     cfg,
-		clients: make(map[string]*upstreamClientEntry),
+		cfg:                 cfg,
+		clients:             make(map[string]*upstreamClientEntry),
+		upstreamHeaderTrace: newUpstreamHeaderTraceGateFromEnv(),
 	}
 }
 
@@ -215,7 +217,9 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID s
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
+	req, headerTrace := s.attachUpstreamHeaderTrace(req, profile, accountID, entry.protocolMode, entry.proxyKey)
 	resp, err := servertiming.Do(client, req)
+	headerTrace.finish(resp, err)
 	if err != nil {
 		s.recordOpenAIHTTP2Failure(profile, entry.protocolMode, entry.proxyKey, err)
 		// 请求失败，立即减少计数
@@ -279,7 +283,9 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
+	req, headerTrace := s.attachUpstreamHeaderTrace(req, upstreamProfile, accountID, entry.protocolMode, entry.proxyKey)
 	resp, err := servertiming.Do(client, req)
+	headerTrace.finish(resp, err)
 	if err != nil {
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
