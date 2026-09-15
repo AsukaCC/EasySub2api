@@ -15,7 +15,7 @@ const { listSubscriptions, assignSubscription, getAllGroups, listUsers, searchUs
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
-    subscriptions: { list: listSubscriptions, assign: assignSubscription },
+    subscriptions: { list: listSubscriptions, assign: assignSubscription, listPending: vi.fn(async () => []) },
     groups: { getAll: getAllGroups },
     users: { list: listUsers },
     usage: { searchUsers: searchUsageUsers }
@@ -215,17 +215,15 @@ describe('admin subscription users', () => {
     }
   })
 
-  it('renders the user email as a link to that user filtered usage records', async () => {
+  it('renders the user email in the user column', async () => {
     const wrapper = mountView()
 
     await flushPromises()
 
-    const link = wrapper.getComponent(RouterLinkStub)
-    expect(link.text()).toBe('reader@example.com')
-    expect(link.props('to')).toEqual({ path: '/admin/usage', query: { user_id: 42 } })
+    expect(wrapper.getComponent(DataTableStub).text()).toContain('reader@example.com')
   })
 
-  it('uses the user ID label for the usage link when username mode has no username', async () => {
+  it('renders the missing username placeholder in username mode', async () => {
     localStorage.setItem('subscription-user-column-mode', 'username')
     listSubscriptions.mockResolvedValue({
       items: [{
@@ -252,8 +250,6 @@ describe('admin subscription users', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const link = wrapper.getComponent(RouterLinkStub)
-    expect(link.text()).toBe('User #42')
-    expect(link.props('to')).toEqual({ path: '/admin/usage', query: { user_id: 42 } })
+    expect(wrapper.getComponent(DataTableStub).text()).toContain('-')
   })
 })

@@ -1334,7 +1334,10 @@ const searchUsers = async () => {
 
   userSearchLoading.value = true
   try {
-    userSearchResults.value = await adminAPI.usage.searchUsers(keyword)
+    const response = await adminAPI.users.list(1, 30, {
+      search: keyword, sort_by: 'email', sort_order: 'asc'
+    })
+    userSearchResults.value = response.items.map(user => ({ id: user.id, email: user.email, deleted: false }))
   } catch (error) {
     console.error('Failed to search users:', error)
     userSearchResults.value = []
