@@ -448,7 +448,7 @@ describe('user KeysView column settings', () => {
   })
 
   it('keeps filters and selected page size when sorting by current concurrency', async () => {
-    getAvailableGroups.mockResolvedValue([{ id: 42, name: 'OpenAI' }])
+    getAvailableGroups.mockResolvedValue([{ id: '42', name: 'OpenAI' }])
     const wrapper = await mountView()
 
     await wrapper.get('[data-test="page-size-50"]').trigger('click')
@@ -459,7 +459,7 @@ describe('user KeysView column settings', () => {
     await flushPromises()
 
     const selects = wrapper.findAllComponents({ name: 'Select' })
-    await selects[0].vm.$emit('update:modelValue', 42)
+    await selects[0].vm.$emit('update:modelValue', '42')
     await flushPromises()
     await selects[1].vm.$emit('update:modelValue', 'active')
     await flushPromises()
@@ -475,7 +475,7 @@ describe('user KeysView column settings', () => {
       {
         search: 'target',
         status: 'active',
-        group_id: 42,
+        group_id: '42',
         sort_by: 'current_concurrency',
         sort_order: 'asc',
       },
