@@ -103,7 +103,7 @@ const arcs = computed<ArcModel[]>(() => {
 
 const showLegend = computed(() => chartOptions.value.plugins?.legend?.display !== false)
 const legendStyle = computed<CSSProperties>(() => ({
-  color: chartOptions.value.plugins?.legend?.labels?.color ?? '#64748b',
+  color: chartOptions.value.plugins?.legend?.labels?.color ?? 'var(--color-text-tertiary)',
   justifyContent: chartOptions.value.plugins?.legend?.align === 'end' ? 'flex-end' : 'center',
   fontSize: `${chartOptions.value.plugins?.legend?.labels?.font?.size ?? 11}px`,
   gap: `${chartOptions.value.plugins?.legend?.labels?.padding ?? 12}px`,

@@ -1654,7 +1654,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: .3rem;
-  color: #ef4444;
+  color: var(--color-text-danger);
   font-size: .75rem;
 }
 
@@ -2076,14 +2076,14 @@ select option {
 }
 
 .error-message {
-  color: #dc2626;
+  color: var(--color-text-danger);
   font-size: .75rem;
 }
 
 .lightbox {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: var(--z-modal-base);
   display: grid;
   place-items: center;
   padding: 2rem 1rem 3rem;

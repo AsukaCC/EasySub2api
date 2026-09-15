@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <main class="feature-management">
+    <main class="feature-management page-stack">
       <header class="feature-management__header">
         <div>
           <p>{{ t('admin.settings.featureManagement.description') }}</p>
@@ -230,7 +230,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.feature-management { width: min(1180px, 100%); margin: 0 auto; padding: 2rem; }
+.feature-management { width: min(1180px, 100%); margin: 0 auto; }
 .feature-management__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .feature-management__header p { margin: 0; color: var(--color-text-secondary); }
 .feature-management__header .btn, .feature-management__configure { display: inline-flex; align-items: center; gap: .45rem; }
@@ -250,6 +250,6 @@ onMounted(load)
 .feature-management__loading { min-height: 18rem; display: grid; place-content: center; justify-items: center; gap: .75rem; color: var(--color-text-secondary); }
 .feature-management__loading svg { animation: feature-spin 1s linear infinite; }
 @keyframes feature-spin { to { transform: rotate(360deg); } }
-@media (max-width: 900px) { .feature-management { padding: 1rem; } .feature-management__row { grid-template-columns: 1fr; } .feature-management__controls { justify-content: flex-start; flex-wrap: wrap; padding-left: 3.15rem; } }
+@media (max-width: 900px) { .feature-management__row { grid-template-columns: 1fr; } .feature-management__controls { justify-content: flex-start; flex-wrap: wrap; padding-left: 3.15rem; } }
 @media (max-width: 560px) { .feature-management__header { align-items: stretch; flex-direction: column; } .feature-management__controls { padding-left: 0; } .feature-management__configure { width: 100%; justify-content: center; } }
 </style>

@@ -155,6 +155,18 @@ const filteredGroups = computed(() => {
 </script>
 
 <style scoped>
+.components-model-plaza-model-plaza-content__panel-2 {
+  border-color: var(--glass-border);
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.components-model-plaza-model-plaza-content__panel-5,
+.components-model-plaza-model-plaza-content__panel-6 {
+  border-radius: var(--radius-xl);
+}
+
 .plaza-description {
   line-height: 1.7;
   overflow-wrap: anywhere;

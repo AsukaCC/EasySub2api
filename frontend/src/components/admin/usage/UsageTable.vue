@@ -947,7 +947,7 @@ const hideTokenTooltip = () => {
 
 .usage-tooltip {
   position: fixed;
-  z-index: 9999;
+  z-index: var(--z-tooltip);
   pointer-events: none;
   inline-size: min(20rem, calc(100vw - 1.5rem));
   color: var(--color-text-primary);

@@ -908,6 +908,14 @@ watch(endpointDistributionSource, () => {
 </script>
 
 <style scoped>
+.views-user-usage-view__panel-8 {
+  gap: 1.25rem;
+}
+
+.views-user-usage-view__panel-9 {
+  padding: 1.25rem;
+}
+
 /* 列设置下拉挂在 panel-16.filter-toolbar 上,筛选卡本身与图表卡一样只做 .card 表面。 */
 .views-user-usage-view__icon {
   color: var(--color-text-brand);

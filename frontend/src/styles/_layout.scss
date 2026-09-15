@@ -3,14 +3,30 @@
 }
 
 .page-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   width: 100%;
   min-width: 0;
+  min-height: 0;
 }
 
 .page-shell__content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   width: 100%;
+  min-width: 0;
+  min-height: 0;
   max-width: 90rem;
   margin: 0 auto;
+}
+
+.page-shell--wide,
+.page-shell__content:has(> .page-shell--wide),
+.page-shell__content:has(> .table-page-layout),
+.page-shell__content:has(> .image-workbench) {
+  max-width: none;
 }
 
 // 页面顶层区块节奏:flex + gap,不再用 space-y 的兄弟选择器撑间距。
@@ -64,7 +80,7 @@
   .sidebar {
     position: fixed;
     inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) auto 0 0;
-    z-index: 45;
+    z-index: var(--z-sidebar);
     height: auto;
     max-height: calc(100dvh - var(--app-shell-sticky-offset) - env(safe-area-inset-top, 0px));
     padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));

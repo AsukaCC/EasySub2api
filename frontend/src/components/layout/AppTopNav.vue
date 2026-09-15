@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
 .app-top-nav-wrap {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-nav);
   padding: calc(0.75rem + env(safe-area-inset-top, 0px)) clamp(1rem, 2vw, 2rem) 0;
 }
 

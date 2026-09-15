@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <main class="usage-guide-page">
+    <main class="usage-guide-page page-stack">
       <section class="usage-guide-card card">
         <header class="usage-guide-header">
           <div>
@@ -64,7 +64,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.usage-guide-page { width: min(1080px, 100%); margin: 0 auto; padding: 2rem; }
+.usage-guide-page { width: min(1080px, 100%); margin: 0 auto; }
 .usage-guide-card { overflow: hidden; }
 .usage-guide-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.5rem 1.75rem; border-bottom: 1px solid var(--glass-border); }
 .usage-guide-header h1 { margin: 0; font-size: 1.5rem; }
@@ -73,5 +73,5 @@ onMounted(load)
 .usage-guide-content { padding: 1.75rem; line-height: 1.75; }
 .usage-guide-state { display: grid; place-items: center; gap: .75rem; min-height: 220px; padding: 2rem; color: var(--color-text-secondary); text-align: center; }
 .usage-guide-state--error { color: var(--color-text-danger); }
-@media (max-width: 700px) { .usage-guide-page { padding: 1rem; } .usage-guide-header { flex-direction: column; padding: 1.25rem; } .usage-guide-content { padding: 1.25rem; } }
+@media (max-width: 700px) { .usage-guide-header { flex-direction: column; padding: 1.25rem; } .usage-guide-content { padding: 1.25rem; } }
 </style>

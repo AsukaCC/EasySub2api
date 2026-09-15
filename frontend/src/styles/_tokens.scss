@@ -4,8 +4,16 @@
      ============================================================ */
   --app-shell-height: 4rem;
   --app-shell-sticky-offset: 4.75rem;
-  /* 页面固定区最高约 320；模态层取 500 即可压过工具条与页面壳。 */
+  /* 层叠刻度：页面内浮层必须低于 modal，Toast/帮助层可压过对话框。 */
+  --z-sticky: 20;
+  --z-filter: 40;
+  --z-sidebar: 45;
+  --z-nav: 50;
+  --z-banner: 70;
+  --z-dropdown: 80;
   --z-modal-base: 500;
+  --z-toast: 560;
+  --z-tooltip: 580;
 
   /* ============================================================
      2. 字体尺度与排版 Tokens (Typography Scale)

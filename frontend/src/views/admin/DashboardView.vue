@@ -88,7 +88,7 @@
         </section>
 
         <!-- Row 1: Core Stats -->
-        <div class="views-admin-dashboard-view__panel-3">
+        <div class="admin-stat-grid">
           <!-- Total API Keys -->
           <div class="views-admin-dashboard-view__panel-4 card">
             <div class="views-admin-dashboard-view__panel-5">
@@ -183,7 +183,7 @@
         </div>
 
         <!-- Row 2: Token Stats -->
-        <div class="views-admin-dashboard-view__panel-3">
+        <div class="admin-stat-grid">
           <!-- Today Tokens -->
           <div class="views-admin-dashboard-view__panel-4 card">
             <div class="views-admin-dashboard-view__panel-5">
@@ -1208,6 +1208,29 @@ onUnmounted(() => {
 .quota-dashboard__updated { margin: 1rem 0 0; }
 .quota-dashboard__loading,
 .quota-dashboard__empty { display: flex; justify-content: center; padding: 1.5rem; }
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.admin-stat-grid > .card {
+  padding: 1.25rem;
+  border-radius: var(--radius-xl);
+}
+
+@media (min-width: 768px) {
+  .admin-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 
 @media (max-width: 640px) {
   .dashboard-usage-chart__header {

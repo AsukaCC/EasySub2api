@@ -136,7 +136,7 @@ onBeforeUnmount(() => {
 /* 面向用户的公告弹窗:标准玻璃模态(材质由 glass.scss 的 .modal-content 提供)
    + 公告语义的琥珀色头部标识,与右下角悬浮公告同一语言 */
 .announcement-popup {
-  z-index: 95;
+  z-index: calc(var(--z-banner) + 10);
 }
 
 .announcement-popup__dialog {

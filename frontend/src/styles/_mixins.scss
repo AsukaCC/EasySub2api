@@ -7,7 +7,7 @@
   outline-offset: 2px;
 
   &:focus-visible {
-    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.32);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent) 32%, transparent);
   }
 }
 

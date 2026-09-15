@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <section class="user-level-rules-view">
+    <section class="user-level-rules-view page-stack">
       <header class="user-level-rules-view__header">
         <div>
           <h1>{{ t('admin.users.levels.title') }}</h1>
@@ -339,7 +339,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.user-level-rules-view { width: min(1180px, 100%); margin: 0 auto; padding: 1.5rem; }
+.user-level-rules-view { width: min(1180px, 100%); margin: 0 auto; }
 .user-level-rules-view__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .user-level-rules-view__header > div:first-child { display: flex; align-items: center; gap: .65rem; }
 .user-level-rules-view__header h1 { margin: 0; font-size: 1.35rem; }

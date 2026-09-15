@@ -203,3 +203,9 @@ const formatCost = (value: number): string => {
   return value.toFixed(4)
 }
 </script>
+
+<style scoped>
+.components-charts-token-usage-trend__panel {
+  padding: 1.25rem;
+}
+</style>

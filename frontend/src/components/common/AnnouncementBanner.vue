@@ -98,7 +98,7 @@ function previewFor(announcement: UserAnnouncement): string {
   right: 1rem;
   bottom: 1rem;
   left: 1rem;
-  z-index: 90; /* 低于 Toast(100),高于页面内容 */
+  z-index: var(--z-banner);
   display: flex;
   flex-direction: column;
   align-items: flex-end;

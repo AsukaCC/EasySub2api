@@ -254,7 +254,7 @@ const seriesModels = computed<SeriesModel[]>(() => props.data.datasets.map((data
 const primaryAxis = computed(() => axisModels.value.find((axis) => axis.position === 'left') ?? axisModels.value[0])
 const showLegend = computed(() => chartOptions.value.plugins?.legend?.display !== false)
 const legendStyle = computed<CSSProperties>(() => ({
-  color: chartOptions.value.plugins?.legend?.labels?.color ?? '#64748b',
+  color: chartOptions.value.plugins?.legend?.labels?.color ?? 'var(--color-text-tertiary)',
   justifyContent: chartOptions.value.plugins?.legend?.align === 'end' ? 'flex-end' : 'center',
   fontSize: `${chartOptions.value.plugins?.legend?.labels?.font?.size ?? 11}px`,
   gap: `${chartOptions.value.plugins?.legend?.labels?.padding ?? 14}px`,
@@ -443,7 +443,7 @@ defineExpose({ resetZoom, toDataUrl })
             :x2="plot.right"
             :y1="primaryAxis.scale(tick)"
             :y2="primaryAxis.scale(tick)"
-            :stroke="primaryAxis.options.grid?.color ?? '#e5e7eb'"
+            :stroke="primaryAxis.options.grid?.color ?? 'var(--color-border)'"
             stroke-width="1"
             :stroke-dasharray="primaryAxis.options.grid?.borderDash?.join(' ')"
           />
@@ -485,7 +485,7 @@ defineExpose({ resetZoom, toDataUrl })
             :x2="hoverX"
             :y1="plot.top"
             :y2="plot.bottom"
-            stroke="#94a3b8"
+            stroke="var(--color-text-tertiary)"
             stroke-width="1"
             stroke-dasharray="3 3"
             pointer-events="none"
@@ -504,14 +504,14 @@ defineExpose({ resetZoom, toDataUrl })
         </g>
 
         <g v-if="xAxisOptions.display !== false">
-          <line :x1="plot.left" :x2="plot.right" :y1="plot.bottom" :y2="plot.bottom" stroke="#cbd5e1" />
+          <line :x1="plot.left" :x2="plot.right" :y1="plot.bottom" :y2="plot.bottom" stroke="var(--color-border)" />
           <g v-for="index in xTicks" :key="`x-${index}`">
-            <line :x1="xScale(index)" :x2="xScale(index)" :y1="plot.bottom" :y2="plot.bottom + 4" stroke="#94a3b8" />
+            <line :x1="xScale(index)" :x2="xScale(index)" :y1="plot.bottom" :y2="plot.bottom + 4" stroke="var(--color-text-tertiary)" />
             <text
               :x="xScale(index)"
               :y="plot.bottom + 17"
               text-anchor="middle"
-              :fill="xAxisOptions.ticks?.color ?? '#64748b'"
+              :fill="xAxisOptions.ticks?.color ?? 'var(--color-text-tertiary)'"
               :font-size="xAxisOptions.ticks?.font?.size ?? 10"
             >{{ formatXTick(index) }}</text>
           </g>
@@ -523,7 +523,7 @@ defineExpose({ resetZoom, toDataUrl })
             :x2="axis.position === 'right' ? plot.right : plot.left"
             :y1="plot.top"
             :y2="plot.bottom"
-            stroke="#cbd5e1"
+            stroke="var(--color-border)"
           />
           <g v-for="tick in axis.ticks" :key="`${axis.key}-${tick}`">
             <line
@@ -531,13 +531,13 @@ defineExpose({ resetZoom, toDataUrl })
               :x2="axis.position === 'right' ? plot.right + 4 : plot.left"
               :y1="axis.scale(tick)"
               :y2="axis.scale(tick)"
-              stroke="#94a3b8"
+              stroke="var(--color-text-tertiary)"
             />
             <text
               :x="axis.position === 'right' ? plot.right + 8 : plot.left - 8"
               :y="axis.scale(tick) + 3"
               :text-anchor="axis.position === 'right' ? 'start' : 'end'"
-              :fill="axis.options.ticks?.color ?? '#64748b'"
+              :fill="axis.options.ticks?.color ?? 'var(--color-text-tertiary)'"
               :font-size="axis.options.ticks?.font?.size ?? 10"
             >{{ formatYTick(axis, tick) }}</text>
           </g>
@@ -547,7 +547,7 @@ defineExpose({ resetZoom, toDataUrl })
             :y="(plot.top + plot.bottom) / 2"
             :transform="`rotate(${axis.position === 'right' ? 90 : -90} ${axis.position === 'right' ? width - 12 : 12} ${(plot.top + plot.bottom) / 2})`"
             text-anchor="middle"
-            :fill="axis.options.title.color ?? axis.options.ticks?.color ?? '#64748b'"
+            :fill="axis.options.title.color ?? axis.options.ticks?.color ?? 'var(--color-text-tertiary)'"
             :font-size="axis.options.title.font?.size ?? 11"
           >{{ axis.options.title.text }}</text>
         </g>

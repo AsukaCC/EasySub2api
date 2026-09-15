@@ -614,7 +614,7 @@ function formatBucketRange(value: string) {
 .matrix-floating-tooltip {
   pointer-events: none;
   position: fixed;
-  z-index: 9999;
+  z-index: var(--z-dropdown);
   min-width: 11.5rem;
   max-width: min(18rem, calc(100vw - 1.5rem));
   transform: translate(-50%, -100%);

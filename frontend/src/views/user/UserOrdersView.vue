@@ -186,3 +186,9 @@ async function loadRefundEligibility() {
 
 onMounted(() => { fetchOrders(); loadRefundEligibility() })
 </script>
+
+<style scoped>
+.views-user-user-orders-view__panel-2 {
+  padding: 0.875rem 1.25rem;
+}
+</style>

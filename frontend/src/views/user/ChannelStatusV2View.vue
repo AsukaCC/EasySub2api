@@ -1,9 +1,9 @@
 <template>
   <AppLayout>
-    <div class="views-user-channel-status-v2-view__panel">
+    <div class="channel-monitor page-shell--wide">
       <!-- Ops-style elevated shell: title toolbar + filters (mirrors OpsDashboardHeader) -->
       <section
-        class="views-user-channel-status-v2-view__section channel-monitor-shell card"
+        class="channel-monitor-shell card"
       >
         <header class="views-user-channel-status-v2-view__header page-header">
           <div class="views-user-channel-status-v2-view__panel-2">
@@ -911,22 +911,33 @@ onBeforeUnmount(() => {
   flex: none;
   border-radius: 9999px;
 }
-/* Error-rate scale: low error is green, neutral is white, high error is red. */
-.health-score10 { background: #16a34a; }
-.health-score9  { background: #3cae59; }
-.health-score8  { background: #63ba6b; }
-.health-score7  { background: #8ac57c; }
-.health-score6  { background: #b8d19a; }
-.health-score5  { background: #f5f5f5; }
-.health-score4  { background: #f3c3c1; }
-.health-score3  { background: #ee9292; }
-.health-score2  { background: #e96d6d; }
-.health-score1  { background: #e34f4f; }
-.health-score0  { background: #dc2626; }
-.health-healthy  { background: #22c55e; }
-.health-warning  { background: #f5f5f5; }
-.health-critical { background: #ef4444; }
-.health-unknown  { background: #9ca3af; }
+.health-score10,
+.health-healthy { background: var(--color-success); }
+.health-score9 { background: color-mix(in srgb, var(--color-success) 88%, white); }
+.health-score8 { background: color-mix(in srgb, var(--color-success) 72%, white); }
+.health-score7 { background: color-mix(in srgb, var(--color-success) 56%, white); }
+.health-score6 { background: color-mix(in srgb, var(--color-success) 36%, white); }
+.health-score5,
+.health-warning {
+  background: var(--color-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+.health-score4 { background: color-mix(in srgb, var(--color-danger) 28%, white); }
+.health-score3 { background: color-mix(in srgb, var(--color-danger) 46%, white); }
+.health-score2 { background: color-mix(in srgb, var(--color-danger) 64%, white); }
+.health-score1 { background: color-mix(in srgb, var(--color-danger) 82%, white); }
+.health-score0,
+.health-critical { background: var(--color-danger); }
+.health-unknown { background: var(--color-text-disabled); }
+
+:global(.dark) .health-score9 { background: color-mix(in srgb, var(--color-success) 80%, black); }
+:global(.dark) .health-score8 { background: color-mix(in srgb, var(--color-success) 64%, black); }
+:global(.dark) .health-score7 { background: color-mix(in srgb, var(--color-success) 48%, black); }
+:global(.dark) .health-score6 { background: color-mix(in srgb, var(--color-success) 32%, black); }
+:global(.dark) .health-score4 { background: color-mix(in srgb, var(--color-danger) 32%, black); }
+:global(.dark) .health-score3 { background: color-mix(in srgb, var(--color-danger) 48%, black); }
+:global(.dark) .health-score2 { background: color-mix(in srgb, var(--color-danger) 64%, black); }
+:global(.dark) .health-score1 { background: color-mix(in srgb, var(--color-danger) 80%, black); }
 .matrix-select {
   min-width: 10rem;
 }

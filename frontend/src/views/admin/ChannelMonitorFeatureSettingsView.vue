@@ -80,7 +80,6 @@ onMounted(load)
 .channel-monitor-feature-settings {
   width: min(1100px, 100%);
   margin: 0 auto;
-  padding: 2rem;
 }
 
 .channel-monitor-feature-settings__privacy {
@@ -119,10 +118,6 @@ onMounted(load)
 }
 
 @media (max-width: 700px) {
-  .channel-monitor-feature-settings {
-    padding: 1rem;
-  }
-
   .channel-monitor-feature-settings__privacy {
     align-items: flex-start;
     flex-direction: column;

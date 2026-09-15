@@ -19,7 +19,11 @@
       <main class="app-layout__main">
         <AppSidebar v-if="isAdmin" admin-menu-only />
         <div class="app-layout__page">
-          <slot />
+          <div class="page-shell">
+            <div class="page-shell__content">
+              <slot />
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -130,18 +134,20 @@ defineExpose({ replayTour })
 }
 
 .app-layout__page {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   padding-block: var(--app-page-padding-top) var(--app-page-padding-bottom);
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scroll-padding-block: var(--app-page-padding-top) var(--app-page-padding-bottom);
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 .app-layout__page::-webkit-scrollbar {
-  display: none;
+  width: 0.5rem;
 }
 
 @media (max-width: 1023px) {
