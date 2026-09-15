@@ -173,6 +173,11 @@ func (f *ChannelMonitorQuotaFetcher) fetchUncached(ctx context.Context, accountI
 	}
 
 	switch account.Platform {
+	case domain.PlatformOpenCodeGo:
+		if account.IsOpenCodeGoPlan() {
+			return f.fetchCNQuota(ctx, accountID, now)
+		}
+		return quotaErrorSnapshot("quota", "OpenCode Zen does not expose GO quota windows", now)
 	case domain.PlatformKimi, domain.PlatformZhipu, domain.PlatformDeepseek, domain.PlatformMiniMax:
 		if account.IsCodingPlan() {
 			return f.fetchCNQuota(ctx, accountID, now)

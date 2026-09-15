@@ -346,6 +346,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 	}
 
 	// Route to platform-specific test method
+	if account.IsOpenCodeGo() {
+		return s.testOpenCodeAccountConnection(c, account, modelID, prompt)
+	}
 	if account.IsOpenAI() {
 		return s.testOpenAIAccountConnection(c, account, modelID, prompt, normalizeAccountTestMode(mode))
 	}

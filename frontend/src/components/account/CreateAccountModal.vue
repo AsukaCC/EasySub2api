@@ -206,9 +206,13 @@
             <PlatformIcon platform="minimax" size="sm" />
             MiniMax
           </button>
+          <button type="button" class="components-account-create-account-modal__action-14" :aria-pressed="form.platform === 'opencode_go'" @click="selectOpenCodePlatform">
+            <PlatformIcon platform="opencode_go" size="sm" />OpenCode
+          </button>
         </div>
       </div>
 
+      <OpenCodeAccountFields v-if="form.platform === 'opencode_go'" v-model="openCodeSettings" v-model:base-url="apiKeyBaseUrl" />
       <!-- Account Type Selection (Gemini / Antigravity) -->
       <div v-if="form.platform === 'gemini' || form.platform === 'antigravity'">
         <label class="input-label">{{ t('admin.accounts.accountType') }}</label>
@@ -2936,6 +2940,8 @@ import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
 import CnBaseUrlPresets from '@/components/account/CnBaseUrlPresets.vue'
+import OpenCodeAccountFields from '@/components/account/OpenCodeAccountFields.vue'
+import { readOpenCodeSettings, applyOpenCodeSettings, openCodeBaseUrl } from '@/components/account/openCodeCredentials'
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
 import {
@@ -3142,6 +3148,12 @@ const upstreamBillingAutoProbeEnabled = ref(true)
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek / MiniMax）账号类型、API 协议与端点 ──
 const accountMode = ref<CnAccountMode>('payg')
+const openCodeSettings = ref(readOpenCodeSettings())
+function selectOpenCodePlatform() {
+  form.platform = 'opencode_go'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+}
 // API 协议决定转发端点与格式：cc=现有转换链，anthropic=原生直通（Claude Code），
 // responses=deepseek / kimi / minimax 原生 Responses 端点（Codex）。与账号类型正交。
 const apiProtocol = ref<CnApiProtocol>('chat_completions')
@@ -3658,7 +3670,9 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (isCNProviderPlatform(newPlatform)) {
+    if (newPlatform === 'opencode_go') {
+      apiKeyBaseUrl.value = openCodeBaseUrl(openCodeSettings.value.account_mode)
+    } else if (isCNProviderPlatform(newPlatform)) {
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, accountMode.value, apiProtocol.value)
     } else {
       apiKeyBaseUrl.value =
@@ -4015,6 +4029,7 @@ const resetForm = () => {
   accountCategory.value = 'oauth-based'
   addMethod.value = 'oauth'
   accountMode.value = 'payg'
+  openCodeSettings.value = readOpenCodeSettings()
   apiProtocol.value = 'chat_completions'
   zhipuOrganization.value = ''
   zhipuProject.value = ''
@@ -4397,6 +4412,10 @@ const handleSubmit = async () => {
   const credentials: Record<string, unknown> = {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
+  }
+  if (form.platform === 'opencode_go') {
+    applyOpenCodeSettings(credentials, openCodeSettings.value)
+    credentials.base_url = apiKeyBaseUrl.value.trim() || openCodeBaseUrl(openCodeSettings.value.account_mode)
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiSelectedTier.value

@@ -610,7 +610,7 @@ func (s *SchedulerSnapshotService) handleBulkAccountEvent(ctx context.Context, p
 		}
 		accountGroupIDs := s.normalizeGroupIDs(account.GroupIDs)
 		switch account.Platform {
-		case PlatformAnthropic, PlatformOpenAI, PlatformGrok:
+		case PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo:
 			addPlatformGroups(account.Platform, accountGroupIDs)
 		default:
 			return s.rebuildByGroupIDs(ctx, rebuildGroupIDs, "account_bulk_change", seen)
@@ -815,8 +815,8 @@ func (s *SchedulerSnapshotService) rebuildByAccount(ctx context.Context, account
 	return s.rebuildBuckets(ctx, s.bucketsForPlatform(account.Platform, groupIDs, seen), reason)
 }
 
-func schedulerSnapshotPlatforms() [3]string {
-	return [3]string{PlatformAnthropic, PlatformOpenAI, PlatformGrok}
+func schedulerSnapshotPlatforms() [4]string {
+	return [4]string{PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo}
 }
 
 // 生命周期辅助函数有意排除 group0；full rebuild 构造 group0 canonical 集时必须显式调用 canonical helper。

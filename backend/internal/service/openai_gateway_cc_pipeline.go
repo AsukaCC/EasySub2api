@@ -141,6 +141,9 @@ func (s *OpenAIGatewayService) failoverOpenAIUpstreamHTTPError(
 // openAIChatCompletionsTargetURL 解析账号的（非 Grok）Chat Completions 上游端点。
 func (s *OpenAIGatewayService) openAIChatCompletionsTargetURL(account *Account) (string, error) {
 	baseURL := account.GetOpenAIBaseURL()
+	if account.IsOpenCodeGo() {
+		baseURL = account.GetOpenAIFormatBaseURL()
+	}
 	if baseURL == "" {
 		baseURL = "https://api.openai.com"
 	}
@@ -219,7 +222,7 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 	// 账号级请求头覆写：放在所有内置默认头（含 Grok CLI 身份头）之后应用，
 	// 使配置值获得除共享传输层强制头之外的最高优先级。
 	account.ApplyHeaderOverrides(upstreamReq.Header)
-	applyOpenCodeSessionHeader(c, account, targetURL, upstreamReq.Header)
+	applyOpenCodeSessionHeader(c, account, targetURL, upstreamReq.Header, body)
 
 	proxyURL := ""
 	if account.Proxy != nil {
