@@ -15,19 +15,21 @@ import (
 // ──────────────────────────────────────────────────────────
 
 const (
-	EndpointMessages          = "/v1/messages"
-	EndpointChatCompletions   = "/v1/chat/completions"
-	EndpointEmbeddings        = "/v1/embeddings"
-	EndpointAlphaSearch       = "/v1/alpha/search"
-	EndpointResponses         = "/v1/responses"
-	EndpointResponsesCompact  = "/v1/responses/compact"
-	EndpointImagesGenerations = "/v1/images/generations"
-	EndpointImagesEdits       = "/v1/images/edits"
-	EndpointImageTasks        = "/v1/images/tasks"
-	EndpointVideosGenerations = "/v1/videos/generations"
-	EndpointVideosEdits       = "/v1/videos/edits"
-	EndpointVideosExtensions  = "/v1/videos/extensions"
-	EndpointVideos            = "/v1/videos"
+	EndpointMessages                   = "/v1/messages"
+	EndpointChatCompletions            = "/v1/chat/completions"
+	EndpointEmbeddings                 = "/v1/embeddings"
+	EndpointAlphaSearch                = "/v1/alpha/search"
+	EndpointResponses                  = "/v1/responses"
+	EndpointResponsesCompact           = "/v1/responses/compact"
+	EndpointImagesGenerations          = "/v1/images/generations"
+	EndpointImagesEdits                = "/v1/images/edits"
+	EndpointImageTasks                 = "/v1/images/tasks"
+	EndpointVideosGenerations          = "/v1/videos/generations"
+	EndpointVideosEdits                = "/v1/videos/edits"
+	EndpointVideosExtensions           = "/v1/videos/extensions"
+	EndpointVideos                     = "/v1/videos"
+	EndpointGeminiModels               = "/v1beta/models"
+	EndpointAntigravityGenerateContent = "/v1internal:streamGenerateContent"
 )
 
 // gin.Context keys used by the middleware and helpers below.
@@ -83,6 +85,8 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointChatCompletions
 	case strings.Contains(path, EndpointMessages):
 		return EndpointMessages
+	case strings.Contains(path, EndpointGeminiModels):
+		return EndpointGeminiModels
 	case strings.Contains(path, EndpointImagesGenerations) || strings.Contains(path, "/images/generations"):
 		return EndpointImagesGenerations
 	case strings.Contains(path, EndpointImagesEdits) || strings.Contains(path, "/images/edits"):
@@ -197,10 +201,17 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 	case service.PlatformAnthropic:
 		return EndpointMessages
 
+	case service.PlatformGemini, service.PlatformAntigravity:
+		return inbound
+
 	}
 
 	// Unknown platform — fall back to inbound.
 	return inbound
+}
+
+func shouldUseAntigravityCompat(account *service.Account) bool {
+	return account != nil && account.Platform == service.PlatformAntigravity && account.Type == service.AccountTypeOAuth
 }
 
 // responsesSubpathSuffix extracts the part after "/responses" in a raw
@@ -281,7 +292,9 @@ func GetInboundEndpoint(c *gin.Context) string {
 // account, passing account.Platform.
 func GetUpstreamEndpoint(c *gin.Context, platform string) string {
 	if platform == service.PlatformOpenAI || platform == service.PlatformGrok || service.IsMultiProtocolAPIKeyProvider(platform) {
-		if endpoint := service.GetActualOpenAIUpstreamEndpoint(c); endpoint != "" { return endpoint }
+		if endpoint := service.GetActualOpenAIUpstreamEndpoint(c); endpoint != "" {
+			return endpoint
+		}
 	}
 	if c != nil {
 		if value, ok := c.Get(ctxKeyActualUpstreamEndpoint); ok {
