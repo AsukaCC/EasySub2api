@@ -17,11 +17,11 @@ type sessionWindowSyncRepo struct {
 }
 
 type sessionWindowEndCall struct {
-	AccountID int64
+	AccountID string
 	End       time.Time
 }
 
-func (r *sessionWindowSyncRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *sessionWindowSyncRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	copied := make(map[string]any, len(updates))
@@ -32,7 +32,7 @@ func (r *sessionWindowSyncRepo) UpdateExtra(_ context.Context, _ int64, updates 
 	return nil
 }
 
-func (r *sessionWindowSyncRepo) UpdateSessionWindowEnd(_ context.Context, id int64, end time.Time) error {
+func (r *sessionWindowSyncRepo) UpdateSessionWindowEnd(_ context.Context, id string, end time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.sessionWindowEnds = append(r.sessionWindowEnds, sessionWindowEndCall{AccountID: id, End: end})
@@ -97,7 +97,7 @@ func TestSyncActiveToPassive_WritesFiveHourSessionWindowEnd(t *testing.T) {
 	repo := &sessionWindowSyncRepo{}
 	svc := &AccountUsageService{accountRepo: repo}
 	resetsAt := time.Now().Add(3 * time.Hour).UTC().Truncate(time.Second)
-	svc.syncActiveToPassive(context.Background(), 42, &UsageInfo{
+	svc.syncActiveToPassive(context.Background(), "42", &UsageInfo{
 		FiveHour: &UsageProgress{
 			Utilization: 53,
 			ResetsAt:    &resetsAt,
@@ -110,8 +110,8 @@ func TestSyncActiveToPassive_WritesFiveHourSessionWindowEnd(t *testing.T) {
 		t.Fatalf("expected 1 UpdateSessionWindowEnd call, got %d", len(repo.sessionWindowEnds))
 	}
 	call := repo.sessionWindowEnds[0]
-	if call.AccountID != 42 {
-		t.Fatalf("expected AccountID=42, got %d", call.AccountID)
+	if call.AccountID != "42" {
+		t.Fatalf("expected AccountID=42, got %s", call.AccountID)
 	}
 	if !call.End.Equal(resetsAt) {
 		t.Fatalf("expected End=%v, got %v", resetsAt, call.End)
@@ -123,7 +123,7 @@ func TestSyncActiveToPassive_SkipsSessionWindowEndWhenResetMissing(t *testing.T)
 
 	repo := &sessionWindowSyncRepo{}
 	svc := &AccountUsageService{accountRepo: repo}
-	svc.syncActiveToPassive(context.Background(), 99, &UsageInfo{
+	svc.syncActiveToPassive(context.Background(), "99", &UsageInfo{
 		FiveHour: &UsageProgress{Utilization: 10},
 	})
 

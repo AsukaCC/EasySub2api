@@ -11,34 +11,34 @@ import (
 type groupCapacityAccountRepoStub struct {
 	AccountRepository
 	rows      []GroupAccountCapacityRow
-	requested []int64
+	requested []string
 }
 
-func (s *groupCapacityAccountRepoStub) ListSchedulableCapacityByGroupIDs(_ context.Context, groupIDs []int64) ([]GroupAccountCapacityRow, error) {
-	s.requested = append([]int64(nil), groupIDs...)
+func (s *groupCapacityAccountRepoStub) ListSchedulableCapacityByGroupIDs(_ context.Context, groupIDs []string) ([]GroupAccountCapacityRow, error) {
+	s.requested = append([]string(nil), groupIDs...)
 	return append([]GroupAccountCapacityRow(nil), s.rows...), nil
 }
 
 type groupCapacityGroupRepoStub struct {
 	GroupRepository
-	groupIDs  []int64
+	groupIDs  []string
 	listCalls int
 }
 
-func (s *groupCapacityGroupRepoStub) ListActiveIDs(context.Context) ([]int64, error) {
+func (s *groupCapacityGroupRepoStub) ListActiveIDs(context.Context) ([]string, error) {
 	s.listCalls++
-	return append([]int64(nil), s.groupIDs...), nil
+	return append([]string(nil), s.groupIDs...), nil
 }
 
 type groupCapacityConcurrencyCacheStub struct {
 	ConcurrencyCache
-	counts    map[int64]int
-	requested []int64
+	counts    map[string]int
+	requested []string
 }
 
-func (s *groupCapacityConcurrencyCacheStub) GetAccountConcurrencyBatch(_ context.Context, accountIDs []int64) (map[int64]int, error) {
-	s.requested = append([]int64(nil), accountIDs...)
-	out := make(map[int64]int, len(accountIDs))
+func (s *groupCapacityConcurrencyCacheStub) GetAccountConcurrencyBatch(_ context.Context, accountIDs []string) (map[string]int, error) {
+	s.requested = append([]string(nil), accountIDs...)
+	out := make(map[string]int, len(accountIDs))
 	for _, id := range accountIDs {
 		out[id] = s.counts[id]
 	}
@@ -47,18 +47,18 @@ func (s *groupCapacityConcurrencyCacheStub) GetAccountConcurrencyBatch(_ context
 
 type groupCapacitySessionCacheStub struct {
 	SessionLimitCache
-	counts       map[int64]int
-	requested    []int64
-	idleTimeouts map[int64]time.Duration
+	counts       map[string]int
+	requested    []string
+	idleTimeouts map[string]time.Duration
 }
 
-func (s *groupCapacitySessionCacheStub) GetActiveSessionCountBatch(_ context.Context, accountIDs []int64, idleTimeouts map[int64]time.Duration) (map[int64]int, error) {
-	s.requested = append([]int64(nil), accountIDs...)
-	s.idleTimeouts = make(map[int64]time.Duration, len(idleTimeouts))
+func (s *groupCapacitySessionCacheStub) GetActiveSessionCountBatch(_ context.Context, accountIDs []string, idleTimeouts map[string]time.Duration) (map[string]int, error) {
+	s.requested = append([]string(nil), accountIDs...)
+	s.idleTimeouts = make(map[string]time.Duration, len(idleTimeouts))
 	for id, timeout := range idleTimeouts {
 		s.idleTimeouts[id] = timeout
 	}
-	out := make(map[int64]int, len(accountIDs))
+	out := make(map[string]int, len(accountIDs))
 	for _, id := range accountIDs {
 		out[id] = s.counts[id]
 	}
@@ -67,13 +67,13 @@ func (s *groupCapacitySessionCacheStub) GetActiveSessionCountBatch(_ context.Con
 
 type groupCapacityRPMCacheStub struct {
 	RPMCache
-	counts    map[int64]int
-	requested []int64
+	counts    map[string]int
+	requested []string
 }
 
-func (s *groupCapacityRPMCacheStub) GetRPMBatch(_ context.Context, accountIDs []int64) (map[int64]int, error) {
-	s.requested = append([]int64(nil), accountIDs...)
-	out := make(map[int64]int, len(accountIDs))
+func (s *groupCapacityRPMCacheStub) GetRPMBatch(_ context.Context, accountIDs []string) (map[string]int, error) {
+	s.requested = append([]string(nil), accountIDs...)
+	out := make(map[string]int, len(accountIDs))
 	for _, id := range accountIDs {
 		out[id] = s.counts[id]
 	}
@@ -84,8 +84,8 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 	accountRepo := &groupCapacityAccountRepoStub{
 		rows: []GroupAccountCapacityRow{
 			{
-				GroupID:     10,
-				AccountID:   1,
+				GroupID:     "group-10",
+				AccountID:   "account-1",
 				Concurrency: 2,
 				Extra: map[string]any{
 					"max_sessions":                 3,
@@ -94,8 +94,8 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 				},
 			},
 			{
-				GroupID:     20,
-				AccountID:   1,
+				GroupID:     "group-20",
+				AccountID:   "account-1",
 				Concurrency: 2,
 				Extra: map[string]any{
 					"max_sessions":                 3,
@@ -104,8 +104,8 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 				},
 			},
 			{
-				GroupID:     20,
-				AccountID:   2,
+				GroupID:     "group-20",
+				AccountID:   "account-2",
 				Concurrency: 4,
 				Extra: map[string]any{
 					"max_sessions":                 1,
@@ -115,10 +115,10 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 			},
 		},
 	}
-	groupRepo := &groupCapacityGroupRepoStub{groupIDs: []int64{10, 20}}
-	concurrencyCache := &groupCapacityConcurrencyCacheStub{counts: map[int64]int{1: 1, 2: 2}}
-	sessionCache := &groupCapacitySessionCacheStub{counts: map[int64]int{1: 2, 2: 1}}
-	rpmCache := &groupCapacityRPMCacheStub{counts: map[int64]int{1: 5, 2: 7}}
+	groupRepo := &groupCapacityGroupRepoStub{groupIDs: []string{"group-10", "group-20"}}
+	concurrencyCache := &groupCapacityConcurrencyCacheStub{counts: map[string]int{"account-1": 1, "account-2": 2}}
+	sessionCache := &groupCapacitySessionCacheStub{counts: map[string]int{"account-1": 2, "account-2": 1}}
+	rpmCache := &groupCapacityRPMCacheStub{counts: map[string]int{"account-1": 5, "account-2": 7}}
 	svc := NewGroupCapacityService(
 		accountRepo,
 		groupRepo,
@@ -131,16 +131,16 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 1, groupRepo.listCalls)
-	require.Equal(t, []int64{10, 20}, accountRepo.requested)
-	require.Equal(t, []int64{1, 2}, concurrencyCache.requested)
-	require.ElementsMatch(t, []int64{1, 2}, sessionCache.requested)
-	require.ElementsMatch(t, []int64{1, 2}, rpmCache.requested)
-	require.Equal(t, 7*time.Minute, sessionCache.idleTimeouts[1])
-	require.Equal(t, 9*time.Minute, sessionCache.idleTimeouts[2])
+	require.Equal(t, []string{"group-10", "group-20"}, accountRepo.requested)
+	require.Equal(t, []string{"account-1", "account-2"}, concurrencyCache.requested)
+	require.ElementsMatch(t, []string{"account-1", "account-2"}, sessionCache.requested)
+	require.ElementsMatch(t, []string{"account-1", "account-2"}, rpmCache.requested)
+	require.Equal(t, 7*time.Minute, sessionCache.idleTimeouts["account-1"])
+	require.Equal(t, 9*time.Minute, sessionCache.idleTimeouts["account-2"])
 
 	require.Equal(t, []GroupCapacitySummary{
 		{
-			GroupID:         10,
+			GroupID:         "group-10",
 			ConcurrencyUsed: 1,
 			ConcurrencyMax:  2,
 			SessionsUsed:    2,
@@ -149,7 +149,7 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 			RPMMax:          11,
 		},
 		{
-			GroupID:         20,
+			GroupID:         "group-20",
 			ConcurrencyUsed: 3,
 			ConcurrencyMax:  6,
 			SessionsUsed:    3,
@@ -163,17 +163,17 @@ func TestGetAllGroupCapacityBatchAggregatesRuntimeAndLimits(t *testing.T) {
 func TestGetAllGroupCapacityBatchKeepsEmptyGroupRows(t *testing.T) {
 	accountRepo := &groupCapacityAccountRepoStub{
 		rows: []GroupAccountCapacityRow{
-			{GroupID: 20, AccountID: 2, Concurrency: 4},
+			{GroupID: "group-20", AccountID: "account-2", Concurrency: 4},
 		},
 	}
-	groupRepo := &groupCapacityGroupRepoStub{groupIDs: []int64{10, 20}}
+	groupRepo := &groupCapacityGroupRepoStub{groupIDs: []string{"group-10", "group-20"}}
 	svc := NewGroupCapacityService(accountRepo, groupRepo, nil, nil, nil)
 
 	results, err := svc.GetAllGroupCapacity(context.Background())
 	require.NoError(t, err)
 
 	require.Equal(t, []GroupCapacitySummary{
-		{GroupID: 10},
-		{GroupID: 20, ConcurrencyMax: 4},
+		{GroupID: "group-10"},
+		{GroupID: "group-20", ConcurrencyMax: 4},
 	}, results)
 }

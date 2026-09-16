@@ -130,14 +130,14 @@ func newOpenAICompatibleStreamValidationContext(path, body string, claudeCodeOnl
 	c.Request = httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	groupID := int64(7)
+	groupID := "group-7"
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      11,
+		ID:      "key-11",
 		GroupID: &groupID,
 		Group:   &service.Group{ID: groupID, ClaudeCodeOnly: claudeCodeOnly},
-		User:    &service.User{ID: 13},
+		User:    &service.User{ID: "user-13"},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 13, Concurrency: 1})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-13", Concurrency: 1})
 
 	return c, rec
 }

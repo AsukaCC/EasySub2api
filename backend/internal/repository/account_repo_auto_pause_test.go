@@ -15,7 +15,7 @@ import (
 )
 
 type accountIDsPayloadMatcher struct {
-	want []int64
+	want []string
 }
 
 func (m accountIDsPayloadMatcher) Match(value driver.Value) bool {
@@ -24,7 +24,7 @@ func (m accountIDsPayloadMatcher) Match(value driver.Value) bool {
 		return false
 	}
 	var payload struct {
-		AccountIDs []int64 `json:"account_ids"`
+		AccountIDs []string `json:"account_ids"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return false
@@ -40,9 +40,9 @@ func TestAutoPauseExpiredAccountsEnqueuesAffectedAccounts(t *testing.T) {
 	now := time.Now()
 	mock.ExpectQuery(`(?s)UPDATE accounts.*RETURNING id`).
 		WithArgs(now).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(11)).AddRow(int64(29)))
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("account-11").AddRow("account-29"))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)")).
-		WithArgs(service.SchedulerOutboxEventAccountBulkChanged, nil, nil, accountIDsPayloadMatcher{want: []int64{11, 29}}).
+		WithArgs(service.SchedulerOutboxEventAccountBulkChanged, nil, nil, accountIDsPayloadMatcher{want: []string{"account-11", "account-29"}}).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	repo := newAccountRepositoryWithSQL(nil, db, nil)

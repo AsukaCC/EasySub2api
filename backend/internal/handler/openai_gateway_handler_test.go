@@ -694,18 +694,18 @@ func TestOpenAIGatewayMessagesDispatchGateAllowsGrokGroups(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
 		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-sonnet-4-5","messages":[{"role":"user","content":"hi"}]}`))
-		groupID := int64(4101)
+		groupID := testEntityID(4101)
 		c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-			ID:      5101,
+			ID:      testEntityID(5101),
 			GroupID: &groupID,
-			User:    &service.User{ID: 6101},
+			User:    &service.User{ID: testEntityID(6101)},
 			Group: &service.Group{
 				ID:                    groupID,
 				Platform:              service.PlatformOpenAI,
 				AllowMessagesDispatch: false,
 			},
 		})
-		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 6101, Concurrency: 1})
+		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: testEntityID(6101), Concurrency: 1})
 
 		h := &OpenAIGatewayHandler{}
 		h.Messages(c)
@@ -719,18 +719,18 @@ func TestOpenAIGatewayMessagesDispatchGateAllowsGrokGroups(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
 		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"grok-4.3","messages":[{"role":"user","content":"hi"}]}`))
-		groupID := int64(4102)
+		groupID := testEntityID(4102)
 		c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-			ID:      5102,
+			ID:      testEntityID(5102),
 			GroupID: &groupID,
-			User:    &service.User{ID: 6102},
+			User:    &service.User{ID: testEntityID(6102)},
 			Group: &service.Group{
 				ID:                    groupID,
 				Platform:              service.PlatformGrok,
 				AllowMessagesDispatch: false,
 			},
 		})
-		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 6102, Concurrency: 1})
+		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: testEntityID(6102), Concurrency: 1})
 
 		h := &OpenAIGatewayHandler{}
 		h.Messages(c)
@@ -784,13 +784,13 @@ func TestOpenAIResponses_MissingDependencies_ReturnsServiceUnavailable(t *testin
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"gpt-5","stream":false}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	groupID := int64(2)
+	groupID := testEntityID(2)
 	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-		ID:      10,
+		ID:      testEntityID(10),
 		GroupID: &groupID,
 	})
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
-		UserID:      1,
+		UserID:      testEntityID(1),
 		Concurrency: 1,
 	})
 
@@ -837,14 +837,14 @@ func TestOpenAIResponses_RejectsMessageIDAsPreviousResponseID(t *testing.T) {
 	))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	groupID := int64(2)
+	groupID := testEntityID(2)
 	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-		ID:      101,
+		ID:      testEntityID(101),
 		GroupID: &groupID,
-		User:    &service.User{ID: 1},
+		User:    &service.User{ID: testEntityID(1)},
 	})
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
-		UserID:      1,
+		UserID:      testEntityID(1),
 		Concurrency: 1,
 	})
 
@@ -865,14 +865,14 @@ func TestOpenAIResponses_RejectsHTTPContinuationPreviousResponseID(t *testing.T)
 	))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	groupID := int64(2)
+	groupID := testEntityID(2)
 	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-		ID:      101,
+		ID:      testEntityID(101),
 		GroupID: &groupID,
-		User:    &service.User{ID: 1},
+		User:    &service.User{ID: testEntityID(1)},
 	})
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
-		UserID:      1,
+		UserID:      testEntityID(1),
 		Concurrency: 1,
 	})
 
@@ -894,14 +894,14 @@ func TestOpenAIResponses_FunctionCallOutputHTTPGuidanceDoesNotSuggestPreviousRes
 	))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	groupID := int64(2)
+	groupID := testEntityID(2)
 	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-		ID:      101,
+		ID:      testEntityID(101),
 		GroupID: &groupID,
-		User:    &service.User{ID: 1},
+		User:    &service.User{ID: testEntityID(1)},
 	})
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
-		UserID:      1,
+		UserID:      testEntityID(1),
 		Concurrency: 1,
 	})
 
@@ -946,14 +946,14 @@ func TestOpenAIResponsesWebSocket_InvalidUpgradeDoesNotSetTransport(t *testing.T
 func TestOpenAIResponsesWebSocket_IngressCapacityRejected(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cache := &concurrencyCacheMock{
-		acquireIngressLeaseFn: func(context.Context, int64, int, string) (bool, error) {
+		acquireIngressLeaseFn: func(context.Context, string, int, string) (bool, error) {
 			return false, nil
 		},
 	}
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, cache)
 	h.cfg = &config.Config{}
 	h.cfg.Gateway.OpenAIWS.MaxIngressConnectionsPerAPIKey = 1
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -969,14 +969,14 @@ func TestOpenAIResponsesWebSocket_IngressCapacityRejected(t *testing.T) {
 func TestOpenAIResponsesWebSocket_IngressLeaseBackendUnavailableBeforeUpgrade(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cache := &concurrencyCacheMock{
-		acquireIngressLeaseFn: func(context.Context, int64, int, string) (bool, error) {
+		acquireIngressLeaseFn: func(context.Context, string, int, string) (bool, error) {
 			return false, errors.New("redis unavailable")
 		},
 	}
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, cache)
 	h.cfg = &config.Config{}
 	h.cfg.Gateway.OpenAIWS.MaxIngressConnectionsPerAPIKey = 1
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -997,7 +997,7 @@ func TestOpenAIResponsesWebSocket_FirstMessageTimeoutUsesConfig(t *testing.T) {
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, nil)
 	h.cfg = &config.Config{}
 	h.cfg.Gateway.OpenAIWS.ClientFirstMessageTimeoutSeconds = 1
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -1026,14 +1026,14 @@ func TestOpenAIResponsesWebSocket_FirstMessageTimeoutUsesConfig(t *testing.T) {
 func TestOpenAIResponsesWebSocket_IngressLeaseReleasedOnEarlyReturn(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cache := &concurrencyCacheMock{
-		acquireIngressLeaseFn: func(context.Context, int64, int, string) (bool, error) {
+		acquireIngressLeaseFn: func(context.Context, string, int, string) (bool, error) {
 			return true, nil
 		},
 	}
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, cache)
 	h.cfg = &config.Config{}
 	h.cfg.Gateway.OpenAIWS.MaxIngressConnectionsPerAPIKey = 1
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -1061,14 +1061,14 @@ func TestOpenAIResponsesWebSocket_IngressLeaseReleasedOnEarlyReturn(t *testing.T
 func TestOpenAIResponsesWebSocket_IngressLeaseReleasedWhenUpgradeFails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cache := &concurrencyCacheMock{
-		acquireIngressLeaseFn: func(context.Context, int64, int, string) (bool, error) {
+		acquireIngressLeaseFn: func(context.Context, string, int, string) (bool, error) {
 			return true, nil
 		},
 	}
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, cache)
 	h.cfg = &config.Config{}
 	h.cfg.Gateway.OpenAIWS.MaxIngressConnectionsPerAPIKey = 1
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	req, err := http.NewRequest(http.MethodGet, wsServer.URL+"/openai/v1/responses", nil)
@@ -1089,7 +1089,7 @@ func TestOpenAIResponsesWebSocket_RejectsMessageIDAsPreviousResponseID(t *testin
 	gin.SetMode(gin.TestMode)
 
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, nil)
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -1121,12 +1121,12 @@ func TestOpenAIResponsesWebSocket_PreviousResponseIDKindLoggedBeforeAcquireFailu
 	gin.SetMode(gin.TestMode)
 
 	cache := &concurrencyCacheMock{
-		acquireUserSlotFn: func(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
+		acquireUserSlotFn: func(ctx context.Context, userID string, maxConcurrency int, requestID string) (bool, error) {
 			return false, errors.New("user slot unavailable")
 		},
 	}
 	h := newOpenAIHandlerForPreviousResponseIDValidation(t, cache)
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -1243,7 +1243,7 @@ func (r *contentModerationHandlerTestRepo) ListLogs(ctx context.Context, filter 
 	return nil, nil, nil
 }
 
-func (r *contentModerationHandlerTestRepo) CountFlaggedByUserSince(ctx context.Context, userID int64, since time.Time, excludeCyberPolicy bool) (int, error) {
+func (r *contentModerationHandlerTestRepo) CountFlaggedByUserSince(ctx context.Context, userID string, since time.Time, excludeCyberPolicy bool) (int, error) {
 	return 0, nil
 }
 
@@ -1251,7 +1251,7 @@ func (r *contentModerationHandlerTestRepo) CleanupExpiredLogs(ctx context.Contex
 	return &service.ContentModerationCleanupResult{}, nil
 }
 
-func (r *contentModerationHandlerTestRepo) UpdateLogEmailSent(ctx context.Context, id int64, sent bool) error {
+func (r *contentModerationHandlerTestRepo) UpdateLogEmailSent(ctx context.Context, id string, sent bool) error {
 	return nil
 }
 
@@ -1293,7 +1293,7 @@ func TestOpenAIResponsesWebSocket_ContentModerationBlocksFirstFrame(t *testing.T
 		nil,
 	)
 	decision, err := moderationSvc.Check(context.Background(), service.ContentModerationCheckInput{
-		UserID:   1,
+		UserID:   testEntityID(1),
 		Endpoint: "/v1/responses",
 		Provider: "openai",
 		Model:    "gpt-5.5",
@@ -1313,7 +1313,7 @@ func TestOpenAIResponsesWebSocket_ContentModerationBlocksFirstFrame(t *testing.T
 		contentModerationService: moderationSvc,
 		concurrencyHelper:        NewConcurrencyHelper(service.NewConcurrencyService(&concurrencyCacheMock{}), SSEPingFormatNone, time.Second),
 	}
-	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: 1, Concurrency: 1})
+	wsServer := newOpenAIWSHandlerTestServer(t, h, middleware.AuthSubject{UserID: testEntityID(1), Concurrency: 1})
 	defer wsServer.Close()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
@@ -1475,7 +1475,7 @@ func TestOpenAIResponsesWebSocket_PassthroughKeepsTurnMappingSnapshot(t *testing
 			if channelSvc == nil {
 				return errors.New("channel service is nil")
 			}
-			_, err := channelSvc.Update(context.Background(), 7701, &service.UpdateChannelInput{
+			_, err := channelSvc.Update(context.Background(), testEntityID(7701), &service.UpdateChannelInput{
 				ModelMapping: map[string]map[string]string{
 					service.PlatformOpenAI: {"sol": "gpt-5.6-terra"},
 				},
@@ -1730,10 +1730,10 @@ func newOpenAIHandlerForPreviousResponseIDValidation(t *testing.T, cache *concur
 	t.Helper()
 	if cache == nil {
 		cache = &concurrencyCacheMock{
-			acquireUserSlotFn: func(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
+			acquireUserSlotFn: func(ctx context.Context, userID string, maxConcurrency int, requestID string) (bool, error) {
 				return true, nil
 			},
-			acquireAccountSlotFn: func(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
+			acquireAccountSlotFn: func(ctx context.Context, accountID string, maxConcurrency int, requestID string) (bool, error) {
 				return true, nil
 			},
 		}
@@ -1748,9 +1748,9 @@ func newOpenAIHandlerForPreviousResponseIDValidation(t *testing.T, cache *concur
 
 func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject middleware.AuthSubject) *httptest.Server {
 	t.Helper()
-	groupID := int64(2)
+	groupID := testEntityID(2)
 	apiKey := &service.APIKey{
-		ID:      101,
+		ID:      testEntityID(101),
 		GroupID: &groupID,
 		User:    &service.User{ID: subject.UserID},
 	}
@@ -1795,11 +1795,11 @@ func (s *openAIWSUsageHandlerAccountRepoStub) ListSchedulableByPlatform(ctx cont
 	return []service.Account{s.account}, nil
 }
 
-func (s *openAIWSUsageHandlerAccountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]service.Account, error) {
+func (s *openAIWSUsageHandlerAccountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID string, platform string) ([]service.Account, error) {
 	return s.ListSchedulableByPlatform(ctx, platform)
 }
 
-func (s *openAIWSUsageHandlerAccountRepoStub) GetByID(ctx context.Context, id int64) (*service.Account, error) {
+func (s *openAIWSUsageHandlerAccountRepoStub) GetByID(ctx context.Context, id string) (*service.Account, error) {
 	if s.account.ID != id {
 		return nil, nil
 	}
@@ -1810,16 +1810,16 @@ func (s *openAIWSUsageHandlerAccountRepoStub) GetByID(ctx context.Context, id in
 type openAIWSFailoverHandlerAccountRepoStub struct {
 	service.AccountRepository
 	accounts       []service.Account
-	rateLimitedIDs []int64
+	rateLimitedIDs []string
 }
 
 type openAIHTTPPassthroughFailoverUpstream struct {
 	service.HTTPUpstream
 	mu         sync.Mutex
-	accountIDs []int64
+	accountIDs []string
 }
 
-func (u *openAIHTTPPassthroughFailoverUpstream) Do(_ *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
+func (u *openAIHTTPPassthroughFailoverUpstream) Do(_ *http.Request, _ string, accountID string, _ int) (*http.Response, error) {
 	u.mu.Lock()
 	u.accountIDs = append(u.accountIDs, accountID)
 	u.mu.Unlock()
@@ -1830,24 +1830,24 @@ func (u *openAIHTTPPassthroughFailoverUpstream) Do(_ *http.Request, _ string, ac
 	}, nil
 }
 
-func (u *openAIHTTPPassthroughFailoverUpstream) calls() []int64 {
+func (u *openAIHTTPPassthroughFailoverUpstream) calls() []string {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return append([]int64(nil), u.accountIDs...)
+	return append([]string(nil), u.accountIDs...)
 }
 
 type openAIHTTPPassthroughAuthFailoverUpstream struct {
 	service.HTTPUpstream
 	mu         sync.Mutex
-	accountIDs []int64
+	accountIDs []string
 	statusCode int
 }
 
-func (u *openAIHTTPPassthroughAuthFailoverUpstream) Do(_ *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
+func (u *openAIHTTPPassthroughAuthFailoverUpstream) Do(_ *http.Request, _ string, accountID string, _ int) (*http.Response, error) {
 	u.mu.Lock()
 	u.accountIDs = append(u.accountIDs, accountID)
 	u.mu.Unlock()
-	if accountID == 9911 {
+	if accountID == testEntityID(9911) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -1861,19 +1861,19 @@ func (u *openAIHTTPPassthroughAuthFailoverUpstream) Do(_ *http.Request, _ string
 	}, nil
 }
 
-func (u *openAIHTTPPassthroughAuthFailoverUpstream) calls() []int64 {
+func (u *openAIHTTPPassthroughAuthFailoverUpstream) calls() []string {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return append([]int64(nil), u.accountIDs...)
+	return append([]string(nil), u.accountIDs...)
 }
 
 type openAIHTTPPassthroughSSERateLimitUpstream struct {
 	service.HTTPUpstream
 	mu         sync.Mutex
-	accountIDs []int64
+	accountIDs []string
 }
 
-func (u *openAIHTTPPassthroughSSERateLimitUpstream) Do(_ *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
+func (u *openAIHTTPPassthroughSSERateLimitUpstream) Do(_ *http.Request, _ string, accountID string, _ int) (*http.Response, error) {
 	u.mu.Lock()
 	u.accountIDs = append(u.accountIDs, accountID)
 	u.mu.Unlock()
@@ -1895,10 +1895,10 @@ func (u *openAIHTTPPassthroughSSERateLimitUpstream) Do(_ *http.Request, _ string
 	}, nil
 }
 
-func (u *openAIHTTPPassthroughSSERateLimitUpstream) calls() []int64 {
+func (u *openAIHTTPPassthroughSSERateLimitUpstream) calls() []string {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return append([]int64(nil), u.accountIDs...)
+	return append([]string(nil), u.accountIDs...)
 }
 
 func (s *openAIWSFailoverHandlerAccountRepoStub) ListSchedulableByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
@@ -1911,7 +1911,7 @@ func (s *openAIWSFailoverHandlerAccountRepoStub) ListSchedulableByPlatform(ctx c
 	return out, nil
 }
 
-func (s *openAIWSFailoverHandlerAccountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]service.Account, error) {
+func (s *openAIWSFailoverHandlerAccountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID string, platform string) ([]service.Account, error) {
 	return s.ListSchedulableByPlatform(ctx, platform)
 }
 
@@ -1919,7 +1919,7 @@ func (s *openAIWSFailoverHandlerAccountRepoStub) ListSchedulableUngroupedByPlatf
 	return s.ListSchedulableByPlatform(ctx, platform)
 }
 
-func (s *openAIWSFailoverHandlerAccountRepoStub) GetByID(ctx context.Context, id int64) (*service.Account, error) {
+func (s *openAIWSFailoverHandlerAccountRepoStub) GetByID(ctx context.Context, id string) (*service.Account, error) {
 	for _, account := range s.accounts {
 		if account.ID == id {
 			acc := account
@@ -1929,7 +1929,7 @@ func (s *openAIWSFailoverHandlerAccountRepoStub) GetByID(ctx context.Context, id
 	return nil, nil
 }
 
-func (s *openAIWSFailoverHandlerAccountRepoStub) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
+func (s *openAIWSFailoverHandlerAccountRepoStub) SetRateLimited(ctx context.Context, id string, resetAt time.Time) error {
 	s.rateLimitedIDs = append(s.rateLimitedIDs, id)
 	for i := range s.accounts {
 		if s.accounts[i].ID == id {
@@ -1957,7 +1957,7 @@ type openAIWSUsageHandlerChannelRepoStub struct {
 	service.ChannelRepository
 	mu             sync.Mutex
 	channels       []service.Channel
-	groupPlatforms map[int64]string
+	groupPlatforms map[string]string
 }
 
 func (s *openAIWSUsageHandlerChannelRepoStub) ListAll(ctx context.Context) ([]service.Channel, error) {
@@ -1970,7 +1970,7 @@ func (s *openAIWSUsageHandlerChannelRepoStub) ListAll(ctx context.Context) ([]se
 	return out, nil
 }
 
-func (s *openAIWSUsageHandlerChannelRepoStub) GetByID(ctx context.Context, id int64) (*service.Channel, error) {
+func (s *openAIWSUsageHandlerChannelRepoStub) GetByID(ctx context.Context, id string) (*service.Channel, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i := range s.channels {
@@ -1993,16 +1993,16 @@ func (s *openAIWSUsageHandlerChannelRepoStub) Update(ctx context.Context, channe
 	return service.ErrChannelNotFound
 }
 
-func (s *openAIWSUsageHandlerChannelRepoStub) GetGroupIDs(ctx context.Context, channelID int64) ([]int64, error) {
+func (s *openAIWSUsageHandlerChannelRepoStub) GetGroupIDs(ctx context.Context, channelID string) ([]string, error) {
 	channel, err := s.GetByID(ctx, channelID)
 	if err != nil {
 		return nil, err
 	}
-	return append([]int64(nil), channel.GroupIDs...), nil
+	return append([]string(nil), channel.GroupIDs...), nil
 }
 
-func (s *openAIWSUsageHandlerChannelRepoStub) GetGroupPlatforms(ctx context.Context, groupIDs []int64) (map[int64]string, error) {
-	out := make(map[int64]string, len(groupIDs))
+func (s *openAIWSUsageHandlerChannelRepoStub) GetGroupPlatforms(ctx context.Context, groupIDs []string) (map[string]string, error) {
+	out := make(map[string]string, len(groupIDs))
 	for _, groupID := range groupIDs {
 		if platform := strings.TrimSpace(s.groupPlatforms[groupID]); platform != "" {
 			out[groupID] = platform
@@ -2013,10 +2013,10 @@ func (s *openAIWSUsageHandlerChannelRepoStub) GetGroupPlatforms(ctx context.Cont
 
 func TestOpenAIResponses_APIKeyPassthroughPool5xxRetriesThenExhaustsMaxSwitches(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	groupID := int64(4203)
+	groupID := testEntityID(4203)
 	accounts := []service.Account{
 		{
-			ID: 9910, Name: "pool-api-key", Platform: service.PlatformOpenAI,
+			ID: testEntityID(9910), Name: "pool-api-key", Platform: service.PlatformOpenAI,
 			Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, Priority: 1,
 			Credentials: map[string]any{
 				"api_key":                      "sk-pool",
@@ -2028,7 +2028,7 @@ func TestOpenAIResponses_APIKeyPassthroughPool5xxRetriesThenExhaustsMaxSwitches(
 			Extra: map[string]any{"openai_passthrough": true},
 		},
 		{
-			ID: 9911, Name: "fallback-api-key", Platform: service.PlatformOpenAI,
+			ID: testEntityID(9911), Name: "fallback-api-key", Platform: service.PlatformOpenAI,
 			Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, Priority: 2,
 			Credentials: map[string]any{
 				"api_key":  "sk-fallback",
@@ -2087,15 +2087,15 @@ func TestOpenAIResponses_APIKeyPassthroughPool5xxRetriesThenExhaustsMaxSwitches(
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", strings.NewReader(`{"model":"gpt-5.2","input":"hello","stream":false}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-		ID: 1803, GroupID: &groupID,
-		User:  &service.User{ID: 1703, Status: service.StatusActive},
+		ID: testEntityID(1803), GroupID: &groupID,
+		User:  &service.User{ID: testEntityID(1703), Status: service.StatusActive},
 		Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 	})
-	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1703, Concurrency: 0})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: testEntityID(1703), Concurrency: 0})
 
 	h.Responses(c)
 
-	require.Equal(t, []int64{9910, 9910, 9911}, upstream.calls())
+	require.Equal(t, []string{testEntityID(9910), testEntityID(9910), testEntityID(9911)}, upstream.calls())
 	require.Equal(t, http.StatusBadGateway, rec.Code)
 	require.Equal(t, "upstream_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
 	require.Equal(t, "Upstream service temporarily unavailable", gjson.GetBytes(rec.Body.Bytes(), "error.message").String())
@@ -2113,10 +2113,10 @@ func TestOpenAIResponses_APIKeyPassthroughPoolAuthFailureRetriesThenSwitchesToHe
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
-			groupID := int64(4203)
+			groupID := testEntityID(4203)
 			accounts := []service.Account{
 				{
-					ID: 9910, Name: "pool-api-key", Platform: service.PlatformOpenAI,
+					ID: testEntityID(9910), Name: "pool-api-key", Platform: service.PlatformOpenAI,
 					Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, Priority: 1,
 					Credentials: map[string]any{
 						"api_key":                      "sk-pool",
@@ -2128,7 +2128,7 @@ func TestOpenAIResponses_APIKeyPassthroughPoolAuthFailureRetriesThenSwitchesToHe
 					Extra: map[string]any{"openai_passthrough": true},
 				},
 				{
-					ID: 9911, Name: "fallback-api-key", Platform: service.PlatformOpenAI,
+					ID: testEntityID(9911), Name: "fallback-api-key", Platform: service.PlatformOpenAI,
 					Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, Priority: 2,
 					Credentials: map[string]any{
 						"api_key":  "sk-fallback",
@@ -2144,7 +2144,7 @@ func TestOpenAIResponses_APIKeyPassthroughPoolAuthFailureRetriesThenSwitchesToHe
 
 			accountRepo := &openAIWSFailoverHandlerAccountRepoStub{accounts: accounts}
 			upstream := &openAIHTTPPassthroughAuthFailoverUpstream{statusCode: tt.statusCode}
-			rateLimitSvc := service.NewRateLimitService(accountRepo, nil, cfg, nil, nil)
+			rateLimitSvc := service.NewRateLimitService(accountRepo, cfg, nil)
 			billingCacheSvc := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 			t.Cleanup(billingCacheSvc.Stop)
 			gatewaySvc := service.NewOpenAIGatewayService(
@@ -2188,15 +2188,15 @@ func TestOpenAIResponses_APIKeyPassthroughPoolAuthFailureRetriesThenSwitchesToHe
 			c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", strings.NewReader(`{"model":"gpt-5.2","input":"hello","stream":false}`))
 			c.Request.Header.Set("Content-Type", "application/json")
 			c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-				ID: 1803, GroupID: &groupID,
-				User:  &service.User{ID: 1703, Status: service.StatusActive},
+				ID: testEntityID(1803), GroupID: &groupID,
+				User:  &service.User{ID: testEntityID(1703), Status: service.StatusActive},
 				Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 			})
-			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1703, Concurrency: 0})
+			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: testEntityID(1703), Concurrency: 0})
 
 			h.Responses(c)
 
-			require.Equal(t, []int64{9910, 9910, 9911}, upstream.calls())
+			require.Equal(t, []string{testEntityID(9910), testEntityID(9910), testEntityID(9911)}, upstream.calls())
 			require.Equal(t, http.StatusOK, rec.Code)
 			require.Equal(t, "resp_healthy", gjson.GetBytes(rec.Body.Bytes(), "id").String())
 		})
@@ -2205,10 +2205,10 @@ func TestOpenAIResponses_APIKeyPassthroughPoolAuthFailureRetriesThenSwitchesToHe
 
 func TestOpenAIResponses_APIKeyPassthroughSSERateLimitUsesConfiguredPoolRetry(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	groupID := int64(4204)
+	groupID := testEntityID(4204)
 	accounts := []service.Account{
 		{
-			ID: 9912, Name: "pool-sse-rate-limit", Platform: service.PlatformOpenAI,
+			ID: testEntityID(9912), Name: "pool-sse-rate-limit", Platform: service.PlatformOpenAI,
 			Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, Priority: 1,
 			Credentials: map[string]any{
 				"api_key":                      "sk-pool",
@@ -2270,15 +2270,15 @@ func TestOpenAIResponses_APIKeyPassthroughSSERateLimitUsesConfiguredPoolRetry(t 
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", strings.NewReader(`{"model":"gpt-5.6-sol","input":"hello","stream":true}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
-		ID: 1804, GroupID: &groupID,
-		User:  &service.User{ID: 1704, Status: service.StatusActive},
+		ID: testEntityID(1804), GroupID: &groupID,
+		User:  &service.User{ID: testEntityID(1704), Status: service.StatusActive},
 		Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 	})
-	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1704, Concurrency: 0})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: testEntityID(1704), Concurrency: 0})
 
 	h.Responses(c)
 
-	require.Equal(t, []int64{9912, 9912}, upstream.calls())
+	require.Equal(t, []string{testEntityID(9912), testEntityID(9912)}, upstream.calls())
 	require.Equal(t, http.StatusTooManyRequests, rec.Code)
 	require.Equal(t, "1", rec.Header().Get("Retry-After"))
 	require.Equal(t, "rate_limit_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
@@ -2332,10 +2332,10 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 	}))
 	defer secondUpstream.Close()
 
-	groupID := int64(4202)
+	groupID := testEntityID(4202)
 	accounts := []service.Account{
 		{
-			ID:          9902,
+			ID:          testEntityID(9902),
 			Name:        "openai-ws-rate-limited",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -2353,7 +2353,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 			},
 		},
 		{
-			ID:          9903,
+			ID:          testEntityID(9903),
 			Name:        "openai-ws-healthy",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -2387,7 +2387,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 	cfg.Gateway.MaxAccountSwitches = 3
 
 	accountRepo := &openAIWSFailoverHandlerAccountRepoStub{accounts: accounts}
-	rateLimitSvc := service.NewRateLimitService(accountRepo, nil, cfg, nil, nil)
+	rateLimitSvc := service.NewRateLimitService(accountRepo, cfg, nil)
 	billingCacheSvc := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	gatewaySvc := service.NewOpenAIGatewayService(
 		accountRepo,
@@ -2415,10 +2415,10 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 	)
 
 	cache := &concurrencyCacheMock{
-		acquireUserSlotFn: func(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
+		acquireUserSlotFn: func(ctx context.Context, userID string, maxConcurrency int, requestID string) (bool, error) {
 			return true, nil
 		},
-		acquireAccountSlotFn: func(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
+		acquireAccountSlotFn: func(ctx context.Context, accountID string, maxConcurrency int, requestID string) (bool, error) {
 			return true, nil
 		},
 	}
@@ -2431,9 +2431,9 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 	}
 
 	apiKey := &service.APIKey{
-		ID:      1802,
+		ID:      testEntityID(1802),
 		GroupID: &groupID,
-		User:    &service.User{ID: 1702, Status: service.StatusActive},
+		User:    &service.User{ID: testEntityID(1702), Status: service.StatusActive},
 		Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 	}
 	router := gin.New()
@@ -2478,7 +2478,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 	case <-time.After(3 * time.Second):
 		t.Fatal("等待第二个上游收到重放首帧超时")
 	}
-	require.Equal(t, []int64{int64(9902)}, accountRepo.rateLimitedIDs)
+	require.Equal(t, []string{testEntityID(9902)}, accountRepo.rateLimitedIDs)
 }
 
 func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClientForOneFailover(t *testing.T) {
@@ -2544,10 +2544,10 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 	}))
 	defer secondUpstream.Close()
 
-	groupID := int64(4212)
+	groupID := testEntityID(4212)
 	accounts := []service.Account{
 		{
-			ID:          9912,
+			ID:          testEntityID(9912),
 			Name:        "openai-ws-first-semantic-timeout",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -2562,7 +2562,7 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 			},
 		},
 		{
-			ID:          9913,
+			ID:          testEntityID(9913),
 			Name:        "openai-ws-failover-healthy",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -2595,7 +2595,7 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 	cfg.Gateway.MaxAccountSwitches = 3
 
 	accountRepo := &openAIWSFailoverHandlerAccountRepoStub{accounts: accounts}
-	rateLimitSvc := service.NewRateLimitService(accountRepo, nil, cfg, nil, nil)
+	rateLimitSvc := service.NewRateLimitService(accountRepo, cfg, nil)
 	billingCacheSvc := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	gatewaySvc := service.NewOpenAIGatewayService(
 		accountRepo, nil, nil, nil, nil, nil, nil, cfg, nil, nil,
@@ -2603,8 +2603,8 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 		nil, &service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil,
 	)
 	cache := &concurrencyCacheMock{
-		acquireUserSlotFn: func(context.Context, int64, int, string) (bool, error) { return true, nil },
-		acquireAccountSlotFn: func(context.Context, int64, int, string) (bool, error) {
+		acquireUserSlotFn: func(context.Context, string, int, string) (bool, error) { return true, nil },
+		acquireAccountSlotFn: func(context.Context, string, int, string) (bool, error) {
 			return true, nil
 		},
 	}
@@ -2617,9 +2617,9 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 	}
 
 	apiKey := &service.APIKey{
-		ID:      1812,
+		ID:      testEntityID(1812),
 		GroupID: &groupID,
-		User:    &service.User{ID: 1712, Status: service.StatusActive},
+		User:    &service.User{ID: testEntityID(1712), Status: service.StatusActive},
 		Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, Status: service.StatusActive},
 	}
 	handlerDone := make(chan struct{})
@@ -2684,7 +2684,7 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 	}
 	require.Equal(t, int32(1), firstConnections.Load())
 	require.Equal(t, int32(1), secondConnections.Load())
-	require.NotContains(t, accountRepo.rateLimitedIDs, int64(9913), "healthy failover account must not be penalized")
+	require.NotContains(t, accountRepo.rateLimitedIDs, testEntityID(9913), "healthy failover account must not be penalized")
 }
 
 func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSUsageLogCase) openAIResponsesWSUsageLogResult {
@@ -2747,9 +2747,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	}))
 	defer upstreamServer.Close()
 
-	groupID := int64(4201)
+	groupID := testEntityID(4201)
 	account := service.Account{
-		ID:          9901,
+		ID:          testEntityID(9901),
 		Name:        "openai-ws-passthrough-usage-e2e",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
@@ -2789,14 +2789,14 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	if len(tc.channelMapping) > 0 {
 		channelSvc = service.NewChannelService(&openAIWSUsageHandlerChannelRepoStub{
 			channels: []service.Channel{{
-				ID:                 7701,
+				ID:                 testEntityID(7701),
 				Name:               "openai-ws-e2e-channel",
 				Status:             service.StatusActive,
-				GroupIDs:           []int64{groupID},
+				GroupIDs:           []string{groupID},
 				ModelMapping:       map[string]map[string]string{service.PlatformOpenAI: tc.channelMapping},
 				BillingModelSource: tc.billingModelSource,
 			}},
-			groupPlatforms: map[int64]string{groupID: service.PlatformOpenAI},
+			groupPlatforms: map[string]string{groupID: service.PlatformOpenAI},
 		}, nil, nil, nil, nil)
 	}
 
@@ -2827,10 +2827,10 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	)
 
 	cache := &concurrencyCacheMock{
-		acquireUserSlotFn: func(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
+		acquireUserSlotFn: func(ctx context.Context, userID string, maxConcurrency int, requestID string) (bool, error) {
 			return true, nil
 		},
-		acquireAccountSlotFn: func(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
+		acquireAccountSlotFn: func(ctx context.Context, accountID string, maxConcurrency int, requestID string) (bool, error) {
 			return true, nil
 		},
 	}
@@ -2842,9 +2842,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	}
 
 	apiKey := &service.APIKey{
-		ID:      1801,
+		ID:      testEntityID(1801),
 		GroupID: &groupID,
-		User:    &service.User{ID: 1701, Status: service.StatusActive},
+		User:    &service.User{ID: testEntityID(1701), Status: service.StatusActive},
 	}
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
@@ -2935,6 +2935,10 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 
 func testStringPtr(v string) *string {
 	return &v
+}
+
+func testEntityID(v int64) string {
+	return fmt.Sprintf("id-%d", v)
 }
 
 func TestOpenAIForwardErrorAlreadyCommunicated(t *testing.T) {

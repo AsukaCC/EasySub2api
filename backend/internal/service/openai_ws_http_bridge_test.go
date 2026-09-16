@@ -63,7 +63,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnAPIKeyAdaptsClientTools(t *testing.T) {
 		cfg:          &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}},
 		httpUpstream: upstream,
 	}
-	account := &Account{ID: 5659, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
+	account := &Account{ID: "id-5659", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
 	payload := []byte(`{
 		"type":"response.create","model":"gpt-5","stream":true,
 		"tools":[{"type":"custom","name":"exec","description":"Run a command"}],
@@ -136,7 +136,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnAPIKeyRestoresClientToolsInResponseDone(t *t
 		cfg:          &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}},
 		httpUpstream: upstream,
 	}
-	account := &Account{ID: 5764, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
+	account := &Account{ID: "id-5764", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
 	payload := []byte(`{
 		"type":"response.create","model":"gpt-5","stream":true,
 		"tools":[{"type":"custom","name":"exec","description":"Run a command"}],
@@ -211,7 +211,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnTransportErrorFailoverSafety(t *testing.T) {
 				httpUpstream: upstream,
 			}
 			account := &Account{
-				ID:          8,
+				ID:          "id-8",
 				Name:        "api-key",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
@@ -274,7 +274,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnHTTPStatusFailoverSafety(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(`{"error":{"type":"server_error","message":"temporary upstream failure"}}`)),
 			}}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
-			account := &Account{ID: 9, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
+			account := &Account{ID: "id-9", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
 			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
@@ -317,7 +317,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnSSEErrorFailoverSafety(t *testing.T) {
 				)),
 			}}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
-			account := &Account{ID: 10, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
+			account := &Account{ID: "id-10", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
 			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
@@ -382,7 +382,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnRewritesCapacityShedCodeForClient(t *testing
 				Body:       io.NopCloser(strings.NewReader(tt.body)),
 			}}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
-			account := &Account{ID: 11, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1}
+			account := &Account{ID: "id-11", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1}
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
 			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
@@ -436,7 +436,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnRequiresTerminalEvent(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(tt.body)),
 			}}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
-			account := &Account{ID: 11, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
+			account := &Account{ID: "id-11", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
 			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
@@ -499,7 +499,7 @@ func TestOpenAIWSHTTPBridgeRelaysSSEFramesAsWebSocketMessages(t *testing.T) {
 		toolCorrector: NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          7,
+		ID:          "id-7",
 		Name:        "api-key",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -612,7 +612,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnForGrokDefaultsEmptyModelTo45(t *testing.T) 
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          72,
+		ID:          "id-72",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -657,7 +657,7 @@ func TestProxyOpenAIWSHTTPBridgeTurnPromotesCodexAdditionalToolsForMixedCache(t 
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          73,
+		ID:          "id-73",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -746,7 +746,7 @@ func TestProxyResponsesWebSocketFromClientForGrokUsesXAIHTTPBridgeAndPreservesMa
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          71,
+		ID:          "id-71",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -783,7 +783,7 @@ func TestProxyResponsesWebSocketFromClientForGrokUsesXAIHTTPBridgeAndPreservesMa
 		req := r.Clone(r.Context())
 		req.Header = req.Header.Clone()
 		ginCtx.Request = req
-		ginCtx.Set("api_key", &APIKey{ID: 7101})
+		ginCtx.Set("api_key", &APIKey{ID: "id-7101"})
 
 		errCh <- svc.ProxyResponsesWebSocketFromClient(r.Context(), ginCtx, conn, account, "access-token", firstMessage, &OpenAIWSIngressHooks{
 			MapRequestModel: func(_ int, originalModel string) (string, error) {
@@ -924,7 +924,7 @@ func TestOpenAIWSHTTPBridgeAcceptsFirstFrameAboveLegacy16MiB(t *testing.T) {
 		toolCorrector: NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          9,
+		ID:          "id-9",
 		Name:        "api-key",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1078,7 +1078,7 @@ func TestOpenAIWSHTTPBridgeKeepsContinuationFramesOnHTTPWithoutPreviousResponseI
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          19,
+		ID:          "id-19",
 		Name:        "api-key-bridge-handoff",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1209,7 +1209,7 @@ func TestOpenAIWSHTTPBridge_IdleTimeoutClosesClientSession(t *testing.T) {
 		toolCorrector:    NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          20,
+		ID:          "id-20",
 		Name:        "api-key-bridge-idle-timeout",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

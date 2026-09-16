@@ -23,8 +23,8 @@ func TestApplyChannelMonitorTemplatePreservesDuplicateOperationMetadataAtomicall
 	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	t.Cleanup(func() { _ = client.Close() })
 
-	const templateID int64 = 7
-	monitorIDs := []int64{41, 42}
+	const templateID = "template-7"
+	monitorIDs := []string{"monitor-41", "monitor-42"}
 
 	mock.ExpectBegin()
 	expectChannelMonitorTemplateForApply(mock, templateID)
@@ -45,7 +45,7 @@ func TestApplyChannelMonitorTemplatePreservesDuplicateOperationMetadataAtomicall
 			`{"User-Agent":"template-client"}`,
 			service.ChannelMonitorDuplicateOperationIDMetadataKey,
 			templateID,
-			`{41,42}`,
+			`{monitor-41,monitor-42}`,
 			service.MonitorProviderOpenAI,
 			service.MonitorAPIModeResponses,
 		).
@@ -67,7 +67,7 @@ func TestApplyChannelMonitorTemplateRollsBackWhenHeaderRowCountDiffers(t *testin
 	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	t.Cleanup(func() { _ = client.Close() })
 
-	const templateID int64 = 7
+	const templateID = "template-7"
 
 	mock.ExpectBegin()
 	expectChannelMonitorTemplateForApply(mock, templateID)
@@ -78,7 +78,7 @@ func TestApplyChannelMonitorTemplateRollsBackWhenHeaderRowCountDiffers(t *testin
 			`{"User-Agent":"template-client"}`,
 			service.ChannelMonitorDuplicateOperationIDMetadataKey,
 			templateID,
-			`{41,42}`,
+			`{monitor-41,monitor-42}`,
 			service.MonitorProviderOpenAI,
 			service.MonitorAPIModeResponses,
 		).
@@ -86,14 +86,14 @@ func TestApplyChannelMonitorTemplateRollsBackWhenHeaderRowCountDiffers(t *testin
 	mock.ExpectRollback()
 
 	repo := NewChannelMonitorRequestTemplateRepository(client, db)
-	affected, err := repo.ApplyToMonitors(context.Background(), templateID, []int64{41, 42})
+	affected, err := repo.ApplyToMonitors(context.Background(), templateID, []string{"monitor-41", "monitor-42"})
 
 	require.Zero(t, affected)
 	require.EqualError(t, err, "apply template headers: affected 1 rows, expected 2")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func expectChannelMonitorTemplateForApply(mock sqlmock.Sqlmock, templateID int64) {
+func expectChannelMonitorTemplateForApply(mock sqlmock.Sqlmock, templateID string) {
 	now := time.Now()
 	mock.ExpectQuery(`(?s)SELECT .* FROM "channel_monitor_request_templates" WHERE "channel_monitor_request_templates"\."id" = \$1 LIMIT 2`).
 		WithArgs(templateID).

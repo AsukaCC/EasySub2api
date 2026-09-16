@@ -20,10 +20,10 @@ import (
 // stubJWTUserRepo 实现 UserRepository 的最小子集，仅支持 GetByID。
 type stubJWTUserRepo struct {
 	service.UserRepository
-	users map[int64]*service.User
+	users map[string]*service.User
 }
 
-func (r *stubJWTUserRepo) GetByID(_ context.Context, id int64) (*service.User, error) {
+func (r *stubJWTUserRepo) GetByID(_ context.Context, id string) (*service.User, error) {
 	u, ok := r.users[id]
 	if !ok {
 		return nil, errors.New("user not found")
@@ -31,16 +31,16 @@ func (r *stubJWTUserRepo) GetByID(_ context.Context, id int64) (*service.User, e
 	return u, nil
 }
 
-func (r *stubJWTUserRepo) GetUserAvatar(_ context.Context, _ int64) (*service.UserAvatar, error) {
+func (r *stubJWTUserRepo) GetUserAvatar(_ context.Context, _ string) (*service.UserAvatar, error) {
 	return nil, nil
 }
 
-func (r *stubJWTUserRepo) UpdateUserLastActiveAt(_ context.Context, _ int64, _ time.Time) error {
+func (r *stubJWTUserRepo) UpdateUserLastActiveAt(_ context.Context, _ string, _ time.Time) error {
 	return nil
 }
 
 type recordingActivityToucher struct {
-	userIDs []int64
+	userIDs []string
 }
 
 func (r *recordingActivityToucher) TouchLastActiveForUser(_ context.Context, user *service.User) {
@@ -52,7 +52,7 @@ func (r *recordingActivityToucher) TouchLastActiveForUser(_ context.Context, use
 
 // newJWTTestEnv 创建 JWT 认证中间件测试环境。
 // 返回 gin.Engine（已注册 JWT 中间件）和 AuthService（用于生成 Token）。
-func newJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service.AuthService) {
+func newJWTTestEnv(users map[string]*service.User) (*gin.Engine, *service.AuthService) {
 	gin.SetMode(gin.TestMode)
 
 	cfg := &config.Config{}
@@ -79,14 +79,14 @@ func newJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service.AuthSer
 
 func TestJWTAuth_ValidToken(t *testing.T) {
 	user := &service.User{
-		ID:           1,
+		ID:           "user-1",
 		Email:        "test@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
 		Concurrency:  5,
 		TokenVersion: 1,
 	}
-	router, authSvc := newJWTTestEnv(map[int64]*service.User{1: user})
+	router, authSvc := newJWTTestEnv(map[string]*service.User{"user-1": user})
 
 	token, err := authSvc.GenerateToken(context.Background(), user)
 	require.NoError(t, err)
@@ -100,20 +100,20 @@ func TestJWTAuth_ValidToken(t *testing.T) {
 
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-	require.Equal(t, float64(1), body["user_id"])
+	require.Equal(t, "user-1", body["user_id"])
 	require.Equal(t, "user", body["role"])
 }
 
 func TestJWTAuth_ValidToken_LowercaseBearer(t *testing.T) {
 	user := &service.User{
-		ID:           1,
+		ID:           "user-1",
 		Email:        "test@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
 		Concurrency:  5,
 		TokenVersion: 1,
 	}
-	router, authSvc := newJWTTestEnv(map[int64]*service.User{1: user})
+	router, authSvc := newJWTTestEnv(map[string]*service.User{"user-1": user})
 
 	token, err := authSvc.GenerateToken(context.Background(), user)
 	require.NoError(t, err)
@@ -128,7 +128,7 @@ func TestJWTAuth_ValidToken_LowercaseBearer(t *testing.T) {
 
 func TestJWTAuth_ValidToken_TouchesLastActive(t *testing.T) {
 	user := &service.User{
-		ID:           1,
+		ID:           "user-1",
 		Email:        "test@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
@@ -142,7 +142,7 @@ func TestJWTAuth_ValidToken_TouchesLastActive(t *testing.T) {
 	cfg.JWT.Secret = "test-jwt-secret-32bytes-long!!!"
 	cfg.JWT.AccessTokenExpireMinutes = 60
 
-	userRepo := &stubJWTUserRepo{users: map[int64]*service.User{1: user}}
+	userRepo := &stubJWTUserRepo{users: map[string]*service.User{"user-1": user}}
 	authSvc := service.NewAuthService(nil, userRepo, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
 	userSvc := service.NewUserService(userRepo, nil, nil, nil)
 	toucher := &recordingActivityToucher{}
@@ -162,7 +162,7 @@ func TestJWTAuth_ValidToken_TouchesLastActive(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, []int64{1}, toucher.userIDs)
+	require.Equal(t, []string{"user-1"}, toucher.userIDs)
 }
 
 func TestJWTAuth_MissingAuthorizationHeader(t *testing.T) {
@@ -235,14 +235,14 @@ func TestJWTAuth_TamperedToken(t *testing.T) {
 func TestJWTAuth_UserNotFound(t *testing.T) {
 	// 使用 user ID=1 的 token，但 repo 中没有该用户
 	fakeUser := &service.User{
-		ID:           999,
+		ID:           "user-999",
 		Email:        "ghost@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
 		TokenVersion: 1,
 	}
 	// 创建环境时不注入此用户，这样 GetByID 会失败
-	router, authSvc := newJWTTestEnv(map[int64]*service.User{})
+	router, authSvc := newJWTTestEnv(map[string]*service.User{})
 
 	token, err := authSvc.GenerateToken(context.Background(), fakeUser)
 	require.NoError(t, err)
@@ -260,13 +260,13 @@ func TestJWTAuth_UserNotFound(t *testing.T) {
 
 func TestJWTAuth_UserInactive(t *testing.T) {
 	user := &service.User{
-		ID:           1,
+		ID:           "user-1",
 		Email:        "disabled@example.com",
 		Role:         "user",
 		Status:       service.StatusDisabled,
 		TokenVersion: 1,
 	}
-	router, authSvc := newJWTTestEnv(map[int64]*service.User{1: user})
+	router, authSvc := newJWTTestEnv(map[string]*service.User{"user-1": user})
 
 	token, err := authSvc.GenerateToken(context.Background(), user)
 	require.NoError(t, err)
@@ -285,20 +285,20 @@ func TestJWTAuth_UserInactive(t *testing.T) {
 func TestJWTAuth_TokenVersionMismatch(t *testing.T) {
 	// Token 生成时 TokenVersion=1，但数据库中用户已更新为 TokenVersion=2（密码修改）
 	userForToken := &service.User{
-		ID:           1,
+		ID:           "user-1",
 		Email:        "test@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
 		TokenVersion: 1,
 	}
 	userInDB := &service.User{
-		ID:           1,
+		ID:           "user-1",
 		Email:        "test@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
 		TokenVersion: 2, // 密码修改后版本递增
 	}
-	router, authSvc := newJWTTestEnv(map[int64]*service.User{1: userInDB})
+	router, authSvc := newJWTTestEnv(map[string]*service.User{"user-1": userInDB})
 
 	token, err := authSvc.GenerateToken(context.Background(), userForToken)
 	require.NoError(t, err)

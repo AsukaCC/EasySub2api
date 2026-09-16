@@ -9,9 +9,9 @@ import (
 )
 
 func TestEnrichShadowParentInfo(t *testing.T) {
-	pid := int64(100)
+	pid := "account-100"
 	parent := &service.Account{
-		ID: 100,
+		ID: "account-100",
 		Credentials: map[string]any{
 			"email":                   "owner@example.com",
 			"plan_type":               "pro",
@@ -20,11 +20,11 @@ func TestEnrichShadowParentInfo(t *testing.T) {
 		},
 		Extra: map[string]any{"privacy_mode": "training_off"},
 	}
-	parents := map[int64]*service.Account{100: parent}
+	parents := map[string]*service.Account{"account-100": parent}
 
-	shadow := AccountWithConcurrency{Account: &dto.Account{ID: 200, ParentAccountID: &pid}}
-	normal := AccountWithConcurrency{Account: &dto.Account{ID: 1}}
-	orphan := AccountWithConcurrency{Account: &dto.Account{ID: 201, ParentAccountID: ptrInt64(999)}}
+	shadow := AccountWithConcurrency{Account: &dto.Account{ID: "account-200", ParentAccountID: &pid}}
+	normal := AccountWithConcurrency{Account: &dto.Account{ID: "account-1"}}
+	orphan := AccountWithConcurrency{Account: &dto.Account{ID: "account-201", ParentAccountID: ptrString("account-999")}}
 	items := []AccountWithConcurrency{shadow, normal, orphan}
 
 	enrichShadowParentInfo(items, parents)
@@ -39,4 +39,4 @@ func TestEnrichShadowParentInfo(t *testing.T) {
 	require.Empty(t, items[2].ParentEmail, "母账号缺失时优雅留空")
 }
 
-func ptrInt64(v int64) *int64 { return &v }
+func ptrString(v string) *string { return &v }

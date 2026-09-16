@@ -40,7 +40,7 @@ func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, platform ...string
 			AsyncImage:    handler.NewAsyncImageHandler(nil, nil),
 		},
 		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
-			groupID := int64(1)
+			groupID := "group-1"
 			c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 				GroupID: &groupID,
 				Group:   &service.Group{Platform: groupPlatform},

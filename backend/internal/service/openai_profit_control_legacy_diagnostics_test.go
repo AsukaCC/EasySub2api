@@ -29,7 +29,7 @@ func legacyProfitDiagnosticAccount(id int64) *Account {
 }
 
 func TestSelectAccountWithScheduler_LegacyProfitDiagnostics(t *testing.T) {
-	groupID := int64(5313)
+	groupID := "group-5313"
 	ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
 
 	t.Run("threshold reports deterministic pool count", func(t *testing.T) {

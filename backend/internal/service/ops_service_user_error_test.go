@@ -29,7 +29,7 @@ func (s *stubOpsRepoForUserErr) ListErrorLogs(ctx context.Context, f *OpsErrorLo
 	}, nil
 }
 
-func (s *stubOpsRepoForUserErr) GetErrorLogByID(ctx context.Context, id int64) (*OpsErrorLogDetail, error) {
+func (s *stubOpsRepoForUserErr) GetErrorLogByID(ctx context.Context, id string) (*OpsErrorLogDetail, error) {
 	if s.detailErrToReturn != nil {
 		return nil, s.detailErrToReturn
 	}
@@ -39,8 +39,8 @@ func (s *stubOpsRepoForUserErr) GetErrorLogByID(ctx context.Context, id int64) (
 func TestListUserErrorRequests_ForcesScopeAndRedacts(t *testing.T) {
 	stub := &stubOpsRepoForUserErr{}
 	svc := &OpsService{opsRepo: stub}
-	uid := int64(42)
-	kid := int64(7)
+	uid := "user-42"
+	kid := "api-key-7"
 	in := &OpsErrorLogFilter{UserID: nil, View: "errors", Phase: "upstream", APIKeyID: &kid}
 	out, err := svc.ListUserErrorRequests(context.Background(), uid, in)
 	if err != nil {
@@ -77,13 +77,13 @@ func TestListUserErrorRequests_ForcesScopeAndRedacts(t *testing.T) {
 }
 
 func TestGetUserErrorRequestDetail_OwnershipEnforced(t *testing.T) {
-	ownerUID := int64(999)
-	callerUID := int64(1)
+	ownerUID := "user-999"
+	callerUID := "user-1"
 	upstreamStatus := 503
 
 	detail := &OpsErrorLogDetail{
 		OpsErrorLog: OpsErrorLog{
-			ID:              42,
+			ID:              "error-42",
 			Phase:           "upstream",
 			Type:            "api_error",
 			Model:           "gpt-4",
@@ -102,7 +102,7 @@ func TestGetUserErrorRequestDetail_OwnershipEnforced(t *testing.T) {
 	svc := &OpsService{opsRepo: stub}
 
 	// 越权调用（callerUID=1,但记录属于 ownerUID=999）→ 应返回 NotFound,detail 为 nil
-	got, err := svc.GetUserErrorRequestDetail(context.Background(), callerUID, 42)
+	got, err := svc.GetUserErrorRequestDetail(context.Background(), callerUID, "error-42")
 	if err == nil {
 		t.Fatal("expected error for unauthorized access, got nil")
 	}
@@ -115,15 +115,15 @@ func TestGetUserErrorRequestDetail_OwnershipEnforced(t *testing.T) {
 	}
 
 	// 合法调用（callerUID=999 = ownerUID）→ 应返回 non-nil detail
-	got2, err2 := svc.GetUserErrorRequestDetail(context.Background(), ownerUID, 42)
+	got2, err2 := svc.GetUserErrorRequestDetail(context.Background(), ownerUID, "error-42")
 	if err2 != nil {
 		t.Fatalf("expected no error for legitimate access, got %v", err2)
 	}
 	if got2 == nil {
 		t.Fatal("expected non-nil detail for legitimate access")
 	}
-	if got2.ID != 42 {
-		t.Errorf("want ID=42, got %d", got2.ID)
+	if got2.ID != "error-42" {
+		t.Errorf("want ID=error-42, got %s", got2.ID)
 	}
 	if got2.ErrorBody != `{"error":"upstream"}` {
 		t.Errorf("want ErrorBody=%q, got %q", `{"error":"upstream"}`, got2.ErrorBody)
@@ -140,7 +140,7 @@ func TestGetUserErrorRequestDetail_NotFound(t *testing.T) {
 	stub := &stubOpsRepoForUserErr{detailErrToReturn: sql.ErrNoRows}
 	svc := &OpsService{opsRepo: stub}
 
-	got, err := svc.GetUserErrorRequestDetail(context.Background(), 1, 999)
+	got, err := svc.GetUserErrorRequestDetail(context.Background(), "user-1", "error-999")
 	if err == nil {
 		t.Fatal("expected error for not found, got nil")
 	}
@@ -153,12 +153,8 @@ func TestGetUserErrorRequestDetail_InvalidID(t *testing.T) {
 	stub := &stubOpsRepoForUserErr{}
 	svc := &OpsService{opsRepo: stub}
 
-	_, err := svc.GetUserErrorRequestDetail(context.Background(), 1, 0)
+	_, err := svc.GetUserErrorRequestDetail(context.Background(), "user-1", "")
 	if err == nil {
 		t.Fatal("expected error for id=0")
-	}
-	_, err = svc.GetUserErrorRequestDetail(context.Background(), 1, -5)
-	if err == nil {
-		t.Fatal("expected error for id=-5")
 	}
 }

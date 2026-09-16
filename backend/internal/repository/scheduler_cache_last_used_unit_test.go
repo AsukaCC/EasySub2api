@@ -4,6 +4,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,13 +19,13 @@ func TestSchedulerCacheUpdateLastUsedUsesSideKeyWithoutRewritingPayloads(t *test
 	ctx := context.Background()
 	cache := newSchedulerCacheUnit(t)
 	bucket := service.SchedulerBucket{
-		GroupID:  9,
+		GroupID:  "group-9",
 		Platform: service.PlatformGrok,
 		Mode:     service.SchedulerModeSingle,
 	}
 	initial := time.Now().UTC().Truncate(time.Millisecond).Add(-time.Hour)
 	account := service.Account{
-		ID:          9201,
+		ID:          "account-9201",
 		Name:        "grok-large-oauth",
 		Platform:    service.PlatformGrok,
 		Type:        service.AccountTypeOAuth,
@@ -41,14 +42,14 @@ func TestSchedulerCacheUpdateLastUsedUsesSideKeyWithoutRewritingPayloads(t *test
 	require.NoError(t, err)
 	require.NoError(t, cache.SetSnapshot(ctx, bucket, token, []service.Account{account}))
 
-	id := strconv.FormatInt(account.ID, 10)
+	id := account.ID
 	fullBefore, err := cache.rdb.Get(ctx, schedulerAccountKey(id)).Bytes()
 	require.NoError(t, err)
 	metaBefore, err := cache.rdb.Get(ctx, schedulerAccountMetaKey(id)).Bytes()
 	require.NoError(t, err)
 
 	latest := initial.Add(37 * time.Second)
-	require.NoError(t, cache.UpdateLastUsed(ctx, map[int64]time.Time{account.ID: latest}))
+	require.NoError(t, cache.UpdateLastUsed(ctx, map[string]time.Time{account.ID: latest}))
 
 	fullAfter, err := cache.rdb.Get(ctx, schedulerAccountKey(id)).Bytes()
 	require.NoError(t, err)
@@ -75,24 +76,24 @@ func TestSchedulerCacheUpdateLastUsedUsesSideKeyWithoutRewritingPayloads(t *test
 func TestSchedulerCacheLastUsedSideKeyIsMonotonicAndRequiresAccount(t *testing.T) {
 	ctx := context.Background()
 	cache := newSchedulerCacheUnit(t)
-	account := service.Account{ID: 9202, Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
+	account := service.Account{ID: "account-9202", Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
 	require.NoError(t, cache.SetAccount(ctx, &account))
 
 	newer := time.Now().UTC().Truncate(time.Millisecond)
 	older := newer.Add(-time.Minute)
-	require.NoError(t, cache.UpdateLastUsed(ctx, map[int64]time.Time{account.ID: newer}))
-	require.NoError(t, cache.UpdateLastUsed(ctx, map[int64]time.Time{account.ID: older}))
+	require.NoError(t, cache.UpdateLastUsed(ctx, map[string]time.Time{account.ID: newer}))
+	require.NoError(t, cache.UpdateLastUsed(ctx, map[string]time.Time{account.ID: older}))
 
-	id := strconv.FormatInt(account.ID, 10)
+	id := account.ID
 	require.Equal(t, strconv.FormatInt(newer.UnixMilli(), 10), cache.rdb.Get(ctx, schedulerLastUsedKey(id)).Val())
 	cached, err := cache.GetAccount(ctx, account.ID)
 	require.NoError(t, err)
 	require.NotNil(t, cached)
 	require.Equal(t, newer, *cached.LastUsedAt)
 
-	const missingID int64 = 9299
-	require.NoError(t, cache.UpdateLastUsed(ctx, map[int64]time.Time{missingID: newer}))
-	_, err = cache.rdb.Get(ctx, schedulerLastUsedKey(strconv.FormatInt(missingID, 10))).Result()
+	const missingID = "account-9299"
+	require.NoError(t, cache.UpdateLastUsed(ctx, map[string]time.Time{missingID: newer}))
+	_, err = cache.rdb.Get(ctx, schedulerLastUsedKey(missingID)).Result()
 	require.ErrorIs(t, err, redis.Nil)
 
 	require.NoError(t, cache.DeleteAccount(ctx, account.ID))
@@ -105,14 +106,14 @@ func TestSchedulerCacheLastUsedSideKeyFallsBackToNewerEmbeddedValue(t *testing.T
 	cache := newSchedulerCacheUnit(t)
 	embedded := time.Now().UTC().Truncate(time.Millisecond)
 	account := service.Account{
-		ID:         9203,
+		ID:         "account-9203",
 		Platform:   service.PlatformGrok,
 		Type:       service.AccountTypeOAuth,
 		LastUsedAt: &embedded,
 	}
 	require.NoError(t, cache.SetAccount(ctx, &account))
 
-	id := strconv.FormatInt(account.ID, 10)
+	id := account.ID
 	require.NoError(t, cache.rdb.Set(ctx, schedulerLastUsedKey(id), embedded.Add(-time.Hour).UnixMilli(), 0).Err())
 	cached, err := cache.GetAccount(ctx, account.ID)
 	require.NoError(t, err)
@@ -124,28 +125,28 @@ func TestSchedulerCacheLastUsedSideKeySurvivesStaleAccountAndSnapshotWrites(t *t
 	ctx := context.Background()
 	cache := newSchedulerCacheUnit(t)
 	bucket := service.SchedulerBucket{
-		GroupID:  10,
+		GroupID:  "group-10",
 		Platform: service.PlatformGrok,
 		Mode:     service.SchedulerModeSingle,
 	}
 	embedded := time.Now().UTC().Truncate(time.Millisecond).Add(-time.Minute)
 	latest := embedded.Add(30 * time.Second)
 	account := service.Account{
-		ID:          9204,
+		ID:          "account-9204",
 		Platform:    service.PlatformGrok,
 		Type:        service.AccountTypeOAuth,
 		Schedulable: true,
 		LastUsedAt:  &embedded,
 	}
 	require.NoError(t, cache.SetAccount(ctx, &account))
-	require.NoError(t, cache.UpdateLastUsed(ctx, map[int64]time.Time{account.ID: latest}))
+	require.NoError(t, cache.UpdateLastUsed(ctx, map[string]time.Time{account.ID: latest}))
 
 	require.NoError(t, cache.SetAccount(ctx, &account))
 	token, err := cache.CaptureBucketWriteToken(ctx, bucket)
 	require.NoError(t, err)
 	require.NoError(t, cache.SetSnapshot(ctx, bucket, token, []service.Account{account}))
 
-	id := strconv.FormatInt(account.ID, 10)
+	id := account.ID
 	require.Equal(t, strconv.FormatInt(latest.UnixMilli(), 10), cache.rdb.Get(ctx, schedulerLastUsedKey(id)).Val())
 	cached, err := cache.GetAccount(ctx, account.ID)
 	require.NoError(t, err)
@@ -163,10 +164,10 @@ func TestSchedulerCacheUpdateLastUsedChunksLargeBatches(t *testing.T) {
 	cache := newSchedulerCacheUnit(t)
 	total := schedulerLastUsedUpdateChunkSize + 1
 	accounts := make([]service.Account, 0, total)
-	updates := make(map[int64]time.Time, total)
+	updates := make(map[string]time.Time, total)
 	base := time.Now().UTC().Truncate(time.Millisecond)
 	for i := 0; i < total; i++ {
-		id := int64(9300 + i)
+		id := fmt.Sprintf("account-%d", 9300+i)
 		accounts = append(accounts, service.Account{ID: id, Platform: service.PlatformGrok})
 		updates[id] = base.Add(time.Duration(i) * time.Millisecond)
 	}
@@ -177,7 +178,7 @@ func TestSchedulerCacheUpdateLastUsedChunksLargeBatches(t *testing.T) {
 	require.NoError(t, cache.UpdateLastUsed(ctx, updates))
 
 	for id, usedAt := range updates {
-		key := schedulerLastUsedKey(strconv.FormatInt(id, 10))
+		key := schedulerLastUsedKey(id)
 		require.Equal(t, strconv.FormatInt(usedAt.UnixMilli(), 10), cache.rdb.Get(ctx, key).Val())
 	}
 }

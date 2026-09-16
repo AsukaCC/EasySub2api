@@ -20,7 +20,7 @@ func TestAuthHandlerRevokeAllSessionsInvalidatesAccessTokens(t *testing.T) {
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:           29,
+			ID:           "29000000-0000-0000-0000-000000000029",
 			Email:        "session@example.com",
 			Username:     "session-user",
 			Role:         service.RoleUser,
@@ -41,12 +41,12 @@ func TestAuthHandlerRevokeAllSessionsInvalidatesAccessTokens(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/auth/revoke-all-sessions", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 29})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "29000000-0000-0000-0000-000000000029"})
 
 	handler.RevokeAllSessions(c)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
-	require.Equal(t, []int64{29}, refreshTokenCache.revokedUserIDs)
+	require.Equal(t, []string{"29000000-0000-0000-0000-000000000029"}, refreshTokenCache.revokedUserIDs)
 	// users 表没有 token_version 列（见 resolvedTokenVersion：JWT 里的值由
 	// email+password_hash 指纹推导），所以自增 TokenVersion 只停留在内存里。
 	// 此前紧跟其后的整行 Update 不写任何有效数据，却会用旧快照覆盖并发写入的列，

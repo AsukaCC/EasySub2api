@@ -43,7 +43,7 @@ func TestUsageCleanupRepositoryEntCreateAndList(t *testing.T) {
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
 		Filters:   service.UsageCleanupFilters{StartTime: start, EndTime: end},
-		CreatedBy: 9,
+		CreatedBy: "user-9",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task))
 	require.NotZero(t, task.ID)
@@ -51,7 +51,7 @@ func TestUsageCleanupRepositoryEntCreateAndList(t *testing.T) {
 	task2 := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusRunning,
 		Filters:   service.UsageCleanupFilters{StartTime: start.Add(-24 * time.Hour), EndTime: end.Add(-24 * time.Hour)},
-		CreatedBy: 10,
+		CreatedBy: "user-10",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task2))
 
@@ -59,7 +59,7 @@ func TestUsageCleanupRepositoryEntCreateAndList(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, tasks, 2)
 	require.Equal(t, int64(2), result.Total)
-	require.Greater(t, tasks[0].ID, tasks[1].ID)
+	require.NotEqual(t, tasks[0].ID, tasks[1].ID)
 	require.Equal(t, start, tasks[1].Filters.StartTime)
 	require.Equal(t, end, tasks[1].Filters.EndTime)
 }
@@ -79,7 +79,7 @@ func TestUsageCleanupRepositoryEntGetStatusAndProgress(t *testing.T) {
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
 		Filters:   service.UsageCleanupFilters{StartTime: time.Now().UTC(), EndTime: time.Now().UTC().Add(time.Hour)},
-		CreatedBy: 3,
+		CreatedBy: "user-3",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task))
 
@@ -87,7 +87,7 @@ func TestUsageCleanupRepositoryEntGetStatusAndProgress(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, service.UsageCleanupStatusPending, status)
 
-	_, err = repo.GetTaskStatus(context.Background(), task.ID+99)
+	_, err = repo.GetTaskStatus(context.Background(), task.ID+"-missing")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	require.NoError(t, repo.UpdateTaskProgress(context.Background(), task.ID, 42))
@@ -102,11 +102,11 @@ func TestUsageCleanupRepositoryEntCancelAndFinish(t *testing.T) {
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
 		Filters:   service.UsageCleanupFilters{StartTime: time.Now().UTC(), EndTime: time.Now().UTC().Add(time.Hour)},
-		CreatedBy: 5,
+		CreatedBy: "user-5",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task))
 
-	ok, err := repo.CancelTask(context.Background(), task.ID, 7)
+	ok, err := repo.CancelTask(context.Background(), task.ID, "user-7")
 	require.NoError(t, err)
 	require.True(t, ok)
 
@@ -121,7 +121,7 @@ func TestUsageCleanupRepositoryEntCancelAndFinish(t *testing.T) {
 	_, err = client.UsageCleanupTask.Update().Where(dbusagecleanuptask.IDEQ(task.ID)).SetStatus(loaded.Status).Save(context.Background())
 	require.NoError(t, err)
 
-	ok, err = repo.CancelTask(context.Background(), task.ID, 7)
+	ok, err = repo.CancelTask(context.Background(), task.ID, "user-7")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -132,12 +132,12 @@ func TestUsageCleanupRepositoryEntCancelError(t *testing.T) {
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusPending,
 		Filters:   service.UsageCleanupFilters{StartTime: time.Now().UTC(), EndTime: time.Now().UTC().Add(time.Hour)},
-		CreatedBy: 5,
+		CreatedBy: "user-5",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task))
 
 	require.NoError(t, client.Close())
-	_, err := repo.CancelTask(context.Background(), task.ID, 7)
+	_, err := repo.CancelTask(context.Background(), task.ID, "user-7")
 	require.Error(t, err)
 }
 
@@ -147,7 +147,7 @@ func TestUsageCleanupRepositoryEntMarkResults(t *testing.T) {
 	task := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusRunning,
 		Filters:   service.UsageCleanupFilters{StartTime: time.Now().UTC(), EndTime: time.Now().UTC().Add(time.Hour)},
-		CreatedBy: 12,
+		CreatedBy: "user-12",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task))
 
@@ -161,7 +161,7 @@ func TestUsageCleanupRepositoryEntMarkResults(t *testing.T) {
 	task2 := &service.UsageCleanupTask{
 		Status:    service.UsageCleanupStatusRunning,
 		Filters:   service.UsageCleanupFilters{StartTime: time.Now().UTC(), EndTime: time.Now().UTC().Add(time.Hour)},
-		CreatedBy: 12,
+		CreatedBy: "user-12",
 	}
 	require.NoError(t, repo.CreateTask(context.Background(), task2))
 
@@ -178,7 +178,7 @@ func TestUsageCleanupRepositoryEntInvalidStatus(t *testing.T) {
 	task := &service.UsageCleanupTask{
 		Status:    "invalid",
 		Filters:   service.UsageCleanupFilters{StartTime: time.Now().UTC(), EndTime: time.Now().UTC().Add(time.Hour)},
-		CreatedBy: 1,
+		CreatedBy: "user-1",
 	}
 	require.Error(t, repo.CreateTask(context.Background(), task))
 }
@@ -195,7 +195,7 @@ func TestUsageCleanupRepositoryEntListInvalidFilters(t *testing.T) {
 		VALUES (?, ?, ?, ?, ?, ?)`,
 		service.UsageCleanupStatusPending,
 		[]byte("invalid-json"),
-		int64(1),
+		"user-1",
 		int64(0),
 		now,
 		now,
@@ -210,7 +210,7 @@ func TestUsageCleanupTaskFromEntFull(t *testing.T) {
 	start := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
 	errMsg := "failed"
-	canceledBy := int64(2)
+	canceledBy := "user-2"
 	canceledAt := start.Add(time.Minute)
 	startedAt := start.Add(2 * time.Minute)
 	finishedAt := start.Add(3 * time.Minute)
@@ -219,10 +219,10 @@ func TestUsageCleanupTaskFromEntFull(t *testing.T) {
 	require.NoError(t, err)
 
 	task, err := usageCleanupTaskFromEnt(&dbent.UsageCleanupTask{
-		ID:           10,
+		ID:           "task-10",
 		Status:       service.UsageCleanupStatusFailed,
 		Filters:      filtersJSON,
-		CreatedBy:    11,
+		CreatedBy:    "user-11",
 		DeletedRows:  7,
 		ErrorMessage: &errMsg,
 		CanceledBy:   &canceledBy,
@@ -233,7 +233,7 @@ func TestUsageCleanupTaskFromEntFull(t *testing.T) {
 		UpdatedAt:    end,
 	})
 	require.NoError(t, err)
-	require.Equal(t, int64(10), task.ID)
+	require.Equal(t, "task-10", task.ID)
 	require.Equal(t, service.UsageCleanupStatusFailed, task.Status)
 	require.NotNil(t, task.ErrorMsg)
 	require.NotNil(t, task.CanceledBy)

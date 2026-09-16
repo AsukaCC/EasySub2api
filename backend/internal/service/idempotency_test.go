@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -63,7 +64,7 @@ func (r *inMemoryIdempotencyRepo) CreateProcessing(_ context.Context, record *Id
 		return false, nil
 	}
 	rec := cloneRecord(record)
-	rec.ID = r.nextID
+	rec.ID = fmt.Sprintf("idempotency-%d", r.nextID)
 	rec.CreatedAt = time.Now()
 	rec.UpdatedAt = rec.CreatedAt
 	r.nextID++
@@ -80,7 +81,7 @@ func (r *inMemoryIdempotencyRepo) GetByScopeAndKeyHash(_ context.Context, scope,
 	return cloneRecord(r.data[r.key(scope, keyHash)]), nil
 }
 
-func (r *inMemoryIdempotencyRepo) TryReclaim(_ context.Context, id int64, fromStatus string, now, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *inMemoryIdempotencyRepo) TryReclaim(_ context.Context, id string, fromStatus string, now, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -103,7 +104,7 @@ func (r *inMemoryIdempotencyRepo) TryReclaim(_ context.Context, id int64, fromSt
 	return false, nil
 }
 
-func (r *inMemoryIdempotencyRepo) ExtendProcessingLock(_ context.Context, id int64, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *inMemoryIdempotencyRepo) ExtendProcessingLock(_ context.Context, id string, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -122,7 +123,7 @@ func (r *inMemoryIdempotencyRepo) ExtendProcessingLock(_ context.Context, id int
 	return false, nil
 }
 
-func (r *inMemoryIdempotencyRepo) MarkSucceeded(_ context.Context, id int64, responseStatus int, responseBody string, expiresAt time.Time) error {
+func (r *inMemoryIdempotencyRepo) MarkSucceeded(_ context.Context, id string, responseStatus int, responseBody string, expiresAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -141,7 +142,7 @@ func (r *inMemoryIdempotencyRepo) MarkSucceeded(_ context.Context, id int64, res
 	return errors.New("record not found")
 }
 
-func (r *inMemoryIdempotencyRepo) MarkFailedRetryable(_ context.Context, id int64, errorReason string, lockedUntil, expiresAt time.Time) error {
+func (r *inMemoryIdempotencyRepo) MarkFailedRetryable(_ context.Context, id string, errorReason string, lockedUntil, expiresAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -407,16 +408,16 @@ func (failingIdempotencyRepo) CreateProcessing(context.Context, *IdempotencyReco
 func (failingIdempotencyRepo) GetByScopeAndKeyHash(context.Context, string, string) (*IdempotencyRecord, error) {
 	return nil, errors.New("store unavailable")
 }
-func (failingIdempotencyRepo) TryReclaim(context.Context, int64, string, time.Time, time.Time, time.Time) (bool, error) {
+func (failingIdempotencyRepo) TryReclaim(context.Context, string, string, time.Time, time.Time, time.Time) (bool, error) {
 	return false, errors.New("store unavailable")
 }
-func (failingIdempotencyRepo) ExtendProcessingLock(context.Context, int64, string, time.Time, time.Time) (bool, error) {
+func (failingIdempotencyRepo) ExtendProcessingLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return false, errors.New("store unavailable")
 }
-func (failingIdempotencyRepo) MarkSucceeded(context.Context, int64, int, string, time.Time) error {
+func (failingIdempotencyRepo) MarkSucceeded(context.Context, string, int, string, time.Time) error {
 	return errors.New("store unavailable")
 }
-func (failingIdempotencyRepo) MarkFailedRetryable(context.Context, int64, string, time.Time, time.Time) error {
+func (failingIdempotencyRepo) MarkFailedRetryable(context.Context, string, string, time.Time, time.Time) error {
 	return errors.New("store unavailable")
 }
 func (failingIdempotencyRepo) DeleteExpired(context.Context, time.Time, int) (int64, error) {
@@ -451,7 +452,7 @@ func newUTF8RejectingIdempotencyRepo() *utf8RejectingIdempotencyRepo {
 	return &utf8RejectingIdempotencyRepo{inMemoryIdempotencyRepo: *newInMemoryIdempotencyRepo()}
 }
 
-func (r *utf8RejectingIdempotencyRepo) MarkSucceeded(ctx context.Context, id int64, responseStatus int, responseBody string, expiresAt time.Time) error {
+func (r *utf8RejectingIdempotencyRepo) MarkSucceeded(ctx context.Context, id string, responseStatus int, responseBody string, expiresAt time.Time) error {
 	if !utf8.ValidString(responseBody) {
 		return errors.New(`pq: invalid byte sequence for encoding "UTF8": 0xe8 0xb4 0x2e`)
 	}
@@ -584,14 +585,14 @@ func (noIDOwnerRepo) CreateProcessing(context.Context, *IdempotencyRecord) (bool
 func (noIDOwnerRepo) GetByScopeAndKeyHash(context.Context, string, string) (*IdempotencyRecord, error) {
 	return nil, nil
 }
-func (noIDOwnerRepo) TryReclaim(context.Context, int64, string, time.Time, time.Time, time.Time) (bool, error) {
+func (noIDOwnerRepo) TryReclaim(context.Context, string, string, time.Time, time.Time, time.Time) (bool, error) {
 	return false, nil
 }
-func (noIDOwnerRepo) ExtendProcessingLock(context.Context, int64, string, time.Time, time.Time) (bool, error) {
+func (noIDOwnerRepo) ExtendProcessingLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return false, nil
 }
-func (noIDOwnerRepo) MarkSucceeded(context.Context, int64, int, string, time.Time) error { return nil }
-func (noIDOwnerRepo) MarkFailedRetryable(context.Context, int64, string, time.Time, time.Time) error {
+func (noIDOwnerRepo) MarkSucceeded(context.Context, string, int, string, time.Time) error { return nil }
+func (noIDOwnerRepo) MarkFailedRetryable(context.Context, string, string, time.Time, time.Time) error {
 	return nil
 }
 func (noIDOwnerRepo) DeleteExpired(context.Context, time.Time, int) (int64, error) { return 0, nil }
@@ -644,19 +645,19 @@ func (r *conflictBranchRepo) CreateProcessing(context.Context, *IdempotencyRecor
 func (r *conflictBranchRepo) GetByScopeAndKeyHash(context.Context, string, string) (*IdempotencyRecord, error) {
 	return cloneRecord(r.existing), nil
 }
-func (r *conflictBranchRepo) TryReclaim(context.Context, int64, string, time.Time, time.Time, time.Time) (bool, error) {
+func (r *conflictBranchRepo) TryReclaim(context.Context, string, string, time.Time, time.Time, time.Time) (bool, error) {
 	if r.tryReclaimErr != nil {
 		return false, r.tryReclaimErr
 	}
 	return r.tryReclaimOK, nil
 }
-func (r *conflictBranchRepo) ExtendProcessingLock(context.Context, int64, string, time.Time, time.Time) (bool, error) {
+func (r *conflictBranchRepo) ExtendProcessingLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return false, nil
 }
-func (r *conflictBranchRepo) MarkSucceeded(context.Context, int64, int, string, time.Time) error {
+func (r *conflictBranchRepo) MarkSucceeded(context.Context, string, int, string, time.Time) error {
 	return nil
 }
-func (r *conflictBranchRepo) MarkFailedRetryable(context.Context, int64, string, time.Time, time.Time) error {
+func (r *conflictBranchRepo) MarkFailedRetryable(context.Context, string, string, time.Time, time.Time) error {
 	return nil
 }
 func (r *conflictBranchRepo) DeleteExpired(context.Context, time.Time, int) (int64, error) {
@@ -670,7 +671,7 @@ func TestIdempotencyCoordinator_ConflictBranchesAndDecodeError(t *testing.T) {
 	badBody := "{bad-json"
 	repo := &conflictBranchRepo{
 		existing: &IdempotencyRecord{
-			ID:                 1,
+			ID:                 "idempotency-1",
 			Scope:              "scope",
 			IdempotencyKeyHash: HashIdempotencyKey("k"),
 			RequestFingerprint: fp,
@@ -694,7 +695,7 @@ func TestIdempotencyCoordinator_ConflictBranchesAndDecodeError(t *testing.T) {
 	require.Equal(t, infraerrors.Code(ErrIdempotencyStoreUnavail), infraerrors.Code(err))
 
 	repo.existing = &IdempotencyRecord{
-		ID:                 2,
+		ID:                 "idempotency-2",
 		Scope:              "scope",
 		IdempotencyKeyHash: HashIdempotencyKey("k"),
 		RequestFingerprint: fp,
@@ -715,7 +716,7 @@ func TestIdempotencyCoordinator_ConflictBranchesAndDecodeError(t *testing.T) {
 	require.Equal(t, infraerrors.Code(ErrIdempotencyKeyConflict), infraerrors.Code(err))
 
 	repo.existing = &IdempotencyRecord{
-		ID:                 3,
+		ID:                 "idempotency-3",
 		Scope:              "scope",
 		IdempotencyKeyHash: HashIdempotencyKey("k"),
 		RequestFingerprint: fp,
@@ -759,14 +760,14 @@ type markBehaviorRepo struct {
 	failMarkFailed    bool
 }
 
-func (r *markBehaviorRepo) MarkSucceeded(ctx context.Context, id int64, responseStatus int, responseBody string, expiresAt time.Time) error {
+func (r *markBehaviorRepo) MarkSucceeded(ctx context.Context, id string, responseStatus int, responseBody string, expiresAt time.Time) error {
 	if r.failMarkSucceeded {
 		return errors.New("mark succeeded failed")
 	}
 	return r.inMemoryIdempotencyRepo.MarkSucceeded(ctx, id, responseStatus, responseBody, expiresAt)
 }
 
-func (r *markBehaviorRepo) MarkFailedRetryable(ctx context.Context, id int64, errorReason string, lockedUntil, expiresAt time.Time) error {
+func (r *markBehaviorRepo) MarkFailedRetryable(ctx context.Context, id string, errorReason string, lockedUntil, expiresAt time.Time) error {
 	if r.failMarkFailed {
 		return errors.New("mark failed retryable failed")
 	}

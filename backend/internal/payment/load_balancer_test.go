@@ -4,6 +4,7 @@ package payment
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -120,7 +121,7 @@ func TestGetInstanceChannelLimitsFallsBackToLegacyDirectAliases(t *testing.T) {
 
 func testInstance(id int64, providerKey, limits string) *dbent.PaymentProviderInstance {
 	return &dbent.PaymentProviderInstance{
-		ID:          id,
+		ID:          fmt.Sprintf("instance-%d", id),
 		ProviderKey: providerKey,
 		Limits:      limits,
 		Enabled:     true,
@@ -146,7 +147,7 @@ func TestFilterByLimits(t *testing.T) {
 		candidates  []instanceCandidate
 		paymentType PaymentType
 		orderAmount float64
-		wantIDs     []int64 // expected surviving instance IDs
+		wantIDs     []string // expected surviving instance IDs
 	}{
 		{
 			name: "order below SingleMin is filtered out",
@@ -164,7 +165,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 10,
-			wantIDs:     []int64{1},
+			wantIDs:     []string{"instance-1"},
 		},
 		{
 			name: "order above SingleMax is filtered out",
@@ -182,7 +183,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 100,
-			wantIDs:     []int64{1},
+			wantIDs:     []string{"instance-1"},
 		},
 		{
 			name: "daily used + orderAmount exceeding dailyLimit is filtered out",
@@ -200,7 +201,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 20,
-			wantIDs:     []int64{1}, // 480+20=500, 500 > 500 is false → passes
+			wantIDs:     []string{"instance-1"}, // 480+20=500, 500 > 500 is false → passes
 		},
 		{
 			name: "daily used + orderAmount below dailyLimit passes",
@@ -209,7 +210,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 50,
-			wantIDs:     []int64{1},
+			wantIDs:     []string{"instance-1"},
 		},
 		{
 			name: "no limits configured passes through",
@@ -218,7 +219,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 100,
-			wantIDs:     []int64{1},
+			wantIDs:     []string{"instance-1"},
 		},
 		{
 			name: "multiple candidates with partial filtering",
@@ -234,7 +235,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 80,
-			wantIDs:     []int64{2, 4},
+			wantIDs:     []string{"instance-2", "instance-4"},
 		},
 		{
 			name: "zero SingleMin and SingleMax means no single-transaction limit",
@@ -243,7 +244,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 99999,
-			wantIDs:     []int64{1},
+			wantIDs:     []string{"instance-1"},
 		},
 		{
 			name: "all limits combined - order passes all checks",
@@ -252,7 +253,7 @@ func TestFilterByLimits(t *testing.T) {
 			},
 			paymentType: "alipay",
 			orderAmount: 50,
-			wantIDs:     []int64{1},
+			wantIDs:     []string{"instance-1"},
 		},
 		{
 			name: "all limits combined - order fails SingleMin",
@@ -276,11 +277,11 @@ func TestFilterByLimits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := filterByLimits(tt.candidates, tt.paymentType, tt.orderAmount)
-			gotIDs := make([]int64, len(got))
+			gotIDs := make([]string, len(got))
 			for i, c := range got {
 				gotIDs[i] = c.inst.ID
 			}
-			if !int64SliceEqual(gotIDs, tt.wantIDs) {
+			if !stringSliceEqual(gotIDs, tt.wantIDs) {
 				t.Fatalf("filterByLimits() returned IDs %v, want %v", gotIDs, tt.wantIDs)
 			}
 		})
@@ -302,8 +303,8 @@ func TestPickLeastAmount(t *testing.T) {
 			{inst: testInstance(3, "easypay", ""), dailyUsed: 200},
 		}
 		got := pickLeastAmount(candidates)
-		if got.inst.ID != 2 {
-			t.Fatalf("pickLeastAmount() picked instance %d, want 2", got.inst.ID)
+		if got.inst.ID != "instance-2" {
+			t.Fatalf("pickLeastAmount() picked instance %s, want 2", got.inst.ID)
 		}
 	})
 
@@ -315,8 +316,8 @@ func TestPickLeastAmount(t *testing.T) {
 			{inst: testInstance(3, "easypay", ""), dailyUsed: 200},
 		}
 		got := pickLeastAmount(candidates)
-		if got.inst.ID != 1 {
-			t.Fatalf("pickLeastAmount() picked instance %d, want 1 (first with lowest)", got.inst.ID)
+		if got.inst.ID != "instance-1" {
+			t.Fatalf("pickLeastAmount() picked instance %s, want 1 (first with lowest)", got.inst.ID)
 		}
 	})
 
@@ -326,8 +327,8 @@ func TestPickLeastAmount(t *testing.T) {
 			{inst: testInstance(42, "easypay", ""), dailyUsed: 999},
 		}
 		got := pickLeastAmount(candidates)
-		if got.inst.ID != 42 {
-			t.Fatalf("pickLeastAmount() picked instance %d, want 42", got.inst.ID)
+		if got.inst.ID != "instance-42" {
+			t.Fatalf("pickLeastAmount() picked instance %s, want 42", got.inst.ID)
 		}
 	})
 
@@ -339,8 +340,8 @@ func TestPickLeastAmount(t *testing.T) {
 			{inst: testInstance(3, "easypay", ""), dailyUsed: 300},
 		}
 		got := pickLeastAmount(candidates)
-		if got.inst.ID != 2 {
-			t.Fatalf("pickLeastAmount() picked instance %d, want 2", got.inst.ID)
+		if got.inst.ID != "instance-2" {
+			t.Fatalf("pickLeastAmount() picked instance %s, want 2", got.inst.ID)
 		}
 	})
 }
@@ -575,9 +576,9 @@ func stringMapEqual(a, b map[string]string) bool {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// int64SliceEqual compares two int64 slices for equality.
+// stringSliceEqual compares two string slices for equality.
 // Both nil and empty slices are treated as equal.
-func int64SliceEqual(a, b []int64) bool {
+func stringSliceEqual(a, b []string) bool {
 	if len(a) == 0 && len(b) == 0 {
 		return true
 	}

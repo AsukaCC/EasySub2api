@@ -80,7 +80,7 @@ func runOpenAIOAuthImageActualSizeTest(t *testing.T, stream bool) openAIOAuthIma
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
-	c.Set("api_key", &APIKey{ID: 42})
+	c.Set("api_key", &APIKey{ID: "id-42"})
 
 	encoded := encodeOpenAIImageTestPNG(t, 1672, 941)
 	upstreamBody := fmt.Sprintf(
@@ -102,7 +102,7 @@ func runOpenAIOAuthImageActualSizeTest(t *testing.T, stream bool) openAIOAuthIma
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       1,
+		ID:       "id-1",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,

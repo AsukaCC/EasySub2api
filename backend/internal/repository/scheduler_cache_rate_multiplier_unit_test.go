@@ -23,7 +23,7 @@ import (
 func TestSchedulerCachePreservesRateMultiplier(t *testing.T) {
 	rate := 0.75
 	account := service.Account{
-		ID:             9001,
+		ID:             "9001",
 		Name:           "profit-gate-rate",
 		Platform:       service.PlatformOpenAI,
 		Type:           service.AccountTypeAPIKey,
@@ -56,7 +56,7 @@ func TestSchedulerCachePreservesRateMultiplier(t *testing.T) {
 		// 丢成 nil 后利润门会把一个本该必然放行的账号判成越线。
 		zero := 0.0
 		zeroAccount := account
-		zeroAccount.ID = 9002
+		zeroAccount.ID = "9002"
 		zeroAccount.RateMultiplier = &zero
 
 		_, meta, err := marshalSchedulerCacheAccount(zeroAccount)

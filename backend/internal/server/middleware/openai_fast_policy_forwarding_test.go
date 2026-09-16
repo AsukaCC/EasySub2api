@@ -45,7 +45,7 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 				ServiceTier: service.OpenAIFastTierPriority,
 				Action:      service.BetaPolicyActionPass,
 				Scope:       service.BetaPolicyScopeAll,
-				UserIDs:     []int64{42},
+				UserIDs:     []string{"user-42"},
 			},
 		},
 	}
@@ -65,7 +65,7 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, settingService, nil,
 	)
 
-	groupID := int64(101)
+	groupID := "group-101"
 	group := &service.Group{
 		ID:       groupID,
 		Name:     "openai",
@@ -74,12 +74,12 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 		Hydrated: true,
 	}
 	apiKeys := map[string]*service.APIKey{
-		"key-user-42": newOpenAIFastPolicyForwardingAPIKey(1, "key-user-42", 42, groupID, group),
-		"key-user-43": newOpenAIFastPolicyForwardingAPIKey(2, "key-user-43", 43, groupID, group),
+		"key-user-42": newOpenAIFastPolicyForwardingAPIKey("key-1", "key-user-42", "user-42", groupID, group),
+		"key-user-43": newOpenAIFastPolicyForwardingAPIKey("key-2", "key-user-43", "user-43", groupID, group),
 	}
 	apiKeyService := service.NewAPIKeyService(&openAIFastPolicyForwardingAPIKeyRepo{apiKeys: apiKeys}, nil, nil, nil, nil, nil, cfg)
 	account := &service.Account{
-		ID:          900,
+		ID:          "account-900",
 		Name:        "openai-upstream",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
@@ -131,7 +131,7 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 	require.False(t, gjson.GetBytes(otherUserBody, "service_tier").Exists())
 }
 
-func newOpenAIFastPolicyForwardingAPIKey(id int64, key string, userID, groupID int64, group *service.Group) *service.APIKey {
+func newOpenAIFastPolicyForwardingAPIKey(id, key, userID, groupID string, group *service.Group) *service.APIKey {
 	return &service.APIKey{
 		ID:      id,
 		UserID:  userID,
@@ -163,7 +163,7 @@ func (r *openAIFastPolicyForwardingAPIKeyRepo) GetByKeyForAuth(_ context.Context
 	return &clone, nil
 }
 
-func (r *openAIFastPolicyForwardingAPIKeyRepo) UpdateLastUsed(context.Context, int64, time.Time) error {
+func (r *openAIFastPolicyForwardingAPIKeyRepo) UpdateLastUsed(context.Context, string, time.Time) error {
 	return nil
 }
 
@@ -180,10 +180,10 @@ type openAIFastPolicyForwardingHTTPUpstream struct {
 	client *http.Client
 }
 
-func (u *openAIFastPolicyForwardingHTTPUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *openAIFastPolicyForwardingHTTPUpstream) Do(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	return u.client.Do(req)
 }
 
-func (u *openAIFastPolicyForwardingHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *openAIFastPolicyForwardingHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }

@@ -53,7 +53,7 @@ func (r *auditCaptureRepository) Insert(_ context.Context, log *service.AuditLog
 func (r *auditCaptureRepository) List(context.Context, *service.AuditLogFilter) (*service.AuditLogList, error) {
 	return &service.AuditLogList{}, nil
 }
-func (r *auditCaptureRepository) GetByID(context.Context, int64) (*service.AuditLog, error) {
+func (r *auditCaptureRepository) GetByID(context.Context, string) (*service.AuditLog, error) {
 	return nil, service.ErrAuditLogNotFound
 }
 func (r *auditCaptureRepository) Count(context.Context) (int64, error) { return 0, nil }
@@ -70,7 +70,7 @@ func TestPromptAuditAdminOperationsUseOmittedBodiesAndAllowlistedDetails(t *test
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(ContextKeyUser), AuthSubject{UserID: 77})
+		c.Set(string(ContextKeyUser), AuthSubject{UserID: "user-77"})
 		c.Set(string(ContextKeyUserRole), "admin")
 		c.Next()
 	})
@@ -164,7 +164,7 @@ func TestOllamaCloudUsageSessionRouteOmitsAuditBody(t *testing.T) {
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(ContextKeyUser), AuthSubject{UserID: 77})
+		c.Set(string(ContextKeyUser), AuthSubject{UserID: "user-77"})
 		c.Set(string(ContextKeyUserRole), "admin")
 		c.Next()
 	})

@@ -38,7 +38,7 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 		PaymentType: payment.TypeWxpay,
 		Amount:      "12.50",
 		OrderType:   payment.OrderTypeSubscription,
-		PlanID:      7,
+		PlanID:      "plan-7",
 	})
 	if err != nil {
 		t.Fatalf("applyWeChatPaymentResumeClaims returned error: %v", err)
@@ -52,8 +52,8 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	if req.OrderType != payment.OrderTypeSubscription {
 		t.Fatalf("order_type = %q, want %q", req.OrderType, payment.OrderTypeSubscription)
 	}
-	if req.PlanID != 7 {
-		t.Fatalf("plan_id = %d, want 7", req.PlanID)
+	if req.PlanID != "plan-7" {
+		t.Fatalf("plan_id = %q, want %q", req.PlanID, "plan-7")
 	}
 }
 
@@ -240,7 +240,7 @@ func TestResolveOrderPublicByResumeTokenReturnsFrontendContractFields(t *testing
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
 	require.Equal(t, 0, resp.Code)
-	require.Equal(t, float64(order.ID), resp.Data["id"])
+	require.Equal(t, order.ID, resp.Data["id"])
 	require.Equal(t, "resolve-order-no", resp.Data["out_trade_no"])
 	require.Equal(t, 100.0, resp.Data["amount"])
 	require.Equal(t, 103.0, resp.Data["pay_amount"])
@@ -299,7 +299,7 @@ func TestResolveOrderPublicByResumeTokenReturnsBadRequestForMismatchedToken(t *t
 	resumeSvc := service.NewPaymentResumeService([]byte("0123456789abcdef0123456789abcdef"))
 	token, err := resumeSvc.CreateToken(service.ResumeTokenClaims{
 		OrderID:            order.ID,
-		UserID:             user.ID + 999,
+		UserID:             "mismatched-user-id",
 		PaymentType:        payment.TypeAlipay,
 		CanonicalReturnURL: "https://app.example.com/payment/result",
 	})

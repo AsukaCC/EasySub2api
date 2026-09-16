@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func profitControlTestGroup(id int64, margin, buffer float64) *Group {
+func profitControlTestGroup(id string, margin, buffer float64) *Group {
 	return &Group{
 		ID:                   id,
 		Platform:             PlatformOpenAI,
@@ -39,7 +39,7 @@ func profitControlTestAccountWithRate(account *Account, rate float64) *Account {
 
 func TestResolveOpenAIProfitControlGate(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	groupID := int64(7)
+	groupID := "group-7"
 
 	t.Run("nil group id yields no gate", func(t *testing.T) {
 		require.Nil(t, svc.resolveOpenAIProfitControlGate(context.Background(), nil))
@@ -72,7 +72,7 @@ func TestResolveOpenAIProfitControlGate(t *testing.T) {
 	})
 
 	t.Run("ctx group id mismatch without snapshot yields no gate", func(t *testing.T) {
-		group := profitControlTestGroup(groupID+1, 0.3, 0)
+		group := profitControlTestGroup("group-8", 0.3, 0)
 		require.Nil(t, svc.resolveOpenAIProfitControlGate(profitControlTestCtx(group), &groupID))
 	})
 
@@ -195,7 +195,7 @@ func TestProfitControlSchedulerFiltersCandidates(t *testing.T) {
 		account.Schedulable = true
 		account.Concurrency = 5
 	}
-	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[int64]*AccountLoadInfo{
+	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[string]*AccountLoadInfo{
 		cheap.ID:     {AccountID: cheap.ID},
 		expensive.ID: {AccountID: expensive.ID},
 		oauth.ID:     {AccountID: oauth.ID},
@@ -207,7 +207,7 @@ func TestProfitControlSchedulerFiltersCandidates(t *testing.T) {
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
 		concurrencyService: NewConcurrencyService(cache),
 	}
-	groupID := int64(7)
+	groupID := "group-7"
 
 	t.Run("unprofitable and invalid-rate accounts never win", func(t *testing.T) {
 		// margin 0.5 → 阈值 0.5：expensive(0.8) 超阈值、oauth 倍率缺失，仅 cheap 可选。

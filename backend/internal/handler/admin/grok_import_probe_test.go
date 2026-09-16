@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -17,26 +18,26 @@ import (
 
 type grokImportProbeStub struct {
 	mu           sync.Mutex
-	calls        map[int64]int
-	failures     map[int64]error
+	calls        map[string]int
+	failures     map[string]error
 	active       int
 	maxActive    int
 	deadlineSeen bool
 	block        <-chan struct{}
-	started      chan int64
-	done         chan int64
+	started      chan string
+	done         chan string
 }
 
 func newGrokImportProbeStub(buffer int) *grokImportProbeStub {
 	return &grokImportProbeStub{
-		calls:    make(map[int64]int),
-		failures: make(map[int64]error),
-		started:  make(chan int64, buffer),
-		done:     make(chan int64, buffer),
+		calls:    make(map[string]int),
+		failures: make(map[string]error),
+		started:  make(chan string, buffer),
+		done:     make(chan string, buffer),
 	}
 }
 
-func (s *grokImportProbeStub) QueryQuota(ctx context.Context, accountID int64) (*service.GrokQuotaProbeResult, error) {
+func (s *grokImportProbeStub) QueryQuota(ctx context.Context, accountID string) (*service.GrokQuotaProbeResult, error) {
 	_, deadlineSeen := ctx.Deadline()
 	s.mu.Lock()
 	s.calls[accountID]++
@@ -76,10 +77,10 @@ func (s *grokImportProbeStub) QueryQuota(ctx context.Context, accountID int64) (
 	}, nil
 }
 
-func (s *grokImportProbeStub) snapshot() (map[int64]int, int, bool) {
+func (s *grokImportProbeStub) snapshot() (map[string]int, int, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	calls := make(map[int64]int, len(s.calls))
+	calls := make(map[string]int, len(s.calls))
 	for id, count := range s.calls {
 		calls[id] = count
 	}
@@ -107,20 +108,20 @@ func snapshotGrokImportProbeScheduler(s *grokImportProbeScheduler) grokImportPro
 
 func newGrokOAuthImportAccount(id int64) *service.Account {
 	return &service.Account{
-		ID:       id,
+		ID:       strconv.FormatInt(id, 10),
 		Platform: service.PlatformGrok,
 		Type:     service.AccountTypeOAuth,
 	}
 }
 
-func awaitGrokProbeSignal(t *testing.T, signals <-chan int64) int64 {
+func awaitGrokProbeSignal(t *testing.T, signals <-chan string) string {
 	t.Helper()
 	select {
 	case id := <-signals:
 		return id
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for Grok import probe")
-		return 0
+		return ""
 	}
 }
 
@@ -129,10 +130,10 @@ func TestGrokImportProbeSchedulerProbesSingleAccountOnce(t *testing.T) {
 	prober := newGrokImportProbeStub(1)
 
 	scheduler.schedule(prober, newGrokOAuthImportAccount(101))
-	require.Equal(t, int64(101), awaitGrokProbeSignal(t, prober.done))
+	require.Equal(t, "101", awaitGrokProbeSignal(t, prober.done))
 
 	calls, maxActive, deadlineSeen := prober.snapshot()
-	require.Equal(t, map[int64]int{101: 1}, calls)
+	require.Equal(t, map[string]int{"101": 1}, calls)
 	require.Equal(t, 1, maxActive)
 	require.True(t, deadlineSeen)
 	require.Eventually(t, func() bool {
@@ -147,7 +148,7 @@ func TestGrokImportProbeSchedulerQueuesBatchWithoutPerTaskGoroutines(t *testing.
 	scheduler := newGrokImportProbeScheduler(3, time.Second)
 	prober := newGrokImportProbeStub(taskCount)
 	prober.block = release
-	prober.failures[150] = infraerrors.New(502, "GROK_TEST_PROBE_FAILED", "sensitive-upstream-body")
+	prober.failures["150"] = infraerrors.New(502, "GROK_TEST_PROBE_FAILED", "sensitive-upstream-body")
 
 	for id := int64(101); id < 101+taskCount; id++ {
 		scheduler.schedule(prober, newGrokOAuthImportAccount(id))
@@ -161,7 +162,7 @@ func TestGrokImportProbeSchedulerQueuesBatchWithoutPerTaskGoroutines(t *testing.
 	require.Equal(t, 3, snapshot.maxWorkers)
 	select {
 	case id := <-prober.started:
-		t.Fatalf("probe %d started before a concurrency slot was released", id)
+		t.Fatalf("probe %s started before a concurrency slot was released", id)
 	case <-time.After(75 * time.Millisecond):
 	}
 	close(release)
@@ -172,7 +173,7 @@ func TestGrokImportProbeSchedulerQueuesBatchWithoutPerTaskGoroutines(t *testing.
 	calls, maxActive, _ := prober.snapshot()
 	require.Len(t, calls, taskCount)
 	for id := int64(101); id < 101+taskCount; id++ {
-		require.Equal(t, 1, calls[id])
+		require.Equal(t, 1, calls[strconv.FormatInt(id, 10)])
 	}
 	require.Equal(t, 3, maxActive)
 	require.Eventually(t, func() bool {
@@ -191,23 +192,23 @@ func TestGrokImportProbeSchedulerDeduplicatesPendingAndInFlightAccounts(t *testi
 	queued := newGrokOAuthImportAccount(502)
 
 	scheduler.schedule(prober, account)
-	require.Equal(t, int64(501), awaitGrokProbeSignal(t, prober.started))
+	require.Equal(t, "501", awaitGrokProbeSignal(t, prober.started))
 	scheduler.schedule(prober, account)
 	scheduler.schedule(prober, queued)
 	scheduler.schedule(prober, queued)
 
 	scheduler.mu.Lock()
 	require.Len(t, scheduler.queue, 1)
-	require.Contains(t, scheduler.inFlight, int64(501))
-	require.Contains(t, scheduler.pending, int64(502))
+	require.Contains(t, scheduler.inFlight, "501")
+	require.Contains(t, scheduler.pending, "502")
 	scheduler.mu.Unlock()
 
 	close(release)
-	require.Equal(t, int64(501), awaitGrokProbeSignal(t, prober.done))
-	require.Equal(t, int64(502), awaitGrokProbeSignal(t, prober.done))
+	require.Equal(t, "501", awaitGrokProbeSignal(t, prober.done))
+	require.Equal(t, "502", awaitGrokProbeSignal(t, prober.done))
 	calls, _, _ := prober.snapshot()
-	require.Equal(t, 1, calls[501])
-	require.Equal(t, 1, calls[502])
+	require.Equal(t, 1, calls["501"])
+	require.Equal(t, 1, calls["502"])
 }
 
 func TestGrokImportProbeSchedulerBoundsPendingQueue(t *testing.T) {
@@ -216,7 +217,7 @@ func TestGrokImportProbeSchedulerBoundsPendingQueue(t *testing.T) {
 	release := make(chan struct{})
 	prober.block = release
 	scheduler.schedule(prober, newGrokOAuthImportAccount(600))
-	require.Equal(t, int64(600), awaitGrokProbeSignal(t, prober.started))
+	require.Equal(t, "600", awaitGrokProbeSignal(t, prober.started))
 	for id := int64(601); id < 601+grokImportProbeQueueLimit+10; id++ {
 		scheduler.schedule(prober, newGrokOAuthImportAccount(id))
 	}
@@ -238,10 +239,10 @@ func TestGrokImportProbeSchedulerTimeoutCancelsProbe(t *testing.T) {
 	prober.block = neverRelease
 
 	scheduler.schedule(prober, newGrokOAuthImportAccount(201))
-	require.Equal(t, int64(201), awaitGrokProbeSignal(t, prober.done))
+	require.Equal(t, "201", awaitGrokProbeSignal(t, prober.done))
 
 	calls, _, _ := prober.snapshot()
-	require.Equal(t, 1, calls[201])
+	require.Equal(t, 1, calls["201"])
 }
 
 func TestGrokImportProbeSchedulerSkipsMissingServiceAndNonGrokAccounts(t *testing.T) {
@@ -249,12 +250,12 @@ func TestGrokImportProbeSchedulerSkipsMissingServiceAndNonGrokAccounts(t *testin
 	prober := newGrokImportProbeStub(1)
 
 	scheduler.schedule(nil, newGrokOAuthImportAccount(301))
-	scheduler.schedule(prober, &service.Account{ID: 302, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth})
-	scheduler.schedule(prober, &service.Account{ID: 303, Platform: service.PlatformGrok, Type: service.AccountTypeAPIKey})
+	scheduler.schedule(prober, &service.Account{ID: "302", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth})
+	scheduler.schedule(prober, &service.Account{ID: "303", Platform: service.PlatformGrok, Type: service.AccountTypeAPIKey})
 
 	select {
 	case id := <-prober.started:
-		t.Fatalf("unexpected probe for account %d", id)
+		t.Fatalf("unexpected probe for account %s", id)
 	case <-time.After(50 * time.Millisecond):
 	}
 	calls, _, _ := prober.snapshot()
@@ -269,7 +270,7 @@ func TestGrokImportProbeFailureLogDoesNotIncludeErrorMessage(t *testing.T) {
 
 	scheduler := newGrokImportProbeScheduler(1, time.Second)
 	prober := newGrokImportProbeStub(1)
-	prober.failures[401] = infraerrors.New(502, "GROK_TEST_PROBE_FAILED", "refresh-token-secret")
+	prober.failures["401"] = infraerrors.New(502, "GROK_TEST_PROBE_FAILED", "refresh-token-secret")
 	scheduler.schedule(prober, newGrokOAuthImportAccount(401))
 	awaitGrokProbeSignal(t, prober.done)
 

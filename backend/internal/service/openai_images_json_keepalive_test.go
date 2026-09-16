@@ -212,7 +212,7 @@ func TestOpenAIImagesJSONKeepalive_HeartbeatBeforeForwardStillFailsOver(t *testi
 	waitForOpenAIImagesJSONKeepalive(t, c)
 
 	account := &Account{
-		ID:       22,
+		ID:       "account-22",
 		Name:     "openai-oauth-heartbeat-failover",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,

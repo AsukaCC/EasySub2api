@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -25,16 +26,16 @@ func (userStoreUnavailableRepoStub) CreateProcessing(context.Context, *service.I
 func (userStoreUnavailableRepoStub) GetByScopeAndKeyHash(context.Context, string, string) (*service.IdempotencyRecord, error) {
 	return nil, errors.New("store unavailable")
 }
-func (userStoreUnavailableRepoStub) TryReclaim(context.Context, int64, string, time.Time, time.Time, time.Time) (bool, error) {
+func (userStoreUnavailableRepoStub) TryReclaim(context.Context, string, string, time.Time, time.Time, time.Time) (bool, error) {
 	return false, errors.New("store unavailable")
 }
-func (userStoreUnavailableRepoStub) ExtendProcessingLock(context.Context, int64, string, time.Time, time.Time) (bool, error) {
+func (userStoreUnavailableRepoStub) ExtendProcessingLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return false, errors.New("store unavailable")
 }
-func (userStoreUnavailableRepoStub) MarkSucceeded(context.Context, int64, int, string, time.Time) error {
+func (userStoreUnavailableRepoStub) MarkSucceeded(context.Context, string, int, string, time.Time) error {
 	return errors.New("store unavailable")
 }
-func (userStoreUnavailableRepoStub) MarkFailedRetryable(context.Context, int64, string, time.Time, time.Time) error {
+func (userStoreUnavailableRepoStub) MarkFailedRetryable(context.Context, string, string, time.Time, time.Time) error {
 	return errors.New("store unavailable")
 }
 func (userStoreUnavailableRepoStub) DeleteExpired(context.Context, time.Time, int) (int64, error) {
@@ -90,7 +91,7 @@ func (r *userMemoryIdempotencyRepoStub) CreateProcessing(_ context.Context, reco
 		return false, nil
 	}
 	cp := r.clone(record)
-	cp.ID = r.nextID
+	cp.ID = fmt.Sprintf("idempotency-%d", r.nextID)
 	r.nextID++
 	r.data[k] = cp
 	record.ID = cp.ID
@@ -103,7 +104,7 @@ func (r *userMemoryIdempotencyRepoStub) GetByScopeAndKeyHash(_ context.Context, 
 	return r.clone(r.data[r.key(scope, keyHash)]), nil
 }
 
-func (r *userMemoryIdempotencyRepoStub) TryReclaim(_ context.Context, id int64, fromStatus string, now, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *userMemoryIdempotencyRepoStub) TryReclaim(_ context.Context, id string, fromStatus string, now, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -125,7 +126,7 @@ func (r *userMemoryIdempotencyRepoStub) TryReclaim(_ context.Context, id int64, 
 	return false, nil
 }
 
-func (r *userMemoryIdempotencyRepoStub) ExtendProcessingLock(_ context.Context, id int64, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *userMemoryIdempotencyRepoStub) ExtendProcessingLock(_ context.Context, id string, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -142,7 +143,7 @@ func (r *userMemoryIdempotencyRepoStub) ExtendProcessingLock(_ context.Context, 
 	return false, nil
 }
 
-func (r *userMemoryIdempotencyRepoStub) MarkSucceeded(_ context.Context, id int64, responseStatus int, responseBody string, expiresAt time.Time) error {
+func (r *userMemoryIdempotencyRepoStub) MarkSucceeded(_ context.Context, id string, responseStatus int, responseBody string, expiresAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -160,7 +161,7 @@ func (r *userMemoryIdempotencyRepoStub) MarkSucceeded(_ context.Context, id int6
 	return nil
 }
 
-func (r *userMemoryIdempotencyRepoStub) MarkFailedRetryable(_ context.Context, id int64, errorReason string, lockedUntil, expiresAt time.Time) error {
+func (r *userMemoryIdempotencyRepoStub) MarkFailedRetryable(_ context.Context, id string, errorReason string, lockedUntil, expiresAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -180,7 +181,7 @@ func (r *userMemoryIdempotencyRepoStub) DeleteExpired(_ context.Context, _ time.
 	return 0, nil
 }
 
-func withUserSubject(userID int64) gin.HandlerFunc {
+func withUserSubject(userID string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: userID})
 		c.Next()
@@ -193,7 +194,7 @@ func TestExecuteUserIdempotentJSONFallbackWithoutCoordinator(t *testing.T) {
 
 	var executed int
 	router := gin.New()
-	router.Use(withUserSubject(1))
+	router.Use(withUserSubject("user-1"))
 	router.POST("/idempotent", func(c *gin.Context) {
 		executeUserIdempotentJSON(c, "user.test.scope", map[string]any{"a": 1}, time.Minute, func(ctx context.Context) (any, error) {
 			executed++
@@ -219,7 +220,7 @@ func TestExecuteUserIdempotentJSONFailCloseOnStoreUnavailable(t *testing.T) {
 
 	var executed int
 	router := gin.New()
-	router.Use(withUserSubject(2))
+	router.Use(withUserSubject("user-2"))
 	router.POST("/idempotent", func(c *gin.Context) {
 		executeUserIdempotentJSON(c, "user.test.scope", map[string]any{"a": 1}, time.Minute, func(ctx context.Context) (any, error) {
 			executed++
@@ -249,7 +250,7 @@ func TestExecuteUserIdempotentJSONConcurrentRetrySingleSideEffectAndReplay(t *te
 
 	var executed atomic.Int32
 	router := gin.New()
-	router.Use(withUserSubject(3))
+	router.Use(withUserSubject("user-3"))
 	router.POST("/idempotent", func(c *gin.Context) {
 		executeUserIdempotentJSON(c, "user.test.scope", map[string]any{"a": 1}, time.Minute, func(ctx context.Context) (any, error) {
 			executed.Add(1)

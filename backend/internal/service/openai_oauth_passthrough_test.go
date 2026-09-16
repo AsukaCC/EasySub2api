@@ -63,7 +63,7 @@ func (r passthroughErrReadCloser) Close() error {
 	return nil
 }
 
-func (u *httpUpstreamRecorder) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (u *httpUpstreamRecorder) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	u.lastReq = req
 	u.lastProxyURL = proxyURL
 	if req != nil && req.Body != nil {
@@ -85,7 +85,7 @@ func (u *httpUpstreamRecorder) Do(req *http.Request, proxyURL string, accountID 
 	return u.resp, nil
 }
 
-func (u *httpUpstreamRecorder) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *httpUpstreamRecorder) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
@@ -109,7 +109,7 @@ func TestOpenAIGatewayService_ResponsesUnknownModelDoesNotFallbackToGPT54(t *tes
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          123,
+		ID:          "account-123",
 		Name:        "acc",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -155,7 +155,7 @@ func TestOpenAIGatewayService_NativeResponsesBodyModificationPreservesHTMLChars(
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          456,
+		ID:          "account-456",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -202,7 +202,7 @@ func TestOpenAIGatewayService_OAuthMessagesBridgeDoesNotInjectDefaultInstruction
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          123,
+		ID:          "account-123",
 		Name:        "acc",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -233,12 +233,12 @@ type openAIPassthroughFailoverRepo struct {
 	overloadCalls  []time.Time
 }
 
-func (r *openAIPassthroughFailoverRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *openAIPassthroughFailoverRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	r.rateLimitCalls = append(r.rateLimitCalls, resetAt)
 	return nil
 }
 
-func (r *openAIPassthroughFailoverRepo) SetOverloaded(_ context.Context, _ int64, until time.Time) error {
+func (r *openAIPassthroughFailoverRepo) SetOverloaded(_ context.Context, _ string, until time.Time) error {
 	r.overloadCalls = append(r.overloadCalls, until)
 	return nil
 }
@@ -385,7 +385,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_StreamKeepsToolNameAndBodyNormali
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -476,7 +476,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_PreservesNamespaceRequest(t *test
 	}}
 	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID: 125, Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
+		ID: "account-125", Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
 		Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
 		Extra:       map[string]any{"openai_passthrough": true}, Status: StatusActive, Schedulable: true, RateMultiplier: f64p(1),
 	}
@@ -545,7 +545,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_FlattenEnabledNamespaceRequestAnd
 	}}
 	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID: 123, Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
+		ID: "account-123", Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
 		Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
 		Extra: map[string]any{
 			"openai_passthrough":                  true,
@@ -605,7 +605,7 @@ func TestOpenAIGatewayService_NativeOAuth_FlattenEnabledNamespaceRequestAndStrea
 	}}
 	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID: 124, Name: "native", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
+		ID: "account-124", Name: "native", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
 		Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
 		Extra:       map[string]any{"openai_responses_flatten_namespaces": true},
 		Status:      StatusActive, Schedulable: true, RateMultiplier: f64p(1),
@@ -692,7 +692,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_FlattenEnabledNamespaceCollisionR
 	upstream := &httpUpstreamRecorder{}
 	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID: 123, Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
+		ID: "account-123", Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
 		Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
 		Extra: map[string]any{
 			"openai_passthrough":                  true,
@@ -735,7 +735,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_CompactUsesJSONAndKeepsNonStreami
 	}
 
 	account := &Account{
-		ID:          123,
+		ID:          "account-123",
 		Name:        "acc",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -797,7 +797,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_UpstreamRequestIgnoresClientCance
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -845,7 +845,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_CodexMissingInstructionsGetsDefau
 			}}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 			account := &Account{
-				ID: 123, Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
+				ID: "account-123", Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
 				Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
 				Extra:       map[string]any{"openai_passthrough": true, "openai_oauth_responses_websockets_v2_mode": OpenAIWSIngressModeOff},
 				Status:      StatusActive, Schedulable: true, RateMultiplier: f64p(1),
@@ -889,7 +889,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_DisabledUsesLegacyTransform(t *te
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -937,7 +937,7 @@ func TestOpenAIGatewayService_OAuthLegacy_UpstreamRequestIgnoresClientCancel(t *
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -980,7 +980,7 @@ func TestOpenAIGatewayService_OAuthLegacy_CompositeCodexUAUsesCodexOriginator(t 
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -1041,7 +1041,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_ResponseHeadersAllowXCodex(t *tes
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -1083,7 +1083,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_UpstreamErrorIncludesPassthroughF
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -1206,7 +1206,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_RebuildsUpstreamErrors(t *testin
 				httpUpstream: upstream,
 			}
 			account := &Account{
-				ID:          124,
+				ID:          "account-124",
 				Name:        "sensitive-upstream",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
@@ -1305,7 +1305,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_CompactErrorBeforeKeepaliveIsSin
 		}},
 	}
 	account := &Account{
-		ID: 125, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
+		ID: "account-125", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://secret-upstream.example"},
 		Extra:       map[string]any{"openai_passthrough": true}, Status: StatusActive, Schedulable: true,
 	}
@@ -1340,7 +1340,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_CompactErrorAfterKeepaliveIsFail
 		}},
 	}
 	account := &Account{
-		ID: 126, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
+		ID: "account-126", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://secret-upstream.example"},
 		Extra:       map[string]any{"openai_passthrough": true}, Status: StatusActive, Schedulable: true,
 	}
@@ -1365,7 +1365,7 @@ func TestOpenAIGatewayService_OpenAIPassthrough_RetryableStatusesTriggerFailover
 
 	newAccount := func(accountType string) *Account {
 		account := &Account{
-			ID:             123,
+			ID:             "account-123",
 			Name:           "acc",
 			Platform:       PlatformOpenAI,
 			Type:           accountType,
@@ -1577,7 +1577,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_Transient5xxTriggersFailover(t *
 				httpUpstream: upstream,
 			}
 			account := &Account{
-				ID:          124,
+				ID:          "account-124",
 				Name:        "api-key-transient-5xx",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
@@ -1631,7 +1631,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_ContextWindow502DoesNotFailover(
 		}},
 	}
 	account := &Account{
-		ID: 127, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
+		ID: "account-127", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://api.example.test"},
 		Extra:       map[string]any{"openai_passthrough": true}, Status: StatusActive, Schedulable: true,
 	}
@@ -1663,7 +1663,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_PoolModeConfigured5xxRetriesSame
 		}},
 	}
 	account := &Account{
-		ID: 128, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
+		ID: "account-128", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
 		Credentials: map[string]any{
 			"api_key":                      "sk-test",
 			"base_url":                     "https://api.example.test",
@@ -1711,7 +1711,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_PoolModeAuthErrorsTriggerFailove
 			upstreamBody := `{"error":{"message":"upstream credential rejected"}}`
 			svc := &OpenAIGatewayService{
 				cfg:              &config.Config{Gateway: config.GatewayConfig{ForceCodexCLI: false}},
-				rateLimitService: NewRateLimitService(transientCooldownAccountRepo{}, nil, &config.Config{}, nil, nil),
+				rateLimitService: NewRateLimitService(transientCooldownAccountRepo{}, &config.Config{}, nil),
 				httpUpstream: &httpUpstreamRecorder{resp: &http.Response{
 					StatusCode: tt.statusCode,
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -1727,7 +1727,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_PoolModeAuthErrorsTriggerFailove
 				credentials[key] = value
 			}
 			account := &Account{
-				ID: 129, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
+				ID: "account-129", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
 				Credentials: credentials,
 				Extra:       map[string]any{"openai_passthrough": true}, Status: StatusActive, Schedulable: true,
 			}
@@ -1782,7 +1782,7 @@ func TestOpenAIGatewayService_OpenAIPassthrough_CompactNetworkErrorsTriggerFailo
 				httpUpstream: upstream,
 			}
 			account := &Account{
-				ID:             123,
+				ID:             "account-123",
 				Name:           "acc",
 				Platform:       PlatformOpenAI,
 				Type:           AccountTypeOAuth,
@@ -1835,7 +1835,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_NonCodexUAFallbackToCodexUA(t *te
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -1884,7 +1884,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_OfficialIdentityUnified(t *testin
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -1928,7 +1928,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_CodexTuiIdentityUnified(t *testin
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2169,7 +2169,7 @@ func TestOpenAIGatewayService_CodexCLIOnly_RejectsNonCodexClient(t *testing.T) {
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2231,7 +2231,7 @@ func TestOpenAIGatewayService_CodexCLIOnly_AllowOfficialClientFamilies(t *testin
 			}
 
 			account := &Account{
-				ID:             123,
+				ID:             "account-123",
 				Name:           "acc",
 				Platform:       PlatformOpenAI,
 				Type:           AccountTypeOAuth,
@@ -2279,7 +2279,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_StreamingSetsFirstTokenMs(t *test
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2335,7 +2335,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_StreamClientDisconnectStillCollec
 	}
 
 	account := &Account{
-		ID:             123,
+		ID:             "account-123",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2383,7 +2383,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_PreservesBodyAndUsesResponsesEnd
 	}
 
 	account := &Account{
-		ID:          456,
+		ID:          "account-456",
 		Name:        "apikey-acc",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2438,7 +2438,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_WarnOnTimeoutHeadersForStream(t *
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             321,
+		ID:             "account-321",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2479,7 +2479,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_InfoWhenStreamEndsWithoutDone(t *
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             654,
+		ID:             "account-654",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2525,7 +2525,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_DefaultFiltersTimeoutHeaders(t *t
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             111,
+		ID:             "account-111",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,
@@ -2574,7 +2574,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_AllowTimeoutHeadersWhenConfigured
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             222,
+		ID:             "account-222",
 		Name:           "acc",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,

@@ -147,7 +147,7 @@ func TestUpdateRuntimeLogConfig_InvalidConfigShouldNotApply(t *testing.T) {
 		Caller:          true,
 		StacktraceLevel: "error",
 		RetentionDays:   30,
-	}, 1)
+	}, "user-1")
 	if err == nil {
 		t.Fatalf("expected validation error")
 	}
@@ -210,7 +210,7 @@ func TestResetRuntimeLogConfig_ShouldFallbackToBaseline(t *testing.T) {
 		t.Fatalf("init logger: %v", err)
 	}
 
-	resetCfg, err := svc.ResetRuntimeLogConfig(context.Background(), 9)
+	resetCfg, err := svc.ResetRuntimeLogConfig(context.Background(), "user-9")
 	if err != nil {
 		t.Fatalf("ResetRuntimeLogConfig() error: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestResetRuntimeLogConfig_ShouldFallbackToBaseline(t *testing.T) {
 
 func TestResetRuntimeLogConfig_InvalidOperator(t *testing.T) {
 	svc := &OpsService{settingRepo: newRuntimeSettingRepoStub()}
-	_, err := svc.ResetRuntimeLogConfig(context.Background(), 0)
+	_, err := svc.ResetRuntimeLogConfig(context.Background(), "")
 	if err == nil {
 		t.Fatalf("expected invalid operator error")
 	}
@@ -330,7 +330,7 @@ func TestUpdateRuntimeLogConfig_PersistFailureRollback(t *testing.T) {
 		Caller:            true,
 		StacktraceLevel:   "error",
 		RetentionDays:     30,
-	}, 5)
+	}, "user-5")
 	if err == nil {
 		t.Fatalf("expected persist error")
 	}
@@ -491,12 +491,12 @@ func TestGetRuntimeLogConfigFallbackAndErrors(t *testing.T) {
 
 func TestUpdateRuntimeLogConfig_PreconditionErrors(t *testing.T) {
 	svc := &OpsService{}
-	if _, err := svc.UpdateRuntimeLogConfig(context.Background(), &OpsRuntimeLogConfig{}, 1); err == nil {
+	if _, err := svc.UpdateRuntimeLogConfig(context.Background(), &OpsRuntimeLogConfig{}, "user-1"); err == nil {
 		t.Fatalf("expected setting repo not initialized")
 	}
 
 	svc = &OpsService{settingRepo: newRuntimeSettingRepoStub()}
-	if _, err := svc.UpdateRuntimeLogConfig(context.Background(), nil, 1); err == nil {
+	if _, err := svc.UpdateRuntimeLogConfig(context.Background(), nil, "user-1"); err == nil {
 		t.Fatalf("expected invalid config")
 	}
 	if _, err := svc.UpdateRuntimeLogConfig(context.Background(), &OpsRuntimeLogConfig{
@@ -505,7 +505,7 @@ func TestUpdateRuntimeLogConfig_PreconditionErrors(t *testing.T) {
 		SamplingInitial: 1,
 		SamplingNext:    1,
 		RetentionDays:   1,
-	}, 0); err == nil {
+	}, ""); err == nil {
 		t.Fatalf("expected invalid operator")
 	}
 }
@@ -553,11 +553,11 @@ func TestUpdateRuntimeLogConfig_Success(t *testing.T) {
 		Caller:            true,
 		StacktraceLevel:   "error",
 		RetentionDays:     30,
-	}, 2)
+	}, "user-2")
 	if err != nil {
 		t.Fatalf("UpdateRuntimeLogConfig() error: %v", err)
 	}
-	if next.Source != "runtime_setting" || next.UpdatedByUserID != 2 || next.UpdatedAt == "" {
+	if next.Source != "runtime_setting" || next.UpdatedByUserID != "user-2" || next.UpdatedAt == "" {
 		t.Fatalf("unexpected metadata: %+v", next)
 	}
 	if logger.CurrentLevel() != "debug" {
@@ -589,7 +589,7 @@ func TestResetRuntimeLogConfig_IgnoreNotFoundDelete(t *testing.T) {
 			},
 		},
 	}
-	if _, err := svc.ResetRuntimeLogConfig(context.Background(), 1); err != nil {
+	if _, err := svc.ResetRuntimeLogConfig(context.Background(), "user-1"); err != nil {
 		t.Fatalf("reset should ignore ErrSettingNotFound: %v", err)
 	}
 }

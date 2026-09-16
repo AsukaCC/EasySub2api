@@ -60,7 +60,7 @@ func TestOpenAIWSv2StreamingRepairsConcatenatedJSONDocumentsInSingleMessage(t *t
 		toolCorrector:    NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          2,
+		ID:          "account-2",
 		Name:        "ws-test",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -74,7 +74,7 @@ func TestOpenAIWSv2StreamingRepairsConcatenatedJSONDocumentsInSingleMessage(t *t
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-	groupID := int64(1)
+	groupID := "group-1"
 	c.Set("api_key", &APIKey{GroupID: &groupID})
 
 	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.6-sol","stream":true,"input":"hello"}`))
@@ -132,7 +132,7 @@ func TestOpenAIWSv2RejectsMalformedEventAfterWritingDownstream(t *testing.T) {
 		toolCorrector:    NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          5,
+		ID:          "account-5",
 		Name:        "ws-malformed-event-after-output",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -146,7 +146,7 @@ func TestOpenAIWSv2RejectsMalformedEventAfterWritingDownstream(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-	groupID := int64(1)
+	groupID := "group-1"
 	c.Set("api_key", &APIKey{GroupID: &groupID})
 
 	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.6-sol","stream":true,"input":"hello"}`))
@@ -195,7 +195,7 @@ func testOpenAIWSv2RejectsMalformedEventBeforeWritingDownstream(t *testing.T, ma
 		toolCorrector:    NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          4,
+		ID:          "account-4",
 		Name:        "ws-malformed-event",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -209,7 +209,7 @@ func testOpenAIWSv2RejectsMalformedEventBeforeWritingDownstream(t *testing.T, ma
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-	groupID := int64(1)
+	groupID := "group-1"
 	c.Set("api_key", &APIKey{GroupID: &groupID})
 
 	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.6-sol","stream":true,"input":"hello"}`))
@@ -270,7 +270,7 @@ func TestOpenAIWSv2StreamingBreaksConnectionWhenTerminalHasTrailingDocument(t *t
 		toolCorrector:    NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          3,
+		ID:          "account-3",
 		Name:        "ws-terminal-tail",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -284,7 +284,7 @@ func TestOpenAIWSv2StreamingBreaksConnectionWhenTerminalHasTrailingDocument(t *t
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-	groupID := int64(1)
+	groupID := "group-1"
 	c.Set("api_key", &APIKey{GroupID: &groupID})
 
 	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.6-sol","stream":true,"input":"hello"}`))
@@ -324,7 +324,7 @@ func testOpenAIStreamingRepairsConcatenatedJSONDocuments(t *testing.T, passthrou
 		}},
 		toolCorrector: NewCodexToolCorrector(),
 	}
-	account := &Account{ID: 1, Name: "test", Platform: PlatformOpenAI}
+	account := &Account{ID: "account-1", Name: "test", Platform: PlatformOpenAI}
 
 	var usage *OpenAIUsage
 	var err error

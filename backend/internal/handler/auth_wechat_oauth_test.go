@@ -1470,7 +1470,7 @@ func (s *wechatOAuthRefreshTokenCacheStub) DeleteRefreshToken(context.Context, s
 	return nil
 }
 
-func (s *wechatOAuthRefreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, int64) error {
+func (s *wechatOAuthRefreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, string) error {
 	return nil
 }
 
@@ -1478,7 +1478,7 @@ func (s *wechatOAuthRefreshTokenCacheStub) DeleteTokenFamily(context.Context, st
 	return nil
 }
 
-func (s *wechatOAuthRefreshTokenCacheStub) AddToUserTokenSet(context.Context, int64, string, time.Duration) error {
+func (s *wechatOAuthRefreshTokenCacheStub) AddToUserTokenSet(context.Context, string, string, time.Duration) error {
 	return nil
 }
 
@@ -1486,7 +1486,7 @@ func (s *wechatOAuthRefreshTokenCacheStub) AddToFamilyTokenSet(context.Context, 
 	return nil
 }
 
-func (s *wechatOAuthRefreshTokenCacheStub) GetUserTokenHashes(context.Context, int64) ([]string, error) {
+func (s *wechatOAuthRefreshTokenCacheStub) GetUserTokenHashes(context.Context, string) ([]string, error) {
 	return nil, nil
 }
 

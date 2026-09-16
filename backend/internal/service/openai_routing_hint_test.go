@@ -226,7 +226,7 @@ func TestOpenAIRoutingDiagnosticsUseFinalDerivedValuesOnly(t *testing.T) {
 	defer restore()
 
 	account := &Account{
-		ID:       917,
+		ID:       "account-917",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -252,7 +252,7 @@ func TestOpenAIRoutingDiagnosticsUseFinalDerivedValuesOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, logSink.ContainsMessageAtLevel("openai routing decision", "debug"))
-	require.True(t, logSink.ContainsFieldValue("account_id", "917"))
+	require.True(t, logSink.ContainsFieldValue("account_id", "account-917"))
 	require.True(t, logSink.ContainsFieldValue("final_model", "gpt-5.6-codex"))
 	require.True(t, logSink.ContainsFieldValue("final_service_tier", "priority"))
 	require.True(t, logSink.ContainsFieldValue("routing_hint_generated", "true"))
@@ -274,7 +274,7 @@ func TestOpenAIWSConnPoolPreferredContinuationIgnoresRoutingHintChanges(t *testi
 	pool := newOpenAIWSConnPool(cfg)
 	dialer := &openAIWSCountingDialer{}
 	pool.setClientDialerForTest(dialer)
-	account := &Account{ID: 913, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	account := &Account{ID: "account-913", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 
 	acquire := func(t *testing.T, hint, preferred string, forcePreferred bool) *openAIWSConnLease {
 		t.Helper()
@@ -320,7 +320,7 @@ func TestOpenAIWSConnPoolUsesRoutingHintAsSoftDialAffinity(t *testing.T) {
 	pool := newOpenAIWSConnPool(cfg)
 	dialer := &openAIWSCountingDialer{}
 	pool.setClientDialerForTest(dialer)
-	account := &Account{ID: 913, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	account := &Account{ID: "account-913", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 
 	acquire := func(t *testing.T, hint string) *openAIWSConnLease {
 		headers := make(http.Header)

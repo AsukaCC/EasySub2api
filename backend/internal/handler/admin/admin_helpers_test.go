@@ -109,7 +109,7 @@ func TestParseOpsOpenAITokenStatsFilter_WithTopN(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(
 		http.MethodGet,
-		"/?time_range=1h&platform=openai&group_id=12&top_n=50",
+		"/?time_range=1h&platform=openai&group_id=00000000-0000-4000-8000-000000000012&top_n=50",
 		nil,
 	)
 
@@ -118,7 +118,7 @@ func TestParseOpsOpenAITokenStatsFilter_WithTopN(t *testing.T) {
 	require.Equal(t, "1h", filter.TimeRange)
 	require.Equal(t, "openai", filter.Platform)
 	require.NotNil(t, filter.GroupID)
-	require.Equal(t, int64(12), *filter.GroupID)
+	require.Equal(t, "00000000-0000-4000-8000-000000000012", *filter.GroupID)
 	require.Equal(t, 50, filter.TopN)
 	require.Equal(t, 0, filter.Page)
 	require.Equal(t, 0, filter.PageSize)
@@ -265,12 +265,12 @@ func TestOpenAIFastPolicySettingsFromDTO_NormalizesServiceTier(t *testing.T) {
 				ServiceTier: "PRIORITY",
 				Action:      "filter",
 				Scope:       "all",
-				UserIDs:     []int64{42},
+				UserIDs:     []string{"user-42"},
 			}},
 		}
 		out := openaiFastPolicySettingsFromDTO(in)
 		require.Equal(t, service.OpenAIFastTierPriority, out.Rules[0].ServiceTier)
-		require.Equal(t, []int64{42}, out.Rules[0].UserIDs)
+		require.Equal(t, []string{"user-42"}, out.Rules[0].UserIDs)
 	})
 
 	t.Run("non-empty values pass through (lowercased)", func(t *testing.T) {

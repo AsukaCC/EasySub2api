@@ -30,14 +30,14 @@ func TestUserSubscriptionGetByIDForUpdateLocksRow(t *testing.T) {
 
 	mock.ExpectQuery("locked subscription").WillReturnRows(
 		sqlmock.NewRows(usersubscription.Columns).AddRow(
-			int64(7), now, now, nil, int64(11), int64(13), now, now.AddDate(0, 0, 30), "active",
+			"subscription-7", now, now, nil, "user-11", "group-13", now, now.AddDate(0, 0, 30), "active",
 			nil, nil, nil, 0.0, 0.0, 0.0, nil, now, "renewal",
 		),
 	)
 
-	sub, err := repo.GetByIDForUpdate(context.Background(), 7)
+	sub, err := repo.GetByIDForUpdate(context.Background(), "subscription-7")
 	require.NoError(t, err)
-	require.Equal(t, int64(7), sub.ID)
+	require.Equal(t, "subscription-7", sub.ID)
 	require.NoError(t, mock.ExpectationsWereMet())
 	require.Contains(t, strings.ToUpper(normalizeSQLWhitespace(capturedSQL)), "FOR UPDATE")
 }

@@ -9,13 +9,13 @@ import (
 func TestSortedUniqueAccountIDs(t *testing.T) {
 	tests := []struct {
 		name  string
-		input []int64
-		want  []int64
+		input []string
+		want  []string
 	}{
-		{name: "unsorted duplicates", input: []int64{12, 3, 12, 8, 3}, want: []int64{3, 8, 12}},
-		{name: "already sorted", input: []int64{3, 8, 12}, want: []int64{3, 8, 12}},
-		{name: "single", input: []int64{3}, want: []int64{3}},
-		{name: "empty", input: []int64{}, want: []int64{}},
+		{name: "unsorted duplicates", input: []string{"account-12", "account-3", "account-12", "account-8", "account-3"}, want: []string{"account-12", "account-3", "account-8"}},
+		{name: "already sorted", input: []string{"account-3", "account-8", "account-12"}, want: []string{"account-12", "account-3", "account-8"}},
+		{name: "single", input: []string{"account-3"}, want: []string{"account-3"}},
+		{name: "empty", input: []string{}, want: []string{}},
 		{name: "nil", input: nil, want: nil},
 	}
 

@@ -51,7 +51,7 @@ func TestQuotaPlatformCompositeUsesResolvedOrForceOnly(t *testing.T) {
 
 func TestCompositeGroupSchedulerHasAllCanonicalPlatformBuckets(t *testing.T) {
 	seen := make(map[string]struct{})
-	for _, bucket := range schedulerCanonicalBuckets(99) {
+	for _, bucket := range schedulerCanonicalBuckets("group-99") {
 		seen[bucket.Platform] = struct{}{}
 	}
 	platforms := make([]string, 0, len(seen))

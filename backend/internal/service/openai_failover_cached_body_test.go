@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -113,7 +114,7 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 func TestOpenAIGatewayService_HandleFailoverSideEffects_DoesNotRereadResponseBody(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	account := &Account{
-		ID:       88,
+		ID:       "account-88",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 	}
@@ -149,7 +150,7 @@ func openAIFailoverCachedBodyTestAccount(id int64, name string, mapping map[stri
 		credentials["model_mapping"] = mapping
 	}
 	return &Account{
-		ID:             id,
+		ID:             fmt.Sprintf("account-%d", id),
 		Name:           name,
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,

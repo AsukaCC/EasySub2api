@@ -131,7 +131,7 @@ func TestEmailOAuthCallbackExistingEmailLogsInWhenInvitationEnabled(t *testing.T
 }
 
 func TestEmailOAuthCallbackCreatesPasswordRegistrationSessionForNewEmail(t *testing.T) {
-	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]int64{"AFF123": 1001})
+	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]string{"AFF123": "user-1001"})
 	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
 		settingValues: map[string]string{
 			service.SettingKeyAffiliateEnabled: "true",
@@ -228,7 +228,7 @@ func TestEmailOAuthStartPreservesPromoCodeInPendingSession(t *testing.T) {
 }
 
 func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *testing.T) {
-	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]int64{"AFF456": 2002})
+	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]string{"AFF456": "user-2002"})
 	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
 		invitationEnabled: true,
 		settingValues: map[string]string{
@@ -291,7 +291,7 @@ func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *te
 	tamperedCount, err := client.User.Query().Where(dbuser.EmailEQ("tampered@example.com")).Count(ctx)
 	require.NoError(t, err)
 	require.Zero(t, tamperedCount)
-	require.Equal(t, []oauthEmailAffiliateBindCall{{userID: user.ID, inviterID: 2002}}, affiliateRepo.bindCalls)
+	require.Equal(t, []oauthEmailAffiliateBindCall{{userID: user.ID, inviterID: "user-2002"}}, affiliateRepo.bindCalls)
 	storedInvitation, err := client.RedeemCode.Query().Where(redeemcode.IDEQ(invitation.ID)).Only(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, storedInvitation.UsedBy)
@@ -359,21 +359,21 @@ func TestParseGitHubOAuthProfileRejectsPublicEmailWhenEmailsEndpointFails(t *tes
 }
 
 type oauthEmailAffiliateBindCall struct {
-	userID    int64
-	inviterID int64
+	userID    string
+	inviterID string
 }
 
 type oauthEmailAffiliateRepoStub struct {
-	codeOwners    map[string]int64
-	ensureUserIDs []int64
+	codeOwners    map[string]string
+	ensureUserIDs []string
 	bindCalls     []oauthEmailAffiliateBindCall
 }
 
-func newOAuthEmailAffiliateRepoStub(codeOwners map[string]int64) *oauthEmailAffiliateRepoStub {
+func newOAuthEmailAffiliateRepoStub(codeOwners map[string]string) *oauthEmailAffiliateRepoStub {
 	return &oauthEmailAffiliateRepoStub{codeOwners: codeOwners}
 }
 
-func (r *oauthEmailAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*service.AffiliateSummary, error) {
+func (r *oauthEmailAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID string) (*service.AffiliateSummary, error) {
 	r.ensureUserIDs = append(r.ensureUserIDs, userID)
 	return &service.AffiliateSummary{UserID: userID, AffCode: "SELF"}, nil
 }
@@ -386,44 +386,48 @@ func (r *oauthEmailAffiliateRepoStub) GetAffiliateByCode(_ context.Context, code
 	return &service.AffiliateSummary{UserID: userID, AffCode: strings.ToUpper(strings.TrimSpace(code))}, nil
 }
 
-func (r *oauthEmailAffiliateRepoStub) BindInviter(_ context.Context, userID, inviterID int64) (bool, error) {
+func (r *oauthEmailAffiliateRepoStub) BindInviter(_ context.Context, userID, inviterID string) (bool, error) {
 	r.bindCalls = append(r.bindCalls, oauthEmailAffiliateBindCall{userID: userID, inviterID: inviterID})
 	return true, nil
 }
 
-func (r *oauthEmailAffiliateRepoStub) AccrueQuota(context.Context, int64, int64, float64, int, *int64) (bool, error) {
+func (r *oauthEmailAffiliateRepoStub) AccrueQuota(context.Context, string, string, float64, int, *string) (bool, error) {
 	panic("unexpected AccrueQuota call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, int64, int64) (float64, error) {
+func (r *oauthEmailAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, string, string) (float64, error) {
 	panic("unexpected GetAccruedRebateFromInvitee call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) ThawFrozenQuota(context.Context, int64) (float64, error) {
+func (r *oauthEmailAffiliateRepoStub) ThawFrozenQuota(context.Context, string) (float64, error) {
 	panic("unexpected ThawFrozenQuota call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) TransferQuotaToBalance(context.Context, int64) (float64, float64, error) {
+func (r *oauthEmailAffiliateRepoStub) TransferQuotaToBalance(context.Context, string) (float64, float64, error) {
 	panic("unexpected TransferQuotaToBalance call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) ListInvitees(context.Context, int64, int) ([]service.AffiliateInvitee, error) {
+func (r *oauthEmailAffiliateRepoStub) ListInvitees(context.Context, string, int) ([]service.AffiliateInvitee, error) {
 	panic("unexpected ListInvitees call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) UpdateUserAffCode(context.Context, int64, string) error {
+func (r *oauthEmailAffiliateRepoStub) RegenerateUserAffCode(context.Context, string, time.Time, int) (string, int, error) {
+	panic("unexpected RegenerateUserAffCode call")
+}
+
+func (r *oauthEmailAffiliateRepoStub) UpdateUserAffCode(context.Context, string, string) error {
 	panic("unexpected UpdateUserAffCode call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) ResetUserAffCode(context.Context, int64) (string, error) {
+func (r *oauthEmailAffiliateRepoStub) ResetUserAffCode(context.Context, string) (string, error) {
 	panic("unexpected ResetUserAffCode call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) SetUserRebateRate(context.Context, int64, *float64) error {
+func (r *oauthEmailAffiliateRepoStub) SetUserRebateRate(context.Context, string, *float64) error {
 	panic("unexpected SetUserRebateRate call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) BatchSetUserRebateRate(context.Context, []int64, *float64) error {
+func (r *oauthEmailAffiliateRepoStub) BatchSetUserRebateRate(context.Context, []string, *float64) error {
 	panic("unexpected BatchSetUserRebateRate call")
 }
 
@@ -443,7 +447,7 @@ func (r *oauthEmailAffiliateRepoStub) ListAffiliateTransferRecords(context.Conte
 	panic("unexpected ListAffiliateTransferRecords call")
 }
 
-func (r *oauthEmailAffiliateRepoStub) GetAffiliateUserOverview(context.Context, int64) (*service.AffiliateUserOverview, error) {
+func (r *oauthEmailAffiliateRepoStub) GetAffiliateUserOverview(context.Context, string) (*service.AffiliateUserOverview, error) {
 	panic("unexpected GetAffiliateUserOverview call")
 }
 

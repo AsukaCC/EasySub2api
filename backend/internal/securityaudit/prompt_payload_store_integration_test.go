@@ -20,7 +20,7 @@ func TestRedisPayloadStoreRoundTripTTLNamespaceAndDelete(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	store := NewRedisPayloadStore(client)
 	ctx := context.Background()
-	const jobID int64 = 987654321
+	const jobID = "987654321"
 	const canary = "PROMPT_CANARY_REDIS_ONLY_PAYLOAD"
 	_ = store.Delete(ctx, jobID)
 	require.NoError(t, store.Set(ctx, jobID, canary, 2*DefaultPayloadTTL))

@@ -19,7 +19,7 @@ func TestBulkUpdateEnsuresCodexFingerprintSeedWithPerRowSQL(t *testing.T) {
 	exec := &recordingSQLExecutor{result: rowsAffectedResult(0)}
 	repo := newAccountRepositoryWithSQL(nil, exec, nil)
 
-	_, err := repo.BulkUpdate(context.Background(), []int64{27, 28}, service.AccountBulkUpdate{
+	_, err := repo.BulkUpdate(context.Background(), []string{"account-27", "account-28"}, service.AccountBulkUpdate{
 		Extra: map[string]any{
 			"codex_fingerprint_mode": "session",
 			"codex_fingerprint_seed": "22222222-2222-4222-8222-222222222222",
@@ -51,15 +51,15 @@ func TestUpdateExtraEnsuresCodexFingerprintSeedAtomicallyWhenEnabling(t *testing
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`(?s)UPDATE accounts SET extra = .*jsonb_set.*gen_random_uuid\(\)::text.*WHERE id = \$2 AND deleted_at IS NULL`).
-		WithArgs(`{"codex_fingerprint_mode":"device"}`, int64(27)).
+		WithArgs(`{"codex_fingerprint_mode":"device"}`, "account-27").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).
-		WithArgs(service.SchedulerOutboxEventAccountChanged, int64(27), nil, nil, sqlmock.AnyArg()).
+		WithArgs(service.SchedulerOutboxEventAccountChanged, "account-27", nil, nil, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	repo := newAccountRepositoryWithSQL(client, db, nil)
 
-	err = repo.UpdateExtra(context.Background(), 27, map[string]any{
+	err = repo.UpdateExtra(context.Background(), "account-27", map[string]any{
 		"codex_fingerprint_mode": "device",
 		"codex_fingerprint_seed": "22222222-2222-4222-8222-222222222222",
 	})
@@ -77,12 +77,12 @@ func TestBulkUpdateCodexFingerprintSeedRollsBackWhenUpdateFails(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`(?s)UPDATE accounts SET extra = .*gen_random_uuid\(\)::text.*WHERE id = ANY\(\$2\)`).
-		WithArgs(sqlmock.AnyArg(), `{27,28}`).
+		WithArgs(sqlmock.AnyArg(), `{"account-27","account-28"}`).
 		WillReturnError(errors.New("update failed"))
 	mock.ExpectRollback()
 
 	repo := newAccountRepositoryWithSQL(client, db, nil)
-	rows, err := repo.BulkUpdate(context.Background(), []int64{27, 28}, service.AccountBulkUpdate{
+	rows, err := repo.BulkUpdate(context.Background(), []string{"account-27", "account-28"}, service.AccountBulkUpdate{
 		Extra: map[string]any{
 			"codex_fingerprint_mode": "session",
 		},
@@ -103,14 +103,14 @@ func TestBulkUpdateCodexFingerprintSeedRollsBackWhenOutboxFails(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectExec(`(?s)UPDATE accounts SET extra = .*gen_random_uuid\(\)::text.*WHERE id = ANY\(\$2\)`).
-		WithArgs(sqlmock.AnyArg(), `{27,28}`).
+		WithArgs(sqlmock.AnyArg(), `{"account-27","account-28"}`).
 		WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).
 		WillReturnError(errors.New("outbox failed"))
 	mock.ExpectRollback()
 
 	repo := newAccountRepositoryWithSQL(client, db, nil)
-	rows, err := repo.BulkUpdate(context.Background(), []int64{27, 28}, service.AccountBulkUpdate{
+	rows, err := repo.BulkUpdate(context.Background(), []string{"account-27", "account-28"}, service.AccountBulkUpdate{
 		Extra: map[string]any{
 			"codex_fingerprint_mode": "full",
 		},

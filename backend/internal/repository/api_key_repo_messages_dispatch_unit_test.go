@@ -11,7 +11,7 @@ import (
 
 func TestGroupEntityToService_PreservesMessagesDispatchModelConfig(t *testing.T) {
 	group := &dbent.Group{
-		ID:                    1,
+		ID:                    "group-1",
 		Name:                  "openai-dispatch",
 		Platform:              service.PlatformOpenAI,
 		Status:                service.StatusActive,

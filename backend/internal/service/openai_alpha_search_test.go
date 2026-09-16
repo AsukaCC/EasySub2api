@@ -24,7 +24,7 @@ type alphaSearchAccountStateRepo struct {
 	lastError     string
 }
 
-func (r *alphaSearchAccountStateRepo) SetError(_ context.Context, _ int64, errorMsg string) error {
+func (r *alphaSearchAccountStateRepo) SetError(_ context.Context, _ string, errorMsg string) error {
 	r.setErrorCalls++
 	r.lastError = errorMsg
 	return nil
@@ -66,7 +66,7 @@ func TestForwardAlphaSearchOAuthPreservesWire(t *testing.T) {
 	}}
 	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID:          42,
+		ID:          "account-42",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -127,7 +127,7 @@ func TestForwardAlphaSearchPATUsesResponsesWebSearchFallback(t *testing.T) {
 	}}
 	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID:          43,
+		ID:          "account-43",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -209,7 +209,7 @@ func TestForwardAlphaSearchPATBackfillsMissingChatGPTAccountMetadata(t *testing.
 		openAITokenProvider: NewOpenAITokenProvider(nil, nil, oauthService),
 	}
 	account := &Account{
-		ID:          45,
+		ID:          "account-45",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -247,7 +247,7 @@ func TestForwardAlphaSearchAPIKeyMapsModelAndPassesThroughError(t *testing.T) {
 	}}
 	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID:       7,
+		ID:       "account-7",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -286,7 +286,7 @@ func TestForwardAlphaSearchReturnsFailoverBeforeWriting(t *testing.T) {
 	}}
 	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID:       8,
+		ID:       "account-8",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -323,10 +323,10 @@ func TestForwardAlphaSearchUnauthorizedDoesNotMarkAccountError(t *testing.T) {
 		cfg:              cfg,
 		httpUpstream:     upstream,
 		accountRepo:      repo,
-		rateLimitService: NewRateLimitService(repo, nil, cfg, nil, nil),
+		rateLimitService: NewRateLimitService(repo, cfg, nil),
 	}
 	account := &Account{
-		ID:          44,
+		ID:          "account-44",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -366,10 +366,10 @@ func TestForwardAlphaSearchPATResponsesFallbackUnauthorizedDoesNotMarkAccountErr
 		cfg:              cfg,
 		httpUpstream:     upstream,
 		accountRepo:      repo,
-		rateLimitService: NewRateLimitService(repo, nil, cfg, nil, nil),
+		rateLimitService: NewRateLimitService(repo, cfg, nil),
 	}
 	account := &Account{
-		ID:          46,
+		ID:          "account-46",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -416,10 +416,10 @@ func TestForwardAlphaSearchAPIKeyEndpointNotFoundFailsOver(t *testing.T) {
 		cfg:              cfg,
 		httpUpstream:     upstream,
 		accountRepo:      repo,
-		rateLimitService: NewRateLimitService(repo, nil, cfg, nil, nil),
+		rateLimitService: NewRateLimitService(repo, cfg, nil),
 	}
 	account := &Account{
-		ID:       9,
+		ID:       "account-9",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -456,7 +456,7 @@ func TestForwardAlphaSearchOAuthNotFoundPassesThrough(t *testing.T) {
 	}}
 	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	account := &Account{
-		ID:          10,
+		ID:          "account-10",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,

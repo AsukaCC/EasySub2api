@@ -17,7 +17,7 @@ type dailyMidnightResetRepo struct {
 	newWindowStart time.Time
 }
 
-func (r *dailyMidnightResetRepo) ResetDailyUsage(_ context.Context, _ int64, _ *time.Time, newWindowStart time.Time) error {
+func (r *dailyMidnightResetRepo) ResetDailyUsage(_ context.Context, _ string, _ *time.Time, newWindowStart time.Time) error {
 	r.resetCalled = true
 	r.newWindowStart = newWindowStart
 	return nil
@@ -32,9 +32,9 @@ func midnightTestBase() time.Time {
 func newMidnightTestSub(dailyWindowStart time.Time, base time.Time) *UserSubscription {
 	start := dailyWindowStart
 	return &UserSubscription{
-		ID:               1,
-		UserID:           10,
-		GroupID:          20,
+		ID:               "subscription-1",
+		UserID:           "user-10",
+		GroupID:          "group-20",
 		StartsAt:         base.AddDate(0, 0, -3),
 		ExpiresAt:        base.AddDate(0, 0, 30),
 		DailyUsageUSD:    43.34,
@@ -146,9 +146,9 @@ func TestCheckAndResetWindows_OneTimeDailyCardStillExemptFromMidnightReset(t *te
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	svc.now = func() time.Time { return now }
 	sub := &UserSubscription{
-		ID:               1,
-		UserID:           10,
-		GroupID:          20,
+		ID:               "subscription-1",
+		UserID:           "user-10",
+		GroupID:          "group-20",
 		StartsAt:         startsAt,
 		ExpiresAt:        startsAt.AddDate(0, 0, 1),
 		DailyUsageUSD:    10,

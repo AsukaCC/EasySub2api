@@ -39,7 +39,7 @@ func newOpenAIImagesTestService(upstream HTTPUpstream) *OpenAIGatewayService {
 
 func newOpenAIImagesAPIKeyAccount() *Account {
 	return &Account{
-		ID:       31,
+		ID:       "account-31",
 		Name:     "openai-apikey-images",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,

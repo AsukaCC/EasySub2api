@@ -34,12 +34,12 @@ type openAICodexExtraListRepo struct {
 	rateLimitCh chan time.Time
 }
 
-func (r *openAIWSRateLimitSignalRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *openAIWSRateLimitSignalRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	r.rateLimitCalls = append(r.rateLimitCalls, resetAt)
 	return nil
 }
 
-func (r *openAIWSRateLimitSignalRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *openAIWSRateLimitSignalRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	copied := make(map[string]any, len(updates))
 	for k, v := range updates {
 		copied[k] = v
@@ -48,14 +48,14 @@ func (r *openAIWSRateLimitSignalRepo) UpdateExtra(_ context.Context, _ int64, up
 	return nil
 }
 
-func (r *openAICodexSnapshotAsyncRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *openAICodexSnapshotAsyncRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
 	}
 	return nil
 }
 
-func (r *openAICodexSnapshotAsyncRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *openAICodexSnapshotAsyncRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	if r.updateExtraCh != nil {
 		copied := make(map[string]any, len(updates))
 		for k, v := range updates {
@@ -66,20 +66,21 @@ func (r *openAICodexSnapshotAsyncRepo) UpdateExtra(_ context.Context, _ int64, u
 	return nil
 }
 
-func (r *openAICodexExtraListRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *openAICodexExtraListRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
 	}
 	return nil
 }
 
-func (r *openAICodexExtraListRepo) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (r *openAICodexExtraListRepo) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID string, privacyMode, expiryStatus string) ([]Account, *pagination.PaginationResult, error) {
 	_ = platform
 	_ = accountType
 	_ = status
 	_ = search
 	_ = groupID
 	_ = privacyMode
+	_ = expiryStatus
 	return r.accounts, &pagination.PaginationResult{Total: int64(len(r.accounts)), Page: params.Page, PageSize: params.PageSize}, nil
 }
 
@@ -131,7 +132,7 @@ func TestOpenAIGatewayService_Forward_WSv2ErrorEventUsageLimitPersistsRateLimit(
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 
 	account := Account{
-		ID:          501,
+		ID:          "id-501",
 		Name:        "openai-ws-rate-limit-event",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -201,7 +202,7 @@ func TestOpenAIGatewayService_Forward_WSv2Handshake429PersistsRateLimit(t *testi
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 
 	account := Account{
-		ID:          502,
+		ID:          "id-502",
 		Name:        "openai-ws-rate-limit-handshake",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -253,7 +254,7 @@ func TestOpenAIGatewayService_Forward_WSv2Handshake502RecordsModelTransient(t *t
 	cfg.Security.URLAllowlist.Enabled = false
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 	account := Account{
-		ID:          504,
+		ID:          "id-504",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -264,7 +265,7 @@ func TestOpenAIGatewayService_Forward_WSv2Handshake502RecordsModelTransient(t *t
 	}
 	svc := &OpenAIGatewayService{
 		cfg:              cfg,
-		rateLimitService: NewRateLimitService(transientCooldownAccountRepo{}, nil, cfg, nil, nil),
+		rateLimitService: NewRateLimitService(transientCooldownAccountRepo{}, cfg, nil),
 		httpUpstream:     &httpUpstreamRecorder{},
 		cache:            &stubGatewayCache{},
 		openaiWSResolver: NewOpenAIWSProtocolResolver(cfg),
@@ -311,7 +312,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_ErrorEventUsageL
 	pool.setClientDialerForTest(captureDialer)
 
 	account := Account{
-		ID:          503,
+		ID:          "id-503",
 		Name:        "openai-ingress-rate-limit",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -408,7 +409,7 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ExhaustedSnapshotDoesNotS
 		SecondaryResetAfterSeconds: ptrIntWS(1200),
 		SecondaryWindowMinutes:     ptrIntWS(300),
 	}
-	svc.updateCodexUsageSnapshot(context.Background(), 601, snapshot)
+	svc.updateCodexUsageSnapshot(context.Background(), "account-601", snapshot)
 
 	select {
 	case updates := <-repo.updateExtraCh:
@@ -438,7 +439,7 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_NonExhaustedSnapshotDoesN
 		SecondaryResetAfterSeconds: ptrIntWS(1200),
 		SecondaryWindowMinutes:     ptrIntWS(300),
 	}
-	svc.updateCodexUsageSnapshot(context.Background(), 602, snapshot)
+	svc.updateCodexUsageSnapshot(context.Background(), "account-602", snapshot)
 
 	select {
 	case <-repo.updateExtraCh:
@@ -470,8 +471,8 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ThrottlesExtraWrites(t *t
 		SecondaryWindowMinutes:     ptrIntWS(300),
 	}
 
-	svc.updateCodexUsageSnapshot(context.Background(), 777, snapshot)
-	svc.updateCodexUsageSnapshot(context.Background(), 777, snapshot)
+	svc.updateCodexUsageSnapshot(context.Background(), "account-777", snapshot)
+	svc.updateCodexUsageSnapshot(context.Background(), "account-777", snapshot)
 
 	select {
 	case <-repo.updateExtraCh:
@@ -492,7 +493,7 @@ func ptrIntWS(v int) *int             { return &v }
 func TestOpenAIGatewayService_GetSchedulableAccount_ExhaustedCodexExtraDoesNotSetRateLimit(t *testing.T) {
 	resetAt := time.Now().Add(6 * 24 * time.Hour)
 	account := Account{
-		ID:          701,
+		ID:          "id-701",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -521,7 +522,7 @@ func TestAdminService_ListAccounts_ExhaustedCodexExtraDoesNotSetRateLimit(t *tes
 	resetAt := time.Now().Add(4 * 24 * time.Hour)
 	repo := &openAICodexExtraListRepo{
 		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
-			ID:          702,
+			ID:          "id-702",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -536,7 +537,7 @@ func TestAdminService_ListAccounts_ExhaustedCodexExtraDoesNotSetRateLimit(t *tes
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, "", "", 0, "", "", "")
+	accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, "", "", "", "", "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
 	require.Len(t, accounts, 1)

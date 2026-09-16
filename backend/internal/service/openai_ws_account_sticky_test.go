@@ -11,9 +11,9 @@ import (
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_Hit(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(23)
+	groupID := "group-23"
 	account := Account{
-		ID:          2,
+		ID:          "account-2",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -50,9 +50,9 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_Hit(t *testing.T
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_QuotaAutoPausedMiss(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(23)
+	groupID := "group-23"
 	account := Account{
-		ID:          77,
+		ID:          "account-77",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -90,10 +90,10 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_QuotaAutoPausedM
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_RateLimitedMiss(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(23)
+	groupID := "group-23"
 	rateLimitedUntil := time.Now().Add(30 * time.Minute)
 	account := Account{
-		ID:               12,
+		ID:               "account-12",
 		Platform:         PlatformOpenAI,
 		Type:             AccountTypeAPIKey,
 		Status:           StatusActive,
@@ -127,10 +127,10 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_RateLimitedMiss(
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_DBRuntimeRecheckRateLimitedMiss(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(24)
+	groupID := "group-24"
 	rateLimitedUntil := time.Now().Add(30 * time.Minute)
 	staleAccount := &Account{
-		ID:          13,
+		ID:          "account-13",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -141,7 +141,7 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_DBRuntimeRecheck
 		},
 	}
 	dbAccount := Account{
-		ID:               13,
+		ID:               "account-13",
 		Platform:         PlatformOpenAI,
 		Type:             AccountTypeAPIKey,
 		Status:           StatusActive,
@@ -156,7 +156,7 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_DBRuntimeRecheck
 	store := NewOpenAIWSStateStore(cache)
 	cfg := newOpenAIWSV2TestConfig()
 	snapshotCache := &openAISnapshotCacheStub{
-		accountsByID: map[int64]*Account{dbAccount.ID: staleAccount},
+		accountsByID: map[string]*Account{dbAccount.ID: staleAccount},
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo:        stubOpenAIAccountRepo{accounts: []Account{dbAccount}},
@@ -179,9 +179,9 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_DBRuntimeRecheck
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_Excluded(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(23)
+	groupID := "group-23"
 	account := Account{
-		ID:          8,
+		ID:          "account-8",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -204,16 +204,16 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_Excluded(t *test
 
 	require.NoError(t, store.BindResponseAccount(ctx, groupID, "resp_prev_2", account.ID, time.Hour))
 
-	selection, err := svc.SelectAccountByPreviousResponseID(ctx, &groupID, "resp_prev_2", "gpt-5.1", map[int64]struct{}{account.ID: {}}, false)
+	selection, err := svc.SelectAccountByPreviousResponseID(ctx, &groupID, "resp_prev_2", "gpt-5.1", map[string]struct{}{account.ID: {}}, false)
 	require.NoError(t, err)
 	require.Nil(t, selection)
 }
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_ForceHTTPIgnored(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(23)
+	groupID := "group-23"
 	account := Account{
-		ID:          11,
+		ID:          "account-11",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -244,10 +244,10 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_ForceHTTPIgnored
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_BusyKeepsSticky(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(23)
+	groupID := "group-23"
 	accounts := []Account{
 		{
-			ID:          21,
+			ID:          "account-21",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -259,7 +259,7 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_BusyKeepsSticky(
 			},
 		},
 		{
-			ID:          22,
+			ID:          "account-22",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -279,12 +279,12 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_BusyKeepsSticky(
 	cfg.Gateway.Scheduling.StickySessionWaitTimeout = 30 * time.Second
 
 	concurrencyCache := stubConcurrencyCache{
-		acquireResults: map[int64]bool{
-			21: false, // previous_response 命中的账号繁忙
-			22: true,  // 次优账号可用（若回退会命中）
+		acquireResults: map[string]bool{
+			"account-21": false, // previous_response 命中的账号繁忙
+			"account-22": true,  // 次优账号可用（若回退会命中）
 		},
-		waitCounts: map[int64]int{
-			21: 999,
+		waitCounts: map[string]int{
+			"account-21": 999,
 		},
 	}
 
@@ -296,23 +296,23 @@ func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_BusyKeepsSticky(
 		openaiWSStateStore: store,
 	}
 
-	require.NoError(t, store.BindResponseAccount(ctx, groupID, "resp_prev_busy", 21, time.Hour))
+	require.NoError(t, store.BindResponseAccount(ctx, groupID, "resp_prev_busy", "account-21", time.Hour))
 
 	selection, err := svc.SelectAccountByPreviousResponseID(ctx, &groupID, "resp_prev_busy", "gpt-5.1", nil, false)
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(21), selection.Account.ID, "busy previous_response sticky account should remain selected")
+	require.Equal(t, "account-21", selection.Account.ID, "busy previous_response sticky account should remain selected")
 	require.False(t, selection.Acquired)
 	require.NotNil(t, selection.WaitPlan)
-	require.Equal(t, int64(21), selection.WaitPlan.AccountID)
+	require.Equal(t, "account-21", selection.WaitPlan.AccountID)
 }
 
 func TestOpenAIGatewayService_SelectAccountByPreviousResponseID_CapabilityMismatchKeepsSticky(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(25)
+	groupID := "group-25"
 	account := Account{
-		ID:          31,
+		ID:          "account-31",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,

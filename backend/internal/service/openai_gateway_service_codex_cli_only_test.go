@@ -110,20 +110,20 @@ func TestGetAPIKeyIDFromContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("context 为 nil", func(t *testing.T) {
-		require.Equal(t, int64(0), getAPIKeyIDFromContext(nil))
+		require.Equal(t, "", getAPIKeyIDFromContext(nil))
 	})
 
 	t.Run("上下文没有 api_key", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
-		require.Equal(t, int64(0), getAPIKeyIDFromContext(c))
+		require.Equal(t, "", getAPIKeyIDFromContext(c))
 	})
 
 	t.Run("api_key 类型错误", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
 		c.Set("api_key", "not-api-key")
-		require.Equal(t, int64(0), getAPIKeyIDFromContext(c))
+		require.Equal(t, "", getAPIKeyIDFromContext(c))
 	})
 
 	t.Run("api_key 指针为空", func(t *testing.T) {
@@ -131,22 +131,22 @@ func TestGetAPIKeyIDFromContext(t *testing.T) {
 		c, _ := gin.CreateTestContext(rec)
 		var k *APIKey
 		c.Set("api_key", k)
-		require.Equal(t, int64(0), getAPIKeyIDFromContext(c))
+		require.Equal(t, "", getAPIKeyIDFromContext(c))
 	})
 
 	t.Run("正常读取 api_key_id", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
-		c.Set("api_key", &APIKey{ID: 12345})
-		require.Equal(t, int64(12345), getAPIKeyIDFromContext(c))
+		c.Set("api_key", &APIKey{ID: "id-12345"})
+		require.Equal(t, "id-12345", getAPIKeyIDFromContext(c))
 	})
 }
 
 func TestLogCodexCLIOnlyDetection_NilSafety(t *testing.T) {
 	// 不校验日志内容，仅保证在 nil 入参下不会 panic。
 	require.NotPanics(t, func() {
-		logCodexCLIOnlyDetection(context.TODO(), nil, nil, 0, CodexClientRestrictionDetectionResult{Enabled: true, Matched: false, Reason: "test"}, nil)
-		logCodexCLIOnlyDetection(context.Background(), nil, nil, 0, CodexClientRestrictionDetectionResult{Enabled: false, Matched: false, Reason: "disabled"}, nil)
+		logCodexCLIOnlyDetection(context.TODO(), nil, nil, "", CodexClientRestrictionDetectionResult{Enabled: true, Matched: false, Reason: "test"}, nil)
+		logCodexCLIOnlyDetection(context.Background(), nil, nil, "", CodexClientRestrictionDetectionResult{Enabled: false, Matched: false, Reason: "disabled"}, nil)
 	})
 }
 
@@ -154,13 +154,13 @@ func TestLogCodexCLIOnlyDetection_OnlyLogsRejected(t *testing.T) {
 	logSink, restore := captureStructuredLog(t)
 	defer restore()
 
-	account := &Account{ID: 1001}
-	logCodexCLIOnlyDetection(context.Background(), nil, account, 2002, CodexClientRestrictionDetectionResult{
+	account := &Account{ID: "id-1001"}
+	logCodexCLIOnlyDetection(context.Background(), nil, account, "api-key-2002", CodexClientRestrictionDetectionResult{
 		Enabled: true,
 		Matched: true,
 		Reason:  CodexClientRestrictionReasonMatchedUA,
 	}, nil)
-	logCodexCLIOnlyDetection(context.Background(), nil, account, 2002, CodexClientRestrictionDetectionResult{
+	logCodexCLIOnlyDetection(context.Background(), nil, account, "api-key-2002", CodexClientRestrictionDetectionResult{
 		Enabled: true,
 		Matched: false,
 		Reason:  CodexClientRestrictionReasonNotMatchedUA,
@@ -185,8 +185,8 @@ func TestLogCodexCLIOnlyDetection_RejectedIncludesRequestDetails(t *testing.T) {
 	c.Request.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	body := []byte(`{"model":"gpt-5.2","stream":false,"prompt_cache_key":"pc-123","access_token":"secret-token","input":[{"type":"text","text":"hello"}]}`)
-	account := &Account{ID: 1001}
-	logCodexCLIOnlyDetection(context.Background(), c, account, 2002, CodexClientRestrictionDetectionResult{
+	account := &Account{ID: "id-1001"}
+	logCodexCLIOnlyDetection(context.Background(), c, account, "api-key-2002", CodexClientRestrictionDetectionResult{
 		Enabled: true,
 		Matched: false,
 		Reason:  CodexClientRestrictionReasonNotMatchedUA,
@@ -216,7 +216,7 @@ func TestLogOpenAIInstructionsRequiredDebug_LogsRequestDetails(t *testing.T) {
 	c.Request.Header.Set("OpenAI-Beta", "assistants=v2")
 
 	body := []byte(`{"model":"gpt-5.1-codex","stream":false,"prompt_cache_key":"pc-abc","access_token":"secret-token","input":[{"type":"text","text":"hello"}]}`)
-	account := &Account{ID: 1001, Name: "codex max套餐"}
+	account := &Account{ID: "id-1001", Name: "codex max套餐"}
 
 	logOpenAIInstructionsRequiredDebug(
 		context.Background(),
@@ -252,7 +252,7 @@ func TestLogOpenAIInstructionsRequiredDebug_NonTargetErrorSkipped(t *testing.T) 
 	logOpenAIInstructionsRequiredDebug(
 		context.Background(),
 		c,
-		&Account{ID: 1001},
+		&Account{ID: "id-1001"},
 		http.StatusForbidden,
 		"forbidden",
 		body,
@@ -352,7 +352,7 @@ func TestOpenAIGatewayService_Forward_LogsInstructionsRequiredDetails(t *testing
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             1001,
+		ID:             "id-1001",
 		Name:           "codex max套餐",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeAPIKey,
@@ -408,7 +408,7 @@ func TestOpenAIGatewayService_Forward_TransientProcessingErrorTriggersFailover(t
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:             1001,
+		ID:             "id-1001",
 		Name:           "codex max套餐",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeAPIKey,
@@ -456,7 +456,7 @@ func TestOpenAIGatewayService_Forward_ModelCapacityErrorTriggersFailoverAndSameA
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          1001,
+		ID:          "id-1001",
 		Name:        "codex max套餐",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

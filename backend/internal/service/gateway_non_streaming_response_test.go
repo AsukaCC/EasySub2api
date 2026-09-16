@@ -25,13 +25,13 @@ type nonJSONTempUnschedAccountRepo struct {
 	modelReason         string
 }
 
-func (r *nonJSONTempUnschedAccountRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, reason string) error {
+func (r *nonJSONTempUnschedAccountRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, reason string) error {
 	r.tempUnschedCalls++
 	r.tempReason = reason
 	return nil
 }
 
-func (r *nonJSONTempUnschedAccountRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, _ time.Time, reason ...string) error {
+func (r *nonJSONTempUnschedAccountRepo) SetModelRateLimit(_ context.Context, _ string, scope string, _ time.Time, reason ...string) error {
 	r.modelRateLimitCalls++
 	r.modelScope = scope
 	if len(reason) > 0 {
@@ -60,7 +60,7 @@ func TestHandleNonStreamingResponse_NonJSON2xxTriggersFailover(t *testing.T) {
 		rateLimitService: &RateLimitService{},
 	}
 
-	usage, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1}, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	usage, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1"}, "claude-sonnet-4-6", "claude-sonnet-4-6")
 
 	require.Nil(t, usage)
 	var failoverErr *UpstreamFailoverError
@@ -88,7 +88,7 @@ func TestHandleNonStreamingResponse_ValidJSONUnchanged(t *testing.T) {
 		rateLimitService: &RateLimitService{},
 	}
 
-	usage, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1}, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	usage, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1"}, "claude-sonnet-4-6", "claude-sonnet-4-6")
 
 	require.NoError(t, err)
 	require.NotNil(t, usage)
@@ -111,7 +111,7 @@ func TestHandleNonStreamingResponseAnthropicAPIKeyPassthrough_NonJSON2xxTriggers
 	}
 	svc := &GatewayService{cfg: &config.Config{}}
 
-	usage, err := svc.handleNonStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 2})
+	usage, err := svc.handleNonStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-2"})
 
 	require.Nil(t, usage)
 	var failoverErr *UpstreamFailoverError
@@ -135,7 +135,7 @@ func TestHandleNonStreamingResponseAnthropicAPIKeyPassthrough_ValidJSONUnchanged
 	}
 	svc := &GatewayService{cfg: &config.Config{}}
 
-	usage, err := svc.handleNonStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 2})
+	usage, err := svc.handleNonStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-2"})
 
 	require.NoError(t, err)
 	require.NotNil(t, usage)
@@ -180,7 +180,7 @@ func TestHandleNonStreamingResponseAnthropicAPIKeyPassthrough_ForceCacheBillingR
 			}
 			svc := &GatewayService{cfg: &config.Config{}}
 
-			usage, err := svc.handleNonStreamingResponseAnthropicAPIKeyPassthrough(WithForceCacheBilling(context.Background()), resp, c, &Account{ID: 2})
+			usage, err := svc.handleNonStreamingResponseAnthropicAPIKeyPassthrough(WithForceCacheBilling(context.Background()), resp, c, &Account{ID: "account-2"})
 
 			require.NoError(t, err)
 			require.Equal(t, int(gjson.Get(tt.body, "usage.input_tokens").Int()), usage.InputTokens, "local accounting must retain the unclassified usage")
@@ -197,13 +197,13 @@ func TestHandleNonStreamingResponse_NonJSON2xxMatchesModelScopedTempUnschedulabl
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
 	repo := &nonJSONTempUnschedAccountRepo{}
-	rateLimitService := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	rateLimitService := NewRateLimitService(repo, &config.Config{}, nil)
 	svc := &GatewayService{
 		cfg:              &config.Config{},
 		rateLimitService: rateLimitService,
 	}
 	account := &Account{
-		ID:       3,
+		ID:       "account-3",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{

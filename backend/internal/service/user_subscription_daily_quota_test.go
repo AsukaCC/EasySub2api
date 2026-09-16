@@ -16,22 +16,22 @@ type dailyResetTrackingUserSubRepo struct {
 	resetDailyCalled bool
 }
 
-func (r *dailyResetTrackingUserSubRepo) ResetDailyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (r *dailyResetTrackingUserSubRepo) ResetDailyUsage(context.Context, string, *time.Time, time.Time) error {
 	r.resetDailyCalled = true
 	return nil
 }
 
 func TestAssignOrExtendSubscription_ExpiredDailyCardStartsNewOneTimeQuota(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	oldStart := time.Now().AddDate(0, 0, -3)
 	oldWindowStart := startOfDay(oldStart)
 	subRepo.seed(&UserSubscription{
-		ID:                 100,
-		UserID:             200,
-		GroupID:            1,
+		ID:                 "100",
+		UserID:             "200",
+		GroupID:            "1",
 		StartsAt:           oldStart,
 		ExpiresAt:          oldStart.AddDate(0, 0, 1),
 		Status:             SubscriptionStatusExpired,
@@ -46,8 +46,8 @@ func TestAssignOrExtendSubscription_ExpiredDailyCardStartsNewOneTimeQuota(t *tes
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 
 	renewed, reused, err := svc.AssignOrExtendSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       200,
-		GroupID:      1,
+		UserID:       "200",
+		GroupID:      "1",
 		ValidityDays: 1,
 		Notes:        "new",
 	})
@@ -68,14 +68,14 @@ func TestAssignOrExtendSubscription_ExpiredDailyCardStartsNewOneTimeQuota(t *tes
 
 func TestAssignOrExtendSubscription_ExpiredSubscriptionAppendsMatchingNotes(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	oldStart := time.Now().AddDate(0, 0, -3)
 	subRepo.seed(&UserSubscription{
-		ID:        101,
-		UserID:    201,
-		GroupID:   1,
+		ID:        "101",
+		UserID:    "201",
+		GroupID:   "1",
 		StartsAt:  oldStart,
 		ExpiresAt: oldStart.AddDate(0, 0, 1),
 		Status:    SubscriptionStatusExpired,
@@ -84,8 +84,8 @@ func TestAssignOrExtendSubscription_ExpiredSubscriptionAppendsMatchingNotes(t *t
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 
 	renewed, reused, err := svc.AssignOrExtendSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       201,
-		GroupID:      1,
+		UserID:       "201",
+		GroupID:      "1",
 		ValidityDays: 1,
 		Notes:        "same",
 	})
@@ -144,9 +144,9 @@ func TestCheckAndResetWindows_DailyCardDoesNotResetDailyUsage(t *testing.T) {
 	repo := &dailyResetTrackingUserSubRepo{}
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	sub := &UserSubscription{
-		ID:               1,
-		UserID:           10,
-		GroupID:          20,
+		ID:               "1",
+		UserID:           "10",
+		GroupID:          "20",
 		StartsAt:         startsAt,
 		ExpiresAt:        startsAt.Add(24 * time.Hour),
 		DailyUsageUSD:    10,
@@ -168,9 +168,9 @@ func TestCheckAndResetWindows_MultiDaySubscriptionStillResetsDailyUsage(t *testi
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	svc.now = func() time.Time { return now }
 	sub := &UserSubscription{
-		ID:               1,
-		UserID:           10,
-		GroupID:          20,
+		ID:               "1",
+		UserID:           "10",
+		GroupID:          "20",
 		StartsAt:         startsAt,
 		ExpiresAt:        startsAt.AddDate(0, 0, 4),
 		DailyUsageUSD:    10,

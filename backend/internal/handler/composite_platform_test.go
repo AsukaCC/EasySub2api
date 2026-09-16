@@ -133,7 +133,7 @@ func TestClientRequestedModelUsesCompositePublicModel(t *testing.T) {
 		UpstreamModel:  "gpt-5",
 	}))
 
-	input := buildContentModerationInput(c, nil, middleware2.AuthSubject{UserID: 42}, service.ContentModerationProtocolOpenAIChat, "gpt-5", nil)
+	input := buildContentModerationInput(c, nil, middleware2.AuthSubject{UserID: "user-42"}, service.ContentModerationProtocolOpenAIChat, "gpt-5", nil)
 	require.Equal(t, "public-alias", input.Model)
 	require.Equal(t, service.PlatformOpenAI, input.Provider)
 

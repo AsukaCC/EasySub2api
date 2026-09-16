@@ -9,7 +9,7 @@ import (
 
 func TestAccount_BillingRateMultiplier_DefaultsToOneWhenNil(t *testing.T) {
 	var a Account
-	require.NoError(t, json.Unmarshal([]byte(`{"id":1,"name":"acc","status":"active"}`), &a))
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"account-1","name":"acc","status":"active"}`), &a))
 	require.Nil(t, a.RateMultiplier)
 	require.Equal(t, 1.0, a.BillingRateMultiplier())
 }

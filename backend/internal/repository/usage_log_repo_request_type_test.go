@@ -22,9 +22,9 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 
 	createdAt := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	log := &service.UsageLog{
-		UserID:         1,
-		APIKeyID:       2,
-		AccountID:      3,
+		UserID:         "user-1",
+		APIKeyID:       "key-2",
+		AccountID:      "account-3",
 		RequestID:      "req-1",
 		Model:          "gpt-5",
 		RequestedModel: "gpt-5",
@@ -121,9 +121,9 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 	createdAt := time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC)
 	serviceTier := "priority"
 	log := &service.UsageLog{
-		UserID:         1,
-		APIKeyID:       2,
-		AccountID:      3,
+		UserID:         "user-1",
+		APIKeyID:       "key-2",
+		AccountID:      "account-3",
 		RequestID:      "req-service-tier",
 		Model:          "gpt-5.4",
 		RequestedModel: "gpt-5.4",
@@ -203,9 +203,9 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 
 func TestBuildUsageLogBestEffortInsertQuery_IncludesRequestedModelColumn(t *testing.T) {
 	prepared := prepareUsageLogInsert(&service.UsageLog{
-		UserID:         1,
-		APIKeyID:       2,
-		AccountID:      3,
+		UserID:         "user-1",
+		APIKeyID:       "key-2",
+		AccountID:      "account-3",
 		RequestID:      "req-best-effort-query",
 		Model:          "gpt-5",
 		RequestedModel: "gpt-5",
@@ -224,9 +224,9 @@ func TestBuildUsageLogBestEffortInsertQuery_IncludesRequestedModelColumn(t *test
 func TestExecUsageLogInsertNoResult_PersistsRequestedModel(t *testing.T) {
 	db, mock := newSQLMock(t)
 	prepared := prepareUsageLogInsert(&service.UsageLog{
-		UserID:         1,
-		APIKeyID:       2,
-		AccountID:      3,
+		UserID:         "user-1",
+		APIKeyID:       "key-2",
+		AccountID:      "account-3",
 		RequestID:      "req-best-effort-exec",
 		Model:          "gpt-5",
 		RequestedModel: "gpt-5",
@@ -244,9 +244,9 @@ func TestExecUsageLogInsertNoResult_PersistsRequestedModel(t *testing.T) {
 
 func TestPrepareUsageLogInsert_ArgCountMatchesTypes(t *testing.T) {
 	prepared := prepareUsageLogInsert(&service.UsageLog{
-		UserID:         1,
-		APIKeyID:       2,
-		AccountID:      3,
+		UserID:         "user-1",
+		APIKeyID:       "key-2",
+		AccountID:      "account-3",
 		RequestID:      "req-arg-count",
 		Model:          "gpt-5",
 		RequestedModel: "gpt-5",
@@ -262,9 +262,9 @@ func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
 	outputSize := "3840x2160"
 	source := "output"
 	prepared := prepareUsageLogInsert(&service.UsageLog{
-		UserID:             1,
-		APIKeyID:           2,
-		AccountID:          3,
+		UserID:             "user-1",
+		APIKeyID:           "key-2",
+		AccountID:          "account-3",
 		RequestID:          "req-image-metadata",
 		Model:              "gpt-image-2",
 		RequestedModel:     "gpt-image-2",
@@ -428,7 +428,7 @@ func TestUsageLogRepositoryGetUsageTrendWithFiltersRequestTypePriority(t *testin
 		WithArgs(start, end, requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"date", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost"}))
 
-	trend, err := repo.GetUsageTrendWithFilters(context.Background(), start, end, "day", 0, 0, 0, 0, "", &requestType, &stream, nil)
+	trend, err := repo.GetUsageTrendWithFilters(context.Background(), start, end, "day", "", "", "", "", "", &requestType, &stream, nil)
 	require.NoError(t, err)
 	require.Empty(t, trend)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -468,7 +468,7 @@ func TestUsageLogRepositoryGetModelStatsWithFiltersRequestTypePriority(t *testin
 		WithArgs(start, end, requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"model", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost", "account_cost"}))
 
-	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, &requestType, &stream, nil)
+	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, "", "", "", "", &requestType, &stream, nil)
 	require.NoError(t, err)
 	require.Empty(t, stats)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -482,14 +482,14 @@ func TestUsageLogRepositoryGetUserModelStatsUsesRequestedModel(t *testing.T) {
 	end := start.Add(24 * time.Hour)
 
 	mock.ExpectQuery("(?s)SELECT\\s+COALESCE\\(NULLIF\\(TRIM\\(requested_model\\), ''\\), model\\) as model,.*WHERE created_at >= \\$1 AND created_at < \\$2\\s+AND user_id = \\$3.*GROUP BY COALESCE\\(NULLIF\\(TRIM\\(requested_model\\), ''\\), model\\) ORDER BY total_tokens DESC").
-		WithArgs(start, end, int64(7)).
+		WithArgs(start, end, "user-7").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"model", "requests", "input_tokens", "output_tokens",
 			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
 			"cost", "actual_cost", "account_cost",
 		}).AddRow("gpt-5.5", int64(2), int64(10), int64(20), int64(0), int64(0), int64(30), 0.1, 0.08, 0.07))
 
-	stats, err := repo.GetUserModelStats(context.Background(), 7, start, end)
+	stats, err := repo.GetUserModelStats(context.Background(), "user-7", start, end)
 	require.NoError(t, err)
 	require.Len(t, stats, 1)
 	require.Equal(t, "gpt-5.5", stats[0].Model)
@@ -596,7 +596,7 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 			AddRow("claude-opus-4-6", int64(10), int64(100), int64(200), int64(5), int64(3), int64(308), 2.5, 2.0, 1.8).
 			AddRow("claude-sonnet-4-6", int64(5), int64(50), int64(100), int64(0), int64(0), int64(150), 1.0, 0.8, 0.7))
 
-	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil)
+	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, "", "", "", "", nil, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	require.Equal(t, "claude-opus-4-6", results[0].Model)
@@ -644,18 +644,18 @@ func TestUsageLogRepositoryGetGroupStatsAccountCostColumn(t *testing.T) {
 			"group_id", "group_name", "requests", "total_tokens",
 			"cost", "actual_cost", "account_cost",
 		}).
-			AddRow(int64(1), "azure-cc", int64(100), int64(5000), 10.0, 8.5, 7.2).
-			AddRow(int64(2), "max", int64(50), int64(2000), 5.0, 4.0, 3.5))
+			AddRow("group-1", "azure-cc", int64(100), int64(5000), 10.0, 8.5, 7.2).
+			AddRow("group-2", "max", int64(50), int64(2000), 5.0, 4.0, 3.5))
 
-	results, err := repo.GetGroupStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil)
+	results, err := repo.GetGroupStatsWithFilters(context.Background(), start, end, "", "", "", "", nil, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
-	require.Equal(t, int64(1), results[0].GroupID)
+	require.Equal(t, "group-1", results[0].GroupID)
 	require.Equal(t, "azure-cc", results[0].GroupName)
 	require.Equal(t, 10.0, results[0].Cost)
 	require.Equal(t, 8.5, results[0].ActualCost)
 	require.Equal(t, 7.2, results[0].AccountCost)
-	require.Equal(t, int64(2), results[1].GroupID)
+	require.Equal(t, "group-2", results[1].GroupID)
 	require.Equal(t, 3.5, results[1].AccountCost)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -673,12 +673,12 @@ func TestUsageLogRepositoryGetGroupStatsWithUsageFiltersAppliesRequestedModelFil
 		WillReturnRows(sqlmock.NewRows([]string{
 			"group_id", "group_name", "requests", "total_tokens",
 			"cost", "actual_cost", "account_cost",
-		}).AddRow(int64(1), "default", int64(1), int64(30), 0.1, 0.08, 0.07))
+		}).AddRow("group-1", "default", int64(1), int64(30), 0.1, 0.08, 0.07))
 
 	results, err := repo.GetGroupStatsWithUsageFilters(context.Background(), start, end, filters)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	require.Equal(t, int64(1), results[0].GroupID)
+	require.Equal(t, "group-1", results[0].GroupID)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -723,7 +723,7 @@ func TestUsageLogRepositoryEndpointStatsKeepsPointsAndAccountCostSeparate(t *tes
 
 	rows, err := repo.getEndpointStatsByColumnWithFilters(
 		context.Background(), "inbound_endpoint", start, end,
-		"", "", "account-1", "", "", "", nil, nil, nil, "",
+		"", "", "account-1", "", "", "", nil, nil, nil, nil, "",
 	)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
@@ -752,9 +752,9 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &usagestats.UserSpendingRankingResponse{
 		Ranking: []usagestats.UserSpendingRankingItem{
-			{UserID: 2, Email: "beta@example.com", Username: "beta", ActualCost: 12.5, Requests: 9, Tokens: 900},
-			{UserID: 1, Email: "alpha@example.com", Username: "alpha", ActualCost: 12.5, Requests: 8, Tokens: 800},
-			{UserID: 3, Email: "gamma@example.com", ActualCost: 4.25, Requests: 5, Tokens: 300},
+			{UserID: "user-2", Email: "beta@example.com", Username: "beta", ActualCost: 12.5, Requests: 9, Tokens: 900},
+			{UserID: "user-1", Email: "alpha@example.com", Username: "alpha", ActualCost: 12.5, Requests: 8, Tokens: 800},
+			{UserID: "user-3", Email: "gamma@example.com", ActualCost: 4.25, Requests: 5, Tokens: 300},
 		},
 		TotalActualCost: 40.0,
 		TotalRequests:   30,

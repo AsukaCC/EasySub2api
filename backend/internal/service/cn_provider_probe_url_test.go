@@ -53,12 +53,12 @@ func TestCNValidateProbeURL_AllowlistPolicy(t *testing.T) {
 // recordingHTTPUpstream 断言探测被策略拒绝时没有任何上游请求发出。
 type recordingHTTPUpstream struct{ calls int }
 
-func (u *recordingHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (u *recordingHTTPUpstream) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	u.calls++
 	return nil, context.DeadlineExceeded
 }
 
-func (u *recordingHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *recordingHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	u.calls++
 	return nil, context.DeadlineExceeded
 }
@@ -68,7 +68,7 @@ type fakeCNProbeAccountRepo struct {
 	account *Account
 }
 
-func (r *fakeCNProbeAccountRepo) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *fakeCNProbeAccountRepo) GetByID(ctx context.Context, id string) (*Account, error) {
 	return r.account, nil
 }
 
@@ -76,7 +76,7 @@ func (r *fakeCNProbeAccountRepo) GetByID(ctx context.Context, id int64) (*Accoun
 // 为 kimi coding plan）→ 衍生额度端点落在中转主机上，白名单未列名必须拒绝。
 func TestCNProviderQuotaService_RejectsURLBlockedByPolicy(t *testing.T) {
 	repo := &fakeCNProbeAccountRepo{account: &Account{
-		ID: 1, Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusActive,
+		ID: "1", Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusActive,
 		Credentials: map[string]any{
 			"account_mode": "coding",
 			"api_key":      "sk-test",
@@ -86,7 +86,7 @@ func TestCNProviderQuotaService_RejectsURLBlockedByPolicy(t *testing.T) {
 	upstream := &recordingHTTPUpstream{}
 	svc := NewCNProviderQuotaService(repo, nil, upstream, cnProbeAllowlistConfig("api.kimi.com"))
 
-	_, err := svc.QueryUsage(context.Background(), 1)
+	_, err := svc.QueryUsage(context.Background(), "1")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "CN_QUOTA_URL_REJECTED")
 	require.Zero(t, upstream.calls, "probe must not issue any upstream request when URL policy rejects the target")
@@ -95,7 +95,7 @@ func TestCNProviderQuotaService_RejectsURLBlockedByPolicy(t *testing.T) {
 // deepseek payg 账号自定义 base_url → 余额端点落在中转主机上，必须先过策略。
 func TestCNProviderBalanceService_RejectsURLBlockedByPolicy(t *testing.T) {
 	repo := &fakeCNProbeAccountRepo{account: &Account{
-		ID: 2, Platform: PlatformDeepseek, Type: AccountTypeAPIKey, Status: StatusActive,
+		ID: "2", Platform: PlatformDeepseek, Type: AccountTypeAPIKey, Status: StatusActive,
 		Credentials: map[string]any{
 			"account_mode": "payg",
 			"api_key":      "sk-test",
@@ -105,7 +105,7 @@ func TestCNProviderBalanceService_RejectsURLBlockedByPolicy(t *testing.T) {
 	upstream := &recordingHTTPUpstream{}
 	svc := NewCNProviderBalanceService(repo, nil, upstream, cnProbeAllowlistConfig("api.deepseek.com"))
 
-	_, err := svc.QueryBalance(context.Background(), 2)
+	_, err := svc.QueryBalance(context.Background(), "2")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "CN_BALANCE_URL_REJECTED")
 	require.Zero(t, upstream.calls, "probe must not issue any upstream request when URL policy rejects the target")
@@ -115,7 +115,7 @@ func TestCNProviderBalanceService_RejectsURLBlockedByPolicy(t *testing.T) {
 // httpUpstream 层即视为通过校验，不发真实网络）。
 func TestCNProviderBalanceService_OfficialHostPassesValidation(t *testing.T) {
 	repo := &fakeCNProbeAccountRepo{account: &Account{
-		ID: 3, Platform: PlatformDeepseek, Type: AccountTypeAPIKey, Status: StatusActive,
+		ID: "3", Platform: PlatformDeepseek, Type: AccountTypeAPIKey, Status: StatusActive,
 		Credentials: map[string]any{
 			"account_mode": "payg",
 			"api_key":      "sk-test",
@@ -124,6 +124,6 @@ func TestCNProviderBalanceService_OfficialHostPassesValidation(t *testing.T) {
 	upstream := &recordingHTTPUpstream{}
 	svc := NewCNProviderBalanceService(repo, nil, upstream, cnProbeAllowlistConfig("api.deepseek.com"))
 
-	_, _ = svc.QueryBalance(context.Background(), 3)
+	_, _ = svc.QueryBalance(context.Background(), "3")
 	require.Equal(t, 1, upstream.calls, "official host must pass URL policy and reach the upstream layer")
 }

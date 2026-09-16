@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -15,9 +16,9 @@ type authInvalidationRepoStub struct {
 	mu         sync.Mutex
 	events     []AuthCacheInvalidationEvent
 	claimLimit int
-	scheduled  []int64
-	deleted    []int64
-	retried    []int64
+		scheduled  []string
+		deleted    []string
+		retried    []string
 	retryError string
 	stats      AuthCacheInvalidationOutboxStats
 	statsErr   error
@@ -29,19 +30,19 @@ func (r *authInvalidationRepoStub) Claim(_ context.Context, _ string, limit int,
 	r.claimLimit = limit
 	return append([]AuthCacheInvalidationEvent(nil), r.events...), nil
 }
-func (r *authInvalidationRepoStub) DeleteClaimed(_ context.Context, id int64, _ string) error {
+func (r *authInvalidationRepoStub) DeleteClaimed(_ context.Context, id string, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.deleted = append(r.deleted, id)
 	return nil
 }
-func (r *authInvalidationRepoStub) ScheduleSecondPass(_ context.Context, id int64, _ string, _ time.Time) error {
+func (r *authInvalidationRepoStub) ScheduleSecondPass(_ context.Context, id string, _ string, _ time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.scheduled = append(r.scheduled, id)
 	return nil
 }
-func (r *authInvalidationRepoStub) RetryClaimed(_ context.Context, id int64, _ string, _ time.Time, lastError string) error {
+func (r *authInvalidationRepoStub) RetryClaimed(_ context.Context, id string, _ string, _ time.Time, lastError string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.retried = append(r.retried, id)
@@ -61,13 +62,13 @@ type authInvalidationCacheStub struct {
 	published   []string
 }
 
-func (*authInvalidationCacheStub) GetCreateAttemptCount(context.Context, int64) (int, error) {
+func (*authInvalidationCacheStub) GetCreateAttemptCount(context.Context, string) (int, error) {
 	return 0, nil
 }
-func (*authInvalidationCacheStub) IncrementCreateAttemptCount(context.Context, int64) error {
+func (*authInvalidationCacheStub) IncrementCreateAttemptCount(context.Context, string) error {
 	return nil
 }
-func (*authInvalidationCacheStub) DeleteCreateAttemptCount(context.Context, int64) error { return nil }
+func (*authInvalidationCacheStub) DeleteCreateAttemptCount(context.Context, string) error { return nil }
 func (*authInvalidationCacheStub) IncrementDailyUsage(context.Context, string) error     { return nil }
 func (*authInvalidationCacheStub) SetDailyUsageExpiry(context.Context, string, time.Duration) error {
 	return nil
@@ -107,10 +108,10 @@ func TestAuthCacheInvalidationWorker_FirstPassSchedulesSafetyPass(t *testing.T) 
 	repo := &authInvalidationRepoStub{}
 	cache := &authInvalidationCacheStub{}
 	worker := NewAuthCacheInvalidationWorker(repo, cache)
-	worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: 7, CacheKey: "hash", Stage: 0})
+	worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: "7", CacheKey: "hash", Stage: 0})
 	require.Equal(t, []string{"hash"}, cache.deleted)
 	require.Equal(t, []string{"hash"}, cache.published)
-	require.Equal(t, []int64{7}, repo.scheduled)
+	require.Equal(t, []string{"7"}, repo.scheduled)
 	require.Empty(t, repo.deleted)
 }
 
@@ -118,8 +119,8 @@ func TestAuthCacheInvalidationWorker_SecondPassCleansEvent(t *testing.T) {
 	repo := &authInvalidationRepoStub{}
 	cache := &authInvalidationCacheStub{}
 	worker := NewAuthCacheInvalidationWorker(repo, cache)
-	worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: 8, CacheKey: "hash", Stage: 1})
-	require.Equal(t, []int64{8}, repo.deleted)
+	worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: "8", CacheKey: "hash", Stage: 1})
+	require.Equal(t, []string{"8"}, repo.deleted)
 	require.Equal(t, uint64(1), worker.Health(context.Background()).Processed)
 }
 
@@ -140,8 +141,8 @@ func TestAuthCacheInvalidationWorker_RetriesRedisAndPublishFailures(t *testing.T
 				publishFn: func(context.Context, string) error { return tc.publishErr },
 			}
 			worker := NewAuthCacheInvalidationWorker(repo, cache)
-			worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: 9, CacheKey: "hash"})
-			require.Equal(t, []int64{9}, repo.retried)
+			worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: "9", CacheKey: "hash"})
+			require.Equal(t, []string{"9"}, repo.retried)
 			require.Len(t, cache.published, tc.published)
 			require.NotEmpty(t, repo.retryError)
 			require.Empty(t, repo.deleted)
@@ -158,9 +159,9 @@ func TestAuthCacheInvalidationWorker_RedisSlowIsTimedOut(t *testing.T) {
 	}}
 	worker := NewAuthCacheInvalidationWorker(repo, cache)
 	started := time.Now()
-	worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: 10, CacheKey: "hash"})
+	worker.processEvent(context.Background(), AuthCacheInvalidationEvent{ID: "10", CacheKey: "hash"})
 	require.Less(t, time.Since(started), 3*time.Second)
-	require.Equal(t, []int64{10}, repo.retried)
+	require.Equal(t, []string{"10"}, repo.retried)
 	require.Contains(t, repo.retryError, "deadline")
 }
 
@@ -184,7 +185,7 @@ func TestAuthCacheInvalidationWorker_BoundedBatchAndHealth(t *testing.T) {
 func TestAuthCacheInvalidationWorker_ProcessesClaimedBatchConcurrently(t *testing.T) {
 	events := make([]AuthCacheInvalidationEvent, 32)
 	for i := range events {
-		events[i] = AuthCacheInvalidationEvent{ID: int64(i + 1), CacheKey: "hash", Stage: 1}
+		events[i] = AuthCacheInvalidationEvent{ID: fmt.Sprintf("%d", i+1), CacheKey: "hash", Stage: 1}
 	}
 	repo := &authInvalidationRepoStub{events: events}
 	cache := &authInvalidationCacheStub{deleteFn: func(context.Context, string) error {

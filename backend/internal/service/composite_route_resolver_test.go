@@ -11,7 +11,7 @@ type compositeRouteRepoStub struct {
 	routes []CompositeModelRoute
 }
 
-func (s compositeRouteRepoStub) ListByGroup(ctx context.Context, groupID int64, includeDisabled bool) ([]CompositeModelRoute, error) {
+func (s compositeRouteRepoStub) ListByGroup(ctx context.Context, groupID string, includeDisabled bool) ([]CompositeModelRoute, error) {
 	routes := make([]CompositeModelRoute, 0, len(s.routes))
 	for _, route := range s.routes {
 		if route.GroupID != groupID {
@@ -33,11 +33,11 @@ func (s compositeRouteRepoStub) Update(ctx context.Context, route *CompositeMode
 	return nil
 }
 
-func (s compositeRouteRepoStub) Delete(ctx context.Context, id int64) error {
+func (s compositeRouteRepoStub) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s compositeRouteRepoStub) DeleteByGroup(ctx context.Context, groupID int64) error {
+func (s compositeRouteRepoStub) DeleteByGroup(ctx context.Context, groupID string) error {
 	return nil
 }
 
@@ -45,8 +45,8 @@ func TestCompositeRouteResolverExplicitExactRouteRewritesModel(t *testing.T) {
 	resolver := NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []CompositeModelRoute{
 			{
-				ID:             10,
-				GroupID:        7,
+				ID:             "route-10",
+				GroupID:        "group-7",
 				PublicModel:    "openrouter/gpt-5",
 				MatchType:      CompositeRouteMatchExact,
 				TargetPlatform: PlatformOpenAI,
@@ -58,7 +58,7 @@ func TestCompositeRouteResolverExplicitExactRouteRewritesModel(t *testing.T) {
 		},
 	})
 
-	decision, err := resolver.Resolve(context.Background(), 7, "openrouter/gpt-5", CompositeRouteEndpointChatCompletions)
+	decision, err := resolver.Resolve(context.Background(), "group-7", "openrouter/gpt-5", CompositeRouteEndpointChatCompletions)
 
 	require.NoError(t, err)
 	require.True(t, decision.Matched)
@@ -66,15 +66,15 @@ func TestCompositeRouteResolverExplicitExactRouteRewritesModel(t *testing.T) {
 	require.Equal(t, PlatformOpenAI, decision.TargetPlatform)
 	require.Equal(t, "gpt-5", decision.UpstreamModel)
 	require.NotNil(t, decision.Route)
-	require.Equal(t, int64(10), decision.Route.ID)
+	require.Equal(t, "route-10", decision.Route.ID)
 }
 
 func TestCompositeRouteResolverPrefersEndpointSpecificLongestPrefix(t *testing.T) {
 	resolver := NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        7,
+				ID:             "route-1",
+				GroupID:        "group-7",
 				PublicModel:    "router/",
 				MatchType:      CompositeRouteMatchPrefix,
 				TargetPlatform: PlatformAnthropic,
@@ -83,8 +83,8 @@ func TestCompositeRouteResolverPrefersEndpointSpecificLongestPrefix(t *testing.T
 				Enabled:        true,
 			},
 			{
-				ID:             2,
-				GroupID:        7,
+				ID:             "route-2",
+				GroupID:        "group-7",
 				PublicModel:    "router/gpt-",
 				MatchType:      CompositeRouteMatchPrefix,
 				TargetPlatform: PlatformOpenAI,
@@ -96,7 +96,7 @@ func TestCompositeRouteResolverPrefersEndpointSpecificLongestPrefix(t *testing.T
 		},
 	})
 
-	decision, err := resolver.Resolve(context.Background(), 7, "router/gpt-5", CompositeRouteEndpointResponses)
+	decision, err := resolver.Resolve(context.Background(), "group-7", "router/gpt-5", CompositeRouteEndpointResponses)
 
 	require.NoError(t, err)
 	require.True(t, decision.Matched)
@@ -104,7 +104,7 @@ func TestCompositeRouteResolverPrefersEndpointSpecificLongestPrefix(t *testing.T
 	require.Equal(t, PlatformOpenAI, decision.TargetPlatform)
 	require.Equal(t, "gpt-family", decision.UpstreamModel)
 	require.NotNil(t, decision.Route)
-	require.Equal(t, int64(2), decision.Route.ID)
+	require.Equal(t, "route-2", decision.Route.ID)
 }
 
 // TestCompositeRouteResolverPrefixEmptyUpstreamPassesThroughRequestedModel 验证：
@@ -114,8 +114,8 @@ func TestCompositeRouteResolverPrefixEmptyUpstreamPassesThroughRequestedModel(t 
 	resolver := NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        7,
+				ID:             "route-1",
+				GroupID:        "group-7",
 				PublicModel:    "deepseek-v4",
 				MatchType:      CompositeRouteMatchPrefix,
 				TargetPlatform: PlatformOpenAI,
@@ -128,7 +128,7 @@ func TestCompositeRouteResolverPrefixEmptyUpstreamPassesThroughRequestedModel(t 
 	})
 
 	for _, model := range []string{"deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4"} {
-		decision, err := resolver.Resolve(context.Background(), 7, model, CompositeRouteEndpointChatCompletions)
+		decision, err := resolver.Resolve(context.Background(), "group-7", model, CompositeRouteEndpointChatCompletions)
 		require.NoError(t, err)
 		require.True(t, decision.Matched, "model %q should match prefix route", model)
 		require.Equal(t, CompositeRouteSourceExplicit, decision.Source)
@@ -143,8 +143,8 @@ func TestCompositeRouteResolverPrefixExplicitUpstreamStillFixed(t *testing.T) {
 	resolver := NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        7,
+				ID:             "route-1",
+				GroupID:        "group-7",
 				PublicModel:    "deepseek-v4",
 				MatchType:      CompositeRouteMatchPrefix,
 				TargetPlatform: PlatformOpenAI,
@@ -157,7 +157,7 @@ func TestCompositeRouteResolverPrefixExplicitUpstreamStillFixed(t *testing.T) {
 	})
 
 	for _, model := range []string{"deepseek-v4-flash", "deepseek-v4-pro"} {
-		decision, err := resolver.Resolve(context.Background(), 7, model, CompositeRouteEndpointChatCompletions)
+		decision, err := resolver.Resolve(context.Background(), "group-7", model, CompositeRouteEndpointChatCompletions)
 		require.NoError(t, err)
 		require.True(t, decision.Matched)
 		require.Equal(t, "deepseek-chat", decision.UpstreamModel)
@@ -168,8 +168,8 @@ func TestCompositeRouteResolverIgnoresDisabledRoutesAndFallsBackToDetector(t *te
 	resolver := NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        7,
+				ID:             "route-1",
+				GroupID:        "group-7",
 				PublicModel:    "gpt-5",
 				MatchType:      CompositeRouteMatchExact,
 				TargetPlatform: PlatformAnthropic,
@@ -181,7 +181,7 @@ func TestCompositeRouteResolverIgnoresDisabledRoutesAndFallsBackToDetector(t *te
 		},
 	})
 
-	decision, err := resolver.Resolve(context.Background(), 7, "gpt-5", CompositeRouteEndpointAny)
+	decision, err := resolver.Resolve(context.Background(), "group-7", "gpt-5", CompositeRouteEndpointAny)
 
 	require.NoError(t, err)
 	require.True(t, decision.Matched)
@@ -195,8 +195,8 @@ func TestCompositeRouteResolverExplicitRoutesCoverBucketTwoProviders(t *testing.
 	resolver := NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        7,
+				ID:             "route-1",
+				GroupID:        "group-7",
 				PublicModel:    "all/gpt-5",
 				MatchType:      CompositeRouteMatchExact,
 				TargetPlatform: PlatformOpenAI,
@@ -206,8 +206,8 @@ func TestCompositeRouteResolverExplicitRoutesCoverBucketTwoProviders(t *testing.
 				Enabled:        true,
 			},
 			{
-				ID:             2,
-				GroupID:        7,
+				ID:             "route-2",
+				GroupID:        "group-7",
 				PublicModel:    "all/claude-sonnet",
 				MatchType:      CompositeRouteMatchExact,
 				TargetPlatform: PlatformAnthropic,
@@ -217,8 +217,8 @@ func TestCompositeRouteResolverExplicitRoutesCoverBucketTwoProviders(t *testing.
 				Enabled:        true,
 			},
 			{
-				ID:             3,
-				GroupID:        7,
+				ID:             "route-3",
+				GroupID:        "group-7",
 				PublicModel:    "all/gemini-pro",
 				MatchType:      CompositeRouteMatchExact,
 				TargetPlatform: PlatformGemini,
@@ -228,8 +228,8 @@ func TestCompositeRouteResolverExplicitRoutesCoverBucketTwoProviders(t *testing.
 				Enabled:        true,
 			},
 			{
-				ID:             4,
-				GroupID:        7,
+				ID:             "route-4",
+				GroupID:        "group-7",
 				PublicModel:    "all/grok",
 				MatchType:      CompositeRouteMatchExact,
 				TargetPlatform: PlatformGrok,
@@ -255,7 +255,7 @@ func TestCompositeRouteResolverExplicitRoutesCoverBucketTwoProviders(t *testing.
 
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {
-			decision, err := resolver.Resolve(context.Background(), 7, tt.model, tt.endpoint)
+			decision, err := resolver.Resolve(context.Background(), "group-7", tt.model, tt.endpoint)
 
 			require.NoError(t, err)
 			require.True(t, decision.Matched)

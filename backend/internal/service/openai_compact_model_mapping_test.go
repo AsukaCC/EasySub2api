@@ -31,7 +31,7 @@ func TestOpenAIGatewayService_Forward_CompactOnlyModelMappingOverridesOAuthUpstr
 
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
 	account := &Account{
-		ID:          1,
+		ID:          "account-1",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -70,7 +70,7 @@ func TestOpenAIGatewayService_Forward_NonCompactRequestIgnoresCompactOnlyModelMa
 
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
 	account := &Account{
-		ID:          2,
+		ID:          "account-2",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -110,7 +110,7 @@ func TestOpenAIGatewayService_OAuthPassthrough_CompactOnlyModelMappingOverridesU
 
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
 	account := &Account{
-		ID:          3,
+		ID:          "account-3",
 		Name:        "openai-oauth-pass",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,

@@ -3,7 +3,6 @@
 package repository
 
 import (
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,27 +11,27 @@ import (
 func TestRedeemRateLimitKey(t *testing.T) {
 	tests := []struct {
 		name     string
-		userID   int64
+		userID   string
 		expected string
 	}{
 		{
 			name:     "normal_user_id",
-			userID:   123,
+			userID:   "123",
 			expected: "redeem:ratelimit:123",
 		},
 		{
 			name:     "zero_user_id",
-			userID:   0,
+			userID:   "0",
 			expected: "redeem:ratelimit:0",
 		},
 		{
 			name:     "negative_user_id",
-			userID:   -1,
+			userID:   "-1",
 			expected: "redeem:ratelimit:-1",
 		},
 		{
 			name:     "max_int64",
-			userID:   math.MaxInt64,
+			userID:   "9223372036854775807",
 			expected: "redeem:ratelimit:9223372036854775807",
 		},
 	}

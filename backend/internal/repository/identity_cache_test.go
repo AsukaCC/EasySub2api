@@ -3,7 +3,6 @@
 package repository
 
 import (
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,27 +11,27 @@ import (
 func TestFingerprintKey(t *testing.T) {
 	tests := []struct {
 		name      string
-		accountID int64
+		accountID string
 		expected  string
 	}{
 		{
 			name:      "normal_account_id",
-			accountID: 123,
+			accountID: "123",
 			expected:  "fingerprint:123",
 		},
 		{
 			name:      "zero_account_id",
-			accountID: 0,
+			accountID: "0",
 			expected:  "fingerprint:0",
 		},
 		{
 			name:      "negative_account_id",
-			accountID: -1,
+			accountID: "-1",
 			expected:  "fingerprint:-1",
 		},
 		{
 			name:      "max_int64",
-			accountID: math.MaxInt64,
+			accountID: "9223372036854775807",
 			expected:  "fingerprint:9223372036854775807",
 		},
 	}

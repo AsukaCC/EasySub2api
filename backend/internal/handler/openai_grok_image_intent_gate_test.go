@@ -83,10 +83,10 @@ func runOpenAIResponsesImagePermissionGateTest(t *testing.T, platform string, bo
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	groupID := int64(6301)
-	userID := int64(6302)
+	groupID := "group-6301"
+	userID := "user-6302"
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      6303,
+		ID:      "key-6303",
 		GroupID: &groupID,
 		Group: &service.Group{
 			ID:                   groupID,

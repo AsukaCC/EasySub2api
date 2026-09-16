@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 )
@@ -11,7 +12,7 @@ func buildOpenAISchedulerBenchmarkCandidates(size int) []openAIAccountCandidateS
 	}
 	candidates := make([]openAIAccountCandidateScore, 0, size)
 	for i := 0; i < size; i++ {
-		accountID := int64(10_000 + i)
+		accountID := fmt.Sprintf("account-%d", 10_000+i)
 		candidates = append(candidates, openAIAccountCandidateScore{
 			account: &Account{
 				ID:       accountID,

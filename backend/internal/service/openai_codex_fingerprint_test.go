@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,7 +26,7 @@ func newTestOAuthAccount(id int64, extra map[string]any) *Account {
 		}
 	}
 	return &Account{
-		ID:       id,
+		ID:       fmt.Sprintf("account-%d", id),
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Extra:    extra,
@@ -162,7 +163,7 @@ func TestResolveCodexFingerprintIDsFromRequest_EnabledModesRequireValidSeed(t *t
 		{name: "non string", extra: map[string]any{codexFingerprintModeExtraKey: "session", codexFingerprintSeedExtraKey: 123}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			account := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: tt.extra}
+			account := &Account{ID: "account-1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: tt.extra}
 			require.Nil(t, resolveCodexFingerprintIDsFromRequest(account, nil))
 		})
 	}
@@ -852,7 +853,7 @@ func TestApplyStagedCodexFingerprintHeaders_SkipsNonOAuthAccount(t *testing.T) {
 	stageCodexFingerprintIDs(c, oauthIDs)
 
 	h := http.Header{}
-	apiKeyAccount := &Account{ID: 1004, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	apiKeyAccount := &Account{ID: "account-1004", Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
 	applyStagedCodexFingerprintHeaders(c, apiKeyAccount, h)
 	assert.Empty(t, h.Get("x-codex-installation-id"), "stale 收敛 ID 不得应用到非 OAuth 账号")
 }

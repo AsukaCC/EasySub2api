@@ -14,12 +14,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	duplicateSourceGroupID = "42000000-0000-0000-0000-000000000042"
+	duplicateCopyGroupID   = "43000000-0000-0000-0000-000000000043"
+	duplicateGroupAdminID  = "77000000-0000-0000-0000-000000000077"
+)
+
 type duplicateGroupAdminServiceStub struct {
 	service.AdminService
 	group        *service.Group
 	calls        int
 	recoverCalls int
-	groupID      int64
+	groupID      string
 	actorScope   string
 	operationKey string
 	recoverScope string
@@ -27,7 +33,7 @@ type duplicateGroupAdminServiceStub struct {
 	created      bool
 }
 
-func (s *duplicateGroupAdminServiceStub) DuplicateGroup(_ context.Context, groupID int64, actorScope, operationKey string) (*service.Group, error) {
+func (s *duplicateGroupAdminServiceStub) DuplicateGroup(_ context.Context, groupID string, actorScope, operationKey string) (*service.Group, error) {
 	s.calls++
 	s.groupID = groupID
 	s.actorScope = actorScope
@@ -36,7 +42,7 @@ func (s *duplicateGroupAdminServiceStub) DuplicateGroup(_ context.Context, group
 	return s.group, nil
 }
 
-func (s *duplicateGroupAdminServiceStub) RecoverDuplicateGroup(_ context.Context, _ int64, actorScope, operationKey string) (*service.Group, error) {
+func (s *duplicateGroupAdminServiceStub) RecoverDuplicateGroup(_ context.Context, _ string, actorScope, operationKey string) (*service.Group, error) {
 	s.recoverCalls++
 	s.recoverScope = actorScope
 	s.recoverKey = operationKey
@@ -55,7 +61,7 @@ func setupDuplicateGroupRouter(t *testing.T, svc service.AdminService) *gin.Engi
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 77})
+		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: duplicateGroupAdminID})
 		c.Next()
 	})
 	handler := NewGroupHandler(svc, nil, nil, nil)
@@ -65,7 +71,7 @@ func setupDuplicateGroupRouter(t *testing.T, svc service.AdminService) *gin.Engi
 
 func duplicateGroupHandlerFixture() *service.Group {
 	return &service.Group{
-		ID:                   43,
+		ID:                   duplicateCopyGroupID,
 		Name:                 "primary (Copy)",
 		Platform:             service.PlatformAnthropic,
 		Status:               "inactive",
@@ -73,7 +79,7 @@ func duplicateGroupHandlerFixture() *service.Group {
 		AccountCount:         3,
 		ActiveAccountCount:   2,
 		DuplicateOperationID: "internal-operation-must-not-leak",
-		ModelRouting:         map[string][]int64{"claude-*": {7}},
+		ModelRouting:         map[string][]string{"claude-*": {"account-7"}},
 	}
 }
 
@@ -81,7 +87,7 @@ func TestDuplicateGroupHandlerReturnsAdminDTOWithoutOperationMetadata(t *testing
 	svc := &duplicateGroupAdminServiceStub{group: duplicateGroupHandlerFixture()}
 	router := setupDuplicateGroupRouter(t, svc)
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups/42/duplicate", nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups/"+duplicateSourceGroupID+"/duplicate", nil)
 
 	router.ServeHTTP(recorder, request)
 
@@ -117,7 +123,7 @@ func TestDuplicateGroupHandlerReplaysSameIdempotencyKey(t *testing.T) {
 
 	call := func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups/42/duplicate", nil)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups/"+duplicateSourceGroupID+"/duplicate", nil)
 		request.Header.Set("Idempotency-Key", "duplicate-group-42")
 		router.ServeHTTP(recorder, request)
 		return recorder
@@ -129,8 +135,8 @@ func TestDuplicateGroupHandlerReplaysSameIdempotencyKey(t *testing.T) {
 	require.Equal(t, http.StatusOK, first.Code)
 	require.Equal(t, http.StatusOK, second.Code)
 	require.Equal(t, 1, svc.calls)
-	require.Equal(t, int64(42), svc.groupID)
-	require.Equal(t, "admin:77", svc.actorScope)
+	require.Equal(t, duplicateSourceGroupID, svc.groupID)
+	require.Equal(t, "admin:"+duplicateGroupAdminID, svc.actorScope)
 	require.Equal(t, "duplicate-group-42", svc.operationKey)
 	require.Equal(t, "true", second.Header().Get("X-Idempotency-Replayed"))
 }
@@ -143,7 +149,7 @@ func TestDuplicateGroupHandlerRecoversAfterMarkSucceededFailure(t *testing.T) {
 
 	call := func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups/42/duplicate", nil)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups/"+duplicateSourceGroupID+"/duplicate", nil)
 		request.Header.Set("Idempotency-Key", "duplicate-group-42-recovery")
 		router.ServeHTTP(recorder, request)
 		return recorder
@@ -158,6 +164,6 @@ func TestDuplicateGroupHandlerRecoversAfterMarkSucceededFailure(t *testing.T) {
 	require.Equal(t, "true", second.Header().Get("X-Idempotency-Recovered"))
 	require.Equal(t, 1, svc.calls, "ambiguous retries must not repeat the create side effect")
 	require.Equal(t, 2, svc.recoverCalls)
-	require.Equal(t, "admin:77", svc.recoverScope)
+	require.Equal(t, "admin:"+duplicateGroupAdminID, svc.recoverScope)
 	require.Equal(t, "duplicate-group-42-recovery", svc.recoverKey)
 }

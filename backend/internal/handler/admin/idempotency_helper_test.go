@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -24,16 +25,16 @@ func (storeUnavailableRepoStub) CreateProcessing(context.Context, *service.Idemp
 func (storeUnavailableRepoStub) GetByScopeAndKeyHash(context.Context, string, string) (*service.IdempotencyRecord, error) {
 	return nil, errors.New("store unavailable")
 }
-func (storeUnavailableRepoStub) TryReclaim(context.Context, int64, string, time.Time, time.Time, time.Time) (bool, error) {
+func (storeUnavailableRepoStub) TryReclaim(context.Context, string, string, time.Time, time.Time, time.Time) (bool, error) {
 	return false, errors.New("store unavailable")
 }
-func (storeUnavailableRepoStub) ExtendProcessingLock(context.Context, int64, string, time.Time, time.Time) (bool, error) {
+func (storeUnavailableRepoStub) ExtendProcessingLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return false, errors.New("store unavailable")
 }
-func (storeUnavailableRepoStub) MarkSucceeded(context.Context, int64, int, string, time.Time) error {
+func (storeUnavailableRepoStub) MarkSucceeded(context.Context, string, int, string, time.Time) error {
 	return errors.New("store unavailable")
 }
-func (storeUnavailableRepoStub) MarkFailedRetryable(context.Context, int64, string, time.Time, time.Time) error {
+func (storeUnavailableRepoStub) MarkFailedRetryable(context.Context, string, string, time.Time, time.Time) error {
 	return errors.New("store unavailable")
 }
 func (storeUnavailableRepoStub) DeleteExpired(context.Context, time.Time, int) (int64, error) {
@@ -142,7 +143,7 @@ func (r *memoryIdempotencyRepoStub) CreateProcessing(_ context.Context, record *
 		return false, nil
 	}
 	cp := r.clone(record)
-	cp.ID = r.nextID
+	cp.ID = fmt.Sprintf("idempotency-%d", r.nextID)
 	r.nextID++
 	r.data[k] = cp
 	record.ID = cp.ID
@@ -155,7 +156,7 @@ func (r *memoryIdempotencyRepoStub) GetByScopeAndKeyHash(_ context.Context, scop
 	return r.clone(r.data[r.key(scope, keyHash)]), nil
 }
 
-func (r *memoryIdempotencyRepoStub) TryReclaim(_ context.Context, id int64, fromStatus string, now, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *memoryIdempotencyRepoStub) TryReclaim(_ context.Context, id string, fromStatus string, now, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -177,7 +178,7 @@ func (r *memoryIdempotencyRepoStub) TryReclaim(_ context.Context, id int64, from
 	return false, nil
 }
 
-func (r *memoryIdempotencyRepoStub) ExtendProcessingLock(_ context.Context, id int64, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *memoryIdempotencyRepoStub) ExtendProcessingLock(_ context.Context, id string, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -194,7 +195,7 @@ func (r *memoryIdempotencyRepoStub) ExtendProcessingLock(_ context.Context, id i
 	return false, nil
 }
 
-func (r *memoryIdempotencyRepoStub) MarkSucceeded(_ context.Context, id int64, responseStatus int, responseBody string, expiresAt time.Time) error {
+func (r *memoryIdempotencyRepoStub) MarkSucceeded(_ context.Context, id string, responseStatus int, responseBody string, expiresAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {
@@ -212,7 +213,7 @@ func (r *memoryIdempotencyRepoStub) MarkSucceeded(_ context.Context, id int64, r
 	return nil
 }
 
-func (r *memoryIdempotencyRepoStub) MarkFailedRetryable(_ context.Context, id int64, errorReason string, lockedUntil, expiresAt time.Time) error {
+func (r *memoryIdempotencyRepoStub) MarkFailedRetryable(_ context.Context, id string, errorReason string, lockedUntil, expiresAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, rec := range r.data {

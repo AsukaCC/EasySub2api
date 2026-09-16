@@ -11,7 +11,7 @@ import (
 
 func TestAccountFromServiceShallow_RedactsSensitiveCredentials(t *testing.T) {
 	src := &service.Account{
-		ID:       42,
+		ID:       "account-42",
 		Name:     "demo",
 		Platform: "anthropic",
 		Type:     "oauth",
@@ -66,7 +66,7 @@ func TestAccountFromServiceShallow_RedactsOllamaCloudManagedExtra(t *testing.T) 
 		"data":            map[string]any{"plan": "Pro"},
 	}
 	src := &service.Account{
-		ID: 9, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
+		ID: "account-9", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
 		Credentials: map[string]any{"base_url": "https://ollama.com", "api_key": "secret-key"},
 		Extra: map[string]any{
 			service.OllamaCloudUsageSessionExtraKey:     "ciphertext-secret",
@@ -94,7 +94,7 @@ func TestAccountFromServiceShallow_RedactsOllamaCloudManagedExtra(t *testing.T) 
 }
 
 func TestAccountFromServiceShallow_NilCredentialsOmitsStatus(t *testing.T) {
-	src := &service.Account{ID: 1, Name: "n", Platform: "anthropic", Type: "oauth"}
+	src := &service.Account{ID: "account-1", Name: "n", Platform: "anthropic", Type: "oauth"}
 	got := AccountFromServiceShallow(src)
 	require.NotNil(t, got)
 	require.Nil(t, got.Credentials)

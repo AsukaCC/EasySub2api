@@ -207,7 +207,7 @@ func TestImageTaskServiceCompleteOffloadsToStorage(t *testing.T) {
 	svc := NewImageTaskServiceWithUploader(store, uploader, time.Hour, time.Minute)
 	require.True(t, svc.Enabled())
 
-	owner := ImageTaskOwner{UserID: 1, APIKeyID: 2}
+	owner := ImageTaskOwner{UserID: "user-1", APIKeyID: "api-key-2"}
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)
 
@@ -229,7 +229,7 @@ func TestImageTaskServiceCompleteOffloadFailureMarksFailed(t *testing.T) {
 	uploader := NewImageResultUploader(storage, "images/", 0, nil)
 	svc := NewImageTaskServiceWithUploader(store, uploader, time.Hour, time.Minute)
 
-	owner := ImageTaskOwner{UserID: 1, APIKeyID: 2}
+	owner := ImageTaskOwner{UserID: "user-1", APIKeyID: "api-key-2"}
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)
 

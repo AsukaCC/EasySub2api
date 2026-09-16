@@ -36,7 +36,7 @@ type grokRefreshAdminService struct {
 	updatedCredentials map[string]any
 }
 
-func (s *grokRefreshAdminService) UpdateAccount(_ context.Context, id int64, input *service.UpdateAccountInput) (*service.Account, error) {
+func (s *grokRefreshAdminService) UpdateAccount(_ context.Context, id string, input *service.UpdateAccountInput) (*service.Account, error) {
 	s.updatedCredentials = input.Credentials
 	return &service.Account{
 		ID:          id,
@@ -73,7 +73,7 @@ func TestRefreshSingleAccountRoutesGrokThroughGrokOAuthService(t *testing.T) {
 		nil,
 	)
 	account := &service.Account{
-		ID:       4227,
+		ID:       "42270000-0000-0000-0000-000000004227",
 		Platform: service.PlatformGrok,
 		Type:     service.AccountTypeOAuth,
 		Credentials: map[string]any{

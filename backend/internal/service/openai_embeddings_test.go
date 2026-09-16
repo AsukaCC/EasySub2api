@@ -72,7 +72,7 @@ func TestForwardEmbeddings_APIKeyPassthroughRecordsUsageAndBatchInput(t *testing
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:       42,
+		ID:       "account-42",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{

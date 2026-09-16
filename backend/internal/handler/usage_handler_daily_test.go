@@ -23,15 +23,15 @@ type dailyUsageRepoStub struct {
 	startTime   time.Time
 	endTime     time.Time
 	granularity string
-	userID      int64
-	apiKeyID    int64
+	userID      string
+	apiKeyID    string
 }
 
 func (s *dailyUsageRepoStub) GetUsageTrendWithFilters(
 	ctx context.Context,
 	startTime, endTime time.Time,
 	granularity string,
-	userID, apiKeyID, accountID, groupID int64,
+	userID, apiKeyID, accountID, groupID string,
 	model string,
 	requestType *int16,
 	stream *bool,
@@ -48,10 +48,10 @@ func (s *dailyUsageRepoStub) GetUsageTrendWithFilters(
 
 type dailyUsageAPIKeyRepoStub struct {
 	service.APIKeyRepository
-	keys map[int64]*service.APIKey
+	keys map[string]*service.APIKey
 }
 
-func (s *dailyUsageAPIKeyRepoStub) GetByID(ctx context.Context, id int64) (*service.APIKey, error) {
+func (s *dailyUsageAPIKeyRepoStub) GetByID(ctx context.Context, id string) (*service.APIKey, error) {
 	key, ok := s.keys[id]
 	if !ok {
 		return nil, service.ErrAPIKeyNotFound
@@ -60,7 +60,7 @@ func (s *dailyUsageAPIKeyRepoStub) GetByID(ctx context.Context, id int64) (*serv
 	return &clone, nil
 }
 
-func newDailyUsageTestRouter(usageRepo *dailyUsageRepoStub, apiKeyRepo *dailyUsageAPIKeyRepoStub, userID int64) *gin.Engine {
+func newDailyUsageTestRouter(usageRepo *dailyUsageRepoStub, apiKeyRepo *dailyUsageAPIKeyRepoStub, userID string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	usageSvc := service.NewUsageService(usageRepo, nil, nil, nil)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, nil)
@@ -85,13 +85,13 @@ type dailyUsageHandlerResponse struct {
 func TestGetMyAPIKeyDailyUsageRejectsCrossUserAccess(t *testing.T) {
 	usageRepo := &dailyUsageRepoStub{}
 	apiKeyRepo := &dailyUsageAPIKeyRepoStub{
-		keys: map[int64]*service.APIKey{
-			7: {ID: 7, UserID: 99, Status: service.StatusAPIKeyActive},
+		keys: map[string]*service.APIKey{
+			"key-7": {ID: "key-7", UserID: "user-99", Status: service.StatusAPIKeyActive},
 		},
 	}
-	router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, 42)
+	router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, "user-42")
 
-	req := httptest.NewRequest(http.MethodGet, "/user/api-keys/7/usage/daily?days=30", nil)
+	req := httptest.NewRequest(http.MethodGet, "/user/api-keys/key-7/usage/daily?days=30", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -101,17 +101,17 @@ func TestGetMyAPIKeyDailyUsageRejectsCrossUserAccess(t *testing.T) {
 
 func TestGetMyAPIKeyDailyUsageRejectsInvalidDays(t *testing.T) {
 	for _, path := range []string{
-		"/user/api-keys/7/usage/daily?days=0",
-		"/user/api-keys/7/usage/daily?days=91",
+		"/user/api-keys/key-7/usage/daily?days=0",
+		"/user/api-keys/key-7/usage/daily?days=91",
 	} {
 		t.Run(path, func(t *testing.T) {
 			usageRepo := &dailyUsageRepoStub{}
 			apiKeyRepo := &dailyUsageAPIKeyRepoStub{
-				keys: map[int64]*service.APIKey{
-					7: {ID: 7, UserID: 42, Status: service.StatusAPIKeyActive},
+				keys: map[string]*service.APIKey{
+					"key-7": {ID: "key-7", UserID: "user-42", Status: service.StatusAPIKeyActive},
 				},
 			}
-			router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, 42)
+			router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, "user-42")
 
 			req := httptest.NewRequest(http.MethodGet, path, nil)
 			rec := httptest.NewRecorder()
@@ -126,13 +126,13 @@ func TestGetMyAPIKeyDailyUsageRejectsInvalidDays(t *testing.T) {
 func TestGetMyAPIKeyDailyUsageReturnsEmptyData(t *testing.T) {
 	usageRepo := &dailyUsageRepoStub{trend: []usagestats.TrendDataPoint{}}
 	apiKeyRepo := &dailyUsageAPIKeyRepoStub{
-		keys: map[int64]*service.APIKey{
-			7: {ID: 7, UserID: 42, Status: service.StatusAPIKeyActive},
+		keys: map[string]*service.APIKey{
+			"key-7": {ID: "key-7", UserID: "user-42", Status: service.StatusAPIKeyActive},
 		},
 	}
-	router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, 42)
+	router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, "user-42")
 
-	req := httptest.NewRequest(http.MethodGet, "/user/api-keys/7/usage/daily", nil)
+	req := httptest.NewRequest(http.MethodGet, "/user/api-keys/key-7/usage/daily", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -160,21 +160,21 @@ func TestGetMyAPIKeyDailyUsageAggregatesByDayForOwnedKey(t *testing.T) {
 		},
 	}
 	apiKeyRepo := &dailyUsageAPIKeyRepoStub{
-		keys: map[int64]*service.APIKey{
-			7: {ID: 7, UserID: 42, Status: service.StatusAPIKeyActive},
+		keys: map[string]*service.APIKey{
+			"key-7": {ID: "key-7", UserID: "user-42", Status: service.StatusAPIKeyActive},
 		},
 	}
-	router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, 42)
+	router := newDailyUsageTestRouter(usageRepo, apiKeyRepo, "user-42")
 
-	req := httptest.NewRequest(http.MethodGet, "/user/api-keys/7/usage/daily?days=7", nil)
+	req := httptest.NewRequest(http.MethodGet, "/user/api-keys/key-7/usage/daily?days=7", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.True(t, usageRepo.called)
 	require.Equal(t, "day", usageRepo.granularity)
-	require.Equal(t, int64(42), usageRepo.userID)
-	require.Equal(t, int64(7), usageRepo.apiKeyID)
+	require.Equal(t, "user-42", usageRepo.userID)
+	require.Equal(t, "key-7", usageRepo.apiKeyID)
 	require.True(t, usageRepo.startTime.Before(usageRepo.endTime))
 
 	var got dailyUsageHandlerResponse

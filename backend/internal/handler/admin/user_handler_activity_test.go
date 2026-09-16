@@ -24,7 +24,7 @@ func TestUserHandlerListIncludesActivityFieldsAndSortParams(t *testing.T) {
 	adminSvc := newStubAdminService()
 	adminSvc.users = []service.User{
 		{
-			ID:           7,
+			ID:           "70000000-0000-0000-0000-000000000007",
 			Email:        "activity@example.com",
 			Username:     "activity-user",
 			Role:         service.RoleUser,
@@ -78,7 +78,7 @@ func TestUserHandlerGetByIDIncludesActivityFields(t *testing.T) {
 	adminSvc := newStubAdminService()
 	adminSvc.users = []service.User{
 		{
-			ID:           8,
+			ID:           "80000000-0000-0000-0000-000000000008",
 			Email:        "detail@example.com",
 			Username:     "detail-user",
 			Role:         service.RoleUser,
@@ -93,8 +93,8 @@ func TestUserHandlerGetByIDIncludesActivityFields(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
-	c.Params = gin.Params{{Key: "id", Value: "8"}}
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/8", nil)
+	c.Params = gin.Params{{Key: "id", Value: "80000000-0000-0000-0000-000000000008"}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/80000000-0000-0000-0000-000000000008", nil)
 
 	handler.GetByID(c)
 

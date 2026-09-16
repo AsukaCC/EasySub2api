@@ -362,9 +362,9 @@ func TestNotificationEmailLocaleMemoryNormalizesAcceptLanguage(t *testing.T) {
 	ctx := context.Background()
 	svc := NewNotificationEmailService(newNotificationEmailMemorySettingRepo(), nil)
 
-	svc.RememberRecipientLocale(ctx, 42, "User@Example.com", "zh-CN,zh;q=0.9,en;q=0.8")
-	require.Equal(t, "zh", svc.ResolveRecipientLocale(ctx, 42, "user@example.com"))
-	require.Equal(t, "zh", svc.ResolveRecipientLocale(ctx, 0, "user@example.com"))
+	svc.RememberRecipientLocale(ctx, "user-42", "User@Example.com", "zh-CN,zh;q=0.9,en;q=0.8")
+	require.Equal(t, "zh", svc.ResolveRecipientLocale(ctx, "user-42", "user@example.com"))
+	require.Equal(t, "zh", svc.ResolveRecipientLocale(ctx, "", "user@example.com"))
 }
 
 func TestNotificationEmailDeliveryKeyUsesShortStableHash(t *testing.T) {
@@ -435,7 +435,7 @@ func TestNotificationEmailSendDeduplicatesSubscriptionExpiryReminder(t *testing.
 		Event:          NotificationEmailEventSubscriptionExpiryReminder,
 		RecipientEmail: "User@Example.com",
 		RecipientName:  "User",
-		UserID:         42,
+		UserID:         "user-42",
 		SourceType:     "user_subscription",
 		SourceID:       "1234567890",
 		ReminderKey:    "7d",

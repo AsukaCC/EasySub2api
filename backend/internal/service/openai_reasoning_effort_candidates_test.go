@@ -94,7 +94,7 @@ func TestOpenAIGatewayServiceForwardOAuthDerivesEffortFromSuffixModel(t *testing
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          11,
+		ID:          "account-11",
 		Name:        "openai-oauth-suffix",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,

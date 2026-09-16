@@ -118,7 +118,7 @@ func TestOpenAIGatewayService_Forward_HTTPPatchPathKeepsLargeInputRaw(t *testing
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          1,
+		ID:          "account-1",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -159,7 +159,7 @@ func TestOpenAIGatewayService_Forward_DecodedMutationKeepsLaterFieldDeletes(t *t
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          2,
+		ID:          "account-2",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -202,7 +202,7 @@ func TestOpenAIGatewayService_Forward_NormalizesMaxTokensAndStripsPromptCacheOpt
 		cfg.Security.URLAllowlist.Enabled = false
 		svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 		account := &Account{
-			ID:          4,
+			ID:          "account-4",
 			Name:        "openai-apikey",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
@@ -251,7 +251,7 @@ func TestOpenAIGatewayService_Forward_MappedImageModelUsesImageGate(t *testing.T
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          3,
+		ID:          "account-3",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -280,7 +280,7 @@ func TestOpenAIGatewayService_Forward_MappedImageModelUsesImageGate(t *testing.T
 	require.False(t, cached)
 
 	textAccount := *account
-	textAccount.ID = 4
+	textAccount.ID = "account-4"
 	textAccount.Credentials = map[string]any{
 		"api_key":  "sk-test",
 		"base_url": "https://example.com",
@@ -310,7 +310,7 @@ func TestOpenAIGatewayService_Forward_TextResponsesSetsBillingModelToMappedModel
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          4,
+		ID:          "account-4",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -351,7 +351,7 @@ func TestOpenAIGatewayService_Forward_TextResponsesWithoutMappingKeepsRequestedB
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          4,
+		ID:          "account-4",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -380,7 +380,7 @@ func TestOpenAIGatewayService_Forward_TextResponsesBillingModelMatchesChatComple
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
 	account := &Account{
-		ID:          5,
+		ID:          "account-5",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -446,7 +446,7 @@ func TestOpenAIGatewayService_Forward_TextDataImageDoesNotForceMapMarshal(t *tes
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          4,
+		ID:          "account-4",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -484,7 +484,7 @@ func TestOpenAIGatewayService_Forward_ImageToolBillingDoesNotForceFullDecode(t *
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          9,
+		ID:          "account-9",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -523,7 +523,7 @@ func TestOpenAIGatewayService_Forward_ImageToolWithImageOnlyModelIsNormalized(t 
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          11,
+		ID:          "account-11",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -566,7 +566,7 @@ func TestOpenAIGatewayService_Forward_HTTPRetryRecoveryDoesNotDecodeBeforeError(
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          10,
+		ID:          "account-10",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -613,7 +613,7 @@ func TestOpenAIGatewayService_Forward_HTTPRetryRecoveryDropsCompaction(t *testin
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          10,
+		ID:          "account-10",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -652,7 +652,7 @@ func TestOpenAIGatewayService_Forward_CodexSparkRejectsEscapedInputImage(t *test
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          5,
+		ID:          "account-5",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -693,7 +693,7 @@ func TestOpenAIGatewayService_Forward_CodexBridgeInjectionSetsImageBilling(t *te
 	cfg.Gateway.CodexImageGenerationBridgeEnabled = true
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          7,
+		ID:          "account-7",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -724,7 +724,7 @@ func TestOpenAIGatewayService_Forward_HTTPDeletesPreviousResponseIDWhenPresent(t
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
 	account := &Account{
-		ID:          8,
+		ID:          "account-8",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -773,7 +773,7 @@ func TestOpenAIGatewayService_Forward_StripsImageGenerationToolForSparkAPIKey(t 
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          11,
+		ID:          "account-11",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -832,7 +832,7 @@ func TestOpenAIGatewayService_Forward_ImageOnlyModelKeepsSupportedVerbosity(t *t
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
-		ID:          6,
+		ID:          "account-6",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

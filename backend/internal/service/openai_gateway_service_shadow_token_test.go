@@ -13,7 +13,7 @@ import (
 func TestGetAccessToken_SparkShadowResolvesToParent(t *testing.T) {
 	ctx := context.Background()
 
-	parentID := int64(100)
+	parentID := "account-100"
 	parent := Account{
 		ID:       parentID,
 		Platform: PlatformOpenAI,
@@ -24,7 +24,7 @@ func TestGetAccessToken_SparkShadowResolvesToParent(t *testing.T) {
 		},
 	}
 	shadow := Account{
-		ID:              200,
+		ID:              "account-200",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		ParentAccountID: &parentID,

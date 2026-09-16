@@ -24,7 +24,7 @@ import (
 )
 
 type codexModelsHTTPUpstreamStub struct {
-	do func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error)
+	do func(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error)
 }
 
 type codexModelsBlockingBody struct {
@@ -47,11 +47,11 @@ func (b *codexModelsBlockingBody) Read(p []byte) (int, error) {
 
 func (b *codexModelsBlockingBody) Close() error { return nil }
 
-func (s *codexModelsHTTPUpstreamStub) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (s *codexModelsHTTPUpstreamStub) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	return s.do(req, proxyURL, accountID, accountConcurrency)
 }
 
-func (s *codexModelsHTTPUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+func (s *codexModelsHTTPUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
 	return s.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
@@ -137,7 +137,7 @@ func newCodexModelsAPIKeyTestAccount(baseURL string) *Account {
 		credentials["base_url"] = baseURL
 	}
 	return &Account{
-		ID:          2,
+		ID:          "account-2",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Credentials: credentials,
@@ -147,7 +147,7 @@ func newCodexModelsAPIKeyTestAccount(baseURL string) *Account {
 
 func newCodexModelsTestAccount() *Account {
 	return &Account{
-		ID:       1,
+		ID:       "account-1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -213,7 +213,7 @@ func TestFetchCodexModelsManifestPassthrough(t *testing.T) {
 func TestFetchCodexModelsManifestAgentIdentityUsesAssertionWithoutOAuthToken(t *testing.T) {
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:       3,
+		ID:       "account-3",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -256,7 +256,7 @@ func TestFetchCodexModelsManifestAgentIdentityUsesAssertionWithoutOAuthToken(t *
 func TestFetchCodexModelsManifestAgentIdentityRecoversInvalidTaskOnce(t *testing.T) {
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:       4,
+		ID:       "account-4",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -267,7 +267,7 @@ func TestFetchCodexModelsManifestAgentIdentityRecoversInvalidTaskOnce(t *testing
 			"chatgpt_account_id": "acc-agent-recovery",
 		},
 	}
-	repo := &stubQuotaAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &stubQuotaAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	modelsCalls := 0
 	registerCalls := 0
 	var assertions []string
@@ -310,7 +310,7 @@ func TestFetchCodexModelsManifestAgentIdentityRecoversInvalidTaskOnce(t *testing
 func TestFetchCodexModelsManifestAgentIdentityRedactsUpstreamErrors(t *testing.T) {
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:       5,
+		ID:       "account-5",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -417,9 +417,9 @@ func TestFetchCodexModelsManifestAPIKeyCustomUpstream(t *testing.T) {
 	manifestBody := `{"models":[{"slug":"gpt-5.6"}]}`
 	var gotRequest *http.Request
 	var gotProxyURL string
-	var gotAccountID int64
+	var gotAccountID string
 	var gotConcurrency int
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 		gotRequest = req
 		gotProxyURL = proxyURL
 		gotAccountID = accountID
@@ -468,8 +468,8 @@ func TestFetchCodexModelsManifestAPIKeyCustomUpstream(t *testing.T) {
 	if gotRequest.Header.Get("chatgpt-account-id") != "" {
 		t.Errorf("chatgpt-account-id must not be sent to API key upstream: got %q", gotRequest.Header.Get("chatgpt-account-id"))
 	}
-	if gotProxyURL != "" || gotAccountID != 2 || gotConcurrency != 3 {
-		t.Errorf("upstream routing metadata: proxy=%q account_id=%d concurrency=%d", gotProxyURL, gotAccountID, gotConcurrency)
+	if gotProxyURL != "" || gotAccountID != "account-2" || gotConcurrency != 3 {
+		t.Errorf("upstream routing metadata: proxy=%q account_id=%s concurrency=%d", gotProxyURL, gotAccountID, gotConcurrency)
 	}
 	if string(manifest.Body) != manifestBody {
 		t.Errorf("body not passed through verbatim: got %q", manifest.Body)
@@ -481,7 +481,7 @@ func TestFetchCodexModelsManifestAPIKeyCustomUpstream(t *testing.T) {
 
 func TestFetchCodexModelsManifestAPIKeyConvertsStandardOpenAIModelList(t *testing.T) {
 	upstreamBody := `{"object":"list","data":[{"id":"gpt-5.6","object":"model"},{"id":"  ","object":"model"},{"id":"gpt-5.6-codex","object":"model"}]}`
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		header := make(http.Header)
 		header.Set("ETag", `W/"openai-list"`)
 		return &http.Response{
@@ -542,7 +542,7 @@ func TestAdjustAPIKeyCodexModelsManifest(t *testing.T) {
 
 func TestFetchCodexModelsManifestAPIKeyDisablesResponsesLiteForAffectedModels(t *testing.T) {
 	const upstreamBody = `{"models":[{"slug":"gpt-5.6-sol","use_responses_lite":true},{"slug":"gpt-5.6-codex","use_responses_lite":true}],"metadata":{"version":1}}`
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Etag": []string{`"upstream-strong"`}},
@@ -647,7 +647,7 @@ func TestFetchCodexModelsManifestRejectsInvalidEnvelope(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+			upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     make(http.Header),
@@ -677,7 +677,7 @@ func TestFetchCodexModelsManifestRejectsInvalidEnvelope(t *testing.T) {
 
 func TestFetchCodexModelsManifestAPIKeyDoesNotCacheInvalidEnvelope(t *testing.T) {
 	var calls atomic.Int32
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		body := `{"object":"list","data":[]}`
 		if calls.Add(1) > 1 {
 			body = `{"models":[{"slug":"gpt-5.6"}]}`
@@ -713,7 +713,7 @@ func TestFetchCodexModelsManifestAPIKeySharedRefreshSurvivesCallerCancellation(t
 	readStarted := make(chan struct{})
 	deadlineRemaining := make(chan time.Duration, 1)
 	release := make(chan struct{})
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		calls.Add(1)
 		deadline, ok := req.Context().Deadline()
 		if !ok {
@@ -801,7 +801,7 @@ func TestFetchCodexModelsManifestAPIKeyConcurrentRequestsShareRefresh(t *testing
 	started := make(chan struct{})
 	var startedOnce sync.Once
 	release := make(chan struct{})
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		calls.Add(1)
 		startedOnce.Do(func() { close(started) })
 		<-release
@@ -843,7 +843,7 @@ func TestFetchCodexModelsManifestAPIKeyConcurrentRequestsShareRefresh(t *testing
 
 func TestFetchCodexModelsManifestAPIKeyFreshCacheHandlesETagLocally(t *testing.T) {
 	var calls atomic.Int32
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		calls.Add(1)
 		if got := req.Header.Get("If-None-Match"); got != "" {
 			t.Errorf("cache refresh must not inherit a caller's If-None-Match: got %q", got)
@@ -874,7 +874,7 @@ func TestFetchCodexModelsManifestAPIKeyFreshCacheHandlesETagLocally(t *testing.T
 
 func TestFetchCodexModelsManifestAPIKeyCacheKeyIsolatesRequestIdentity(t *testing.T) {
 	var calls atomic.Int32
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		calls.Add(1)
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -895,7 +895,7 @@ func TestFetchCodexModelsManifestAPIKeyCacheKeyIsolatesRequestIdentity(t *testin
 	fetch(base, "0.144.0")
 
 	differentAccount := newCodexModelsAPIKeyTestAccount("https://upstream.example")
-	differentAccount.ID = 3
+	differentAccount.ID = "account-3"
 	fetch(differentAccount, "0.144.0")
 
 	differentToken := newCodexModelsAPIKeyTestAccount("https://upstream.example")
@@ -911,7 +911,7 @@ func TestFetchCodexModelsManifestAPIKeyCacheKeyIsolatesRequestIdentity(t *testin
 	differentHeaders.Credentials[credKeyHeaderOverrides] = map[string]any{"x-tenant": "other"}
 	fetch(differentHeaders, "0.144.0")
 
-	proxyID := int64(9)
+	proxyID := "proxy-9"
 	differentProxy := newCodexModelsAPIKeyTestAccount("https://upstream.example")
 	differentProxy.ProxyID = &proxyID
 	differentProxy.Proxy = &Proxy{Protocol: "http", Host: "127.0.0.1", Port: 8080}
@@ -925,7 +925,7 @@ func TestFetchCodexModelsManifestAPIKeyCacheKeyIsolatesRequestIdentity(t *testin
 
 func TestFetchCodexModelsManifestAPIKeyCacheBoundsEntriesAndBodySize(t *testing.T) {
 	var calls atomic.Int32
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		calls.Add(1)
 		body := `{"models":[]}`
 		if strings.Contains(req.URL.Host, "large") {
@@ -949,7 +949,7 @@ func TestFetchCodexModelsManifestAPIKeyCacheBoundsEntriesAndBodySize(t *testing.
 	fetch(small)
 	fetch(small)
 	large := newCodexModelsAPIKeyTestAccount("https://large.example")
-	large.ID = 3
+	large.ID = "account-3"
 	fetch(large)
 	fetch(large)
 	if got := calls.Load(); got != 3 {
@@ -958,17 +958,17 @@ func TestFetchCodexModelsManifestAPIKeyCacheBoundsEntriesAndBodySize(t *testing.
 
 	for i := int64(10); i < 75; i++ {
 		account := newCodexModelsAPIKeyTestAccount("https://bounded.example")
-		account.ID = i
+		account.ID = fmt.Sprintf("account-%d", i)
 		fetch(account)
 	}
 	last := newCodexModelsAPIKeyTestAccount("https://bounded.example")
-	last.ID = 74
+	last.ID = "account-74"
 	fetch(last)
 	if got := calls.Load(); got != 68 {
 		t.Fatalf("most recent cache entry was not retained: calls=%d, want 68", got)
 	}
 	first := newCodexModelsAPIKeyTestAccount("https://bounded.example")
-	first.ID = 10
+	first.ID = "account-10"
 	fetch(first)
 	if got := calls.Load(); got != 69 {
 		t.Errorf("oldest cache entry was not evicted: calls=%d, want 69", got)
@@ -979,7 +979,7 @@ func TestFetchCodexModelsManifestAPIKeyServesStaleWhileRefreshing(t *testing.T) 
 	var calls atomic.Int32
 	refreshStarted := make(chan struct{})
 	releaseRefresh := make(chan struct{})
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		call := calls.Add(1)
 		body := `{"models":[{"slug":"old"}]}`
 		if call > 1 {
@@ -1070,7 +1070,7 @@ func TestFetchCodexModelsManifestAPIKeyServesStaleWhileRefreshing(t *testing.T) 
 func TestFetchCodexModelsManifestAPIKeyRevalidatesStaleETag(t *testing.T) {
 	var calls atomic.Int32
 	refreshDone := make(chan struct{})
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		call := calls.Add(1)
 		if call == 1 {
 			header := make(http.Header)
@@ -1141,7 +1141,7 @@ func TestFetchCodexModelsManifestAPIKeyRevalidatesStaleETag(t *testing.T) {
 
 func TestFetchCodexModelsManifestAPIKeyColdCacheHandlesNotModifiedLocally(t *testing.T) {
 	var gotIfNoneMatch string
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		gotIfNoneMatch = req.Header.Get("If-None-Match")
 		header := make(http.Header)
 		header.Set("ETag", `W/"api-key-manifest"`)
@@ -1175,7 +1175,7 @@ func TestFetchCodexModelsManifestAPIKeyColdCacheHandlesNotModifiedLocally(t *tes
 
 func TestFetchCodexModelsManifestAPIKeyDoesNotCacheUnexpectedColdNotModified(t *testing.T) {
 	var calls atomic.Int32
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		calls.Add(1)
 		if got := req.Header.Get("If-None-Match"); got != "" {
 			t.Errorf("cold shared refresh If-None-Match: got %q", got)
@@ -1202,7 +1202,7 @@ func TestFetchCodexModelsManifestAPIKeyDoesNotCacheUnexpectedColdNotModified(t *
 
 func TestFetchCodexModelsManifestAPIKeyPreservesBaseURLQuery(t *testing.T) {
 	var gotURL string
-	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		gotURL = req.URL.String()
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -1228,7 +1228,7 @@ func TestFetchCodexModelsManifestAPIKeyPreservesBaseURLQuery(t *testing.T) {
 
 func TestFetchCodexModelsManifestAPIKeyRejectsBaseURLFragment(t *testing.T) {
 	called := false
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		called = true
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -1266,7 +1266,7 @@ type codexModelsAccountStateRepo struct {
 	lastTempReason      string
 }
 
-func (r *codexModelsAccountStateRepo) SetError(_ context.Context, _ int64, errorMsg string) error {
+func (r *codexModelsAccountStateRepo) SetError(_ context.Context, _ string, errorMsg string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setErrorCalls++
@@ -1274,7 +1274,7 @@ func (r *codexModelsAccountStateRepo) SetError(_ context.Context, _ int64, error
 	return nil
 }
 
-func (r *codexModelsAccountStateRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, reason string) error {
+func (r *codexModelsAccountStateRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, reason string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setTempUnschedCalls++
@@ -1283,7 +1283,7 @@ func (r *codexModelsAccountStateRepo) SetTempUnschedulable(_ context.Context, _ 
 }
 
 func newCodexModels401TestService(repo AccountRepository) *OpenAIGatewayService {
-	rateLimitService := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	rateLimitService := NewRateLimitService(repo, &config.Config{}, nil)
 	s := &OpenAIGatewayService{rateLimitService: rateLimitService}
 	rateLimitService.SetAccountRuntimeBlocker(s)
 	return s
@@ -1340,7 +1340,7 @@ func TestFetchCodexModelsManifestOAuth401TokenRevokedDisablesAccount(t *testing.
 func TestFetchCodexModelsManifestAgentIdentity401DoesNotDisableAccount(t *testing.T) {
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:       6,
+		ID:       "account-6",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -1371,7 +1371,7 @@ func TestFetchCodexModelsManifestAgentIdentity401DoesNotDisableAccount(t *testin
 }
 
 func TestFetchCodexModelsManifestAPIKey401KeepsNoFailoverAndNoDisable(t *testing.T) {
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusUnauthorized,
 			Status:     "401 Unauthorized",
@@ -1382,7 +1382,7 @@ func TestFetchCodexModelsManifestAPIKey401KeepsNoFailoverAndNoDisable(t *testing
 
 	repo := &codexModelsAccountStateRepo{}
 	s := newCodexModelsAPIKeyTestService(upstream)
-	s.rateLimitService = NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	s.rateLimitService = NewRateLimitService(repo, &config.Config{}, nil)
 
 	_, err := s.FetchCodexModelsManifest(
 		context.Background(),
@@ -1397,7 +1397,7 @@ func TestFetchCodexModelsManifestAPIKey401KeepsNoFailoverAndNoDisable(t *testing
 }
 
 func TestFetchCodexModelsManifestAPIKeyUpstreamError(t *testing.T) {
-	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusTooManyRequests,
 			Status:     "429 Too Many Requests",
@@ -1436,7 +1436,7 @@ func TestFetchCodexModelsManifestAPIKeyRejectsOfficialOpenAIBaseURL(t *testing.T
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+			s := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 				t.Fatal("official OpenAI API key must not be used as a Codex manifest upstream")
 				return nil, nil
 			}})

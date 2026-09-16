@@ -21,7 +21,7 @@ func TestAuthHandlerGetCurrentUserReturnsProfileCompatibilityFields(t *testing.T
 	verifiedAt := time.Date(2026, 4, 20, 8, 30, 0, 0, time.UTC)
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:           31,
+			ID:           "31000000-0000-0000-0000-000000000031",
 			Email:        "me@example.com",
 			Username:     "linuxdo-handle",
 			Role:         service.RoleUser,
@@ -50,7 +50,7 @@ func TestAuthHandlerGetCurrentUserReturnsProfileCompatibilityFields(t *testing.T
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 31})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "31000000-0000-0000-0000-000000000031"})
 
 	handler.GetCurrentUser(c)
 

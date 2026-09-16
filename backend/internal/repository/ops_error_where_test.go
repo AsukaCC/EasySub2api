@@ -8,8 +8,8 @@ import (
 )
 
 func TestBuildOpsErrorLogsWhere_UserScopedFilters(t *testing.T) {
-	uid := int64(42)
-	kid := int64(7)
+	uid := "user-42"
+	kid := "key-7"
 	filter := &service.OpsErrorLogFilter{
 		UserID:             &uid,
 		APIKeyID:           &kid,
@@ -138,14 +138,14 @@ func TestBuildOpsErrorLogsWhere_CyberPolicyStatusExemption(t *testing.T) {
 }
 
 func TestBuildOpsErrorLogsWhere_UserOwnershipIsDirectOnly(t *testing.T) {
-	uid := int64(42)
+	uid := "user-42"
 	filter := &service.OpsErrorLogFilter{UserID: &uid}
 	where, args := buildOpsErrorLogsWhere(filter)
 	if !strings.Contains(where, "e.user_id = $1") {
 		t.Fatalf("user scope should match user_id exactly, got: %s", where)
 	}
 	if len(args) != 1 || args[0] != uid {
-		t.Fatalf("expected user id arg %d, got %v", uid, args)
+		t.Fatalf("expected user id arg %s, got %v", uid, args)
 	}
 	if strings.Contains(where, "deleted_key_owner_user_id") {
 		t.Fatalf("user ownership must not depend on deleted-key attribution: %s", where)

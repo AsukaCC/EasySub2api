@@ -31,18 +31,18 @@ type openAIQuotaWorkflowStub struct {
 	cacheCtxErr error
 }
 
-func (s *openAIQuotaWorkflowStub) ResetCredit(context.Context, int64) (*service.OpenAIQuotaResetResult, error) {
+func (s *openAIQuotaWorkflowStub) ResetCredit(context.Context, string) (*service.OpenAIQuotaResetResult, error) {
 	s.resetCalls++
 	return s.resetResult, s.resetErr
 }
 
-func (s *openAIQuotaWorkflowStub) QueryUsage(ctx context.Context, _ int64) (*service.OpenAIQuotaUsage, error) {
+func (s *openAIQuotaWorkflowStub) QueryUsage(ctx context.Context, _ string) (*service.OpenAIQuotaUsage, error) {
 	s.queryCalls++
 	s.queryCtxErr = ctx.Err()
 	return s.queryResult, s.queryErr
 }
 
-func (s *openAIQuotaWorkflowStub) CacheResetCreditsSnapshot(ctx context.Context, _ int64, _ *service.OpenAIRateLimitResetCredits) error {
+func (s *openAIQuotaWorkflowStub) CacheResetCreditsSnapshot(ctx context.Context, _ string, _ *service.OpenAIRateLimitResetCredits) error {
 	s.cacheCalls++
 	s.cacheCtxErr = ctx.Err()
 	return s.cacheErr
@@ -51,12 +51,12 @@ func (s *openAIQuotaWorkflowStub) CacheResetCreditsSnapshot(ctx context.Context,
 type openAIAccountStateRecovererStub struct {
 	err         error
 	calls       int
-	accountID   int64
+	accountID   string
 	lastOptions service.AccountRecoveryOptions
 	lastCtxErr  error
 }
 
-func (s *openAIAccountStateRecovererStub) RecoverAccountState(ctx context.Context, accountID int64, options service.AccountRecoveryOptions) (*service.SuccessfulTestRecoveryResult, error) {
+func (s *openAIAccountStateRecovererStub) RecoverAccountState(ctx context.Context, accountID string, options service.AccountRecoveryOptions) (*service.SuccessfulTestRecoveryResult, error) {
 	s.calls++
 	s.accountID = accountID
 	s.lastOptions = options
@@ -71,7 +71,7 @@ type openAIResetAdminServiceStub struct {
 	calls   int
 }
 
-func (s *openAIResetAdminServiceStub) GetAccount(context.Context, int64) (*service.Account, error) {
+func (s *openAIResetAdminServiceStub) GetAccount(context.Context, string) (*service.Account, error) {
 	s.calls++
 	return s.account, s.err
 }
@@ -100,7 +100,7 @@ func performOpenAIQuotaResetRequestWithContext(t *testing.T, handler *OpenAIOAut
 	router := gin.New()
 	router.POST("/api/v1/admin/openai/accounts/:id/reset-quota", handler.ResetQuota)
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/openai/accounts/42/reset-quota", nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/openai/accounts/42000000-0000-0000-0000-000000000042/reset-quota", nil)
 	if ctx != nil {
 		request = request.WithContext(ctx)
 	}
@@ -118,7 +118,7 @@ func performOpenAIQuotaRefreshRequest(t *testing.T, handler *OpenAIOAuthHandler)
 	router := gin.New()
 	router.POST("/api/v1/admin/openai/accounts/:id/quota/refresh", handler.RefreshQuota)
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/openai/accounts/42/quota/refresh", nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/openai/accounts/42000000-0000-0000-0000-000000000042/quota/refresh", nil)
 	router.ServeHTTP(recorder, request)
 
 	var envelope openAIQuotaRefreshEnvelope
@@ -144,7 +144,7 @@ func successfulOpenAIQuotaWorkflowStub() *openAIQuotaWorkflowStub {
 
 func recoveredAccountStub() *openAIResetAdminServiceStub {
 	return &openAIResetAdminServiceStub{account: &service.Account{
-		ID:          42,
+		ID:          "42000000-0000-0000-0000-000000000042",
 		Name:        "recovered",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeOAuth,
@@ -191,9 +191,9 @@ func TestOpenAIResetQuota_RecoversAccountStateBeforeRefreshingCache(t *testing.T
 	require.True(t, envelope.Data.CacheRefreshed)
 	require.NotNil(t, envelope.Data.Quota)
 	require.NotNil(t, envelope.Data.Account)
-	require.Equal(t, int64(42), envelope.Data.Account.ID)
+	require.Equal(t, "42000000-0000-0000-0000-000000000042", envelope.Data.Account.ID)
 	require.False(t, envelope.Data.Account.Schedulable, "manual scheduling switch must not be flipped")
-	require.Equal(t, int64(42), recoverer.accountID)
+	require.Equal(t, "42000000-0000-0000-0000-000000000042", recoverer.accountID)
 	require.True(t, recoverer.lastOptions.InvalidateToken)
 	require.Equal(t, 1, quota.resetCalls)
 	require.Equal(t, 1, quota.queryCalls)

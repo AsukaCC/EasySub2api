@@ -35,34 +35,34 @@ type keyBillingRouteRateRepo struct {
 	lookupCalls int
 }
 
-func (r *keyBillingRouteRateRepo) GetByUserAndGroup(context.Context, int64, int64) (*float64, error) {
+func (r *keyBillingRouteRateRepo) GetByUserAndGroup(context.Context, string, string) (*float64, error) {
 	r.lookupCalls++
 	return nil, nil
 }
 
-func (r *keyBillingRouteRateRepo) GetRPMOverrideByUserAndGroup(context.Context, int64, int64) (*int, error) {
+func (r *keyBillingRouteRateRepo) GetRPMOverrideByUserAndGroup(context.Context, string, string) (*int, error) {
 	return nil, nil
 }
 
 func newKeyBillingRouteTestRouter(runMode string) (*gin.Engine, *keyBillingRouteRateRepo, string) {
 	gin.SetMode(gin.TestMode)
 	group := &service.Group{
-		ID:               42,
+		ID:               "group-42",
 		Status:           service.StatusActive,
 		Hydrated:         true,
 		Platform:         service.PlatformOpenAI,
 		SubscriptionType: service.SubscriptionTypeStandard,
 		RateMultiplier:   0.75,
 	}
-	user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
-	var groupID *int64
+	user := &service.User{ID: "user-7", Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
+	var groupID *string
 	var apiKeyGroup *service.Group
 	if runMode != config.RunModeSimple {
 		groupID = &group.ID
 		apiKeyGroup = group
 	}
 	apiKey := &service.APIKey{
-		ID:      100,
+		ID:      "key-100",
 		UserID:  user.ID,
 		Key:     "billing-route-test-key",
 		Status:  service.StatusActive,

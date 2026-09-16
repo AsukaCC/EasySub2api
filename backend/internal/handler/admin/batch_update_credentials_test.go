@@ -18,14 +18,20 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/service"
 )
 
+var batchCredentialAccountIDs = []string{
+	"10000000-0000-0000-0000-000000000001",
+	"20000000-0000-0000-0000-000000000002",
+	"30000000-0000-0000-0000-000000000003",
+}
+
 // failingAdminService 嵌入 stubAdminService，可配置 UpdateAccount 在指定 ID 时失败。
 type failingAdminService struct {
 	*stubAdminService
-	failOnAccountID int64
+	failOnAccountID string
 	updateCallCount atomic.Int64
 }
 
-func (f *failingAdminService) UpdateAccount(ctx context.Context, id int64, input *service.UpdateAccountInput) (*service.Account, error) {
+func (f *failingAdminService) UpdateAccount(ctx context.Context, id string, input *service.UpdateAccountInput) (*service.Account, error) {
 	f.updateCallCount.Add(1)
 	if id == f.failOnAccountID {
 		return nil, errors.New("database error")
@@ -46,7 +52,7 @@ func TestBatchUpdateCredentials_AllSuccess(t *testing.T) {
 	router, _ := setupAccountHandlerWithService(svc)
 
 	body, _ := json.Marshal(BatchUpdateCredentialsRequest{
-		AccountIDs: []int64{1, 2, 3},
+		AccountIDs: batchCredentialAccountIDs,
 		Field:      "account_uuid",
 		Value:      "test-uuid",
 	})
@@ -64,12 +70,12 @@ func TestBatchUpdateCredentials_PartialFailure(t *testing.T) {
 	// 让第 2 个账号（ID=2）更新时失败
 	svc := &failingAdminService{
 		stubAdminService: newStubAdminService(),
-		failOnAccountID:  2,
+		failOnAccountID:  batchCredentialAccountIDs[1],
 	}
 	router, _ := setupAccountHandlerWithService(svc)
 
 	body, _ := json.Marshal(BatchUpdateCredentialsRequest{
-		AccountIDs: []int64{1, 2, 3},
+		AccountIDs: batchCredentialAccountIDs,
 		Field:      "org_uuid",
 		Value:      "test-org",
 	})
@@ -97,12 +103,12 @@ func TestBatchUpdateCredentials_FirstAccountNotFound(t *testing.T) {
 	// GetAccount 在 stubAdminService 中总是成功的，需要创建一个 GetAccount 会失败的 stub
 	svc := &getAccountFailingService{
 		stubAdminService: newStubAdminService(),
-		failOnAccountID:  1,
+		failOnAccountID:  batchCredentialAccountIDs[0],
 	}
 	router, _ := setupAccountHandlerWithService(svc)
 
 	body, _ := json.Marshal(BatchUpdateCredentialsRequest{
-		AccountIDs: []int64{1, 2, 3},
+		AccountIDs: batchCredentialAccountIDs,
 		Field:      "account_uuid",
 		Value:      "test",
 	})
@@ -118,10 +124,10 @@ func TestBatchUpdateCredentials_FirstAccountNotFound(t *testing.T) {
 // getAccountFailingService 模拟 GetAccount 在特定 ID 时返回 not found。
 type getAccountFailingService struct {
 	*stubAdminService
-	failOnAccountID int64
+	failOnAccountID string
 }
 
-func (f *getAccountFailingService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {
+func (f *getAccountFailingService) GetAccount(ctx context.Context, id string) (*service.Account, error) {
 	if id == f.failOnAccountID {
 		return nil, errors.New("not found")
 	}
@@ -134,7 +140,7 @@ func TestBatchUpdateCredentials_InterceptWarmupRequests_NonBool(t *testing.T) {
 
 	// intercept_warmup_requests 传入非 bool 类型（string），应返回 400
 	body, _ := json.Marshal(map[string]any{
-		"account_ids": []int64{1},
+		"account_ids": batchCredentialAccountIDs[:1],
 		"field":       "intercept_warmup_requests",
 		"value":       "not-a-bool",
 	})
@@ -153,7 +159,7 @@ func TestBatchUpdateCredentials_InterceptWarmupRequests_ValidBool(t *testing.T) 
 	router, _ := setupAccountHandlerWithService(svc)
 
 	body, _ := json.Marshal(map[string]any{
-		"account_ids": []int64{1},
+		"account_ids": batchCredentialAccountIDs[:1],
 		"field":       "intercept_warmup_requests",
 		"value":       true,
 	})
@@ -173,7 +179,7 @@ func TestBatchUpdateCredentials_AccountUUID_NonString(t *testing.T) {
 
 	// account_uuid 传入非 string 类型（number），应返回 400
 	body, _ := json.Marshal(map[string]any{
-		"account_ids": []int64{1},
+		"account_ids": batchCredentialAccountIDs[:1],
 		"field":       "account_uuid",
 		"value":       12345,
 	})
@@ -193,7 +199,7 @@ func TestBatchUpdateCredentials_AccountUUID_NullValue(t *testing.T) {
 
 	// account_uuid 传入 null（设置为空），应正常通过
 	body, _ := json.Marshal(map[string]any{
-		"account_ids": []int64{1},
+		"account_ids": batchCredentialAccountIDs[:1],
 		"field":       "account_uuid",
 		"value":       nil,
 	})

@@ -30,12 +30,12 @@ func (c *countingGatewaySchedulerCache) GetSnapshot(ctx context.Context, bucket 
 
 func TestGatewayHandlerPreCancelledCompatibleRequestsDoNotSelectAccount(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	groupID := int64(9100)
+	groupID := "group-9100"
 	group := &service.Group{ID: groupID, Hydrated: true, Platform: service.PlatformAnthropic, Status: service.StatusActive}
 	account := &service.Account{
-		ID: 9101, Platform: service.PlatformAnthropic, Type: service.AccountTypeAPIKey,
+		ID: "account-9101", Platform: service.PlatformAnthropic, Type: service.AccountTypeAPIKey,
 		Status: service.StatusActive, Schedulable: true, Concurrency: 1,
-		AccountGroups: []service.AccountGroup{{AccountID: 9101, GroupID: groupID}},
+		AccountGroups: []service.AccountGroup{{AccountID: "account-9101", GroupID: groupID}},
 	}
 	schedulerCache := &countingGatewaySchedulerCache{fakeSchedulerCache: &fakeSchedulerCache{accounts: []*service.Account{account}}}
 	schedulerSnapshot := service.NewSchedulerSnapshotService(schedulerCache, nil, nil, nil, nil)
@@ -54,8 +54,8 @@ func TestGatewayHandlerPreCancelledCompatibleRequestsDoNotSelectAccount(t *testi
 		cfg:                 cfg,
 	}
 	apiKey := &service.APIKey{
-		ID: 9102, UserID: 9103, GroupID: &groupID, Group: group, Status: service.StatusActive,
-		User: &service.User{ID: 9103, Concurrency: 10, Balance: 100},
+		ID: "key-9102", UserID: "user-9103", GroupID: &groupID, Group: group, Status: service.StatusActive,
+		User: &service.User{ID: "user-9103", Concurrency: 10, Balance: 100},
 	}
 
 	tests := []struct {

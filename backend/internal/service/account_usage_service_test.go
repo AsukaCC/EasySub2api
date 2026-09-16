@@ -13,7 +13,7 @@ type accountUsageCodexProbeRepo struct {
 	rateLimitCh   chan time.Time
 }
 
-func (r *accountUsageCodexProbeRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *accountUsageCodexProbeRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	if r.updateExtraCh != nil {
 		copied := make(map[string]any, len(updates))
 		for k, v := range updates {
@@ -24,7 +24,7 @@ func (r *accountUsageCodexProbeRepo) UpdateExtra(_ context.Context, _ int64, upd
 	return nil
 }
 
-func (r *accountUsageCodexProbeRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *accountUsageCodexProbeRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
 	}
@@ -78,7 +78,7 @@ func TestShouldRefreshOpenAICodexSnapshot_SparkShadowIgnoresWSv2(t *testing.T) {
 	}
 	staleAt := now.Add(-(openAIProbeCacheTTL + time.Minute)).Format(time.RFC3339)
 	freshAt := now.Add(-time.Minute).Format(time.RFC3339)
-	parentID := int64(7001)
+	parentID := "7001"
 
 	// 影子无 WSv2,但首刷后窗口已存在;过期 codex_usage_updated_at 必须触发再刷新。
 	shadowStale := &Account{
@@ -149,7 +149,7 @@ func TestAccountUsageService_PersistOpenAICodexProbeSnapshotOnlyUpdatesExtra(t *
 		rateLimitCh:   make(chan time.Time, 1),
 	}
 	svc := &AccountUsageService{accountRepo: repo}
-	svc.persistOpenAICodexProbeSnapshot(321, map[string]any{
+	svc.persistOpenAICodexProbeSnapshot("321", map[string]any{
 		"codex_7d_used_percent": 100.0,
 		"codex_7d_reset_at":     time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second).Format(time.RFC3339),
 	})

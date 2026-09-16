@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newResponsesProbeAccount(id int64) Account {
+func newResponsesProbeAccount(id string) Account {
 	return Account{
 		ID:          id,
 		Platform:    PlatformOpenAI,
@@ -29,7 +29,7 @@ func newResponsesProbeAccount(id int64) Account {
 // runResponsesProbe 跑一次探测，返回落库的 extra 更新；未落库时返回 nil。
 func runResponsesProbe(t *testing.T, status int, body string) map[string]any {
 	t.Helper()
-	account := newResponsesProbeAccount(4200)
+	account := newResponsesProbeAccount("account-4200")
 	// 带缓冲且不阻塞：探测决定不落标时通道应保持为空。
 	updateCalls := make(chan map[string]any, 1)
 	repo := &snapshotUpdateAccountRepo{

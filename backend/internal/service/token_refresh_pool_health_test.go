@@ -19,15 +19,15 @@ type poolHealthAccountRepo struct {
 	AccountRepository
 
 	mu                   sync.Mutex
-	pages                map[int64][]Account
+	pages                map[string][]Account
 	requests             []OAuthRefreshPageOptions
-	updatedCredentialIDs []int64
+	updatedCredentialIDs []string
 	setErrorCalls        int
 	setTempUnschedCalls  int
 	getByIDErr           error
 }
 
-func (r *poolHealthAccountRepo) GetByID(_ context.Context, _ int64) (*Account, error) {
+func (r *poolHealthAccountRepo) GetByID(_ context.Context, _ string) (*Account, error) {
 	if r.getByIDErr != nil {
 		return nil, r.getByIDErr
 	}
@@ -46,7 +46,7 @@ func (r *poolHealthAccountRepo) ListOAuthRefreshCandidatePage(_ context.Context,
 	return page, nil
 }
 
-func (r *poolHealthAccountRepo) UpdateCredentials(_ context.Context, id int64, _ map[string]any) error {
+func (r *poolHealthAccountRepo) UpdateCredentials(_ context.Context, id string, _ map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.updatedCredentialIDs = append(r.updatedCredentialIDs, id)
@@ -55,9 +55,9 @@ func (r *poolHealthAccountRepo) UpdateCredentials(_ context.Context, id int64, _
 
 func (r *poolHealthAccountRepo) UpdateGrokOAuthCredentialsIfUnchanged(
 	_ context.Context,
-	id int64,
+	id string,
 	_ map[string]any,
-	_ *int64,
+	_ *string,
 	_ map[string]any,
 ) (bool, error) {
 	r.mu.Lock()
@@ -66,42 +66,42 @@ func (r *poolHealthAccountRepo) UpdateGrokOAuthCredentialsIfUnchanged(
 	return true, nil
 }
 
-func (r *poolHealthAccountRepo) SetError(context.Context, int64, string) error {
+func (r *poolHealthAccountRepo) SetError(context.Context, string, string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setErrorCalls++
 	return nil
 }
 
-func (r *poolHealthAccountRepo) SetGrokOAuthErrorIfCredentialsUnchanged(context.Context, int64, map[string]any, string) (bool, error) {
+func (r *poolHealthAccountRepo) SetGrokOAuthErrorIfCredentialsUnchanged(context.Context, string, map[string]any, string) (bool, error) {
 	return false, nil
 }
 
-func (r *poolHealthAccountRepo) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(context.Context, int64, map[string]any, *int64, string) (bool, error) {
+func (r *poolHealthAccountRepo) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(context.Context, string, map[string]any, *string, string) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setErrorCalls++
 	return true, nil
 }
 
-func (r *poolHealthAccountRepo) SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged(context.Context, int64, map[string]any, *int64, time.Time, string) (bool, error) {
+func (r *poolHealthAccountRepo) SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged(context.Context, string, map[string]any, *string, time.Time, string) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setTempUnschedCalls++
 	return true, nil
 }
 
-func (r *poolHealthAccountRepo) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
+func (r *poolHealthAccountRepo) SetTempUnschedulable(context.Context, string, time.Time, string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setTempUnschedCalls++
 	return nil
 }
 
-func (r *poolHealthAccountRepo) snapshot() ([]OAuthRefreshPageOptions, []int64, int, int) {
+func (r *poolHealthAccountRepo) snapshot() ([]OAuthRefreshPageOptions, []string, int, int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return append([]OAuthRefreshPageOptions(nil), r.requests...), append([]int64(nil), r.updatedCredentialIDs...), r.setErrorCalls, r.setTempUnschedCalls
+	return append([]OAuthRefreshPageOptions(nil), r.requests...), append([]string(nil), r.updatedCredentialIDs...), r.setErrorCalls, r.setTempUnschedCalls
 }
 
 type poolHealthRefresher struct {
@@ -155,12 +155,12 @@ type breakerTripAccountRepo struct {
 	setTempCalls  atomic.Int64
 }
 
-func (r *breakerTripAccountRepo) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(context.Context, int64, map[string]any, *int64, string) (bool, error) {
+func (r *breakerTripAccountRepo) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(context.Context, string, map[string]any, *string, string) (bool, error) {
 	r.setErrorCalls.Add(1)
 	return true, nil
 }
 
-func (r *breakerTripAccountRepo) SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged(context.Context, int64, map[string]any, *int64, time.Time, string) (bool, error) {
+func (r *breakerTripAccountRepo) SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged(context.Context, string, map[string]any, *string, time.Time, string) (bool, error) {
 	r.setTempCalls.Add(1)
 	return true, nil
 }
@@ -173,10 +173,10 @@ type productionPathRateRepo struct {
 	AccountRepository
 
 	mu       sync.Mutex
-	accounts map[int64]*Account
+	accounts map[string]*Account
 }
 
-func (r *productionPathRateRepo) GetByID(_ context.Context, id int64) (*Account, error) {
+func (r *productionPathRateRepo) GetByID(_ context.Context, id string) (*Account, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	account := r.accounts[id]
@@ -186,7 +186,7 @@ func (r *productionPathRateRepo) GetByID(_ context.Context, id int64) (*Account,
 	return snapshotOAuthRefreshAccount(account), nil
 }
 
-func (r *productionPathRateRepo) UpdateCredentials(_ context.Context, id int64, credentials map[string]any) error {
+func (r *productionPathRateRepo) UpdateCredentials(_ context.Context, id string, credentials map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	account := r.accounts[id]
@@ -199,9 +199,9 @@ func (r *productionPathRateRepo) UpdateCredentials(_ context.Context, id int64, 
 
 func (r *productionPathRateRepo) UpdateGrokOAuthCredentialsIfUnchanged(
 	_ context.Context,
-	id int64,
+	id string,
 	expectedCredentials map[string]any,
-	expectedProxyID *int64,
+	expectedProxyID *string,
 	credentials map[string]any,
 ) (bool, error) {
 	r.mu.Lock()
@@ -216,7 +216,7 @@ func (r *productionPathRateRepo) UpdateGrokOAuthCredentialsIfUnchanged(
 }
 
 type productionPathRefreshStart struct {
-	accountID int64
+	accountID string
 	at        time.Time
 }
 
@@ -229,7 +229,7 @@ type productionPathRateExecutor struct {
 }
 
 func (e *productionPathRateExecutor) CacheKey(account *Account) string {
-	return fmt.Sprintf("production-path-rate:%d", account.ID)
+	return fmt.Sprintf("production-path-rate:%s", account.ID)
 }
 
 func (e *productionPathRateExecutor) CanRefresh(account *Account) bool {
@@ -255,8 +255,8 @@ func (e *productionPathRateExecutor) Refresh(ctx context.Context, account *Accou
 		}
 	}
 	return map[string]any{
-		"access_token":  fmt.Sprintf("fresh-access-%d", account.ID),
-		"refresh_token": fmt.Sprintf("fresh-refresh-%d", account.ID),
+		"access_token":  fmt.Sprintf("fresh-access-%s", account.ID),
+		"refresh_token": fmt.Sprintf("fresh-refresh-%s", account.ID),
 		"needs_refresh": false,
 	}, nil
 }
@@ -276,7 +276,7 @@ func (g *countingRefreshAttemptGate) acquire(ctx context.Context) (func(), error
 }
 
 func (r *poolHealthRefresher) CacheKey(account *Account) string {
-	return fmt.Sprintf("pool-health:%d", account.ID)
+	return fmt.Sprintf("pool-health:%s", account.ID)
 }
 
 func (r *poolHealthRefresher) CanRefresh(account *Account) bool {
@@ -340,7 +340,7 @@ func (r *poolHealthRefresher) startsSnapshot() []time.Time {
 
 func grokPoolAccount(id int64) Account {
 	return Account{
-		ID:       id,
+		ID:       fmt.Sprintf("%d", id),
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Status:   StatusActive,
@@ -367,14 +367,16 @@ func newPoolHealthService(repo *poolHealthAccountRepo, refresher *poolHealthRefr
 
 func TestTokenRefreshService_RegistrationsAreCandidateEligibilitySource(t *testing.T) {
 	cfg := &config.Config{}
-	svc := NewTokenRefreshService(nil, nil, nil, nil, nil, cfg, nil)
+	svc := NewTokenRefreshService(nil, nil, nil, nil, nil, nil, nil, cfg, nil)
 
 	require.Equal(t, []string{
 		PlatformAnthropic,
 		PlatformOpenAI,
+		PlatformGemini,
+		PlatformAntigravity,
 		PlatformGrok,
 	}, svc.eligiblePlatforms())
-	require.Len(t, svc.registrations, 3)
+	require.Len(t, svc.registrations, 5)
 	for _, registration := range svc.registrations {
 		require.NotNil(t, registration.refresher)
 		require.NotNil(t, registration.executor)
@@ -382,9 +384,9 @@ func TestTokenRefreshService_RegistrationsAreCandidateEligibilitySource(t *testi
 }
 
 func TestTokenRefreshService_ProcessRefreshPagesByStableCursor(t *testing.T) {
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{
-		0: {grokPoolAccount(1), grokPoolAccount(2)},
-		2: {grokPoolAccount(3)},
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{
+		"":  {grokPoolAccount(1), grokPoolAccount(2)},
+		"2": {grokPoolAccount(3)},
 	}}
 	refresher := &poolHealthRefresher{}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
@@ -401,15 +403,15 @@ func TestTokenRefreshService_ProcessRefreshPagesByStableCursor(t *testing.T) {
 
 	requests, updatedIDs, _, _ := repo.snapshot()
 	require.Len(t, requests, 2)
-	require.Equal(t, int64(0), requests[0].AfterID)
-	require.Equal(t, int64(2), requests[1].AfterID)
+	require.Empty(t, requests[0].AfterID)
+	require.Equal(t, "2", requests[1].AfterID)
 	require.Equal(t, []string{PlatformGrok}, requests[0].Platforms)
 	require.True(t, requests[0].ActiveOnly)
 	require.True(t, requests[0].RequireRefreshToken)
 	require.True(t, requests[0].ExcludeRetryCooldown)
 	sort.Slice(updatedIDs, func(i, j int) bool { return updatedIDs[i] < updatedIDs[j] })
-	require.Equal(t, []int64{1, 2, 3}, updatedIDs)
-	require.Zero(t, svc.candidateAfterID(), "a short final page must wrap the next cycle to the beginning")
+	require.Equal(t, []string{"1", "2", "3"}, updatedIDs)
+	require.Empty(t, svc.candidateAfterID(), "a short final page must wrap the next cycle to the beginning")
 }
 
 func TestTokenRefreshService_BoundsPerProviderConcurrency(t *testing.T) {
@@ -417,7 +419,7 @@ func TestTokenRefreshService_BoundsPerProviderConcurrency(t *testing.T) {
 	for id := int64(1); id <= 8; id++ {
 		accounts = append(accounts, grokPoolAccount(id))
 	}
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{0: accounts}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{delay: 20 * time.Millisecond}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		MaxRetries:            1,
@@ -521,7 +523,7 @@ func TestTokenRefreshService_ProviderConcurrencyGateIsSharedAcrossBackgroundAndC
 		grokPoolAccount(3),
 		grokPoolAccount(4),
 	}
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{0: accounts}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{delay: 80 * time.Millisecond}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		RefreshBeforeExpiryHours: 1,
@@ -673,7 +675,7 @@ func TestTokenRefreshService_ProductionPathRatesOnlyActualRefreshAfterSameAccoun
 	firstSelection := snapshotOAuthRefreshAccount(&accountOne)
 	contendingSelection := snapshotOAuthRefreshAccount(&accountOne)
 	differentSelection := snapshotOAuthRefreshAccount(&accountTwo)
-	repo := &productionPathRateRepo{accounts: map[int64]*Account{
+	repo := &productionPathRateRepo{accounts: map[string]*Account{
 		accountOne.ID: snapshotOAuthRefreshAccount(&accountOne),
 		accountTwo.ID: snapshotOAuthRefreshAccount(&accountTwo),
 	}}
@@ -729,8 +731,8 @@ func TestTokenRefreshService_ProductionPathRatesOnlyActualRefreshAfterSameAccoun
 
 	starts := executor.startsSnapshot()
 	require.Len(t, starts, 2, "only the two accounts that actually refresh may consume QPS admission")
-	require.Equal(t, int64(71), starts[0].accountID)
-	require.Equal(t, int64(72), starts[1].accountID)
+	require.Equal(t, "71", starts[0].accountID)
+	require.Equal(t, "72", starts[1].accountID)
 	spacing := starts[1].at.Sub(starts[0].at)
 	require.GreaterOrEqual(t, spacing, interval-30*time.Millisecond)
 	require.Less(t, spacing, 350*time.Millisecond,
@@ -742,7 +744,7 @@ func TestTokenRefreshService_ProviderTripBeforeRateAdmissionSkipsWithoutAccountM
 	account := grokPoolAccount(73)
 	stored := snapshotOAuthRefreshAccount(&account)
 	repo := &breakerTripAccountRepo{productionPathRateRepo: &productionPathRateRepo{
-		accounts: map[int64]*Account{account.ID: stored},
+		accounts: map[string]*Account{account.ID: stored},
 	}}
 	refresher := &poolHealthRefresher{}
 	svc := &TokenRefreshService{
@@ -780,7 +782,7 @@ func TestTokenRefreshService_ConfigBounds(t *testing.T) {
 	require.Equal(t, maxTokenRefreshProviderFailureThreshold, svc.providerFailureThreshold())
 	require.Equal(t, maxTokenRefreshAttemptTimeout, svc.attemptTimeout())
 	require.Equal(t, maxTokenRefreshCycleTimeout, svc.cycleTimeout())
-	require.LessOrEqual(t, svc.retryBackoff(1, maxTokenRefreshMaxRetries), maxTokenRefreshRetryBackoff)
+	require.LessOrEqual(t, svc.retryBackoff("account-1", maxTokenRefreshMaxRetries), maxTokenRefreshRetryBackoff)
 	require.Equal(t, maxGrokOAuthReconcilePageSize, svc.grokOAuthReconcileMaxPageSize())
 }
 
@@ -800,7 +802,7 @@ func TestTokenRefreshService_SharedProviderFailureContainsCycleWithoutAccountMut
 	for id := int64(1); id <= 5; id++ {
 		accounts = append(accounts, grokPoolAccount(id))
 	}
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{0: accounts}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{err: errors.New("invalid_client: provider configuration rejected")}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		MaxRetries:               1,
@@ -823,7 +825,7 @@ func TestTokenRefreshService_SharedProviderFailureContainsCycleWithoutAccountMut
 func TestTokenRefreshService_SharedDBRereadFailureContainsCycleWithoutAccountMutation(t *testing.T) {
 	accounts := []Account{grokPoolAccount(1), grokPoolAccount(2), grokPoolAccount(3)}
 	repo := &poolHealthAccountRepo{
-		pages:      map[int64][]Account{0: accounts},
+		pages:      map[string][]Account{"": accounts},
 		getByIDErr: errors.New("database unavailable"),
 	}
 	refresher := &poolHealthRefresher{}
@@ -847,7 +849,7 @@ func TestTokenRefreshService_SharedDBRereadFailureContainsCycleWithoutAccountMut
 
 func TestTokenRefreshService_GenericGrokForbiddenContainsCycleWithoutAccountMutation(t *testing.T) {
 	accounts := []Account{grokPoolAccount(1), grokPoolAccount(2), grokPoolAccount(3)}
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{0: accounts}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{err: errors.New(`GROK_OAUTH_ENTITLEMENT_DENIED: token refresh failed: status 403, body: <html>request blocked</html>`)}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		MaxRetries:               1,
@@ -868,7 +870,7 @@ func TestTokenRefreshService_GenericGrokForbiddenContainsCycleWithoutAccountMuta
 }
 
 func TestTokenRefreshService_ExplicitGrokEntitlementDenialIsPermanent(t *testing.T) {
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{0: {grokPoolAccount(1)}}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": {grokPoolAccount(1)}}}
 	refresher := &poolHealthRefresher{err: errors.New(`GROK_OAUTH_ENTITLEMENT_DENIED: token refresh failed: status 403, body: {"error":"subscription required"}`)}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		MaxRetries:            1,
@@ -889,7 +891,7 @@ func TestTokenRefreshService_ExplicitGrokEntitlementDenialIsPermanent(t *testing
 
 func TestTokenRefreshService_AttemptTimeoutTripsRetryableProviderThreshold(t *testing.T) {
 	accounts := []Account{grokPoolAccount(1), grokPoolAccount(2), grokPoolAccount(3)}
-	repo := &poolHealthAccountRepo{pages: map[int64][]Account{0: accounts}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{delay: time.Second}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		MaxRetries:               1,

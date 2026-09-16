@@ -64,7 +64,7 @@ func TestForwardOpenAIWSV2_ClientCancellationDrainsWithoutSyntheticFailure(t *te
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          9101,
+		ID:          "id-9101",
 		Name:        "openai-ws-client-cancel",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

@@ -62,7 +62,7 @@ func TestAPIKeyAuthInvalidAbuseReturns429BeforeRepository(t *testing.T) {
 func TestGoogleAPIKeyAuthInvalidAbuseReturnsProtocol429(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repoCalls := 0
-	repo := fakeAPIKeyRepo{getByKey: func(context.Context, string) (*service.APIKey, error) {
+	repo := &stubApiKeyRepo{getByKey: func(context.Context, string) (*service.APIKey, error) {
 		repoCalls++
 		return nil, service.ErrAPIKeyNotFound
 	}}
@@ -95,11 +95,11 @@ func TestGoogleAPIKeyAuthInvalidAbuseReturnsProtocol429(t *testing.T) {
 
 func TestInvalidAuthAbuseDoesNotCountValidOrOperationalFailures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	user := &service.User{ID: 1, Status: service.StatusActive, Role: service.RoleUser, Balance: 1}
+	user := &service.User{ID: "user-1", Status: service.StatusActive, Role: service.RoleUser, Balance: 1}
 	repo := &stubApiKeyRepo{getByKey: func(_ context.Context, key string) (*service.APIKey, error) {
 		switch key {
 		case "valid-key":
-			return &service.APIKey{ID: 1, UserID: 1, Key: key, Status: service.StatusActive, User: user}, nil
+			return &service.APIKey{ID: "key-1", UserID: "user-1", Key: key, Status: service.StatusActive, User: user}, nil
 		case "db-error":
 			return nil, errors.New("database unavailable")
 		default:

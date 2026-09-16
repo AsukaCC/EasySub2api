@@ -37,7 +37,7 @@ func (s liveAttestationStub) Generate(context.Context) (string, error) {
 func (s *liveHTTPUpstreamStub) Do(
 	request *http.Request,
 	_ string,
-	_ int64,
+	_ string,
 	_ int,
 ) (*http.Response, error) {
 	s.request = request
@@ -58,7 +58,7 @@ func (s *liveHTTPUpstreamStub) Do(
 func (s *liveHTTPUpstreamStub) DoWithTLS(
 	request *http.Request,
 	proxyURL string,
-	accountID int64,
+	accountID string,
 	accountConcurrency int,
 	_ *tlsfingerprint.Profile,
 ) (*http.Response, error) {
@@ -101,7 +101,7 @@ func TestCreateUpstreamLiveCallPreservesSession(t *testing.T) {
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          7,
+		ID:          "account-7",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 2,

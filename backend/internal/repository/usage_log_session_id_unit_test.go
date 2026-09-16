@@ -14,9 +14,9 @@ import (
 
 func newSessionIDUsageLog(sessionID *string) *service.UsageLog {
 	return &service.UsageLog{
-		UserID:       1,
-		APIKeyID:     2,
-		AccountID:    3,
+		UserID:       "user-1",
+		APIKeyID:     "key-2",
+		AccountID:    "account-3",
 		RequestID:    "req-session-id",
 		Model:        "claude-3",
 		InputTokens:  10,

@@ -18,21 +18,21 @@ import (
 
 type fakePromptAdminService struct {
 	config       PublicConfig
-	save         func(context.Context, UpdateConfigRequest, int64) (PublicConfig, error)
+	save         func(context.Context, UpdateConfigRequest, string) (PublicConfig, error)
 	probe        func(context.Context, ProbeRequest) ProbeResult
 	runtime      RuntimeSnapshot
 	list         func(context.Context, EventFilter, int, int) (*EventPage, error)
-	get          func(context.Context, int64) (*Event, error)
-	deleteOne    func(context.Context, int64) (*DeleteResult, error)
-	deleteIDs    func(context.Context, []int64) (*DeleteResult, error)
-	preview      func(context.Context, EventFilter, int64) (*DeletePreview, error)
-	deleteFilter func(context.Context, DeleteByFilterRequest, int64) (*DeleteResult, error)
+	get          func(context.Context, string) (*Event, error)
+	deleteOne    func(context.Context, string) (*DeleteResult, error)
+	deleteIDs    func(context.Context, []string) (*DeleteResult, error)
+	preview      func(context.Context, EventFilter, string) (*DeletePreview, error)
+	deleteFilter func(context.Context, DeleteByFilterRequest, string) (*DeleteResult, error)
 }
 
 func (s *fakePromptAdminService) GetConfig() (PublicConfig, error) {
 	return s.config, nil
 }
-func (s *fakePromptAdminService) SaveConfig(ctx context.Context, req UpdateConfigRequest, actorID int64) (PublicConfig, error) {
+func (s *fakePromptAdminService) SaveConfig(ctx context.Context, req UpdateConfigRequest, actorID string) (PublicConfig, error) {
 	if s.save == nil {
 		return PublicConfig{}, errors.New("unexpected SaveConfig call")
 	}
@@ -51,31 +51,31 @@ func (s *fakePromptAdminService) ListEvents(ctx context.Context, filter EventFil
 	}
 	return s.list(ctx, filter, page, pageSize)
 }
-func (s *fakePromptAdminService) GetEvent(ctx context.Context, id int64) (*Event, error) {
+func (s *fakePromptAdminService) GetEvent(ctx context.Context, id string) (*Event, error) {
 	if s.get == nil {
 		return nil, ErrEventNotFound
 	}
 	return s.get(ctx, id)
 }
-func (s *fakePromptAdminService) DeleteEvent(ctx context.Context, id int64) (*DeleteResult, error) {
+func (s *fakePromptAdminService) DeleteEvent(ctx context.Context, id string) (*DeleteResult, error) {
 	if s.deleteOne == nil {
 		return &DeleteResult{}, nil
 	}
 	return s.deleteOne(ctx, id)
 }
-func (s *fakePromptAdminService) DeleteEventsByIDs(ctx context.Context, ids []int64) (*DeleteResult, error) {
+func (s *fakePromptAdminService) DeleteEventsByIDs(ctx context.Context, ids []string) (*DeleteResult, error) {
 	if s.deleteIDs == nil {
 		return &DeleteResult{}, nil
 	}
 	return s.deleteIDs(ctx, ids)
 }
-func (s *fakePromptAdminService) PreviewDelete(ctx context.Context, filter EventFilter, actorID int64) (*DeletePreview, error) {
+func (s *fakePromptAdminService) PreviewDelete(ctx context.Context, filter EventFilter, actorID string) (*DeletePreview, error) {
 	if s.preview == nil {
 		return &DeletePreview{}, nil
 	}
 	return s.preview(ctx, filter, actorID)
 }
-func (s *fakePromptAdminService) DeleteByFilter(ctx context.Context, req DeleteByFilterRequest, actorID int64) (*DeleteResult, error) {
+func (s *fakePromptAdminService) DeleteByFilter(ctx context.Context, req DeleteByFilterRequest, actorID string) (*DeleteResult, error) {
 	if s.deleteFilter == nil {
 		return &DeleteResult{}, nil
 	}
@@ -86,7 +86,7 @@ func promptAdminRouter(service PromptAdminService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(servermiddleware.ContextKeyUser), servermiddleware.AuthSubject{UserID: 42})
+		c.Set(string(servermiddleware.ContextKeyUser), servermiddleware.AuthSubject{UserID: "user-42"})
 		c.Set(string(servermiddleware.ContextKeyUserRole), "admin")
 		c.Next()
 	})
@@ -133,7 +133,7 @@ func TestPromptAdminConfigRequiresVersionMapsConflictAndNeverEchoesToken(t *test
 	})
 
 	t.Run("CAS conflict", func(t *testing.T) {
-		service := &fakePromptAdminService{save: func(context.Context, UpdateConfigRequest, int64) (PublicConfig, error) {
+		service := &fakePromptAdminService{save: func(context.Context, UpdateConfigRequest, string) (PublicConfig, error) {
 			return PublicConfig{}, infraerrors.Conflict(ErrorCodeConfigConflict, "配置已被更新")
 		}}
 		response := promptAdminRequest(t, promptAdminRouter(service), http.MethodPut, "/admin/prompt-audit/config", validHandlerUpdateRequest(canary))
@@ -143,8 +143,8 @@ func TestPromptAdminConfigRequiresVersionMapsConflictAndNeverEchoesToken(t *test
 	})
 
 	t.Run("success public DTO", func(t *testing.T) {
-		service := &fakePromptAdminService{save: func(_ context.Context, req UpdateConfigRequest, actorID int64) (PublicConfig, error) {
-			require.Equal(t, int64(42), actorID)
+		service := &fakePromptAdminService{save: func(_ context.Context, req UpdateConfigRequest, actorID string) (PublicConfig, error) {
+			require.Equal(t, "user-42", actorID)
 			require.Equal(t, canary, req.Endpoints[0].Token)
 			return PublicConfig{ConfigVersion: 8, Endpoints: []PublicEndpoint{{ID: "guard-1", HasToken: true, TokenStatus: "configured"}}}, nil
 		}}
@@ -211,7 +211,7 @@ func TestPromptAdminRejectsInvalidEventIDsTimesAndPagination(t *testing.T) {
 		{http.MethodGet, "/admin/prompt-audit/events?group_id=bad", nil, "prompt_audit_invalid_filter_id"},
 		{http.MethodGet, "/admin/prompt-audit/events?start_at=not-time", nil, "prompt_audit_invalid_time"},
 		{http.MethodGet, "/admin/prompt-audit/events?page=0", nil, "prompt_audit_invalid_pagination"},
-		{http.MethodPost, "/admin/prompt-audit/events/batch-delete", map[string]any{"ids": []int64{1, -2}}, "prompt_audit_invalid_event_id"},
+		{http.MethodPost, "/admin/prompt-audit/events/batch-delete", map[string]any{"ids": []string{"event-1", ""}}, "prompt_audit_invalid_event_id"},
 	} {
 		response := promptAdminRequest(t, router, tc.method, tc.path, tc.body)
 		require.Equalf(t, http.StatusBadRequest, response.Code, "%s %s", tc.method, tc.path)
@@ -236,11 +236,11 @@ func validHandlerUpdateRequest(token string) UpdateConfigRequest {
 }
 
 func TestPromptAdminDeleteConfirmationErrorsStayGeneric(t *testing.T) {
-	service := &fakePromptAdminService{deleteFilter: func(context.Context, DeleteByFilterRequest, int64) (*DeleteResult, error) {
+	service := &fakePromptAdminService{deleteFilter: func(context.Context, DeleteByFilterRequest, string) (*DeleteResult, error) {
 		return nil, errors.New("sensitive-token-or-filter-detail")
 	}}
 	response := promptAdminRequest(t, promptAdminRouter(service), http.MethodPost, "/admin/prompt-audit/events/delete-by-filter", DeleteByFilterRequest{
-		SnapshotMaxID: 3, FilterHash: strings.Repeat("a", 64), ConfirmationToken: "secret-confirmation", Confirm: true,
+		SnapshotMaxID: "event-3", FilterHash: strings.Repeat("a", 64), ConfirmationToken: "secret-confirmation", Confirm: true,
 	})
 	require.Equal(t, http.StatusBadRequest, response.Code)
 	require.Contains(t, response.Body.String(), "prompt_audit_delete_confirmation_invalid")

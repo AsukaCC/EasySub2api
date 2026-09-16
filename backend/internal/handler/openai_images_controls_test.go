@@ -22,17 +22,17 @@ func TestOpenAIGatewayHandlerImages_DisabledGroupRejectsBeforeScheduling(t *test
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
-	groupID := int64(111)
+	groupID := "group-111"
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      222,
+		ID:      "key-222",
 		GroupID: &groupID,
 		Group: &service.Group{
 			ID:                   groupID,
 			AllowImageGeneration: false,
 		},
-		User: &service.User{ID: 333},
+		User: &service.User{ID: "user-333"},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 333, Concurrency: 1})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-333", Concurrency: 1})
 
 	h := &OpenAIGatewayHandler{
 		gatewayService:      &service.OpenAIGatewayService{},

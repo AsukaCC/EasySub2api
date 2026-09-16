@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -186,9 +185,9 @@ func TestOpsSystemLogSink_StartStopAndFlushSuccess(t *testing.T) {
 			"component":         "http.access",
 			"request_id":        "req-1",
 			"client_request_id": "creq-1",
-			"user_id":           "12",
-			"api_key_id":        int64(56),
-			"account_id":        json.Number("34"),
+			"user_id":           "user-12",
+			"api_key_id":        "api-key-56",
+			"account_id":        "account-34",
 			"platform":          "openai",
 			"model":             "gpt-5",
 		},
@@ -210,13 +209,13 @@ func TestOpsSystemLogSink_StartStopAndFlushSuccess(t *testing.T) {
 	if item.RequestID != "req-1" || item.ClientRequestID != "creq-1" {
 		t.Fatalf("unexpected request ids: %+v", item)
 	}
-	if item.UserID == nil || *item.UserID != 12 {
+	if item.UserID == nil || *item.UserID != "user-12" {
 		t.Fatalf("unexpected user_id: %+v", item.UserID)
 	}
-	if item.APIKeyID == nil || *item.APIKeyID != 56 {
+	if item.APIKeyID == nil || *item.APIKeyID != "api-key-56" {
 		t.Fatalf("unexpected api_key_id: %+v", item.APIKeyID)
 	}
-	if item.AccountID == nil || *item.AccountID != 34 {
+	if item.AccountID == nil || *item.AccountID != "account-34" {
 		t.Fatalf("unexpected account_id: %+v", item.AccountID)
 	}
 	if strings.TrimSpace(item.Message) == "" {
@@ -336,26 +335,22 @@ func TestOpsSystemLogSink_HelperFunctions(t *testing.T) {
 
 	cases := []struct {
 		in   any
-		want int64
+		want string
 		ok   bool
 	}{
-		{in: 5, want: 5, ok: true},
-		{in: int64(6), want: 6, ok: true},
-		{in: float64(7), want: 7, ok: true},
-		{in: json.Number("8"), want: 8, ok: true},
-		{in: "9", want: 9, ok: true},
-		{in: "0", ok: false},
-		{in: -1, ok: false},
-		{in: "abc", ok: false},
+		{in: "id-5", want: "id-5", ok: true},
+		{in: stringerValue("id-6"), want: "id-6", ok: true},
+		{in: "", ok: false},
+		{in: 7, ok: false},
 	}
 	for _, tc := range cases {
-		got := asInt64Ptr(tc.in)
+		got := asIDPtr(tc.in)
 		if tc.ok {
 			if got == nil || *got != tc.want {
-				t.Fatalf("asInt64Ptr(%v) = %+v, want %d", tc.in, got, tc.want)
+				t.Fatalf("asIDPtr(%v) = %+v, want %s", tc.in, got, tc.want)
 			}
 		} else if got != nil {
-			t.Fatalf("asInt64Ptr(%v) should be nil, got %d", tc.in, *got)
+			t.Fatalf("asIDPtr(%v) should be nil, got %s", tc.in, *got)
 		}
 	}
 }

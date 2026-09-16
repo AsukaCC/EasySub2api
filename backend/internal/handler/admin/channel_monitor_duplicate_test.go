@@ -4,6 +4,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	duplicateMonitorSourceID = "42000000-0000-0000-0000-000000000042"
+	duplicateMonitorAdminID  = "77000000-0000-0000-0000-000000000077"
+)
+
 type duplicateChannelMonitorHandlerRepoStub struct {
 	service.ChannelMonitorRepository
 	source      *service.ChannelMonitor
@@ -22,7 +28,7 @@ type duplicateChannelMonitorHandlerRepoStub struct {
 	createCalls int
 }
 
-func (r *duplicateChannelMonitorHandlerRepoStub) GetByID(_ context.Context, id int64) (*service.ChannelMonitor, error) {
+func (r *duplicateChannelMonitorHandlerRepoStub) GetByID(_ context.Context, id string) (*service.ChannelMonitor, error) {
 	if r.source == nil || r.source.ID != id {
 		return nil, service.ErrChannelMonitorNotFound
 	}
@@ -31,7 +37,7 @@ func (r *duplicateChannelMonitorHandlerRepoStub) GetByID(_ context.Context, id i
 
 func (r *duplicateChannelMonitorHandlerRepoStub) Create(_ context.Context, monitor *service.ChannelMonitor) error {
 	r.createCalls++
-	monitor.ID = int64(100 + r.createCalls)
+	monitor.ID = fmt.Sprintf("monitor-%d", 100+r.createCalls)
 	stored := *monitor
 	if stored.DuplicateOperationID != "" {
 		if r.byOperation == nil {
@@ -72,7 +78,7 @@ func setupDuplicateChannelMonitorRouter(t *testing.T) (*gin.Engine, *duplicateCh
 
 	repo := &duplicateChannelMonitorHandlerRepoStub{
 		source: &service.ChannelMonitor{
-			ID:               42,
+			ID:               duplicateMonitorSourceID,
 			Name:             "primary",
 			Provider:         service.MonitorProviderOpenAI,
 			APIMode:          service.MonitorAPIModeResponses,
@@ -91,7 +97,7 @@ func setupDuplicateChannelMonitorRouter(t *testing.T) (*gin.Engine, *duplicateCh
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 77})
+		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: duplicateMonitorAdminID})
 		c.Next()
 	})
 	router.POST("/api/v1/admin/channel-monitors/:id/duplicate", handler.Duplicate)
@@ -101,7 +107,7 @@ func setupDuplicateChannelMonitorRouter(t *testing.T) (*gin.Engine, *duplicateCh
 func TestDuplicateChannelMonitorHandlerRedactsKeyAndReplaysRetry(t *testing.T) {
 	router, repo := setupDuplicateChannelMonitorRouter(t)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/channel-monitors/42/duplicate", nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/channel-monitors/"+duplicateMonitorSourceID+"/duplicate", nil)
 	request.Header.Set("Idempotency-Key", "duplicate-channel-monitor-42")
 	first := httptest.NewRecorder()
 	router.ServeHTTP(first, request)
@@ -110,11 +116,11 @@ func TestDuplicateChannelMonitorHandlerRedactsKeyAndReplaysRetry(t *testing.T) {
 	require.Equal(t, 1, repo.createCalls)
 	require.Contains(t, first.Body.String(), `"name":"primary (Copy)"`)
 	require.Contains(t, first.Body.String(), `"api_key_masked":"top-***"`)
-	require.Contains(t, first.Body.String(), `"created_by":77`)
+	require.Contains(t, first.Body.String(), `"created_by":"`+duplicateMonitorAdminID+`"`)
 	require.Contains(t, first.Body.String(), `"enabled":false`)
 	require.NotContains(t, first.Body.String(), "top-secret")
 
-	retryRequest := httptest.NewRequest(http.MethodPost, "/api/v1/admin/channel-monitors/42/duplicate", nil)
+	retryRequest := httptest.NewRequest(http.MethodPost, "/api/v1/admin/channel-monitors/"+duplicateMonitorSourceID+"/duplicate", nil)
 	retryRequest.Header.Set("Idempotency-Key", "duplicate-channel-monitor-42")
 	retry := httptest.NewRecorder()
 	router.ServeHTTP(retry, retryRequest)
@@ -149,7 +155,7 @@ func TestDuplicateChannelMonitorHandlerRecoversAfterMarkSucceededFailure(t *test
 	))
 
 	call := func() *httptest.ResponseRecorder {
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/channel-monitors/42/duplicate", nil)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/channel-monitors/"+duplicateMonitorSourceID+"/duplicate", nil)
 		request.Header.Set("Idempotency-Key", "duplicate-channel-monitor-recovery")
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
@@ -164,7 +170,7 @@ func TestDuplicateChannelMonitorHandlerRecoversAfterMarkSucceededFailure(t *test
 	require.Equal(t, "true", first.Header().Get("X-Idempotency-Recovered"))
 	require.Equal(t, "true", second.Header().Get("X-Idempotency-Recovered"))
 	require.Equal(t, 1, repo.createCalls, "ambiguous retries must not repeat the create side effect")
-	require.Contains(t, second.Body.String(), `"id":101`)
+	require.Contains(t, second.Body.String(), `"id":"monitor-101"`)
 	require.Contains(t, second.Body.String(), `"api_key_masked":"top-***"`)
 	require.NotContains(t, second.Body.String(), "top-secret")
 }

@@ -160,7 +160,7 @@ type upstreamBillingProbeHTTPStub struct {
 	beforeResponse func()
 }
 
-func (u *upstreamBillingProbeHTTPStub) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (u *upstreamBillingProbeHTTPStub) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	u.calls.Add(1)
 	active := u.active.Add(1)
 	defer u.active.Add(-1)
@@ -189,7 +189,7 @@ func (u *upstreamBillingProbeHTTPStub) Do(req *http.Request, proxyURL string, ac
 	}, nil
 }
 
-func (u *upstreamBillingProbeHTTPStub) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *upstreamBillingProbeHTTPStub) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
@@ -272,7 +272,7 @@ func TestUpstreamBillingProbeSettingsDefaultsAndValidation(t *testing.T) {
 func TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot(t *testing.T) {
 	initialRate := 0.25
 	account := &Account{
-		ID:          17,
+		ID:          "17",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -287,7 +287,7 @@ func TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot(t *testing.T) {
 		},
 		RateMultiplier: &initialRate,
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -297,13 +297,13 @@ func TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot(t *testing.T) {
 			"billing_scope":"token",
 			"group_rate_multiplier":0.8,
 			"user_rate_multiplier":0.6,
-			"resolved_rate_multiplier":0.6,
+			"resolved_rate_multiplier":0.48,
 			"peak_rate_enabled":true,
 			"peak_start":"09:00",
 			"peak_end":"18:00",
 			"peak_rate_multiplier":1.5,
 			"applied_peak_multiplier":1.5,
-			"effective_rate_multiplier":0.9,
+			"effective_rate_multiplier":0.72,
 			"timezone":"Asia/Shanghai",
 			"observed_at":"2026-07-13T01:00:00Z",
 			"unexpected_secret":"must-not-persist"
@@ -316,7 +316,7 @@ func TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot(t *testing.T) {
 	snapshot, err := svc.ProbeAccount(context.Background(), account.ID)
 	require.NoError(t, err)
 	require.Equal(t, UpstreamBillingProbeStatusOK, snapshot.Status)
-	require.Equal(t, 0.9, snapshot.Data["effective_rate_multiplier"])
+	require.Equal(t, 0.72, snapshot.Data["effective_rate_multiplier"])
 	require.NotContains(t, snapshot.Data, "unexpected_secret")
 	require.NotNil(t, snapshot.ReceivedAt)
 	require.Equal(t, fixedNow, *snapshot.ReceivedAt)
@@ -324,13 +324,13 @@ func TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot(t *testing.T) {
 	require.Equal(t, fixedNow.Add(time.Hour), *snapshot.FreshUntil)
 	require.False(t, snapshot.NextProbeAt.Before(fixedNow.Add(24*time.Minute)))
 	require.False(t, snapshot.NextProbeAt.After(fixedNow.Add(36*time.Minute)))
-	// 写回的是不含高峰因子的 resolved 倍率（0.6），不是探测那一刻含高峰的
-	// effective 倍率（0.9）——否则一个探测周期的峰值会被冻结进静态列。
+	// 写回的是不含高峰因子的 resolved 倍率（0.48），不是探测那一刻含高峰的
+	// effective 倍率（0.72）——否则一个探测周期的峰值会被冻结进静态列。
 	require.NotNil(t, account.RateMultiplier)
-	require.Equal(t, 0.6, *account.RateMultiplier)
+	require.Equal(t, 0.48, *account.RateMultiplier)
 	require.NotNil(t, snapshot.SyncedRateMultiplier)
-	require.Equal(t, 0.6, *snapshot.SyncedRateMultiplier)
-	require.Equal(t, "https://upstream.example/v1/sub2api/billing", upstream.lastReq.URL.String())
+	require.Equal(t, 0.48, *snapshot.SyncedRateMultiplier)
+	require.Equal(t, "https://upstream.example/v1/easysub2api/billing", upstream.lastReq.URL.String())
 	require.Equal(t, http.MethodGet, upstream.lastReq.Method)
 	require.Equal(t, "Bearer sk-sensitive", upstream.lastReq.Header.Get("Authorization"))
 	require.True(t, HTTPUpstreamRedirectsDisabled(upstream.lastReq.Context()))
@@ -344,14 +344,12 @@ func TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms(t *testing.T
 	for _, platform := range []string{
 		PlatformOpenAI,
 		PlatformAnthropic,
-		PlatformGemini,
-		PlatformAntigravity,
 		PlatformGrok,
 	} {
 		t.Run(platform, func(t *testing.T) {
 			initialRate := 0.25
 			account := &Account{
-				ID:             17,
+				ID:             "17",
 				Platform:       platform,
 				Type:           AccountTypeAPIKey,
 				Status:         StatusActive,
@@ -366,7 +364,7 @@ func TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms(t *testing.T
 					UpstreamBillingRateSyncEnabledExtraKey: true,
 				},
 			}
-			repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+			repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 			svc := newUpstreamBillingProbeTestService(repo, &upstreamBillingProbeHTTPStub{}, &upstreamBillingProbeSettingRepo{})
 
 			snapshot, err := svc.ProbeAccount(context.Background(), account.ID)
@@ -382,7 +380,7 @@ func TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms(t *testing.T
 func TestUpstreamBillingProbeOnlyDoesNotChangeAccountRate(t *testing.T) {
 	initialRate := 0.25
 	account := &Account{
-		ID:             18,
+		ID:             "18",
 		Platform:       PlatformGrok,
 		Type:           AccountTypeAPIKey,
 		Status:         StatusActive,
@@ -394,7 +392,7 @@ func TestUpstreamBillingProbeOnlyDoesNotChangeAccountRate(t *testing.T) {
 		},
 		Extra: map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	svc := newUpstreamBillingProbeTestService(repo, &upstreamBillingProbeHTTPStub{}, &upstreamBillingProbeSettingRepo{})
 
 	snapshot, err := svc.ProbeAccount(context.Background(), account.ID)
@@ -462,7 +460,7 @@ func TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange(t *testing.T
 		t.Run(tt.name, func(t *testing.T) {
 			initialRate := 0.25
 			account := &Account{
-				ID:             21,
+				ID:             "21",
 				Platform:       PlatformOpenAI,
 				Type:           AccountTypeAPIKey,
 				Status:         StatusActive,
@@ -477,7 +475,7 @@ func TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange(t *testing.T
 					UpstreamBillingRateSyncEnabledExtraKey: true,
 				},
 			}
-			repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+			repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 			upstream := &httpUpstreamRecorder{resp: &http.Response{
 				StatusCode: http.StatusOK,
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -512,7 +510,7 @@ func TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange(t *testing.T
 // 不得被记成探测失败（否则会累计 failure_count 并进入指数退避）。
 func TestUpstreamBillingProbeWithoutSyncIgnoresUnusableDeclaredRate(t *testing.T) {
 	account := &Account{
-		ID:          22,
+		ID:          "22",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -523,7 +521,7 @@ func TestUpstreamBillingProbeWithoutSyncIgnoresUnusableDeclaredRate(t *testing.T
 		},
 		Extra: map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -567,7 +565,7 @@ func TestUpstreamBillingProbeRejectsMissingRequiredMultiplier(t *testing.T) {
 
 func TestUpstreamBillingProbeDiscardsResultWhenIdentityChangesInFlight(t *testing.T) {
 	account := &Account{
-		ID:          19,
+		ID:          "19",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -575,7 +573,7 @@ func TestUpstreamBillingProbeDiscardsResultWhenIdentityChangesInFlight(t *testin
 		Credentials: map[string]any{"api_key": "sk-old", "base_url": "https://upstream.example"},
 		Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &upstreamBillingProbeHTTPStub{beforeResponse: func() {
 		repo.mu.Lock()
 		defer repo.mu.Unlock()
@@ -698,7 +696,7 @@ func TestUpstreamBillingProbeFailurePreservesLastSuccessAndRetryAfter(t *testing
 		FailureCount: 1,
 	}
 	account := &Account{
-		ID:             18,
+		ID:             "18",
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeAPIKey,
 		Status:         StatusActive,
@@ -710,7 +708,7 @@ func TestUpstreamBillingProbeFailurePreservesLastSuccessAndRetryAfter(t *testing
 			UpstreamBillingProbeExtraKey:        previous,
 		},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusTooManyRequests,
 		Header:     http.Header{"Retry-After": []string{"14400"}},
@@ -762,7 +760,7 @@ func TestUpstreamBillingProbeUnsupportedDelayIsStretchedAndBounded(t *testing.T)
 func TestUpstreamBillingProbeUnsupportedBackoffDefersRunnerButNotManualProbe(t *testing.T) {
 	// Ollama Cloud 形态：官方域，不发请求直接落 unsupported。
 	account := &Account{
-		ID:          31,
+		ID:          "31",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -770,7 +768,7 @@ func TestUpstreamBillingProbeUnsupportedBackoffDefersRunnerButNotManualProbe(t *
 		Credentials: map[string]any{"api_key": "sk-ollama", "base_url": "https://ollama.com/v1"},
 		Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &upstreamBillingProbeHTTPStub{}
 	settingsRepo := &upstreamBillingProbeSettingRepo{values: map[string]string{
 		SettingKeyUpstreamBillingProbeSettings: `{"enabled":true,"interval_minutes":30}`,
@@ -805,14 +803,14 @@ func TestUpstreamBillingProbeUnsupportedBackoffDefersRunnerButNotManualProbe(t *
 
 func TestUpstreamBillingProbeEmptyResponseIsPersistedAsFailure(t *testing.T) {
 	account := &Account{
-		ID:          21,
+		ID:          "21",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Concurrency: 1,
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	svc := newUpstreamBillingProbeTestService(repo, &httpUpstreamRecorder{}, &upstreamBillingProbeSettingRepo{})
 	fixedNow := time.Date(2026, time.July, 13, 2, 0, 0, 0, time.UTC)
 	svc.now = func() time.Time { return fixedNow }
@@ -833,14 +831,14 @@ func TestUpstreamBillingProbeEmptyResponseIsPersistedAsFailure(t *testing.T) {
 
 func TestUpstreamBillingProbeUnsupportedAndAccountToggle(t *testing.T) {
 	account := &Account{
-		ID:          19,
+		ID:          "19",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Concurrency: 1,
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusNotFound,
 		Header:     http.Header{},
@@ -870,17 +868,18 @@ func TestUpstreamBillingProbeUnsupportedAndAccountToggle(t *testing.T) {
 	require.Equal(t, false, account.Extra[UpstreamBillingProbeEnabledExtraKey])
 	require.Equal(t, false, account.Extra[UpstreamBillingRateSyncEnabledExtraKey])
 
-	invalid := &Account{ID: 20, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	invalid := &Account{ID: "20", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 	repo.accounts[invalid.ID] = invalid
 	err = svc.SetAccountEnabled(context.Background(), invalid.ID, true)
 	require.True(t, errors.Is(err, ErrUpstreamBillingProbeAccountInvalid))
 }
 
 func TestUpstreamBillingProbeRunnerIsBoundedAndManualProbeIgnoresSwitches(t *testing.T) {
-	accounts := make(map[int64]*Account, 25)
+	accounts := make(map[string]*Account, 25)
 	for id := int64(1); id <= 25; id++ {
-		accounts[id] = &Account{
-			ID:          id,
+		accountID := fmt.Sprintf("%d", id)
+		accounts[accountID] = &Account{
+			ID:          accountID,
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -906,20 +905,20 @@ func TestUpstreamBillingProbeRunnerIsBoundedAndManualProbeIgnoresSwitches(t *tes
 	require.NoError(t, svc.RunDue(context.Background()))
 	require.Equal(t, int64(20), upstream.calls.Load())
 
-	accounts[25].Extra[UpstreamBillingProbeEnabledExtraKey] = false
+	accounts["25"].Extra[UpstreamBillingProbeEnabledExtraKey] = false
 	manualRate := 0.25
-	accounts[25].RateMultiplier = &manualRate
-	snapshot, err := svc.ProbeAccount(context.Background(), 25)
+	accounts["25"].RateMultiplier = &manualRate
+	snapshot, err := svc.ProbeAccount(context.Background(), "25")
 	require.NoError(t, err)
 	require.Equal(t, UpstreamBillingProbeStatusOK, snapshot.Status)
 	require.Equal(t, int64(21), upstream.calls.Load())
-	require.NotNil(t, accounts[25].RateMultiplier)
-	require.Equal(t, manualRate, *accounts[25].RateMultiplier)
+	require.NotNil(t, accounts["25"].RateMultiplier)
+	require.Equal(t, manualRate, *accounts["25"].RateMultiplier)
 }
 
 func TestUpstreamBillingProbeRunnerRechecksEnabledAfterDueSelection(t *testing.T) {
 	account := &Account{
-		ID:          26,
+		ID:          "26",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -929,7 +928,7 @@ func TestUpstreamBillingProbeRunnerRechecksEnabledAfterDueSelection(t *testing.T
 	}
 	staleDue := *account
 	staleDue.Extra = map[string]any{UpstreamBillingProbeEnabledExtraKey: true}
-	baseRepo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	baseRepo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	repo := &staleDueUpstreamBillingProbeAccountRepo{upstreamBillingProbeAccountRepo: baseRepo, due: []Account{staleDue}}
 	settingsRepo := &upstreamBillingProbeSettingRepo{values: map[string]string{
 		SettingKeyUpstreamBillingProbeSettings: `{"enabled":true,"interval_minutes":30}`,
@@ -943,7 +942,7 @@ func TestUpstreamBillingProbeRunnerRechecksEnabledAfterDueSelection(t *testing.T
 }
 
 func TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect(t *testing.T) {
-	proxyID := int64(7)
+	proxyID := "7"
 	for _, tc := range []struct {
 		name       string
 		proxy      *Proxy
@@ -951,11 +950,11 @@ func TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect(t *te
 		wantErr    error
 	}{
 		{name: "missing hydrated proxy", wantReason: "proxy_unavailable"},
-		{name: "mismatched hydrated proxy", proxy: &Proxy{ID: 8, Protocol: "http", Host: "127.0.0.1", Port: 8080}, wantErr: ErrUpstreamBillingProbeIdentityChanged},
+		{name: "mismatched hydrated proxy", proxy: &Proxy{ID: "8", Protocol: "http", Host: "127.0.0.1", Port: 8080}, wantErr: ErrUpstreamBillingProbeIdentityChanged},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			account := &Account{
-				ID:          27,
+				ID:          "27",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -964,7 +963,7 @@ func TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect(t *te
 				ProxyID:     &proxyID,
 				Proxy:       tc.proxy,
 			}
-			repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+			repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 			upstream := &upstreamBillingProbeHTTPStub{}
 			svc := newUpstreamBillingProbeTestService(repo, upstream, &upstreamBillingProbeSettingRepo{})
 
@@ -987,7 +986,7 @@ func TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect(t *te
 
 func TestUpstreamBillingProbeRunnerOnlyScansOnLeader(t *testing.T) {
 	account := &Account{
-		ID:          31,
+		ID:          "31",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -995,7 +994,7 @@ func TestUpstreamBillingProbeRunnerOnlyScansOnLeader(t *testing.T) {
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 		Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &upstreamBillingProbeHTTPStub{}
 	cache := &fakeLeaderLockCache{}
 	lockKey := upstreamBillingProbeLeaderLockKeyAt(time.Now())
@@ -1048,15 +1047,15 @@ func TestUpstreamBillingProbeLeaderLockUsesCadenceBuckets(t *testing.T) {
 
 func TestUpstreamBillingProbeFiveInstancesRunOneConcurrentBatch(t *testing.T) {
 	account := &Account{
-		ID:          32,
+		ID:          "32",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Concurrency: 1,
-		Credentials: map[string]any{"api_key": "sk-test", "base_url": "http://127.0.0.1:8080"},
+		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 		Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	settingsRepo := &upstreamBillingProbeSettingRepo{values: map[string]string{
 		SettingKeyUpstreamBillingProbeSettings: `{"enabled":true,"interval_minutes":30}`,
 	}}
@@ -1101,15 +1100,16 @@ func TestUpstreamBillingProbeFiveInstancesRunOneConcurrentBatch(t *testing.T) {
 }
 
 func TestUpstreamBillingProbeManualBatchesShareConcurrencyLimit(t *testing.T) {
-	accounts := make(map[int64]*Account, 12)
+	accounts := make(map[string]*Account, 12)
 	for id := int64(1); id <= 12; id++ {
-		accounts[id] = &Account{
-			ID:          id,
+		accountID := fmt.Sprintf("%d", id)
+		accounts[accountID] = &Account{
+			ID:          accountID,
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
 			Concurrency: 1,
-			Credentials: map[string]any{"api_key": "sk-test", "base_url": "http://127.0.0.1:8080"},
+			Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 		}
 	}
 	repo := &upstreamBillingProbeAccountRepo{accounts: accounts}
@@ -1129,8 +1129,13 @@ func TestUpstreamBillingProbeManualBatchesShareConcurrencyLimit(t *testing.T) {
 
 	results := make(chan []UpstreamBillingProbeResult, 3)
 	for batch := 0; batch < 3; batch++ {
-		firstID := int64(batch*4 + 1)
-		ids := []int64{firstID, firstID + 1, firstID + 2, firstID + 3}
+		firstID := batch*4 + 1
+		ids := []string{
+			fmt.Sprintf("%d", firstID),
+			fmt.Sprintf("%d", firstID+1),
+			fmt.Sprintf("%d", firstID+2),
+			fmt.Sprintf("%d", firstID+3),
+		}
 		go func() { results <- svc.ProbeAccounts(context.Background(), ids) }()
 	}
 	for range upstreamBillingProbeConcurrency {
@@ -1164,7 +1169,7 @@ func TestUpstreamBillingProbeManualBatchesShareConcurrencyLimit(t *testing.T) {
 
 func TestUpstreamBillingProbeManualAndScheduledRequestsShareOneNetworkProbe(t *testing.T) {
 	account := &Account{
-		ID:          46,
+		ID:          "46",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -1172,7 +1177,7 @@ func TestUpstreamBillingProbeManualAndScheduledRequestsShareOneNetworkProbe(t *t
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 		Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	started := make(chan struct{})
 	unblock := make(chan struct{})
 	var startedOnce sync.Once
@@ -1208,7 +1213,7 @@ func TestUpstreamBillingProbeManualAndScheduledRequestsShareOneNetworkProbe(t *t
 
 func TestUpstreamBillingProbeScheduledRechecksAfterWaitingForSlot(t *testing.T) {
 	account := &Account{
-		ID:          47,
+		ID:          "47",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -1216,7 +1221,7 @@ func TestUpstreamBillingProbeScheduledRechecksAfterWaitingForSlot(t *testing.T) 
 		Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 		Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &upstreamBillingProbeHTTPStub{}
 	svc := newUpstreamBillingProbeTestService(repo, upstream, &upstreamBillingProbeSettingRepo{})
 	for range upstreamBillingProbeConcurrency {
@@ -1240,16 +1245,16 @@ func TestUpstreamBillingProbeScheduledRechecksAfterWaitingForSlot(t *testing.T) 
 func TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow(t *testing.T) {
 	account := func(id int64) *Account {
 		return &Account{
-			ID:          id,
+			ID:          fmt.Sprintf("%d", id),
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
 			Concurrency: 1,
-			Credentials: map[string]any{"api_key": "sk-test", "base_url": "http://127.0.0.1:8080"},
+			Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://upstream.example"},
 			Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 		}
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{41: account(41)}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{"41": account(41)}}
 	settingsRepo := &upstreamBillingProbeSettingRepo{values: map[string]string{
 		SettingKeyUpstreamBillingProbeSettings: `{"enabled":true,"interval_minutes":30}`,
 	}}
@@ -1263,7 +1268,7 @@ func TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow(t
 	require.Equal(t, first.instanceID, cache.heldBy(upstreamBillingProbeLeaderLockKeyAt(time.Now())))
 
 	repo.mu.Lock()
-	repo.accounts[42] = account(42)
+	repo.accounts["42"] = account(42)
 	repo.mu.Unlock()
 	staggered := newUpstreamBillingProbeTestService(repo, upstream, settingsRepo)
 	staggered.SetLeaderLock(cache, nil)

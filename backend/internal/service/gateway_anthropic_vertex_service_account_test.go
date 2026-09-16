@@ -24,7 +24,7 @@ func TestGatewayService_BuildAnthropicVertexServiceAccountRequest(t *testing.T) 
 	c.Request.Header.Set("Anthropic-Beta", "interleaved-thinking-2025-05-14")
 
 	account := &Account{
-		ID:       301,
+		ID:       "account-301",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeServiceAccount,
 		Credentials: map[string]any{
@@ -80,7 +80,7 @@ func TestGatewayService_BuildAnthropicVertexServiceAccount_StripsContextManageme
 	c.Request.Header.Set("Anthropic-Beta", "interleaved-thinking-2025-05-14")
 
 	account := &Account{
-		ID: 302, Platform: PlatformAnthropic, Type: AccountTypeServiceAccount,
+		ID: "account-302", Platform: PlatformAnthropic, Type: AccountTypeServiceAccount,
 		Credentials: map[string]any{"project_id": "vertex-proj", "location": "us-east5"},
 	}
 	// body 带了 context_management 字段（客户端透传 / normalize 补齐 / mimicry 注入等场景都可能导致）
@@ -111,7 +111,7 @@ func TestGatewayService_BuildAnthropicVertexServiceAccount_PreservesContextManag
 	c.Request.Header.Set("Anthropic-Beta", "interleaved-thinking-2025-05-14,context-management-2025-06-27")
 
 	account := &Account{
-		ID: 303, Platform: PlatformAnthropic, Type: AccountTypeServiceAccount,
+		ID: "account-303", Platform: PlatformAnthropic, Type: AccountTypeServiceAccount,
 		Credentials: map[string]any{"project_id": "vertex-proj", "location": "us-east5"},
 	}
 	body := []byte(`{"model":"claude-sonnet-4-6","context_management":{"edits":[{"type":"clear_thinking_20251015"}]},"messages":[]}`)

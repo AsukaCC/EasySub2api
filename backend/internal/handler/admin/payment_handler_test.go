@@ -13,8 +13,8 @@ import (
 func TestSanitizeAdminPaymentOrderForResponseAddsCurrency(t *testing.T) {
 	now := time.Now()
 	order := &dbent.PaymentOrder{
-		ID:          1,
-		UserID:      2,
+		ID:          "payment-1",
+		UserID:      "user-2",
 		Amount:      100,
 		PayAmount:   108,
 		FeeRate:     8,
@@ -53,8 +53,8 @@ func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.
 	now := time.Now()
 	plans := []*dbent.SubscriptionPlan{
 		{
-			ID:           11,
-			GroupID:      7,
+			ID:           "plan-11",
+			GroupID:      "group-7",
 			Name:         "All models",
 			Description:  "Composite access",
 			Price:        19.99,
@@ -69,13 +69,12 @@ func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.
 			UpdatedAt:    now,
 		},
 	}
-	groupInfo := map[int64]service.PlanGroupInfo{
-		7: {
+	groupInfo := map[string]service.PlanGroupInfo{
+		"group-7": {
 			Platform:       service.PlatformComposite,
 			Name:           "Bucket 2 composite",
 			RateMultiplier: 1.5,
 			WeeklyLimitUSD: &weekly,
-			ModelScopes:    []string{"openai", "claude", "gemini", "grok"},
 		},
 	}
 
@@ -92,9 +91,6 @@ func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.
 	}
 	if got[0].WeeklyLimitUSD == nil || *got[0].WeeklyLimitUSD != weekly {
 		t.Fatalf("expected weekly limit to be included, got %#v", got[0].WeeklyLimitUSD)
-	}
-	if strings.Join(got[0].ModelScopes, ",") != "openai,claude,gemini,grok" {
-		t.Fatalf("expected model scopes to be preserved, got %#v", got[0].ModelScopes)
 	}
 	// 投影必须保留 ent 原始响应的全部套餐字段：currency 丢失曾导致编辑保存时
 	// 静默清空套餐货币（PlanEditDialog 回传空串 → SetCurrency("")）。

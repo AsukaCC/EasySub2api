@@ -17,12 +17,12 @@ import (
 
 // contentModerationTestProxyRepo 仅实现审计代理路径用到的 GetByID，其余方法不应被调用。
 type contentModerationTestProxyRepo struct {
-	proxies    map[int64]*Proxy
+	proxies    map[string]*Proxy
 	getByIDErr error
 	getCalls   atomic.Int64
 }
 
-func (r *contentModerationTestProxyRepo) GetByID(ctx context.Context, id int64) (*Proxy, error) {
+func (r *contentModerationTestProxyRepo) GetByID(ctx context.Context, id string) (*Proxy, error) {
 	r.getCalls.Add(1)
 	if r.getByIDErr != nil {
 		return nil, r.getByIDErr
@@ -37,7 +37,7 @@ func (r *contentModerationTestProxyRepo) Create(ctx context.Context, proxy *Prox
 	panic("not implemented")
 }
 
-func (r *contentModerationTestProxyRepo) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
+func (r *contentModerationTestProxyRepo) ListByIDs(ctx context.Context, ids []string) ([]Proxy, error) {
 	panic("not implemented")
 }
 
@@ -45,7 +45,7 @@ func (r *contentModerationTestProxyRepo) Update(ctx context.Context, proxy *Prox
 	panic("not implemented")
 }
 
-func (r *contentModerationTestProxyRepo) Delete(ctx context.Context, id int64) error {
+func (r *contentModerationTestProxyRepo) Delete(ctx context.Context, id string) error {
 	panic("not implemented")
 }
 
@@ -73,11 +73,11 @@ func (r *contentModerationTestProxyRepo) ExistsByHostPortAuth(ctx context.Contex
 	panic("not implemented")
 }
 
-func (r *contentModerationTestProxyRepo) CountAccountsByProxyID(ctx context.Context, proxyID int64) (int64, error) {
+func (r *contentModerationTestProxyRepo) CountAccountsByProxyID(ctx context.Context, proxyID string) (int64, error) {
 	panic("not implemented")
 }
 
-func (r *contentModerationTestProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
+func (r *contentModerationTestProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID string) ([]ProxyAccountSummary, error) {
 	panic("not implemented")
 }
 
@@ -97,7 +97,7 @@ func (r *contentModerationTestProxyRepo) CountExpiringSoon(ctx context.Context, 
 	panic("not implemented")
 }
 
-func moderationProxyIDPtr(v int64) *int64 { return &v }
+func moderationProxyIDPtr(v string) *string { return &v }
 
 // 审计请求必须真正经过配置的代理发出（#2646 核心行为）。
 // 通过一个本地 HTTP 正向代理验证：BaseURL 指向不可直连的假域名，
@@ -125,14 +125,14 @@ func TestContentModerationCallRoutesThroughProxy(t *testing.T) {
 		t.Fatalf("parse proxy port: %v", err)
 	}
 
-	proxyRepo := &contentModerationTestProxyRepo{proxies: map[int64]*Proxy{
-		7: {ID: 7, Name: "audit-proxy", Protocol: "http", Host: host, Port: port, Status: StatusActive},
+	proxyRepo := &contentModerationTestProxyRepo{proxies: map[string]*Proxy{
+		"7": {ID: "7", Name: "audit-proxy", Protocol: "http", Host: host, Port: port, Status: StatusActive},
 	}}
 	svc := NewContentModerationService(nil, nil, nil, nil, nil, proxyRepo, nil, nil)
 
 	cfg := defaultContentModerationConfig()
 	cfg.BaseURL = "http://moderation-proxy-test.invalid"
-	cfg.ProxyID = moderationProxyIDPtr(7)
+	cfg.ProxyID = moderationProxyIDPtr("7")
 	cfg.normalize()
 
 	httpStatus := 0
@@ -159,7 +159,7 @@ func TestContentModerationProxyResolveFailureDoesNotFallBackToDirect(t *testing.
 
 	cfg := defaultContentModerationConfig()
 	cfg.BaseURL = directSrv.URL
-	cfg.ProxyID = moderationProxyIDPtr(9)
+	cfg.ProxyID = moderationProxyIDPtr("9")
 	cfg.normalize()
 
 	httpStatus := 0
@@ -174,13 +174,13 @@ func TestContentModerationProxyResolveFailureDoesNotFallBackToDirect(t *testing.
 
 // 代理 URL 解析结果按 TTL 缓存，热路径不应每次调用都查库。
 func TestContentModerationProxyURLResolutionCached(t *testing.T) {
-	proxyRepo := &contentModerationTestProxyRepo{proxies: map[int64]*Proxy{
-		3: {ID: 3, Name: "p", Protocol: "http", Host: "127.0.0.1", Port: 8080, Status: StatusActive},
+	proxyRepo := &contentModerationTestProxyRepo{proxies: map[string]*Proxy{
+		"3": {ID: "3", Name: "p", Protocol: "http", Host: "127.0.0.1", Port: 8080, Status: StatusActive},
 	}}
 	svc := NewContentModerationService(nil, nil, nil, nil, nil, proxyRepo, nil, nil)
 
 	for i := 0; i < 5; i++ {
-		if _, err := svc.resolveModerationProxyURL(context.Background(), 3); err != nil {
+		if _, err := svc.resolveModerationProxyURL(context.Background(), "3"); err != nil {
 			t.Fatalf("resolve attempt %d failed: %v", i, err)
 		}
 	}
@@ -192,17 +192,17 @@ func TestContentModerationProxyURLResolutionCached(t *testing.T) {
 // UpdateConfig 的 proxy_id 语义：>0 设置、nil 保持、<=0 清除；配置视图回显。
 func TestContentModerationUpdateConfigProxyIDSemantics(t *testing.T) {
 	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{}}
-	proxyRepo := &contentModerationTestProxyRepo{proxies: map[int64]*Proxy{
-		5: {ID: 5, Name: "p", Protocol: "http", Host: "127.0.0.1", Port: 8080, Status: StatusActive},
+	proxyRepo := &contentModerationTestProxyRepo{proxies: map[string]*Proxy{
+		"5": {ID: "5", Name: "p", Protocol: "http", Host: "127.0.0.1", Port: 8080, Status: StatusActive},
 	}}
 	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, proxyRepo, nil, nil)
 	ctx := context.Background()
 
-	view, err := svc.UpdateConfig(ctx, UpdateContentModerationConfigInput{ProxyID: moderationProxyIDPtr(5)})
+	view, err := svc.UpdateConfig(ctx, UpdateContentModerationConfigInput{ProxyID: moderationProxyIDPtr("5")})
 	if err != nil {
 		t.Fatalf("set proxy_id=5: %v", err)
 	}
-	if view.ProxyID == nil || *view.ProxyID != 5 {
+	if view.ProxyID == nil || *view.ProxyID != "5" {
 		t.Fatalf("expected proxy_id=5 in view, got %v", view.ProxyID)
 	}
 
@@ -212,12 +212,12 @@ func TestContentModerationUpdateConfigProxyIDSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update unrelated field: %v", err)
 	}
-	if view.ProxyID == nil || *view.ProxyID != 5 {
+	if view.ProxyID == nil || *view.ProxyID != "5" {
 		t.Fatalf("expected proxy_id to stay 5 when omitted, got %v", view.ProxyID)
 	}
 
 	// 0 表示清除，恢复直连。
-	view, err = svc.UpdateConfig(ctx, UpdateContentModerationConfigInput{ProxyID: moderationProxyIDPtr(0)})
+	view, err = svc.UpdateConfig(ctx, UpdateContentModerationConfigInput{ProxyID: moderationProxyIDPtr("")})
 	if err != nil {
 		t.Fatalf("clear proxy_id: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestContentModerationUpdateConfigProxyIDSemantics(t *testing.T) {
 	}
 
 	// 不存在的代理必须被校验拒绝。
-	if _, err := svc.UpdateConfig(ctx, UpdateContentModerationConfigInput{ProxyID: moderationProxyIDPtr(404)}); err == nil {
+	if _, err := svc.UpdateConfig(ctx, UpdateContentModerationConfigInput{ProxyID: moderationProxyIDPtr("404")}); err == nil {
 		t.Fatal("expected validation error for nonexistent proxy")
 	}
 }
@@ -246,7 +246,7 @@ func TestContentModerationTestAPIKeysProxySemantics(t *testing.T) {
 
 	savedCfg := defaultContentModerationConfig()
 	savedCfg.BaseURL = "http://moderation-proxy-test.invalid"
-	savedCfg.ProxyID = moderationProxyIDPtr(7)
+	savedCfg.ProxyID = moderationProxyIDPtr("7")
 	savedCfg.APIKeys = []string{"sk-saved"}
 	rawCfg, err := json.Marshal(savedCfg)
 	if err != nil {
@@ -256,8 +256,8 @@ func TestContentModerationTestAPIKeysProxySemantics(t *testing.T) {
 	settingRepo := &contentModerationTestSettingRepo{values: map[string]string{
 		SettingKeyContentModerationConfig: string(rawCfg),
 	}}
-	proxyRepo := &contentModerationTestProxyRepo{proxies: map[int64]*Proxy{
-		7: {ID: 7, Name: "audit-proxy", Protocol: "http", Host: host, Port: port, Status: StatusActive},
+	proxyRepo := &contentModerationTestProxyRepo{proxies: map[string]*Proxy{
+		"7": {ID: "7", Name: "audit-proxy", Protocol: "http", Host: host, Port: port, Status: StatusActive},
 	}}
 	svc := NewContentModerationService(settingRepo, nil, nil, nil, nil, proxyRepo, nil, nil)
 
@@ -286,7 +286,7 @@ func TestContentModerationTestAPIKeysProxySemantics(t *testing.T) {
 	result, err = svc.TestAPIKeys(context.Background(), TestContentModerationAPIKeysInput{
 		APIKeys: []string{"sk-input"},
 		BaseURL: directSrv.URL,
-		ProxyID: moderationProxyIDPtr(0),
+		ProxyID: moderationProxyIDPtr(""),
 	})
 	if err != nil {
 		t.Fatalf("test with forced direct: %v", err)

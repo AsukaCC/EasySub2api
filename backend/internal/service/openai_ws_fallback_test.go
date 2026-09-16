@@ -164,16 +164,16 @@ func TestOpenAIWSFallbackCooling(t *testing.T) {
 	svc := &OpenAIGatewayService{cfg: &config.Config{}}
 	svc.cfg.Gateway.OpenAIWS.FallbackCooldownSeconds = 1
 
-	require.False(t, svc.isOpenAIWSFallbackCooling(1))
-	svc.markOpenAIWSFallbackCooling(1, "upgrade_required")
-	require.True(t, svc.isOpenAIWSFallbackCooling(1))
+	require.False(t, svc.isOpenAIWSFallbackCooling("account-1"))
+	svc.markOpenAIWSFallbackCooling("account-1", "upgrade_required")
+	require.True(t, svc.isOpenAIWSFallbackCooling("account-1"))
 
-	svc.clearOpenAIWSFallbackCooling(1)
-	require.False(t, svc.isOpenAIWSFallbackCooling(1))
+	svc.clearOpenAIWSFallbackCooling("account-1")
+	require.False(t, svc.isOpenAIWSFallbackCooling("account-1"))
 
-	svc.markOpenAIWSFallbackCooling(2, "x")
+	svc.markOpenAIWSFallbackCooling("account-2", "x")
 	time.Sleep(1200 * time.Millisecond)
-	require.False(t, svc.isOpenAIWSFallbackCooling(2))
+	require.False(t, svc.isOpenAIWSFallbackCooling("account-2"))
 }
 
 func TestOpenAIWSRetryBackoff(t *testing.T) {

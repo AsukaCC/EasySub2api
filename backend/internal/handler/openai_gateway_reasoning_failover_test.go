@@ -20,7 +20,7 @@ const kiroReasoningCanonicalBody = `{"model":"gpt-5.1","stream":false,"input":[`
 func newOpenAIPassthroughAccount(id int64, passthrough bool) *service.Account {
 	extra := map[string]any{"openai_passthrough": passthrough}
 	return &service.Account{
-		ID:       id,
+		ID:       testEntityID(id),
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeAPIKey,
 		Extra:    extra,

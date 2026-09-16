@@ -237,7 +237,7 @@ func newOpenAIRejectedFieldTestContext(body []byte) *gin.Context {
 
 func newOpenAIRejectedFieldTestAccount() *Account {
 	return &Account{
-		ID:          5107,
+		ID:          "account-5107",
 		Name:        "responses-compatible",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -257,7 +257,7 @@ func newOpenAIRejectedFieldTestAccount() *Account {
 
 func newOpenAIOAuthNamespaceTestAccount() *Account {
 	return &Account{
-		ID:          5108,
+		ID:          "account-5108",
 		Name:        "openai-oauth-namespace",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,

@@ -45,9 +45,9 @@ func TestSafeDateFormat(t *testing.T) {
 
 func TestBuildUsageLogBatchInsertQuery_UsesConflictDoNothing(t *testing.T) {
 	log := &service.UsageLog{
-		UserID:       1,
-		APIKeyID:     2,
-		AccountID:    3,
+		UserID:       "user-1",
+		APIKeyID:     "key-2",
+		AccountID:    "account-3",
 		RequestID:    "req-batch-no-update",
 		Model:        "gpt-5",
 		InputTokens:  10,

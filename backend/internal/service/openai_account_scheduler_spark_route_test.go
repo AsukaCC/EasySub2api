@@ -15,7 +15,7 @@ func TestSparkRoutingByModel(t *testing.T) {
 	normalModel := "gpt-5.3-codex"
 	sparkCreds := map[string]any{"model_mapping": defaultSparkShadowModelMapping()}
 
-	newScheduler := func(snapshot map[int64]*Account) *defaultOpenAIAccountScheduler {
+	newScheduler := func(snapshot map[string]*Account) *defaultOpenAIAccountScheduler {
 		return &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{
 			schedulerSnapshot: &SchedulerSnapshotService{
 				cache: &openAISnapshotCacheStub{accountsByID: snapshot},
@@ -27,24 +27,24 @@ func TestSparkRoutingByModel(t *testing.T) {
 	normalReq := OpenAIAccountScheduleRequest{RequestedModel: normalModel, Platform: PlatformOpenAI}
 
 	t.Run("normal_account_with_spark_mapping_accepts_spark", func(t *testing.T) {
-		acc := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Credentials: sparkCreds}
+		acc := &Account{ID: "account-1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Credentials: sparkCreds}
 		require.True(t, newScheduler(nil).isAccountRequestCompatible(ctx, acc, sparkReq),
 			"普通账号配了 spark → 可承接 spark（类型门已移除）")
 	})
 
 	t.Run("normal_account_without_spark_rejects_spark", func(t *testing.T) {
-		acc := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true,
+		acc := &Account{ID: "account-1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true,
 			Credentials: map[string]any{"model_mapping": map[string]any{normalModel: normalModel}}}
 		require.False(t, newScheduler(nil).isAccountRequestCompatible(ctx, acc, sparkReq),
 			"普通账号未配 spark → 拒 spark（按配置而非类型）")
 	})
 
 	t.Run("shadow_with_spark_mapping_accepts_spark_rejects_non_spark", func(t *testing.T) {
-		pid := int64(100)
-		parent := &Account{ID: 100, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true}
-		shadow := &Account{ID: 200, ParentAccountID: &pid, QuotaDimension: QuotaDimensionSpark,
+		pid := "account-100"
+		parent := &Account{ID: pid, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true}
+		shadow := &Account{ID: "account-200", ParentAccountID: &pid, QuotaDimension: QuotaDimensionSpark,
 			Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1, Credentials: sparkCreds}
-		s := newScheduler(map[int64]*Account{100: parent})
+		s := newScheduler(map[string]*Account{pid: parent})
 		require.True(t, s.isAccountRequestCompatible(ctx, shadow, sparkReq), "影子配 spark + 健康母 → 接 spark")
 		require.False(t, s.isAccountRequestCompatible(ctx, shadow, normalReq), "影子（仅 spark mapping）→ 拒非 spark")
 	})
@@ -54,12 +54,12 @@ func TestSparkRoutingByModel(t *testing.T) {
 		// （isAccountRequestCompatible 的 `req.RequestedModel != ""` 短路），故影子与普通账号
 		// 一样成为候选。旧类型门曾在空 model 时排除影子(opt-in)，该 opt-in 已随类型门移除——
 		// routing 路径不再有任何类型判断。此测试锁定该决策，防被未来改动静默改回。
-		pid := int64(100)
-		parent := &Account{ID: 100, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true}
-		shadow := &Account{ID: 200, ParentAccountID: &pid, QuotaDimension: QuotaDimensionSpark,
+		pid := "account-100"
+		parent := &Account{ID: pid, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true}
+		shadow := &Account{ID: "account-200", ParentAccountID: &pid, QuotaDimension: QuotaDimensionSpark,
 			Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1, Credentials: sparkCreds}
 		emptyReq := OpenAIAccountScheduleRequest{RequestedModel: "", Platform: PlatformOpenAI}
-		s := newScheduler(map[int64]*Account{100: parent})
+		s := newScheduler(map[string]*Account{pid: parent})
 		require.True(t, s.isAccountRequestCompatible(ctx, shadow, emptyReq),
 			"空 model 时影子可被选中（有意的纯 A2 行为：类型门移除后无 opt-in 排除）")
 	})
@@ -73,11 +73,11 @@ func TestSparkRoutingByModel(t *testing.T) {
 // openAISnapshotCacheStub.accountsByID 提供对应的测试桩。
 func TestParentHealthSchedulerIntegration(t *testing.T) {
 	ctx := context.Background()
-	pid := int64(78100)
+	pid := "account-78100"
 	sparkModel := "gpt-5.3-codex-spark"
 
 	shadow := &Account{
-		ID:              78200,
+		ID:              "account-78200",
 		ParentAccountID: &pid,
 		QuotaDimension:  QuotaDimensionSpark,
 		Platform:        PlatformOpenAI,
@@ -94,7 +94,7 @@ func TestParentHealthSchedulerIntegration(t *testing.T) {
 
 	makeScheduler := func(parent *Account) *defaultOpenAIAccountScheduler {
 		snapshotCache := &openAISnapshotCacheStub{
-			accountsByID: map[int64]*Account{parent.ID: parent},
+			accountsByID: map[string]*Account{parent.ID: parent},
 		}
 		snapshotSvc := &SchedulerSnapshotService{cache: snapshotCache}
 		svc := &OpenAIGatewayService{
@@ -106,7 +106,7 @@ func TestParentHealthSchedulerIntegration(t *testing.T) {
 
 	t.Run("unhealthy_parent_status_error_rejects_shadow", func(t *testing.T) {
 		unhealthyParent := &Account{
-			ID:          78100,
+			ID:          pid,
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeOAuth,
 			Status:      StatusError, // IsActive()==false → IsSchedulable()==false
@@ -121,7 +121,7 @@ func TestParentHealthSchedulerIntegration(t *testing.T) {
 	t.Run("manual_schedulable_false_parent_does_not_reject_shadow", func(t *testing.T) {
 		// F1 决策 A:母账号手动暂停(Schedulable=false)不传播到影子 —— 凭据仍可用,影子应被接受。
 		manualPausedParent := &Account{
-			ID:          78100,
+			ID:          pid,
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -137,7 +137,7 @@ func TestParentHealthSchedulerIntegration(t *testing.T) {
 		// F1 核心修复:母账号 global 429(RateLimitResetAt)不连坐 spark 影子。
 		resetAt := time.Now().Add(1 * time.Hour)
 		rateLimitedParent := &Account{
-			ID:               78100,
+			ID:               pid,
 			Platform:         PlatformOpenAI,
 			Type:             AccountTypeOAuth,
 			Status:           StatusActive,
@@ -152,7 +152,7 @@ func TestParentHealthSchedulerIntegration(t *testing.T) {
 
 	t.Run("healthy_parent_accepts_shadow_control", func(t *testing.T) {
 		healthyParent := &Account{
-			ID:          78100,
+			ID:          pid,
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -167,7 +167,7 @@ func TestParentHealthSchedulerIntegration(t *testing.T) {
 
 func TestParentHealthSchedulerFallsBackToRepoWhenSnapshotMissesParent(t *testing.T) {
 	ctx := context.Background()
-	parentID := int64(79100)
+	parentID := "account-79100"
 	parent := Account{
 		ID:          parentID,
 		Platform:    PlatformOpenAI,
@@ -176,7 +176,7 @@ func TestParentHealthSchedulerFallsBackToRepoWhenSnapshotMissesParent(t *testing
 		Schedulable: true,
 	}
 	shadow := &Account{
-		ID:              79200,
+		ID:              "account-79200",
 		ParentAccountID: &parentID,
 		QuotaDimension:  QuotaDimensionSpark,
 		Platform:        PlatformOpenAI,

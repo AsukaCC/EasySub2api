@@ -103,7 +103,7 @@ type liveTestAccountRepo struct {
 	account *Account
 }
 
-func (r *liveTestAccountRepo) GetByID(context.Context, int64) (*Account, error) {
+func (r *liveTestAccountRepo) GetByID(context.Context, string) (*Account, error) {
 	return r.account, nil
 }
 
@@ -200,11 +200,11 @@ type liveTestConcurrencyCache struct {
 
 func (c *liveTestConcurrencyCache) AcquireLiveLease(
 	context.Context,
-	int64,
+	string,
 	int,
-	int64,
+	string,
 	int,
-	int64,
+	string,
 	string,
 	bool,
 ) (bool, error) {
@@ -213,9 +213,9 @@ func (c *liveTestConcurrencyCache) AcquireLiveLease(
 
 func (c *liveTestConcurrencyCache) RefreshLiveLease(
 	context.Context,
-	int64,
-	int64,
-	int64,
+	string,
+	string,
+	string,
 	string,
 ) (bool, error) {
 	return true, nil
@@ -223,9 +223,9 @@ func (c *liveTestConcurrencyCache) RefreshLiveLease(
 
 func (c *liveTestConcurrencyCache) ReleaseLiveLease(
 	context.Context,
-	int64,
-	int64,
-	int64,
+	string,
+	string,
+	string,
 	string,
 ) error {
 	c.mu.Lock()
@@ -269,10 +269,10 @@ func TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage(t *testing.T) {
 	record := &LiveCallRecord{
 		CallID:          "call_secret",
 		CallHash:        hashLiveCallID("call_secret"),
-		AccountID:       11,
-		APIKeyID:        22,
-		UserID:          33,
-		GroupID:         44,
+		AccountID:       "account-11",
+		APIKeyID:        "api-key-22",
+		UserID:          "user-33",
+		GroupID:         "group-44",
 		LeaseID:         "lease-1",
 		Model:           "gpt-live-test",
 		CreatedAt:       time.Now().Add(-time.Second),
@@ -311,12 +311,12 @@ func TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage(t *testing.T) {
 }
 
 func TestGetLiveCallForIdentityRejectsMismatchedCaller(t *testing.T) {
-	groupID := int64(44)
+	groupID := "group-44"
 	record := &LiveCallRecord{
 		CallID:     "call_identity",
 		CallHash:   hashLiveCallID("call_identity"),
-		APIKeyID:   22,
-		UserID:     33,
+		APIKeyID:   "api-key-22",
+		UserID:     "user-33",
 		GroupID:    groupID,
 		Controller: LiveControllerPending,
 	}
@@ -325,7 +325,7 @@ func TestGetLiveCallForIdentityRejectsMismatchedCaller(t *testing.T) {
 	service := &OpenAIGatewayService{cache: store}
 
 	_, err := service.GetLiveCallForIdentity(context.Background(), record.CallID, LiveCallIdentity{
-		APIKeyID: 99,
+		APIKeyID: "api-key-99",
 		UserID:   record.UserID,
 		GroupID:  &groupID,
 	})
@@ -342,7 +342,7 @@ func TestGetLiveCallForIdentityRejectsMismatchedCaller(t *testing.T) {
 
 func TestProxyLiveSidebandForwardsTextAndBinary(t *testing.T) {
 	account := &Account{
-		ID:          11,
+		ID:          "account-11",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 2,
@@ -355,8 +355,8 @@ func TestProxyLiveSidebandForwardsTextAndBinary(t *testing.T) {
 		CallID:     "call_proxy",
 		CallHash:   hashLiveCallID("call_proxy"),
 		AccountID:  account.ID,
-		APIKeyID:   22,
-		UserID:     33,
+		APIKeyID:   "api-key-22",
+		UserID:     "user-33",
 		LeaseID:    "lease-1",
 		CreatedAt:  time.Now(),
 		ExpiresAt:  time.Now().Add(time.Minute),
@@ -522,9 +522,9 @@ func TestObserveLiveCallStoreOutageFallsBackToExpiryFinalize(t *testing.T) {
 			record := &LiveCallRecord{
 				CallID:     "call_store_outage",
 				CallHash:   hashLiveCallID("call_store_outage"),
-				AccountID:  11,
-				APIKeyID:   22,
-				UserID:     33,
+				AccountID:  "account-11",
+				APIKeyID:   "api-key-22",
+				UserID:     "user-33",
 				LeaseID:    "lease-1",
 				Model:      "gpt-live-test",
 				CreatedAt:  time.Now().Add(-time.Minute),
@@ -575,9 +575,9 @@ func TestFinalizeLiveCallUsageLogFallsBackToSyncCreate(t *testing.T) {
 	record := &LiveCallRecord{
 		CallID:     "call_usage_fallback",
 		CallHash:   hashLiveCallID("call_usage_fallback"),
-		AccountID:  11,
-		APIKeyID:   22,
-		UserID:     33,
+		AccountID:  "account-11",
+		APIKeyID:   "api-key-22",
+		UserID:     "user-33",
 		LeaseID:    "lease-1",
 		Model:      "gpt-live-test",
 		CreatedAt:  time.Now().Add(-time.Second),

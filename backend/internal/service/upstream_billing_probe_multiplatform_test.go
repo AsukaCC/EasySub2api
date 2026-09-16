@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -15,8 +16,9 @@ import (
 // 受支持平台（含国产供应商）的 API-key 账号都可开启探测；OAuth/Bedrock 无静态 Key 仍不合格。
 func TestUpstreamBillingProbeIdentityCoversAllAPIKeyPlatforms(t *testing.T) {
 	for _, platform := range []string{
-		PlatformOpenAI, PlatformGrok, PlatformAnthropic, PlatformGemini, PlatformAntigravity,
+		PlatformOpenAI, PlatformGrok, PlatformAnthropic,
 		PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax,
+		PlatformOpenCodeGo,
 	} {
 		require.True(t, IsUpstreamBillingProbeIdentity(platform, AccountTypeAPIKey), platform)
 		require.True(t, isUpstreamBillingProbeAccount(&Account{Platform: platform, Type: AccountTypeAPIKey}), platform)
@@ -24,6 +26,8 @@ func TestUpstreamBillingProbeIdentityCoversAllAPIKeyPlatforms(t *testing.T) {
 	require.False(t, IsUpstreamBillingProbeIdentity(PlatformOpenAI, AccountTypeOAuth))
 	require.False(t, IsUpstreamBillingProbeIdentity(PlatformGrok, AccountTypeOAuth))
 	require.False(t, IsUpstreamBillingProbeIdentity(PlatformAnthropic, AccountTypeBedrock))
+	require.False(t, IsUpstreamBillingProbeIdentity(PlatformGemini, AccountTypeAPIKey))
+	require.False(t, IsUpstreamBillingProbeIdentity(PlatformAntigravity, AccountTypeAPIKey))
 	require.False(t, IsUpstreamBillingProbeIdentity("", AccountTypeAPIKey))
 	require.False(t, IsUpstreamBillingProbeIdentity("future-platform", AccountTypeAPIKey))
 	require.False(t, isUpstreamBillingProbeAccount(nil))
@@ -44,7 +48,7 @@ func upstreamBillingProbeValidBody() io.ReadCloser {
 
 func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 	account := &Account{
-		ID:          151,
+		ID:          "151",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -54,7 +58,7 @@ func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 			"base_url": "https://relay.example/v1",
 		},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -68,7 +72,7 @@ func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, UpstreamBillingProbeStatusOK, snapshot.Status)
 	require.Equal(t, 0.02, snapshot.Data["resolved_rate_multiplier"])
-	require.Equal(t, "https://relay.example/v1/sub2api/billing", upstream.lastReq.URL.String())
+	require.Equal(t, "https://relay.example/v1/easysub2api/billing", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer sk-grok-relay", upstream.lastReq.Header.Get("Authorization"))
 	// 非 OpenAI 平台探测使用默认传输画像。
 	require.Equal(t, HTTPUpstreamProfileDefault, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
@@ -82,13 +86,13 @@ func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 // /v1/sub2api/billing：不发请求，直接落 unsupported。
 func TestUpstreamBillingProbeNonOpenAIWithoutBaseURLIsUnsupportedWithoutRequest(t *testing.T) {
 	account := &Account{
-		ID:          152,
+		ID:          "152",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Credentials: map[string]any{"api_key": "sk-grok-official"},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{}
 	svc := newUpstreamBillingProbeTestService(repo, upstream, &upstreamBillingProbeSettingRepo{})
 
@@ -111,8 +115,6 @@ func TestUpstreamBillingProbeOfficialAPIBaseURLIsUnsupportedWithoutRequest(t *te
 		{PlatformAnthropic, "https://api.anthropic.com:443"},
 		{PlatformAnthropic, "https://api.anthropic.com./"},
 		{PlatformAnthropic, "HTTPS://API.ANTHROPIC.COM/"},
-		{PlatformGemini, "https://generativelanguage.googleapis.com"},
-		{PlatformAntigravity, "https://cloudcode-pa.googleapis.com"},
 		{PlatformGrok, "https://api.x.ai/v1"},
 		{PlatformGrok, "https://us-east-1.api.x.ai/v1"},
 		{PlatformGrok, "https://eu-west-1.api.x.ai/v1"},
@@ -136,13 +138,13 @@ func TestUpstreamBillingProbeOfficialAPIBaseURLIsUnsupportedWithoutRequest(t *te
 	}
 	for i, tc := range cases {
 		account := &Account{
-			ID:          int64(200 + i),
+			ID:          fmt.Sprintf("%d", 200+i),
 			Platform:    tc.platform,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
 			Credentials: map[string]any{"api_key": "sk-official", "base_url": tc.baseURL},
 		}
-		repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+		repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 		upstream := &httpUpstreamRecorder{}
 		svc := newUpstreamBillingProbeTestService(repo, upstream, &upstreamBillingProbeSettingRepo{})
 
@@ -192,13 +194,13 @@ func TestUpstreamBillingProbeOfficialAPIHostMatchingIsNormalized(t *testing.T) {
 // OpenAI 语义保持不变：无自定义 base 时仍探官方域，且沿用 openai 传输画像。
 func TestUpstreamBillingProbeOpenAIDefaultBaseURLPreserved(t *testing.T) {
 	account := &Account{
-		ID:          17,
+		ID:          "17",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Credentials: map[string]any{"api_key": "sk-openai"},
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -208,20 +210,20 @@ func TestUpstreamBillingProbeOpenAIDefaultBaseURLPreserved(t *testing.T) {
 
 	_, err := svc.ProbeAccount(context.Background(), account.ID)
 	require.NoError(t, err)
-	require.Equal(t, "https://api.openai.com/v1/sub2api/billing", upstream.lastReq.URL.String())
+	require.Equal(t, "https://api.openai.com/v1/easysub2api/billing", upstream.lastReq.URL.String())
 	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
 }
 
 func TestUpstreamBillingProbeSetAccountEnabledAcceptsGrokAPIKey(t *testing.T) {
 	grokAPIKey := &Account{
-		ID:          151,
+		ID:          "151",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
 		Credentials: map[string]any{"api_key": "sk", "base_url": "https://relay.example"},
 	}
-	grokOAuth := &Account{ID: 152, Platform: PlatformGrok, Type: AccountTypeOAuth, Status: StatusActive}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	grokOAuth := &Account{ID: "152", Platform: PlatformGrok, Type: AccountTypeOAuth, Status: StatusActive}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		grokAPIKey.ID: grokAPIKey,
 		grokOAuth.ID:  grokOAuth,
 	}}

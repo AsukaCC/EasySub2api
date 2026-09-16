@@ -55,7 +55,7 @@ func TestChatCompletionsRejectsGPTImageModelsBeforeScheduling(t *testing.T) {
 func TestOpenAIChatCompletionsImageModelRejectionDoesNotAcquireConcurrency(t *testing.T) {
 	var acquireCalls atomic.Int64
 	cache := &concurrencyCacheMock{
-		acquireUserSlotFn: func(context.Context, int64, int, string) (bool, error) {
+		acquireUserSlotFn: func(context.Context, string, int, string) (bool, error) {
 			acquireCalls.Add(1)
 			return true, nil
 		},
@@ -90,7 +90,7 @@ func newOpenAIImageChatRejectionHandlerWithCache(t *testing.T, cache *concurrenc
 }
 
 func setImageChatTestAuth(c *gin.Context) {
-	apiKey := &service.APIKey{ID: 4348, UserID: 4348, User: &service.User{ID: 4348}}
+	apiKey := &service.APIKey{ID: "key-4348", UserID: "user-4348", User: &service.User{ID: "user-4348"}}
 	c.Set(string(middleware.ContextKeyAPIKey), apiKey)
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: apiKey.UserID, Concurrency: 1})
 }

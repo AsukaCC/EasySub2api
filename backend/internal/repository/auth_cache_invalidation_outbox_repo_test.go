@@ -22,13 +22,13 @@ func TestAuthCacheInvalidationOutboxRepository_ClaimUsesLeaseAndSkipLocked(t *te
 	mock.ExpectQuery("(?s)claimed_at < NOW\\(\\) - .*FOR UPDATE SKIP LOCKED.*RETURNING").
 		WithArgs("worker-a", 100, int64(30)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "cache_key", "attempts", "delivery_stage", "created_at"}).
-			AddRow(int64(4), strings.Repeat("a", 64), 2, 1, created))
+			AddRow("event-4", strings.Repeat("a", 64), 2, 1, created))
 
 	repo := NewAuthCacheInvalidationOutboxRepository(db)
 	events, err := repo.Claim(context.Background(), "worker-a", 100, 30*time.Second)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.Equal(t, int64(4), events[0].ID)
+	require.Equal(t, "event-4", events[0].ID)
 	require.Equal(t, 1, events[0].Stage)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -54,20 +54,20 @@ func TestAuthCacheInvalidationOutboxRepository_ClaimOwnershipTransitions(t *test
 
 	next := time.Now().UTC().Add(time.Minute)
 	mock.ExpectExec("UPDATE auth_cache_invalidation_outbox").
-		WithArgs(int64(1), "worker", next).
+		WithArgs("event-1", "worker", next).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	require.NoError(t, repo.ScheduleSecondPass(context.Background(), 1, "worker", next))
+	require.NoError(t, repo.ScheduleSecondPass(context.Background(), "event-1", "worker", next))
 
 	retryAt := next.Add(time.Minute)
 	mock.ExpectExec("UPDATE auth_cache_invalidation_outbox").
-		WithArgs(int64(2), "worker", retryAt, "publish failed").
+		WithArgs("event-2", "worker", retryAt, "publish failed").
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	require.NoError(t, repo.RetryClaimed(context.Background(), 2, "worker", retryAt, "publish failed"))
+	require.NoError(t, repo.RetryClaimed(context.Background(), "event-2", "worker", retryAt, "publish failed"))
 
 	mock.ExpectExec("DELETE FROM auth_cache_invalidation_outbox").
-		WithArgs(int64(3), "worker").
+		WithArgs("event-3", "worker").
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	require.NoError(t, repo.DeleteClaimed(context.Background(), 3, "worker"))
+	require.NoError(t, repo.DeleteClaimed(context.Background(), "event-3", "worker"))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -76,10 +76,10 @@ func TestAuthCacheInvalidationOutboxRepository_RejectsLostClaim(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 	mock.ExpectExec("DELETE FROM auth_cache_invalidation_outbox").
-		WithArgs(int64(3), "old-worker").
+		WithArgs("event-3", "old-worker").
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	repo := NewAuthCacheInvalidationOutboxRepository(db)
-	err = repo.DeleteClaimed(context.Background(), 3, "old-worker")
+	err = repo.DeleteClaimed(context.Background(), "event-3", "old-worker")
 	require.ErrorContains(t, err, "no longer owned")
 }
 

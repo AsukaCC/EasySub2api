@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 
 func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testing.T) {
 	now := time.Now()
-	group := profitControlTestGroup(50, 0.2, 0)
+	group := profitControlTestGroup("group-50", 0.2, 0)
 	group.Name = "VIP-preview"
 
 	cheap := profitControlTestAccountWithRate(
@@ -42,7 +43,7 @@ func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testin
 	reports := PreviewProfitAdmission([]ProfitPreviewGroupInput{{
 		Group:         group,
 		Accounts:      []*Account{cheap, boundary, expensive, invalid},
-		UserOverrides: map[int64]float64{40: 0.5},
+		UserOverrides: map[string]float64{"user-40": 0.5},
 		Models:        []string{"gpt-sol", "gpt-luna", "gpt-no-account"},
 	}}, now)
 	require.Len(t, reports, 1)
@@ -54,7 +55,7 @@ func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testin
 	require.InDelta(t, 0.5, report.MinEffectiveD, 1e-12)
 	require.InDelta(t, 0.4, report.ThresholdMinD, 1e-12)
 
-	byID := map[int64]ProfitPreviewAccountVerdict{}
+	byID := map[string]ProfitPreviewAccountVerdict{}
 	for _, verdict := range report.Verdicts {
 		byID[verdict.AccountID] = verdict
 	}
@@ -77,7 +78,7 @@ func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testin
 
 func TestPreviewProfitAdmissionAssumeEnabled(t *testing.T) {
 	now := time.Now()
-	group := profitControlTestGroup(51, 0, 0)
+	group := profitControlTestGroup("group-51", 0, 0)
 	group.Platform = PlatformOpenAI
 	group.RateMultiplier = 0.5
 	group.ProfitControlEnabled = false
@@ -109,7 +110,7 @@ func TestPreviewProfitAdmissionAssumeEnabled(t *testing.T) {
 	require.True(t, withAssume.EffectiveGate)
 	require.True(t, withAssume.AssumedEnabled)
 
-	byID := map[int64]ProfitPreviewAccountVerdict{}
+	byID := map[string]ProfitPreviewAccountVerdict{}
 	for _, verdict := range withAssume.Verdicts {
 		byID[verdict.AccountID] = verdict
 	}
@@ -127,11 +128,11 @@ func TestPreviewProfitAdmissionSupportsFivePlatforms(t *testing.T) {
 		PlatformGrok,
 		PlatformAntigravity,
 	} {
-		group := profitControlTestGroup(int64(100+i), 0, 0)
+		group := profitControlTestGroup(fmt.Sprintf("group-%d", 100+i), 0, 0)
 		group.Platform = platform
 		rate := 0.2
 		account := &Account{
-			ID:             int64(200 + i),
+			ID:             fmt.Sprintf("account-%d", 200+i),
 			Platform:       platform,
 			RateMultiplier: &rate,
 		}

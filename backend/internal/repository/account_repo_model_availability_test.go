@@ -28,7 +28,7 @@ func TestListModelAvailabilityCandidates_GroupQueryIgnoresTransientState(t *test
 
 	mock.ExpectQuery("model availability candidates").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
-	groupID := int64(42)
+	groupID := "group-42"
 	accounts, err := repo.ListModelAvailabilityCandidates(
 		context.Background(),
 		&groupID,

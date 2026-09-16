@@ -29,31 +29,31 @@ func newCyberBlockTestCtx(headers map[string]string, body string) (*gin.Context,
 // "不退化" decision).
 func TestCyberSessionBlockKey(t *testing.T) {
 	c1, b1 := newCyberBlockTestCtx(map[string]string{"session_id": "sess-abc"}, `{}`)
-	k1 := CyberSessionBlockKey(101, c1, b1)
+	k1 := CyberSessionBlockKey("api-key-101", c1, b1)
 	require.NotEmpty(t, k1)
 
 	// Same session, different apiKey → different key (isolation).
 	c2, b2 := newCyberBlockTestCtx(map[string]string{"session_id": "sess-abc"}, `{}`)
-	require.NotEqual(t, k1, CyberSessionBlockKey(202, c2, b2))
+	require.NotEqual(t, k1, CyberSessionBlockKey("api-key-202", c2, b2))
 
 	// Same session + same apiKey → stable key.
 	c3, b3 := newCyberBlockTestCtx(map[string]string{"session_id": "sess-abc"}, `{}`)
-	require.Equal(t, k1, CyberSessionBlockKey(101, c3, b3))
+	require.Equal(t, k1, CyberSessionBlockKey("api-key-101", c3, b3))
 
 	// prompt_cache_key in body counts as explicit.
 	c4, b4 := newCyberBlockTestCtx(nil, `{"prompt_cache_key":"pck-1"}`)
-	require.NotEmpty(t, CyberSessionBlockKey(101, c4, b4))
+	require.NotEmpty(t, CyberSessionBlockKey("api-key-101", c4, b4))
 
 	// No explicit signal → empty key → caller must skip blocking entirely.
 	c5, b5 := newCyberBlockTestCtx(nil, `{"input":"hello world"}`)
-	require.Empty(t, CyberSessionBlockKey(101, c5, b5))
+	require.Empty(t, CyberSessionBlockKey("api-key-101", c5, b5))
 
 	// conversation_id header counts as explicit; key is stable and non-empty.
 	c6, b6 := newCyberBlockTestCtx(map[string]string{"conversation_id": "conv-xyz"}, `{}`)
-	k6 := CyberSessionBlockKey(101, c6, b6)
+	k6 := CyberSessionBlockKey("api-key-101", c6, b6)
 	require.NotEmpty(t, k6)
 	c6b, b6b := newCyberBlockTestCtx(map[string]string{"conversation_id": "conv-xyz"}, `{}`)
-	require.Equal(t, k6, CyberSessionBlockKey(101, c6b, b6b), "conversation_id key must be stable")
+	require.Equal(t, k6, CyberSessionBlockKey("api-key-101", c6b, b6b), "conversation_id key must be stable")
 }
 
 // --- fakes ---
@@ -122,7 +122,7 @@ var _ GatewayCache = (*comboCacheAndStore)(nil)
 var _ CyberSessionBlockStore = (*comboCacheAndStore)(nil)
 
 func (c *comboCacheAndStore) GetSessionAccountID(_ context.Context, _ string, _ string) (string, error) {
-	return 0, errors.New("stub")
+	return "", errors.New("stub")
 }
 func (c *comboCacheAndStore) SetSessionAccountID(_ context.Context, _ string, _ string, _ string, _ time.Duration) error {
 	return nil

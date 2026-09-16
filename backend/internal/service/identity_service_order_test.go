@@ -12,16 +12,16 @@ type identityCacheStub struct {
 	maskedSessionID string
 }
 
-func (s *identityCacheStub) GetFingerprint(_ context.Context, _ int64) (*Fingerprint, error) {
+func (s *identityCacheStub) GetFingerprint(_ context.Context, _ string) (*Fingerprint, error) {
 	return nil, nil
 }
-func (s *identityCacheStub) SetFingerprint(_ context.Context, _ int64, _ *Fingerprint) error {
+func (s *identityCacheStub) SetFingerprint(_ context.Context, _ string, _ *Fingerprint) error {
 	return nil
 }
-func (s *identityCacheStub) GetMaskedSessionID(_ context.Context, _ int64) (string, error) {
+func (s *identityCacheStub) GetMaskedSessionID(_ context.Context, _ string) (string, error) {
 	return s.maskedSessionID, nil
 }
-func (s *identityCacheStub) SetMaskedSessionID(_ context.Context, _ int64, sessionID string) error {
+func (s *identityCacheStub) SetMaskedSessionID(_ context.Context, _ string, sessionID string) error {
 	s.maskedSessionID = sessionID
 	return nil
 }
@@ -38,7 +38,7 @@ func TestIdentityService_RewriteUserID_PreservesTopLevelFieldOrder(t *testing.T)
 	)
 	body := []byte(`{"alpha":1,"messages":[],"metadata":{"user_id":` + strconvQuote(originalUserID) + `},"max_tokens":64000,"thinking":{"type":"adaptive"},"output_config":{"effort":"high"},"stream":true}`)
 
-	result, err := svc.RewriteUserID(body, 123, "acc-uuid", "client-xyz", "claude-cli/2.1.78 (external, cli)")
+	result, err := svc.RewriteUserID(body, "account-123", "acc-uuid", "client-xyz", "claude-cli/2.1.78 (external, cli)")
 	require.NoError(t, err)
 	resultStr := string(result)
 
@@ -60,7 +60,7 @@ func TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder(t 
 	body := []byte(`{"alpha":1,"messages":[],"metadata":{"user_id":` + strconvQuote(originalUserID) + `},"max_tokens":64000,"thinking":{"type":"adaptive"},"output_config":{"effort":"high"},"stream":true}`)
 
 	account := &Account{
-		ID:       123,
+		ID:       "account-123",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Extra: map[string]any{

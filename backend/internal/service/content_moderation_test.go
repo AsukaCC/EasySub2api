@@ -94,7 +94,7 @@ func (r *contentModerationTestRepo) ListLogs(ctx context.Context, filter Content
 	return nil, nil, nil
 }
 
-func (r *contentModerationTestRepo) CountFlaggedByUserSince(ctx context.Context, userID int64, since time.Time, excludeCyberPolicy bool) (int, error) {
+func (r *contentModerationTestRepo) CountFlaggedByUserSince(ctx context.Context, userID string, since time.Time, excludeCyberPolicy bool) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	count := 0
@@ -117,7 +117,7 @@ func (r *contentModerationTestRepo) CleanupExpiredLogs(ctx context.Context, hitB
 	return &ContentModerationCleanupResult{}, nil
 }
 
-func (r *contentModerationTestRepo) UpdateLogEmailSent(ctx context.Context, id int64, sent bool) error {
+func (r *contentModerationTestRepo) UpdateLogEmailSent(ctx context.Context, id string, sent bool) error {
 	return nil
 }
 
@@ -160,6 +160,7 @@ type contentModerationTestHashCache struct {
 }
 
 type contentModerationTestUserRepo struct {
+	UserRepository
 	user    *User
 	updated []User
 }
@@ -172,7 +173,7 @@ func (r *contentModerationTestUserRepo) CreateWithEmailAliasGuard(ctx context.Co
 	panic("unexpected CreateWithEmailAliasGuard call")
 }
 
-func (r *contentModerationTestUserRepo) GetByID(ctx context.Context, id int64) (*User, error) {
+func (r *contentModerationTestUserRepo) GetByID(ctx context.Context, id string) (*User, error) {
 	if r.user == nil {
 		return nil, ErrUserNotFound
 	}
@@ -198,19 +199,19 @@ func (r *contentModerationTestUserRepo) Update(ctx context.Context, user *User, 
 	return nil
 }
 
-func (r *contentModerationTestUserRepo) Delete(ctx context.Context, id int64) error {
+func (r *contentModerationTestUserRepo) Delete(ctx context.Context, id string) error {
 	panic("unexpected Delete call")
 }
 
-func (r *contentModerationTestUserRepo) GetUserAvatar(ctx context.Context, userID int64) (*UserAvatar, error) {
+func (r *contentModerationTestUserRepo) GetUserAvatar(ctx context.Context, userID string) (*UserAvatar, error) {
 	panic("unexpected GetUserAvatar call")
 }
 
-func (r *contentModerationTestUserRepo) UpsertUserAvatar(ctx context.Context, userID int64, input UpsertUserAvatarInput) (*UserAvatar, error) {
+func (r *contentModerationTestUserRepo) UpsertUserAvatar(ctx context.Context, userID string, input UpsertUserAvatarInput) (*UserAvatar, error) {
 	panic("unexpected UpsertUserAvatar call")
 }
 
-func (r *contentModerationTestUserRepo) DeleteUserAvatar(ctx context.Context, userID int64) error {
+func (r *contentModerationTestUserRepo) DeleteUserAvatar(ctx context.Context, userID string) error {
 	panic("unexpected DeleteUserAvatar call")
 }
 
@@ -222,46 +223,46 @@ func (r *contentModerationTestUserRepo) ListWithFilters(ctx context.Context, par
 	panic("unexpected ListWithFilters call")
 }
 
-func (r *contentModerationTestUserRepo) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []int64) (map[int64]*time.Time, error) {
+func (r *contentModerationTestUserRepo) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []string) (map[string]*time.Time, error) {
 	panic("unexpected GetLatestUsedAtByUserIDs call")
 }
 
-func (r *contentModerationTestUserRepo) GetLatestUsedAtByUserID(ctx context.Context, userID int64) (*time.Time, error) {
+func (r *contentModerationTestUserRepo) GetLatestUsedAtByUserID(ctx context.Context, userID string) (*time.Time, error) {
 	panic("unexpected GetLatestUsedAtByUserID call")
 }
 
-func (r *contentModerationTestUserRepo) UpdateUserLastActiveAt(ctx context.Context, userID int64, activeAt time.Time) error {
+func (r *contentModerationTestUserRepo) UpdateUserLastActiveAt(ctx context.Context, userID string, activeAt time.Time) error {
 	panic("unexpected UpdateUserLastActiveAt call")
 }
 
-func (r *contentModerationTestUserRepo) UpdateBalance(ctx context.Context, id int64, amount float64) error {
+func (r *contentModerationTestUserRepo) UpdateBalance(ctx context.Context, id string, amount float64) error {
 	panic("unexpected UpdateBalance call")
 }
 
-func (r *contentModerationTestUserRepo) DeductBalance(ctx context.Context, id int64, amount float64) error {
+func (r *contentModerationTestUserRepo) DeductBalance(ctx context.Context, id string, amount float64) error {
 	panic("unexpected DeductBalance call")
 }
 
-func (r *contentModerationTestUserRepo) AdjustBalance(ctx context.Context, id int64, delta float64) (BalanceChange, error) {
+func (r *contentModerationTestUserRepo) AdjustBalance(ctx context.Context, id string, delta float64) (BalanceChange, error) {
 	panic("unexpected AdjustBalance call")
 }
 
-func (r *contentModerationTestUserRepo) SetBalance(ctx context.Context, id int64, value float64) (BalanceChange, error) {
+func (r *contentModerationTestUserRepo) SetBalance(ctx context.Context, id string, value float64) (BalanceChange, error) {
 	panic("unexpected SetBalance call")
 }
 
-func (r *contentModerationTestUserRepo) UpdateConcurrency(ctx context.Context, id int64, amount int) error {
+func (r *contentModerationTestUserRepo) UpdateConcurrency(ctx context.Context, id string, amount int) error {
 	panic("unexpected UpdateConcurrency call")
 }
 
-func (r *contentModerationTestUserRepo) BatchSetConcurrency(ctx context.Context, userIDs []int64, value int) (int, error) {
+func (r *contentModerationTestUserRepo) BatchSetConcurrency(ctx context.Context, userIDs []string, value int) (int, error) {
 	panic("unexpected BatchSetConcurrency call")
 }
 
-func (r *contentModerationTestUserRepo) BatchAddConcurrency(ctx context.Context, userIDs []int64, delta int) (int, error) {
+func (r *contentModerationTestUserRepo) BatchAddConcurrency(ctx context.Context, userIDs []string, delta int) (int, error) {
 	panic("unexpected BatchAddConcurrency call")
 }
-func (r *contentModerationTestUserRepo) BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error) {
+func (r *contentModerationTestUserRepo) BatchUpdateLimits(ctx context.Context, userIDs []string, concurrency, rpmLimit *int) (int, error) {
 	panic("unexpected BatchUpdateLimits call")
 }
 
@@ -273,54 +274,54 @@ func (r *contentModerationTestUserRepo) ExistsByEmailAlias(ctx context.Context, 
 	panic("unexpected ExistsByEmailAlias call")
 }
 
-func (r *contentModerationTestUserRepo) RemoveGroupFromAllowedGroups(ctx context.Context, groupID int64) (int64, error) {
+func (r *contentModerationTestUserRepo) RemoveGroupFromAllowedGroups(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected RemoveGroupFromAllowedGroups call")
 }
 
-func (r *contentModerationTestUserRepo) AddGroupToAllowedGroups(ctx context.Context, userID int64, groupID int64) error {
+func (r *contentModerationTestUserRepo) AddGroupToAllowedGroups(ctx context.Context, userID string, groupID string) error {
 	panic("unexpected AddGroupToAllowedGroups call")
 }
 
-func (r *contentModerationTestUserRepo) RemoveGroupFromUserAllowedGroups(ctx context.Context, userID int64, groupID int64) error {
+func (r *contentModerationTestUserRepo) RemoveGroupFromUserAllowedGroups(ctx context.Context, userID string, groupID string) error {
 	panic("unexpected RemoveGroupFromUserAllowedGroups call")
 }
 
-func (r *contentModerationTestUserRepo) ListUserAuthIdentities(ctx context.Context, userID int64) ([]UserAuthIdentityRecord, error) {
+func (r *contentModerationTestUserRepo) ListUserAuthIdentities(ctx context.Context, userID string) ([]UserAuthIdentityRecord, error) {
 	panic("unexpected ListUserAuthIdentities call")
 }
 
-func (r *contentModerationTestUserRepo) UnbindUserAuthProvider(ctx context.Context, userID int64, provider string) error {
+func (r *contentModerationTestUserRepo) UnbindUserAuthProvider(ctx context.Context, userID string, provider string) error {
 	panic("unexpected UnbindUserAuthProvider call")
 }
 
-func (r *contentModerationTestUserRepo) UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error {
+func (r *contentModerationTestUserRepo) UpdateTotpSecret(ctx context.Context, userID string, encryptedSecret *string) error {
 	panic("unexpected UpdateTotpSecret call")
 }
 
-func (r *contentModerationTestUserRepo) EnableTotp(ctx context.Context, userID int64) error {
+func (r *contentModerationTestUserRepo) EnableTotp(ctx context.Context, userID string) error {
 	panic("unexpected EnableTotp call")
 }
 
-func (r *contentModerationTestUserRepo) DisableTotp(ctx context.Context, userID int64) error {
+func (r *contentModerationTestUserRepo) DisableTotp(ctx context.Context, userID string) error {
 	panic("unexpected DisableTotp call")
 }
 
-func (r *contentModerationTestUserRepo) GetByIDIncludeDeleted(ctx context.Context, id int64) (*User, error) {
+func (r *contentModerationTestUserRepo) GetByIDIncludeDeleted(ctx context.Context, id string) (*User, error) {
 	return r.GetByID(ctx, id)
 }
 
 type contentModerationTestAuthCacheInvalidator struct {
-	userIDs []int64
+	userIDs []string
 }
 
 func (i *contentModerationTestAuthCacheInvalidator) InvalidateAuthCacheByKey(ctx context.Context, key string) {
 }
 
-func (i *contentModerationTestAuthCacheInvalidator) InvalidateAuthCacheByUserID(ctx context.Context, userID int64) {
+func (i *contentModerationTestAuthCacheInvalidator) InvalidateAuthCacheByUserID(ctx context.Context, userID string) {
 	i.userIDs = append(i.userIDs, userID)
 }
 
-func (i *contentModerationTestAuthCacheInvalidator) InvalidateAuthCacheByGroupID(ctx context.Context, groupID int64) {
+func (i *contentModerationTestAuthCacheInvalidator) InvalidateAuthCacheByGroupID(ctx context.Context, groupID string) {
 }
 
 func (c *contentModerationTestHashCache) RecordFlaggedInputHash(ctx context.Context, inputHash string) error {
@@ -1056,7 +1057,7 @@ func TestContentModerationCheck_OpenAIResponsesRecordsNonHitForCodexPayload(t *t
 		]
 	}`)
 	decision, err := svc.Check(context.Background(), ContentModerationCheckInput{
-		UserID:   1001,
+		UserID:   "user-1001",
 		Endpoint: "/responses",
 		Provider: "openai",
 		Model:    "gpt-5.5",
@@ -1122,7 +1123,7 @@ func TestContentModerationCheck_PreBlockBlocksCodexResponsesLatestUserInput(t *t
 		]
 	}`)
 	decision, err := svc.Check(context.Background(), ContentModerationCheckInput{
-		UserID:   1001,
+		UserID:   "user-1001",
 		Endpoint: "/responses",
 		Provider: "openai",
 		Model:    "gpt-5.5",
@@ -1184,7 +1185,7 @@ func TestContentModerationStatusTracksPreBlockSyncMetrics(t *testing.T) {
 
 	for _, prompt := range []string{"blocked prompt", "clean prompt"} {
 		_, err := svc.Check(context.Background(), ContentModerationCheckInput{
-			UserID:   1001,
+			UserID:   "user-1001",
 			Protocol: ContentModerationProtocolOpenAIChat,
 			Body:     []byte(fmt.Sprintf(`{"messages":[{"role":"user","content":%q}]}`, prompt)),
 		})
@@ -1235,7 +1236,7 @@ func TestContentModerationStatusTracksPreBlockAPIKeyLoad(t *testing.T) {
 
 	for idx := 0; idx < 4; idx++ {
 		_, err := svc.Check(context.Background(), ContentModerationCheckInput{
-			UserID:   1001,
+			UserID:   "user-1001",
 			Protocol: ContentModerationProtocolOpenAIChat,
 			Body:     []byte(fmt.Sprintf(`{"messages":[{"role":"user","content":"prompt %d"}]}`, idx)),
 		})
@@ -1281,7 +1282,7 @@ func TestContentModerationStatusTracksPreBlockLocalBlocks(t *testing.T) {
 
 	for _, prompt := range []string{"blocked prompt", "clean prompt"} {
 		_, err := svc.Check(context.Background(), ContentModerationCheckInput{
-			UserID:   1001,
+			UserID:   "user-1001",
 			Protocol: ContentModerationProtocolOpenAIChat,
 			Body:     []byte(fmt.Sprintf(`{"messages":[{"role":"user","content":%q}]}`, prompt)),
 		})
@@ -1430,7 +1431,7 @@ func TestContentModerationCheck_PreHashUsesRedisHashCache(t *testing.T) {
 	hashCache.hashes[content.Hash()] = struct{}{}
 
 	repo := &contentModerationTestRepo{}
-	userRepo := &contentModerationTestUserRepo{user: &User{ID: 1001, Status: StatusActive}}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: "user-1001", Status: StatusActive}}
 	svc := NewContentModerationService(
 		&contentModerationTestSettingRepo{values: map[string]string{
 			SettingKeyRiskControlEnabled:      "true",
@@ -1446,7 +1447,7 @@ func TestContentModerationCheck_PreHashUsesRedisHashCache(t *testing.T) {
 	)
 
 	decision, err := svc.Check(context.Background(), ContentModerationCheckInput{
-		UserID:   1001,
+		UserID:   "user-1001",
 		Protocol: ContentModerationProtocolOpenAIChat,
 		Body:     []byte(`{"messages":[{"role":"user","content":"blocked prompt"}]}`),
 	})
@@ -1487,7 +1488,7 @@ func TestContentModerationCheck_HashBlockLogsDoNotIncreaseNextViolationCount(t *
 	rawCfg, err := json.Marshal(cfg)
 	require.NoError(t, err)
 
-	userID := int64(1001)
+	userID := "user-1001"
 	repo := &contentModerationTestRepo{}
 	hashLog := &ContentModerationLog{
 		UserID:          &userID,
@@ -1539,7 +1540,7 @@ func TestContentModerationAutoBanSkipsAdminAccount(t *testing.T) {
 	cfg.BanThreshold = 2
 	cfg.ViolationWindowHours = 24
 
-	userID := int64(1001)
+	userID := "user-1001"
 	repo := &contentModerationTestRepo{}
 	require.NoError(t, repo.CreateLog(context.Background(), newContentModerationFlaggedLog(userID)))
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleAdmin, Status: StatusActive}}
@@ -1555,7 +1556,7 @@ func TestContentModerationAutoBanSkipsAdminAccount(t *testing.T) {
 	require.Empty(t, userRepo.updated)
 	require.Empty(t, invalidator.userIDs)
 	require.Contains(t, slogOutput.String(), "content_moderation.autoban_skipped_admin")
-	require.Contains(t, slogOutput.String(), "user_id=1001")
+	require.Contains(t, slogOutput.String(), "user_id=user-1001")
 	require.Contains(t, slogOutput.String(), "role=admin")
 	require.Contains(t, slogOutput.String(), "count=2")
 	require.Contains(t, slogOutput.String(), "threshold=2")
@@ -1566,7 +1567,7 @@ func TestContentModerationAutoBanDisablesRegularUserAtThreshold(t *testing.T) {
 	cfg.BanThreshold = 2
 	cfg.ViolationWindowHours = 24
 
-	userID := int64(1001)
+	userID := "user-1001"
 	repo := &contentModerationTestRepo{}
 	require.NoError(t, repo.CreateLog(context.Background(), newContentModerationFlaggedLog(userID)))
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleUser, Status: StatusActive}}
@@ -1580,7 +1581,7 @@ func TestContentModerationAutoBanDisablesRegularUserAtThreshold(t *testing.T) {
 	require.True(t, logs[1].AutoBanned)
 	require.Len(t, userRepo.updated, 1)
 	require.Equal(t, StatusDisabled, userRepo.user.Status)
-	require.Equal(t, []int64{userID}, invalidator.userIDs)
+	require.Equal(t, []string{userID}, invalidator.userIDs)
 }
 
 func TestContentModerationAdminBelowBanThresholdRecordsViolationOnly(t *testing.T) {
@@ -1588,7 +1589,7 @@ func TestContentModerationAdminBelowBanThresholdRecordsViolationOnly(t *testing.
 	cfg.BanThreshold = 2
 	cfg.ViolationWindowHours = 24
 
-	userID := int64(1001)
+	userID := "user-1001"
 	repo := &contentModerationTestRepo{}
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: userID, Role: RoleAdmin, Status: StatusActive}}
 	invalidator := &contentModerationTestAuthCacheInvalidator{}
@@ -1604,7 +1605,7 @@ func TestContentModerationAdminBelowBanThresholdRecordsViolationOnly(t *testing.
 	require.Empty(t, invalidator.userIDs)
 }
 
-func newContentModerationFlaggedLog(userID int64) *ContentModerationLog {
+func newContentModerationFlaggedLog(userID string) *ContentModerationLog {
 	return &ContentModerationLog{
 		UserID:          &userID,
 		Action:          ContentModerationActionBlock,
@@ -1779,7 +1780,7 @@ func TestContentModerationCheck_AsyncFlaggedWritesRedisHashCache(t *testing.T) {
 }
 
 func TestBuildContentModerationAccountDisabledEmailBody_ContainsBanDetails(t *testing.T) {
-	userID := int64(1001)
+	userID := "user-1001"
 	cfg := defaultContentModerationConfig()
 	cfg.BanThreshold = 10
 	body := buildContentModerationAccountDisabledEmailBody("EasySub2api <Admin>", &ContentModerationLog{
@@ -1800,33 +1801,33 @@ func TestBuildContentModerationAccountDisabledEmailBody_ContainsBanDetails(t *te
 }
 
 func TestContentModerationUnbanUser_ActivatesUserAndInvalidatesAuthCache(t *testing.T) {
-	userRepo := &contentModerationTestUserRepo{user: &User{ID: 1001, Email: "user@example.com", Status: StatusDisabled}}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: "user-1001", Email: "user@example.com", Status: StatusDisabled}}
 	invalidator := &contentModerationTestAuthCacheInvalidator{}
 	repo := &contentModerationTestRepo{}
 	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, invalidator, nil)
 
-	result, err := svc.UnbanUser(context.Background(), 1001)
+	result, err := svc.UnbanUser(context.Background(), "user-1001")
 
 	require.NoError(t, err)
-	require.Equal(t, int64(1001), result.UserID)
+	require.Equal(t, "user-1001", result.UserID)
 	require.Equal(t, StatusActive, result.Status)
 	require.Len(t, userRepo.updated, 1)
 	require.Equal(t, StatusActive, userRepo.updated[0].Status)
-	require.Equal(t, []int64{1001}, invalidator.userIDs)
+	require.Equal(t, []string{"user-1001"}, invalidator.userIDs)
 }
 
 func TestContentModerationUnbanUser_ActiveUserOnlyInvalidatesAuthCache(t *testing.T) {
-	userRepo := &contentModerationTestUserRepo{user: &User{ID: 1001, Email: "user@example.com", Status: StatusActive}}
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: "user-1001", Email: "user@example.com", Status: StatusActive}}
 	invalidator := &contentModerationTestAuthCacheInvalidator{}
 	repo := &contentModerationTestRepo{}
 	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, invalidator, nil)
 
-	result, err := svc.UnbanUser(context.Background(), 1001)
+	result, err := svc.UnbanUser(context.Background(), "user-1001")
 
 	require.NoError(t, err)
 	require.Equal(t, StatusActive, result.Status)
 	require.Empty(t, userRepo.updated)
-	require.Equal(t, []int64{1001}, invalidator.userIDs)
+	require.Equal(t, []string{"user-1001"}, invalidator.userIDs)
 }
 
 func contentModerationIntPtr(v int) *int {

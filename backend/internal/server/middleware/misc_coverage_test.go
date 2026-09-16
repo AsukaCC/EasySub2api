@@ -96,7 +96,7 @@ func TestForcePlatform_SetsContextAndGinValue(t *testing.T) {
 
 func TestAuthSubjectHelpers_RoundTrip(t *testing.T) {
 	c := &gin.Context{}
-	c.Set(string(ContextKeyUser), AuthSubject{UserID: 1, Concurrency: 2})
+	c.Set(string(ContextKeyUser), AuthSubject{UserID: "user-1", Concurrency: 2})
 	c.Set(string(ContextKeyUserRole), "admin")
 
 	sub, ok := GetAuthSubjectFromContext(c)
@@ -112,13 +112,13 @@ func TestAuthSubjectHelpers_RoundTrip(t *testing.T) {
 func TestAPIKeyAndSubscriptionFromContext(t *testing.T) {
 	c := &gin.Context{}
 
-	key := &service.APIKey{ID: 1}
+	key := &service.APIKey{ID: "key-1"}
 	c.Set(string(ContextKeyAPIKey), key)
 	gotKey, ok := GetAPIKeyFromContext(c)
 	require.True(t, ok)
 	require.Equal(t, int64(1), gotKey.ID)
 
-	sub := &service.UserSubscription{ID: 2}
+	sub := &service.UserSubscription{ID: "subscription-2"}
 	c.Set(string(ContextKeySubscription), sub)
 	gotSub, ok := GetSubscriptionFromContext(c)
 	require.True(t, ok)

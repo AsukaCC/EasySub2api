@@ -16,7 +16,7 @@ import (
 func TestProbeOpenAIAPIKeyResponsesSupportUsesCodexProbeHeaders(t *testing.T) {
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          96,
+		ID:          "account-96",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,

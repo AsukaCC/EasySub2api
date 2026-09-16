@@ -131,7 +131,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_KeepLeaseAcrossT
 	}
 
 	account := &Account{
-		ID:          114,
+		ID:          "id-114",
 		Name:        "openai-ingress-session-lease",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -282,7 +282,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_LeaseLossSendsRe
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          118,
+		ID:          "id-118",
 		Name:        "openai-ingress-lease-loss",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -408,7 +408,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_IdleTimeoutRelea
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          116,
+		ID:          "id-116",
 		Name:        "openai-ingress-idle-timeout",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -523,7 +523,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_FollowupCreateCa
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          115,
+		ID:          "id-115",
 		Name:        "openai-ingress-omit-model",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -659,10 +659,10 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_CodexImageBridge
 		openaiWSPool:     pool,
 	}
 
-	groupID := int64(3)
+	groupID := "group-3"
 	apiKey := &APIKey{
-		ID:      1,
-		UserID:  1,
+		ID:      "id-1",
+		UserID:  "user-1",
 		GroupID: &groupID,
 		Group: &Group{
 			ID:                   groupID,
@@ -670,7 +670,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_CodexImageBridge
 		},
 	}
 	account := &Account{
-		ID:          31,
+		ID:          "id-31",
 		Name:        "openai-codex-image-ws",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -869,7 +869,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_DedicatedModeDoe
 	}
 
 	account := &Account{
-		ID:          441,
+		ID:          "id-441",
 		Name:        "openai-ingress-dedicated",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -989,7 +989,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeR
 	}
 
 	account := &Account{
-		ID:          452,
+		ID:          "id-452",
 		Name:        "openai-ingress-passthrough",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1132,7 +1132,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughHeade
 		openaiWSPassthroughDialer: captureDialer,
 	}
 	account := &Account{
-		ID:          453,
+		ID:          "id-453",
 		Name:        "openai-ingress-passthrough-headers",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -1224,7 +1224,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughHeade
 		t.Fatal("等待 passthrough websocket 结束超时")
 	}
 
-	require.Equal(t, isolateOpenAISessionID(0, "pcache_passthrough"), captureDialer.lastHeaders.Get("session_id"))
+	require.Equal(t, isolateOpenAISessionID("", "pcache_passthrough"), captureDialer.lastHeaders.Get("session_id"))
 	require.Equal(t, "turn-state-1", captureDialer.lastHeaders.Get(openAIWSTurnStateHeader))
 	require.Equal(t, "turn-meta-1", captureDialer.lastHeaders.Get(openAIWSTurnMetadataHeader))
 	require.Len(t, upstreamConn.writes, 1)
@@ -1272,7 +1272,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_HTTPBridgeModeRe
 	}
 
 	account := &Account{
-		ID:          552,
+		ID:          "id-552",
 		Name:        "openai-ingress-http-bridge",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1407,7 +1407,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_ModeOffReturnsPo
 	}
 
 	account := &Account{
-		ID:          442,
+		ID:          "id-442",
 		Name:        "openai-ingress-off",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1520,7 +1520,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledPre
 	}
 
 	account := &Account{
-		ID:          140,
+		ID:          "id-140",
 		Name:        "openai-ingress-prev-preflight-rewrite",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1667,7 +1667,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledPre
 	}
 
 	account := &Account{
-		ID:          142,
+		ID:          "id-142",
 		Name:        "openai-ingress-prev-strict-drop-before-ping",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1808,7 +1808,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreEnabledSkip
 	}
 
 	account := &Account{
-		ID:          143,
+		ID:          "id-143",
 		Name:        "openai-ingress-store-enabled-skip-strict",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1940,7 +1940,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledPre
 	}
 
 	account := &Account{
-		ID:          141,
+		ID:          "id-141",
 		Name:        "openai-ingress-prev-preflight-skip-fco",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2072,7 +2072,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFun
 	}
 
 	account := &Account{
-		ID:          143,
+		ID:          "id-143",
 		Name:        "openai-ingress-fco-auto-prev",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2204,7 +2204,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledToo
 	}
 
 	account := &Account{
-		ID:          145,
+		ID:          "id-145",
 		Name:        "openai-ingress-tool-search-output-auto-prev",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2339,7 +2339,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFun
 	}
 
 	account := &Account{
-		ID:          144,
+		ID:          "id-144",
 		Name:        "openai-ingress-fco-auto-prev-skip",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2474,7 +2474,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFun
 	}
 
 	account := &Account{
-		ID:          114,
+		ID:          "id-114",
 		Name:        "openai-ingress-tool-context",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2608,7 +2608,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFun
 	}
 
 	account := &Account{
-		ID:          115,
+		ID:          "id-115",
 		Name:        "openai-ingress-item-reference",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2751,7 +2751,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PreflightPingFai
 	}
 
 	account := &Account{
-		ID:          116,
+		ID:          "id-116",
 		Name:        "openai-ingress-preflight-ping",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -2893,7 +2893,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledStr
 	}
 
 	account := &Account{
-		ID:          121,
+		ID:          "id-121",
 		Name:        "openai-ingress-preflight-ping-strict-affinity",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3045,7 +3045,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledPre
 	}
 
 	account := &Account{
-		ID:          128,
+		ID:          "id-128",
 		Name:        "openai-ingress-preflight-replay-function-output-with-context",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3200,7 +3200,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledPre
 	}
 
 	account := &Account{
-		ID:          129,
+		ID:          "id-129",
 		Name:        "openai-ingress-preflight-replay-function-output",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3346,7 +3346,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledPre
 	}
 
 	account := &Account{
-		ID:          130,
+		ID:          "id-130",
 		Name:        "openai-ingress-preflight-replay-only-function-output",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3487,7 +3487,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_WriteFailBeforeD
 	}
 
 	account := &Account{
-		ID:          117,
+		ID:          "id-117",
 		Name:        "openai-ingress-write-retry",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3650,7 +3650,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PreviousResponse
 	}
 
 	account := &Account{
-		ID:          118,
+		ID:          "id-118",
 		Name:        "openai-ingress-prev-recovery",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3801,7 +3801,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledStr
 	}
 
 	account := &Account{
-		ID:          122,
+		ID:          "id-122",
 		Name:        "openai-ingress-prev-strict-layer2",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -3957,7 +3957,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PreviousResponse
 	}
 
 	account := &Account{
-		ID:          120,
+		ID:          "id-120",
 		Name:        "openai-ingress-prev-recovery-once",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -4082,7 +4082,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_RejectsMessageID
 	}
 
 	account := &Account{
-		ID:          119,
+		ID:          "id-119",
 		Name:        "openai-ingress-prev-validation",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -4327,7 +4327,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_ClientDisconnect
 	}
 
 	account := &Account{
-		ID:          115,
+		ID:          "id-115",
 		Name:        "openai-ingress-client-disconnect",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

@@ -24,7 +24,7 @@ type userGroupRateRepoHotpathStub struct {
 	calls atomic.Int64
 }
 
-func (s *userGroupRateRepoHotpathStub) GetByUserAndGroup(ctx context.Context, userID, groupID int64) (*float64, error) {
+func (s *userGroupRateRepoHotpathStub) GetByUserAndGroup(ctx context.Context, userID, groupID string) (*float64, error) {
 	s.calls.Add(1)
 	if s.wait != nil {
 		<-s.wait
@@ -38,21 +38,21 @@ func (s *userGroupRateRepoHotpathStub) GetByUserAndGroup(ctx context.Context, us
 type usageLogWindowBatchRepoStub struct {
 	UsageLogRepository
 
-	batchResult map[int64]*usagestats.AccountStats
+	batchResult map[string]*usagestats.AccountStats
 	batchErr    error
 	batchCalls  atomic.Int64
 
-	singleResult map[int64]*usagestats.AccountStats
+	singleResult map[string]*usagestats.AccountStats
 	singleErr    error
 	singleCalls  atomic.Int64
 }
 
-func (s *usageLogWindowBatchRepoStub) GetAccountWindowStatsBatch(ctx context.Context, accountIDs []int64, startTime time.Time) (map[int64]*usagestats.AccountStats, error) {
+func (s *usageLogWindowBatchRepoStub) GetAccountWindowStatsBatch(ctx context.Context, accountIDs []string, startTime time.Time) (map[string]*usagestats.AccountStats, error) {
 	s.batchCalls.Add(1)
 	if s.batchErr != nil {
 		return nil, s.batchErr
 	}
-	out := make(map[int64]*usagestats.AccountStats, len(accountIDs))
+	out := make(map[string]*usagestats.AccountStats, len(accountIDs))
 	for _, id := range accountIDs {
 		if stats, ok := s.batchResult[id]; ok {
 			out[id] = stats
@@ -61,7 +61,7 @@ func (s *usageLogWindowBatchRepoStub) GetAccountWindowStatsBatch(ctx context.Con
 	return out, nil
 }
 
-func (s *usageLogWindowBatchRepoStub) GetAccountWindowStats(ctx context.Context, accountID int64, startTime time.Time) (*usagestats.AccountStats, error) {
+func (s *usageLogWindowBatchRepoStub) GetAccountWindowStats(ctx context.Context, accountID string, startTime time.Time) (*usagestats.AccountStats, error) {
 	s.singleCalls.Add(1)
 	if s.singleErr != nil {
 		return nil, s.singleErr
@@ -75,18 +75,18 @@ func (s *usageLogWindowBatchRepoStub) GetAccountWindowStats(ctx context.Context,
 type sessionLimitCacheHotpathStub struct {
 	SessionLimitCache
 
-	batchData map[int64]float64
+	batchData map[string]float64
 	batchErr  error
 
-	setData map[int64]float64
+	setData map[string]float64
 	setErr  error
 }
 
-func (s *sessionLimitCacheHotpathStub) GetWindowCostBatch(ctx context.Context, accountIDs []int64) (map[int64]float64, error) {
+func (s *sessionLimitCacheHotpathStub) GetWindowCostBatch(ctx context.Context, accountIDs []string) (map[string]float64, error) {
 	if s.batchErr != nil {
 		return nil, s.batchErr
 	}
-	out := make(map[int64]float64, len(accountIDs))
+	out := make(map[string]float64, len(accountIDs))
 	for _, id := range accountIDs {
 		if v, ok := s.batchData[id]; ok {
 			out[id] = v
@@ -95,12 +95,12 @@ func (s *sessionLimitCacheHotpathStub) GetWindowCostBatch(ctx context.Context, a
 	return out, nil
 }
 
-func (s *sessionLimitCacheHotpathStub) SetWindowCost(ctx context.Context, accountID int64, cost float64) error {
+func (s *sessionLimitCacheHotpathStub) SetWindowCost(ctx context.Context, accountID string, cost float64) error {
 	if s.setErr != nil {
 		return s.setErr
 	}
 	if s.setData == nil {
-		s.setData = make(map[int64]float64)
+		s.setData = make(map[string]float64)
 	}
 	s.setData[accountID] = cost
 	return nil
@@ -109,7 +109,7 @@ func (s *sessionLimitCacheHotpathStub) SetWindowCost(ctx context.Context, accoun
 type modelsListAccountRepoStub struct {
 	AccountRepository
 
-	byGroup map[int64][]Account
+	byGroup map[string][]Account
 	all     []Account
 	err     error
 
@@ -120,27 +120,27 @@ type modelsListAccountRepoStub struct {
 type stickyGatewayCacheHotpathStub struct {
 	GatewayCache
 
-	stickyID int64
+	stickyID string
 	getCalls atomic.Int64
 }
 
-func (s *stickyGatewayCacheHotpathStub) GetSessionAccountID(ctx context.Context, groupID int64, sessionHash string) (int64, error) {
+func (s *stickyGatewayCacheHotpathStub) GetSessionAccountID(ctx context.Context, groupID string, sessionHash string) (string, error) {
 	s.getCalls.Add(1)
-	if s.stickyID > 0 {
+	if s.stickyID != "" {
 		return s.stickyID, nil
 	}
-	return 0, errors.New("not found")
+	return "", errors.New("not found")
 }
 
-func (s *stickyGatewayCacheHotpathStub) SetSessionAccountID(ctx context.Context, groupID int64, sessionHash string, accountID int64, ttl time.Duration) error {
+func (s *stickyGatewayCacheHotpathStub) SetSessionAccountID(ctx context.Context, groupID string, sessionHash string, accountID string, ttl time.Duration) error {
 	return nil
 }
 
-func (s *stickyGatewayCacheHotpathStub) RefreshSessionTTL(ctx context.Context, groupID int64, sessionHash string, ttl time.Duration) error {
+func (s *stickyGatewayCacheHotpathStub) RefreshSessionTTL(ctx context.Context, groupID string, sessionHash string, ttl time.Duration) error {
 	return nil
 }
 
-func (s *stickyGatewayCacheHotpathStub) DeleteSessionAccountID(ctx context.Context, groupID int64, sessionHash string) error {
+func (s *stickyGatewayCacheHotpathStub) DeleteSessionAccountID(ctx context.Context, groupID string, sessionHash string) error {
 	return nil
 }
 
@@ -158,7 +158,7 @@ func (s *stickyGatewayCacheHotpathStub) ReleaseGrokVideoBilled(_ context.Context
 	return nil
 }
 
-func (s *modelsListAccountRepoStub) ListSchedulableByGroupID(ctx context.Context, groupID int64) ([]Account, error) {
+func (s *modelsListAccountRepoStub) ListSchedulableByGroupID(ctx context.Context, groupID string) ([]Account, error) {
 	s.listByGroupCalls.Add(1)
 	if s.err != nil {
 		return nil, s.err
@@ -228,7 +228,7 @@ func TestGetUserGroupRateMultiplier_UsesCacheAndSingleflight(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			<-start
-			results[idx] = svc.getUserGroupRateMultiplier(context.Background(), 101, 202, 1.2)
+			results[idx] = svc.getUserGroupRateMultiplier(context.Background(), "user-101", "group-202", 1.2)
 		}(i)
 	}
 
@@ -251,7 +251,7 @@ func TestGetUserGroupRateMultiplier_UsesCacheAndSingleflight(t *testing.T) {
 	require.Equal(t, int64(1), repo.calls.Load())
 
 	// 再次读取应命中缓存，不再回源。
-	got := svc.getUserGroupRateMultiplier(context.Background(), 101, 202, 1.2)
+	got := svc.getUserGroupRateMultiplier(context.Background(), "user-101", "group-202", 1.2)
 	require.Equal(t, rate, got)
 	require.Equal(t, int64(1), repo.calls.Load())
 
@@ -279,7 +279,7 @@ func TestGetUserGroupRateMultiplier_FallbackOnRepoError(t *testing.T) {
 		},
 	}
 
-	got := svc.getUserGroupRateMultiplier(context.Background(), 101, 202, 1.25)
+	got := svc.getUserGroupRateMultiplier(context.Background(), "user-101", "group-202", 1.25)
 	require.Equal(t, 1.25, got)
 	require.Equal(t, int64(1), repo.calls.Load())
 
@@ -297,10 +297,10 @@ func TestGetUserGroupRateMultiplier_CacheHitAndNilRepo(t *testing.T) {
 		userGroupRateRepo:  repo,
 		userGroupRateCache: gocache.New(time.Minute, time.Minute),
 	}
-	key := "101:202"
+	key := "user-101:group-202"
 	svc.userGroupRateCache.Set(key, 2.3, time.Minute)
 
-	got := svc.getUserGroupRateMultiplier(context.Background(), 101, 202, 1.1)
+	got := svc.getUserGroupRateMultiplier(context.Background(), "user-101", "group-202", 1.1)
 	require.Equal(t, 2.3, got)
 
 	hit, miss, load, _, fallback := GatewayUserGroupRateCacheStats()
@@ -315,10 +315,10 @@ func TestGetUserGroupRateMultiplier_CacheHitAndNilRepo(t *testing.T) {
 		userGroupRateCache: gocache.New(time.Minute, time.Minute),
 	}
 	svc2.userGroupRateCache.Set(key, 1.9, time.Minute)
-	require.Equal(t, 1.9, svc2.getUserGroupRateMultiplier(context.Background(), 101, 202, 1.4))
-	require.Equal(t, 1.4, svc2.getUserGroupRateMultiplier(context.Background(), 0, 202, 1.4))
+	require.Equal(t, 1.9, svc2.getUserGroupRateMultiplier(context.Background(), "user-101", "group-202", 1.4))
+	require.Equal(t, 1.4, svc2.getUserGroupRateMultiplier(context.Background(), "", "group-202", 1.4))
 	svc2.userGroupRateCache.Delete(key)
-	require.Equal(t, 1.4, svc2.getUserGroupRateMultiplier(context.Background(), 101, 202, 1.4))
+	require.Equal(t, 1.4, svc2.getUserGroupRateMultiplier(context.Background(), "user-101", "group-202", 1.4))
 }
 
 func TestWithWindowCostPrefetch_BatchReadAndContextReuse(t *testing.T) {
@@ -328,7 +328,7 @@ func TestWithWindowCostPrefetch_BatchReadAndContextReuse(t *testing.T) {
 	windowEnd := windowStart.Add(5 * time.Hour)
 	accounts := []Account{
 		{
-			ID:                 1,
+			ID:                 "account-1",
 			Platform:           PlatformAnthropic,
 			Type:               AccountTypeOAuth,
 			Extra:              map[string]any{"window_cost_limit": 100.0},
@@ -336,7 +336,7 @@ func TestWithWindowCostPrefetch_BatchReadAndContextReuse(t *testing.T) {
 			SessionWindowEnd:   &windowEnd,
 		},
 		{
-			ID:                 2,
+			ID:                 "account-2",
 			Platform:           PlatformAnthropic,
 			Type:               AccountTypeSetupToken,
 			Extra:              map[string]any{"window_cost_limit": 100.0},
@@ -344,7 +344,7 @@ func TestWithWindowCostPrefetch_BatchReadAndContextReuse(t *testing.T) {
 			SessionWindowEnd:   &windowEnd,
 		},
 		{
-			ID:       3,
+			ID:       "account-3",
 			Platform: PlatformAnthropic,
 			Type:     AccountTypeAPIKey,
 			Extra:    map[string]any{"window_cost_limit": 100.0},
@@ -352,13 +352,13 @@ func TestWithWindowCostPrefetch_BatchReadAndContextReuse(t *testing.T) {
 	}
 
 	cache := &sessionLimitCacheHotpathStub{
-		batchData: map[int64]float64{
-			1: 11.0,
+		batchData: map[string]float64{
+			"account-1": 11.0,
 		},
 	}
 	repo := &usageLogWindowBatchRepoStub{
-		batchResult: map[int64]*usagestats.AccountStats{
-			2: {StandardCost: 22.0},
+		batchResult: map[string]*usagestats.AccountStats{
+			"account-2": {StandardCost: 22.0},
 		},
 	}
 	svc := &GatewayService{
@@ -369,19 +369,19 @@ func TestWithWindowCostPrefetch_BatchReadAndContextReuse(t *testing.T) {
 	outCtx := svc.withWindowCostPrefetch(context.Background(), accounts)
 	require.NotNil(t, outCtx)
 
-	cost1, ok1 := windowCostFromPrefetchContext(outCtx, 1)
+	cost1, ok1 := windowCostFromPrefetchContext(outCtx, "account-1")
 	require.True(t, ok1)
 	require.Equal(t, 11.0, cost1)
 
-	cost2, ok2 := windowCostFromPrefetchContext(outCtx, 2)
+	cost2, ok2 := windowCostFromPrefetchContext(outCtx, "account-2")
 	require.True(t, ok2)
 	require.Equal(t, 22.0, cost2)
 
-	_, ok3 := windowCostFromPrefetchContext(outCtx, 3)
+	_, ok3 := windowCostFromPrefetchContext(outCtx, "account-3")
 	require.False(t, ok3)
 
 	require.Equal(t, int64(1), repo.batchCalls.Load())
-	require.Equal(t, 22.0, cache.setData[2])
+	require.Equal(t, 22.0, cache.setData["account-2"])
 
 	hit, miss, batchSQL, fallback, errCount := GatewayWindowCostPrefetchStats()
 	require.Equal(t, int64(1), hit)
@@ -398,7 +398,7 @@ func TestWithWindowCostPrefetch_AllHitNoSQL(t *testing.T) {
 	windowEnd := windowStart.Add(5 * time.Hour)
 	accounts := []Account{
 		{
-			ID:                 1,
+			ID:                 "account-1",
 			Platform:           PlatformAnthropic,
 			Type:               AccountTypeOAuth,
 			Extra:              map[string]any{"window_cost_limit": 100.0},
@@ -406,7 +406,7 @@ func TestWithWindowCostPrefetch_AllHitNoSQL(t *testing.T) {
 			SessionWindowEnd:   &windowEnd,
 		},
 		{
-			ID:                 2,
+			ID:                 "account-2",
 			Platform:           PlatformAnthropic,
 			Type:               AccountTypeSetupToken,
 			Extra:              map[string]any{"window_cost_limit": 100.0},
@@ -416,9 +416,9 @@ func TestWithWindowCostPrefetch_AllHitNoSQL(t *testing.T) {
 	}
 
 	cache := &sessionLimitCacheHotpathStub{
-		batchData: map[int64]float64{
-			1: 11.0,
-			2: 22.0,
+		batchData: map[string]float64{
+			"account-1": 11.0,
+			"account-2": 22.0,
 		},
 	}
 	repo := &usageLogWindowBatchRepoStub{}
@@ -428,8 +428,8 @@ func TestWithWindowCostPrefetch_AllHitNoSQL(t *testing.T) {
 	}
 
 	outCtx := svc.withWindowCostPrefetch(context.Background(), accounts)
-	cost1, ok1 := windowCostFromPrefetchContext(outCtx, 1)
-	cost2, ok2 := windowCostFromPrefetchContext(outCtx, 2)
+	cost1, ok1 := windowCostFromPrefetchContext(outCtx, "account-1")
+	cost2, ok2 := windowCostFromPrefetchContext(outCtx, "account-2")
 	require.True(t, ok1)
 	require.True(t, ok2)
 	require.Equal(t, 11.0, cost1)
@@ -452,7 +452,7 @@ func TestWithWindowCostPrefetch_BatchErrorFallbackSingleQuery(t *testing.T) {
 	windowEnd := windowStart.Add(5 * time.Hour)
 	accounts := []Account{
 		{
-			ID:                 2,
+			ID:                 "account-2",
 			Platform:           PlatformAnthropic,
 			Type:               AccountTypeSetupToken,
 			Extra:              map[string]any{"window_cost_limit": 100.0},
@@ -464,8 +464,8 @@ func TestWithWindowCostPrefetch_BatchErrorFallbackSingleQuery(t *testing.T) {
 	cache := &sessionLimitCacheHotpathStub{}
 	repo := &usageLogWindowBatchRepoStub{
 		batchErr: errors.New("batch failed"),
-		singleResult: map[int64]*usagestats.AccountStats{
-			2: {StandardCost: 33.0},
+		singleResult: map[string]*usagestats.AccountStats{
+			"account-2": {StandardCost: 33.0},
 		},
 	}
 	svc := &GatewayService{
@@ -474,7 +474,7 @@ func TestWithWindowCostPrefetch_BatchErrorFallbackSingleQuery(t *testing.T) {
 	}
 
 	outCtx := svc.withWindowCostPrefetch(context.Background(), accounts)
-	cost, ok := windowCostFromPrefetchContext(outCtx, 2)
+	cost, ok := windowCostFromPrefetchContext(outCtx, "account-2")
 	require.True(t, ok)
 	require.Equal(t, 33.0, cost)
 	require.Equal(t, int64(1), repo.batchCalls.Load())
@@ -488,12 +488,12 @@ func TestWithWindowCostPrefetch_BatchErrorFallbackSingleQuery(t *testing.T) {
 func TestGetAvailableModels_UsesShortCacheAndSupportsInvalidation(t *testing.T) {
 	resetGatewayHotpathStatsForTest()
 
-	groupID := int64(9)
+	groupID := "group-9"
 	repo := &modelsListAccountRepoStub{
-		byGroup: map[int64][]Account{
+		byGroup: map[string][]Account{
 			groupID: {
 				{
-					ID:       1,
+					ID:       "account-1",
 					Platform: PlatformAnthropic,
 					Credentials: map[string]any{
 						"model_mapping": map[string]any{
@@ -503,7 +503,7 @@ func TestGetAvailableModels_UsesShortCacheAndSupportsInvalidation(t *testing.T) 
 					},
 				},
 				{
-					ID:       2,
+					ID:       "account-2",
 					Platform: PlatformGemini,
 					Credentials: map[string]any{
 						"model_mapping": map[string]any{
@@ -533,7 +533,7 @@ func TestGetAvailableModels_UsesShortCacheAndSupportsInvalidation(t *testing.T) 
 	// 更新仓储数据，但缓存未失效前应继续返回旧值。
 	repo.byGroup[groupID] = []Account{
 		{
-			ID:       3,
+			ID:       "account-3",
 			Platform: PlatformAnthropic,
 			Credentials: map[string]any{
 				"model_mapping": map[string]any{
@@ -573,7 +573,7 @@ func TestGetAvailableModels_ErrorAndGlobalListBranches(t *testing.T) {
 	okRepo := &modelsListAccountRepoStub{
 		all: []Account{
 			{
-				ID:       1,
+				ID:       "account-1",
 				Platform: PlatformAnthropic,
 				Credentials: map[string]any{
 					"model_mapping": map[string]any{
@@ -582,7 +582,7 @@ func TestGetAvailableModels_ErrorAndGlobalListBranches(t *testing.T) {
 				},
 			},
 			{
-				ID:       2,
+				ID:       "account-2",
 				Platform: PlatformGemini,
 				Credentials: map[string]any{
 					"model_mapping": map[string]any{
@@ -603,7 +603,7 @@ func TestGetAvailableModels_ErrorAndGlobalListBranches(t *testing.T) {
 }
 
 func TestGetAvailableModels_OpenAIPassthroughUsesDefaultFallback(t *testing.T) {
-	groupID := int64(10)
+	groupID := "group-10"
 
 	tests := []struct {
 		name     string
@@ -614,7 +614,7 @@ func TestGetAvailableModels_OpenAIPassthroughUsesDefaultFallback(t *testing.T) {
 			name: "passthrough only ignores stale mapping",
 			accounts: []Account{
 				{
-					ID:          1,
+					ID:          "account-1",
 					Platform:    PlatformOpenAI,
 					Credentials: map[string]any{"model_mapping": map[string]any{"stale-model": "upstream-model"}},
 					Extra:       map[string]any{"openai_passthrough": true},
@@ -626,12 +626,12 @@ func TestGetAvailableModels_OpenAIPassthroughUsesDefaultFallback(t *testing.T) {
 			name: "passthrough wins over ordinary account mapping",
 			accounts: []Account{
 				{
-					ID:          2,
+					ID:          "account-2",
 					Platform:    PlatformOpenAI,
 					Credentials: map[string]any{"model_mapping": map[string]any{"configured-model": "configured-upstream"}},
 				},
 				{
-					ID:          3,
+					ID:          "account-3",
 					Platform:    PlatformOpenAI,
 					Credentials: map[string]any{"model_mapping": map[string]any{"stale-model": "upstream-model"}},
 					Extra:       map[string]any{"openai_passthrough": true},
@@ -643,7 +643,7 @@ func TestGetAvailableModels_OpenAIPassthroughUsesDefaultFallback(t *testing.T) {
 			name: "ordinary accounts preserve mapped whitelist",
 			accounts: []Account{
 				{
-					ID:          4,
+					ID:          "account-4",
 					Platform:    PlatformOpenAI,
 					Credentials: map[string]any{"model_mapping": map[string]any{"configured-model": "configured-upstream"}},
 				},
@@ -654,7 +654,7 @@ func TestGetAvailableModels_OpenAIPassthroughUsesDefaultFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &modelsListAccountRepoStub{byGroup: map[int64][]Account{groupID: tt.accounts}}
+			repo := &modelsListAccountRepoStub{byGroup: map[string][]Account{groupID: tt.accounts}}
 			svc := &GatewayService{
 				accountRepo:        repo,
 				modelsListCache:    gocache.New(time.Minute, time.Minute),
@@ -667,17 +667,17 @@ func TestGetAvailableModels_OpenAIPassthroughUsesDefaultFallback(t *testing.T) {
 }
 
 func TestGetAvailableModels_GlobalListPreservesMappedModelsWithOpenAIPassthrough(t *testing.T) {
-	groupID := int64(11)
+	groupID := "group-11"
 	repo := &modelsListAccountRepoStub{
-		byGroup: map[int64][]Account{
+		byGroup: map[string][]Account{
 			groupID: {
 				{
-					ID:       1,
+					ID:       "account-1",
 					Platform: PlatformOpenAI,
 					Extra:    map[string]any{"openai_passthrough": true},
 				},
 				{
-					ID:          2,
+					ID:          "account-2",
 					Platform:    PlatformAnthropic,
 					Credentials: map[string]any{"model_mapping": map[string]any{"claude-mapped": "claude-upstream"}},
 				},
@@ -717,41 +717,41 @@ func TestGatewayHotpathHelpers_CacheTTLAndStickyContext(t *testing.T) {
 	})
 
 	t.Run("prefetched_sticky_account_id_from_context", func(t *testing.T) {
-		require.Equal(t, int64(0), prefetchedStickyAccountIDFromContext(context.TODO(), nil))
-		require.Equal(t, int64(0), prefetchedStickyAccountIDFromContext(context.Background(), nil))
+		require.Equal(t, "", prefetchedStickyAccountIDFromContext(context.TODO(), nil))
+		require.Equal(t, "", prefetchedStickyAccountIDFromContext(context.Background(), nil))
 
-		ctx := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, int64(123))
-		ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, int64(0))
-		require.Equal(t, int64(123), prefetchedStickyAccountIDFromContext(ctx, nil))
+		ctx := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, "account-123")
+		ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, "")
+		require.Equal(t, "account-123", prefetchedStickyAccountIDFromContext(ctx, nil))
 
-		groupID := int64(9)
-		ctx2 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, 456)
+		groupID := "group-9"
+		ctx2 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, "account-456")
 		ctx2 = context.WithValue(ctx2, ctxkey.PrefetchedStickyGroupID, groupID)
-		require.Equal(t, int64(456), prefetchedStickyAccountIDFromContext(ctx2, &groupID))
+		require.Equal(t, "account-456", prefetchedStickyAccountIDFromContext(ctx2, &groupID))
 
 		ctx3 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, "invalid")
 		ctx3 = context.WithValue(ctx3, ctxkey.PrefetchedStickyGroupID, groupID)
-		require.Equal(t, int64(0), prefetchedStickyAccountIDFromContext(ctx3, &groupID))
+		require.Equal(t, "", prefetchedStickyAccountIDFromContext(ctx3, &groupID))
 
-		ctx4 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, int64(789))
-		ctx4 = context.WithValue(ctx4, ctxkey.PrefetchedStickyGroupID, int64(10))
-		require.Equal(t, int64(0), prefetchedStickyAccountIDFromContext(ctx4, &groupID))
+		ctx4 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, "account-789")
+		ctx4 = context.WithValue(ctx4, ctxkey.PrefetchedStickyGroupID, "group-10")
+		require.Equal(t, "", prefetchedStickyAccountIDFromContext(ctx4, &groupID))
 	})
 
 	t.Run("window_cost_from_prefetch_context", func(t *testing.T) {
 		require.Equal(t, false, func() bool {
-			_, ok := windowCostFromPrefetchContext(context.TODO(), 0)
+			_, ok := windowCostFromPrefetchContext(context.TODO(), "")
 			return ok
 		}())
 		require.Equal(t, false, func() bool {
-			_, ok := windowCostFromPrefetchContext(context.Background(), 1)
+			_, ok := windowCostFromPrefetchContext(context.Background(), "account-1")
 			return ok
 		}())
 
-		ctx := context.WithValue(context.Background(), windowCostPrefetchContextKey, map[int64]float64{
-			9: 12.34,
+		ctx := context.WithValue(context.Background(), windowCostPrefetchContextKey, map[string]float64{
+			"account-9": 12.34,
 		})
-		cost, ok := windowCostFromPrefetchContext(ctx, 9)
+		cost, ok := windowCostFromPrefetchContext(ctx, "account-9")
 		require.True(t, ok)
 		require.Equal(t, 12.34, cost)
 	})
@@ -761,8 +761,8 @@ func TestInvalidateAvailableModelsCache_ByDimensions(t *testing.T) {
 	svc := &GatewayService{
 		modelsListCache: gocache.New(time.Minute, time.Minute),
 	}
-	group9 := int64(9)
-	group10 := int64(10)
+	group9 := "group-9"
+	group10 := "group-10"
 	svc.modelsListCache.Set(modelsListCacheKey(&group9, PlatformAnthropic), []string{"a"}, time.Minute)
 	svc.modelsListCache.Set(modelsListCacheKey(&group9, PlatformGemini), []string{"b"}, time.Minute)
 	svc.modelsListCache.Set(modelsListCacheKey(&group10, PlatformAnthropic), []string{"c"}, time.Minute)
@@ -805,7 +805,7 @@ func TestInvalidateAvailableModelsCache_ByDimensions(t *testing.T) {
 func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 	now := time.Now().Add(-time.Minute)
 	account := Account{
-		ID:          88,
+		ID:          "account-88",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -845,7 +845,7 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 			modelsListCacheTTL: time.Minute,
 		}
 
-		result, err := svc.SelectAccountWithLoadAwareness(baseCtx, nil, "sess-hash", "", nil, "", int64(0))
+		result, err := svc.SelectAccountWithLoadAwareness(baseCtx, nil, "sess-hash", "", nil, "", "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
@@ -866,8 +866,8 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 		}
 
 		ctx := context.WithValue(baseCtx, ctxkey.PrefetchedStickyAccountID, account.ID)
-		ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, int64(0))
-		result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "sess-hash", "", nil, "", int64(0))
+		ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, "")
+		result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "sess-hash", "", nil, "", "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
@@ -887,9 +887,9 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 			modelsListCacheTTL: time.Minute,
 		}
 
-		ctx := context.WithValue(baseCtx, ctxkey.PrefetchedStickyAccountID, int64(999))
-		ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, int64(77))
-		result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "sess-hash", "", nil, "", int64(0))
+		ctx := context.WithValue(baseCtx, ctxkey.PrefetchedStickyAccountID, "account-999")
+		ctx = context.WithValue(ctx, ctxkey.PrefetchedStickyGroupID, "group-77")
+		result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "sess-hash", "", nil, "", "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)

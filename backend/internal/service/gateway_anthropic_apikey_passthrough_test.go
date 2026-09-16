@@ -30,7 +30,7 @@ type anthropicHTTPUpstreamRecorder struct {
 
 func newAnthropicAPIKeyAccountForTest() *Account {
 	return &Account{
-		ID:          201,
+		ID:          "account-201",
 		Name:        "anthropic-apikey-pass-test",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
@@ -47,7 +47,7 @@ func newAnthropicAPIKeyAccountForTest() *Account {
 	}
 }
 
-func (u *anthropicHTTPUpstreamRecorder) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (u *anthropicHTTPUpstreamRecorder) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	u.lastReq = req
 	if req != nil && req.Body != nil {
 		b, _ := io.ReadAll(req.Body)
@@ -61,7 +61,7 @@ func (u *anthropicHTTPUpstreamRecorder) Do(req *http.Request, proxyURL string, a
 	return u.resp, nil
 }
 
-func (u *anthropicHTTPUpstreamRecorder) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *anthropicHTTPUpstreamRecorder) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
@@ -152,7 +152,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardStreamPreservesBodyAnd
 	}
 
 	account := &Account{
-		ID:          101,
+		ID:          "account-101",
 		Name:        "anthropic-apikey-pass",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
@@ -232,7 +232,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardCountTokensPreservesBo
 	}
 
 	account := &Account{
-		ID:          102,
+		ID:          "account-102",
 		Name:        "anthropic-apikey-pass-count",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
@@ -407,7 +407,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ModelMappingEdgeCases(t *test
 			}
 
 			account := &Account{
-				ID:          300,
+				ID:          "account-300",
 				Name:        "edge-case-test",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeAPIKey,
@@ -499,7 +499,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ModelMappingPreservesOtherFie
 	}
 
 	account := &Account{
-		ID:          301,
+		ID:          "account-301",
 		Name:        "preserve-fields-test",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
@@ -556,7 +556,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_CountTokensFiltersGenerationF
 	}
 
 	account := &Account{
-		ID:          302,
+		ID:          "account-302",
 		Name:        "count-token-filter-test",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
@@ -619,7 +619,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_EmptyModelSkipsMapping(t *tes
 	}
 
 	account := &Account{
-		ID:          302,
+		ID:          "account-302",
 		Name:        "empty-model-test",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeAPIKey,
@@ -707,7 +707,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_CountTokens404PassthroughNotE
 			}
 
 			account := &Account{
-				ID:          200,
+				ID:          "account-200",
 				Name:        "proxy-acc",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeAPIKey,
@@ -891,7 +891,7 @@ func TestGatewayService_AnthropicOAuthMimic_RewritesSystemWithBillingBlock(t *te
 			}
 
 			account := &Account{
-				ID:          301,
+				ID:          "account-301",
 				Name:        "anthropic-oauth-mimic",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeOAuth,
@@ -997,7 +997,7 @@ func TestGatewayService_AnthropicOAuthRealClaudeCodeHaiku_PreservesClientHeaders
 		deferredService:      &DeferredService{},
 	}
 	account := &Account{
-		ID: 302, Name: "anthropic-real-cc", Platform: PlatformAnthropic, Type: AccountTypeOAuth, Concurrency: 1,
+		ID: "account-302", Name: "anthropic-real-cc", Platform: PlatformAnthropic, Type: AccountTypeOAuth, Concurrency: 1,
 		Credentials: map[string]any{"access_token": "oauth-token"}, Status: StatusActive, Schedulable: true,
 	}
 
@@ -1057,7 +1057,7 @@ func TestGatewayService_AnthropicOAuth_SystemPromptInjectionCanBeDisabled(t *tes
 	}
 
 	account := &Account{
-		ID:          302,
+		ID:          "account-302",
 		Name:        "anthropic-oauth-no-system-injection",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeOAuth,
@@ -1115,7 +1115,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingStillCollectsUsageAf
 		}, "\n"))),
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "claude-3-7-sonnet-20250219")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.NotNil(t, result.usage)
@@ -1150,7 +1150,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_MissingTerminalEventReturnsEr
 		}, "\n"))),
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "claude-3-7-sonnet-20250219")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing terminal event")
 	require.NotNil(t, result)
@@ -1197,7 +1197,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_InvalidTokenTyp
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
 	account := &Account{
-		ID:       202,
+		ID:       "account-202",
 		Name:     "anthropic-oauth",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
@@ -1390,7 +1390,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingErrTooLong(t *testin
 		Body:       io.NopCloser(strings.NewReader(longLine)),
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 2}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-2"}, time.Now(), "claude-3-7-sonnet-20250219")
 	require.Error(t, err)
 	require.ErrorIs(t, err, bufio.ErrTooLong)
 	require.NotNil(t, result)
@@ -1419,7 +1419,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingDataIntervalTimeout(
 		Body:       pr,
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 5}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-5"}, time.Now(), "claude-3-7-sonnet-20250219")
 	_ = pw.Close()
 	_ = pr.Close()
 
@@ -1467,7 +1467,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingSendsKeepaliveDuring
 		_ = pw.Close()
 	}()
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 8}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-8"}, time.Now(), "claude-3-7-sonnet-20250219")
 	_ = pr.Close()
 	<-done
 
@@ -1510,7 +1510,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingKeepaliveDoesNotInte
 		_ = pw.Close()
 	}()
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 9}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-9"}, time.Now(), "claude-3-7-sonnet-20250219")
 	_ = pr.Close()
 	<-done
 
@@ -1544,7 +1544,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingReadError(t *testing
 		},
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 6}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-6"}, time.Now(), "claude-3-7-sonnet-20250219")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "stream read error")
 	require.NotNil(t, result)
@@ -1584,7 +1584,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingTimeoutAfterClientDi
 		_ = pw.Close()
 	}()
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 7}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-7"}, time.Now(), "claude-3-7-sonnet-20250219")
 	_ = pr.Close()
 	<-done
 
@@ -1617,7 +1617,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingContextCanceled(t *t
 		},
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 3}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-3"}, time.Now(), "claude-3-7-sonnet-20250219")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "stream usage incomplete")
 	require.NotNil(t, result)
@@ -1648,7 +1648,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingUpstreamReadErrorAft
 		},
 	}
 
-	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 4}, time.Now(), "claude-3-7-sonnet-20250219")
+	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: "account-4"}, time.Now(), "claude-3-7-sonnet-20250219")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "stream usage incomplete after disconnect")
 	require.NotNil(t, result)
@@ -1671,14 +1671,14 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_TransportErrorRecordsOllamaAc
 	}
 
 	ollama := &Account{
-		ID: 601, Name: "ollama-anthropic", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
+		ID: "account-601", Name: "ollama-anthropic", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
 		Concurrency: 1,
 		Credentials: map[string]any{"api_key": "k-ollama", "base_url": "https://ollama.com"},
 		Extra:       map[string]any{"anthropic_passthrough": true},
 		Status:      StatusActive, Schedulable: true,
 	}
 	other := newAnthropicAPIKeyAccountForTest()
-	other.ID = 602
+	other.ID = "account-602"
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -1712,7 +1712,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ContextCanceledSkipsOllamaAct
 		deferredService: deferred,
 	}
 	ollama := &Account{
-		ID: 603, Name: "ollama-canceled", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
+		ID: "account-603", Name: "ollama-canceled", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
 		Concurrency: 1,
 		Credentials: map[string]any{"api_key": "k-ollama", "base_url": "https://ollama.com"},
 		Extra:       map[string]any{"anthropic_passthrough": true},
@@ -1751,7 +1751,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_Non2xxRecordsOllamaActivity(t
 		rateLimitService: &RateLimitService{},
 	}
 	ollama := &Account{
-		ID: 604, Name: "ollama-400", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
+		ID: "account-604", Name: "ollama-400", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
 		Concurrency: 1,
 		Credentials: map[string]any{"api_key": "k-ollama", "base_url": "https://ollama.com"},
 		Extra:       map[string]any{"anthropic_passthrough": true},

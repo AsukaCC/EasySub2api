@@ -21,7 +21,7 @@ type availableModelsAdminService struct {
 	account service.Account
 }
 
-func (s *availableModelsAdminService) GetAccount(_ context.Context, id int64) (*service.Account, error) {
+func (s *availableModelsAdminService) GetAccount(_ context.Context, id string) (*service.Account, error) {
 	if s.account.ID == id {
 		acc := s.account
 		return &acc, nil
@@ -42,14 +42,14 @@ type syncUpstreamHTTPUpstream struct {
 	err  error
 }
 
-func (u *syncUpstreamHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (u *syncUpstreamHTTPUpstream) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	if u.err != nil {
 		return nil, u.err
 	}
 	return u.resp, nil
 }
 
-func (u *syncUpstreamHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *syncUpstreamHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
@@ -75,7 +75,7 @@ func TestAccountHandlerGetAvailableModels_GrokUsesXAIModels(t *testing.T) {
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       44,
+			ID:       "44",
 			Name:     "grok-oauth",
 			Platform: service.PlatformGrok,
 			Type:     service.AccountTypeOAuth,
@@ -109,7 +109,7 @@ func TestAccountHandlerGetAvailableModels_GrokDefaultsToXAIModelsWithoutMapping(
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       45,
+			ID:       "45",
 			Name:     "grok-oauth-defaults",
 			Platform: service.PlatformGrok,
 			Type:     service.AccountTypeOAuth,
@@ -146,7 +146,7 @@ func TestAccountHandlerGetAvailableModels_OpenAIOAuthUsesExplicitModelMapping(t 
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       42,
+			ID:       "42",
 			Name:     "openai-oauth",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeOAuth,
@@ -180,7 +180,7 @@ func TestAccountHandlerGetAvailableModels_OpenAIOAuthPassthroughFallsBackToDefau
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       43,
+			ID:       "43",
 			Name:     "openai-oauth-passthrough",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeOAuth,
@@ -217,7 +217,7 @@ func TestAccountHandlerGetAvailableModels_OpenAIAPIKeyDefaultsToConcreteGPT56Sol
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       46,
+			ID:       "46",
 			Name:     "openai-apikey",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeAPIKey,
@@ -246,11 +246,11 @@ func TestAccountHandlerGetAvailableModels_OpenAIAPIKeyDefaultsToConcreteGPT56Sol
 }
 
 func TestAccountHandlerGetAvailableModels_OpenAISparkShadowReturnsMappingModels(t *testing.T) {
-	parentID := int64(100)
+	parentID := "100"
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:              44,
+			ID:              "44",
 			Name:            "openai-spark-shadow",
 			Platform:        service.PlatformOpenAI,
 			Type:            service.AccountTypeOAuth,
@@ -291,7 +291,7 @@ func TestAccountHandlerSyncUpstreamModels_ConfigErrorReturnsBadRequest(t *testin
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       44,
+			ID:       "44",
 			Name:     "openai-apikey-missing-key",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeAPIKey,
@@ -315,7 +315,7 @@ func TestAccountHandlerSyncUpstreamModels_UpstreamErrorDoesNotExposeBody(t *test
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       45,
+			ID:       "45",
 			Name:     "openai-apikey-upstream-error",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeAPIKey,

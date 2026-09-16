@@ -9,12 +9,12 @@ import (
 )
 
 func TestAPIKeyAuthSnapshotGroupPricingRoundtrip(t *testing.T) {
-	groupID := int64(50)
+	groupID := "group-pricing-roundtrip"
 	inputPrice := 1e-6
 	outputPrice := 2e-6
 	apiKey := &APIKey{
-		ID: 82, UserID: 40, GroupID: &groupID, Key: "sk-pricing-roundtrip", Status: StatusActive,
-		User: &User{ID: 40, Status: StatusActive},
+		ID: "api-key-pricing-roundtrip", UserID: "user-pricing-roundtrip", GroupID: &groupID, Key: "sk-pricing-roundtrip", Status: StatusActive,
+		User: &User{ID: "user-pricing-roundtrip", Status: StatusActive},
 		Group: &Group{
 			ID: groupID, Name: "pricing-roundtrip", Platform: PlatformAnthropic, Status: StatusActive,
 			LongContextPricingEnabled: true,

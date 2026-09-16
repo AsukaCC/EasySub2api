@@ -87,7 +87,7 @@ func TestParseVertexServiceAccountKey(t *testing.T) {
 }
 
 func TestVertexServiceAccountProxyURL(t *testing.T) {
-	proxyID := int64(7)
+	proxyID := "proxy-7"
 	account := &Account{
 		ProxyID: &proxyID,
 		Proxy: &Proxy{

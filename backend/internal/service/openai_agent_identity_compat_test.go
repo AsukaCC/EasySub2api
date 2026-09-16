@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,7 @@ func TestAccountTestServiceOpenAICompactAgentIdentityUsesFreshAssertion(t *testi
 	gin.SetMode(gin.TestMode)
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := Account{
-		ID:          21,
+		ID:          "account-21",
 		Name:        "agent-identity",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -59,7 +60,7 @@ func TestAccountTestServiceOpenAICompactAgentIdentityRecoversInvalidTaskOnce(t *
 	gin.SetMode(gin.TestMode)
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:          22,
+		ID:          "account-22",
 		Name:        "agent-identity-recovery",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -100,14 +101,14 @@ func TestAccountTestServiceOpenAICompactAgentIdentityRecoversInvalidTaskOnce(t *
 	require.Len(t, upstream.requests, 2)
 	require.Equal(t, "task-compact-new", account.GetCredential("task_id"))
 	require.Equal(t, 0, repo.setErrorCalls)
-	require.Equal(t, []int64{account.ID}, invalidator.accountIDs)
+	require.Equal(t, []string{account.ID}, invalidator.accountIDs)
 }
 
 func TestOpenAIAgentIdentityPassthroughKeepsSessionAndPromptCacheHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:       24,
+		ID:       "account-24",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -133,8 +134,8 @@ func TestOpenAIAgentIdentityPassthroughKeepsSessionAndPromptCacheHeaders(t *test
 	require.Equal(t, "account-agent-passthrough", req.Header.Get("chatgpt-account-id"))
 	require.NotEqual(t, "client-session", req.Header.Get("session_id"))
 	require.NotEqual(t, "client-conversation", req.Header.Get("conversation_id"))
-	require.Equal(t, isolateOpenAISessionID(0, "client-session"), req.Header.Get("session_id"))
-	require.Equal(t, isolateOpenAISessionID(0, "client-conversation"), req.Header.Get("conversation_id"))
+	require.Equal(t, isolateOpenAISessionID("", "client-session"), req.Header.Get("session_id"))
+	require.Equal(t, isolateOpenAISessionID("", "client-conversation"), req.Header.Get("conversation_id"))
 	requestBody, err := io.ReadAll(req.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(requestBody), `"prompt_cache_key":"cache-agent"`)
@@ -143,7 +144,7 @@ func TestOpenAIAgentIdentityPassthroughKeepsSessionAndPromptCacheHeaders(t *test
 	// behavior. Compare the same request with the existing OAuth path instead
 	// of pinning this test to an implementation-specific hash.
 	oauthAccount := &Account{
-		ID:       26,
+		ID:       "account-26",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -164,7 +165,7 @@ func TestOpenAIAgentIdentityPassthroughKeepsSessionAndPromptCacheHeaders(t *test
 func TestOpenAIAgentIdentityErrorRedactionDoesNotLeakCredentialValues(t *testing.T) {
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:       25,
+		ID:       "account-25",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -249,7 +250,7 @@ func TestOpenAIWSConnPoolHeadersFactoryRunsAtDialAndStalePrewarmIsDiscarded(t *t
 	defer pool.Close()
 	pool.setClientDialerForTest(&openAIWSFakeDialer{})
 
-	accountID := int64(22)
+	accountID := "account-22"
 	ap := pool.getOrCreateAccountPool(accountID)
 	factoryCalls := 0
 	latestHeader := ""
@@ -293,7 +294,7 @@ func TestOpenAIAgentIdentityTaskInvalidRetriesExactlyOnce(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	key, privateKey := newTestAgentIdentityKey(t)
 	account := &Account{
-		ID:          23,
+		ID:          "account-23",
 		Name:        "agent-identity",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -397,7 +398,7 @@ func TestOpenAIAgentIdentityCompatRoutesRecoverInvalidTaskOnce(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			key, privateKey := newTestAgentIdentityKey(t)
 			account := &Account{
-				ID:          int64(40 + index),
+				ID:          fmt.Sprintf("account-%d", 40+index),
 				Name:        "agent-identity-compat",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeOAuth,
@@ -459,10 +460,10 @@ type agentIdentityForwardRepo struct {
 }
 
 type agentIdentityWSInvalidationRecorder struct {
-	accountIDs []int64
+	accountIDs []string
 }
 
-func (r *agentIdentityWSInvalidationRecorder) InvalidateAgentIdentityWSConnections(accountID int64) {
+func (r *agentIdentityWSInvalidationRecorder) InvalidateAgentIdentityWSConnections(accountID string) {
 	r.accountIDs = append(r.accountIDs, accountID)
 }
 
@@ -472,29 +473,29 @@ type accountTestAgentIdentityRepo struct {
 	setErrorCalls int
 }
 
-func (r *accountTestAgentIdentityRepo) GetByID(_ context.Context, _ int64) (*Account, error) {
+func (r *accountTestAgentIdentityRepo) GetByID(_ context.Context, _ string) (*Account, error) {
 	return r.account, nil
 }
 
-func (r *accountTestAgentIdentityRepo) UpdateCredentials(_ context.Context, _ int64, credentials map[string]any) error {
+func (r *accountTestAgentIdentityRepo) UpdateCredentials(_ context.Context, _ string, credentials map[string]any) error {
 	r.account.Credentials = credentials
 	return nil
 }
 
-func (r *accountTestAgentIdentityRepo) UpdateExtra(_ context.Context, _ int64, _ map[string]any) error {
+func (r *accountTestAgentIdentityRepo) UpdateExtra(_ context.Context, _ string, _ map[string]any) error {
 	return nil
 }
 
-func (r *accountTestAgentIdentityRepo) SetError(_ context.Context, _ int64, _ string) error {
+func (r *accountTestAgentIdentityRepo) SetError(_ context.Context, _ string, _ string) error {
 	r.setErrorCalls++
 	return nil
 }
 
-func (r *agentIdentityForwardRepo) GetByID(_ context.Context, _ int64) (*Account, error) {
+func (r *agentIdentityForwardRepo) GetByID(_ context.Context, _ string) (*Account, error) {
 	return r.account, nil
 }
 
-func (r *agentIdentityForwardRepo) UpdateCredentials(_ context.Context, _ int64, credentials map[string]any) error {
+func (r *agentIdentityForwardRepo) UpdateCredentials(_ context.Context, _ string, credentials map[string]any) error {
 	r.account.Credentials = credentials
 	return nil
 }

@@ -65,10 +65,10 @@ func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		groupID := int64(3)
+		groupID := "group-3"
 		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-			ID:      9,
-			UserID:  7,
+			ID:      "key-9",
+			UserID:  "user-7",
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
 		})
@@ -101,7 +101,7 @@ func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
 	cancelRequest()
 	close(release)
 	require.Eventually(t, func() bool {
-		got, err := tasks.Get(context.Background(), service.ImageTaskOwner{UserID: 7, APIKeyID: 9}, accepted.TaskID)
+		got, err := tasks.Get(context.Background(), service.ImageTaskOwner{UserID: "user-7", APIKeyID: "key-9"}, accepted.TaskID)
 		return err == nil && got.Status == service.ImageTaskStatusCompleted
 	}, time.Second, 10*time.Millisecond)
 
@@ -124,10 +124,10 @@ func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		groupID := int64(3)
+		groupID := "group-3"
 		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-			ID:      9,
-			UserID:  7,
+			ID:      "key-9",
+			UserID:  "user-7",
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
 		})
@@ -168,9 +168,9 @@ func TestAsyncImageHandlerRetriesExistingTaskAndDeletesTerminalTask(t *testing.T
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		groupID := int64(3)
+		groupID := "group-3"
 		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-			ID: 9, UserID: 7, GroupID: &groupID,
+			ID: "key-9", UserID: "user-7", GroupID: &groupID,
 			Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
 		})
 		c.Next()
@@ -191,7 +191,7 @@ func TestAsyncImageHandlerRetriesExistingTaskAndDeletesTerminalTask(t *testing.T
 	require.NoError(t, json.Unmarshal(submit.Body.Bytes(), &accepted))
 	require.NotEmpty(t, accepted.TaskID)
 
-	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	owner := service.ImageTaskOwner{UserID: "user-7", APIKeyID: "key-9"}
 	require.Eventually(t, func() bool {
 		task, err := tasks.Get(context.Background(), owner, accepted.TaskID)
 		return err == nil && task.Status == service.ImageTaskStatusFailed

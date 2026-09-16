@@ -725,7 +725,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthPassesNAndReturnsAllImages(t *te
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
-	c.Set("api_key", &APIKey{ID: 42})
+	c.Set("api_key", &APIKey{ID: "id-42"})
 
 	svc := &OpenAIGatewayService{}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
@@ -747,7 +747,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthPassesNAndReturnsAllImages(t *te
 	svc.httpUpstream = upstream
 
 	account := &Account{
-		ID:       1,
+		ID:       "id-1",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -882,7 +882,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthUpstreamHTTPErrorSurfacesRealErr
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
-	c.Set("api_key", &APIKey{ID: 42})
+	c.Set("api_key", &APIKey{ID: "id-42"})
 
 	svc := &OpenAIGatewayService{}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
@@ -902,7 +902,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthUpstreamHTTPErrorSurfacesRealErr
 	}
 
 	account := &Account{
-		ID:       1,
+		ID:       "id-1",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -938,7 +938,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthNonStreamModerationBlockedReturn
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
-	c.Set("api_key", &APIKey{ID: 42})
+	c.Set("api_key", &APIKey{ID: "id-42"})
 
 	svc := &OpenAIGatewayService{}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
@@ -960,7 +960,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthNonStreamModerationBlockedReturn
 	}
 
 	account := &Account{
-		ID:       1,
+		ID:       "id-1",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1010,7 +1010,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthNonStreamServerErrorReturnsFailo
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 	account := &Account{
-		ID:       21,
+		ID:       "id-21",
 		Name:     "openai-oauth-server-error",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1052,7 +1052,7 @@ func TestOpenAIImagesOAuthBodyReadTransportErrorFailover(t *testing.T) {
 		},
 		Body: &openAIImagesReadErrorBody{err: errors.New("stream error: stream ID 11; INTERNAL_ERROR; received from peer")},
 	}
-	account := &Account{ID: 5400, Name: "openai-oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	account := &Account{ID: "id-5400", Name: "openai-oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 	svc := &OpenAIGatewayService{}
 
 	_, _, _, readErr := svc.handleOpenAIImagesOAuthNonStreamingResponse(resp, c, "b64_json", "gpt-image-2")
@@ -1116,7 +1116,7 @@ func TestOpenAIImagesOAuthTransportErrorAfterDownstreamWriteDoesNotFailover(t *t
 	_, writeErr := c.Writer.Write([]byte("downstream image bytes"))
 	require.NoError(t, writeErr)
 	classifiedErr := newOpenAIUpstreamStreamReadError(errors.New("unexpected EOF"))
-	account := &Account{ID: 5401, Name: "openai-oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	account := &Account{ID: "id-5401", Name: "openai-oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 	resp := &http.Response{Header: http.Header{"X-Request-Id": []string{"req_after_write"}}}
 
 	err := (&OpenAIGatewayService{}).handleOpenAIImagesOAuthResponseError(context.Background(), c, account, "gpt-image-2", "", resp, before, classifiedErr)
@@ -1172,7 +1172,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamServerErrorAfterFlushDoesN
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 	account := &Account{
-		ID:       22,
+		ID:       "id-22",
 		Name:     "openai-oauth-partial-server-error",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1263,7 +1263,7 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyGenerationUsesConfiguredV1BaseU
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       6,
+		ID:       "id-6",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
@@ -1318,7 +1318,7 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyStreamJSONResponseBillsImage(t 
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       7,
+		ID:       "id-7",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
@@ -1367,7 +1367,7 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyStreamRawJSONEventStreamFallbac
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       8,
+		ID:       "id-8",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
@@ -1420,7 +1420,7 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyStreamMultilineSSEDataBillsImag
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       8,
+		ID:       "id-8",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
@@ -1481,7 +1481,7 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyEditUsesConfiguredV1BaseURL(t *
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       7,
+		ID:       "id-7",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
@@ -1540,7 +1540,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingTransformsEvents(t *tes
 	svc.httpUpstream = upstream
 
 	account := &Account{
-		ID:       2,
+		ID:       "id-2",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1620,7 +1620,7 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyStreamingDrainsAfterClientDisco
 	require.NoError(t, err)
 
 	account := &Account{
-		ID:       8,
+		ID:       "id-8",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
@@ -1672,7 +1672,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthEditsMultipartUsesResponsesAPI(t
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
-	c.Set("api_key", &APIKey{ID: 100})
+	c.Set("api_key", &APIKey{ID: "id-100"})
 
 	svc := &OpenAIGatewayService{}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body.Bytes())
@@ -1694,7 +1694,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthEditsMultipartUsesResponsesAPI(t
 	svc.httpUpstream = upstream
 
 	account := &Account{
-		ID:       3,
+		ID:       "id-3",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1756,7 +1756,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthEditsStreamingTransformsEvents(t
 	svc.httpUpstream = upstream
 
 	account := &Account{
-		ID:       4,
+		ID:       "id-4",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1916,7 +1916,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingHandlesOutputItemDoneFa
 	svc.httpUpstream = upstream
 
 	account := &Account{
-		ID:       5,
+		ID:       "id-5",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1972,7 +1972,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingHandlesMultilineSSE(t *
 	}
 
 	account := &Account{
-		ID:       11,
+		ID:       "id-11",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -2036,7 +2036,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingDrainsAfterClientDiscon
 	svc.httpUpstream = upstream
 
 	account := &Account{
-		ID:       9,
+		ID:       "id-9",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,

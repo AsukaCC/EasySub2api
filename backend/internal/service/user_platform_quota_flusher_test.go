@@ -103,8 +103,8 @@ func newTestFlusher(cache quotaDirtyCache, writer quotaSnapshotWriter) *UserPlat
 
 func TestFlusher_PopSnapshotUpsert(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 1, Platform: "anthropic"},
-		{UserID: 2, Platform: "openai"},
+		{UserID: "1", Platform: "anthropic"},
+		{UserID: "2", Platform: "openai"},
 	}
 	cache := &mockQuotaDirtyCache{
 		popSequence: [][]UserPlatformQuotaKey{keys}, // 第 1 次返回 keys，之后空
@@ -138,8 +138,8 @@ func TestFlusher_PopSnapshotUpsert(t *testing.T) {
 
 func TestFlusher_MissKeySkipped(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 1, Platform: "anthropic"},
-		{UserID: 2, Platform: "openai"},
+		{UserID: "1", Platform: "anthropic"},
+		{UserID: "2", Platform: "openai"},
 	}
 	cache := &mockQuotaDirtyCache{
 		popSequence: [][]UserPlatformQuotaKey{keys},
@@ -156,8 +156,8 @@ func TestFlusher_MissKeySkipped(t *testing.T) {
 	if len(writer.receivedSnaps) != 1 {
 		t.Fatalf("expected 1 snap, got %d", len(writer.receivedSnaps))
 	}
-	if writer.receivedSnaps[0].UserID != 1 {
-		t.Errorf("expected snap for UserID=1, got %d", writer.receivedSnaps[0].UserID)
+	if writer.receivedSnaps[0].UserID != "1" {
+		t.Errorf("expected snap for UserID=1, got %s", writer.receivedSnaps[0].UserID)
 	}
 	if len(cache.readdCalled) != 0 {
 		t.Errorf("Readd should NOT be called on MISS, got %d calls", len(cache.readdCalled))
@@ -173,8 +173,8 @@ func TestFlusher_MissKeySkipped(t *testing.T) {
 
 func TestFlusher_UpsertFailReadds(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 1, Platform: "anthropic"},
-		{UserID: 2, Platform: "openai"},
+		{UserID: "1", Platform: "anthropic"},
+		{UserID: "2", Platform: "openai"},
 	}
 	cache := &mockQuotaDirtyCache{
 		popSequence: [][]UserPlatformQuotaKey{keys},
@@ -216,7 +216,7 @@ func TestFlusher_UpsertFailReadds(t *testing.T) {
 
 func TestFlusher_FKViolationDropsNoReadd(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 999, Platform: "anthropic"},
+		{UserID: "999", Platform: "anthropic"},
 	}
 	cache := &mockQuotaDirtyCache{
 		popSequence: [][]UserPlatformQuotaKey{keys},
@@ -260,7 +260,7 @@ func TestFlusher_NilSafe(t *testing.T) {
 
 func TestFlusher_StopPreventsFlush(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 1, Platform: "anthropic"},
+		{UserID: "1", Platform: "anthropic"},
 	}
 	cache := &mockQuotaDirtyCache{
 		popSequence: [][]UserPlatformQuotaKey{keys},
@@ -369,8 +369,8 @@ func TestNewUserPlatformQuotaUsageFlusher_EnabledField(t *testing.T) {
 
 func TestFlusher_ReaddFailCounts(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 10, Platform: "anthropic"},
-		{UserID: 11, Platform: "openai"},
+		{UserID: "10", Platform: "anthropic"},
+		{UserID: "11", Platform: "openai"},
 	}
 
 	t.Run("Readd 失败计 DirtyLostTotal", func(t *testing.T) {
@@ -449,11 +449,11 @@ func TestNewUserPlatformQuotaUsageFlusher_ClampsBatchSize(t *testing.T) {
 
 func TestScenario_NinetyPercentCompany(t *testing.T) {
 	keys := []UserPlatformQuotaKey{
-		{UserID: 101, Platform: "anthropic"},
-		{UserID: 102, Platform: "anthropic"},
-		{UserID: 103, Platform: "openai"},
-		{UserID: 104, Platform: "openai"},
-		{UserID: 105, Platform: "anthropic"},
+		{UserID: "101", Platform: "anthropic"},
+		{UserID: "102", Platform: "anthropic"},
+		{UserID: "103", Platform: "openai"},
+		{UserID: "104", Platform: "openai"},
+		{UserID: "105", Platform: "anthropic"},
 	}
 	entries := []*UserPlatformQuotaCacheEntry{
 		makeEntry(1.1, 2.2, 3.3),

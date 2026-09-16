@@ -19,7 +19,7 @@ func TestOpsServiceRecordErrorBatch_SanitizesAndBatches(t *testing.T) {
 			return int64(len(inputs)), nil
 		},
 	}
-	svc := NewOpsService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	svc := NewOpsService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	msg := " upstream failed: https://example.com?access_token=secret-value "
 	detail := `{"authorization":"Bearer secret-token"}`
@@ -31,7 +31,7 @@ func TestOpsServiceRecordErrorBatch_SanitizesAndBatches(t *testing.T) {
 			UpstreamErrorDetail:  strPtr(detail),
 			UpstreamErrors: []*OpsUpstreamErrorEvent{
 				{
-					AccountID:          -2,
+					AccountID:          "account-2",
 					UpstreamStatusCode: 429,
 					Message:            " token leaked ",
 					Detail:             `{"refresh_token":"secret"}`,
@@ -81,12 +81,12 @@ func TestOpsServiceRecordErrorBatch_DoesNotFallbackToSingleInsertsWhenBatchFails
 			batchCalls++
 			return 0, errors.New("batch failed")
 		},
-		InsertErrorLogFn: func(ctx context.Context, input *OpsInsertErrorLogInput) (int64, error) {
+		InsertErrorLogFn: func(ctx context.Context, input *OpsInsertErrorLogInput) (string, error) {
 			singleCalls++
-			return int64(singleCalls), nil
+			return "error-single", nil
 		},
 	}
-	svc := NewOpsService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	svc := NewOpsService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	err := svc.RecordErrorBatch(context.Background(), []*OpsInsertErrorLogInput{
 		{ErrorMessage: "first"},
@@ -102,12 +102,12 @@ func TestOpsServiceRecordErrorPersistsExplicitAccountAuthStatusZero(t *testing.T
 
 	var captured *OpsInsertErrorLogInput
 	repo := &opsRepoMock{
-		InsertErrorLogFn: func(_ context.Context, input *OpsInsertErrorLogInput) (int64, error) {
+		InsertErrorLogFn: func(_ context.Context, input *OpsInsertErrorLogInput) (string, error) {
 			captured = input
-			return 1, nil
+			return "error-1", nil
 		},
 	}
-	svc := NewOpsService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	svc := NewOpsService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
 	staleStatus := 403
 	staleMessage := "stale inference message"
 	staleDetail := "stale inference detail"

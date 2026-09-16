@@ -18,7 +18,7 @@ func (s *announcementRepoStub) Create(_ context.Context, a *Announcement) error 
 	return nil
 }
 
-func (s *announcementRepoStub) GetByID(_ context.Context, _ int64) (*Announcement, error) {
+func (s *announcementRepoStub) GetByID(_ context.Context, _ string) (*Announcement, error) {
 	if s.item == nil {
 		return nil, ErrAnnouncementNotFound
 	}
@@ -30,7 +30,7 @@ func (s *announcementRepoStub) Update(_ context.Context, a *Announcement) error 
 	return nil
 }
 
-func (*announcementRepoStub) Delete(context.Context, int64) error {
+func (*announcementRepoStub) Delete(context.Context, string) error {
 	return nil
 }
 
@@ -61,7 +61,7 @@ func TestAnnouncementServiceCreateRejectsEqualStartEndTimes(t *testing.T) {
 func TestAnnouncementServiceUpdateRejectsEqualStartEndTimes(t *testing.T) {
 	repo := &announcementRepoStub{
 		item: &Announcement{
-			ID:         1,
+			ID:         "1",
 			Title:      "公告",
 			Content:    "内容",
 			Status:     AnnouncementStatusActive,
@@ -73,7 +73,7 @@ func TestAnnouncementServiceUpdateRejectsEqualStartEndTimes(t *testing.T) {
 	startsAt := &now
 	endsAt := &now
 
-	_, err := svc.Update(context.Background(), 1, &UpdateAnnouncementInput{
+	_, err := svc.Update(context.Background(), "1", &UpdateAnnouncementInput{
 		StartsAt: &startsAt,
 		EndsAt:   &endsAt,
 	})

@@ -14,9 +14,9 @@ import (
 // (影子凭据由母账号管理、自身恒空,刷新无意义)。该守卫同时覆盖单账号与批量刷新两入口。
 func TestRefreshSingleAccount_RejectsShadow(t *testing.T) {
 	h := &AccountHandler{} // 影子在使用任何依赖前即返回,无需注入
-	parentID := int64(5)
+	parentID := "5"
 	shadow := &service.Account{
-		ID:              9,
+		ID:              "9",
 		Platform:        service.PlatformOpenAI,
 		Type:            service.AccountTypeOAuth, // IsOAuth()=true,确保不是先撞 NOT_OAUTH
 		ParentAccountID: &parentID,

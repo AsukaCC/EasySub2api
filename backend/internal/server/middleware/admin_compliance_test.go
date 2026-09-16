@@ -48,7 +48,7 @@ func TestAdminComplianceGuardBlocksAdminRouteWhenMissing(t *testing.T) {
 	svc := service.NewSettingService(&complianceGuardRepoStub{}, &config.Config{})
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(ContextKeyUser), AuthSubject{UserID: 1})
+		c.Set(string(ContextKeyUser), AuthSubject{UserID: "user-1"})
 		c.Next()
 	})
 	router.Use(AdminComplianceGuard(svc))

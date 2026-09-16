@@ -76,7 +76,7 @@ func (m *sessionWindowMockRepo) GetByCRSAccountID(context.Context, string) (*Acc
 func (m *sessionWindowMockRepo) FindByExtraField(context.Context, string, any) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListCRSAccountIDs(context.Context) (map[string]int64, error) {
+func (m *sessionWindowMockRepo) ListCRSAccountIDs(context.Context) (map[string]string, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) Update(context.Context, *Account) error { panic("unexpected") }
@@ -84,13 +84,13 @@ func (m *sessionWindowMockRepo) Delete(context.Context, string) error    { panic
 func (m *sessionWindowMockRepo) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string) ([]Account, *pagination.PaginationResult, error) {
+func (m *sessionWindowMockRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, string, string, string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListAllWithFilters(context.Context, string, string, string, string, int64, string) ([]Account, error) {
+func (m *sessionWindowMockRepo) ListAllWithFilters(context.Context, string, string, string, string, string, string, string) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListByGroup(context.Context, int64) ([]Account, error) {
+func (m *sessionWindowMockRepo) ListByGroup(context.Context, string) ([]Account, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListActive(context.Context) ([]Account, error) {
@@ -116,25 +116,25 @@ func (m *sessionWindowMockRepo) SetSchedulable(context.Context, string, bool) er
 func (m *sessionWindowMockRepo) AutoPauseExpiredAccounts(context.Context, time.Time) (int64, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) BindGroups(context.Context, int64, []int64) error {
+func (m *sessionWindowMockRepo) BindGroups(context.Context, string, []string) error {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListSchedulable(context.Context) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListSchedulableByGroupID(context.Context, int64) ([]Account, error) {
+func (m *sessionWindowMockRepo) ListSchedulableByGroupID(context.Context, string) ([]Account, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListSchedulableByPlatform(context.Context, string) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListSchedulableByGroupIDAndPlatform(context.Context, int64, string) ([]Account, error) {
+func (m *sessionWindowMockRepo) ListSchedulableByGroupIDAndPlatform(context.Context, string, string) ([]Account, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListSchedulableByPlatforms(context.Context, []string) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListSchedulableByGroupIDAndPlatforms(context.Context, int64, []string) ([]Account, error) {
+func (m *sessionWindowMockRepo) ListSchedulableByGroupIDAndPlatforms(context.Context, string, []string) ([]Account, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListSchedulableUngroupedByPlatform(context.Context, string) ([]Account, error) {
@@ -143,7 +143,7 @@ func (m *sessionWindowMockRepo) ListSchedulableUngroupedByPlatform(context.Conte
 func (m *sessionWindowMockRepo) ListSchedulableUngroupedByPlatforms(context.Context, []string) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListModelAvailabilityCandidates(context.Context, *int64, []string, bool) ([]Account, error) {
+func (m *sessionWindowMockRepo) ListModelAvailabilityCandidates(context.Context, *string, []string, bool) ([]Account, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) SetRateLimited(context.Context, string, time.Time) error {
@@ -161,14 +161,14 @@ func (m *sessionWindowMockRepo) SetTempUnschedulable(context.Context, string, ti
 func (m *sessionWindowMockRepo) BulkUpdate(context.Context, []string, AccountBulkUpdate) (int64, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) IncrementQuotaUsed(context.Context, int64, float64) error {
+func (m *sessionWindowMockRepo) IncrementQuotaUsed(context.Context, string, float64) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ResetQuotaUsed(context.Context, int64) error { panic("unexpected") }
-func (m *sessionWindowMockRepo) RevertProxyFallback(context.Context, int64) error {
+func (m *sessionWindowMockRepo) ResetQuotaUsed(context.Context, string) error { panic("unexpected") }
+func (m *sessionWindowMockRepo) RevertProxyFallback(context.Context, string) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListShadowsByParent(context.Context, int64) ([]*Account, error) {
+func (m *sessionWindowMockRepo) ListShadowsByParent(context.Context, string) ([]*Account, error) {
 	panic("unexpected")
 }
 
@@ -187,7 +187,7 @@ func TestUpdateSessionWindow_UsesResetHeader(t *testing.T) {
 	repo := &sessionWindowMockRepo{}
 	svc := newRateLimitServiceForTest(repo)
 
-	account := &Account{ID: 42} // no existing window → needInitWindow=true
+	account := &Account{ID: "account-42"} // no existing window → needInitWindow=true
 	headers := http.Header{}
 	headers.Set("anthropic-ratelimit-unified-5h-status", "allowed")
 	headers.Set("anthropic-ratelimit-unified-5h-reset", fmt.Sprintf("%d", resetUnix))
@@ -199,8 +199,8 @@ func TestUpdateSessionWindow_UsesResetHeader(t *testing.T) {
 	}
 
 	call := repo.sessionWindowCalls[0]
-	if call.ID != 42 {
-		t.Errorf("expected account ID 42, got %d", call.ID)
+	if call.ID != "account-42" {
+		t.Errorf("expected account ID account-42, got %s", call.ID)
 	}
 	if call.End == nil || !call.End.Equal(wantEnd) {
 		t.Errorf("expected window end %v, got %v", wantEnd, call.End)
@@ -218,7 +218,7 @@ func TestUpdateSessionWindow_FallbackPredictionWhenNoResetHeader(t *testing.T) {
 	repo := &sessionWindowMockRepo{}
 	svc := newRateLimitServiceForTest(repo)
 
-	account := &Account{ID: 10} // no existing window
+	account := &Account{ID: "account-10"} // no existing window
 	headers := http.Header{}
 	headers.Set("anthropic-ratelimit-unified-5h-status", "allowed_warning")
 	// No anthropic-ratelimit-unified-5h-reset header
@@ -259,7 +259,7 @@ func TestUpdateSessionWindow_CorrectsStalePrediction(t *testing.T) {
 	svc := newRateLimitServiceForTest(repo)
 
 	account := &Account{
-		ID:               55,
+		ID:               "account-55",
 		SessionWindowEnd: &staleEnd,
 	}
 	headers := http.Header{}
@@ -287,7 +287,7 @@ func TestUpdateSessionWindow_NoUpdateWhenHeaderMatchesStored(t *testing.T) {
 	svc := newRateLimitServiceForTest(repo)
 
 	account := &Account{
-		ID:               77,
+		ID:               "account-77",
 		SessionWindowEnd: &existingEnd,
 	}
 	headers := http.Header{}
@@ -318,7 +318,7 @@ func TestUpdateSessionWindow_ClearsUtilizationOnWindowReset(t *testing.T) {
 	repo := &sessionWindowMockRepo{}
 	svc := newRateLimitServiceForTest(repo)
 
-	account := &Account{ID: 33} // no existing window → needInitWindow=true
+	account := &Account{ID: "account-33"} // no existing window → needInitWindow=true
 	headers := http.Header{}
 	headers.Set("anthropic-ratelimit-unified-5h-status", "allowed")
 	headers.Set("anthropic-ratelimit-unified-5h-reset", fmt.Sprintf("%d", resetUnix))
@@ -353,7 +353,7 @@ func TestUpdateSessionWindow_NoClearUtilizationOnCorrection(t *testing.T) {
 	svc := newRateLimitServiceForTest(repo)
 
 	account := &Account{
-		ID:               66,
+		ID:               "account-66",
 		SessionWindowEnd: &staleEnd,
 	}
 	headers := http.Header{}
@@ -381,7 +381,7 @@ func TestUpdateSessionWindow_SamplesFable7dOiHeaders(t *testing.T) {
 	repo := &sessionWindowMockRepo{}
 	svc := newRateLimitServiceForTest(repo)
 
-	account := &Account{ID: 90, SessionWindowEnd: &existingEnd} // needInitWindow=false
+	account := &Account{ID: "account-90", SessionWindowEnd: &existingEnd} // needInitWindow=false
 	headers := http.Header{}
 	headers.Set("anthropic-ratelimit-unified-5h-status", "allowed")
 	headers.Set("anthropic-ratelimit-unified-7d_oi-utilization", "0.87")
@@ -408,7 +408,7 @@ func TestUpdateSessionWindow_ClearsFable7dOiOnWindowReset(t *testing.T) {
 	repo := &sessionWindowMockRepo{}
 	svc := newRateLimitServiceForTest(repo)
 
-	account := &Account{ID: 91} // no existing window → needInitWindow=true
+	account := &Account{ID: "account-91"} // no existing window → needInitWindow=true
 	headers := http.Header{}
 	headers.Set("anthropic-ratelimit-unified-5h-status", "allowed")
 	headers.Set("anthropic-ratelimit-unified-5h-reset", fmt.Sprintf("%d", resetUnix))
@@ -431,7 +431,7 @@ func TestUpdateSessionWindow_NoStatusHeader(t *testing.T) {
 	repo := &sessionWindowMockRepo{}
 	svc := newRateLimitServiceForTest(repo)
 
-	account := &Account{ID: 1}
+	account := &Account{ID: "account-1"}
 
 	svc.UpdateSessionWindow(context.Background(), account, http.Header{})
 

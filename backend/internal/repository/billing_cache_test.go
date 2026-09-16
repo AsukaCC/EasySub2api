@@ -3,7 +3,6 @@
 package repository
 
 import (
-	"math"
 	"testing"
 	"time"
 
@@ -13,27 +12,27 @@ import (
 func TestBillingBalanceKey(t *testing.T) {
 	tests := []struct {
 		name     string
-		userID   int64
+		userID   string
 		expected string
 	}{
 		{
 			name:     "normal_user_id",
-			userID:   123,
+			userID:   "123",
 			expected: "billing:balance:123",
 		},
 		{
 			name:     "zero_user_id",
-			userID:   0,
+			userID:   "0",
 			expected: "billing:balance:0",
 		},
 		{
 			name:     "negative_user_id",
-			userID:   -1,
+			userID:   "-1",
 			expected: "billing:balance:-1",
 		},
 		{
 			name:     "max_int64",
-			userID:   math.MaxInt64,
+			userID:   "9223372036854775807",
 			expected: "billing:balance:9223372036854775807",
 		},
 	}
@@ -49,32 +48,32 @@ func TestBillingBalanceKey(t *testing.T) {
 func TestBillingSubKey(t *testing.T) {
 	tests := []struct {
 		name     string
-		userID   int64
-		groupID  int64
+		userID   string
+		groupID  string
 		expected string
 	}{
 		{
 			name:     "normal_ids",
-			userID:   123,
-			groupID:  456,
+			userID:   "123",
+			groupID:  "456",
 			expected: "billing:sub:123:456",
 		},
 		{
 			name:     "zero_ids",
-			userID:   0,
-			groupID:  0,
+			userID:   "0",
+			groupID:  "0",
 			expected: "billing:sub:0:0",
 		},
 		{
 			name:     "negative_ids",
-			userID:   -1,
-			groupID:  -2,
+			userID:   "-1",
+			groupID:  "-2",
 			expected: "billing:sub:-1:-2",
 		},
 		{
 			name:     "max_int64_ids",
-			userID:   math.MaxInt64,
-			groupID:  math.MaxInt64,
+			userID:   "9223372036854775807",
+			groupID:  "9223372036854775807",
 			expected: "billing:sub:9223372036854775807:9223372036854775807",
 		},
 	}

@@ -24,11 +24,11 @@ import (
 type openAIResponsesFailoverCancelUpstream struct {
 	service.HTTPUpstream
 	mu         sync.Mutex
-	accountIDs []int64
+	accountIDs []string
 	onFirstDo  func()
 }
 
-func (u *openAIResponsesFailoverCancelUpstream) Do(_ *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
+func (u *openAIResponsesFailoverCancelUpstream) Do(_ *http.Request, _ string, accountID string, _ int) (*http.Response, error) {
 	u.mu.Lock()
 	u.accountIDs = append(u.accountIDs, accountID)
 	first := len(u.accountIDs) == 1
@@ -43,17 +43,17 @@ func (u *openAIResponsesFailoverCancelUpstream) Do(_ *http.Request, _ string, ac
 	}, nil
 }
 
-func (u *openAIResponsesFailoverCancelUpstream) calls() []int64 {
+func (u *openAIResponsesFailoverCancelUpstream) calls() []string {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return append([]int64(nil), u.accountIDs...)
+	return append([]string(nil), u.accountIDs...)
 }
 
 func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUpstream) *OpenAIGatewayHandler {
 	t.Helper()
 	accounts := []service.Account{
 		{
-			ID:          1,
+			ID:          "account-1",
 			Name:        "responses-account-1",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeOAuth,
@@ -64,7 +64,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 			Credentials: map[string]any{"access_token": "token-1"},
 		},
 		{
-			ID:          2,
+			ID:          "account-2",
 			Name:        "responses-account-2",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeOAuth,
@@ -121,7 +121,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 
 func newOpenAIResponsesFailoverTestContext(t *testing.T, ctx context.Context) (*gin.Context, *httptest.ResponseRecorder) {
 	t.Helper()
-	groupID := int64(3131)
+	groupID := "group-3131"
 	body := []byte(`{"model":"gpt-5.1","stream":false,"input":"hello"}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	if ctx != nil {
@@ -132,15 +132,15 @@ func newOpenAIResponsesFailoverTestContext(t *testing.T, ctx context.Context) (*
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      99,
+		ID:      "key-99",
 		GroupID: &groupID,
 		Group: &service.Group{
 			ID:       groupID,
 			Platform: service.PlatformOpenAI,
 		},
-		User: &service.User{ID: 100},
+		User: &service.User{ID: "user-100"},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 100, Concurrency: 0})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-100", Concurrency: 0})
 	return c, rec
 }
 
@@ -159,7 +159,7 @@ func TestOpenAIGatewayHandlerResponses_FailoverAbortsWhenClientDisconnected(t *t
 
 	handler.Responses(c)
 
-	require.Equal(t, []int64{1}, upstream.calls(), "客户端断开后不应再切换到账号 2")
+	require.Equal(t, []string{"account-1"}, upstream.calls(), "客户端断开后不应再切换到账号 2")
 	require.Equal(t, statusClientClosedRequest, c.Writer.Status(), "应按 499 归类")
 	require.Zero(t, rec.Body.Len(), "不应写入 502 错误响应体")
 
@@ -188,7 +188,7 @@ func TestOpenAIGatewayHandlerResponses_FailoverContinuesForConnectedClient(t *te
 
 	handler.Responses(c)
 
-	require.Equal(t, []int64{1, 2}, upstream.calls(), "在线客户端应正常切换账号")
+	require.Equal(t, []string{"account-1", "account-2"}, upstream.calls(), "在线客户端应正常切换账号")
 	require.Equal(t, http.StatusBadGateway, rec.Code)
 	require.Equal(t, "upstream_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
 }

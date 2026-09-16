@@ -55,7 +55,7 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 
 	limit := 1.0
 	group := &service.Group{
-		ID:               42,
+		ID:               "group-42",
 		Name:             "sub",
 		Status:           service.StatusActive,
 		Hydrated:         true,
@@ -63,14 +63,14 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		DailyLimitUSD:    &limit,
 	}
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     100,
+		ID:     "key-100",
 		UserID: user.ID,
 		Key:    "test-key",
 		Status: service.StatusActive,
@@ -98,7 +98,7 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 
 		past := time.Now().Add(-48 * time.Hour)
 		sub := &service.UserSubscription{
-			ID:                 55,
+			ID:                 "subscription-55",
 			UserID:             user.ID,
 			GroupID:            group.ID,
 			Status:             service.SubscriptionStatusActive,
@@ -110,27 +110,27 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		}
 		maintenanceCalled := make(chan struct{}, 1)
 		subscriptionRepo := &stubUserSubscriptionRepo{
-			getByID: func(ctx context.Context, id int64) (*service.UserSubscription, error) {
+			getByID: func(ctx context.Context, id string) (*service.UserSubscription, error) {
 				clone := *sub
 				return &clone, nil
 			},
-			getActive: func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+			getActive: func(ctx context.Context, userID, groupID string) (*service.UserSubscription, error) {
 				clone := *sub
 				return &clone, nil
 			},
-			updateStatus:   func(ctx context.Context, subscriptionID int64, status string) error { return nil },
-			activateWindow: func(ctx context.Context, id int64, dailyStart, periodicStart time.Time) error { return nil },
-			resetDaily: func(ctx context.Context, id int64, start time.Time) error {
+			updateStatus:   func(ctx context.Context, subscriptionID string, status string) error { return nil },
+			activateWindow: func(ctx context.Context, id string, dailyStart, periodicStart time.Time) error { return nil },
+			resetDaily: func(ctx context.Context, id string, start time.Time) error {
 				sub.DailyWindowStart = &start
 				sub.DailyUsageUSD = 0
 				maintenanceCalled <- struct{}{}
 				return nil
 			},
-			resetWeekly: func(ctx context.Context, id int64, start time.Time) error {
+			resetWeekly: func(ctx context.Context, id string, start time.Time) error {
 				sub.WeeklyWindowStart = &start
 				return nil
 			},
-			resetMonthly: func(ctx context.Context, id int64, start time.Time) error {
+			resetMonthly: func(ctx context.Context, id string, start time.Time) error {
 				sub.MonthlyWindowStart = &start
 				return nil
 			},
@@ -161,7 +161,7 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		past := time.Now().Add(-48 * time.Hour)
 		current := time.Now()
 		stale := &service.UserSubscription{
-			ID:                 56,
+			ID:                 "subscription-56",
 			UserID:             user.ID,
 			GroupID:            group.ID,
 			Status:             service.SubscriptionStatusActive,
@@ -178,17 +178,17 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		fresh.DailyUsageUSD = 2
 
 		subscriptionRepo := &stubUserSubscriptionRepo{
-			getActive: func(context.Context, int64, int64) (*service.UserSubscription, error) {
+			getActive: func(context.Context, string, string) (*service.UserSubscription, error) {
 				clone := *stale
 				return &clone, nil
 			},
-			getByID: func(context.Context, int64) (*service.UserSubscription, error) {
+			getByID: func(context.Context, string) (*service.UserSubscription, error) {
 				clone := fresh
 				return &clone, nil
 			},
-			resetDaily:   func(context.Context, int64, time.Time) error { return nil },
-			resetWeekly:  func(context.Context, int64, time.Time) error { return nil },
-			resetMonthly: func(context.Context, int64, time.Time) error { return nil },
+			resetDaily:   func(context.Context, string, time.Time) error { return nil },
+			resetWeekly:  func(context.Context, string, time.Time) error { return nil },
+			resetMonthly: func(context.Context, string, time.Time) error { return nil },
 		}
 		subscriptionService := service.NewSubscriptionService(nil, subscriptionRepo, nil, nil, cfg)
 		router := newAuthTestRouter(apiKeyService, subscriptionService, cfg)
@@ -235,7 +235,7 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 
 		now := time.Now()
 		sub := &service.UserSubscription{
-			ID:               55,
+			ID:               "subscription-55",
 			UserID:           user.ID,
 			GroupID:          group.ID,
 			Status:           service.SubscriptionStatusActive,
@@ -244,18 +244,18 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 			DailyUsageUSD:    10,
 		}
 		subscriptionRepo := &stubUserSubscriptionRepo{
-			getActive: func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+			getActive: func(ctx context.Context, userID, groupID string) (*service.UserSubscription, error) {
 				if userID != sub.UserID || groupID != sub.GroupID {
 					return nil, service.ErrSubscriptionNotFound
 				}
 				clone := *sub
 				return &clone, nil
 			},
-			updateStatus:   func(ctx context.Context, subscriptionID int64, status string) error { return nil },
-			activateWindow: func(ctx context.Context, id int64, dailyStart, periodicStart time.Time) error { return nil },
-			resetDaily:     func(ctx context.Context, id int64, start time.Time) error { return nil },
-			resetWeekly:    func(ctx context.Context, id int64, start time.Time) error { return nil },
-			resetMonthly:   func(ctx context.Context, id int64, start time.Time) error { return nil },
+			updateStatus:   func(ctx context.Context, subscriptionID string, status string) error { return nil },
+			activateWindow: func(ctx context.Context, id string, dailyStart, periodicStart time.Time) error { return nil },
+			resetDaily:     func(ctx context.Context, id string, start time.Time) error { return nil },
+			resetWeekly:    func(ctx context.Context, id string, start time.Time) error { return nil },
+			resetMonthly:   func(ctx context.Context, id string, start time.Time) error { return nil },
 		}
 		subscriptionService := service.NewSubscriptionService(nil, subscriptionRepo, nil, nil, cfg)
 		router := newAuthTestRouter(apiKeyService, subscriptionService, cfg)
@@ -274,21 +274,21 @@ func TestAPIKeyAuthSetsGroupContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	group := &service.Group{
-		ID:       101,
+		ID:       "group-101",
 		Name:     "g1",
 		Status:   service.StatusActive,
 		Platform: service.PlatformAnthropic,
 		Hydrated: true,
 	}
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     100,
+		ID:     "key-100",
 		UserID: user.ID,
 		Key:    "test-key",
 		Status: service.StatusActive,
@@ -317,7 +317,7 @@ func TestAPIKeyAuthSetsGroupContext(t *testing.T) {
 			c.JSON(http.StatusInternalServerError, gin.H{"ok": false})
 			return
 		}
-		userIDFromCtx, ok := c.Request.Context().Value(ctxkey.UserID).(int64)
+		userIDFromCtx, ok := c.Request.Context().Value(ctxkey.UserID).(string)
 		if !ok || userIDFromCtx != user.ID {
 			c.JSON(http.StatusInternalServerError, gin.H{"ok": false})
 			return
@@ -337,22 +337,22 @@ func TestAPIKeyAuthRejectsExclusiveGroupWhenUserNoLongerAllowed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	group := &service.Group{
-		ID:          202,
+		ID:          "group-202",
 		Name:        "exclusive",
 		Status:      service.StatusActive,
 		IsExclusive: true,
 		Hydrated:    true,
 	}
 	user := &service.User{
-		ID:            7,
+		ID:            "user-7",
 		Role:          service.RoleUser,
 		Status:        service.StatusActive,
 		Balance:       10,
 		Concurrency:   3,
-		AllowedGroups: []int64{},
+		AllowedGroups: []string{},
 	}
 	apiKey := &service.APIKey{
-		ID:     100,
+		ID:     "key-100",
 		UserID: user.ID,
 		Key:    "test-key",
 		Status: service.StatusActive,
@@ -388,21 +388,21 @@ func TestAPIKeyAuthOverwritesInvalidContextGroup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	group := &service.Group{
-		ID:       101,
+		ID:       "group-101",
 		Name:     "g1",
 		Status:   service.StatusActive,
 		Platform: service.PlatformAnthropic,
 		Hydrated: true,
 	}
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     100,
+		ID:     "key-100",
 		UserID: user.ID,
 		Key:    "test-key",
 		Status: service.StatusActive,
@@ -452,9 +452,9 @@ func TestAPIKeyAuthOverwritesInvalidContextGroup(t *testing.T) {
 func TestAPIKeyAuthRejectsUnavailableGroup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(101)
+	groupID := "group-101"
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
@@ -521,7 +521,7 @@ func TestAPIKeyAuthRejectsUnavailableGroup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			apiKey := &service.APIKey{
-				ID:      100,
+				ID:      "key-100",
 				UserID:  user.ID,
 				GroupID: &groupID,
 				Key:     "test-key",
@@ -686,16 +686,16 @@ func TestAPIKeyAuthMarksOnlyExpectedIngressRejections(t *testing.T) {
 func TestAPIKeyAuthSetsOpsFallbackKeyOnEarlyAbort(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(101)
+	groupID := "group-101"
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:      100,
+		ID:      "key-100",
 		UserID:  user.ID,
 		GroupID: &groupID,
 		Key:     "test-key",
@@ -755,16 +755,16 @@ func TestAPIKeyAuthSetsOpsFallbackKeyOnEarlyAbort(t *testing.T) {
 func TestAPIKeyAuthGoogleSetsOpsFallbackKeyOnEarlyAbort(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(202)
+	groupID := "group-202"
 	user := &service.User{
-		ID:          9,
+		ID:          "user-9",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:      200,
+		ID:      "key-200",
 		UserID:  user.ID,
 		GroupID: &groupID,
 		Key:     "g-key",
@@ -824,7 +824,7 @@ func TestRequireGroupAssignmentMarksUngroupedKeyBusinessLimited(t *testing.T) {
 		},
 	}, &config.Config{})
 	apiKey := &service.APIKey{
-		ID:     100,
+		ID:     "key-100",
 		Key:    "ungrouped-key",
 		Status: service.StatusActive,
 	}
@@ -867,14 +867,14 @@ func TestAPIKeyAuthIPRestrictionUsesTrustedPathWhenSwitchDisabled(t *testing.T) 
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:          100,
+		ID:          "key-100",
 		UserID:      user.ID,
 		Key:         "test-key",
 		Status:      service.StatusActive,
@@ -930,14 +930,14 @@ func TestAPIKeyAuthIPRestrictionIncludesClientIPForBlacklistDenial(t *testing.T)
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:          100,
+		ID:          "key-100",
 		UserID:      user.ID,
 		Key:         "test-key",
 		Status:      service.StatusActive,
@@ -978,14 +978,14 @@ func TestAPIKeyAuthIPRestrictionUsesConfiguredTrustedProxy(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:          100,
+		ID:          "key-100",
 		UserID:      user.ID,
 		Key:         "test-key",
 		Status:      service.StatusActive,
@@ -1029,14 +1029,14 @@ func TestAPIKeyAuthIPRestrictionUsesForwardedClientIPInDenialWhenTrusted(t *test
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:          100,
+		ID:          "key-100",
 		UserID:      user.ID,
 		Key:         "test-key",
 		Status:      service.StatusActive,
@@ -1081,21 +1081,21 @@ func TestAPIKeyAuthTouchesLastUsedOnSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     100,
+		ID:     "key-100",
 		UserID: user.ID,
 		Key:    "touch-ok",
 		Status: service.StatusActive,
 		User:   user,
 	}
 
-	var touchedID int64
+	var touchedID string
 	var touchedAt time.Time
 	apiKeyRepo := &stubApiKeyRepo{
 		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
@@ -1105,7 +1105,7 @@ func TestAPIKeyAuthTouchesLastUsedOnSuccess(t *testing.T) {
 			clone := *apiKey
 			return &clone, nil
 		},
-		updateLastUsed: func(ctx context.Context, id int64, usedAt time.Time) error {
+		updateLastUsed: func(ctx context.Context, id string, usedAt time.Time) error {
 			touchedID = id
 			touchedAt = usedAt
 			return nil
@@ -1130,14 +1130,14 @@ func TestAPIKeyAuthTouchLastUsedFailureDoesNotBlock(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          8,
+		ID:          "user-8",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     101,
+		ID:     "key-101",
 		UserID: user.ID,
 		Key:    "touch-fail",
 		Status: service.StatusActive,
@@ -1153,7 +1153,7 @@ func TestAPIKeyAuthTouchLastUsedFailureDoesNotBlock(t *testing.T) {
 			clone := *apiKey
 			return &clone, nil
 		},
-		updateLastUsed: func(ctx context.Context, id int64, usedAt time.Time) error {
+		updateLastUsed: func(ctx context.Context, id string, usedAt time.Time) error {
 			touchCalls++
 			return errors.New("db unavailable")
 		},
@@ -1176,14 +1176,14 @@ func TestAPIKeyAuthTouchesLastUsedInStandardMode(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          9,
+		ID:          "user-9",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     10,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     102,
+		ID:     "key-102",
 		UserID: user.ID,
 		Key:    "touch-standard",
 		Status: service.StatusActive,
@@ -1199,7 +1199,7 @@ func TestAPIKeyAuthTouchesLastUsedInStandardMode(t *testing.T) {
 			clone := *apiKey
 			return &clone, nil
 		},
-		updateLastUsed: func(ctx context.Context, id int64, usedAt time.Time) error {
+		updateLastUsed: func(ctx context.Context, id string, usedAt time.Time) error {
 			touchCalls++
 			return nil
 		},
@@ -1222,14 +1222,14 @@ func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	group := &service.Group{
-		ID:               42,
+		ID:               "group-42",
 		Name:             "subscription",
 		Status:           service.StatusActive,
 		Hydrated:         true,
 		SubscriptionType: service.SubscriptionTypeSubscription,
 	}
 	user := &service.User{
-		ID:          7,
+		ID:          "user-7",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     0,
@@ -1237,7 +1237,7 @@ func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
 	}
 	expiredAt := time.Now().Add(-time.Hour)
 	apiKey := &service.APIKey{
-		ID:        100,
+		ID:        "key-100",
 		UserID:    user.ID,
 		Key:       "billing-info-auth-only",
 		Status:    service.StatusAPIKeyQuotaExhausted,
@@ -1256,13 +1256,13 @@ func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
 			clone := *apiKey
 			return &clone, nil
 		},
-		updateLastUsed: func(context.Context, int64, time.Time) error {
+		updateLastUsed: func(context.Context, string, time.Time) error {
 			touchCalls++
 			return nil
 		},
 	}
 	subscriptionRepo := &stubUserSubscriptionRepo{
-		getActive: func(context.Context, int64, int64) (*service.UserSubscription, error) {
+		getActive: func(context.Context, string, string) (*service.UserSubscription, error) {
 			subscriptionCalls++
 			return nil, service.ErrSubscriptionNotFound
 		},
@@ -1286,15 +1286,15 @@ func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
 func TestAPIKeyAuthBillingInfoSkipsLastUsedInSimpleMode(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive}
-	apiKey := &service.APIKey{ID: 100, UserID: user.ID, Key: "billing-info-simple", Status: service.StatusActive, User: user}
+	user := &service.User{ID: "user-7", Role: service.RoleUser, Status: service.StatusActive}
+	apiKey := &service.APIKey{ID: "key-100", UserID: user.ID, Key: "billing-info-simple", Status: service.StatusActive, User: user}
 	touchCalls := 0
 	apiKeyRepo := &stubApiKeyRepo{
 		getByKey: func(context.Context, string) (*service.APIKey, error) {
 			clone := *apiKey
 			return &clone, nil
 		},
-		updateLastUsed: func(context.Context, int64, time.Time) error {
+		updateLastUsed: func(context.Context, string, time.Time) error {
 			touchCalls++
 			return nil
 		},
@@ -1315,15 +1315,15 @@ func TestAPIKeyAuthBillingInfoSkipsLastUsedInSimpleMode(t *testing.T) {
 func TestAPIKeyAuthUsageStillTouchesLastUsed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
-	apiKey := &service.APIKey{ID: 100, UserID: user.ID, Key: "usage-touch", Status: service.StatusActive, User: user}
+	user := &service.User{ID: "user-7", Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
+	apiKey := &service.APIKey{ID: "key-100", UserID: user.ID, Key: "usage-touch", Status: service.StatusActive, User: user}
 	touchCalls := 0
 	apiKeyRepo := &stubApiKeyRepo{
 		getByKey: func(context.Context, string) (*service.APIKey, error) {
 			clone := *apiKey
 			return &clone, nil
 		},
-		updateLastUsed: func(context.Context, int64, time.Time) error {
+		updateLastUsed: func(context.Context, string, time.Time) error {
 			touchCalls++
 			return nil
 		},
@@ -1345,14 +1345,14 @@ func TestAPIKeyAuthAllowsBalanceBelowMinimumReserve(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          10,
+		ID:          "user-10",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     0.005,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     103,
+		ID:     "key-103",
 		UserID: user.ID,
 		Key:    "held-balance-low",
 		Status: service.StatusActive,
@@ -1389,14 +1389,14 @@ func TestAPIKeyAuthRejectsExhaustedBalance(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:          10,
+		ID:          "user-10",
 		Role:        service.RoleUser,
 		Status:      service.StatusActive,
 		Balance:     0,
 		Concurrency: 3,
 	}
 	apiKey := &service.APIKey{
-		ID:     104,
+		ID:     "key-104",
 		UserID: user.ID,
 		Key:    "held-balance-zero",
 		Status: service.StatusActive,
@@ -1430,10 +1430,10 @@ func TestAPIKeyAuthRejectsExhaustedBalance(t *testing.T) {
 func TestAPIKeyAuthOpenAIQuotaErrorFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	user := &service.User{ID: 11, Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
-	group := &service.Group{ID: 8, Platform: service.PlatformOpenAI, Status: service.StatusActive}
+	user := &service.User{ID: "user-11", Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
+	group := &service.Group{ID: "group-8", Platform: service.PlatformOpenAI, Status: service.StatusActive}
 	apiKey := &service.APIKey{
-		ID: 105, UserID: user.ID, Key: "openai-quota-exhausted", Status: service.StatusAPIKeyQuotaExhausted,
+		ID: "key-105", UserID: user.ID, Key: "openai-quota-exhausted", Status: service.StatusAPIKeyQuotaExhausted,
 		User: user, Group: group, GroupID: &group.ID,
 	}
 	apiKeyRepo := &stubApiKeyRepo{getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
@@ -1472,10 +1472,10 @@ func TestAPIKeyAuthOpenAIQuotaErrorFormat(t *testing.T) {
 func TestAPIKeyAuthQuotaErrorKeepsLegacyFormatOutsideResponses(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	user := &service.User{ID: 11, Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
-	group := &service.Group{ID: 8, Platform: service.PlatformOpenAI, Status: service.StatusActive}
+	user := &service.User{ID: "user-11", Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
+	group := &service.Group{ID: "group-8", Platform: service.PlatformOpenAI, Status: service.StatusActive}
 	apiKey := &service.APIKey{
-		ID: 105, UserID: user.ID, Key: "openai-quota-exhausted", Status: service.StatusAPIKeyQuotaExhausted,
+		ID: "key-105", UserID: user.ID, Key: "openai-quota-exhausted", Status: service.StatusAPIKeyQuotaExhausted,
 		User: user, Group: group, GroupID: &group.ID,
 	}
 	apiKeyRepo := &stubApiKeyRepo{getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
@@ -1524,19 +1524,19 @@ func requireAPIKeyAuthError(t *testing.T, w *httptest.ResponseRecorder, code, me
 
 type stubApiKeyRepo struct {
 	getByKey       func(ctx context.Context, key string) (*service.APIKey, error)
-	updateLastUsed func(ctx context.Context, id int64, usedAt time.Time) error
+	updateLastUsed func(ctx context.Context, id string, usedAt time.Time) error
 }
 
 func (r *stubApiKeyRepo) Create(ctx context.Context, key *service.APIKey) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) GetByID(ctx context.Context, id int64) (*service.APIKey, error) {
+func (r *stubApiKeyRepo) GetByID(ctx context.Context, id string) (*service.APIKey, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
-	return "", 0, errors.New("not implemented")
+func (r *stubApiKeyRepo) GetKeyAndOwnerID(ctx context.Context, id string) (string, string, error) {
+	return "", "", errors.New("not implemented")
 }
 
 func (r *stubApiKeyRepo) GetByKey(ctx context.Context, key string) (*service.APIKey, error) {
@@ -1554,23 +1554,23 @@ func (r *stubApiKeyRepo) Update(ctx context.Context, key *service.APIKey, _ serv
 	return errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) Delete(ctx context.Context, id int64) error {
+func (r *stubApiKeyRepo) Delete(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) DeleteWithAudit(ctx context.Context, id int64) error {
+func (r *stubApiKeyRepo) DeleteWithAudit(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) ListByUserID(ctx context.Context, userID int64, params pagination.PaginationParams, _ service.APIKeyListFilters) ([]service.APIKey, *pagination.PaginationResult, error) {
+func (r *stubApiKeyRepo) ListByUserID(ctx context.Context, userID string, params pagination.PaginationParams, _ service.APIKeyListFilters) ([]service.APIKey, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) VerifyOwnership(ctx context.Context, userID int64, apiKeyIDs []int64) ([]int64, error) {
+func (r *stubApiKeyRepo) VerifyOwnership(ctx context.Context, userID string, apiKeyIDs []string) ([]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) CountByUserID(ctx context.Context, userID int64) (int64, error) {
+func (r *stubApiKeyRepo) CountByUserID(ctx context.Context, userID string) (int64, error) {
 	return 0, errors.New("not implemented")
 }
 
@@ -1578,63 +1578,63 @@ func (r *stubApiKeyRepo) ExistsByKey(ctx context.Context, key string) (bool, err
 	return false, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]service.APIKey, *pagination.PaginationResult, error) {
+func (r *stubApiKeyRepo) ListByGroupID(ctx context.Context, groupID string, params pagination.PaginationParams) ([]service.APIKey, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error) {
+func (r *stubApiKeyRepo) SearchAPIKeys(ctx context.Context, userID string, keyword string, limit int) ([]service.APIKey, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) ClearGroupIDByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (r *stubApiKeyRepo) ClearGroupIDByGroupID(ctx context.Context, groupID string) (int64, error) {
 	return 0, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (int64, error) {
+func (r *stubApiKeyRepo) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID string) (int64, error) {
 	return 0, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) CountByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (r *stubApiKeyRepo) CountByGroupID(ctx context.Context, groupID string) (int64, error) {
 	return 0, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) ListKeysByUserID(ctx context.Context, userID int64) ([]string, error) {
+func (r *stubApiKeyRepo) ListKeysByUserID(ctx context.Context, userID string) ([]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
+func (r *stubApiKeyRepo) ListKeysByGroupID(ctx context.Context, groupID string) ([]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error) {
+func (r *stubApiKeyRepo) IncrementQuotaUsed(ctx context.Context, id string, amount float64) (float64, error) {
 	return 0, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
+func (r *stubApiKeyRepo) UpdateLastUsed(ctx context.Context, id string, usedAt time.Time) error {
 	if r.updateLastUsed != nil {
 		return r.updateLastUsed(ctx, id, usedAt)
 	}
 	return nil
 }
 
-func (r *stubApiKeyRepo) IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error {
+func (r *stubApiKeyRepo) IncrementRateLimitUsage(ctx context.Context, id string, cost float64) error {
 	return nil
 }
-func (r *stubApiKeyRepo) ResetRateLimitWindows(ctx context.Context, id int64) error {
+func (r *stubApiKeyRepo) ResetRateLimitWindows(ctx context.Context, id string) error {
 	return nil
 }
-func (r *stubApiKeyRepo) GetRateLimitData(ctx context.Context, id int64) (*service.APIKeyRateLimitData, error) {
+func (r *stubApiKeyRepo) GetRateLimitData(ctx context.Context, id string) (*service.APIKeyRateLimitData, error) {
 	return nil, nil
 }
 
 type stubUserSubscriptionRepo struct {
-	getByID        func(ctx context.Context, id int64) (*service.UserSubscription, error)
-	getActive      func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
-	updateStatus   func(ctx context.Context, subscriptionID int64, status string) error
-	activateWindow func(ctx context.Context, id int64, dailyStart, periodicStart time.Time) error
-	resetDaily     func(ctx context.Context, id int64, start time.Time) error
-	resetWeekly    func(ctx context.Context, id int64, start time.Time) error
-	resetMonthly   func(ctx context.Context, id int64, start time.Time) error
+	getByID        func(ctx context.Context, id string) (*service.UserSubscription, error)
+	getActive      func(ctx context.Context, userID, groupID string) (*service.UserSubscription, error)
+	updateStatus   func(ctx context.Context, subscriptionID string, status string) error
+	activateWindow func(ctx context.Context, id string, dailyStart, periodicStart time.Time) error
+	resetDaily     func(ctx context.Context, id string, start time.Time) error
+	resetWeekly    func(ctx context.Context, id string, start time.Time) error
+	resetMonthly   func(ctx context.Context, id string, start time.Time) error
 }
 
 type fakeSettingRepo struct {
@@ -1676,26 +1676,26 @@ func (r *stubUserSubscriptionRepo) Create(ctx context.Context, sub *service.User
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) GetByID(ctx context.Context, id int64) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) GetByID(ctx context.Context, id string) (*service.UserSubscription, error) {
 	if r.getByID != nil {
 		return r.getByID(ctx, id)
 	}
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) GetByIDForUpdate(ctx context.Context, id int64) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) GetByIDForUpdate(ctx context.Context, id string) (*service.UserSubscription, error) {
 	return r.GetByID(ctx, id)
 }
 
-func (r *stubUserSubscriptionRepo) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) GetByIDIncludeDeleted(ctx context.Context, id string) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) GetByUserIDAndGroupID(ctx context.Context, userID, groupID string) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID string) (*service.UserSubscription, error) {
 	if r.getActive != nil {
 		return r.getActive(ctx, userID, groupID)
 	}
@@ -1706,86 +1706,86 @@ func (r *stubUserSubscriptionRepo) Update(ctx context.Context, sub *service.User
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) Delete(ctx context.Context, id int64) error {
+func (r *stubUserSubscriptionRepo) Delete(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) Restore(ctx context.Context, subscriptionID int64, restoredStatus string) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) Restore(ctx context.Context, subscriptionID string, restoredStatus string) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ListByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) ListByUserID(ctx context.Context, userID string) ([]service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ListActiveByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) ListActiveByUserID(ctx context.Context, userID string) ([]service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (r *stubUserSubscriptionRepo) ListByGroupID(ctx context.Context, groupID string, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (r *stubUserSubscriptionRepo) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *string, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ExistsByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (bool, error) {
+func (r *stubUserSubscriptionRepo) ExistsByUserIDAndGroupID(ctx context.Context, userID, groupID string) (bool, error) {
 	return false, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ExistsActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (bool, error) {
+func (r *stubUserSubscriptionRepo) ExistsActiveByUserIDAndGroupID(ctx context.Context, userID, groupID string) (bool, error) {
 	return false, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ExtendExpiry(ctx context.Context, subscriptionID int64, newExpiresAt time.Time) error {
+func (r *stubUserSubscriptionRepo) ExtendExpiry(ctx context.Context, subscriptionID string, newExpiresAt time.Time) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) UpdateStatus(ctx context.Context, subscriptionID int64, status string) error {
+func (r *stubUserSubscriptionRepo) UpdateStatus(ctx context.Context, subscriptionID string, status string) error {
 	if r.updateStatus != nil {
 		return r.updateStatus(ctx, subscriptionID, status)
 	}
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) UpdateNotes(ctx context.Context, subscriptionID int64, notes string) error {
+func (r *stubUserSubscriptionRepo) UpdateNotes(ctx context.Context, subscriptionID string, notes string) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ActivateWindows(ctx context.Context, id int64, dailyStart, periodicStart time.Time) error {
+func (r *stubUserSubscriptionRepo) ActivateWindows(ctx context.Context, id string, dailyStart, periodicStart time.Time) error {
 	if r.activateWindow != nil {
 		return r.activateWindow(ctx, id, dailyStart, periodicStart)
 	}
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ResetUsageWindows(context.Context, int64, bool, bool, bool, time.Time, time.Time) error {
+func (r *stubUserSubscriptionRepo) ResetUsageWindows(context.Context, string, bool, bool, bool, time.Time, time.Time) error {
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ResetDailyUsage(ctx context.Context, id int64, _ *time.Time, newWindowStart time.Time) error {
+func (r *stubUserSubscriptionRepo) ResetDailyUsage(ctx context.Context, id string, _ *time.Time, newWindowStart time.Time) error {
 	if r.resetDaily != nil {
 		return r.resetDaily(ctx, id, newWindowStart)
 	}
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ResetWeeklyUsage(ctx context.Context, id int64, _ *time.Time, newWindowStart time.Time) error {
+func (r *stubUserSubscriptionRepo) ResetWeeklyUsage(ctx context.Context, id string, _ *time.Time, newWindowStart time.Time) error {
 	if r.resetWeekly != nil {
 		return r.resetWeekly(ctx, id, newWindowStart)
 	}
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ResetMonthlyUsage(ctx context.Context, id int64, _ *time.Time, newWindowStart time.Time) error {
+func (r *stubUserSubscriptionRepo) ResetMonthlyUsage(ctx context.Context, id string, _ *time.Time, newWindowStart time.Time) error {
 	if r.resetMonthly != nil {
 		return r.resetMonthly(ctx, id, newWindowStart)
 	}
 	return errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) IncrementUsage(ctx context.Context, id int64, costUSD float64) error {
+func (r *stubUserSubscriptionRepo) IncrementUsage(ctx context.Context, id string, costUSD float64) error {
 	return errors.New("not implemented")
 }
 

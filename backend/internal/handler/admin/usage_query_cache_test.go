@@ -23,6 +23,6 @@ func TestUsageStatsCacheKey_StableAndDistinct(t *testing.T) {
 	require.NotEqual(t, k1, usageStatsCacheKey(other), "different model must change key")
 
 	withUser := base
-	withUser.UserID = 7
+	withUser.UserID = "user-7"
 	require.NotEqual(t, k1, usageStatsCacheKey(withUser), "different user must change key")
 }

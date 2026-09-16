@@ -16,7 +16,7 @@ func TestUserFromServiceAdmin_MapsActivityTimestamps(t *testing.T) {
 	lastUsedAt := lastLoginAt.Add(45 * time.Minute)
 
 	out := UserFromServiceAdmin(&service.User{
-		ID:           42,
+		ID:           "user-42",
 		Email:        "admin@example.com",
 		Username:     "admin",
 		Role:         service.RoleAdmin,
