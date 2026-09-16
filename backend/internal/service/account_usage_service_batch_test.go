@@ -91,7 +91,7 @@ func (r *usageBatchLogRepoStub) GetBatchAPIKeyUsageStats(context.Context, []int6
 func (r *usageBatchLogRepoStub) GetUserDashboardStats(context.Context, int64) (*usagestats.UserDashboardStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetAPIKeyDashboardStats(context.Context, int64) (*usagestats.UserDashboardStats, error) {
+func (r *usageBatchLogRepoStub) GetAPIKeyDashboardStats(context.Context, string) (*usagestats.UserDashboardStats, error) {
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) GetUserUsageTrendByUserID(context.Context, int64, time.Time, time.Time, string) ([]usagestats.TrendDataPoint, error) {
