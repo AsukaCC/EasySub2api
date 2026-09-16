@@ -1,6 +1,6 @@
 <template>
   <section
-    class="features-channel-monitor-v2-monitor-trend-chart__section card"
+    class="features-channel-monitor-v2-monitor-trend-chart__section card monitor-glass-card"
   >
     <div class="features-channel-monitor-v2-monitor-trend-chart__panel card-header">
       <div class="features-channel-monitor-v2-monitor-trend-chart__panel-2">

@@ -4,3 +4,23 @@
   flex-direction: column;
   gap: 1rem;
 }
+
+// 生成别名会给暗色监控卡涂 rgb(23 23 26) !important 并去掉描边。
+// 这里用更高选择器把背景还给 glass ::before，边框还给 token。
+html.dark .monitor-glass-card,
+html.dark .card.views-user-channel-status-v2-view__section-3,
+html.dark .stat-card.features-channel-monitor-v2-metric-cell__panel,
+html.dark .card.features-channel-monitor-v2-monitor-trend-chart__section,
+html.dark .card.features-channel-monitor-v2-monitor-settings-panel__panel-3,
+html.dark .card.features-channel-monitor-v2-monitor-settings-panel__panel-4,
+html.dark .card.features-channel-monitor-v2-monitor-settings-panel__panel-7,
+html.dark .card.features-channel-monitor-v2-relay-pulse-matrix__section {
+  background-color: transparent !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: var(--glass-border) !important;
+}
+
+html body .model-chip-popover {
+  z-index: var(--z-dropdown);
+}
