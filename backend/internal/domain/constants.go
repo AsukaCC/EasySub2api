@@ -24,11 +24,12 @@ const (
 	PlatformAntigravity = "antigravity"
 	PlatformGrok        = "grok"
 	// 国产 OpenAI 兼容供应商（经 OpenAI 网关转发，按 Chat Completions 协议）。
-	PlatformKimi      = "kimi"     // Kimi (月之暗面 / Moonshot)
-	PlatformZhipu     = "zhipu"    // 智谱 GLM (bigmodel)
-	PlatformDeepseek  = "deepseek" // DeepSeek
-	PlatformMiniMax   = "minimax"  // MiniMax (M 系列)
-	PlatformComposite = "composite"
+	PlatformKimi       = "kimi"     // Kimi (月之暗面 / Moonshot)
+	PlatformZhipu      = "zhipu"    // 智谱 GLM (bigmodel)
+	PlatformDeepseek   = "deepseek" // DeepSeek
+	PlatformMiniMax    = "minimax"  // MiniMax (M 系列)
+	PlatformOpenCodeGo = "opencode_go"
+	PlatformComposite  = "composite"
 )
 
 // AccountPlatforms is the canonical list of platforms that may be assigned
@@ -44,6 +45,7 @@ var AccountPlatforms = []string{
 	PlatformZhipu,
 	PlatformDeepseek,
 	PlatformMiniMax,
+	PlatformOpenCodeGo,
 }
 
 // IsAccountPlatform reports whether platform is supported for an account.
@@ -61,6 +63,8 @@ func IsAccountPlatform(platform string) bool {
 const (
 	AccountModePayG   = "payg"   // 按量付费：消耗余额，做余额检测冷却
 	AccountModeCoding = "coding" // Coding Plan：滚动用量窗口冷却（5h / weekly）
+	AccountModeZen    = "zen"
+	AccountModeGo     = "go"
 )
 
 // AntigravityGemini31ProAgentModel is the upstream route for Gemini 3.1 Pro High.

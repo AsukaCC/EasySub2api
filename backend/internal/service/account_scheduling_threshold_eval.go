@@ -58,7 +58,7 @@ func EvaluateAccountSchedulingThreshold(account *Account, thresholds map[string]
 		winner = pickLatestResetSchedulingCandidate(anthropicThresholdCandidates(account), threshold, now)
 	case PlatformGrok:
 		winner = pickLatestResetSchedulingCandidate(grokThresholdCandidates(account), threshold, now)
-	case PlatformKimi, PlatformZhipu, PlatformMiniMax:
+	case PlatformKimi, PlatformZhipu, PlatformMiniMax, PlatformOpenCodeGo:
 		winner = pickLatestResetSchedulingCandidate(cnProviderThresholdCandidates(account, decision.Platform), threshold, now)
 	default:
 		return decision
@@ -308,6 +308,7 @@ func cnProviderThresholdCandidates(account *Account, provider string) []*account
 	return []*accountSchedulingThresholdCandidate{
 		cnThresholdCandidate(account.Extra, provider, "5h"),
 		cnThresholdCandidate(account.Extra, provider, "weekly"),
+		cnThresholdCandidate(account.Extra, provider, "monthly"),
 	}
 }
 
@@ -320,6 +321,12 @@ func cnThresholdCandidate(extra map[string]any, provider, window string) *accoun
 	case "weekly":
 		usedKey = cnExtraKey(provider, cnExtraSuffixWeeklyUsed)
 		resetKey = cnExtraKey(provider, cnExtraSuffixWeeklyReset)
+	case "monthly":
+		if provider != PlatformOpenCodeGo {
+			return nil
+		}
+		usedKey = cnExtraKey(provider, cnExtraSuffixMonthlyUsed)
+		resetKey = cnExtraKey(provider, cnExtraSuffixMonthlyReset)
 	default:
 		return nil
 	}

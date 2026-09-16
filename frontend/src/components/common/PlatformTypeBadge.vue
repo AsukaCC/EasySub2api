@@ -100,6 +100,7 @@ const platformLabel = computed(() => {
   if (props.platform === 'zhipu') return 'Zhipu GLM'
   if (props.platform === 'deepseek') return 'DeepSeek'
   if (props.platform === 'minimax') return 'MiniMax'
+  if (props.platform === 'opencode_go') return 'OpenCode'
   return props.platform
 })
 

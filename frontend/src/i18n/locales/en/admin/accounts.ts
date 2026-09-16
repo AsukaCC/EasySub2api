@@ -1,5 +1,6 @@
 export default {
     accounts: {
+      opencode: { mode: 'Account mode', protocol: 'Upstream protocol', adaptive: 'Automatic by model', rules: 'Model protocol rules', defaults: 'Restore defaults', pattern: 'Model pattern', addRule: 'Add rule', monthly: 'Monthly' },
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
       createAccount: 'Create Account',
@@ -113,6 +114,7 @@ export default {
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
+        opencode_go: 'OpenCode',
       },
       reasoningEffort: 'Reasoning effort',
       reasoningEffortFollowRequest: 'Follow request',

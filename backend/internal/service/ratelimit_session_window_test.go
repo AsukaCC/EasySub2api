@@ -16,58 +16,58 @@ type sessionWindowMockRepo struct {
 	// captured calls
 	sessionWindowCalls []swCall
 	updateExtraCalls   []ueCall
-	clearRateLimitIDs  []int64
+	clearRateLimitIDs  []string
 }
 
 var _ AccountRepository = (*sessionWindowMockRepo)(nil)
 
 type swCall struct {
-	ID     int64
+	ID     string
 	Start  *time.Time
 	End    *time.Time
 	Status string
 }
 
 type ueCall struct {
-	ID      int64
+	ID      string
 	Updates map[string]any
 }
 
-func (m *sessionWindowMockRepo) UpdateSessionWindow(_ context.Context, id int64, start, end *time.Time, status string) error {
+func (m *sessionWindowMockRepo) UpdateSessionWindow(_ context.Context, id string, start, end *time.Time, status string) error {
 	m.sessionWindowCalls = append(m.sessionWindowCalls, swCall{ID: id, Start: start, End: end, Status: status})
 	return nil
 }
-func (m *sessionWindowMockRepo) UpdateSessionWindowEnd(_ context.Context, _ int64, _ time.Time) error {
+func (m *sessionWindowMockRepo) UpdateSessionWindowEnd(_ context.Context, _ string, _ time.Time) error {
 	return nil
 }
-func (m *sessionWindowMockRepo) UpdateExtra(_ context.Context, id int64, updates map[string]any) error {
+func (m *sessionWindowMockRepo) UpdateExtra(_ context.Context, id string, updates map[string]any) error {
 	m.updateExtraCalls = append(m.updateExtraCalls, ueCall{ID: id, Updates: updates})
 	return nil
 }
-func (m *sessionWindowMockRepo) ClearRateLimit(_ context.Context, id int64) error {
+func (m *sessionWindowMockRepo) ClearRateLimit(_ context.Context, id string) error {
 	m.clearRateLimitIDs = append(m.clearRateLimitIDs, id)
 	return nil
 }
-func (m *sessionWindowMockRepo) ClearAntigravityQuotaScopes(_ context.Context, _ int64) error {
+func (m *sessionWindowMockRepo) ClearAntigravityQuotaScopes(_ context.Context, _ string) error {
 	return nil
 }
-func (m *sessionWindowMockRepo) ClearModelRateLimits(_ context.Context, _ int64) error {
+func (m *sessionWindowMockRepo) ClearModelRateLimits(_ context.Context, _ string) error {
 	return nil
 }
-func (m *sessionWindowMockRepo) ClearTempUnschedulable(_ context.Context, _ int64) error {
+func (m *sessionWindowMockRepo) ClearTempUnschedulable(_ context.Context, _ string) error {
 	return nil
 }
 
 // --- Unused interface methods (panic on unexpected call) ---
 
 func (m *sessionWindowMockRepo) Create(context.Context, *Account) error { panic("unexpected") }
-func (m *sessionWindowMockRepo) GetByID(context.Context, int64) (*Account, error) {
+func (m *sessionWindowMockRepo) GetByID(context.Context, string) (*Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) GetByIDs(context.Context, []int64) ([]*Account, error) {
+func (m *sessionWindowMockRepo) GetByIDs(context.Context, []string) ([]*Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ExistsByID(context.Context, int64) (bool, error) {
+func (m *sessionWindowMockRepo) ExistsByID(context.Context, string) (bool, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) GetByCRSAccountID(context.Context, string) (*Account, error) {
@@ -80,7 +80,7 @@ func (m *sessionWindowMockRepo) ListCRSAccountIDs(context.Context) (map[string]i
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) Update(context.Context, *Account) error { panic("unexpected") }
-func (m *sessionWindowMockRepo) Delete(context.Context, int64) error    { panic("unexpected") }
+func (m *sessionWindowMockRepo) Delete(context.Context, string) error    { panic("unexpected") }
 func (m *sessionWindowMockRepo) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
@@ -102,15 +102,15 @@ func (m *sessionWindowMockRepo) ListOAuthRefreshCandidates(context.Context) ([]A
 func (m *sessionWindowMockRepo) ListByPlatform(context.Context, string) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) UpdateLastUsed(context.Context, int64) error { panic("unexpected") }
-func (m *sessionWindowMockRepo) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error {
+func (m *sessionWindowMockRepo) UpdateLastUsed(context.Context, string) error { panic("unexpected") }
+func (m *sessionWindowMockRepo) BatchUpdateLastUsed(context.Context, map[string]time.Time) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) SetError(context.Context, int64, string) error {
+func (m *sessionWindowMockRepo) SetError(context.Context, string, string) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ClearError(context.Context, int64) error { panic("unexpected") }
-func (m *sessionWindowMockRepo) SetSchedulable(context.Context, int64, bool) error {
+func (m *sessionWindowMockRepo) ClearError(context.Context, string) error { panic("unexpected") }
+func (m *sessionWindowMockRepo) SetSchedulable(context.Context, string, bool) error {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) AutoPauseExpiredAccounts(context.Context, time.Time) (int64, error) {
@@ -146,19 +146,19 @@ func (m *sessionWindowMockRepo) ListSchedulableUngroupedByPlatforms(context.Cont
 func (m *sessionWindowMockRepo) ListModelAvailabilityCandidates(context.Context, *int64, []string, bool) ([]Account, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) SetRateLimited(context.Context, int64, time.Time) error {
+func (m *sessionWindowMockRepo) SetRateLimited(context.Context, string, time.Time) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
+func (m *sessionWindowMockRepo) SetModelRateLimit(context.Context, string, string, time.Time, ...string) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) SetOverloaded(context.Context, int64, time.Time) error {
+func (m *sessionWindowMockRepo) SetOverloaded(context.Context, string, time.Time) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
+func (m *sessionWindowMockRepo) SetTempUnschedulable(context.Context, string, time.Time, string) error {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) BulkUpdate(context.Context, []int64, AccountBulkUpdate) (int64, error) {
+func (m *sessionWindowMockRepo) BulkUpdate(context.Context, []string, AccountBulkUpdate) (int64, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) IncrementQuotaUsed(context.Context, int64, float64) error {

@@ -37,7 +37,7 @@ type tempUnschedulableOpenAIAccountRepo struct {
 	modelRateLimitKey       string
 }
 
-func (r *tempUnschedulableOpenAIAccountRepo) SetModelRateLimit(_ context.Context, accountID int64, modelKey string, _ time.Time, _ ...string) error {
+func (r *tempUnschedulableOpenAIAccountRepo) SetModelRateLimit(_ context.Context, accountID string, modelKey string, _ time.Time, _ ...string) error {
 	r.modelRateLimitAccountID = accountID
 	r.modelRateLimitKey = modelKey
 	return nil
@@ -48,7 +48,7 @@ type snapshotUpdateAccountRepo struct {
 	updateExtraCalls chan map[string]any
 }
 
-func (r *snapshotUpdateAccountRepo) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+func (r *snapshotUpdateAccountRepo) UpdateExtra(ctx context.Context, id string, updates map[string]any) error {
 	if r.updateExtraCalls != nil {
 		copied := make(map[string]any, len(updates))
 		for k, v := range updates {
@@ -667,14 +667,14 @@ type stubGatewayCache struct {
 	deletedSessions map[string]int
 }
 
-func (c *stubGatewayCache) GetSessionAccountID(ctx context.Context, groupID int64, sessionHash string) (int64, error) {
+func (c *stubGatewayCache) GetSessionAccountID(ctx context.Context, groupID string, sessionHash string) (string, error) {
 	if id, ok := c.sessionBindings[sessionHash]; ok {
 		return id, nil
 	}
 	return 0, errors.New("not found")
 }
 
-func (c *stubGatewayCache) SetSessionAccountID(ctx context.Context, groupID int64, sessionHash string, accountID int64, ttl time.Duration) error {
+func (c *stubGatewayCache) SetSessionAccountID(ctx context.Context, groupID string, sessionHash string, accountID string, ttl time.Duration) error {
 	if c.sessionBindings == nil {
 		c.sessionBindings = make(map[string]int64)
 	}
@@ -682,11 +682,11 @@ func (c *stubGatewayCache) SetSessionAccountID(ctx context.Context, groupID int6
 	return nil
 }
 
-func (c *stubGatewayCache) RefreshSessionTTL(ctx context.Context, groupID int64, sessionHash string, ttl time.Duration) error {
+func (c *stubGatewayCache) RefreshSessionTTL(ctx context.Context, groupID string, sessionHash string, ttl time.Duration) error {
 	return nil
 }
 
-func (c *stubGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID int64, sessionHash string) error {
+func (c *stubGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID string, sessionHash string) error {
 	if c.sessionBindings == nil {
 		return nil
 	}

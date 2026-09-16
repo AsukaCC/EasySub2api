@@ -32,14 +32,15 @@ const MatchModeAll = "all"
 
 // 支持的平台常量
 const (
-	PlatformAnthropic = "anthropic"
-	PlatformOpenAI    = "openai"
-	PlatformGrok      = "grok"
+	PlatformAnthropic  = "anthropic"
+	PlatformOpenAI     = "openai"
+	PlatformGrok       = "grok"
+	PlatformOpenCodeGo = "opencode_go"
 )
 
 // AllPlatforms 返回所有支持的平台列表
 func AllPlatforms() []string {
-	return []string{PlatformAnthropic, PlatformOpenAI, PlatformGrok}
+	return []string{PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo}
 }
 
 // Validate 验证规则配置的有效性

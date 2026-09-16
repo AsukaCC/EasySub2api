@@ -154,6 +154,8 @@ type SystemSettings struct {
 	CompactHomeEnabled          bool             `json:"compact_home_enabled"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
+	SubscriptionEnabled         bool             `json:"subscription_enabled"`
+	SiteBillingMode             string           `json:"site_billing_mode"`
 	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
 	TableDefaultPageSize        int              `json:"table_default_page_size"`
 	TablePageSizeOptions        []int            `json:"table_page_size_options"`
@@ -413,6 +415,9 @@ type PublicSettings struct {
 	SoraClientEnabled                   bool                     `json:"sora_client_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
 	PaymentEnabled                      bool                     `json:"payment_enabled"`
+	PaymentBalanceDisabled              bool                     `json:"payment_balance_disabled"`
+	SubscriptionEnabled                 bool                     `json:"subscription_enabled"`
+	SiteBillingMode                     string                   `json:"site_billing_mode"`
 	Version                             string                   `json:"version"`
 	// 服务器全局时区（IANA 名称与当前 UTC 偏移，如 "Asia/Shanghai" / "+08:00"）。
 	// 高峰时段等按服务器本地时间判定的窗口，前端展示时据此标注，避免用户按浏览器本地时间误读。

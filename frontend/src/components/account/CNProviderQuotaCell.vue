@@ -104,8 +104,10 @@ const snapshotData = computed<CNProviderQuotaProbeResult | null>(() => {
   const platform = props.account.platform
   const used5h = readExtraNumber(`${platform}_5h_used_percent`)
   const usedWeekly = readExtraNumber(`${platform}_weekly_used_percent`)
-  if (used5h == null && usedWeekly == null) return null
+  const usedMonthly = platform === 'opencode_go' ? readExtraNumber(`${platform}_monthly_used_percent`) : null
+  if (used5h == null && usedWeekly == null && usedMonthly == null) return null
   const tiers: CNProviderQuotaProbeResult['tiers'] = []
+  if (usedMonthly != null) tiers.push({ window: 'monthly', used_percent: usedMonthly, reset_at: readExtraString(`${platform}_monthly_reset_at`) || undefined })
   if (used5h != null) {
     tiers.push({ window: '5h', used_percent: used5h, reset_at: readExtraString(`${platform}_5h_reset_at`) || undefined })
   }
@@ -158,7 +160,7 @@ const truncatedError = computed(() => {
 })
 
 const windowLabel = (window: string) =>
-  window === 'weekly'
+  window === 'monthly' ? t('admin.accounts.opencode.monthly') : window === 'weekly'
     ? t('admin.accounts.cnProviders.windowWeekly')
     : t('admin.accounts.cnProviders.window5h')
 
