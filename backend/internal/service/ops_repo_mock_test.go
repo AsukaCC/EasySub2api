@@ -133,7 +133,7 @@ func (m *opsRepoMock) UpdateAlertRule(ctx context.Context, input *OpsAlertRule) 
 	return input, nil
 }
 
-func (m *opsRepoMock) DeleteAlertRule(ctx context.Context, id int64) error {
+func (m *opsRepoMock) DeleteAlertRule(ctx context.Context, id string) error {
 	return nil
 }
 
