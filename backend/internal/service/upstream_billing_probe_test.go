@@ -21,8 +21,8 @@ import (
 type upstreamBillingProbeAccountRepo struct {
 	AccountRepository
 	mu          sync.Mutex
-	accounts    map[int64]*Account
-	updates     map[int64][]map[string]any
+	accounts    map[string]*Account
+	updates     map[string][]map[string]any
 	bulkUpdates []AccountBulkUpdate
 }
 
@@ -42,10 +42,10 @@ func (r *upstreamBillingProbeAccountRepo) Create(_ context.Context, account *Acc
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.accounts == nil {
-		r.accounts = make(map[int64]*Account)
+		r.accounts = make(map[string]*Account)
 	}
-	if account.ID == 0 {
-		account.ID = int64(len(r.accounts) + 1)
+	if account.ID == "" {
+		account.ID = fmt.Sprintf("test-account-%d", len(r.accounts)+1)
 	}
 	r.accounts[account.ID] = account
 	return nil
@@ -58,14 +58,14 @@ func (r *upstreamBillingProbeAccountRepo) Update(_ context.Context, account *Acc
 	return nil
 }
 
-func (r *upstreamBillingProbeAccountRepo) BulkUpdate(_ context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
+func (r *upstreamBillingProbeAccountRepo) BulkUpdate(_ context.Context, ids []string, updates AccountBulkUpdate) (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.bulkUpdates = append(r.bulkUpdates, updates)
 	return int64(len(ids)), nil
 }
 
-func (r *upstreamBillingProbeAccountRepo) GetByID(_ context.Context, id int64) (*Account, error) {
+func (r *upstreamBillingProbeAccountRepo) GetByID(_ context.Context, id string) (*Account, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	account := r.accounts[id]
@@ -78,7 +78,7 @@ func (r *upstreamBillingProbeAccountRepo) GetByID(_ context.Context, id int64) (
 	return &clone, nil
 }
 
-func (r *upstreamBillingProbeAccountRepo) GetByIDs(_ context.Context, ids []int64) ([]*Account, error) {
+func (r *upstreamBillingProbeAccountRepo) GetByIDs(_ context.Context, ids []string) ([]*Account, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	result := make([]*Account, 0, len(ids))
@@ -90,7 +90,7 @@ func (r *upstreamBillingProbeAccountRepo) GetByIDs(_ context.Context, ids []int6
 	return result, nil
 }
 
-func (r *upstreamBillingProbeAccountRepo) UpdateExtra(_ context.Context, id int64, updates map[string]any) error {
+func (r *upstreamBillingProbeAccountRepo) UpdateExtra(_ context.Context, id string, updates map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	account := r.accounts[id]
@@ -104,7 +104,7 @@ func (r *upstreamBillingProbeAccountRepo) UpdateExtra(_ context.Context, id int6
 		account.Extra[key] = value
 	}
 	if r.updates == nil {
-		r.updates = make(map[int64][]map[string]any)
+		r.updates = make(map[string][]map[string]any)
 	}
 	r.updates[id] = append(r.updates[id], updates)
 	return nil

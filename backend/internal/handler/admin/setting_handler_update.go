@@ -160,6 +160,7 @@ type UpdateSettingsRequest struct {
 	CompactHomeEnabled          bool                  `json:"compact_home_enabled"`
 	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
+	SubscriptionEnabled         *bool                 `json:"subscription_enabled"`
 	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
 	TableDefaultPageSize        int                   `json:"table_default_page_size"`
 	TablePageSizeOptions        []int                 `json:"table_page_size_options"`
@@ -1728,6 +1729,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		HideCcsImportButton:                       req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:               purchaseEnabled,
 		PurchaseSubscriptionURL:                   purchaseURL,
+		SubscriptionEnabled:                       func() bool { if req.SubscriptionEnabled != nil { return *req.SubscriptionEnabled }; return previousSettings.SubscriptionEnabled }(),
 		TableDefaultPageSize:                      req.TableDefaultPageSize,
 		TablePageSizeOptions:                      req.TablePageSizeOptions,
 		CustomMenuItems:                           customMenuJSON,
@@ -2377,6 +2379,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		HideCcsImportButton:                                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:                            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                                updatedSettings.PurchaseSubscriptionURL,
+		SubscriptionEnabled:                                    updatedSettings.SubscriptionEnabled,
 		TableDefaultPageSize:                                   updatedSettings.TableDefaultPageSize,
 		TablePageSizeOptions:                                   updatedSettings.TablePageSizeOptions,
 		CustomMenuItems:                                        dto.ParseCustomMenuItems(updatedSettings.CustomMenuItems),
@@ -2560,7 +2563,7 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 	return req.PaymentEnabled != nil || req.PaymentMinAmount != nil ||
 		req.PaymentMaxAmount != nil || req.PaymentDailyLimit != nil ||
 		req.PaymentOrderTimeoutMin != nil || req.PaymentMaxPendingOrders != nil ||
-		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
+		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil || req.SubscriptionEnabled != nil ||
 		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentRechargeBonusTiers != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
 		req.PaymentRechargeFeeRate != nil ||
 		req.PaymentRefundFeeRate != nil ||

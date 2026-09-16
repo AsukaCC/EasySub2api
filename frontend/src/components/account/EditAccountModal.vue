@@ -27,6 +27,7 @@
       </div>
 
       <!-- API Key fields (only for apikey type) -->
+      <OpenCodeAccountFields v-if="account.platform === 'opencode_go'" v-model="openCodeSettings" v-model:base-url="editBaseUrl" />
       <div v-if="account.type === 'apikey'" class="components-account-edit-account-modal__panel">
         <div>
           <label class="input-label">{{ t('admin.accounts.baseUrl') }}</label>
@@ -2703,6 +2704,8 @@ import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
 import CnBaseUrlPresets from '@/components/account/CnBaseUrlPresets.vue'
+import OpenCodeAccountFields from '@/components/account/OpenCodeAccountFields.vue'
+import { readOpenCodeSettings, applyOpenCodeSettings, openCodeBaseUrl } from '@/components/account/openCodeCredentials'
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
 import OllamaCloudUsageSettings from '@/components/account/OllamaCloudUsageSettings.vue'
@@ -2817,6 +2820,7 @@ interface TempUnschedRuleForm {
 // State
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
+const openCodeSettings = ref(readOpenCodeSettings())
 const editApiKey = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek / MiniMax）account_mode / api_protocol 编辑 ──
@@ -3360,6 +3364,7 @@ const tempUnschedPresets = computed(() => [
 
 // Computed: default base URL based on platform
 const defaultBaseUrl = computed(() => {
+  if (props.account?.platform === 'opencode_go') return openCodeBaseUrl(openCodeSettings.value.account_mode)
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
   // CN 供应商：按当前模式/协议回落到官方预设（清空输入框提交时使用），
@@ -3698,6 +3703,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   // Initialize API Key fields for apikey type
   if (newAccount.type === 'apikey' && newAccount.credentials) {
     const credentials = newAccount.credentials as Record<string, unknown>
+    openCodeSettings.value = readOpenCodeSettings(credentials)
     // 国产供应商：读取 account_mode 与 api_protocol 作为可编辑初始值
     // （编辑弹窗允许修正两者，用于修复早期存错默认值的账号）。
     if (isCNProviderPlatform(newAccount.platform)) {
@@ -3723,7 +3729,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
           : isCNProviderPlatform(newAccount.platform)
             ? defaultCNBaseUrl(newAccount.platform, editAccountMode.value, editApiProtocol.value)
             : 'https://api.anthropic.com'
-    editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
+    editBaseUrl.value = (credentials.base_url as string) || (newAccount.platform === 'opencode_go' ? openCodeBaseUrl(openCodeSettings.value.account_mode) : platformDefaultUrl)
 
     // Load model mappings and detect mode
     loadModelRestrictionFromMapping(
@@ -4290,6 +4296,7 @@ const handleSubmit = async () => {
         ...currentCredentials,
         base_url: newBaseUrl
       }
+      if (props.account.platform === 'opencode_go') applyOpenCodeSettings(newCredentials, openCodeSettings.value)
 
       // 国产供应商：模式与协议写入凭据（决定额度/余额探测与转发端点/格式）。
       if (isCNApiKeyAccount.value) {

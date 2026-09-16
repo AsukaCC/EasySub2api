@@ -661,6 +661,7 @@ export interface SystemSettings {
   payment_max_pending_orders: number;
   payment_enabled_types: string[];
   payment_balance_disabled: boolean;
+  subscription_enabled: boolean;
   /** Legacy read-only compatibility value. Recharge points are fixed at 1:1. */
   payment_balance_recharge_multiplier: number;
   payment_recharge_bonus_tiers: RechargeBonusTier[];
@@ -992,6 +993,7 @@ export interface UpdateSettingsRequest {
   payment_max_pending_orders?: number;
   payment_enabled_types?: string[];
   payment_balance_disabled?: boolean;
+  subscription_enabled?: boolean;
   payment_recharge_bonus_tiers?: RechargeBonusTier[];
   payment_recharge_fee_rate?: number;
   payment_refund_fee_rate?: number;

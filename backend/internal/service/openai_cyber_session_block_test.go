@@ -121,16 +121,16 @@ type comboCacheAndStore struct {
 var _ GatewayCache = (*comboCacheAndStore)(nil)
 var _ CyberSessionBlockStore = (*comboCacheAndStore)(nil)
 
-func (c *comboCacheAndStore) GetSessionAccountID(_ context.Context, _ int64, _ string) (int64, error) {
+func (c *comboCacheAndStore) GetSessionAccountID(_ context.Context, _ string, _ string) (string, error) {
 	return 0, errors.New("stub")
 }
-func (c *comboCacheAndStore) SetSessionAccountID(_ context.Context, _ int64, _ string, _ int64, _ time.Duration) error {
+func (c *comboCacheAndStore) SetSessionAccountID(_ context.Context, _ string, _ string, _ string, _ time.Duration) error {
 	return nil
 }
-func (c *comboCacheAndStore) RefreshSessionTTL(_ context.Context, _ int64, _ string, _ time.Duration) error {
+func (c *comboCacheAndStore) RefreshSessionTTL(_ context.Context, _ string, _ string, _ time.Duration) error {
 	return nil
 }
-func (c *comboCacheAndStore) DeleteSessionAccountID(_ context.Context, _ int64, _ string) error {
+func (c *comboCacheAndStore) DeleteSessionAccountID(_ context.Context, _ string, _ string) error {
 	return nil
 }
 

@@ -391,6 +391,7 @@ export function getModelsByPlatform(platform: string): string[] {
     case 'kimi': return moonshotModels
     case 'doubao': return doubaoModels
     case 'minimax': return minimaxModels
+    case 'opencode_go': return ['grok-4.6', 'gpt-5.6-luna', 'glm-5.3', 'kimi-k3', 'deepseek-v4-pro', 'deepseek-v4-flash', 'minimax-m3', 'qwen3.8-max', 'claude-opus-4-6']
     case 'baidu': return baiduModels
     case 'spark': return sparkModels
     case 'hunyuan': return hunyuanModels

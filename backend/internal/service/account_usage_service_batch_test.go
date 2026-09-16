@@ -18,10 +18,10 @@ var _ UsageLogRepository = (*usageBatchLogRepoStub)(nil)
 func (r *usageBatchLogRepoStub) Create(context.Context, *UsageLog) (bool, error) {
 	return false, nil
 }
-func (r *usageBatchLogRepoStub) GetByID(context.Context, int64) (*UsageLog, error) {
+func (r *usageBatchLogRepoStub) GetByID(context.Context, string) (*UsageLog, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) Delete(context.Context, int64) error { return nil }
+func (r *usageBatchLogRepoStub) Delete(context.Context, string) error { return nil }
 func (r *usageBatchLogRepoStub) ListByUser(context.Context, int64, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
@@ -91,7 +91,7 @@ func (r *usageBatchLogRepoStub) GetBatchAPIKeyUsageStats(context.Context, []int6
 func (r *usageBatchLogRepoStub) GetUserDashboardStats(context.Context, int64) (*usagestats.UserDashboardStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetAPIKeyDashboardStats(context.Context, int64) (*usagestats.UserDashboardStats, error) {
+func (r *usageBatchLogRepoStub) GetAPIKeyDashboardStats(context.Context, string) (*usagestats.UserDashboardStats, error) {
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) GetUserUsageTrendByUserID(context.Context, int64, time.Time, time.Time, string) ([]usagestats.TrendDataPoint, error) {
@@ -136,7 +136,7 @@ func TestAccountUsageService_GetUsageBatch_BestEffortByAccount(t *testing.T) {
 	repo := &stubOpenAIAccountRepo{
 		accounts: []Account{
 			{
-				ID:       7001,
+				ID:       "7001",
 				Platform: PlatformAnthropic,
 				Type:     AccountTypeOAuth,
 				Extra: map[string]any{
@@ -144,7 +144,7 @@ func TestAccountUsageService_GetUsageBatch_BestEffortByAccount(t *testing.T) {
 				},
 			},
 			{
-				ID:       7002,
+				ID:       "7002",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Extra: map[string]any{
@@ -159,7 +159,7 @@ func TestAccountUsageService_GetUsageBatch_BestEffortByAccount(t *testing.T) {
 				},
 			},
 			{
-				ID:       7003,
+				ID:       "7003",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeAPIKey,
 			},
@@ -172,20 +172,20 @@ func TestAccountUsageService_GetUsageBatch_BestEffortByAccount(t *testing.T) {
 		cache:        NewUsageCache(),
 	}
 
-	usageByAccount, errorsByAccount, err := svc.GetUsageBatch(context.Background(), []int64{7001, 7002, 7003, 7002}, false)
+	usageByAccount, errorsByAccount, err := svc.GetUsageBatch(context.Background(), []string{"7001", "7002", "7003", "7002"}, false)
 	if err != nil {
 		t.Fatalf("GetUsageBatch() error = %v", err)
 	}
 
-	if usageByAccount[7001] == nil || usageByAccount[7001].Source != "passive" {
-		t.Fatalf("expected anthropic passive usage, got %#v", usageByAccount[7001])
+	if usageByAccount["7001"] == nil || usageByAccount["7001"].Source != "passive" {
+		t.Fatalf("expected anthropic passive usage, got %#v", usageByAccount["7001"])
 	}
 
-	if usageByAccount[7002] == nil || usageByAccount[7002].FiveHour == nil || usageByAccount[7002].FiveHour.Utilization != 18.0 {
-		t.Fatalf("expected openai snapshot usage, got %#v", usageByAccount[7002])
+	if usageByAccount["7002"] == nil || usageByAccount["7002"].FiveHour == nil || usageByAccount["7002"].FiveHour.Utilization != 18.0 {
+		t.Fatalf("expected openai snapshot usage, got %#v", usageByAccount["7002"])
 	}
 
-	if !strings.Contains(strings.ToLower(errorsByAccount[7003]), "does not support usage query") {
-		t.Fatalf("expected API key account error to be preserved, got %q", errorsByAccount[7003])
+	if !strings.Contains(strings.ToLower(errorsByAccount["7003"]), "does not support usage query") {
+		t.Fatalf("expected API key account error to be preserved, got %q", errorsByAccount["7003"])
 	}
 }

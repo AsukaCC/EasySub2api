@@ -20,6 +20,7 @@ import "time"
 //   - "7d-sonnet"  Claude 7 天 Sonnet 独立额度
 //   - "7d-fable"   Claude 7 天 Fable 独立额度
 //   - "weekly"     周窗口（Kimi/Zhipu coding plan）
+//   - "monthly"    OpenCode GO monthly window
 //   - "daily"      日窗口（Grok 日请求）
 //   - "30d"        30 天窗口（Grok 月度）
 //   - "total"      无窗口语义的总量额度

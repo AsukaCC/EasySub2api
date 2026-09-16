@@ -152,6 +152,16 @@ func resolveOpenAIMessagesDispatchMappedModel(apiKey *service.APIKey, requestedM
 	return strings.TrimSpace(apiKey.Group.ResolveMessagesDispatchModel(requestedModel))
 }
 
+func resolveOpenAIMessagesDispatchForRequest(c *gin.Context, apiKey *service.APIKey, requestedModel string) string {
+	if apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite && c != nil && c.Request != nil {
+		if platform, ok := service.ResolvedTargetPlatformFromContext(c.Request.Context()); ok &&
+			(platform == service.PlatformGrok || service.IsMultiProtocolAPIKeyProvider(platform)) {
+			return ""
+		}
+	}
+	return resolveOpenAIMessagesDispatchMappedModel(apiKey, requestedModel)
+}
+
 type openAIModelBodyReplaceFunc func([]byte, string) []byte
 
 func openAIModelMappedBody(body []byte, mapped bool, mappedModel string, replace openAIModelBodyReplaceFunc) []byte {
@@ -248,7 +258,7 @@ func allowOpenAICompatibleMessagesDispatch(apiKey *service.APIKey) bool {
 	// 协议账号原生直通 Claude Code),无需 allow_messages_dispatch 开关授权——
 	// 该开关对非 openai 平台恒被 sanitizeGroupMessagesDispatchFields 置 false,
 	// 若不豁免,CN 分组将永远 403。
-	if service.IsCNProvider(apiKey.Group.Platform) {
+	if service.IsMultiProtocolAPIKeyProvider(apiKey.Group.Platform) {
 		return true
 	}
 	return apiKey.Group.AllowMessagesDispatch
@@ -257,7 +267,7 @@ func allowOpenAICompatibleMessagesDispatch(apiKey *service.APIKey) bool {
 func openAICompatibleTextTargetAllowed(c *gin.Context, apiKey *service.APIKey, model string) bool {
 	return compositeTargetPlatformAllowed(c, apiKey, model,
 		service.PlatformOpenAI, service.PlatformGrok,
-		service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax)
+		service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax, service.PlatformOpenCodeGo)
 }
 
 // NewOpenAIGatewayHandler creates a new OpenAIGatewayHandler
@@ -381,7 +391,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	reqModel := modelResult.String()
 	bindRequestedReasoningEffort(c, body, reqModel)
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
-	if !compositeTargetPlatformAllowed(c, apiKey, reqModel, service.PlatformOpenAI, service.PlatformGrok) {
+	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
 		return
 	}
@@ -1071,7 +1081,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	routingModel := service.NormalizeOpenAICompatRequestedModel(reqModel)
-	preferredMappedModel := resolveOpenAIMessagesDispatchMappedModel(apiKey, reqModel)
+	preferredMappedModel := resolveOpenAIMessagesDispatchForRequest(c, apiKey, reqModel)
 	reqStream := gjson.GetBytes(body, "stream").Bool()
 
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
@@ -2145,9 +2155,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			selection.Account = latest
 			accountReleaseFunc = fastReleaseFunc
 		}
-		// 准入完成：本次选号使用局部上下文。外层 ctx 保持不可变，确保上游
-		// failover 的下一轮选号不会继承上一个分组或利润门。
-		attemptCtx := admissionCtx
+		// Register only after admission; retain the registration across account retries.
+		sessionCtx, preemptCleanup, _ := h.gatewayService.BeginOpenAIWSIngressSessionPreemptionWithClient(ctx, c, account, firstMessage, wsConn)
+		defer preemptCleanup()
+		ctx = sessionCtx
+		// Reapply this selection's gate without carrying it into subsequent retries.
+		attemptCtx := service.ContextWithSelectionProfitGate(ctx, selection)
 		currentAccountRelease = wrapReleaseOnDone(attemptCtx, accountReleaseFunc)
 		if err := h.gatewayService.BindStickySessionAfterProfitAdmission(attemptCtx, selectedAPIKey.GroupID, sessionHash, account.ID); err != nil {
 			reqLog.Warn("openai.websocket_bind_sticky_session_after_profit_admission_failed", zap.String("account_id", account.ID), zap.Error(err))
@@ -2419,6 +2432,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		requestPayloadHash = service.HashUsageRequestPayload(wsFirstMessage)
 
 		if err := h.gatewayService.ProxyResponsesWebSocketFromClient(attemptCtx, c, wsConn, account, token, wsFirstMessage, hooks); err != nil {
+			if service.IsOpenAIWSSessionPreemptedError(err) {
+				return
+			}
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				if handleWSFailover(account, failoverErr) {

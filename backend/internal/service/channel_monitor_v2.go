@@ -15,13 +15,14 @@ const (
 )
 
 var channelMonitorV2SupportedPlatforms = map[string]struct{}{
-	PlatformAnthropic: {},
-	PlatformOpenAI:    {},
-	PlatformGrok:      {},
-	PlatformKimi:      {},
-	PlatformZhipu:     {},
-	PlatformDeepseek:  {},
-	PlatformMiniMax:   {},
+	PlatformAnthropic:  {},
+	PlatformOpenAI:     {},
+	PlatformGrok:       {},
+	PlatformKimi:       {},
+	PlatformZhipu:      {},
+	PlatformDeepseek:   {},
+	PlatformMiniMax:    {},
+	PlatformOpenCodeGo: {},
 }
 
 var (

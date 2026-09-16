@@ -20,6 +20,7 @@ import (
 // Forward forwards request to OpenAI API
 func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*OpenAIForwardResult, error) {
 	beginUpstreamResponseModelObservation(c)
+	ClearActualOpenAIUpstreamEndpoint(c)
 	clearGrokResponsesClientToolMapping(c)
 	clearOpenAIResponsesClientToolMapping(c)
 	clearOpenAIResponsesNamespaceNames(c)
@@ -34,6 +35,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	restrictionResult := s.detectCodexClientRestriction(c, account, body)
 	apiKeyID := getAPIKeyIDFromContext(c)
+	// Capture declared identity before account-specific payload normalization.
+	wsExecutionScope, _ := resolveOpenAIWSExecutionScope(c, body, apiKeyID)
+	c.Set(openAIWSExecutionScopeContextKey, wsExecutionScope)
 	logCodexCLIOnlyDetection(ctx, c, account, apiKeyID, restrictionResult, body)
 	if restrictionResult.Enabled && !restrictionResult.Matched {
 		MarkOpsClientBusinessLimited(c, OpsClientBusinessLimitedReasonLocalPolicyDenied)
@@ -106,6 +110,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 
 	originalBody := body
+	rememberOpenCodeInboundBody(c, body)
 	requestView := newOpenAIRequestView(body)
 	reqModel, reqStream, promptCacheKey := requestView.Model, requestView.Stream, requestView.PromptCacheKey
 	originalModel := reqModel
@@ -114,6 +119,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return s.forwardGrokResponses(ctx, c, account, body, originalModel, reqStream, startTime)
 	}
 
+	if account.IsOpenCodeGo() {
+		switch openCodeGoNativeProtocol(account, resolveOpenCodeGoMappedModel(account, body, "")) {
+		case APIProtocolAnthropic:
+			return s.forwardResponsesViaNativeAnthropic(ctx, c, account, body, "")
+		case APIProtocolChatCompletions:
+			return s.forwardResponsesViaRawChatCompletions(ctx, c, account, body)
+		}
+	}
 	// CN 供应商 anthropic 协议账号：/v1/responses 入站是交叉协议组合
 	// （Responses 客户端 × Anthropic 上游），转成 Anthropic 请求走原生端点。
 	// 不能落到下面的 raw-CC 分支——其 URL 构造会把 anthropic base 当 CC base 用。
@@ -124,6 +137,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if shouldForwardOpenAIResponsesViaRawChatCompletions(account) {
 		return s.forwardResponsesViaRawChatCompletions(ctx, c, account, body)
 	}
+	SetActualOpenAIUpstreamEndpoint(c, openAIResponsesUpstreamEndpoint)
 	if account.Platform == PlatformOpenAI && account.Type == AccountTypeAPIKey {
 		sanitizedBody, changed, sanitizeErr := sanitizeOpenAIResponsesInputItemIDs(body)
 		if sanitizeErr != nil {
@@ -1098,11 +1112,15 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if searchCount > 0 && account != nil && account.IsGrok() {
 			forwardResult.SearchCount = searchCount
 		}
+		stampOpenAIResponsesUpstreamEndpoint(c, forwardResult)
 		return forwardResult, nil
 	}
 }
 
 func shouldForwardOpenAIResponsesViaRawChatCompletions(account *Account) bool {
+	if account.IsOpenCodeGo() {
+		return false
+	}
 	if account == nil || account.Type != AccountTypeAPIKey {
 		return false
 	}
@@ -1252,7 +1270,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if account.Type == AccountTypeOAuth {
 		finalizeCodexOAuthIdentityHeaders(req.Header)
 	}
-	applyOpenCodeSessionHeader(c, account, targetURL, req.Header)
+	applyOpenCodeSessionHeader(c, account, targetURL, req.Header, body, openCodeSessionHintBody(promptCacheKey))
 	// x-codex-beta-features：按真实 Codex 的会话级行为补注（在账号级覆写之后，
 	// 保证不被覆盖丢失）。
 	applyOpenAICodexBetaFeatures(c, account, req.Header)
