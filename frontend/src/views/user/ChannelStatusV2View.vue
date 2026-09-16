@@ -205,7 +205,7 @@
         />
       </div>
 
-      <section class="views-user-channel-status-v2-view__section-3 card">
+      <section class="views-user-channel-status-v2-view__section-3 card monitor-glass-card">
         <div class="views-user-channel-status-v2-view__panel-14 monitor-detail-header">
           <nav class="views-user-channel-status-v2-view__navigation tabs monitor-tabs monitor-detail-tabs" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
             <button
