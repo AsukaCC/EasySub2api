@@ -1,6 +1,6 @@
 <template>
   <div
-    class="features-channel-monitor-v2-metric-cell__panel stat-card"
+    class="features-channel-monitor-v2-metric-cell__panel stat-card monitor-glass-card"
     :title="title || undefined"
   >
     <div

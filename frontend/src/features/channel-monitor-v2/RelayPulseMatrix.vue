@@ -1,6 +1,6 @@
 <template>
   <section
-    class="features-channel-monitor-v2-relay-pulse-matrix__section card"
+    class="features-channel-monitor-v2-relay-pulse-matrix__section card monitor-glass-card"
   >
     <div class="features-channel-monitor-v2-relay-pulse-matrix__panel card-header">
       <div class="features-channel-monitor-v2-relay-pulse-matrix__panel-2">

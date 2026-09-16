@@ -227,20 +227,23 @@ watch(() => props.show, (open) => {
   display: flex;
   gap: 0.25rem;
   margin-bottom: 1rem;
+  overflow-x: auto;
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .size-picker-tabs button {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: 0.6rem;
+  padding: 0.55rem 0.4rem;
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }
 
 .size-picker-tabs button.active {
