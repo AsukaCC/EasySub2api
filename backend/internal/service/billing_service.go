@@ -102,6 +102,7 @@ type ModelPricing struct {
 	CacheCreationPricePerTokenPriority float64  // priority service tier 下缓存创建每token价格 (USD)
 	CacheCreationPriceExplicit         bool     // 是否由渠道/区间定价显式设定（为 true 时即使 == 0 也不回退）
 	CacheReadPricePerToken             float64  // 缓存读取每token价格 (USD)
+	ImageCacheReadPricePerToken        float64  // 缓存图片输入 token 价格 (USD)，为 0 时回退到 CacheReadPricePerToken
 	CacheReadPricePerTokenPriority     float64  // priority service tier 下缓存读取每token价格 (USD)
 	MaxReasoningEffortMultiplier       *float64 // max 推理等级的计费倍率；nil 时使用模型默认行为
 	CacheCreation5mPrice               float64  // 5分钟缓存创建每token价格 (USD)
@@ -188,6 +189,7 @@ type UsageTokens struct {
 	OutputTokens          int
 	CacheCreationTokens   int
 	CacheReadTokens       int
+	ImageCacheReadTokens  int
 	CacheCreation5mTokens int
 	CacheCreation1hTokens int
 	ImageOutputTokens     int
@@ -1050,6 +1052,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				CacheCreationPricePerToken:         litellmPricing.CacheCreationInputTokenCost,
 				CacheCreationPricePerTokenPriority: litellmPricing.CacheCreationInputTokenCostPriority,
 				CacheReadPricePerToken:             litellmPricing.CacheReadInputTokenCost,
+				ImageCacheReadPricePerToken:        litellmPricing.CacheReadInputImageTokenCost,
 				CacheReadPricePerTokenPriority:     litellmPricing.CacheReadInputTokenCostPriority,
 				CacheCreation5mPrice:               price5m,
 				CacheCreation1hPrice:               price1h,
@@ -1324,7 +1327,13 @@ func (s *BillingService) computeTokenBreakdown(
 	// 缓存创建费用
 	bd.CacheCreationCost = s.computeCacheCreationCost(pricing, tokens, cacheCreationPrice, cacheCreationMultiplier)
 
-	bd.CacheReadCost = float64(tokens.CacheReadTokens) * cacheReadPrice
+	imageCacheReadTokens := min(max(tokens.ImageCacheReadTokens, 0), max(tokens.CacheReadTokens, 0))
+	textCacheReadTokens := max(tokens.CacheReadTokens-imageCacheReadTokens, 0)
+	imageCacheReadPrice := pricing.ImageCacheReadPricePerToken
+	if imageCacheReadPrice == 0 {
+		imageCacheReadPrice = cacheReadPrice
+	}
+	bd.CacheReadCost = float64(textCacheReadTokens)*cacheReadPrice + float64(imageCacheReadTokens)*imageCacheReadPrice
 
 	if tierMultiplier != 1.0 {
 		bd.InputCost *= tierMultiplier
