@@ -21,9 +21,10 @@ func setupRoleStepUpRouter(t *testing.T) (*gin.Engine, *stubAdminService) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	adminSvc := newStubAdminService()
+	adminSvc.users[0].ID = "00000000-0000-4000-8000-000000000001"
 	// 追加一个已是管理员的目标用户，验证「目标已是 admin 不触发门控」。
 	adminSvc.users = append(adminSvc.users, service.User{
-		ID:     2,
+		ID:     "00000000-0000-4000-8000-000000000002",
 		Email:  "admin@example.com",
 		Role:   service.RoleAdmin,
 		Status: service.StatusActive,
@@ -49,21 +50,21 @@ func doJSON(t *testing.T, router *gin.Engine, method, path string, payload map[s
 func TestUpdateUserPromoteToAdminRequiresStepUp(t *testing.T) {
 	router, _ := setupRoleStepUpRouter(t)
 
-	rec := doJSON(t, router, http.MethodPut, "/api/v1/admin/users/1", map[string]any{"role": "admin"})
+	rec := doJSON(t, router, http.MethodPut, "/api/v1/admin/users/00000000-0000-4000-8000-000000000001", map[string]any{"role": "admin"})
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestUpdateUserKeepAdminRoleSkipsStepUp(t *testing.T) {
 	router, _ := setupRoleStepUpRouter(t)
 
-	rec := doJSON(t, router, http.MethodPut, "/api/v1/admin/users/2", map[string]any{"role": "admin"})
+	rec := doJSON(t, router, http.MethodPut, "/api/v1/admin/users/00000000-0000-4000-8000-000000000002", map[string]any{"role": "admin"})
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestUpdateUserRegularRoleSkipsStepUp(t *testing.T) {
 	router, _ := setupRoleStepUpRouter(t)
 
-	rec := doJSON(t, router, http.MethodPut, "/api/v1/admin/users/1", map[string]any{"role": "user", "email": "u@example.com"})
+	rec := doJSON(t, router, http.MethodPut, "/api/v1/admin/users/00000000-0000-4000-8000-000000000001", map[string]any{"role": "user", "email": "u@example.com"})
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 

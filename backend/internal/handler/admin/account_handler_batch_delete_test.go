@@ -23,12 +23,12 @@ type batchDeleteAdminService struct {
 	mu               sync.Mutex
 	active           int
 	maxActive        int
-	deletedIDs       []int64
-	deleteErrorsByID map[int64]error
-	accountsByID     map[int64]*service.Account
+	deletedIDs       []string
+	deleteErrorsByID map[string]error
+	accountsByID     map[string]*service.Account
 }
 
-func (s *batchDeleteAdminService) GetAccountsByIDs(_ context.Context, ids []int64) ([]*service.Account, error) {
+func (s *batchDeleteAdminService) GetAccountsByIDs(_ context.Context, ids []string) ([]*service.Account, error) {
 	accounts := make([]*service.Account, 0, len(ids))
 	for _, id := range ids {
 		if s.accountsByID != nil {
@@ -42,7 +42,7 @@ func (s *batchDeleteAdminService) GetAccountsByIDs(_ context.Context, ids []int6
 	return accounts, nil
 }
 
-func (s *batchDeleteAdminService) DeleteAccount(ctx context.Context, id int64) error {
+func (s *batchDeleteAdminService) DeleteAccount(ctx context.Context, id string) error {
 	s.mu.Lock()
 	s.active++
 	if s.active > s.maxActive {
@@ -77,8 +77,8 @@ func setupAccountBatchDeleteRouter(adminSvc *batchDeleteAdminService) *gin.Engin
 func TestAccountHandlerBatchDeleteReturnsStablePerAccountResults(t *testing.T) {
 	adminSvc := &batchDeleteAdminService{
 		stubAdminService: newStubAdminService(),
-		deleteErrorsByID: map[int64]error{
-			3: errors.New("delete failed"),
+		deleteErrorsByID: map[string]error{
+			"3": errors.New("delete failed"),
 		},
 	}
 	router := setupAccountBatchDeleteRouter(adminSvc)
@@ -87,7 +87,7 @@ func TestAccountHandlerBatchDeleteReturnsStablePerAccountResults(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v1/admin/accounts/batch-delete",
-		bytes.NewBufferString(`{"account_ids":[5,4,3,2,1,2,0,-1]}`),
+		bytes.NewBufferString(`{"account_ids":["5","4","3","2","1","2",""]}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
@@ -96,13 +96,13 @@ func TestAccountHandlerBatchDeleteReturnsStablePerAccountResults(t *testing.T) {
 
 	var payload struct {
 		Data struct {
-			Total      int     `json:"total"`
-			Success    int     `json:"success"`
-			Failed     int     `json:"failed"`
-			SuccessIDs []int64 `json:"success_ids"`
-			FailedIDs  []int64 `json:"failed_ids"`
+			Total      int      `json:"total"`
+			Success    int      `json:"success"`
+			Failed     int      `json:"failed"`
+			SuccessIDs []string `json:"success_ids"`
+			FailedIDs  []string `json:"failed_ids"`
 			Errors     []struct {
-				AccountID int64  `json:"account_id"`
+				AccountID string `json:"account_id"`
 				Error     string `json:"error"`
 			} `json:"errors"`
 		} `json:"data"`
@@ -111,22 +111,22 @@ func TestAccountHandlerBatchDeleteReturnsStablePerAccountResults(t *testing.T) {
 	require.Equal(t, 5, payload.Data.Total)
 	require.Equal(t, 4, payload.Data.Success)
 	require.Equal(t, 1, payload.Data.Failed)
-	require.Equal(t, []int64{1, 2, 4, 5}, payload.Data.SuccessIDs)
-	require.Equal(t, []int64{3}, payload.Data.FailedIDs)
-	require.Equal(t, int64(3), payload.Data.Errors[0].AccountID)
+	require.Equal(t, []string{"1", "2", "4", "5"}, payload.Data.SuccessIDs)
+	require.Equal(t, []string{"3"}, payload.Data.FailedIDs)
+	require.Equal(t, "3", payload.Data.Errors[0].AccountID)
 	require.Equal(t, "delete failed", payload.Data.Errors[0].Error)
 	require.LessOrEqual(t, adminSvc.maxActive, 5)
 	require.Greater(t, adminSvc.maxActive, 1)
 }
 
 func TestAccountHandlerBatchDeleteDoesNotRaceSelectedShadowWithParent(t *testing.T) {
-	parentID := int64(1)
+	parentID := "1"
 	adminSvc := &batchDeleteAdminService{
 		stubAdminService: newStubAdminService(),
-		accountsByID: map[int64]*service.Account{
-			1: {ID: 1},
-			2: {ID: 2, ParentAccountID: &parentID},
-			3: {ID: 3},
+		accountsByID: map[string]*service.Account{
+			"1": {ID: "1"},
+			"2": {ID: "2", ParentAccountID: &parentID},
+			"3": {ID: "3"},
 		},
 	}
 	router := setupAccountBatchDeleteRouter(adminSvc)
@@ -135,7 +135,7 @@ func TestAccountHandlerBatchDeleteDoesNotRaceSelectedShadowWithParent(t *testing
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v1/admin/accounts/batch-delete",
-		bytes.NewBufferString(`{"account_ids":[1,2,3]}`),
+		bytes.NewBufferString(`{"account_ids":["1","2","3"]}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
@@ -144,14 +144,14 @@ func TestAccountHandlerBatchDeleteDoesNotRaceSelectedShadowWithParent(t *testing
 
 	var payload struct {
 		Data struct {
-			SuccessIDs []int64 `json:"success_ids"`
-			FailedIDs  []int64 `json:"failed_ids"`
+			SuccessIDs []string `json:"success_ids"`
+			FailedIDs  []string `json:"failed_ids"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
-	require.Equal(t, []int64{1, 2, 3}, payload.Data.SuccessIDs)
+	require.Equal(t, []string{"1", "2", "3"}, payload.Data.SuccessIDs)
 	require.Empty(t, payload.Data.FailedIDs)
-	require.ElementsMatch(t, []int64{1, 3}, adminSvc.deletedIDs)
+	require.ElementsMatch(t, []string{"1", "3"}, adminSvc.deletedIDs)
 }
 
 func TestAccountHandlerBatchDeleteRejectsEmptyNormalizedIDs(t *testing.T) {
@@ -164,7 +164,7 @@ func TestAccountHandlerBatchDeleteRejectsEmptyNormalizedIDs(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v1/admin/accounts/batch-delete",
-		bytes.NewBufferString(`{"account_ids":[0,-1]}`),
+		bytes.NewBufferString(`{"account_ids":["",""]}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)

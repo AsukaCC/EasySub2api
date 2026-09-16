@@ -35,7 +35,7 @@ func TestAccountHandlerListIncludesCreatedAt(t *testing.T) {
 	var payload struct {
 		Data struct {
 			Items []struct {
-				ID        int64  `json:"id"`
+				ID        string `json:"id"`
 				CreatedAt string `json:"created_at"`
 			} `json:"items"`
 		} `json:"data"`
@@ -55,10 +55,10 @@ func TestAccountHandlerListIncludesCreatedAt(t *testing.T) {
 func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 	router, adminSvc := setupAccountListRouter()
 	now := time.Now().UTC()
-	groupID := int64(41)
+	groupID := "41"
 	adminSvc.accounts = []service.Account{
 		{
-			ID:          101,
+			ID:          "101",
 			Name:        "account-high-priority",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -67,14 +67,14 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 			Concurrency: 10,
 			Priority:    1,
 			AccountGroups: []service.AccountGroup{
-				{AccountID: 101, GroupID: groupID, Priority: 100, Group: &service.Group{ID: groupID, Name: "openai"}},
+				{AccountID: "101", GroupID: groupID, Priority: 100, Group: &service.Group{ID: groupID, Name: "openai"}},
 			},
-			GroupIDs:  []int64{groupID},
+			GroupIDs:  []string{groupID},
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
 		{
-			ID:          102,
+			ID:          "102",
 			Name:        "account-low-priority",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -83,9 +83,9 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 			Concurrency: 10,
 			Priority:    100000,
 			AccountGroups: []service.AccountGroup{
-				{AccountID: 102, GroupID: groupID, Priority: 1, Group: &service.Group{ID: groupID, Name: "openai"}},
+				{AccountID: "102", GroupID: groupID, Priority: 1, Group: &service.Group{ID: groupID, Name: "openai"}},
 			},
-			GroupIDs:  []int64{groupID},
+			GroupIDs:  []string{groupID},
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
@@ -99,12 +99,12 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 	var payload struct {
 		Data struct {
 			Items []struct {
-				ID             int64 `json:"id"`
+				ID             string `json:"id"`
 				SchedulerScore struct {
 					BaseScore float64 `json:"base_score"`
 				} `json:"scheduler_score"`
 				SchedulerScores []struct {
-					GroupID       *int64  `json:"group_id"`
+					GroupID       *string `json:"group_id"`
 					GroupName     string  `json:"group_name"`
 					GroupPriority *int    `json:"group_priority"`
 					BaseScore     float64 `json:"base_score"`
@@ -116,12 +116,12 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 	require.Len(t, payload.Data.Items, 2)
 
 	var high, low *struct {
-		ID             int64 `json:"id"`
+		ID             string `json:"id"`
 		SchedulerScore struct {
 			BaseScore float64 `json:"base_score"`
 		} `json:"scheduler_score"`
 		SchedulerScores []struct {
-			GroupID       *int64  `json:"group_id"`
+			GroupID       *string `json:"group_id"`
 			GroupName     string  `json:"group_name"`
 			GroupPriority *int    `json:"group_priority"`
 			BaseScore     float64 `json:"base_score"`
@@ -130,9 +130,9 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 	for i := range payload.Data.Items {
 		item := &payload.Data.Items[i]
 		switch item.ID {
-		case 101:
+		case "101":
 			high = item
-		case 102:
+		case "102":
 			low = item
 		}
 	}
@@ -152,7 +152,7 @@ func TestAccountHandlerListSkipsSchedulerScoresByDefault(t *testing.T) {
 	now := time.Now().UTC()
 	adminSvc.accounts = []service.Account{
 		{
-			ID:          110,
+			ID:          "110",
 			Name:        "openai-account",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
@@ -187,9 +187,9 @@ func TestAccountHandlerListSkipsSchedulerScoresByDefault(t *testing.T) {
 func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 	router, adminSvc := setupAccountListRouter()
 	now := time.Now().UTC()
-	groupID := int64(42)
+	groupID := "42"
 	visibleAccount := service.Account{
-		ID:          201,
+		ID:          "201",
 		Name:        "visible-low-priority",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
@@ -198,14 +198,14 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 		Concurrency: 10,
 		Priority:    100000,
 		AccountGroups: []service.AccountGroup{
-			{AccountID: 201, GroupID: groupID, Priority: 1, Group: &service.Group{ID: groupID, Name: "openai"}},
+			{AccountID: "201", GroupID: groupID, Priority: 1, Group: &service.Group{ID: groupID, Name: "openai"}},
 		},
-		GroupIDs:  []int64{groupID},
+		GroupIDs:  []string{groupID},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 	hiddenGroupPeer := service.Account{
-		ID:          202,
+		ID:          "202",
 		Name:        "hidden-high-priority",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
@@ -214,9 +214,9 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 		Concurrency: 10,
 		Priority:    1,
 		AccountGroups: []service.AccountGroup{
-			{AccountID: 202, GroupID: groupID, Priority: 2, Group: &service.Group{ID: groupID, Name: "openai"}},
+			{AccountID: "202", GroupID: groupID, Priority: 2, Group: &service.Group{ID: groupID, Name: "openai"}},
 		},
-		GroupIDs:  []int64{groupID},
+		GroupIDs:  []string{groupID},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -232,12 +232,12 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 	var payload struct {
 		Data struct {
 			Items []struct {
-				ID             int64 `json:"id"`
+				ID             string `json:"id"`
 				SchedulerScore struct {
 					BaseScore float64 `json:"base_score"`
 				} `json:"scheduler_score"`
 				SchedulerScores []struct {
-					GroupID   *int64  `json:"group_id"`
+					GroupID   *string `json:"group_id"`
 					BaseScore float64 `json:"base_score"`
 				} `json:"scheduler_scores"`
 			} `json:"items"`
@@ -246,7 +246,7 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 	require.Len(t, payload.Data.Items, 1)
 	item := payload.Data.Items[0]
-	require.Equal(t, int64(201), item.ID)
+	require.Equal(t, "201", item.ID)
 	require.Len(t, item.SchedulerScores, 1)
 	require.Equal(t, groupID, *item.SchedulerScores[0].GroupID)
 	require.Equal(t, item.SchedulerScores[0].BaseScore, item.SchedulerScore.BaseScore)
@@ -256,7 +256,7 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 	router, adminSvc := setupAccountListRouter()
 	now := time.Now().UTC()
 	visibleAccount := service.Account{
-		ID:          301,
+		ID:          "301",
 		Name:        "visible-low-priority",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
@@ -268,7 +268,7 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 		UpdatedAt:   now,
 	}
 	hiddenFilterPeer := service.Account{
-		ID:          302,
+		ID:          "302",
 		Name:        "hidden-high-priority",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
@@ -290,12 +290,12 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 	var payload struct {
 		Data struct {
 			Items []struct {
-				ID             int64 `json:"id"`
+				ID             string `json:"id"`
 				SchedulerScore struct {
 					BaseScore float64 `json:"base_score"`
 				} `json:"scheduler_score"`
 				SchedulerScores []struct {
-					GroupID   *int64  `json:"group_id"`
+					GroupID   *string `json:"group_id"`
 					BaseScore float64 `json:"base_score"`
 				} `json:"scheduler_scores"`
 			} `json:"items"`
@@ -303,7 +303,7 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 	require.Len(t, payload.Data.Items, 1)
-	require.Equal(t, int64(301), payload.Data.Items[0].ID)
+	require.Equal(t, "301", payload.Data.Items[0].ID)
 	require.Less(t, payload.Data.Items[0].SchedulerScore.BaseScore, 3.75)
 	require.Empty(t, payload.Data.Items[0].SchedulerScores)
 }

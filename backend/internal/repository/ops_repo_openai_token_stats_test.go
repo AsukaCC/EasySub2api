@@ -16,7 +16,7 @@ func TestOpsRepositoryGetOpenAITokenStats_PaginationMode(t *testing.T) {
 
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
-	groupID := int64(9)
+	groupID := "group-9"
 
 	filter := &service.OpsOpenAITokenStatsFilter{
 		TimeRange: "1d",

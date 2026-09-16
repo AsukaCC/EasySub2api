@@ -133,7 +133,7 @@ func passthroughLifecycleConfig() *config.Config {
 
 func passthroughLifecycleAccount() *Account {
 	return &Account{
-		ID:          901,
+		ID:          "id-901",
 		Name:        "passthrough-lifecycle",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

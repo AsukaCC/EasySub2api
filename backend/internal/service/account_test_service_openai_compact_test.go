@@ -25,7 +25,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactOAuthSuccessPersi
 
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          1,
+		ID:          "1",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -87,7 +87,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactOAuth404MarksUnsu
 
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          2,
+		ID:          "2",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -131,7 +131,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactAPIKeyUsesNativeR
 
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          3,
+		ID:          "3",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -182,7 +182,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactAPIKeyDefaultBase
 
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          4,
+		ID:          "4",
 		Name:        "openai-apikey-default",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -223,7 +223,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompact2xxWithoutItemMar
 
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          5,
+		ID:          "5",
 		Name:        "openai-oauth-no-item",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -272,7 +272,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactProbeIdentityMatc
 
 	updateCalls := make(chan map[string]any, 1)
 	account := Account{
-		ID:          6,
+		ID:          "6",
 		Name:        "openai-oauth-identity",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -320,11 +320,11 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactProbeIdentityMatc
 }
 
 func TestCompactProbeSessionID_IsUUIDShaped(t *testing.T) {
-	for _, id := range []int64{0, 1, 987654} {
+	for _, id := range []string{"0", "1", "987654"} {
 		got := compactProbeSessionID(id)
 		_, err := uuid.Parse(got)
 		require.NoError(t, err, "探测会话标识必须是 UUID 形态: %s", got)
 	}
-	require.Equal(t, compactProbeSessionID(7), compactProbeSessionID(7), "同账号应稳定复用同一会话")
-	require.NotEqual(t, compactProbeSessionID(7), compactProbeSessionID(8))
+	require.Equal(t, compactProbeSessionID("7"), compactProbeSessionID("7"), "同账号应稳定复用同一会话")
+	require.NotEqual(t, compactProbeSessionID("7"), compactProbeSessionID("8"))
 }

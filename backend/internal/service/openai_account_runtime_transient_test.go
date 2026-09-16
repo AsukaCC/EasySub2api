@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -14,15 +15,15 @@ type transientCooldownAccountRepo struct {
 	AccountRepository
 }
 
-func (transientCooldownAccountRepo) SetOverloaded(context.Context, int64, time.Time) error {
+func (transientCooldownAccountRepo) SetOverloaded(context.Context, string, time.Time) error {
 	return nil
 }
 
 func TestHandleOpenAITransientError_BlocksOnlyRequestedModel(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, nil, &config.Config{}, nil, nil)
+	svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, &config.Config{}, nil)
 	account := &Account{
-		ID:       5105,
+		ID:       "account-5105",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 	}
@@ -41,9 +42,9 @@ func TestHandleOpenAITransientError_TransientStatusesUseModelScope(t *testing.T)
 	for _, statusCode := range []int{http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout, 520, 521, 522, 523, 524} {
 		t.Run(http.StatusText(statusCode), func(t *testing.T) {
 			svc := &OpenAIGatewayService{}
-			svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, nil, &config.Config{}, nil, nil)
+			svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, &config.Config{}, nil)
 			account := &Account{
-				ID:       int64(5100 + statusCode),
+				ID:       fmt.Sprintf("account-%d", 5100+statusCode),
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeAPIKey,
 			}
@@ -65,9 +66,9 @@ func TestHandleOpenAITransientError_529RemainsOverloadOnly(t *testing.T) {
 
 func TestHandleOpenAITransientError_CanonicalModelIsNotMappedTwice(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, nil, &config.Config{}, nil, nil)
+	svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, &config.Config{}, nil)
 	account := &Account{
-		ID:       5107,
+		ID:       "account-5107",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -91,9 +92,9 @@ func TestHandleOpenAITransientError_CanonicalModelIsNotMappedTwice(t *testing.T)
 
 func TestHandleOpenAITransientError_DoesNotBlockParameter400(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, nil, &config.Config{}, nil, nil)
+	svc.rateLimitService = NewRateLimitService(transientCooldownAccountRepo{}, &config.Config{}, nil)
 	account := &Account{
-		ID:       5103,
+		ID:       "account-5103",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 	}
@@ -107,7 +108,7 @@ func TestHandleOpenAITransientError_DoesNotBlockParameter400(t *testing.T) {
 
 func TestHandleOpenAITransientError_HardDisableStillBlocksWholeAccount(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	account := &Account{ID: 5106, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	account := &Account{ID: "account-5106", Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
 
 	svc.BlockAccountScheduling(account, time.Now().Add(time.Minute), "upstream_disable")
 

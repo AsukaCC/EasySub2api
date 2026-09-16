@@ -22,49 +22,49 @@ func (r *usageBatchLogRepoStub) GetByID(context.Context, string) (*UsageLog, err
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) Delete(context.Context, string) error { return nil }
-func (r *usageBatchLogRepoStub) ListByUser(context.Context, int64, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
+func (r *usageBatchLogRepoStub) ListByUser(context.Context, string, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *usageBatchLogRepoStub) ListByAPIKey(context.Context, int64, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
+func (r *usageBatchLogRepoStub) ListByAPIKey(context.Context, string, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *usageBatchLogRepoStub) ListByAccount(context.Context, int64, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
+func (r *usageBatchLogRepoStub) ListByAccount(context.Context, string, pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *usageBatchLogRepoStub) ListByUserAndTimeRange(context.Context, int64, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
+func (r *usageBatchLogRepoStub) ListByUserAndTimeRange(context.Context, string, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *usageBatchLogRepoStub) ListByAPIKeyAndTimeRange(context.Context, int64, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
+func (r *usageBatchLogRepoStub) ListByAPIKeyAndTimeRange(context.Context, string, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *usageBatchLogRepoStub) ListByAccountAndTimeRange(context.Context, int64, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
+func (r *usageBatchLogRepoStub) ListByAccountAndTimeRange(context.Context, string, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
 func (r *usageBatchLogRepoStub) ListByModelAndTimeRange(context.Context, string, time.Time, time.Time) ([]UsageLog, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *usageBatchLogRepoStub) GetAccountWindowStats(context.Context, int64, time.Time) (*usagestats.AccountStats, error) {
+func (r *usageBatchLogRepoStub) GetAccountWindowStats(context.Context, string, time.Time) (*usagestats.AccountStats, error) {
 	return &usagestats.AccountStats{}, nil
 }
-func (r *usageBatchLogRepoStub) GetAccountTodayStats(context.Context, int64) (*usagestats.AccountStats, error) {
+func (r *usageBatchLogRepoStub) GetAccountTodayStats(context.Context, string) (*usagestats.AccountStats, error) {
 	return &usagestats.AccountStats{}, nil
 }
 func (r *usageBatchLogRepoStub) GetDashboardStats(context.Context) (*usagestats.DashboardStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetUsageTrendWithFilters(context.Context, time.Time, time.Time, string, int64, int64, int64, int64, string, *int16, *bool, *int8) ([]usagestats.TrendDataPoint, error) {
+func (r *usageBatchLogRepoStub) GetUsageTrendWithFilters(context.Context, time.Time, time.Time, string, string, string, string, string, string, *int16, *bool, *int8) ([]usagestats.TrendDataPoint, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetModelStatsWithFilters(context.Context, time.Time, time.Time, int64, int64, int64, int64, *int16, *bool, *int8) ([]usagestats.ModelStat, error) {
+func (r *usageBatchLogRepoStub) GetModelStatsWithFilters(context.Context, time.Time, time.Time, string, string, string, string, *int16, *bool, *int8) ([]usagestats.ModelStat, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetEndpointStatsWithFilters(context.Context, time.Time, time.Time, int64, int64, int64, int64, string, *int16, *bool, *int8) ([]usagestats.EndpointStat, error) {
+func (r *usageBatchLogRepoStub) GetEndpointStatsWithFilters(context.Context, time.Time, time.Time, string, string, string, string, string, *int16, *bool, *int8) ([]usagestats.EndpointStat, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetUpstreamEndpointStatsWithFilters(context.Context, time.Time, time.Time, int64, int64, int64, int64, string, *int16, *bool, *int8) ([]usagestats.EndpointStat, error) {
+func (r *usageBatchLogRepoStub) GetUpstreamEndpointStatsWithFilters(context.Context, time.Time, time.Time, string, string, string, string, string, *int16, *bool, *int8) ([]usagestats.EndpointStat, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetGroupStatsWithFilters(context.Context, time.Time, time.Time, int64, int64, int64, int64, *int16, *bool, *int8) ([]usagestats.GroupStat, error) {
+func (r *usageBatchLogRepoStub) GetGroupStatsWithFilters(context.Context, time.Time, time.Time, string, string, string, string, *int16, *bool, *int8) ([]usagestats.GroupStat, error) {
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) GetUserBreakdownStats(context.Context, time.Time, time.Time, usagestats.UserBreakdownDimension, int) ([]usagestats.UserBreakdownItem, error) {
@@ -82,22 +82,22 @@ func (r *usageBatchLogRepoStub) GetUserUsageTrend(context.Context, time.Time, ti
 func (r *usageBatchLogRepoStub) GetUserSpendingRanking(context.Context, time.Time, time.Time, int) (*usagestats.UserSpendingRankingResponse, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetBatchUserUsageStats(context.Context, []int64, time.Time, time.Time) (map[int64]*usagestats.BatchUserUsageStats, error) {
+func (r *usageBatchLogRepoStub) GetBatchUserUsageStats(context.Context, []string, time.Time, time.Time) (map[string]*usagestats.BatchUserUsageStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetBatchAPIKeyUsageStats(context.Context, []int64, time.Time, time.Time) (map[int64]*usagestats.BatchAPIKeyUsageStats, error) {
+func (r *usageBatchLogRepoStub) GetBatchAPIKeyUsageStats(context.Context, []string, time.Time, time.Time) (map[string]*usagestats.BatchAPIKeyUsageStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetUserDashboardStats(context.Context, int64) (*usagestats.UserDashboardStats, error) {
+func (r *usageBatchLogRepoStub) GetUserDashboardStats(context.Context, string) (*usagestats.UserDashboardStats, error) {
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) GetAPIKeyDashboardStats(context.Context, string) (*usagestats.UserDashboardStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetUserUsageTrendByUserID(context.Context, int64, time.Time, time.Time, string) ([]usagestats.TrendDataPoint, error) {
+func (r *usageBatchLogRepoStub) GetUserUsageTrendByUserID(context.Context, string, time.Time, time.Time, string) ([]usagestats.TrendDataPoint, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetUserModelStats(context.Context, int64, time.Time, time.Time) ([]usagestats.ModelStat, error) {
+func (r *usageBatchLogRepoStub) GetUserModelStats(context.Context, string, time.Time, time.Time) ([]usagestats.ModelStat, error) {
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) ListWithFilters(context.Context, pagination.PaginationParams, usagestats.UsageLogFilters) ([]UsageLog, *pagination.PaginationResult, error) {
@@ -109,22 +109,22 @@ func (r *usageBatchLogRepoStub) GetGlobalStats(context.Context, time.Time, time.
 func (r *usageBatchLogRepoStub) GetStatsWithFilters(context.Context, usagestats.UsageLogFilters) (*usagestats.UsageStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetAccountUsageStats(context.Context, int64, time.Time, time.Time) (*usagestats.AccountUsageStatsResponse, error) {
+func (r *usageBatchLogRepoStub) GetAccountUsageStats(context.Context, string, time.Time, time.Time) (*usagestats.AccountUsageStatsResponse, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetUserStatsAggregated(context.Context, int64, time.Time, time.Time) (*usagestats.UsageStats, error) {
+func (r *usageBatchLogRepoStub) GetUserStatsAggregated(context.Context, string, time.Time, time.Time) (*usagestats.UsageStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetAPIKeyStatsAggregated(context.Context, int64, time.Time, time.Time) (*usagestats.UsageStats, error) {
+func (r *usageBatchLogRepoStub) GetAPIKeyStatsAggregated(context.Context, string, time.Time, time.Time) (*usagestats.UsageStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetAccountStatsAggregated(context.Context, int64, time.Time, time.Time) (*usagestats.UsageStats, error) {
+func (r *usageBatchLogRepoStub) GetAccountStatsAggregated(context.Context, string, time.Time, time.Time) (*usagestats.UsageStats, error) {
 	return nil, nil
 }
 func (r *usageBatchLogRepoStub) GetModelStatsAggregated(context.Context, string, time.Time, time.Time) (*usagestats.UsageStats, error) {
 	return nil, nil
 }
-func (r *usageBatchLogRepoStub) GetDailyStatsAggregated(context.Context, int64, time.Time, time.Time) ([]map[string]any, error) {
+func (r *usageBatchLogRepoStub) GetDailyStatsAggregated(context.Context, string, time.Time, time.Time) ([]map[string]any, error) {
 	return nil, nil
 }
 

@@ -24,7 +24,7 @@ func (r *dashboardUsageRepoCacheProbe) GetUsageTrendWithFilters(
 	ctx context.Context,
 	startTime, endTime time.Time,
 	granularity string,
-	userID, apiKeyID, accountID, groupID int64,
+	userID, apiKeyID, accountID, groupID string,
 	model string,
 	requestType *int16,
 	stream *bool,
@@ -50,7 +50,7 @@ func (r *dashboardUsageRepoCacheProbe) GetUserUsageTrend(
 	r.usersTrendCalls.Add(1)
 	return []usagestats.UserUsageTrendPoint{{
 		Date:       "2026-03-11",
-		UserID:     1,
+		UserID:     "user-1",
 		Email:      "cache@test.dev",
 		Requests:   2,
 		Tokens:     20,

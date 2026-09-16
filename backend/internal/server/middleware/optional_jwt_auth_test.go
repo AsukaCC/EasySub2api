@@ -16,7 +16,7 @@ import (
 
 // newOptionalJWTTestEnv 创建 OptionalJWT 中间件测试环境。
 // handler 回写「是否携带 AuthSubject」,便于断言匿名 vs 登录两种路径。
-func newOptionalJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service.AuthService) {
+func newOptionalJWTTestEnv(users map[string]*service.User) (*gin.Engine, *service.AuthService) {
 	gin.SetMode(gin.TestMode)
 
 	cfg := &config.Config{}
@@ -50,14 +50,14 @@ func TestOptionalJWTAuth_NoHeaderPassesAnonymously(t *testing.T) {
 
 func TestOptionalJWTAuth_ValidTokenSetsSubject(t *testing.T) {
 	user := &service.User{
-		ID:           7,
+		ID:           "user-7",
 		Email:        "plaza@example.com",
 		Role:         "user",
 		Status:       service.StatusActive,
 		Concurrency:  5,
 		TokenVersion: 1,
 	}
-	router, authSvc := newOptionalJWTTestEnv(map[int64]*service.User{7: user})
+	router, authSvc := newOptionalJWTTestEnv(map[string]*service.User{"user-7": user})
 
 	token, err := authSvc.GenerateToken(context.Background(), user)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestOptionalJWTAuth_ValidTokenSetsSubject(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Contains(t, w.Body.String(), `"authed":true`)
-	require.Contains(t, w.Body.String(), `"user_id":7`)
+	require.Contains(t, w.Body.String(), `"user_id":"user-7"`)
 }
 
 func TestOptionalJWTAuth_InvalidTokenRejected401(t *testing.T) {

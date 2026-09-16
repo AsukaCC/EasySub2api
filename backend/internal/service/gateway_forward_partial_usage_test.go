@@ -22,16 +22,16 @@ type gatewayForwardErrorPolicyRepoStub struct {
 }
 
 type gatewayForwardModelRateLimitCall struct {
-	accountID int64
+	accountID string
 	scope     string
 }
 
-func (r *gatewayForwardErrorPolicyRepoStub) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
+func (r *gatewayForwardErrorPolicyRepoStub) SetTempUnschedulable(context.Context, string, time.Time, string) error {
 	r.tempCalls++
 	return nil
 }
 
-func (r *gatewayForwardErrorPolicyRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, _ time.Time, _ ...string) error {
+func (r *gatewayForwardErrorPolicyRepoStub) SetModelRateLimit(_ context.Context, id string, scope string, _ time.Time, _ ...string) error {
 	r.modelRateLimitCalls = append(r.modelRateLimitCalls, gatewayForwardModelRateLimitCall{
 		accountID: id,
 		scope:     scope,
@@ -60,7 +60,7 @@ func newForwardPartialUsageServiceForTest(upstream *anthropicHTTPUpstreamRecorde
 
 func newAnthropicOAuthAccountForPartialUsageTest() *Account {
 	return &Account{
-		ID:          501,
+		ID:          "account-501",
 		Name:        "anthropic-oauth-partial-usage",
 		Platform:    PlatformAnthropic,
 		Type:        AccountTypeOAuth,
@@ -231,7 +231,7 @@ func TestGatewayService_Forward_PreOutputSSEOverloadedErrorUsesSemantic529(t *te
 		cfg:                  cfg,
 		responseHeaderFilter: compileResponseHeaderFilter(cfg),
 		httpUpstream:         upstream,
-		rateLimitService:     NewRateLimitService(repo, nil, cfg, nil, nil),
+		rateLimitService:     NewRateLimitService(repo, cfg, nil),
 		deferredService:      &DeferredService{},
 	}
 	account := newAnthropicOAuthAccountForPartialUsageTest()
@@ -281,7 +281,7 @@ func TestGatewayService_Forward_PostOutputSSEOverloadedErrorKeepsExistingStatus(
 		cfg:                  cfg,
 		responseHeaderFilter: compileResponseHeaderFilter(cfg),
 		httpUpstream:         upstream,
-		rateLimitService:     NewRateLimitService(repo, nil, cfg, nil, nil),
+		rateLimitService:     NewRateLimitService(repo, cfg, nil),
 		deferredService:      &DeferredService{},
 	}
 

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,11 +39,11 @@ func (r *opsMetricsFallbackRepo) ListSchedulable(context.Context) ([]Account, er
 
 type opsMetricsLoadCache struct {
 	ConcurrencyCache
-	loads map[int64]*AccountLoadInfo
+	loads map[string]*AccountLoadInfo
 	got   []AccountWithConcurrency
 }
 
-func (c *opsMetricsLoadCache) GetAccountsLoadBatch(_ context.Context, accounts []AccountWithConcurrency) (map[int64]*AccountLoadInfo, error) {
+func (c *opsMetricsLoadCache) GetAccountsLoadBatch(_ context.Context, accounts []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
 	c.got = accounts
 	return c.loads, nil
 }
@@ -50,19 +51,19 @@ func (c *opsMetricsLoadCache) GetAccountsLoadBatch(_ context.Context, accounts [
 func TestCollectConcurrencyQueueDepthUsesProjectionAndPreservesFallbackResult(t *testing.T) {
 	loadFactor := 7
 	accounts := []Account{
-		{ID: 11, Concurrency: 2, LoadFactor: &loadFactor},
-		{ID: 12, Concurrency: 3},
-		{ID: 13},
+		{ID: "account-11", Concurrency: 2, LoadFactor: &loadFactor},
+		{ID: "account-12", Concurrency: 3},
+		{ID: "account-13"},
 	}
 	accountLoads := []AccountWithConcurrency{
-		{ID: 11, MaxConcurrency: 7},
-		{ID: 12, MaxConcurrency: 3},
-		{ID: 13, MaxConcurrency: 1},
+		{ID: "account-11", MaxConcurrency: 7},
+		{ID: "account-12", MaxConcurrency: 3},
+		{ID: "account-13", MaxConcurrency: 1},
 	}
-	loads := map[int64]*AccountLoadInfo{
-		11: {AccountID: 11, WaitingCount: 2},
-		12: {AccountID: 12, WaitingCount: 3},
-		13: {AccountID: 13, WaitingCount: 0},
+	loads := map[string]*AccountLoadInfo{
+		"account-11": {AccountID: "account-11", WaitingCount: 2},
+		"account-12": {AccountID: "account-12", WaitingCount: 3},
+		"account-13": {AccountID: "account-13", WaitingCount: 0},
 	}
 
 	projectionRepo := &opsMetricsProjectionRepo{accounts: accounts, accountLoads: accountLoads}
@@ -103,7 +104,7 @@ func BenchmarkOpsMetricsCollectorCollectConcurrencyQueueDepth(b *testing.B) {
 	accounts := make([]Account, accountCount)
 	accountLoads := make([]AccountWithConcurrency, accountCount)
 	for i := range accountCount {
-		id := int64(i + 1)
+		id := fmt.Sprintf("account-%d", i+1)
 		accounts[i] = Account{
 			ID:          id,
 			Concurrency: 4,
@@ -113,7 +114,7 @@ func BenchmarkOpsMetricsCollectorCollectConcurrencyQueueDepth(b *testing.B) {
 	}
 
 	repo := &opsMetricsProjectionRepo{accounts: accounts, accountLoads: accountLoads}
-	cache := &opsMetricsLoadCache{loads: map[int64]*AccountLoadInfo{}}
+	cache := &opsMetricsLoadCache{loads: map[string]*AccountLoadInfo{}}
 	concurrency := NewConcurrencyService(cache)
 	concurrency.SetAccountLoadBatchCacheTTL(0)
 	collector := &OpsMetricsCollector{accountRepo: repo, concurrencyService: concurrency}

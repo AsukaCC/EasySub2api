@@ -30,26 +30,26 @@ type upsertCapturingQuotaRepo struct {
 }
 
 type upsertCall struct {
-	userID  int64
+	userID  string
 	records []service.UserPlatformQuotaRecord
 }
 type resetCall struct {
-	userID   int64
+	userID   string
 	platform string
 	window   string
 	newStart time.Time
 }
 
-func (r *upsertCapturingQuotaRepo) ListByUser(_ context.Context, _ int64) ([]service.UserPlatformQuotaRecord, error) {
+func (r *upsertCapturingQuotaRepo) ListByUser(_ context.Context, _ string) ([]service.UserPlatformQuotaRecord, error) {
 	return r.listRecords, r.listErr
 }
-func (r *upsertCapturingQuotaRepo) UpsertForUser(_ context.Context, userID int64, records []service.UserPlatformQuotaRecord) error {
+func (r *upsertCapturingQuotaRepo) UpsertForUser(_ context.Context, userID string, records []service.UserPlatformQuotaRecord) error {
 	cloned := make([]service.UserPlatformQuotaRecord, len(records))
 	copy(cloned, records)
 	r.upsertCalls = append(r.upsertCalls, upsertCall{userID: userID, records: cloned})
 	return r.upsertErr
 }
-func (r *upsertCapturingQuotaRepo) ResetExpiredWindow(_ context.Context, userID int64, platform string, window string, newStart time.Time) error {
+func (r *upsertCapturingQuotaRepo) ResetExpiredWindow(_ context.Context, userID string, platform string, window string, newStart time.Time) error {
 	r.resetCalls = append(r.resetCalls, resetCall{userID, platform, window, newStart})
 	return r.resetErr
 }
@@ -62,11 +62,11 @@ type billingCacheStub struct {
 }
 
 type deleteCall struct {
-	userID   int64
+	userID   string
 	platform string
 }
 
-func (b *billingCacheStub) DeleteUserPlatformQuotaCache(_ context.Context, userID int64, platform string) error {
+func (b *billingCacheStub) DeleteUserPlatformQuotaCache(_ context.Context, userID string, platform string) error {
 	b.deleteCalls = append(b.deleteCalls, deleteCall{userID, platform})
 	return b.deleteErr
 }
@@ -87,7 +87,7 @@ func putReq(t *testing.T, body string) (*gin.Context, *httptest.ResponseRecorder
 	req, _ := http.NewRequest(http.MethodPut, "/", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	c.Request = req
-	c.Params = []gin.Param{{Key: "id", Value: "42"}}
+	c.Params = []gin.Param{{Key: "id", Value: "42000000-0000-0000-0000-000000000042"}}
 	return c, w
 }
 
@@ -113,7 +113,7 @@ func TestUpdateUserPlatformQuotas_Success(t *testing.T) {
 		t.Fatalf("UpsertForUser should be called once, got %d", len(repo.upsertCalls))
 	}
 	// upsert 记录数 = 请求体中给出的平台数（未给出的平台不落库）。
-	if repo.upsertCalls[0].userID != 42 || len(repo.upsertCalls[0].records) != 5 {
+	if repo.upsertCalls[0].userID != "42000000-0000-0000-0000-000000000042" || len(repo.upsertCalls[0].records) != 5 {
 		t.Errorf("unexpected upsert call: %+v", repo.upsertCalls[0])
 	}
 	// 缓存失效：按全部允许平台统一失效（含 kimi/zhipu/deepseek）。
@@ -170,7 +170,7 @@ func TestUpdateUserPlatformQuotas_RejectsTooManyEntries(t *testing.T) {
 func TestUpdateUserPlatformQuotas_ReturnsLatestState(t *testing.T) {
 	repo := &upsertCapturingQuotaRepo{
 		listRecords: []service.UserPlatformQuotaRecord{
-			{UserID: 42, Platform: "anthropic"},
+			{UserID: "42000000-0000-0000-0000-000000000042", Platform: "anthropic"},
 		},
 	}
 	cache := &billingCacheStub{}
@@ -194,7 +194,7 @@ func postReq(t *testing.T, body string) (*gin.Context, *httptest.ResponseRecorde
 	req, _ := http.NewRequest(http.MethodPost, "/", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	c.Request = req
-	c.Params = []gin.Param{{Key: "id", Value: "42"}}
+	c.Params = []gin.Param{{Key: "id", Value: "42000000-0000-0000-0000-000000000042"}}
 	return c, w
 }
 
@@ -211,13 +211,13 @@ func TestResetUserPlatformQuotaWindow_Success(t *testing.T) {
 	if len(repo.resetCalls) != 1 {
 		t.Fatalf("ResetExpiredWindow should be called once, got %d", len(repo.resetCalls))
 	}
-	if repo.resetCalls[0].userID != 42 ||
+	if repo.resetCalls[0].userID != "42000000-0000-0000-0000-000000000042" ||
 		repo.resetCalls[0].platform != "anthropic" ||
 		repo.resetCalls[0].window != "daily" {
 		t.Errorf("unexpected reset call: %+v", repo.resetCalls[0])
 	}
 	if len(cache.deleteCalls) != 1 ||
-		cache.deleteCalls[0].userID != 42 ||
+		cache.deleteCalls[0].userID != "42000000-0000-0000-0000-000000000042" ||
 		cache.deleteCalls[0].platform != "anthropic" {
 		t.Errorf("expected 1 cache delete for anthropic, got %+v", cache.deleteCalls)
 	}

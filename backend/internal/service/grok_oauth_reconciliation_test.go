@@ -21,17 +21,17 @@ type grokReconcileRepo struct {
 	mu                      sync.Mutex
 	accounts                []Account
 	requests                []OAuthRefreshPageOptions
-	setErrorIDs             []int64
-	updatedCredIDs          []int64
+	setErrorIDs             []string
+	updatedCredIDs          []string
 	setErrorMessage         []string
-	getByIDOverrides        map[int64]Account
+	getByIDOverrides        map[string]Account
 	pageOverride            *OAuthRefreshCandidatePage
 	reauthorizeOnCAS        bool
 	reauthorizeOnRefreshCAS bool
 	conditionalCalls        int
 }
 
-func (r *grokReconcileRepo) GetByID(_ context.Context, id int64) (*Account, error) {
+func (r *grokReconcileRepo) GetByID(_ context.Context, id string) (*Account, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if override, ok := r.getByIDOverrides[id]; ok {
@@ -95,7 +95,7 @@ func (r *grokReconcileRepo) ListOAuthRefreshCandidatePage(_ context.Context, opt
 	return result, nil
 }
 
-func (r *grokReconcileRepo) UpdateCredentials(_ context.Context, id int64, credentials map[string]any) error {
+func (r *grokReconcileRepo) UpdateCredentials(_ context.Context, id string, credentials map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.updatedCredIDs = append(r.updatedCredIDs, id)
@@ -107,7 +107,7 @@ func (r *grokReconcileRepo) UpdateCredentials(_ context.Context, id int64, crede
 	return nil
 }
 
-func (r *grokReconcileRepo) UpdateExtra(_ context.Context, id int64, updates map[string]any) error {
+func (r *grokReconcileRepo) UpdateExtra(_ context.Context, id string, updates map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range r.accounts {
@@ -125,7 +125,7 @@ func (r *grokReconcileRepo) UpdateExtra(_ context.Context, id int64, updates map
 	return nil
 }
 
-func (r *grokReconcileRepo) SetError(_ context.Context, id int64, message string) error {
+func (r *grokReconcileRepo) SetError(_ context.Context, id string, message string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setErrorIDs = append(r.setErrorIDs, id)
@@ -142,7 +142,7 @@ func (r *grokReconcileRepo) SetError(_ context.Context, id int64, message string
 
 func (r *grokReconcileRepo) SetGrokOAuthErrorIfCredentialsUnchanged(
 	_ context.Context,
-	id int64,
+	id string,
 	expectedCredentials map[string]any,
 	message string,
 ) (bool, error) {
@@ -179,9 +179,9 @@ func (r *grokReconcileRepo) SetGrokOAuthErrorIfCredentialsUnchanged(
 
 func (r *grokReconcileRepo) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(
 	_ context.Context,
-	id int64,
+	id string,
 	expectedCredentials map[string]any,
-	expectedProxyID *int64,
+	expectedProxyID *string,
 	message string,
 ) (bool, error) {
 	r.mu.Lock()
@@ -217,9 +217,9 @@ func (r *grokReconcileRepo) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(
 
 func (r *grokReconcileRepo) SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged(
 	_ context.Context,
-	id int64,
+	id string,
 	expectedCredentials map[string]any,
-	expectedProxyID *int64,
+	expectedProxyID *string,
 	until time.Time,
 	reason string,
 ) (bool, error) {
@@ -242,22 +242,22 @@ func (r *grokReconcileRepo) SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnc
 	return false, nil
 }
 
-func (r *grokReconcileRepo) snapshot() ([]OAuthRefreshPageOptions, []int64, []int64, []string) {
+func (r *grokReconcileRepo) snapshot() ([]OAuthRefreshPageOptions, []string, []string, []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return append([]OAuthRefreshPageOptions(nil), r.requests...), append([]int64(nil), r.setErrorIDs...), append([]int64(nil), r.updatedCredIDs...), append([]string(nil), r.setErrorMessage...)
+	return append([]OAuthRefreshPageOptions(nil), r.requests...), append([]string(nil), r.setErrorIDs...), append([]string(nil), r.updatedCredIDs...), append([]string(nil), r.setErrorMessage...)
 }
 
 type reconcileInvalidator struct {
 	mu  sync.Mutex
-	ids []int64
+	ids []string
 	err error
 }
 
 type reconcileRuntimeBlocker struct {
 	mu      sync.Mutex
-	blocked []int64
-	cleared []int64
+	blocked []string
+	cleared []string
 }
 
 func (b *reconcileRuntimeBlocker) BlockAccountScheduling(account *Account, _ time.Time, _ string) {
@@ -268,16 +268,16 @@ func (b *reconcileRuntimeBlocker) BlockAccountScheduling(account *Account, _ tim
 	}
 }
 
-func (b *reconcileRuntimeBlocker) ClearAccountSchedulingBlock(accountID int64) {
+func (b *reconcileRuntimeBlocker) ClearAccountSchedulingBlock(accountID string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.cleared = append(b.cleared, accountID)
 }
 
-func (b *reconcileRuntimeBlocker) snapshot() (blocked, cleared []int64) {
+func (b *reconcileRuntimeBlocker) snapshot() (blocked, cleared []string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return append([]int64(nil), b.blocked...), append([]int64(nil), b.cleared...)
+	return append([]string(nil), b.blocked...), append([]string(nil), b.cleared...)
 }
 
 func (i *reconcileInvalidator) InvalidateToken(_ context.Context, account *Account) error {
@@ -319,7 +319,7 @@ func grokReconcileFixtures() []Account {
 	now := time.Now().UTC()
 	return []Account{
 		{
-			ID:          1,
+			ID:          "00000000-0000-4000-8000-000000000001",
 			Platform:    PlatformGrok,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -327,7 +327,7 @@ func grokReconcileFixtures() []Account {
 			Credentials: map[string]any{"access_token": "access-secret"},
 		},
 		{
-			ID:          2,
+			ID:          "00000000-0000-4000-8000-000000000002",
 			Platform:    PlatformGrok,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -335,7 +335,7 @@ func grokReconcileFixtures() []Account {
 			Credentials: map[string]any{"refresh_token": "refresh-secret", "expires_at": now.Add(10 * time.Minute).Format(time.RFC3339)},
 		},
 		{
-			ID:          3,
+			ID:          "00000000-0000-4000-8000-000000000003",
 			Platform:    PlatformGrok,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -343,7 +343,7 @@ func grokReconcileFixtures() []Account {
 			Credentials: map[string]any{"access_token": "access-secret", "refresh_token": "refresh-secret", "expires_at": now.Add(30 * time.Minute).Format(time.RFC3339)},
 		},
 		{
-			ID:          4,
+			ID:          "00000000-0000-4000-8000-000000000004",
 			Platform:    PlatformGrok,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -351,7 +351,7 @@ func grokReconcileFixtures() []Account {
 			Credentials: map[string]any{"access_token": "access-secret", "refresh_token": "refresh-secret", "expires_at": now.Add(4 * time.Hour).Format(time.RFC3339)},
 		},
 		{
-			ID:          5,
+			ID:          "00000000-0000-4000-8000-000000000005",
 			Platform:    PlatformGrok,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -416,9 +416,9 @@ func TestTokenRefreshService_ReconcileGrokOAuthApplyIsIdempotent(t *testing.T) {
 	require.Equal(t, 2, first.Refreshed)
 	require.Zero(t, first.Failed)
 	requests, setErrorIDs, updatedIDs, messages := repo.snapshot()
-	require.Equal(t, []int64{1}, setErrorIDs)
+	require.Equal(t, []string{"00000000-0000-4000-8000-000000000001"}, setErrorIDs)
 	sort.Slice(updatedIDs, func(i, j int) bool { return updatedIDs[i] < updatedIDs[j] })
-	require.Equal(t, []int64{2, 3}, updatedIDs)
+	require.Equal(t, []string{"00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-000000000003"}, updatedIDs)
 	require.Len(t, messages, 1)
 	require.NotContains(t, messages[0], "secret")
 	require.False(t, requests[0].RequireRefreshToken, "structurally invalid rows must remain discoverable")
@@ -430,7 +430,7 @@ func TestTokenRefreshService_ReconcileGrokOAuthApplyIsIdempotent(t *testing.T) {
 	require.Zero(t, second.Actionable)
 	require.Equal(t, int64(2), refresher.calls.Load(), "already refreshed rows must not be refreshed again")
 	_, setErrorIDs, updatedIDs, _ = repo.snapshot()
-	require.Equal(t, []int64{1}, setErrorIDs, "already blocked invalid rows must not transition twice")
+	require.Equal(t, []string{"00000000-0000-4000-8000-000000000001"}, setErrorIDs, "already blocked invalid rows must not transition twice")
 	require.Len(t, updatedIDs, 2)
 }
 
@@ -442,13 +442,13 @@ func TestTokenRefreshService_ReconcileGrokOAuthCursorResumesWithoutDuplicates(t 
 	first, err := svc.ReconcileGrokOAuth(context.Background(), GrokOAuthReconcileInput{Limit: 2})
 	require.NoError(t, err)
 	require.True(t, first.HasMore)
-	require.Equal(t, int64(2), first.NextAfterID)
+	require.Equal(t, "00000000-0000-4000-8000-000000000002", first.NextAfterID)
 	require.Len(t, first.Items, 2)
 
 	second, err := svc.ReconcileGrokOAuth(context.Background(), GrokOAuthReconcileInput{AfterID: first.NextAfterID, Limit: 2})
 	require.NoError(t, err)
 	require.False(t, second.HasMore)
-	require.Zero(t, second.NextAfterID)
+	require.Empty(t, second.NextAfterID)
 	require.Len(t, second.Items, 1)
 	require.NotEqual(t, first.Items[0].AccountID, second.Items[0].AccountID)
 	require.NotEqual(t, first.Items[1].AccountID, second.Items[0].AccountID)
@@ -458,7 +458,7 @@ func TestTokenRefreshService_ReconcileGrokOAuthCursorUsesRawPageAfterHydrationGa
 	account := grokReconcileFixtures()[0]
 	repo := &grokReconcileRepo{pageOverride: &OAuthRefreshCandidatePage{
 		Accounts:    []Account{account},
-		NextAfterID: account.ID + 1,
+		NextAfterID: "00000000-0000-4000-8000-000000000009",
 		HasMore:     true,
 	}}
 	svc := newGrokReconcileService(repo, &poolHealthRefresher{}, nil)
@@ -467,7 +467,7 @@ func TestTokenRefreshService_ReconcileGrokOAuthCursorUsesRawPageAfterHydrationGa
 
 	require.NoError(t, err)
 	require.True(t, result.HasMore)
-	require.Equal(t, account.ID+1, result.NextAfterID,
+	require.Equal(t, "00000000-0000-4000-8000-000000000009", result.NextAfterID,
 		"cursor must advance past a raw selected ID that disappeared during hydration")
 }
 
@@ -489,7 +489,7 @@ func TestTokenRefreshService_ReconcileGrokOAuthSkipsStaleBlockAfterConcurrentRea
 	}
 	repo := &grokReconcileRepo{
 		accounts:         []Account{stale},
-		getByIDOverrides: map[int64]Account{stale.ID: latest},
+		getByIDOverrides: map[string]Account{stale.ID: latest},
 	}
 	svc := newGrokReconcileService(repo, &poolHealthRefresher{}, &reconcileInvalidator{})
 
@@ -552,7 +552,7 @@ func TestTokenRefreshService_ReconcileGrokOAuthReportsPermanentRefreshMutationAs
 	require.Equal(t, GrokOAuthReconcileReasonCredentialRejected, result.Items[0].Reason)
 	require.Equal(t, GrokOAuthReconcileOutcomeApplied, result.Items[0].Outcome)
 	_, setErrorIDs, _, _ := repo.snapshot()
-	require.Equal(t, []int64{account.ID}, setErrorIDs)
+	require.Equal(t, []string{account.ID}, setErrorIDs)
 }
 
 func TestTokenRefreshService_ReconcileGrokOAuthReportsConcurrentRefreshReauthorizationAsSkipped(t *testing.T) {

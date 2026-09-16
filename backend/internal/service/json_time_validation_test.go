@@ -26,7 +26,7 @@ func TestAnnouncementServiceRejectsOutOfRangeDates(t *testing.T) {
 				require.ErrorIs(t, err, ErrAnnouncementInvalidSchedule)
 				require.Nil(t, repo.item, "invalid dates must never reach persistence")
 
-				repo.item = &Announcement{ID: 1, Title: "test", Content: "test"}
+				repo.item = &Announcement{ID: "announcement-1", Title: "test", Content: "test"}
 				update := &UpdateAnnouncementInput{}
 				ptr := &date
 				if field == "start" {
@@ -34,7 +34,7 @@ func TestAnnouncementServiceRejectsOutOfRangeDates(t *testing.T) {
 				} else {
 					update.EndsAt = &ptr
 				}
-				_, err = svc.Update(context.Background(), 1, update)
+				_, err = svc.Update(context.Background(), "announcement-1", update)
 				require.ErrorIs(t, err, ErrAnnouncementInvalidSchedule)
 				require.Nil(t, repo.item.StartsAt)
 				require.Nil(t, repo.item.EndsAt)
@@ -53,7 +53,7 @@ func TestAnnouncementServiceAcceptsJSONDateBoundariesAndClear(t *testing.T) {
 	_, err = json.Marshal(a)
 	require.NoError(t, err)
 	var clear *time.Time
-	a, err = svc.Update(context.Background(), 1, &UpdateAnnouncementInput{StartsAt: &clear, EndsAt: &clear})
+	a, err = svc.Update(context.Background(), "announcement-1", &UpdateAnnouncementInput{StartsAt: &clear, EndsAt: &clear})
 	require.NoError(t, err)
 	require.Nil(t, a.StartsAt)
 	require.Nil(t, a.EndsAt)

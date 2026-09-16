@@ -14,13 +14,13 @@ func TestOpenAIWSStateStore_BindGetDeleteResponseAccount(t *testing.T) {
 	cache := &stubGatewayCache{}
 	store := NewOpenAIWSStateStore(cache)
 	ctx := context.Background()
-	groupID := int64(7)
+	groupID := "group-7"
 
-	require.NoError(t, store.BindResponseAccount(ctx, groupID, "resp_abc", 101, time.Minute))
+	require.NoError(t, store.BindResponseAccount(ctx, groupID, "resp_abc", "account-101", time.Minute))
 
 	accountID, err := store.GetResponseAccount(ctx, groupID, "resp_abc")
 	require.NoError(t, err)
-	require.Equal(t, int64(101), accountID)
+	require.Equal(t, "account-101", accountID)
 
 	require.NoError(t, store.DeleteResponseAccount(ctx, groupID, "resp_abc"))
 	accountID, err = store.GetResponseAccount(ctx, groupID, "resp_abc")
@@ -43,50 +43,50 @@ func TestOpenAIWSStateStore_ResponseConnTTL(t *testing.T) {
 
 func TestOpenAIWSStateStore_SessionTurnStateTTL(t *testing.T) {
 	store := NewOpenAIWSStateStore(nil)
-	store.BindSessionTurnState(9, "session_hash_1", "turn_state_1", 30*time.Millisecond)
+	store.BindSessionTurnState("group-9", "session_hash_1", "turn_state_1", 30*time.Millisecond)
 
-	state, ok := store.GetSessionTurnState(9, "session_hash_1")
+	state, ok := store.GetSessionTurnState("group-9", "session_hash_1")
 	require.True(t, ok)
 	require.Equal(t, "turn_state_1", state)
 
 	// group 隔离
-	_, ok = store.GetSessionTurnState(10, "session_hash_1")
+	_, ok = store.GetSessionTurnState("group-10", "session_hash_1")
 	require.False(t, ok)
 
 	time.Sleep(60 * time.Millisecond)
-	_, ok = store.GetSessionTurnState(9, "session_hash_1")
+	_, ok = store.GetSessionTurnState("group-9", "session_hash_1")
 	require.False(t, ok)
 }
 
 func TestOpenAIWSStateStore_SessionConnTTL(t *testing.T) {
 	store := NewOpenAIWSStateStore(nil)
-	store.BindSessionConn(9, "session_hash_conn_1", "conn_1", 30*time.Millisecond)
+	store.BindSessionConn("group-9", "session_hash_conn_1", "conn_1", 30*time.Millisecond)
 
-	connID, ok := store.GetSessionConn(9, "session_hash_conn_1")
+	connID, ok := store.GetSessionConn("group-9", "session_hash_conn_1")
 	require.True(t, ok)
 	require.Equal(t, "conn_1", connID)
 
 	// group 隔离
-	_, ok = store.GetSessionConn(10, "session_hash_conn_1")
+	_, ok = store.GetSessionConn("group-10", "session_hash_conn_1")
 	require.False(t, ok)
 
 	time.Sleep(60 * time.Millisecond)
-	_, ok = store.GetSessionConn(9, "session_hash_conn_1")
+	_, ok = store.GetSessionConn("group-9", "session_hash_conn_1")
 	require.False(t, ok)
 }
 
 func TestOpenAIWSStateStore_GetResponseAccount_NoStaleAfterCacheMiss(t *testing.T) {
-	cache := &stubGatewayCache{sessionBindings: map[string]int64{}}
+	cache := &stubGatewayCache{sessionBindings: map[string]string{}}
 	store := NewOpenAIWSStateStore(cache)
 	ctx := context.Background()
-	groupID := int64(17)
+	groupID := "group-17"
 	responseID := "resp_cache_stale"
 	cacheKey := openAIWSResponseAccountCacheKey(responseID)
 
-	cache.sessionBindings[cacheKey] = 501
+	cache.sessionBindings[cacheKey] = "account-501"
 	accountID, err := store.GetResponseAccount(ctx, groupID, responseID)
 	require.NoError(t, err)
-	require.Equal(t, int64(501), accountID)
+	require.Equal(t, "account-501", accountID)
 
 	delete(cache.sessionBindings, cacheKey)
 	accountID, err = store.GetResponseAccount(ctx, groupID, responseID)
@@ -165,15 +165,15 @@ type openAIWSStateStoreTimeoutProbeCache struct {
 	delDeadlineDelta  time.Duration
 }
 
-func (c *openAIWSStateStoreTimeoutProbeCache) GetSessionAccountID(ctx context.Context, _ int64, _ string) (int64, error) {
+func (c *openAIWSStateStoreTimeoutProbeCache) GetSessionAccountID(ctx context.Context, _ string, _ string) (string, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		c.getHasDeadline = true
 		c.getDeadlineDelta = time.Until(deadline)
 	}
-	return 123, nil
+	return "account-123", nil
 }
 
-func (c *openAIWSStateStoreTimeoutProbeCache) SetSessionAccountID(ctx context.Context, _ int64, _ string, _ int64, _ time.Duration) error {
+func (c *openAIWSStateStoreTimeoutProbeCache) SetSessionAccountID(ctx context.Context, _ string, _ string, _ string, _ time.Duration) error {
 	if deadline, ok := ctx.Deadline(); ok {
 		c.setHasDeadline = true
 		c.setDeadlineDelta = time.Until(deadline)
@@ -181,11 +181,11 @@ func (c *openAIWSStateStoreTimeoutProbeCache) SetSessionAccountID(ctx context.Co
 	return errors.New("set failed")
 }
 
-func (c *openAIWSStateStoreTimeoutProbeCache) RefreshSessionTTL(context.Context, int64, string, time.Duration) error {
+func (c *openAIWSStateStoreTimeoutProbeCache) RefreshSessionTTL(context.Context, string, string, time.Duration) error {
 	return nil
 }
 
-func (c *openAIWSStateStoreTimeoutProbeCache) DeleteSessionAccountID(ctx context.Context, _ int64, _ string) error {
+func (c *openAIWSStateStoreTimeoutProbeCache) DeleteSessionAccountID(ctx context.Context, _ string, _ string) error {
 	if deadline, ok := ctx.Deadline(); ok {
 		c.deleteHasDeadline = true
 		c.delDeadlineDelta = time.Until(deadline)
@@ -211,14 +211,14 @@ func TestOpenAIWSStateStore_RedisOpsUseShortTimeout(t *testing.T) {
 	probe := &openAIWSStateStoreTimeoutProbeCache{}
 	store := NewOpenAIWSStateStore(probe)
 	ctx := context.Background()
-	groupID := int64(5)
+	groupID := "group-5"
 
-	err := store.BindResponseAccount(ctx, groupID, "resp_timeout_probe", 11, time.Minute)
+	err := store.BindResponseAccount(ctx, groupID, "resp_timeout_probe", "account-11", time.Minute)
 	require.Error(t, err)
 
 	accountID, getErr := store.GetResponseAccount(ctx, groupID, "resp_timeout_probe")
 	require.NoError(t, getErr)
-	require.Equal(t, int64(11), accountID, "本地缓存命中应优先返回已绑定账号")
+	require.Equal(t, "account-11", accountID, "本地缓存命中应优先返回已绑定账号")
 
 	require.NoError(t, store.DeleteResponseAccount(ctx, groupID, "resp_timeout_probe"))
 
@@ -234,7 +234,7 @@ func TestOpenAIWSStateStore_RedisOpsUseShortTimeout(t *testing.T) {
 	store2 := NewOpenAIWSStateStore(probe2)
 	accountID2, err2 := store2.GetResponseAccount(ctx, groupID, "resp_cache_only")
 	require.NoError(t, err2)
-	require.Equal(t, int64(123), accountID2)
+	require.Equal(t, "account-123", accountID2)
 	require.True(t, probe2.getHasDeadline, "GetSessionAccountID 在缓存未命中时应携带独立超时上下文")
 	require.Greater(t, probe2.getDeadlineDelta, 2*time.Second)
 	require.LessOrEqual(t, probe2.getDeadlineDelta, 3*time.Second)

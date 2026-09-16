@@ -27,12 +27,12 @@ type countTokensRuntimeStateRepo struct {
 	setErrorCalls    int
 }
 
-func (r *countTokensRuntimeStateRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, _ string) error {
+func (r *countTokensRuntimeStateRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, _ string) error {
 	r.tempUnschedCalls++
 	return nil
 }
 
-func (r *countTokensRuntimeStateRepo) SetError(_ context.Context, _ int64, _ string) error {
+func (r *countTokensRuntimeStateRepo) SetError(_ context.Context, _ string, _ string) error {
 	r.setErrorCalls++
 	return nil
 }
@@ -60,7 +60,7 @@ func TestOpenAIGatewayService_ForwardCountTokensAsAnthropic_APIKeyUsesResponsesI
 		httpUpstream: upstream,
 	}
 	account := &Account{
-		ID:          101,
+		ID:          "account-101",
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -90,7 +90,7 @@ func TestOpenAIGatewayService_ForwardCountTokensAsAnthropic_OAuthFallsBackWhenPl
 
 	body := []byte(`{"model":"claude-opus-4-1","messages":[{"role":"user","content":"hello"}]}`)
 	account := &Account{
-		ID:          202,
+		ID:          "account-202",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -182,7 +182,7 @@ func TestOpenAIGatewayService_OpenAIOAuthInputTokensFallbackUsesMinimumWhenEstim
 		UpstreamModel: "gpt-5",
 	}
 
-	writeOpenAIOAuthInputTokensFallback(c, &Account{ID: 303}, prepared, http.StatusUnauthorized)
+	writeOpenAIOAuthInputTokensFallback(c, &Account{ID: "account-303"}, prepared, http.StatusUnauthorized)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.JSONEq(t, `{"input_tokens":1}`, rec.Body.String())

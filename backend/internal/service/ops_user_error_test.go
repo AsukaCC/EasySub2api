@@ -67,7 +67,7 @@ func TestCategoryToFilter(t *testing.T) {
 
 func TestToUserErrorRequest_RedactsSensitiveFields(t *testing.T) {
 	src := &OpsErrorLog{
-		ID:              123,
+		ID:              "error-123",
 		CreatedAt:       time.Unix(0, 0).UTC(),
 		Model:           "m",
 		RequestedModel:  "rm",
@@ -81,8 +81,8 @@ func TestToUserErrorRequest_RedactsSensitiveFields(t *testing.T) {
 		APIKeyDeleted:   true,
 	}
 	out := ToUserErrorRequest(src)
-	if out.ID != 123 {
-		t.Errorf("want ID=123, got %d", out.ID)
+	if out.ID != "error-123" {
+		t.Errorf("want ID=error-123, got %s", out.ID)
 	}
 	if out.Model != "rm" {
 		t.Errorf("want requested_model preferred, got %q", out.Model)
@@ -105,11 +105,11 @@ func TestToUserErrorRequest_RedactsSensitiveFields(t *testing.T) {
 }
 
 func TestToUserErrorRequestDetail_WhitelistAndRedacts(t *testing.T) {
-	uid := int64(42)
+	uid := "user-42"
 	upstreamStatus := 503
 	src := &OpsErrorLogDetail{
 		OpsErrorLog: OpsErrorLog{
-			ID:               999,
+			ID:               "error-999",
 			CreatedAt:        time.Unix(1000, 0).UTC(),
 			Model:            "gpt-4",
 			RequestedModel:   "gpt-4-turbo",
@@ -137,8 +137,8 @@ func TestToUserErrorRequestDetail_WhitelistAndRedacts(t *testing.T) {
 	}
 
 	// 基础字段正确映射
-	if out.ID != 999 {
-		t.Errorf("want ID=999, got %d", out.ID)
+	if out.ID != "error-999" {
+		t.Errorf("want ID=error-999, got %s", out.ID)
 	}
 	if out.Message != "upstream error" {
 		t.Errorf("want message=%q, got %q", "upstream error", out.Message)

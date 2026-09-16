@@ -15,10 +15,10 @@ import (
 //   - 非激活账号完全跳过。
 
 type fakeCNQuotaProber struct {
-	probed []int64
+	probed []string
 }
 
-func (f *fakeCNQuotaProber) QueryUsage(ctx context.Context, accountID int64) (*CNProviderQuotaProbeResult, error) {
+func (f *fakeCNQuotaProber) QueryUsage(ctx context.Context, accountID string) (*CNProviderQuotaProbeResult, error) {
 	f.probed = append(f.probed, accountID)
 	return &CNProviderQuotaProbeResult{Success: true, Persisted: true}, nil
 }
@@ -33,17 +33,17 @@ func (r *fakeCNCheckRepo) ListByPlatform(ctx context.Context, platform string) (
 }
 
 func TestCNProviderBalanceCheckRunOnceProbesCodingPlanQuota(t *testing.T) {
-	kimiActive := Account{ID: 1, Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusActive,
+	kimiActive := Account{ID: "1", Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusActive,
 		Credentials: map[string]any{"account_mode": "coding"}}
 	// 已被阈值停调的 coding 账号也要刷新快照（决定是否续停）。
-	kimiPaused := Account{ID: 2, Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: false,
+	kimiPaused := Account{ID: "2", Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: false,
 		Credentials: map[string]any{"account_mode": "coding"}}
 	// 非激活账号跳过。
-	kimiInactive := Account{ID: 3, Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusDisabled,
+	kimiInactive := Account{ID: "3", Platform: PlatformKimi, Type: AccountTypeAPIKey, Status: StatusDisabled,
 		Credentials: map[string]any{"account_mode": "coding"}}
-	zhipuCoding := Account{ID: 4, Platform: PlatformZhipu, Type: AccountTypeAPIKey, Status: StatusActive,
+	zhipuCoding := Account{ID: "4", Platform: PlatformZhipu, Type: AccountTypeAPIKey, Status: StatusActive,
 		Credentials: map[string]any{"account_mode": "coding"}}
-	minimaxCoding := Account{ID: 5, Platform: PlatformMiniMax, Type: AccountTypeAPIKey, Status: StatusActive,
+	minimaxCoding := Account{ID: "5", Platform: PlatformMiniMax, Type: AccountTypeAPIKey, Status: StatusActive,
 		Credentials: map[string]any{"account_mode": "coding"}}
 
 	repo := &fakeCNCheckRepo{byPlatform: map[string][]Account{
@@ -60,13 +60,13 @@ func TestCNProviderBalanceCheckRunOnceProbesCodingPlanQuota(t *testing.T) {
 
 	svc.runOnce()
 
-	require.ElementsMatch(t, []int64{1, 2, 4, 5}, prober.probed)
+	require.ElementsMatch(t, []string{"1", "2", "4", "5"}, prober.probed)
 }
 
 // runOnceZhipuQuota 在 quotaService 缺失时安全跳过（Start 门控不启动的老部署路径）。
 func TestCNProviderBalanceCheckRunOnceWithoutQuotaService(t *testing.T) {
 	repo := &fakeCNCheckRepo{byPlatform: map[string][]Account{
-		PlatformZhipu: {{ID: 4, Platform: PlatformZhipu, Type: AccountTypeAPIKey, Status: StatusActive,
+		PlatformZhipu: {{ID: "4", Platform: PlatformZhipu, Type: AccountTypeAPIKey, Status: StatusActive,
 			Credentials: map[string]any{"account_mode": "coding"}}},
 	}}
 	svc := &CNProviderBalanceCheckService{accountRepo: repo, cfg: &config.Config{}}

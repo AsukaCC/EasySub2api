@@ -15,10 +15,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactPrefersSupported
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	ctx := context.Background()
-	groupID := int64(91001)
+	groupID := "group-91001"
 	accounts := []Account{
 		{
-			ID:          71001,
+			ID:          "account-71001",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -28,7 +28,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactPrefersSupported
 			Extra:       map[string]any{}, // unknown
 		},
 		{
-			ID:          71002,
+			ID:          "account-71002",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -60,7 +60,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactPrefersSupported
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(71002), selection.Account.ID, "compact-supported account should win over unknown")
+	require.Equal(t, "account-71002", selection.Account.ID, "compact-supported account should win over unknown")
 }
 
 // TestOpenAIGatewayService_SelectAccountWithScheduler_CompactRejectsExplicitlyUnsupported
@@ -69,10 +69,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactRejectsExplicitl
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	ctx := context.Background()
-	groupID := int64(91002)
+	groupID := "group-91002"
 	accounts := []Account{
 		{
-			ID:          71010,
+			ID:          "account-71010",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -82,7 +82,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactRejectsExplicitl
 			Extra:       map[string]any{"openai_compact_mode": OpenAICompactModeForceOff},
 		},
 		{
-			ID:          71011,
+			ID:          "account-71011",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -131,7 +131,7 @@ func newOpenAICompactionSchedulerTestService(accounts []Account, advanced bool) 
 	return svc
 }
 
-func selectOpenAICompactionSchedulerTestAccount(t *testing.T, svc *OpenAIGatewayService, groupID int64, requireCompact bool) (*AccountSelectionResult, error) {
+func selectOpenAICompactionSchedulerTestAccount(t *testing.T, svc *OpenAIGatewayService, groupID string, requireCompact bool) (*AccountSelectionResult, error) {
 	t.Helper()
 	selection, _, err := svc.SelectAccountWithSchedulerForCapability(
 		context.Background(),
@@ -154,7 +154,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_NativeCompactionIgnores
 		t.Run(map[bool]string{false: "legacy_scheduler", true: "advanced_scheduler"}[advanced], func(t *testing.T) {
 			resetOpenAIAdvancedSchedulerSettingCacheForTest()
 			svc := newOpenAICompactionSchedulerTestService([]Account{{
-				ID:          71012,
+				ID:          "account-71012",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -166,10 +166,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_NativeCompactionIgnores
 				},
 			}}, advanced)
 
-			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, 91007, false)
+			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, "group-91007", false)
 			require.NoError(t, err)
 			require.NotNil(t, selection)
-			require.Equal(t, int64(71012), selection.Account.ID)
+			require.Equal(t, "account-71012", selection.Account.ID)
 		})
 	}
 }
@@ -179,7 +179,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_NativeCompactionAllowsF
 		t.Run(map[bool]string{false: "legacy_scheduler", true: "advanced_scheduler"}[advanced], func(t *testing.T) {
 			resetOpenAIAdvancedSchedulerSettingCacheForTest()
 			svc := newOpenAICompactionSchedulerTestService([]Account{{
-				ID:          71013,
+				ID:          "account-71013",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -191,10 +191,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_NativeCompactionAllowsF
 				},
 			}}, advanced)
 
-			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, 91008, false)
+			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, "group-91008", false)
 			require.NoError(t, err)
 			require.NotNil(t, selection)
-			require.Equal(t, int64(71013), selection.Account.ID)
+			require.Equal(t, "account-71013", selection.Account.ID)
 		})
 	}
 }
@@ -204,7 +204,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_NativeCompactionRequire
 		t.Run(map[bool]string{false: "legacy_scheduler", true: "advanced_scheduler"}[advanced], func(t *testing.T) {
 			resetOpenAIAdvancedSchedulerSettingCacheForTest()
 			svc := newOpenAICompactionSchedulerTestService([]Account{{
-				ID:          71014,
+				ID:          "account-71014",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -216,7 +216,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_NativeCompactionRequire
 				},
 			}}, advanced)
 
-			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, 91009, false)
+			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, "group-91009", false)
 			require.ErrorIs(t, err, ErrNoAvailableAccounts)
 			require.NotErrorIs(t, err, ErrNoAvailableCompactAccounts)
 			require.NotContains(t, err.Error(), "/responses/compact")
@@ -231,7 +231,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LegacyCompactionKeepsCo
 			resetOpenAIAdvancedSchedulerSettingCacheForTest()
 			svc := newOpenAICompactionSchedulerTestService([]Account{
 				{
-					ID:          71015,
+					ID:          "account-71015",
 					Platform:    PlatformOpenAI,
 					Type:        AccountTypeAPIKey,
 					Status:      StatusActive,
@@ -243,7 +243,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LegacyCompactionKeepsCo
 					},
 				},
 				{
-					ID:          71016,
+					ID:          "account-71016",
 					Platform:    PlatformOpenAI,
 					Type:        AccountTypeAPIKey,
 					Status:      StatusActive,
@@ -256,7 +256,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LegacyCompactionKeepsCo
 				},
 			}, advanced)
 
-			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, 91010, true)
+			selection, err := selectOpenAICompactionSchedulerTestAccount(t, svc, "group-91010", true)
 			require.ErrorIs(t, err, ErrNoAvailableCompactAccounts)
 			require.Contains(t, err.Error(), "/responses/compact")
 			require.Nil(t, selection)
@@ -271,9 +271,9 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactRequiresResponse
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	ctx := context.Background()
-	groupID := int64(91005)
+	groupID := "group-91005"
 	accounts := []Account{{
-		ID:          71050,
+		ID:          "account-71050",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -315,10 +315,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactSkipsChatOnlyAcc
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	ctx := context.Background()
-	groupID := int64(91006)
+	groupID := "group-91006"
 	accounts := []Account{
 		{
-			ID:          71060,
+			ID:          "account-71060",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -331,7 +331,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactSkipsChatOnlyAcc
 			},
 		},
 		{
-			ID:          71061,
+			ID:          "account-71061",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -369,7 +369,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactSkipsChatOnlyAcc
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(71061), selection.Account.ID)
+	require.Equal(t, "account-71061", selection.Account.ID)
 }
 
 // TestOpenAIGatewayService_SelectAccountWithScheduler_CompactFallsBackToUnknown
@@ -378,10 +378,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactFallsBackToUnkno
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	ctx := context.Background()
-	groupID := int64(91003)
+	groupID := "group-91003"
 	accounts := []Account{
 		{
-			ID:          71020,
+			ID:          "account-71020",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -391,7 +391,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactFallsBackToUnkno
 			Extra:       map[string]any{"openai_compact_supported": false}, // tier=0
 		},
 		{
-			ID:          71021,
+			ID:          "account-71021",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -423,7 +423,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactFallsBackToUnkno
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(71021), selection.Account.ID, "unknown account should be picked when no supported account available")
+	require.Equal(t, "account-71021", selection.Account.ID, "unknown account should be picked when no supported account available")
 }
 
 // TestOpenAIGatewayService_SelectAccountWithScheduler_CompactAllowsGrok verifies
@@ -432,10 +432,10 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactAllowsGrok(t *te
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	ctx := context.Background()
-	groupID := int64(91004)
+	groupID := "group-91004"
 	accounts := []Account{
 		{
-			ID:          71030,
+			ID:          "account-71030",
 			Platform:    PlatformGrok,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -473,7 +473,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_CompactAllowsGrok(t *te
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(71030), selection.Account.ID)
+	require.Equal(t, "account-71030", selection.Account.ID)
 }
 
 // TestOpenAICompactSupportTier 验证 tier 分类逻辑。

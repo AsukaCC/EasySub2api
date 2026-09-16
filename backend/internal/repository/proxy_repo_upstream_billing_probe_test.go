@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -25,22 +26,22 @@ func TestProxyUpdateInvalidatesBoundProbeSnapshotsAndEnqueuesOutboxAtomically(t 
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT protocol, host, port") + `.*` + regexp.QuoteMeta("FOR NO KEY UPDATE")).
-		WithArgs(int64(9)).
+		WithArgs("proxy-9").
 		WillReturnRows(sqlmock.NewRows([]string{"protocol", "host", "port", "username", "password", "status"}).
 			AddRow("http", "old.example", 8080, "user", "pass", service.StatusActive))
 	mock.ExpectExec(`(?s)UPDATE "proxies" SET`).WillReturnResult(sqlmock.NewResult(0, 1))
-	expectProxyUpdateReload(mock, 9, "new.example", "user", "pass")
+	expectProxyUpdateReload(mock, "proxy-9", "new.example", "user", "pass")
 	mock.ExpectQuery(`(?s)UPDATE accounts.*- 'upstream_billing_probe'.*- 'ollama_cloud_usage_snapshot'.*type = 'apikey'.*extra \? 'upstream_billing_probe'.*platform IN \('openai', 'anthropic'\).*extra \? 'ollama_cloud_usage_snapshot'.*RETURNING id`).
-		WithArgs(int64(9)).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(17)).AddRow(int64(18)))
+		WithArgs("proxy-9").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("account-17").AddRow("account-18"))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)")).
-		WithArgs(service.SchedulerOutboxEventAccountBulkChanged, nil, nil, accountIDsPayloadMatcher{want: []int64{17, 18}}).
+		WithArgs(service.SchedulerOutboxEventAccountBulkChanged, nil, nil, accountIDsPayloadMatcher{want: []string{"account-17", "account-18"}}).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
 	repo := newProxyRepositoryWithSQL(client, db)
 	proxy := &service.Proxy{
-		ID:       9,
+		ID:       "proxy-9",
 		Name:     "proxy",
 		Protocol: "http",
 		Host:     "new.example",
@@ -65,20 +66,20 @@ func TestProxyUpdateRollsBackWhenProbeInvalidationOutboxFails(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT protocol, host, port") + `.*` + regexp.QuoteMeta("FOR NO KEY UPDATE")).
-		WithArgs(int64(9)).
+		WithArgs("proxy-9").
 		WillReturnRows(sqlmock.NewRows([]string{"protocol", "host", "port", "username", "password", "status"}).
 			AddRow("http", "old.example", 8080, "", "", service.StatusActive))
 	mock.ExpectExec(`(?s)UPDATE "proxies" SET`).WillReturnResult(sqlmock.NewResult(0, 1))
-	expectProxyUpdateReload(mock, 9, "new.example", "", "")
+	expectProxyUpdateReload(mock, "proxy-9", "new.example", "", "")
 	mock.ExpectQuery(`(?s)UPDATE accounts.*- 'upstream_billing_probe'.*- 'ollama_cloud_usage_snapshot'.*type = 'apikey'.*extra \? 'upstream_billing_probe'.*platform IN \('openai', 'anthropic'\).*extra \? 'ollama_cloud_usage_snapshot'.*RETURNING id`).
-		WithArgs(int64(9)).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(17)))
+		WithArgs("proxy-9").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("account-17"))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)")).
 		WillReturnError(errors.New("outbox failed"))
 	mock.ExpectRollback()
 
 	repo := newProxyRepositoryWithSQL(client, db)
-	proxy := &service.Proxy{ID: 9, Name: "proxy", Protocol: "http", Host: "new.example", Port: 8080, Status: service.StatusActive}
+	proxy := &service.Proxy{ID: "proxy-9", Name: "proxy", Protocol: "http", Host: "new.example", Port: 8080, Status: service.StatusActive}
 
 	err = repo.Update(context.Background(), proxy)
 
@@ -95,15 +96,15 @@ func TestProxyUpdateSkipsProbeInvalidationForNonIdentityChange(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT protocol, host, port") + `.*` + regexp.QuoteMeta("FOR NO KEY UPDATE")).
-		WithArgs(int64(9)).
+		WithArgs("proxy-9").
 		WillReturnRows(sqlmock.NewRows([]string{"protocol", "host", "port", "username", "password", "status"}).
 			AddRow("http", "same.example", 8080, "", "", service.StatusActive))
 	mock.ExpectExec(`(?s)UPDATE "proxies" SET`).WillReturnResult(sqlmock.NewResult(0, 1))
-	expectProxyUpdateReload(mock, 9, "same.example", "", "")
+	expectProxyUpdateReload(mock, "proxy-9", "same.example", "", "")
 	mock.ExpectCommit()
 
 	repo := newProxyRepositoryWithSQL(client, db)
-	proxy := &service.Proxy{ID: 9, Name: "renamed", Protocol: "http", Host: "same.example", Port: 8080, Status: service.StatusActive}
+	proxy := &service.Proxy{ID: "proxy-9", Name: "renamed", Protocol: "http", Host: "same.example", Port: 8080, Status: service.StatusActive}
 
 	err = repo.Update(context.Background(), proxy)
 
@@ -111,7 +112,7 @@ func TestProxyUpdateSkipsProbeInvalidationForNonIdentityChange(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func expectProxyUpdateReload(mock sqlmock.Sqlmock, id int64, host, username, password string) {
+func expectProxyUpdateReload(mock sqlmock.Sqlmock, id string, host, username, password string) {
 	now := time.Now()
 	mock.ExpectQuery(`(?s)SELECT .* FROM "proxies" WHERE "id" = \$1`).
 		WithArgs(id).
@@ -128,9 +129,9 @@ func TestEnqueueProxyAccountChangesChunksLargePayloads(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	accountIDs := make([]int64, 1001)
+	accountIDs := make([]string, 1001)
 	for i := range accountIDs {
-		accountIDs[i] = int64(i + 1)
+		accountIDs[i] = "account-" + strconv.Itoa(i+1)
 	}
 	for start := 0; start < len(accountIDs); start += proxyProbeOutboxAccountChunkSize {
 		end := start + proxyProbeOutboxAccountChunkSize

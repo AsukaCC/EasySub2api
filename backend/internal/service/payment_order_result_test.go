@@ -70,7 +70,7 @@ func TestBuildCreateOrderResponseDefaultsToOrderCreated(t *testing.T) {
 	expiresAt := time.Date(2026, 4, 16, 12, 0, 0, 0, time.UTC)
 	resp := buildCreateOrderResponse(
 		&dbent.PaymentOrder{
-			ID:         42,
+			ID:         "order-42",
 			Amount:     12.34,
 			FeeRate:    0.03,
 			ExpiresAt:  expiresAt,
@@ -116,7 +116,7 @@ func TestBuildCreateOrderResponseCopiesJSAPIPayload(t *testing.T) {
 	}
 	resp := buildCreateOrderResponse(
 		&dbent.PaymentOrder{
-			ID:         88,
+			ID:         "order-88",
 			Amount:     66.88,
 			FeeRate:    0.01,
 			ExpiresAt:  time.Date(2026, 4, 16, 13, 0, 0, 0, time.UTC),

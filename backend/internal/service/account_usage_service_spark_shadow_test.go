@@ -17,18 +17,18 @@ import (
 // UpdateExtra records the persisted updates for assertion.
 type sparkShadowUsageTestRepo struct {
 	AccountRepository
-	accounts      map[int64]*Account
+	accounts      map[string]*Account
 	updateExtraCh chan map[string]any
 }
 
-func (r *sparkShadowUsageTestRepo) GetByID(_ context.Context, id int64) (*Account, error) {
+func (r *sparkShadowUsageTestRepo) GetByID(_ context.Context, id string) (*Account, error) {
 	if acc, ok := r.accounts[id]; ok {
 		return acc, nil
 	}
-	return nil, fmt.Errorf("account %d not found", id)
+	return nil, fmt.Errorf("account %s not found", id)
 }
 
-func (r *sparkShadowUsageTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *sparkShadowUsageTestRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	if r.updateExtraCh != nil {
 		copied := make(map[string]any, len(updates))
 		for k, v := range updates {
@@ -53,9 +53,9 @@ func TestGetOpenAIUsage_SparkShadow_WritesExtraAndReturnsNonEmptyWindows(t *test
 	t.Parallel()
 	ctx := context.Background()
 
-	pid := int64(100)
+	pid := "100"
 	shadow := &Account{
-		ID:              200,
+		ID:              "200",
 		ParentAccountID: &pid,
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
@@ -63,7 +63,7 @@ func TestGetOpenAIUsage_SparkShadow_WritesExtraAndReturnsNonEmptyWindows(t *test
 		QuotaDimension:  QuotaDimensionSpark,
 	}
 	parent := &Account{
-		ID:       100,
+		ID:       "100",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Status:   StatusActive,
@@ -76,7 +76,7 @@ func TestGetOpenAIUsage_SparkShadow_WritesExtraAndReturnsNonEmptyWindows(t *test
 	// and the AccountUsageService (needs UpdateExtra for persist).
 	updateExtraCh := make(chan map[string]any, 1)
 	repo := &sparkShadowUsageTestRepo{
-		accounts:      map[int64]*Account{200: shadow, 100: parent},
+		accounts:      map[string]*Account{"200": shadow, "100": parent},
 		updateExtraCh: updateExtraCh,
 	}
 

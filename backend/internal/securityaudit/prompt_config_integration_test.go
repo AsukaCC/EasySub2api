@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -163,7 +164,7 @@ func TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL(t *testing.T) {
 	}, 2*time.Second, 20*time.Millisecond)
 
 	const canary = "GUARD_TOKEN_CANARY_SECRET_4_CONFIG"
-	public, err := managerOne.Save(context.Background(), promptAuditUpdateRequest(1, 1, canary), 101)
+	public, err := managerOne.Save(context.Background(), promptAuditUpdateRequest(1, 1, canary), "user-101")
 	require.NoError(t, err)
 	require.Equal(t, int64(2), public.ConfigVersion)
 	require.True(t, public.Endpoints[0].HasToken)
@@ -196,7 +197,7 @@ func TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL(t *testing.T) {
 		go func(index int, manager *ConfigManager) {
 			defer wg.Done()
 			<-start
-			cfg, saveErr := manager.Save(context.Background(), promptAuditUpdateRequest(2, index+2, ""), int64(201+index))
+			cfg, saveErr := manager.Save(context.Background(), promptAuditUpdateRequest(2, index+2, ""), "user-"+strconv.Itoa(201+index))
 			results <- saveResult{config: cfg, err: saveErr}
 		}(index, manager)
 	}
@@ -224,7 +225,7 @@ func TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL(t *testing.T) {
 	require.NoError(t, ttlManager.Start(ctx))
 	t.Cleanup(func() { require.NoError(t, ttlManager.Shutdown(context.Background())) })
 	waitForConfigVersion(t, ttlManager, 3, time.Second)
-	updated, err := managerOne.Save(context.Background(), promptAuditUpdateRequest(3, 5, ""), 301)
+	updated, err := managerOne.Save(context.Background(), promptAuditUpdateRequest(3, 5, ""), "user-301")
 	require.NoError(t, err)
 	require.Equal(t, int64(4), updated.ConfigVersion)
 	waitForConfigVersion(t, ttlManager, 4, 7*time.Second)
@@ -235,7 +236,7 @@ func TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL(t *testing.T) {
 	t.Cleanup(func() { _ = deadRedis.Close() })
 	degraded := NewConfigManager(db, settingRepo, deadRedis, encryptor, testTotpKeyConfig())
 	require.NoError(t, degraded.Reload(context.Background()))
-	degradedSaved, err := degraded.Save(context.Background(), promptAuditUpdateRequest(4, 6, ""), 401)
+	degradedSaved, err := degraded.Save(context.Background(), promptAuditUpdateRequest(4, 6, ""), "user-401")
 	require.NoError(t, err)
 	require.Equal(t, int64(5), degradedSaved.ConfigVersion)
 	active, ok := degraded.Active()

@@ -7,7 +7,7 @@ import (
 
 // opsRepoMock is a test-only OpsRepository implementation with optional function hooks.
 type opsRepoMock struct {
-	InsertErrorLogFn              func(ctx context.Context, input *OpsInsertErrorLogInput) (int64, error)
+	InsertErrorLogFn              func(ctx context.Context, input *OpsInsertErrorLogInput) (string, error)
 	BatchInsertErrorLogsFn        func(ctx context.Context, inputs []*OpsInsertErrorLogInput) (int64, error)
 	BatchInsertSystemLogsFn       func(ctx context.Context, inputs []*OpsInsertSystemLogInput) (int64, error)
 	ListSystemLogsFn              func(ctx context.Context, filter *OpsSystemLogFilter) (*OpsSystemLogList, error)
@@ -15,11 +15,11 @@ type opsRepoMock struct {
 	InsertSystemLogCleanupAuditFn func(ctx context.Context, input *OpsSystemLogCleanupAudit) error
 }
 
-func (m *opsRepoMock) InsertErrorLog(ctx context.Context, input *OpsInsertErrorLogInput) (int64, error) {
+func (m *opsRepoMock) InsertErrorLog(ctx context.Context, input *OpsInsertErrorLogInput) (string, error) {
 	if m.InsertErrorLogFn != nil {
 		return m.InsertErrorLogFn(ctx, input)
 	}
-	return 0, nil
+	return "", nil
 }
 
 func (m *opsRepoMock) BatchInsertErrorLogs(ctx context.Context, inputs []*OpsInsertErrorLogInput) (int64, error) {
@@ -33,7 +33,7 @@ func (m *opsRepoMock) ListErrorLogs(ctx context.Context, filter *OpsErrorLogFilt
 	return &OpsErrorLogList{Errors: []*OpsErrorLog{}, Page: 1, PageSize: 20}, nil
 }
 
-func (m *opsRepoMock) GetErrorLogByID(ctx context.Context, id int64) (*OpsErrorLogDetail, error) {
+func (m *opsRepoMock) GetErrorLogByID(ctx context.Context, id string) (*OpsErrorLogDetail, error) {
 	return &OpsErrorLogDetail{}, nil
 }
 
@@ -69,7 +69,7 @@ func (m *opsRepoMock) InsertSystemLogCleanupAudit(ctx context.Context, input *Op
 	return nil
 }
 
-func (m *opsRepoMock) UpdateErrorResolution(ctx context.Context, errorID int64, resolved bool, resolvedByUserID *int64, resolvedAt *time.Time) error {
+func (m *opsRepoMock) UpdateErrorResolution(ctx context.Context, errorID string, resolved bool, resolvedByUserID *string, resolvedAt *time.Time) error {
 	return nil
 }
 
@@ -141,15 +141,15 @@ func (m *opsRepoMock) ListAlertEvents(ctx context.Context, filter *OpsAlertEvent
 	return []*OpsAlertEvent{}, nil
 }
 
-func (m *opsRepoMock) GetAlertEventByID(ctx context.Context, eventID int64) (*OpsAlertEvent, error) {
+func (m *opsRepoMock) GetAlertEventByID(ctx context.Context, eventID string) (*OpsAlertEvent, error) {
 	return &OpsAlertEvent{}, nil
 }
 
-func (m *opsRepoMock) GetActiveAlertEvent(ctx context.Context, ruleID int64) (*OpsAlertEvent, error) {
+func (m *opsRepoMock) GetActiveAlertEvent(ctx context.Context, ruleID string) (*OpsAlertEvent, error) {
 	return nil, nil
 }
 
-func (m *opsRepoMock) GetLatestAlertEvent(ctx context.Context, ruleID int64) (*OpsAlertEvent, error) {
+func (m *opsRepoMock) GetLatestAlertEvent(ctx context.Context, ruleID string) (*OpsAlertEvent, error) {
 	return nil, nil
 }
 
@@ -157,11 +157,11 @@ func (m *opsRepoMock) CreateAlertEvent(ctx context.Context, event *OpsAlertEvent
 	return event, nil
 }
 
-func (m *opsRepoMock) UpdateAlertEventStatus(ctx context.Context, eventID int64, status string, resolvedAt *time.Time) error {
+func (m *opsRepoMock) UpdateAlertEventStatus(ctx context.Context, eventID string, status string, resolvedAt *time.Time) error {
 	return nil
 }
 
-func (m *opsRepoMock) UpdateAlertEventEmailSent(ctx context.Context, eventID int64, emailSent bool) error {
+func (m *opsRepoMock) UpdateAlertEventEmailSent(ctx context.Context, eventID string, emailSent bool) error {
 	return nil
 }
 
@@ -169,7 +169,7 @@ func (m *opsRepoMock) CreateAlertSilence(ctx context.Context, input *OpsAlertSil
 	return input, nil
 }
 
-func (m *opsRepoMock) IsAlertSilenced(ctx context.Context, ruleID int64, platform string, groupID *int64, region *string, now time.Time) (bool, error) {
+func (m *opsRepoMock) IsAlertSilenced(ctx context.Context, ruleID string, platform string, groupID *string, region *string, now time.Time) (bool, error) {
 	return false, nil
 }
 

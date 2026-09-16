@@ -186,7 +186,7 @@ func TestHandleNonStreamingResponse_CompactClientStreamBridgesToSSE(t *testing.T
 		}`)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1, Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -220,7 +220,7 @@ func TestHandleNonStreamingResponse_PathBasedCompactStaysJSON(t *testing.T) {
 		}`)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1, Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -245,7 +245,7 @@ func TestHandleSSEToJSON_CompactClientStreamBridgesToSSE(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(upstreamSSE)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1, Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -278,7 +278,7 @@ func TestHandleSSEToJSON_CompactRawOutputItemDoneRepairsEmptyTerminalOutput(t *t
 		Body:       io.NopCloser(strings.NewReader(upstreamSSE)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1, Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -347,7 +347,7 @@ func TestHandleSSEToJSON_PathBasedCompactRawOutputItemDoneRepairsJSON(t *testing
 		Body:       io.NopCloser(strings.NewReader(upstreamSSE)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1, Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -440,7 +440,7 @@ func TestHandleSSEToJSON_CompactSupplementsMissingCompactionIntoNonEmptyOutput(t
 		Body:       io.NopCloser(strings.NewReader(upstreamSSE)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: 1, Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeOAuth}, "gpt-5.5", "gpt-5.5")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 

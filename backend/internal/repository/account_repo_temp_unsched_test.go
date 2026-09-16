@@ -19,7 +19,7 @@ func TestAccountRepository_SetTempUnschedulable_NoRowsAffectedDoesNotWriteOutbox
 	repo := newAccountRepositoryWithSQL(nil, exec, nil)
 	until := time.Now().Add(10 * time.Minute)
 
-	err := repo.SetTempUnschedulable(context.Background(), 42, until, "retry")
+	err := repo.SetTempUnschedulable(context.Background(), "account-42", until, "retry")
 	require.NoError(t, err)
 	require.Len(t, exec.execQueries, 1)
 	require.Contains(t, exec.execQueries[0], "UPDATE accounts")
@@ -27,7 +27,7 @@ func TestAccountRepository_SetTempUnschedulable_NoRowsAffectedDoesNotWriteOutbox
 }
 
 func TestAccountRepository_GrokCredentialConditionalMutationsAreEligibleAndAtomicallyPropagated(t *testing.T) {
-	proxyID := int64(77)
+	proxyID := "proxy-77"
 	snapshot := service.GrokCredentialMutationSnapshot{
 		CredentialsJSON: `{"access_token":"access","refresh_token":"refresh","_token_version":123}`,
 		ProxyID:         &proxyID,
@@ -37,7 +37,7 @@ func TestAccountRepository_GrokCredentialConditionalMutationsAreEligibleAndAtomi
 		exec := &recordingSQLExecutor{result: rowsAffectedResult(0)}
 		repo := newAccountRepositoryWithSQL(nil, exec, nil)
 
-		updated, err := repo.SetGrokCredentialErrorIfMatch(context.Background(), 42, snapshot, "revoked")
+		updated, err := repo.SetGrokCredentialErrorIfMatch(context.Background(), "account-42", snapshot, "revoked")
 
 		require.NoError(t, err)
 		require.False(t, updated)
@@ -64,7 +64,7 @@ func TestAccountRepository_GrokCredentialConditionalMutationsAreEligibleAndAtomi
 		repo := newAccountRepositoryWithSQL(nil, exec, nil)
 
 		updated, err := repo.SetGrokCredentialTempUnschedulableIfMatch(
-			context.Background(), 42, snapshot, time.Now().Add(time.Minute), "temporary",
+			context.Background(), "account-42", snapshot, time.Now().Add(time.Minute), "temporary",
 		)
 
 		require.NoError(t, err)
@@ -95,13 +95,13 @@ func TestAccountRepository_GrokCredentialCommitCarriesOutboxAcrossCallerCancella
 		{
 			name: "permanent",
 			mutate: func(ctx context.Context, repo *accountRepository) (bool, error) {
-				return repo.SetGrokCredentialErrorIfMatch(ctx, 42, snapshot, string(service.GrokCredentialReasonRevoked))
+				return repo.SetGrokCredentialErrorIfMatch(ctx, "account-42", snapshot, string(service.GrokCredentialReasonRevoked))
 			},
 		},
 		{
 			name: "transient",
 			mutate: func(ctx context.Context, repo *accountRepository) (bool, error) {
-				return repo.SetGrokCredentialTempUnschedulableIfMatch(ctx, 42, snapshot, time.Now().Add(time.Minute), string(service.GrokCredentialReasonRefreshTransient))
+				return repo.SetGrokCredentialTempUnschedulableIfMatch(ctx, "account-42", snapshot, time.Now().Add(time.Minute), string(service.GrokCredentialReasonRefreshTransient))
 			},
 		},
 	}
@@ -129,7 +129,7 @@ func TestAccountRepository_SetGrokOAuthErrorIfCredentialsUnchanged_RequiresActiv
 
 	applied, err := repo.SetGrokOAuthErrorIfCredentialsUnchanged(
 		context.Background(),
-		42,
+		"account-42",
 		map[string]any{"access_token": "observed", "_token_version": int64(7)},
 		"missing refresh token",
 	)
@@ -157,7 +157,7 @@ func TestAccountRepository_SetGrokOAuthErrorIfCredentialsUnchanged_AppliedWrites
 
 	applied, err := repo.SetGrokOAuthErrorIfCredentialsUnchanged(
 		context.Background(),
-		42,
+		"account-42",
 		map[string]any{"access_token": "observed"},
 		"missing refresh token",
 	)
@@ -174,11 +174,11 @@ func TestAccountRepository_SetGrokOAuthErrorIfCredentialsUnchanged_AppliedWrites
 func TestAccountRepository_SetGrokOAuthRefreshErrorIfCredentialsUnchanged_UsesAttemptCredentialsAndProxy(t *testing.T) {
 	exec := &recordingSQLExecutor{result: rowsAffectedResult(0)}
 	repo := newAccountRepositoryWithSQL(nil, exec, nil)
-	proxyID := int64(17)
+	proxyID := "proxy-17"
 
 	applied, err := repo.SetGrokOAuthRefreshErrorIfCredentialsUnchanged(
 		context.Background(),
-		42,
+		"account-42",
 		map[string]any{"refresh_token": "attempted", "_token_version": int64(7)},
 		&proxyID,
 		"revoked",
@@ -200,11 +200,11 @@ func TestAccountRepository_SetGrokOAuthRefreshErrorIfCredentialsUnchanged_UsesAt
 func TestAccountRepository_SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged_UsesAttemptCredentialsAndProxy(t *testing.T) {
 	exec := &recordingSQLExecutor{result: rowsAffectedResult(0)}
 	repo := newAccountRepositoryWithSQL(nil, exec, nil)
-	proxyID := int64(19)
+	proxyID := "proxy-19"
 
 	applied, err := repo.SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnchanged(
 		context.Background(),
-		42,
+		"account-42",
 		map[string]any{"refresh_token": "attempted", "_token_version": int64(8)},
 		&proxyID,
 		time.Now().Add(10*time.Minute),
@@ -226,11 +226,11 @@ func TestAccountRepository_SetGrokOAuthRefreshTempUnschedulableIfCredentialsUnch
 func TestAccountRepository_UpdateGrokOAuthCredentialsIfUnchanged_UsesExactAttemptStateAndAtomicOutbox(t *testing.T) {
 	exec := &recordingSQLExecutor{result: rowsAffectedResult(1)}
 	repo := newAccountRepositoryWithSQL(nil, exec, nil)
-	proxyID := int64(29)
+	proxyID := "proxy-29"
 
 	applied, err := repo.UpdateGrokOAuthCredentialsIfUnchanged(
 		context.Background(),
-		42,
+		"account-42",
 		map[string]any{"refresh_token": "attempted", "_token_version": int64(9)},
 		&proxyID,
 		map[string]any{"refresh_token": "rotated", "_token_version": int64(10)},
@@ -264,7 +264,7 @@ func TestAccountRepository_ListOAuthRefreshCandidatePage_SQLFilter(t *testing.T)
 
 	page, err := repo.ListOAuthRefreshCandidatePage(context.Background(), service.OAuthRefreshPageOptions{
 		Platforms:            []string{service.PlatformAnthropic, service.PlatformOpenAI, service.PlatformGemini, service.PlatformAntigravity, service.PlatformGrok},
-		AfterID:              100,
+		AfterID:              "account-100",
 		Limit:                200,
 		ActiveOnly:           true,
 		IncludeSetupToken:    true,
@@ -297,7 +297,7 @@ func TestAccountRepository_ListOAuthRefreshCandidatePage_SQLFilter(t *testing.T)
 	require.Contains(t, normalized, "LIMIT $3")
 	require.NotContains(t, normalized, "credentials->>'expires_at'")
 	require.Len(t, capturedArgs, 3)
-	require.Equal(t, int64(100), capturedArgs[1])
+	require.Equal(t, "account-100", capturedArgs[1])
 	require.Equal(t, 200, capturedArgs[2])
 	valuer, ok := capturedArgs[0].(interface{ Value() (driver.Value, error) })
 	require.True(t, ok)
@@ -318,7 +318,7 @@ func TestAccountRepository_ListOAuthRefreshCandidatePage_ReconciliationExcludesA
 
 	page, err := repo.ListOAuthRefreshCandidatePage(context.Background(), service.OAuthRefreshPageOptions{
 		Platforms: []string{service.PlatformGrok},
-		AfterID:   0,
+		AfterID:   "",
 		Limit:     50,
 	})
 	require.NoError(t, err)

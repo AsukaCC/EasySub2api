@@ -18,7 +18,7 @@ var profitControlJSONFields = []string{
 
 func profitControlServiceGroup() *service.Group {
 	return &service.Group{
-		ID:                   7,
+		ID:                   "group-7",
 		Name:                 "profit-gated",
 		Platform:             service.PlatformAnthropic,
 		RateMultiplier:       2.0,

@@ -36,15 +36,15 @@ func TestMaybeInvalidateAssignmentCaches_DefersForOuterTransactionOwner(t *testi
 	t.Cleanup(cache.Close)
 
 	svc := &SubscriptionService{subCacheL1: cache}
-	key := subCacheKey(7, 9)
-	require.True(t, cache.Set(key, &UserSubscription{ID: 42}, 1))
+	key := subCacheKey("user-7", "group-9")
+	require.True(t, cache.Set(key, &UserSubscription{ID: "subscription-42"}, 1))
 	cache.Wait()
 
-	svc.maybeInvalidateAssignmentCaches(7, 9, true)
+	svc.maybeInvalidateAssignmentCaches("user-7", "group-9", true)
 	_, cachedBeforeCommit := cache.Get(key)
 	require.True(t, cachedBeforeCommit, "outer transaction must retain caches until its owner commits")
 
-	svc.maybeInvalidateAssignmentCaches(7, 9, false)
+	svc.maybeInvalidateAssignmentCaches("user-7", "group-9", false)
 	cache.Wait()
 	_, cachedAfterCommit := cache.Get(key)
 	require.False(t, cachedAfterCommit, "post-commit invalidation must remove the cached subscription")
@@ -53,15 +53,15 @@ func TestMaybeInvalidateAssignmentCaches_DefersForOuterTransactionOwner(t *testi
 type groupRepoNoop struct{}
 
 func (groupRepoNoop) Create(context.Context, *Group) error { panic("unexpected Create call") }
-func (groupRepoNoop) GetByID(context.Context, int64) (*Group, error) {
+func (groupRepoNoop) GetByID(context.Context, string) (*Group, error) {
 	panic("unexpected GetByID call")
 }
-func (groupRepoNoop) GetByIDLite(context.Context, int64) (*Group, error) {
+func (groupRepoNoop) GetByIDLite(context.Context, string) (*Group, error) {
 	panic("unexpected GetByIDLite call")
 }
 func (groupRepoNoop) Update(context.Context, *Group) error { panic("unexpected Update call") }
-func (groupRepoNoop) Delete(context.Context, int64) error  { panic("unexpected Delete call") }
-func (groupRepoNoop) DeleteCascade(context.Context, int64) ([]int64, error) {
+func (groupRepoNoop) Delete(context.Context, string) error { panic("unexpected Delete call") }
+func (groupRepoNoop) DeleteCascade(context.Context, string) ([]string, error) {
 	panic("unexpected DeleteCascade call")
 }
 func (groupRepoNoop) List(context.Context, pagination.PaginationParams) ([]Group, *pagination.PaginationResult, error) {
@@ -79,16 +79,16 @@ func (groupRepoNoop) ListActiveByPlatform(context.Context, string) ([]Group, err
 func (groupRepoNoop) ExistsByName(context.Context, string) (bool, error) {
 	panic("unexpected ExistsByName call")
 }
-func (groupRepoNoop) GetAccountCount(context.Context, int64) (int64, int64, error) {
+func (groupRepoNoop) GetAccountCount(context.Context, string) (int64, int64, error) {
 	panic("unexpected GetAccountCount call")
 }
-func (groupRepoNoop) DeleteAccountGroupsByGroupID(context.Context, int64) (int64, error) {
+func (groupRepoNoop) DeleteAccountGroupsByGroupID(context.Context, string) (int64, error) {
 	panic("unexpected DeleteAccountGroupsByGroupID call")
 }
-func (groupRepoNoop) GetAccountIDsByGroupIDs(context.Context, []int64) ([]int64, error) {
+func (groupRepoNoop) GetAccountIDsByGroupIDs(context.Context, []string) ([]string, error) {
 	panic("unexpected GetAccountIDsByGroupIDs call")
 }
-func (groupRepoNoop) BindAccountsToGroup(context.Context, int64, []int64) error {
+func (groupRepoNoop) BindAccountsToGroup(context.Context, string, []string) error {
 	panic("unexpected BindAccountsToGroup call")
 }
 func (groupRepoNoop) UpdateSortOrders(context.Context, []GroupSortOrderUpdate) error {
@@ -100,7 +100,7 @@ type subscriptionGroupRepoStub struct {
 	group *Group
 }
 
-func (s *subscriptionGroupRepoStub) GetByID(context.Context, int64) (*Group, error) {
+func (s *subscriptionGroupRepoStub) GetByID(context.Context, string) (*Group, error) {
 	return s.group, nil
 }
 
@@ -109,71 +109,71 @@ type userSubRepoNoop struct{}
 func (userSubRepoNoop) Create(context.Context, *UserSubscription) error {
 	panic("unexpected Create call")
 }
-func (userSubRepoNoop) GetByID(context.Context, int64) (*UserSubscription, error) {
+func (userSubRepoNoop) GetByID(context.Context, string) (*UserSubscription, error) {
 	panic("unexpected GetByID call")
 }
-func (userSubRepoNoop) GetByIDForUpdate(context.Context, int64) (*UserSubscription, error) {
+func (userSubRepoNoop) GetByIDForUpdate(context.Context, string) (*UserSubscription, error) {
 	panic("unexpected GetByIDForUpdate call")
 }
-func (userSubRepoNoop) GetByIDIncludeDeleted(context.Context, int64) (*UserSubscription, error) {
+func (userSubRepoNoop) GetByIDIncludeDeleted(context.Context, string) (*UserSubscription, error) {
 	panic("unexpected GetByIDIncludeDeleted call")
 }
-func (userSubRepoNoop) GetByUserIDAndGroupID(context.Context, int64, int64) (*UserSubscription, error) {
+func (userSubRepoNoop) GetByUserIDAndGroupID(context.Context, string, string) (*UserSubscription, error) {
 	panic("unexpected GetByUserIDAndGroupID call")
 }
-func (userSubRepoNoop) GetActiveByUserIDAndGroupID(context.Context, int64, int64) (*UserSubscription, error) {
+func (userSubRepoNoop) GetActiveByUserIDAndGroupID(context.Context, string, string) (*UserSubscription, error) {
 	panic("unexpected GetActiveByUserIDAndGroupID call")
 }
 func (userSubRepoNoop) Update(context.Context, *UserSubscription) error {
 	panic("unexpected Update call")
 }
-func (userSubRepoNoop) Delete(context.Context, int64) error { panic("unexpected Delete call") }
-func (userSubRepoNoop) Restore(context.Context, int64, string) (*UserSubscription, error) {
+func (userSubRepoNoop) Delete(context.Context, string) error { panic("unexpected Delete call") }
+func (userSubRepoNoop) Restore(context.Context, string, string) (*UserSubscription, error) {
 	panic("unexpected Restore call")
 }
-func (userSubRepoNoop) ListByUserID(context.Context, int64) ([]UserSubscription, error) {
+func (userSubRepoNoop) ListByUserID(context.Context, string) ([]UserSubscription, error) {
 	panic("unexpected ListByUserID call")
 }
-func (userSubRepoNoop) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
+func (userSubRepoNoop) ListActiveByUserID(context.Context, string) ([]UserSubscription, error) {
 	panic("unexpected ListActiveByUserID call")
 }
-func (userSubRepoNoop) ListByGroupID(context.Context, int64, pagination.PaginationParams) ([]UserSubscription, *pagination.PaginationResult, error) {
+func (userSubRepoNoop) ListByGroupID(context.Context, string, pagination.PaginationParams) ([]UserSubscription, *pagination.PaginationResult, error) {
 	panic("unexpected ListByGroupID call")
 }
-func (userSubRepoNoop) List(context.Context, pagination.PaginationParams, *int64, *int64, string, string, string, string) ([]UserSubscription, *pagination.PaginationResult, error) {
+func (userSubRepoNoop) List(context.Context, pagination.PaginationParams, *string, *string, string, string, string, string) ([]UserSubscription, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }
-func (userSubRepoNoop) ExistsByUserIDAndGroupID(context.Context, int64, int64) (bool, error) {
+func (userSubRepoNoop) ExistsByUserIDAndGroupID(context.Context, string, string) (bool, error) {
 	panic("unexpected ExistsByUserIDAndGroupID call")
 }
-func (userSubRepoNoop) ExistsActiveByUserIDAndGroupID(context.Context, int64, int64) (bool, error) {
+func (userSubRepoNoop) ExistsActiveByUserIDAndGroupID(context.Context, string, string) (bool, error) {
 	panic("unexpected ExistsActiveByUserIDAndGroupID call")
 }
-func (userSubRepoNoop) ExtendExpiry(context.Context, int64, time.Time) error {
+func (userSubRepoNoop) ExtendExpiry(context.Context, string, time.Time) error {
 	panic("unexpected ExtendExpiry call")
 }
-func (userSubRepoNoop) UpdateStatus(context.Context, int64, string) error {
+func (userSubRepoNoop) UpdateStatus(context.Context, string, string) error {
 	panic("unexpected UpdateStatus call")
 }
-func (userSubRepoNoop) UpdateNotes(context.Context, int64, string) error {
+func (userSubRepoNoop) UpdateNotes(context.Context, string, string) error {
 	panic("unexpected UpdateNotes call")
 }
-func (userSubRepoNoop) ActivateWindows(context.Context, int64, time.Time, time.Time) error {
+func (userSubRepoNoop) ActivateWindows(context.Context, string, time.Time, time.Time) error {
 	panic("unexpected ActivateWindows call")
 }
-func (userSubRepoNoop) ResetUsageWindows(context.Context, int64, bool, bool, bool, time.Time, time.Time) error {
+func (userSubRepoNoop) ResetUsageWindows(context.Context, string, bool, bool, bool, time.Time, time.Time) error {
 	panic("unexpected ResetUsageWindows call")
 }
-func (userSubRepoNoop) ResetDailyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (userSubRepoNoop) ResetDailyUsage(context.Context, string, *time.Time, time.Time) error {
 	panic("unexpected ResetDailyUsage call")
 }
-func (userSubRepoNoop) ResetWeeklyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (userSubRepoNoop) ResetWeeklyUsage(context.Context, string, *time.Time, time.Time) error {
 	panic("unexpected ResetWeeklyUsage call")
 }
-func (userSubRepoNoop) ResetMonthlyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (userSubRepoNoop) ResetMonthlyUsage(context.Context, string, *time.Time, time.Time) error {
 	panic("unexpected ResetMonthlyUsage call")
 }
-func (userSubRepoNoop) IncrementUsage(context.Context, int64, float64) error {
+func (userSubRepoNoop) IncrementUsage(context.Context, string, float64) error {
 	panic("unexpected IncrementUsage call")
 }
 func (userSubRepoNoop) BatchUpdateExpiredStatus(context.Context) (int64, error) {
@@ -184,7 +184,7 @@ type subscriptionUserSubRepoStub struct {
 	userSubRepoNoop
 
 	nextID      int64
-	byID        map[int64]*UserSubscription
+	byID        map[string]*UserSubscription
 	byUserGroup map[string]*UserSubscription
 	createCalls int
 }
@@ -192,13 +192,13 @@ type subscriptionUserSubRepoStub struct {
 func newSubscriptionUserSubRepoStub() *subscriptionUserSubRepoStub {
 	return &subscriptionUserSubRepoStub{
 		nextID:      1,
-		byID:        make(map[int64]*UserSubscription),
+		byID:        make(map[string]*UserSubscription),
 		byUserGroup: make(map[string]*UserSubscription),
 	}
 }
 
-func (s *subscriptionUserSubRepoStub) key(userID, groupID int64) string {
-	return strconvFormatInt(userID) + ":" + strconvFormatInt(groupID)
+func (s *subscriptionUserSubRepoStub) key(userID, groupID string) string {
+	return userID + ":" + groupID
 }
 
 func (s *subscriptionUserSubRepoStub) seed(sub *UserSubscription) {
@@ -206,20 +206,20 @@ func (s *subscriptionUserSubRepoStub) seed(sub *UserSubscription) {
 		return
 	}
 	cp := *sub
-	if cp.ID == 0 {
-		cp.ID = s.nextID
+	if cp.ID == "" {
+		cp.ID = "subscription-" + strconvFormatInt(s.nextID)
 		s.nextID++
 	}
 	s.byID[cp.ID] = &cp
 	s.byUserGroup[s.key(cp.UserID, cp.GroupID)] = &cp
 }
 
-func (s *subscriptionUserSubRepoStub) ExistsByUserIDAndGroupID(_ context.Context, userID, groupID int64) (bool, error) {
+func (s *subscriptionUserSubRepoStub) ExistsByUserIDAndGroupID(_ context.Context, userID, groupID string) (bool, error) {
 	_, ok := s.byUserGroup[s.key(userID, groupID)]
 	return ok, nil
 }
 
-func (s *subscriptionUserSubRepoStub) GetByUserIDAndGroupID(_ context.Context, userID, groupID int64) (*UserSubscription, error) {
+func (s *subscriptionUserSubRepoStub) GetByUserIDAndGroupID(_ context.Context, userID, groupID string) (*UserSubscription, error) {
 	sub := s.byUserGroup[s.key(userID, groupID)]
 	if sub == nil {
 		return nil, ErrSubscriptionNotFound
@@ -234,8 +234,8 @@ func (s *subscriptionUserSubRepoStub) Create(_ context.Context, sub *UserSubscri
 	}
 	s.createCalls++
 	cp := *sub
-	if cp.ID == 0 {
-		cp.ID = s.nextID
+	if cp.ID == "" {
+		cp.ID = "subscription-" + strconvFormatInt(s.nextID)
 		s.nextID++
 	}
 	sub.ID = cp.ID
@@ -244,7 +244,7 @@ func (s *subscriptionUserSubRepoStub) Create(_ context.Context, sub *UserSubscri
 	return nil
 }
 
-func (s *subscriptionUserSubRepoStub) GetByID(_ context.Context, id int64) (*UserSubscription, error) {
+func (s *subscriptionUserSubRepoStub) GetByID(_ context.Context, id string) (*UserSubscription, error) {
 	sub := s.byID[id]
 	if sub == nil {
 		return nil, ErrSubscriptionNotFound
@@ -253,7 +253,7 @@ func (s *subscriptionUserSubRepoStub) GetByID(_ context.Context, id int64) (*Use
 	return &cp, nil
 }
 
-func (s *subscriptionUserSubRepoStub) GetByIDForUpdate(ctx context.Context, id int64) (*UserSubscription, error) {
+func (s *subscriptionUserSubRepoStub) GetByIDForUpdate(ctx context.Context, id string) (*UserSubscription, error) {
 	return s.GetByID(ctx, id)
 }
 
@@ -278,13 +278,13 @@ func (s *subscriptionUserSubRepoStub) Update(_ context.Context, sub *UserSubscri
 func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 	start := time.Now().Add(-time.Hour)
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	subRepo.seed(&UserSubscription{
-		ID:        10,
-		UserID:    1001,
-		GroupID:   1,
+		ID:        "10",
+		UserID:    "1001",
+		GroupID:   "1",
 		StartsAt:  start,
 		ExpiresAt: start.AddDate(0, 0, 30),
 		Status:    SubscriptionStatusActive,
@@ -293,13 +293,13 @@ func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1001,
-		GroupID:      1,
+		UserID:       "1001",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "init",
 	})
 	require.NoError(t, err)
-	require.Equal(t, int64(10), sub.ID)
+	require.Equal(t, "10", sub.ID)
 	require.Equal(t, 0, subRepo.createCalls, "reuse should not create new subscription")
 	require.Equal(t, start, sub.StartsAt)
 	require.Equal(t, start.AddDate(0, 0, 30), sub.ExpiresAt)
@@ -308,13 +308,13 @@ func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 func TestAssignSubscriptionDoesNotReactivateFutureSuspendedSubscription(t *testing.T) {
 	start := time.Now().Add(-time.Hour)
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	subRepo.seed(&UserSubscription{
-		ID:        13,
-		UserID:    1003,
-		GroupID:   1,
+		ID:        "13",
+		UserID:    "1003",
+		GroupID:   "1",
 		StartsAt:  start,
 		ExpiresAt: start.AddDate(0, 0, 30),
 		Status:    SubscriptionStatusSuspended,
@@ -323,14 +323,14 @@ func TestAssignSubscriptionDoesNotReactivateFutureSuspendedSubscription(t *testi
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1003,
-		GroupID:      1,
+		UserID:       "1003",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "assignment",
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, int64(13), sub.ID)
+	require.Equal(t, "13", sub.ID)
 	require.Equal(t, SubscriptionStatusSuspended, sub.Status)
 	require.Equal(t, start, sub.StartsAt)
 	require.Equal(t, start.AddDate(0, 0, 30), sub.ExpiresAt)
@@ -343,13 +343,13 @@ func TestAssignSubscriptionDoesNotReactivatePastExpirySuspendedSubscription(t *t
 	expiresAt := start.AddDate(0, 0, 30)
 	windowStart := startOfDay(start)
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	subRepo.seed(&UserSubscription{
-		ID:                 15,
-		UserID:             1005,
-		GroupID:            1,
+		ID:                 "15",
+		UserID:             "1005",
+		GroupID:            "1",
 		StartsAt:           start,
 		ExpiresAt:          expiresAt,
 		Status:             SubscriptionStatusSuspended,
@@ -364,14 +364,14 @@ func TestAssignSubscriptionDoesNotReactivatePastExpirySuspendedSubscription(t *t
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1005,
-		GroupID:      1,
+		UserID:       "1005",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "suspended assignment",
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, int64(15), sub.ID)
+	require.Equal(t, "15", sub.ID)
 	require.Equal(t, SubscriptionStatusSuspended, sub.Status)
 	require.Equal(t, start, sub.StartsAt)
 	require.Equal(t, expiresAt, sub.ExpiresAt)
@@ -387,15 +387,15 @@ func TestAssignSubscriptionDoesNotReactivatePastExpirySuspendedSubscription(t *t
 
 func TestAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	oldStart := time.Now().Add(-time.Hour)
 	oldWindowStart := startOfDay(oldStart)
 	subRepo.seed(&UserSubscription{
-		ID:                 12,
-		UserID:             1002,
-		GroupID:            1,
+		ID:                 "12",
+		UserID:             "1002",
+		GroupID:            "1",
 		StartsAt:           oldStart,
 		ExpiresAt:          oldStart.AddDate(0, 0, 30),
 		Status:             SubscriptionStatusExpired,
@@ -411,15 +411,15 @@ func TestAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	before := time.Now()
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1002,
-		GroupID:      1,
+		UserID:       "1002",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "assignment",
 	})
 	after := time.Now()
 
 	require.NoError(t, err)
-	require.Equal(t, int64(12), sub.ID)
+	require.Equal(t, "12", sub.ID)
 	require.Equal(t, 0, subRepo.createCalls)
 	require.Equal(t, SubscriptionStatusActive, sub.Status)
 	require.False(t, sub.StartsAt.Before(before))
@@ -436,14 +436,14 @@ func TestAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 
 func TestAssignSubscriptionRenewsExpiredAndAppendsDifferentNotes(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	oldStart := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
 	subRepo.seed(&UserSubscription{
-		ID:        14,
-		UserID:    1004,
-		GroupID:   1,
+		ID:        "14",
+		UserID:    "1004",
+		GroupID:   "1",
 		StartsAt:  oldStart,
 		ExpiresAt: oldStart.AddDate(0, 0, 30),
 		Status:    SubscriptionStatusExpired,
@@ -452,8 +452,8 @@ func TestAssignSubscriptionRenewsExpiredAndAppendsDifferentNotes(t *testing.T) {
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1004,
-		GroupID:      1,
+		UserID:       "1004",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "new assignment",
 	})
@@ -465,13 +465,13 @@ func TestAssignSubscriptionRenewsExpiredAndAppendsDifferentNotes(t *testing.T) {
 func TestAssignSubscriptionConflictWhenSemanticsMismatch(t *testing.T) {
 	start := time.Now().Add(-time.Hour)
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	subRepo.seed(&UserSubscription{
-		ID:        11,
-		UserID:    2001,
-		GroupID:   1,
+		ID:        "11",
+		UserID:    "2001",
+		GroupID:   "1",
 		StartsAt:  start,
 		ExpiresAt: start.AddDate(0, 0, 30),
 		Status:    SubscriptionStatusActive,
@@ -480,8 +480,8 @@ func TestAssignSubscriptionConflictWhenSemanticsMismatch(t *testing.T) {
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	_, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       2001,
-		GroupID:      1,
+		UserID:       "2001",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "new-note",
 	})
@@ -493,14 +493,14 @@ func TestAssignSubscriptionConflictWhenSemanticsMismatch(t *testing.T) {
 func TestBulkAssignSubscriptionCreatedReusedAndConflict(t *testing.T) {
 	start := time.Now().Add(-time.Hour)
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	// user 1: 语义一致，可 reused
 	subRepo.seed(&UserSubscription{
-		ID:        21,
-		UserID:    1,
-		GroupID:   1,
+		ID:        "21",
+		UserID:    "1",
+		GroupID:   "1",
 		StartsAt:  start,
 		ExpiresAt: start.AddDate(0, 0, 30),
 		Status:    SubscriptionStatusActive,
@@ -508,9 +508,9 @@ func TestBulkAssignSubscriptionCreatedReusedAndConflict(t *testing.T) {
 	})
 	// user 3: 语义冲突（有效期不一致），应 failed
 	subRepo.seed(&UserSubscription{
-		ID:        23,
-		UserID:    3,
-		GroupID:   1,
+		ID:        "23",
+		UserID:    "3",
+		GroupID:   "1",
 		StartsAt:  start,
 		ExpiresAt: start.AddDate(0, 0, 60),
 		Status:    SubscriptionStatusActive,
@@ -519,10 +519,10 @@ func TestBulkAssignSubscriptionCreatedReusedAndConflict(t *testing.T) {
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	result, err := svc.BulkAssignSubscription(context.Background(), &BulkAssignSubscriptionInput{
-		UserIDs:      []int64{1, 2, 3},
-		GroupID:      1,
+		UserIDs:      []string{"1", "2", "3"},
+		GroupID:      "1",
 		ValidityDays: 30,
-		AssignedBy:   9,
+		AssignedBy:   "9",
 		Notes:        "same-note",
 	})
 	require.NoError(t, err)
@@ -530,22 +530,22 @@ func TestBulkAssignSubscriptionCreatedReusedAndConflict(t *testing.T) {
 	require.Equal(t, 1, result.CreatedCount)
 	require.Equal(t, 1, result.ReusedCount)
 	require.Equal(t, 1, result.FailedCount)
-	require.Equal(t, "reused", result.Statuses[1])
-	require.Equal(t, "created", result.Statuses[2])
-	require.Equal(t, "failed", result.Statuses[3])
+	require.Equal(t, "reused", result.Statuses["1"])
+	require.Equal(t, "created", result.Statuses["2"])
+	require.Equal(t, "failed", result.Statuses["3"])
 	require.Equal(t, 1, subRepo.createCalls)
 }
 
 func TestBulkAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	oldStart := time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
 	subRepo.seed(&UserSubscription{
-		ID:              24,
-		UserID:          4,
-		GroupID:         1,
+		ID:              "24",
+		UserID:          "4",
+		GroupID:         "1",
 		StartsAt:        oldStart,
 		ExpiresAt:       oldStart.AddDate(0, 0, 7),
 		Status:          SubscriptionStatusExpired,
@@ -558,8 +558,8 @@ func TestBulkAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	before := time.Now()
 	result, err := svc.BulkAssignSubscription(context.Background(), &BulkAssignSubscriptionInput{
-		UserIDs:      []int64{4},
-		GroupID:      1,
+		UserIDs:      []string{"4"},
+		GroupID:      "1",
 		ValidityDays: 7,
 		Notes:        "bulk",
 	})
@@ -569,7 +569,7 @@ func TestBulkAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	require.Equal(t, 1, result.SuccessCount)
 	require.Equal(t, 0, result.CreatedCount)
 	require.Equal(t, 1, result.ReusedCount)
-	require.Equal(t, "reused", result.Statuses[4])
+	require.Equal(t, "reused", result.Statuses["4"])
 	require.Len(t, result.Subscriptions, 1)
 	renewed := result.Subscriptions[0]
 	require.Equal(t, SubscriptionStatusActive, renewed.Status)
@@ -584,7 +584,7 @@ func TestBulkAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 
 func TestAssignSubscriptionKeepsWorkingWhenIdempotencyStoreUnavailable(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeSubscription},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	SetDefaultIdempotencyCoordinator(NewIdempotencyCoordinator(failingIdempotencyRepo{}, DefaultIdempotencyConfig()))
@@ -594,8 +594,8 @@ func TestAssignSubscriptionKeepsWorkingWhenIdempotencyStoreUnavailable(t *testin
 
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 	sub, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       9001,
-		GroupID:      1,
+		UserID:       "9001",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "new",
 	})
@@ -614,16 +614,16 @@ func TestNormalizeAssignValidityDays(t *testing.T) {
 func TestDetectAssignSemanticConflictCases(t *testing.T) {
 	start := time.Date(2026, 2, 20, 10, 0, 0, 0, time.UTC)
 	base := &UserSubscription{
-		UserID:    1,
-		GroupID:   1,
+		UserID:    "1",
+		GroupID:   "1",
 		StartsAt:  start,
 		ExpiresAt: start.AddDate(0, 0, 30),
 		Notes:     "same",
 	}
 
 	reason, conflict := detectAssignSemanticConflict(base, &AssignSubscriptionInput{
-		UserID:       1,
-		GroupID:      1,
+		UserID:       "1",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "same",
 	})
@@ -631,8 +631,8 @@ func TestDetectAssignSemanticConflictCases(t *testing.T) {
 	require.Equal(t, "", reason)
 
 	reason, conflict = detectAssignSemanticConflict(base, &AssignSubscriptionInput{
-		UserID:       1,
-		GroupID:      1,
+		UserID:       "1",
+		GroupID:      "1",
 		ValidityDays: 60,
 		Notes:        "same",
 	})
@@ -640,8 +640,8 @@ func TestDetectAssignSemanticConflictCases(t *testing.T) {
 	require.Equal(t, "validity_days_mismatch", reason)
 
 	reason, conflict = detectAssignSemanticConflict(base, &AssignSubscriptionInput{
-		UserID:       1,
-		GroupID:      1,
+		UserID:       "1",
+		GroupID:      "1",
 		ValidityDays: 30,
 		Notes:        "other",
 	})
@@ -651,14 +651,14 @@ func TestDetectAssignSemanticConflictCases(t *testing.T) {
 
 func TestAssignSubscriptionGroupTypeValidation(t *testing.T) {
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeStandard},
+		group: &Group{ID: "1", SubscriptionType: SubscriptionTypeStandard},
 	}
 	subRepo := newSubscriptionUserSubRepoStub()
 	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
 
 	_, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
-		UserID:       1,
-		GroupID:      1,
+		UserID:       "1",
+		GroupID:      "1",
 		ValidityDays: 30,
 	})
 	require.Error(t, err)

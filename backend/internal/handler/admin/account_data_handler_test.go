@@ -77,7 +77,7 @@ func setupAccountDataRouter() (*gin.Engine, *stubAdminService) {
 func TestExportDataIncludesSecrets(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 
-	proxyID := int64(11)
+	proxyID := "proxy-11"
 	adminSvc.proxies = []service.Proxy{
 		{
 			ID:       proxyID,
@@ -90,7 +90,7 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 			Status:   service.StatusActive,
 		},
 		{
-			ID:       12,
+			ID:       "proxy-12",
 			Name:     "orphan",
 			Protocol: "https",
 			Host:     "10.0.0.1",
@@ -102,7 +102,7 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 	}
 	adminSvc.accounts = []service.Account{
 		{
-			ID:          21,
+			ID:          "account-21",
 			Name:        "account",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeOAuth,
@@ -134,7 +134,7 @@ func TestExportDataIncludesSecrets(t *testing.T) {
 func TestExportDataWithoutProxies(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 
-	proxyID := int64(11)
+	proxyID := "proxy-11"
 	adminSvc.proxies = []service.Proxy{
 		{
 			ID:       proxyID,
@@ -149,7 +149,7 @@ func TestExportDataWithoutProxies(t *testing.T) {
 	}
 	adminSvc.accounts = []service.Account{
 		{
-			ID:          21,
+			ID:          "account-21",
 			Name:        "account",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeOAuth,
@@ -179,7 +179,7 @@ func TestExportDataWithoutProxies(t *testing.T) {
 func TestExportDataExcludesSparkShadow(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 
-	parentID := int64(21)
+	parentID := "account-21"
 	adminSvc.accounts = []service.Account{
 		{
 			ID:          parentID,
@@ -190,7 +190,7 @@ func TestExportDataExcludesSparkShadow(t *testing.T) {
 			Status:      service.StatusActive,
 		},
 		{
-			ID:              22,
+			ID:              "account-22",
 			Name:            "mother (Spark)",
 			Platform:        service.PlatformOpenAI,
 			Type:            service.AccountTypeOAuth,
@@ -217,7 +217,7 @@ func TestExportDataExcludesSparkShadow(t *testing.T) {
 func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
 	adminSvc.accounts = []service.Account{
-		{ID: 1, Name: "acc-1", Status: service.StatusActive},
+		{ID: "account-1", Name: "acc-1", Status: service.StatusActive},
 	}
 
 	rec := httptest.NewRecorder()
@@ -233,7 +233,7 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	require.Equal(t, "openai", adminSvc.lastListAccounts.platform)
 	require.Equal(t, "oauth", adminSvc.lastListAccounts.accountType)
 	require.Equal(t, "active", adminSvc.lastListAccounts.status)
-	require.Equal(t, int64(12), adminSvc.lastListAccounts.groupID)
+	require.Equal(t, "12", adminSvc.lastListAccounts.groupID)
 	require.Equal(t, "blocked", adminSvc.lastListAccounts.privacyMode)
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 	require.Equal(t, "priority", adminSvc.lastListAccounts.sortBy)
@@ -264,7 +264,7 @@ func TestImportDataReusesProxyAndSkipsDefaultGroup(t *testing.T) {
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       1,
+			ID:       "proxy-1",
 			Name:     "proxy",
 			Protocol: "socks5",
 			Host:     "1.2.3.4",

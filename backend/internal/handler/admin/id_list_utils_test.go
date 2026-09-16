@@ -11,18 +11,17 @@ import (
 func TestNormalizeInt64IDList(t *testing.T) {
 	tests := []struct {
 		name string
-		in   []int64
-		want []int64
+		in   []string
+		want []string
 	}{
 		{"nil input", nil, nil},
-		{"empty input", []int64{}, nil},
-		{"single element", []int64{5}, []int64{5}},
-		{"already sorted unique", []int64{1, 2, 3}, []int64{1, 2, 3}},
-		{"duplicates removed", []int64{3, 1, 3, 2, 1}, []int64{1, 2, 3}},
-		{"zero filtered", []int64{0, 1, 2}, []int64{1, 2}},
-		{"negative filtered", []int64{-5, -1, 3}, []int64{3}},
-		{"all invalid", []int64{0, -1, -2}, []int64{}},
-		{"sorted output", []int64{9, 3, 7, 1}, []int64{1, 3, 7, 9}},
+		{"empty input", []string{}, nil},
+		{"single element", []string{"id-5"}, []string{"id-5"}},
+		{"already sorted unique", []string{"id-1", "id-2", "id-3"}, []string{"id-1", "id-2", "id-3"}},
+		{"duplicates removed", []string{"id-3", "id-1", "id-3", "id-2", "id-1"}, []string{"id-1", "id-2", "id-3"}},
+		{"empty filtered", []string{"", "id-1", "id-2"}, []string{"id-1", "id-2"}},
+		{"all invalid", []string{"", ""}, []string{}},
+		{"sorted output", []string{"id-9", "id-3", "id-7", "id-1"}, []string{"id-1", "id-3", "id-7", "id-9"}},
 	}
 
 	for _, tc := range tests {
@@ -40,12 +39,12 @@ func TestNormalizeInt64IDList(t *testing.T) {
 func TestBuildAccountTodayStatsBatchCacheKey(t *testing.T) {
 	tests := []struct {
 		name string
-		ids  []int64
+		ids  []string
 		want string
 	}{
 		{"empty", nil, "accounts_today_stats_empty"},
-		{"single", []int64{42}, "accounts_today_stats:42"},
-		{"multiple", []int64{1, 2, 3}, "accounts_today_stats:1,2,3"},
+		{"single", []string{"account-42"}, "accounts_today_stats:account-42"},
+		{"multiple", []string{"account-1", "account-2", "account-3"}, "accounts_today_stats:account-1,account-2,account-3"},
 	}
 
 	for _, tc := range tests {

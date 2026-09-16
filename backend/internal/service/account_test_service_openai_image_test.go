@@ -34,7 +34,7 @@ func TestAccountTestService_OpenAIImageOAuthHandlesOutputItemDoneFallback(t *tes
 	}
 	svc := &AccountTestService{httpUpstream: upstream}
 	account := &Account{
-		ID:       53,
+		ID:       "53",
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -72,7 +72,7 @@ func TestAccountTestService_OpenAIImageAPIKeyUsesConfiguredV1BaseURL(t *testing.
 		cfg:          &config.Config{},
 	}
 	account := &Account{
-		ID:       54,
+		ID:       "54",
 		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,

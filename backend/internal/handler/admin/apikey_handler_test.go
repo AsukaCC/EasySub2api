@@ -16,6 +16,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	adminAPIKeyTestID = "00000000-0000-4000-8000-000000000010"
+	adminGroupTestID  = "00000000-0000-4000-8000-000000000002"
+)
+
+func newAPIKeyHandlerTestService() *stubAdminService {
+	svc := newStubAdminService()
+	svc.apiKeys[0].ID = adminAPIKeyTestID
+	svc.groups[0].ID = adminGroupTestID
+	return svc
+}
+
 func setupAPIKeyHandler(adminSvc service.AdminService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -26,7 +38,7 @@ func setupAPIKeyHandler(adminSvc service.AdminService) *gin.Engine {
 
 func TestAdminAPIKeyHandler_UpdateGroup_InvalidID(t *testing.T) {
 	router := setupAPIKeyHandler(newStubAdminService())
-	body := `{"group_id": 2}`
+	body := `{"group_id":"` + adminGroupTestID + `"}`
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/abc", bytes.NewBufferString(body))
@@ -38,10 +50,10 @@ func TestAdminAPIKeyHandler_UpdateGroup_InvalidID(t *testing.T) {
 }
 
 func TestAdminAPIKeyHandler_UpdateGroup_InvalidJSON(t *testing.T) {
-	router := setupAPIKeyHandler(newStubAdminService())
+	router := setupAPIKeyHandler(newAPIKeyHandlerTestService())
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(`{bad json`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(`{bad json`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -50,11 +62,11 @@ func TestAdminAPIKeyHandler_UpdateGroup_InvalidJSON(t *testing.T) {
 }
 
 func TestAdminAPIKeyHandler_UpdateGroup_KeyNotFound(t *testing.T) {
-	router := setupAPIKeyHandler(newStubAdminService())
-	body := `{"group_id": 2}`
+	router := setupAPIKeyHandler(newAPIKeyHandlerTestService())
+	body := `{"group_id":"` + adminGroupTestID + `"}`
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/999", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/00000000-0000-4000-8000-000000000999", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -63,11 +75,11 @@ func TestAdminAPIKeyHandler_UpdateGroup_KeyNotFound(t *testing.T) {
 }
 
 func TestAdminAPIKeyHandler_UpdateGroup_BindGroup(t *testing.T) {
-	router := setupAPIKeyHandler(newStubAdminService())
-	body := `{"group_id": 2}`
+	router := setupAPIKeyHandler(newAPIKeyHandlerTestService())
+	body := `{"group_id":"` + adminGroupTestID + `"}`
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -82,26 +94,26 @@ func TestAdminAPIKeyHandler_UpdateGroup_BindGroup(t *testing.T) {
 
 	var data struct {
 		APIKey struct {
-			ID      int64  `json:"id"`
-			GroupID *int64 `json:"group_id"`
+			ID      string  `json:"id"`
+			GroupID *string `json:"group_id"`
 		} `json:"api_key"`
 		AutoGrantedGroupAccess bool `json:"auto_granted_group_access"`
 	}
 	require.NoError(t, json.Unmarshal(resp.Data, &data))
-	require.Equal(t, int64(10), data.APIKey.ID)
+	require.Equal(t, adminAPIKeyTestID, data.APIKey.ID)
 	require.NotNil(t, data.APIKey.GroupID)
-	require.Equal(t, int64(2), *data.APIKey.GroupID)
+	require.Equal(t, adminGroupTestID, *data.APIKey.GroupID)
 }
 
 func TestAdminAPIKeyHandler_UpdateGroup_Unbind(t *testing.T) {
-	svc := newStubAdminService()
-	gid := int64(2)
+	svc := newAPIKeyHandlerTestService()
+	gid := adminGroupTestID
 	svc.apiKeys[0].GroupID = &gid
 	router := setupAPIKeyHandler(svc)
-	body := `{"group_id": 0}`
+	body := `{"group_id":""}`
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -110,7 +122,7 @@ func TestAdminAPIKeyHandler_UpdateGroup_Unbind(t *testing.T) {
 	var resp struct {
 		Data struct {
 			APIKey struct {
-				GroupID *int64 `json:"group_id"`
+				GroupID *string `json:"group_id"`
 			} `json:"api_key"`
 		} `json:"data"`
 	}
@@ -119,7 +131,7 @@ func TestAdminAPIKeyHandler_UpdateGroup_Unbind(t *testing.T) {
 }
 
 func TestAdminAPIKeyHandler_ResetRateLimitUsage(t *testing.T) {
-	svc := newStubAdminService()
+	svc := newAPIKeyHandlerTestService()
 	now := time.Now()
 	svc.apiKeys[0].Usage5h = 1.2
 	svc.apiKeys[0].Usage1d = 3.4
@@ -130,7 +142,7 @@ func TestAdminAPIKeyHandler_ResetRateLimitUsage(t *testing.T) {
 	router := setupAPIKeyHandler(svc)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(`{"reset_rate_limit_usage":true}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(`{"reset_rate_limit_usage":true}`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -159,14 +171,14 @@ func TestAdminAPIKeyHandler_ResetRateLimitUsage(t *testing.T) {
 
 func TestAdminAPIKeyHandler_UpdateGroup_ServiceError(t *testing.T) {
 	svc := &failingUpdateGroupService{
-		stubAdminService: newStubAdminService(),
+		stubAdminService: newAPIKeyHandlerTestService(),
 		err:              errors.New("internal failure"),
 	}
 	router := setupAPIKeyHandler(svc)
-	body := `{"group_id": 2}`
+	body := `{"group_id":"` + adminGroupTestID + `"}`
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -175,10 +187,10 @@ func TestAdminAPIKeyHandler_UpdateGroup_ServiceError(t *testing.T) {
 
 // H2: empty body → group_id is nil → no-op, returns original key
 func TestAdminAPIKeyHandler_UpdateGroup_EmptyBody_NoChange(t *testing.T) {
-	router := setupAPIKeyHandler(newStubAdminService())
+	router := setupAPIKeyHandler(newAPIKeyHandlerTestService())
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(`{}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -188,25 +200,25 @@ func TestAdminAPIKeyHandler_UpdateGroup_EmptyBody_NoChange(t *testing.T) {
 		Code int `json:"code"`
 		Data struct {
 			APIKey struct {
-				ID int64 `json:"id"`
+				ID string `json:"id"`
 			} `json:"api_key"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	require.Equal(t, 0, resp.Code)
-	require.Equal(t, int64(10), resp.Data.APIKey.ID)
+	require.Equal(t, adminAPIKeyTestID, resp.Data.APIKey.ID)
 }
 
 // M2: service returns GROUP_NOT_ACTIVE → handler maps to 400
 func TestAdminAPIKeyHandler_UpdateGroup_GroupNotActive(t *testing.T) {
 	svc := &failingUpdateGroupService{
-		stubAdminService: newStubAdminService(),
+		stubAdminService: newAPIKeyHandlerTestService(),
 		err:              infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active"),
 	}
 	router := setupAPIKeyHandler(svc)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(`{"group_id": 5}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(`{"group_id":"00000000-0000-4000-8000-000000000005"}`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -217,13 +229,13 @@ func TestAdminAPIKeyHandler_UpdateGroup_GroupNotActive(t *testing.T) {
 // M2: service returns INVALID_GROUP_ID → handler maps to 400
 func TestAdminAPIKeyHandler_UpdateGroup_NegativeGroupID(t *testing.T) {
 	svc := &failingUpdateGroupService{
-		stubAdminService: newStubAdminService(),
+		stubAdminService: newAPIKeyHandlerTestService(),
 		err:              infraerrors.BadRequest("INVALID_GROUP_ID", "group_id must be non-negative"),
 	}
 	router := setupAPIKeyHandler(svc)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(`{"group_id": -5}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/"+adminAPIKeyTestID, bytes.NewBufferString(`{"group_id":"invalid"}`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 
@@ -237,6 +249,6 @@ type failingUpdateGroupService struct {
 	err error
 }
 
-func (f *failingUpdateGroupService) AdminUpdateAPIKeyGroupID(_ context.Context, _ int64, _ *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
+func (f *failingUpdateGroupService) AdminUpdateAPIKeyGroupID(_ context.Context, _ string, _ *string) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
 	return nil, f.err
 }

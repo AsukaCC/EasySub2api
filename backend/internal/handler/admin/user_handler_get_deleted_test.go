@@ -15,11 +15,11 @@ type getByIDAdminStub struct {
 	service.AdminService
 }
 
-func (s *getByIDAdminStub) GetUser(_ context.Context, _ int64) (*service.User, error) {
+func (s *getByIDAdminStub) GetUser(_ context.Context, _ string) (*service.User, error) {
 	return nil, service.ErrUserNotFound
 }
 
-func (s *getByIDAdminStub) GetUserIncludeDeleted(_ context.Context, id int64) (*service.User, error) {
+func (s *getByIDAdminStub) GetUserIncludeDeleted(_ context.Context, id string) (*service.User, error) {
 	return &service.User{ID: id, Email: "del@test.com"}, nil
 }
 
@@ -37,14 +37,14 @@ func TestAdminUserGetByID_IncludeDeleted(t *testing.T) {
 
 	t.Run("normal path returns 404 for deleted user", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/admin/users/7", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/admin/users/00000000-0000-4000-8000-000000000007", nil)
 		router.ServeHTTP(w, req)
 		require.Equal(t, http.StatusNotFound, w.Code)
 	})
 
 	t.Run("include_deleted=true returns 200", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/admin/users/7?include_deleted=true", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/admin/users/00000000-0000-4000-8000-000000000007?include_deleted=true", nil)
 		router.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
 	})

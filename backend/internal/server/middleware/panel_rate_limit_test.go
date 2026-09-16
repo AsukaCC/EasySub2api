@@ -129,7 +129,7 @@ func newPanelRateLimitTestService(t *testing.T, settingsJSON string) *service.Se
 }
 
 type panelTestIdentity struct {
-	userID int64
+	userID string
 	role   string
 }
 
@@ -165,8 +165,8 @@ func TestPanelRateLimiterGlobalPerUser(t *testing.T) {
 		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":2,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":0}`),
 	}
 
-	userA := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 1, role: service.RoleUser})
-	userB := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 2, role: service.RoleUser})
+	userA := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: "user-1", role: service.RoleUser})
+	userB := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: "user-2", role: service.RoleUser})
 
 	require.Equal(t, http.StatusOK, performPanelRequest(userA, "127.0.0.1:1000").Code)
 	require.Equal(t, http.StatusOK, performPanelRequest(userA, "127.0.0.1:1000").Code)
@@ -191,7 +191,7 @@ func TestPanelRateLimiterHeavyUsesHeavyRPM(t *testing.T) {
 		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":100,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":0}`),
 	}
 
-	router := newPanelTestRouter(p.Heavy(), &panelTestIdentity{userID: 7, role: service.RoleUser})
+	router := newPanelTestRouter(p.Heavy(), &panelTestIdentity{userID: "user-7", role: service.RoleUser})
 	require.Equal(t, http.StatusOK, performPanelRequest(router, "127.0.0.1:1000").Code)
 	require.Equal(t, http.StatusTooManyRequests, performPanelRequest(router, "127.0.0.1:1000").Code)
 
@@ -206,7 +206,7 @@ func TestPanelRateLimiterAdminExemption(t *testing.T) {
 		limiter:        &fakePanelAllower{},
 		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":1,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":0}`),
 	}
-	admin := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 9, role: service.RoleAdmin})
+	admin := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: "user-9", role: service.RoleAdmin})
 	for i := 0; i < 5; i++ {
 		require.Equal(t, http.StatusOK, performPanelRequest(admin, "127.0.0.1:1000").Code)
 	}
@@ -216,7 +216,7 @@ func TestPanelRateLimiterAdminExemption(t *testing.T) {
 		limiter:        &fakePanelAllower{},
 		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":1,"heavy_rpm":1,"exempt_admin":false,"public_ip_rpm":0}`),
 	}
-	admin2 := newPanelTestRouter(p2.Global(), &panelTestIdentity{userID: 9, role: service.RoleAdmin})
+	admin2 := newPanelTestRouter(p2.Global(), &panelTestIdentity{userID: "user-9", role: service.RoleAdmin})
 	require.Equal(t, http.StatusOK, performPanelRequest(admin2, "127.0.0.1:1000").Code)
 	require.Equal(t, http.StatusTooManyRequests, performPanelRequest(admin2, "127.0.0.1:1000").Code)
 }
@@ -227,7 +227,7 @@ func TestPanelRateLimiterDisabledOrMissingSubject(t *testing.T) {
 		limiter:        &fakePanelAllower{},
 		settingService: newPanelRateLimitTestService(t, `{"enabled":false,"user_rpm":1,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":1}`),
 	}
-	router := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 3, role: service.RoleUser})
+	router := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: "user-3", role: service.RoleUser})
 	for i := 0; i < 3; i++ {
 		require.Equal(t, http.StatusOK, performPanelRequest(router, "127.0.0.1:1000").Code)
 	}
@@ -244,7 +244,7 @@ func TestPanelRateLimiterDisabledOrMissingSubject(t *testing.T) {
 
 	// nil 限流器（测试环境注入 nil）：直接放行
 	var nilLimiter *PanelRateLimiter
-	nilRouter := newPanelTestRouter(nilLimiter.Global(), &panelTestIdentity{userID: 3, role: service.RoleUser})
+	nilRouter := newPanelTestRouter(nilLimiter.Global(), &panelTestIdentity{userID: "user-3", role: service.RoleUser})
 	require.Equal(t, http.StatusOK, performPanelRequest(nilRouter, "127.0.0.1:1000").Code)
 }
 
@@ -253,7 +253,7 @@ func TestPanelRateLimiterFailOpenOnRedisError(t *testing.T) {
 		limiter:        &fakePanelAllower{err: errors.New("redis down")},
 		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":1,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":1}`),
 	}
-	router := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 5, role: service.RoleUser})
+	router := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: "user-5", role: service.RoleUser})
 	for i := 0; i < 3; i++ {
 		require.Equal(t, http.StatusOK, performPanelRequest(router, "127.0.0.1:1000").Code)
 	}

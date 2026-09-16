@@ -73,7 +73,7 @@ func TestUpdateSettingsEnableStepUpFailsClosedWithoutUserService(t *testing.T) {
 	h, repo := newStepUpSwitchTestHandler(t, map[string]string{})
 
 	rec := doUpdateSettings(t, h, map[string]any{"step_up_enabled": true}, func(c *gin.Context) {
-		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1})
+		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: "user-1"})
 	})
 
 	require.Equal(t, http.StatusInternalServerError, rec.Code)

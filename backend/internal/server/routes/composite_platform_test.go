@@ -20,7 +20,7 @@ type compositeRouteRepoStub struct {
 	routes []service.CompositeModelRoute
 }
 
-func (s compositeRouteRepoStub) ListByGroup(ctx context.Context, groupID int64, includeDisabled bool) ([]service.CompositeModelRoute, error) {
+func (s compositeRouteRepoStub) ListByGroup(ctx context.Context, groupID string, includeDisabled bool) ([]service.CompositeModelRoute, error) {
 	routes := make([]service.CompositeModelRoute, 0, len(s.routes))
 	for _, route := range s.routes {
 		if route.GroupID != groupID {
@@ -42,11 +42,11 @@ func (s compositeRouteRepoStub) Update(ctx context.Context, route *service.Compo
 	return nil
 }
 
-func (s compositeRouteRepoStub) Delete(ctx context.Context, id int64) error {
+func (s compositeRouteRepoStub) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s compositeRouteRepoStub) DeleteByGroup(ctx context.Context, groupID int64) error {
+func (s compositeRouteRepoStub) DeleteByGroup(ctx context.Context, groupID string) error {
 	return nil
 }
 
@@ -54,7 +54,7 @@ func TestCompositeTargetPlatformMiddlewareResolvesModelAndRestoresBody(t *testin
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(gin.HandlerFunc(servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
-		groupID := int64(1)
+		groupID := "group-1"
 		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 			GroupID: &groupID,
 			Group:   &service.Group{Platform: service.PlatformComposite},
@@ -88,8 +88,8 @@ func TestCompositeTargetPlatformMiddlewareUsesExplicitRouteAndRewritesBody(t *te
 	resolver := service.NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []service.CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        1,
+				ID:             "route-1",
+				GroupID:        "group-1",
 				PublicModel:    "openrouter/gpt-5",
 				MatchType:      service.CompositeRouteMatchExact,
 				TargetPlatform: service.PlatformOpenAI,
@@ -101,7 +101,7 @@ func TestCompositeTargetPlatformMiddlewareUsesExplicitRouteAndRewritesBody(t *te
 		},
 	})
 	router.Use(gin.HandlerFunc(servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
-		groupID := int64(1)
+		groupID := "group-1"
 		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, Platform: service.PlatformComposite},
@@ -139,8 +139,8 @@ func TestCompositeTargetPlatformMiddlewareUsesExplicitRouteForMultipartImages(t 
 	resolver := service.NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []service.CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        1,
+				ID:             "route-1",
+				GroupID:        "group-1",
 				PublicModel:    "image-alias",
 				MatchType:      service.CompositeRouteMatchExact,
 				TargetPlatform: service.PlatformOpenAI,
@@ -152,7 +152,7 @@ func TestCompositeTargetPlatformMiddlewareUsesExplicitRouteForMultipartImages(t 
 		},
 	})
 	router.Use(gin.HandlerFunc(servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
-		groupID := int64(1)
+		groupID := "group-1"
 		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, Platform: service.PlatformComposite},
@@ -200,8 +200,8 @@ func TestCompositeGeminiTargetPlatformMiddlewareUsesPathRoute(t *testing.T) {
 	resolver := service.NewCompositeRouteResolver(compositeRouteRepoStub{
 		routes: []service.CompositeModelRoute{
 			{
-				ID:             1,
-				GroupID:        1,
+				ID:             "route-1",
+				GroupID:        "group-1",
 				PublicModel:    "openrouter/gemini-pro",
 				MatchType:      service.CompositeRouteMatchExact,
 				TargetPlatform: service.PlatformGemini,
@@ -213,7 +213,7 @@ func TestCompositeGeminiTargetPlatformMiddlewareUsesPathRoute(t *testing.T) {
 		},
 	})
 	router.Use(gin.HandlerFunc(servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
-		groupID := int64(1)
+		groupID := "group-1"
 		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, Platform: service.PlatformComposite},

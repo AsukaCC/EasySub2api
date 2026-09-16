@@ -18,8 +18,8 @@ func TestImageTaskStoreRoundTripAndTTL(t *testing.T) {
 	store := NewImageTaskStore(rdb)
 	task := &service.ImageTaskRecord{
 		ID:        "imgtask_123",
-		UserID:    7,
-		APIKeyID:  9,
+		UserID:    "user-7",
+		APIKeyID:  "key-9",
 		Status:    service.ImageTaskStatusProcessing,
 		CreatedAt: 100,
 		ExpiresAt: 200,

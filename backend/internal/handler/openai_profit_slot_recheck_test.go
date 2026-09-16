@@ -26,12 +26,12 @@ type profitCountingConcurrencyCache struct {
 	accountReleases atomic.Int64
 }
 
-func (c *profitCountingConcurrencyCache) ReleaseAccountSlot(context.Context, int64, string) error {
+func (c *profitCountingConcurrencyCache) ReleaseAccountSlot(context.Context, string, string) error {
 	c.accountReleases.Add(1)
 	return nil
 }
 
-func profitSlotTestAccount(id int64, rate float64) *service.Account {
+func profitSlotTestAccount(id string, rate float64) *service.Account {
 	now := time.Now()
 	return &service.Account{
 		ID:             id,
@@ -56,7 +56,7 @@ func profitSlotTestAccount(id int64, rate float64) *service.Account {
 	}
 }
 
-func profitSlotTestContext(t *testing.T, gw *service.OpenAIGatewayService, groupID int64, suppress bool) context.Context {
+func profitSlotTestContext(t *testing.T, gw *service.OpenAIGatewayService, groupID string, suppress bool) context.Context {
 	t.Helper()
 	group := &service.Group{
 		ID:                   groupID,
@@ -80,7 +80,7 @@ func profitSlotTestContext(t *testing.T, gw *service.OpenAIGatewayService, group
 func TestAcquireResponsesAccountSlotProfitRecheck(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	gw := &service.OpenAIGatewayService{}
-	groupID := int64(50)
+	groupID := "group-50"
 
 	newHandler := func(cache *profitCountingConcurrencyCache) *OpenAIGatewayHandler {
 		return &OpenAIGatewayHandler{
@@ -104,7 +104,7 @@ func TestAcquireResponsesAccountSlotProfitRecheck(t *testing.T) {
 		c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(profitSlotTestContext(t, gw, groupID, false))
 		streamStarted := false
 
-		release, result := h.acquireResponsesAccountSlot(c, &groupID, "", newSelection(profitSlotTestAccount(1, 0.8)), false, &streamStarted, zap.NewNop())
+		release, result := h.acquireResponsesAccountSlot(c, &groupID, "", newSelection(profitSlotTestAccount("account-1", 0.8)), false, &streamStarted, zap.NewNop())
 		require.Equal(t, openAISlotAcquireProfitVetoed, result)
 		require.Nil(t, release)
 		require.Zero(t, w.Body.Len(), "利润终检否决不得写出任何响应")
@@ -119,7 +119,7 @@ func TestAcquireResponsesAccountSlotProfitRecheck(t *testing.T) {
 		c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(profitSlotTestContext(t, gw, groupID, false))
 		streamStarted := false
 
-		release, result := h.acquireResponsesAccountSlot(c, &groupID, "", newSelection(profitSlotTestAccount(2, 0.3)), false, &streamStarted, zap.NewNop())
+		release, result := h.acquireResponsesAccountSlot(c, &groupID, "", newSelection(profitSlotTestAccount("account-2", 0.3)), false, &streamStarted, zap.NewNop())
 		require.Equal(t, openAISlotAcquireOK, result)
 		require.NotNil(t, release)
 		release()
@@ -133,7 +133,7 @@ func TestAcquireResponsesAccountSlotProfitRecheck(t *testing.T) {
 		c.Request = httptest.NewRequest("POST", "/v1/responses", nil).WithContext(profitSlotTestContext(t, gw, groupID, true))
 		streamStarted := false
 
-		release, result := h.acquireResponsesAccountSlot(c, &groupID, "", newSelection(profitSlotTestAccount(3, 0.8)), false, &streamStarted, zap.NewNop())
+		release, result := h.acquireResponsesAccountSlot(c, &groupID, "", newSelection(profitSlotTestAccount("account-3", 0.8)), false, &streamStarted, zap.NewNop())
 		require.Equal(t, openAISlotAcquireOK, result, "生图意图跳门：过贵账号照常获取（图片边界不装门）")
 		require.NotNil(t, release)
 		release()

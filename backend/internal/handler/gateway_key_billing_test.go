@@ -20,12 +20,12 @@ type keyBillingUserGroupRateRepo struct {
 	service.UserGroupRateRepository
 	rate        *float64
 	err         error
-	gotUserID   int64
-	gotGroupID  int64
+	gotUserID   string
+	gotGroupID  string
 	lookupCalls int
 }
 
-func (r *keyBillingUserGroupRateRepo) GetByUserAndGroup(_ context.Context, userID, groupID int64) (*float64, error) {
+func (r *keyBillingUserGroupRateRepo) GetByUserAndGroup(_ context.Context, userID, groupID string) (*float64, error) {
 	r.gotUserID = userID
 	r.gotGroupID = groupID
 	r.lookupCalls++
@@ -65,9 +65,9 @@ func newKeyBillingContext(apiKey *service.APIKey) (*gin.Context, *httptest.Respo
 }
 
 func TestGatewayHandlerKeyBillingInfoUsesGroupRate(t *testing.T) {
-	groupID := int64(7)
+	groupID := "group-7"
 	apiKey := &service.APIKey{
-		UserID:  11,
+		UserID:  "user-11",
 		GroupID: &groupID,
 		Key:     "sk-sensitive-value",
 		Group: &service.Group{
@@ -111,10 +111,10 @@ func TestGatewayHandlerKeyBillingInfoUsesGroupRate(t *testing.T) {
 }
 
 func TestGatewayHandlerKeyBillingInfoUsesUserOverride(t *testing.T) {
-	groupID := int64(7)
+	groupID := "group-7"
 	userRate := 0.5
 	apiKey := &service.APIKey{
-		UserID:  11,
+		UserID:  "user-11",
 		GroupID: &groupID,
 		Group:   &service.Group{ID: groupID, RateMultiplier: 0.75},
 	}
@@ -136,7 +136,7 @@ func TestGatewayHandlerKeyBillingInfoUsesUserOverride(t *testing.T) {
 }
 
 func TestBuildKeyBillingInfoAppliesPeakMultiplier(t *testing.T) {
-	groupID := int64(7)
+	groupID := "group-7"
 	apiKey := &service.APIKey{
 		GroupID: &groupID,
 		Group: &service.Group{
@@ -189,7 +189,7 @@ func TestBuildKeyBillingInfoAppliesPeakMultiplier(t *testing.T) {
 }
 
 func TestKeyBillingInfoJSONKeepsZeroPeakMultiplierWhenEnabled(t *testing.T) {
-	groupID := int64(7)
+	groupID := "group-7"
 	apiKey := &service.APIKey{
 		GroupID: &groupID,
 		Group: &service.Group{
@@ -225,9 +225,9 @@ func TestGatewayHandlerKeyBillingInfoErrorsAreSafe(t *testing.T) {
 	})
 
 	t.Run("missing billing service", func(t *testing.T) {
-		groupID := int64(7)
+		groupID := "group-7"
 		c, w := newKeyBillingContext(&service.APIKey{
-			UserID:  11,
+			UserID:  "user-11",
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, RateMultiplier: 1},
 		})
@@ -236,9 +236,9 @@ func TestGatewayHandlerKeyBillingInfoErrorsAreSafe(t *testing.T) {
 	})
 
 	t.Run("rate lookup failure matches billing fallback", func(t *testing.T) {
-		groupID := int64(7)
+		groupID := "group-7"
 		c, w := newKeyBillingContext(&service.APIKey{
-			UserID:  11,
+			UserID:  "user-11",
 			GroupID: &groupID,
 			Group:   &service.Group{ID: groupID, RateMultiplier: 1},
 		})
@@ -262,7 +262,7 @@ func TestGatewayHandlerKeyBillingInfoSharesBillingResolverCacheByPlatform(t *tes
 		{name: "grok", platform: service.PlatformGrok, openAI: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			groupID := int64(7)
+			groupID := "group-7"
 			oldRate, newRate := 0.5, 1.8
 			repo := &keyBillingUserGroupRateRepo{rate: &oldRate}
 			gatewayService := newKeyBillingGatewayService(repo)
@@ -272,7 +272,7 @@ func TestGatewayHandlerKeyBillingInfoSharesBillingResolverCacheByPlatform(t *tes
 				openAIGatewayService: openAIGatewayService,
 			}
 			apiKey := &service.APIKey{
-				UserID:  11,
+				UserID:  "user-11",
 				GroupID: &groupID,
 				Group: &service.Group{
 					ID:             groupID,

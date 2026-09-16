@@ -15,15 +15,15 @@ import (
 )
 
 func profitAuthTestAPIKey() *APIKey {
-	groupID := int64(50)
+	groupID := "group-profit-roundtrip"
 	return &APIKey{
-		ID:      82,
-		UserID:  40,
+		ID:      "api-key-profit-roundtrip",
+		UserID:  "user-profit-roundtrip",
 		GroupID: &groupID,
 		Name:    "profit-auth-roundtrip",
 		Status:  StatusActive,
 		User: &User{
-			ID:          40,
+			ID:          "user-profit-roundtrip",
 			Email:       "profit@test.local",
 			Status:      StatusActive,
 			Concurrency: 5,

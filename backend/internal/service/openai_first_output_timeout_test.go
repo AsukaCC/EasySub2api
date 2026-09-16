@@ -37,7 +37,7 @@ func (b *firstOutputCloseTrackingBody) Close() error {
 	return b.ReadCloser.Close()
 }
 
-func (u *blockingOpenAIResponseHeaderUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *blockingOpenAIResponseHeaderUpstream) Do(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	select {
 	case <-req.Context().Done():
 		u.once.Do(func() { close(u.canceled) })
@@ -47,8 +47,8 @@ func (u *blockingOpenAIResponseHeaderUpstream) Do(req *http.Request, _ string, _
 	}
 }
 
-func (u *blockingOpenAIResponseHeaderUpstream) DoWithTLS(req *http.Request, _ string, _ int64, _ int, _ *tlsfingerprint.Profile) (*http.Response, error) {
-	return u.Do(req, "", 0, 0)
+func (u *blockingOpenAIResponseHeaderUpstream) DoWithTLS(req *http.Request, _ string, _ string, _ int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+	return u.Do(req, "", "", 0)
 }
 
 func TestOpenAIForwardFirstOutputTimeoutIncludesResponseHeaderWait(t *testing.T) {
@@ -66,7 +66,7 @@ func TestOpenAIForwardFirstOutputTimeoutIncludesResponseHeaderWait(t *testing.T)
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	account := &Account{
-		ID: 1, Name: "oauth-test", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
+		ID: "account-1", Name: "oauth-test", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
 		Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{"access_token": "test-token", "chatgpt_account_id": "test-account"},
 	}
@@ -104,7 +104,7 @@ func TestOpenAINativeFirstOutputTimeoutDisabledPreservesSynchronousStream(t *tes
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -131,7 +131,7 @@ func TestOpenAINativeFirstOutputTimeoutIgnoresPreambleAndCleansReader(t *testing
 	body := &firstOutputCloseTrackingBody{ReadCloser: pr, closed: make(chan struct{})}
 	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: body}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now().Add(-2*time.Second), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now().Add(-2*time.Second), "model", "model")
 
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
@@ -322,7 +322,7 @@ func TestOpenAINativeFirstOutputTimeoutDisarmsAfterSemanticOutput(t *testing.T) 
 		"X-Ratelimit-Remaining-Requests": []string{"42"},
 	}, Body: pr}
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -379,7 +379,7 @@ func assertOpenAINativeLargeOpenEventTimesOutWithoutLeak(t *testing.T, line stri
 		"X-Ratelimit-Remaining-Requests": []string{"1"},
 	}, Body: body}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -421,7 +421,7 @@ func TestOpenAINativeFirstOutputEOFDispatchesTerminalEventWithoutBlankLine(t *te
 		Body: io.NopCloser(strings.NewReader(payload)),
 	}
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -460,7 +460,7 @@ func TestOpenAINativeFirstOutputStageOverflowFailsOverWithoutAttemptBytes(t *tes
 		Body: io.NopCloser(strings.NewReader(body)),
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -492,7 +492,7 @@ func TestOpenAINativeFirstOutputScannerRejectsOversizedLineWithoutLeak(t *testin
 		Body: io.NopCloser(strings.NewReader(body)),
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -528,7 +528,7 @@ func TestOpenAINativeFirstOutputScannerAllowsLargeEventAfterSemanticBoundary(t *
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -559,7 +559,7 @@ func TestOpenAINativeFirstOutputTimeoutDisabledPreservesKeepaliveFlush(t *testin
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: pr}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	require.Error(t, err)
 	require.Contains(t, rec.Body.String(), ":\n\n")
@@ -602,7 +602,7 @@ func TestOpenAINativeFirstOutputFailoverKeepsAttemptHeadersPrivateAfterKeepalive
 		Body: trackedFirstBody,
 	}
 
-	_, firstErr := svc.handleStreamingResponse(c.Request.Context(), firstResp, c, &Account{ID: 1, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	_, firstErr := svc.handleStreamingResponse(c.Request.Context(), firstResp, c, &Account{ID: "account-1", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, firstErr, &failoverErr)
 	require.Contains(t, rec.Body.String(), ":\n\n", "first attempt should have committed only a stable keepalive")
@@ -622,7 +622,7 @@ func TestOpenAINativeFirstOutputFailoverKeepsAttemptHeadersPrivateAfterKeepalive
 			"",
 		}, "\n"))),
 	}
-	result, secondErr := svc.handleStreamingResponse(c.Request.Context(), secondResp, c, &Account{ID: 2, Platform: PlatformOpenAI}, time.Now(), "model", "model")
+	result, secondErr := svc.handleStreamingResponse(c.Request.Context(), secondResp, c, &Account{ID: "account-2", Platform: PlatformOpenAI}, time.Now(), "model", "model")
 
 	require.NoError(t, secondErr)
 	require.NotNil(t, result)

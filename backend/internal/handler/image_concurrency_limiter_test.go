@@ -147,17 +147,17 @@ func TestOpenAIGatewayHandlerResponses_ImageIntentRejectedByImageConcurrency(t *
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
-	groupID := int64(1)
+	groupID := "group-1"
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      10,
+		ID:      "key-10",
 		GroupID: &groupID,
 		Group: &service.Group{
 			ID:                   groupID,
 			AllowImageGeneration: true,
 		},
-		User: &service.User{ID: 20},
+		User: &service.User{ID: "user-20"},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 20, Concurrency: 1})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-20", Concurrency: 1})
 
 	h := &OpenAIGatewayHandler{
 		gatewayService:          &service.OpenAIGatewayService{},
@@ -192,17 +192,17 @@ func TestOpenAIGatewayHandlerResponses_TextOnlyNotRejectedByImageConcurrency(t *
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
-	groupID := int64(1)
+	groupID := "group-1"
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      10,
+		ID:      "key-10",
 		GroupID: &groupID,
 		Group: &service.Group{
 			ID:                   groupID,
 			AllowImageGeneration: true,
 		},
-		User: &service.User{ID: 20},
+		User: &service.User{ID: "user-20"},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 20, Concurrency: 1})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-20", Concurrency: 1})
 
 	h := &OpenAIGatewayHandler{
 		gatewayService:      &service.OpenAIGatewayService{},

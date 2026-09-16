@@ -43,7 +43,7 @@ func (s *channelMonitorV2RepoStub) GetSnapshot(_ context.Context, _ ChannelMonit
 	for i := range cfg.Platforms {
 		cfg.Platforms[i].Models = append([]string(nil), s.snap.Config.Platforms[i].Models...)
 	}
-	cfg.GroupIDs = append([]int64(nil), s.snap.Config.GroupIDs...)
+	cfg.GroupIDs = append([]string(nil), s.snap.Config.GroupIDs...)
 	cfg.IgnoredErrorCategories = append([]string(nil), s.snap.Config.IgnoredErrorCategories...)
 	out := *s.snap
 	out.Config = cfg
@@ -119,12 +119,12 @@ func TestChannelMonitorV2BootstrapProgress(t *testing.T) {
 func TestChannelMonitorV2ParseFilterDefaultsAndBuckets(t *testing.T) {
 	svc := &ChannelMonitorV2Service{now: func() time.Time { return time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC) }}
 
-	filter, err := svc.ParseFilter("", []string{"openai", "openai", ""}, []string{"gpt-5"}, []int64{2, 1, 2, 0})
+	filter, err := svc.ParseFilter("", []string{"openai", "openai", ""}, []string{"gpt-5"}, []string{"group-2", "group-1", "group-2", ""})
 	require.NoError(t, err)
 	require.Equal(t, "90m", filter.Range)
 	require.Equal(t, 5*time.Minute, filter.Bucket)
 	require.Equal(t, []string{"openai"}, filter.Platforms)
-	require.Equal(t, []int64{1, 2}, filter.GroupIDs)
+	require.Equal(t, []string{"group-1", "group-2"}, filter.GroupIDs)
 	require.Equal(t, 90*time.Minute, filter.End.Sub(filter.Start))
 
 	filter, err = svc.ParseFilter("30d", nil, nil, nil)
@@ -166,18 +166,18 @@ func TestChannelMonitorV2ConfigValidation(t *testing.T) {
 			{Platform: " OpenAI ", Enabled: true, Models: []string{"gpt-5", "gpt-5", ""}},
 			{Platform: "anthropic", Enabled: true},
 		},
-		GroupIDs: []int64{3, 1, 3},
+		GroupIDs: []string{"group-3", "group-1", "group-3"},
 	}
 	require.NoError(t, normalizeChannelMonitorV2Config(&cfg))
 	require.Equal(t, 300, cfg.RefreshIntervalSeconds)
 	require.Equal(t, "anthropic", cfg.Platforms[0].Platform)
-	require.Equal(t, []int64{1, 3}, cfg.GroupIDs)
+	require.Equal(t, []string{"group-1", "group-3"}, cfg.GroupIDs)
 
 	cfg.RefreshIntervalSeconds = 120
 	require.ErrorIs(t, normalizeChannelMonitorV2Config(&cfg), ErrChannelMonitorV2InvalidConfig)
 
 	cfg.RefreshIntervalSeconds = 60
-	cfg.GroupIDs = []int64{0}
+	cfg.GroupIDs = []string{""}
 	require.ErrorIs(t, normalizeChannelMonitorV2Config(&cfg), ErrChannelMonitorV2InvalidConfig)
 }
 
@@ -310,7 +310,7 @@ func (s channelMonitorV2RuntimeStub) GetChannelMonitorRuntime(context.Context) C
 }
 
 func TestChannelMonitorV2UsersHiddenWhenSettingEnabled(t *testing.T) {
-	selfID, otherID := int64(7), int64(9)
+	selfID, otherID := "user-7", "user-9"
 	repo := &channelMonitorV2RepoStub{config: ChannelMonitorV2Config{Enabled: true}, users: &ChannelMonitorV2List[ChannelMonitorV2UserRow]{Items: []ChannelMonitorV2UserRow{
 		{UserID: &otherID, Email: "other@example.com", Username: "other"},
 		{UserID: &selfID, Email: "self@example.com", Username: "self"},
@@ -328,7 +328,7 @@ func TestChannelMonitorV2UsersHiddenWhenSettingEnabled(t *testing.T) {
 }
 
 func TestChannelMonitorV2UsersRemovesOtherUserIdentity(t *testing.T) {
-	selfID, otherID := int64(7), int64(9)
+	selfID, otherID := "user-7", "user-9"
 	repo := &channelMonitorV2RepoStub{config: ChannelMonitorV2Config{Enabled: true}, users: &ChannelMonitorV2List[ChannelMonitorV2UserRow]{Items: []ChannelMonitorV2UserRow{
 		{UserID: &otherID, Email: "other@example.com", Username: "other"},
 		{UserID: &selfID, Email: "self@example.com", Username: "self"},
@@ -344,7 +344,7 @@ func TestChannelMonitorV2UsersRemovesOtherUserIdentity(t *testing.T) {
 }
 
 func TestChannelMonitorV2UsersAppendsSelfWhenMissingFromRanking(t *testing.T) {
-	selfID, otherID := int64(7), int64(9)
+	selfID, otherID := "user-7", "user-9"
 	repo := &channelMonitorV2RepoStub{config: ChannelMonitorV2Config{Enabled: true}, users: &ChannelMonitorV2List[ChannelMonitorV2UserRow]{Items: []ChannelMonitorV2UserRow{
 		{UserID: &otherID, Email: "other@example.com", Username: "other", Metrics: ChannelMonitorV2Metric{RequestCount: 10}},
 	}}}
@@ -361,13 +361,13 @@ func TestChannelMonitorV2UsersAppendsSelfWhenMissingFromRanking(t *testing.T) {
 func TestChannelMonitorV2TopUsersKeepsSelfOutsideLimit(t *testing.T) {
 	items := make([]ChannelMonitorV2UserRow, 0, 12)
 	for i := 1; i <= 12; i++ {
-		id := int64(i)
+		id := fmt.Sprintf("user-%d", i)
 		items = append(items, ChannelMonitorV2UserRow{UserID: &id, Rank: i, DisplayLabel: fmt.Sprintf("u%d", i)})
 	}
 	// self is rank 12 (index 11)
 	out := channelMonitorV2TopUsersWithSelf(items, 11, 10)
 	require.Len(t, out, 11)
-	require.Equal(t, int64(12), *out[10].UserID)
+	require.Equal(t, "user-12", *out[10].UserID)
 	require.Equal(t, 12, out[10].Rank)
 }
 
@@ -434,7 +434,7 @@ func TestErrorsForViewerStripsDetailsAndCountsForNonAdmin(t *testing.T) {
 }
 
 func TestSnapshotRedactsPublicConfigPolicyFields(t *testing.T) {
-	updatedBy := int64(9)
+	updatedBy := "admin-9"
 	repo := &channelMonitorV2RepoStub{
 		config: ChannelMonitorV2Config{Enabled: true},
 		snap: &ChannelMonitorV2Snapshot{
@@ -445,7 +445,7 @@ func TestSnapshotRedactsPublicConfigPolicyFields(t *testing.T) {
 				Platforms: []ChannelMonitorV2PlatformConfig{
 					{Platform: "openai", Enabled: true, Models: []string{"gpt-5"}},
 				},
-				GroupIDs:               []int64{1, 2},
+				GroupIDs:               []string{"group-1", "group-2"},
 				IgnoredErrorCategories: []string{"timeout"},
 				UpdatedBy:              &updatedBy,
 			},

@@ -114,7 +114,7 @@ func TestRegisterAgentIdentityTaskAcceptsPlaintextAndEncryptedResponses(t *testi
 	openAIAgentIdentityAuthAPIBaseURL = server.URL
 	t.Cleanup(func() { openAIAgentIdentityAuthAPIBaseURL = oldBase })
 
-	account := &Account{ID: 1, Type: AccountTypeOAuth, Platform: PlatformOpenAI, Credentials: map[string]any{
+	account := &Account{ID: "account-1", Type: AccountTypeOAuth, Platform: PlatformOpenAI, Credentials: map[string]any{
 		"auth_mode":         OpenAIAuthModeAgentIdentity,
 		"agent_runtime_id":  key.runtimeID,
 		"agent_private_key": privateKey,
@@ -138,7 +138,7 @@ func TestEnsureAgentIdentityTaskPersistsAndRedactsCredentials(t *testing.T) {
 	t.Cleanup(func() { openAIAgentIdentityAuthAPIBaseURL = oldBase })
 
 	repo := &agentIdentityCredentialsRepo{}
-	account := &Account{ID: 7, Type: AccountTypeOAuth, Platform: PlatformOpenAI, Credentials: map[string]any{
+	account := &Account{ID: "account-7", Type: AccountTypeOAuth, Platform: PlatformOpenAI, Credentials: map[string]any{
 		"auth_mode":          OpenAIAuthModeAgentIdentity,
 		"agent_runtime_id":   key.runtimeID,
 		"agent_private_key":  privateKey,
@@ -160,7 +160,7 @@ func TestEnsureAgentIdentityTaskPersistsAndRedactsCredentials(t *testing.T) {
 
 func TestEnsureAgentIdentityTaskSharesLockAcrossServicesForSameAccount(t *testing.T) {
 	key, privateKey := newTestAgentIdentityKey(t)
-	account := &Account{ID: 9001, Type: AccountTypeOAuth, Platform: PlatformOpenAI, Credentials: map[string]any{
+	account := &Account{ID: "account-9001", Type: AccountTypeOAuth, Platform: PlatformOpenAI, Credentials: map[string]any{
 		"auth_mode":         OpenAIAuthModeAgentIdentity,
 		"agent_runtime_id":  key.runtimeID,
 		"agent_private_key": privateKey,
@@ -210,11 +210,11 @@ type agentIdentityCredentialsRepo struct {
 	mu          sync.Mutex
 }
 
-func (r *agentIdentityCredentialsRepo) GetByID(_ context.Context, _ int64) (*Account, error) {
+func (r *agentIdentityCredentialsRepo) GetByID(_ context.Context, _ string) (*Account, error) {
 	return r.account, nil
 }
 
-func (r *agentIdentityCredentialsRepo) UpdateCredentials(_ context.Context, _ int64, credentials map[string]any) error {
+func (r *agentIdentityCredentialsRepo) UpdateCredentials(_ context.Context, _ string, credentials map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.credentials = credentials

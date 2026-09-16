@@ -73,7 +73,7 @@ func newOpsRuntimeRouter(handler *OpsHandler, withUser bool) *gin.Engine {
 	r := gin.New()
 	if withUser {
 		r.Use(func(c *gin.Context) {
-			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 7})
+			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: "user-7"})
 			c.Next()
 		})
 	}
@@ -112,7 +112,7 @@ func newRuntimeOpsService(t *testing.T) *service.OpsService {
 			},
 		},
 	}
-	return service.NewOpsService(nil, settingRepo, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
+	return service.NewOpsService(nil, settingRepo, cfg, nil, nil, nil, nil, nil, nil)
 }
 
 func TestOpsRuntimeLoggingHandler_GetConfig(t *testing.T) {

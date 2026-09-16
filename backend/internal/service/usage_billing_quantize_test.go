@@ -31,9 +31,9 @@ func TestUsageBillingCommandQuantizesBalanceAndQuotaIdentically(t *testing.T) {
 
 	cmd := &UsageBillingCommand{
 		RequestID:       "req-5229",
-		UserID:          1,
-		APIKeyID:        2,
-		AccountID:       3,
+		UserID:          "user-1",
+		APIKeyID:        "key-2",
+		AccountID:       "account-3",
 		BalanceCost:     actualCost,
 		APIKeyQuotaCost: actualCost,
 	}
@@ -82,9 +82,9 @@ func TestQuantizedAmountsReconcileExactlyOverManyApplications(t *testing.T) {
 
 	cmd := &UsageBillingCommand{
 		RequestID:           "req-5229-bulk",
-		UserID:              1,
-		APIKeyID:            2,
-		AccountID:           3,
+		UserID:              "user-1",
+		APIKeyID:            "key-2",
+		AccountID:           "account-3",
 		BalanceCost:         actualCost,
 		SubscriptionCost:    0,
 		APIKeyQuotaCost:     actualCost,
@@ -117,9 +117,9 @@ func TestNormalizeQuantizesEveryMonetaryField(t *testing.T) {
 
 	cmd := &UsageBillingCommand{
 		RequestID:           "req-5229-fields",
-		UserID:              1,
-		APIKeyID:            2,
-		AccountID:           3,
+		UserID:              "user-1",
+		APIKeyID:            "key-2",
+		AccountID:           "account-3",
 		BalanceCost:         raw,
 		SubscriptionCost:    raw,
 		APIKeyQuotaCost:     raw,
@@ -148,9 +148,9 @@ func TestNormalizeKeepsFingerprintDerivedFromRawAmounts(t *testing.T) {
 	newCmd := func() *UsageBillingCommand {
 		return &UsageBillingCommand{
 			RequestID:       "req-5229-fp",
-			UserID:          1,
-			APIKeyID:        2,
-			AccountID:       3,
+			UserID:          "user-1",
+			APIKeyID:        "key-2",
+			AccountID:       "account-3",
 			BalanceCost:     raw,
 			APIKeyQuotaCost: raw,
 		}

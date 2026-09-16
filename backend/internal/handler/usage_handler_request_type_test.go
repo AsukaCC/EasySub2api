@@ -47,7 +47,7 @@ func (s *userUsageRepoCapture) GetStatsWithFilters(ctx context.Context, filters 
 	return &usagestats.UsageStats{}, nil
 }
 
-func (s *userUsageRepoCapture) GetUsageTrendWithFilters(ctx context.Context, startTime, endTime time.Time, granularity string, userID, apiKeyID, accountID, groupID int64, model string, requestType *int16, stream *bool, billingType *int8) ([]usagestats.TrendDataPoint, error) {
+func (s *userUsageRepoCapture) GetUsageTrendWithFilters(ctx context.Context, startTime, endTime time.Time, granularity string, userID, apiKeyID, accountID, groupID string, model string, requestType *int16, stream *bool, billingType *int8) ([]usagestats.TrendDataPoint, error) {
 	s.trendFilters = usagestats.UsageLogFilters{
 		UserID:      userID,
 		APIKeyID:    apiKeyID,
@@ -61,11 +61,11 @@ func (s *userUsageRepoCapture) GetUsageTrendWithFilters(ctx context.Context, sta
 	return []usagestats.TrendDataPoint{}, nil
 }
 
-func (s *userUsageRepoCapture) GetModelStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8) ([]usagestats.ModelStat, error) {
+func (s *userUsageRepoCapture) GetModelStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, requestType *int16, stream *bool, billingType *int8) ([]usagestats.ModelStat, error) {
 	return s.modelStats, nil
 }
 
-func (s *userUsageRepoCapture) GetGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8) ([]usagestats.GroupStat, error) {
+func (s *userUsageRepoCapture) GetGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID string, requestType *int16, stream *bool, billingType *int8) ([]usagestats.GroupStat, error) {
 	s.groupFilters = usagestats.UsageLogFilters{
 		UserID:      userID,
 		APIKeyID:    apiKeyID,
@@ -84,7 +84,7 @@ func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
 	handler := NewUsageHandler(usageSvc, nil, nil, nil)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 42})
+		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-42"})
 		c.Next()
 	})
 	router.GET("/usage", handler.List)
@@ -103,7 +103,7 @@ func TestUserUsageListRequestTypePriority(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, int64(42), repo.listFilters.UserID)
+	require.Equal(t, "user-42", repo.listFilters.UserID)
 	require.NotNil(t, repo.listFilters.RequestType)
 	require.Equal(t, int16(service.RequestTypeWSV2), *repo.listFilters.RequestType)
 	require.Nil(t, repo.listFilters.Stream)
@@ -141,7 +141,7 @@ func TestUserUsageListAdvancedFilters(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, int64(42), repo.listFilters.UserID)
-	require.Equal(t, int64(7), repo.listFilters.GroupID)
+	require.Equal(t, "group-7", repo.listFilters.GroupID)
 	require.Equal(t, "gpt-5", repo.listFilters.Model)
 	require.Equal(t, usagestats.ModelSourceRequested, repo.listFilters.ModelFilterSource)
 	require.NotNil(t, repo.listFilters.BillingType)
@@ -178,15 +178,15 @@ func TestUserUsageListKeepsUserBillingAndIPWithoutAdminCostFields(t *testing.T) 
 	ipAddress := "203.0.113.10"
 	upstreamModel := "upstream-private-model"
 	billingTier := "internal-tier"
-	channelID := int64(99)
+	channelID := "channel-99"
 	accountRateMultiplier := 1.7
 	accountStatsCost := 0.12
 	repo := &userUsageRepoCapture{
 		listRows: []service.UsageLog{{
-			ID:                    1,
-			UserID:                42,
-			APIKeyID:              7,
-			AccountID:             5,
+			ID:                    "usage-1",
+			UserID:                "user-42",
+			APIKeyID:              "key-7",
+			AccountID:             "account-5",
 			RequestID:             "req_user_billing",
 			Model:                 "gpt-5",
 			InputCost:             0.01,
@@ -253,8 +253,8 @@ func TestUserUsageStatsUsesScopedFilters(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, int64(42), repo.statsFilters.UserID)
-	require.Equal(t, int64(9), repo.statsFilters.GroupID)
+	require.Equal(t, "user-42", repo.statsFilters.UserID)
+	require.Equal(t, "group-9", repo.statsFilters.GroupID)
 	require.Equal(t, usagestats.ModelSourceRequested, repo.statsFilters.ModelFilterSource)
 	require.NotNil(t, repo.statsFilters.RequestType)
 	require.Equal(t, int16(service.RequestTypeSync), *repo.statsFilters.RequestType)
@@ -304,7 +304,7 @@ func TestUserUsageDashboardModelsRejectsAdminModelSources(t *testing.T) {
 func TestUserUsageSnapshotUsesScopedFilters(t *testing.T) {
 	repo := &userUsageRepoCapture{
 		modelStats: []usagestats.ModelStat{{Model: "gpt-5", AccountCost: 0.07}},
-		groupStats: []usagestats.GroupStat{{GroupID: 1, GroupName: "default", AccountCost: 0.06}},
+		groupStats: []usagestats.GroupStat{{GroupID: "group-1", GroupName: "default", AccountCost: 0.06}},
 	}
 	router := newUserUsageRequestTypeTestRouter(repo)
 
@@ -313,12 +313,12 @@ func TestUserUsageSnapshotUsesScopedFilters(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, int64(42), repo.trendFilters.UserID)
-	require.Equal(t, int64(11), repo.trendFilters.GroupID)
+	require.Equal(t, "user-42", repo.trendFilters.UserID)
+	require.Equal(t, "group-11", repo.trendFilters.GroupID)
 	require.NotNil(t, repo.trendFilters.RequestType)
 	require.Equal(t, int16(service.RequestTypeStream), *repo.trendFilters.RequestType)
-	require.Equal(t, int64(42), repo.groupFilters.UserID)
-	require.Equal(t, int64(11), repo.groupFilters.GroupID)
+	require.Equal(t, "user-42", repo.groupFilters.UserID)
+	require.Equal(t, "group-11", repo.groupFilters.GroupID)
 	require.NotContains(t, rec.Body.String(), "account_cost")
 }
 

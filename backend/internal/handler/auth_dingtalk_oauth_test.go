@@ -320,7 +320,7 @@ func TestSyncDingTalkIdentity_UsesCfgAttrKeys_NoopWithNilService(t *testing.T) {
 
 	// 调用不应 panic（userAttributeService 为 nil 时走 warn 跳过路径）
 	require.NotPanics(t, func() {
-		handler.syncDingTalkIdentity(context.Background(), cfg, nil, 42, staff, false)
+		handler.syncDingTalkIdentity(context.Background(), cfg, nil, "user-42", staff, false)
 	})
 }
 
@@ -349,7 +349,7 @@ func TestSyncDingTalkIdentity_DefaultAttrKeys_NoopWithNilService(t *testing.T) {
 	}
 
 	require.NotPanics(t, func() {
-		handler.syncDingTalkIdentity(context.Background(), cfg, nil, 99, staff, false)
+		handler.syncDingTalkIdentity(context.Background(), cfg, nil, "user-99", staff, false)
 	})
 }
 

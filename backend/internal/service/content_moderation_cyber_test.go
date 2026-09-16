@@ -25,12 +25,12 @@ func (r *cyberOrderingTestRepo) CreateLog(ctx context.Context, log *ContentModer
 	r.calls = append(r.calls, "create")
 	if log != nil {
 		r.emailSents = append(r.emailSents, log.EmailSent)
-		log.ID = 1 // simulate DB-assigned ID so UpdateLogEmailSent guard passes
+		log.ID = "log-1" // simulate DB-assigned ID so UpdateLogEmailSent guard passes
 	}
 	return nil
 }
 
-func (r *cyberOrderingTestRepo) UpdateLogEmailSent(ctx context.Context, id int64, sent bool) error {
+func (r *cyberOrderingTestRepo) UpdateLogEmailSent(ctx context.Context, id string, sent bool) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.calls = append(r.calls, "update_email_sent")
@@ -41,7 +41,7 @@ func (r *cyberOrderingTestRepo) ListLogs(ctx context.Context, filter ContentMode
 	return nil, nil, nil
 }
 
-func (r *cyberOrderingTestRepo) CountFlaggedByUserSince(ctx context.Context, userID int64, since time.Time, excludeCyberPolicy bool) (int, error) {
+func (r *cyberOrderingTestRepo) CountFlaggedByUserSince(ctx context.Context, userID string, since time.Time, excludeCyberPolicy bool) (int, error) {
 	return 0, nil
 }
 
@@ -81,7 +81,7 @@ func TestRecordCyberPolicyEvent_DisabledWhenRiskControlOff(t *testing.T) {
 	)
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-		UserID:          1,
+		UserID:          "user-1",
 		UserEmail:       "u@x.com",
 		Model:           "gpt-5",
 		Endpoint:        "/v1/responses",
@@ -109,7 +109,7 @@ func TestRecordCyberPolicyEvent_WritesLogWhenEnabled(t *testing.T) {
 	)
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-		UserID:          1,
+		UserID:          "user-1",
 		UserEmail:       "u@x.com",
 		Model:           "gpt-5",
 		Endpoint:        "/v1/responses",
@@ -132,7 +132,7 @@ func TestRecordCyberPolicyEvent_WritesLogWhenEnabled(t *testing.T) {
 
 	// UserID pointer must be set
 	require.NotNil(t, log.UserID)
-	require.Equal(t, int64(1), *log.UserID)
+	require.Equal(t, "user-1", *log.UserID)
 
 	// score for cyber_policy is always 1.0
 	require.Equal(t, 1.0, log.HighestScore)
@@ -158,11 +158,11 @@ func TestRecordCyberPolicyEvent_WritesLogWhenEnabled(t *testing.T) {
 }
 
 func TestRecordCyberPolicyEvent_RespectsContentModerationScope(t *testing.T) {
-	groupID := int64(7)
+	groupID := "group-7"
 	tests := []struct {
 		name       string
 		config     string
-		groupID    *int64
+		groupID    *string
 		model      string
 		wantCalls  []bool
 		wantLogs   int
@@ -203,7 +203,7 @@ func TestRecordCyberPolicyEvent_RespectsContentModerationScope(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &banCountArgsTestRepo{}
-			userRepo := &contentModerationTestUserRepo{user: &User{ID: 1, Role: RoleUser, Status: StatusActive}}
+			userRepo := &contentModerationTestUserRepo{user: &User{ID: "user-1", Role: RoleUser, Status: StatusActive}}
 			svc := NewContentModerationService(
 				&contentModerationTestSettingRepo{values: map[string]string{
 					SettingKeyRiskControlEnabled:      "true",
@@ -213,7 +213,7 @@ func TestRecordCyberPolicyEvent_RespectsContentModerationScope(t *testing.T) {
 			)
 
 			svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-				UserID:  1,
+				UserID:  "user-1",
 				GroupID: tt.groupID,
 				Model:   tt.model,
 			})
@@ -243,7 +243,7 @@ func TestRecordCyberPolicyEvent_InitialRuntimeSnapshotLoadFailureSkipsEvent(t *t
 	svc := NewContentModerationService(settingRepo, repo, nil, nil, nil, nil, nil, nil)
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-		UserID: 1,
+		UserID: "user-1",
 		Model:  "gpt-5",
 	})
 
@@ -273,7 +273,7 @@ func TestRecordCyberPolicyEvent_RuntimeSnapshotRefreshFailureKeepsStaleScope(t *
 	settingRepo.failMultiple(errors.New("database unavailable"))
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-		UserID: 1,
+		UserID: "user-1",
 		Model:  "gpt-5",
 	})
 
@@ -318,7 +318,7 @@ func TestRecordCyberPolicyEvent_CreateLogBeforeEmail(t *testing.T) {
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
 		RequestID:       "req-1",
-		UserID:          7,
+		UserID:          "user-7",
 		UserEmail:       "u@example.com",
 		Model:           "gpt-5",
 		UpstreamMessage: "blocked",
@@ -348,7 +348,7 @@ type banCountArgsTestRepo struct {
 	countCalls []bool
 }
 
-func (r *banCountArgsTestRepo) CountFlaggedByUserSince(ctx context.Context, userID int64, since time.Time, excludeCyberPolicy bool) (int, error) {
+func (r *banCountArgsTestRepo) CountFlaggedByUserSince(ctx context.Context, userID string, since time.Time, excludeCyberPolicy bool) (int, error) {
 	r.argsMu.Lock()
 	r.countCalls = append(r.countCalls, excludeCyberPolicy)
 	r.argsMu.Unlock()
@@ -369,7 +369,7 @@ func TestApplyFlaggedAccountSideEffects_PassesExcludeCyberFlag(t *testing.T) {
 		&contentModerationTestSettingRepo{values: map[string]string{}},
 		repo, nil, nil, nil, nil, nil, nil,
 	)
-	userID := int64(42)
+	userID := "user-42"
 
 	cfgExclude := defaultContentModerationConfig()
 	cfgExclude.CyberPolicyExcludeFromBanCount = true
@@ -393,7 +393,7 @@ func TestRecordCyberPolicyEvent_ExcludeFromBanCount_SkipsBanJudgment(t *testing.
 	)
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-		UserID:          1,
+		UserID:          "user-1",
 		UserEmail:       "u@x.com",
 		Model:           "gpt-5",
 		Endpoint:        "/v1/responses",
@@ -420,7 +420,7 @@ func TestRecordCyberPolicyEvent_DefaultCountsTowardBan(t *testing.T) {
 	)
 
 	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
-		UserID:          1,
+		UserID:          "user-1",
 		UserEmail:       "u@x.com",
 		Model:           "gpt-5",
 		Endpoint:        "/v1/responses",

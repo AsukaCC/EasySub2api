@@ -51,7 +51,7 @@ func TestHandleStreamingResponsePassthroughDeduplicatesFunctionCallArguments(t *
 	}
 
 	svc := &OpenAIGatewayService{}
-	result, err := svc.handleStreamingResponsePassthrough(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "gpt-5.4", "gpt-5.4")
+	result, err := svc.handleStreamingResponsePassthrough(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-5.4", "gpt-5.4")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -190,7 +190,7 @@ func passthroughArgsTestConfig() *config.Config {
 
 func passthroughArgsFallbackAccount() *Account {
 	return &Account{
-		ID:          102,
+		ID:          "account-102",
 		Name:        "passthrough-args-openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

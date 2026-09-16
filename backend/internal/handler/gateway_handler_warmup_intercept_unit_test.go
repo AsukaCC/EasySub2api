@@ -44,13 +44,13 @@ func (f *fakeSchedulerCache) RetireBucket(_ context.Context, _ service.Scheduler
 func (f *fakeSchedulerCache) ReopenBucket(_ context.Context, bucket service.SchedulerBucket) (service.SchedulerBucketWriteToken, error) {
 	return service.SchedulerBucketWriteToken{Bucket: bucket, Epoch: 1}, nil
 }
-func (f *fakeSchedulerCache) TryAcquireGroupLifecycleLease(_ context.Context, _ int64, _ time.Duration) (service.SchedulerGroupLifecycleLease, bool, error) {
+func (f *fakeSchedulerCache) TryAcquireGroupLifecycleLease(_ context.Context, _ string, _ time.Duration) (service.SchedulerGroupLifecycleLease, bool, error) {
 	return service.SchedulerGroupLifecycleLease{}, false, nil
 }
 func (f *fakeSchedulerCache) ReleaseGroupLifecycleLease(_ context.Context, _ service.SchedulerGroupLifecycleLease) error {
 	return nil
 }
-func (f *fakeSchedulerCache) GetAccount(_ context.Context, id int64) (*service.Account, error) {
+func (f *fakeSchedulerCache) GetAccount(_ context.Context, id string) (*service.Account, error) {
 	for _, account := range f.accounts {
 		if account != nil && account.ID == id {
 			return account, nil
@@ -59,8 +59,8 @@ func (f *fakeSchedulerCache) GetAccount(_ context.Context, id int64) (*service.A
 	return nil, nil
 }
 func (f *fakeSchedulerCache) SetAccount(_ context.Context, _ *service.Account) error { return nil }
-func (f *fakeSchedulerCache) DeleteAccount(_ context.Context, _ int64) error         { return nil }
-func (f *fakeSchedulerCache) UpdateLastUsed(_ context.Context, _ map[int64]time.Time) error {
+func (f *fakeSchedulerCache) DeleteAccount(_ context.Context, _ string) error        { return nil }
+func (f *fakeSchedulerCache) UpdateLastUsed(_ context.Context, _ map[string]time.Time) error {
 	return nil
 }
 func (f *fakeSchedulerCache) TryLockBucket(_ context.Context, _ service.SchedulerBucket, _ time.Duration) (bool, error) {
@@ -72,23 +72,23 @@ func (f *fakeSchedulerCache) UnlockBucket(_ context.Context, _ service.Scheduler
 func (f *fakeSchedulerCache) ListBuckets(_ context.Context) ([]service.SchedulerBucket, error) {
 	return nil, nil
 }
-func (f *fakeSchedulerCache) GetOutboxWatermark(_ context.Context) (int64, error) { return 0, nil }
-func (f *fakeSchedulerCache) SetOutboxWatermark(_ context.Context, _ int64) error { return nil }
+func (f *fakeSchedulerCache) GetOutboxWatermark(_ context.Context) (string, error) { return "", nil }
+func (f *fakeSchedulerCache) SetOutboxWatermark(_ context.Context, _ string) error { return nil }
 
 type fakeGroupRepo struct {
 	group *service.Group
 }
 
 func (f *fakeGroupRepo) Create(context.Context, *service.Group) error { return nil }
-func (f *fakeGroupRepo) GetByID(context.Context, int64) (*service.Group, error) {
+func (f *fakeGroupRepo) GetByID(context.Context, string) (*service.Group, error) {
 	return f.group, nil
 }
-func (f *fakeGroupRepo) GetByIDLite(context.Context, int64) (*service.Group, error) {
+func (f *fakeGroupRepo) GetByIDLite(context.Context, string) (*service.Group, error) {
 	return f.group, nil
 }
-func (f *fakeGroupRepo) Update(context.Context, *service.Group) error          { return nil }
-func (f *fakeGroupRepo) Delete(context.Context, int64) error                   { return nil }
-func (f *fakeGroupRepo) DeleteCascade(context.Context, int64) ([]int64, error) { return nil, nil }
+func (f *fakeGroupRepo) Update(context.Context, *service.Group) error            { return nil }
+func (f *fakeGroupRepo) Delete(context.Context, string) error                    { return nil }
+func (f *fakeGroupRepo) DeleteCascade(context.Context, string) ([]string, error) { return nil, nil }
 func (f *fakeGroupRepo) List(context.Context, pagination.PaginationParams) ([]service.Group, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
@@ -100,61 +100,63 @@ func (f *fakeGroupRepo) ListActiveByPlatform(context.Context, string) ([]service
 	return nil, nil
 }
 func (f *fakeGroupRepo) ExistsByName(context.Context, string) (bool, error) { return false, nil }
-func (f *fakeGroupRepo) GetAccountCount(context.Context, int64) (int64, int64, error) {
+func (f *fakeGroupRepo) GetAccountCount(context.Context, string) (int64, int64, error) {
 	return 0, 0, nil
 }
-func (f *fakeGroupRepo) DeleteAccountGroupsByGroupID(context.Context, int64) (int64, error) {
+func (f *fakeGroupRepo) DeleteAccountGroupsByGroupID(context.Context, string) (int64, error) {
 	return 0, nil
 }
-func (f *fakeGroupRepo) GetAccountIDsByGroupIDs(context.Context, []int64) ([]int64, error) {
+func (f *fakeGroupRepo) GetAccountIDsByGroupIDs(context.Context, []string) ([]string, error) {
 	return nil, nil
 }
-func (f *fakeGroupRepo) BindAccountsToGroup(context.Context, int64, []int64) error { return nil }
+func (f *fakeGroupRepo) BindAccountsToGroup(context.Context, string, []string) error { return nil }
 func (f *fakeGroupRepo) UpdateSortOrders(context.Context, []service.GroupSortOrderUpdate) error {
 	return nil
 }
 
 type fakeConcurrencyCache struct{}
 
-func (f *fakeConcurrencyCache) AcquireAccountSlot(context.Context, int64, int, string) (bool, error) {
+func (f *fakeConcurrencyCache) AcquireAccountSlot(context.Context, string, int, string) (bool, error) {
 	return true, nil
 }
-func (f *fakeConcurrencyCache) ReleaseAccountSlot(context.Context, int64, string) error { return nil }
-func (f *fakeConcurrencyCache) GetAccountConcurrency(context.Context, int64) (int, error) {
+func (f *fakeConcurrencyCache) ReleaseAccountSlot(context.Context, string, string) error { return nil }
+func (f *fakeConcurrencyCache) GetAccountConcurrency(context.Context, string) (int, error) {
 	return 0, nil
 }
-func (f *fakeConcurrencyCache) IncrementAccountWaitCount(context.Context, int64, int) (bool, error) {
+func (f *fakeConcurrencyCache) IncrementAccountWaitCount(context.Context, string, int) (bool, error) {
 	return true, nil
 }
-func (f *fakeConcurrencyCache) DecrementAccountWaitCount(context.Context, int64) error { return nil }
-func (f *fakeConcurrencyCache) GetAccountWaitingCount(context.Context, int64) (int, error) {
+func (f *fakeConcurrencyCache) DecrementAccountWaitCount(context.Context, string) error { return nil }
+func (f *fakeConcurrencyCache) GetAccountWaitingCount(context.Context, string) (int, error) {
 	return 0, nil
 }
-func (f *fakeConcurrencyCache) AcquireUserSlot(context.Context, int64, int, string) (bool, error) {
+func (f *fakeConcurrencyCache) AcquireUserSlot(context.Context, string, int, string) (bool, error) {
 	return true, nil
 }
-func (f *fakeConcurrencyCache) ReleaseUserSlot(context.Context, int64, string) error   { return nil }
-func (f *fakeConcurrencyCache) GetUserConcurrency(context.Context, int64) (int, error) { return 0, nil }
-func (f *fakeConcurrencyCache) IncrementWaitCount(context.Context, int64, int) (bool, error) {
+func (f *fakeConcurrencyCache) ReleaseUserSlot(context.Context, string, string) error { return nil }
+func (f *fakeConcurrencyCache) GetUserConcurrency(context.Context, string) (int, error) {
+	return 0, nil
+}
+func (f *fakeConcurrencyCache) IncrementWaitCount(context.Context, string, int) (bool, error) {
 	return true, nil
 }
-func (f *fakeConcurrencyCache) DecrementWaitCount(context.Context, int64) error { return nil }
-func (f *fakeConcurrencyCache) GetAccountsLoadBatch(context.Context, []service.AccountWithConcurrency) (map[int64]*service.AccountLoadInfo, error) {
-	return map[int64]*service.AccountLoadInfo{}, nil
+func (f *fakeConcurrencyCache) DecrementWaitCount(context.Context, string) error { return nil }
+func (f *fakeConcurrencyCache) GetAccountsLoadBatch(context.Context, []service.AccountWithConcurrency) (map[string]*service.AccountLoadInfo, error) {
+	return map[string]*service.AccountLoadInfo{}, nil
 }
-func (f *fakeConcurrencyCache) GetUsersLoadBatch(context.Context, []service.UserWithConcurrency) (map[int64]*service.UserLoadInfo, error) {
-	return map[int64]*service.UserLoadInfo{}, nil
+func (f *fakeConcurrencyCache) GetUsersLoadBatch(context.Context, []service.UserWithConcurrency) (map[string]*service.UserLoadInfo, error) {
+	return map[string]*service.UserLoadInfo{}, nil
 }
-func (f *fakeConcurrencyCache) GetAccountConcurrencyBatch(_ context.Context, accountIDs []int64) (map[int64]int, error) {
-	result := make(map[int64]int, len(accountIDs))
+func (f *fakeConcurrencyCache) GetAccountConcurrencyBatch(_ context.Context, accountIDs []string) (map[string]int, error) {
+	result := make(map[string]int, len(accountIDs))
 	for _, id := range accountIDs {
 		result[id] = 0
 	}
 	return result, nil
 }
-func (f *fakeConcurrencyCache) CleanupExpiredAccountSlots(context.Context, int64) error { return nil }
-func (f *fakeConcurrencyCache) CleanupExpiredAccountSlotKeys(context.Context) error     { return nil }
-func (f *fakeConcurrencyCache) CleanupStaleProcessSlots(context.Context, string) error  { return nil }
+func (f *fakeConcurrencyCache) CleanupExpiredAccountSlots(context.Context, string) error { return nil }
+func (f *fakeConcurrencyCache) CleanupExpiredAccountSlotKeys(context.Context) error      { return nil }
+func (f *fakeConcurrencyCache) CleanupStaleProcessSlots(context.Context, string) error   { return nil }
 
 func newTestGatewayHandler(t *testing.T, group *service.Group, accounts []*service.Account) (*GatewayHandler, func()) {
 	t.Helper()
@@ -218,8 +220,8 @@ func newTestGatewayHandler(t *testing.T, group *service.Group, accounts []*servi
 func TestGatewayHandlerMessages_InterceptWarmup_AntigravityAccount_MixedSchedulingV1(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(2001)
-	accountID := int64(1001)
+	groupID := "group-2001"
+	accountID := "account-1001"
 
 	group := &service.Group{
 		ID:       groupID,
@@ -264,12 +266,12 @@ func TestGatewayHandlerMessages_InterceptWarmup_AntigravityAccount_MixedScheduli
 	c.Request = req
 
 	apiKey := &service.APIKey{
-		ID:      3001,
-		UserID:  4001,
+		ID:      "key-3001",
+		UserID:  "user-4001",
 		GroupID: &groupID,
 		Status:  service.StatusActive,
 		User: &service.User{
-			ID:          4001,
+			ID:          "user-4001",
 			Concurrency: 10,
 			Balance:     100,
 		},
@@ -304,8 +306,8 @@ func TestGatewayHandlerMessages_InterceptWarmup_AntigravityAccount_MixedScheduli
 func TestGatewayHandlerMessages_InterceptWarmup_AntigravityAccount_ForcePlatform(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	groupID := int64(2002)
-	accountID := int64(1002)
+	groupID := "group-2002"
+	accountID := "account-1002"
 
 	group := &service.Group{
 		ID:       groupID,
@@ -354,12 +356,12 @@ func TestGatewayHandlerMessages_InterceptWarmup_AntigravityAccount_ForcePlatform
 	c.Set(string(middleware.ContextKeyForcePlatform), service.PlatformAntigravity)
 
 	apiKey := &service.APIKey{
-		ID:      3002,
-		UserID:  4002,
+		ID:      "key-3002",
+		UserID:  "user-4002",
 		GroupID: &groupID,
 		Status:  service.StatusActive,
 		User: &service.User{
-			ID:          4002,
+			ID:          "user-4002",
 			Concurrency: 10,
 			Balance:     100,
 		},

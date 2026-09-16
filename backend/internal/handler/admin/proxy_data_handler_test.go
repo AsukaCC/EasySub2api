@@ -13,6 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	proxyDataTestIDOne = "00000000-0000-4000-8000-000000000001"
+	proxyDataTestIDTwo = "00000000-0000-4000-8000-000000000002"
+)
+
 type proxyDataResponse struct {
 	Code int         `json:"code"`
 	Data DataPayload `json:"data"`
@@ -40,7 +45,7 @@ func TestProxyExportDataRespectsFilters(t *testing.T) {
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       1,
+			ID:       proxyDataTestIDOne,
 			Name:     "proxy-a",
 			Protocol: "http",
 			Host:     "127.0.0.1",
@@ -50,7 +55,7 @@ func TestProxyExportDataRespectsFilters(t *testing.T) {
 			Status:   service.StatusActive,
 		},
 		{
-			ID:       2,
+			ID:       proxyDataTestIDTwo,
 			Name:     "proxy-b",
 			Protocol: "https",
 			Host:     "10.0.0.2",
@@ -85,7 +90,7 @@ func TestProxyExportDataWithSelectedIDs(t *testing.T) {
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       1,
+			ID:       proxyDataTestIDOne,
 			Name:     "proxy-a",
 			Protocol: "http",
 			Host:     "127.0.0.1",
@@ -95,7 +100,7 @@ func TestProxyExportDataWithSelectedIDs(t *testing.T) {
 			Status:   service.StatusActive,
 		},
 		{
-			ID:       2,
+			ID:       proxyDataTestIDTwo,
 			Name:     "proxy-b",
 			Protocol: "https",
 			Host:     "10.0.0.2",
@@ -107,7 +112,7 @@ func TestProxyExportDataWithSelectedIDs(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/data?ids=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/data?ids="+proxyDataTestIDTwo, nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
@@ -125,7 +130,7 @@ func TestProxyExportDataPassesSortParams(t *testing.T) {
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       1,
+			ID:       proxyDataTestIDOne,
 			Name:     "proxy-a",
 			Protocol: "http",
 			Host:     "127.0.0.1",
@@ -154,7 +159,7 @@ func TestProxyExportDataSortByAccountCountUsesAccountCountListing(t *testing.T) 
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       1,
+			ID:       proxyDataTestIDOne,
 			Name:     "proxy-id-1",
 			Protocol: "http",
 			Host:     "127.0.0.1",
@@ -162,7 +167,7 @@ func TestProxyExportDataSortByAccountCountUsesAccountCountListing(t *testing.T) 
 			Status:   service.StatusActive,
 		},
 		{
-			ID:       2,
+			ID:       proxyDataTestIDTwo,
 			Name:     "proxy-id-2",
 			Protocol: "http",
 			Host:     "127.0.0.2",
@@ -173,7 +178,7 @@ func TestProxyExportDataSortByAccountCountUsesAccountCountListing(t *testing.T) 
 	adminSvc.proxyCounts = []service.ProxyWithAccountCount{
 		{
 			Proxy: service.Proxy{
-				ID:       2,
+				ID:       proxyDataTestIDTwo,
 				Name:     "proxy-count-high",
 				Protocol: "http",
 				Host:     "127.0.0.2",
@@ -184,7 +189,7 @@ func TestProxyExportDataSortByAccountCountUsesAccountCountListing(t *testing.T) 
 		},
 		{
 			Proxy: service.Proxy{
-				ID:       1,
+				ID:       proxyDataTestIDOne,
 				Name:     "proxy-count-low",
 				Protocol: "http",
 				Host:     "127.0.0.1",
@@ -214,7 +219,7 @@ func TestProxyImportDataReusesAndTriggersLatencyProbe(t *testing.T) {
 
 	adminSvc.proxies = []service.Proxy{
 		{
-			ID:       1,
+			ID:       proxyDataTestIDOne,
 			Name:     "proxy-a",
 			Protocol: "http",
 			Host:     "127.0.0.1",
@@ -270,9 +275,9 @@ func TestProxyImportDataReusesAndTriggersLatencyProbe(t *testing.T) {
 	require.Equal(t, 0, resp.Data.ProxyFailed)
 
 	adminSvc.mu.Lock()
-	updatedIDs := append([]int64(nil), adminSvc.updatedProxyIDs...)
+	updatedIDs := append([]string(nil), adminSvc.updatedProxyIDs...)
 	adminSvc.mu.Unlock()
-	require.Contains(t, updatedIDs, int64(1))
+	require.Contains(t, updatedIDs, proxyDataTestIDOne)
 
 	require.Eventually(t, func() bool {
 		adminSvc.mu.Lock()

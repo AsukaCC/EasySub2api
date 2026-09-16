@@ -45,7 +45,7 @@ func TestOpenAIRequestBodyLimitFailover_HTTP413SwitchesAccountsBeforeWrite(t *te
 				httpUpstream: upstream,
 			}
 			account := &Account{
-				ID:          161,
+				ID:          "account-161",
 				Name:        name,
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
@@ -112,7 +112,7 @@ func TestOpenAIRequestBodyLimitFailover_ContextWindow413DoesNotSwitchAccounts(t 
 				}},
 			}
 			account := &Account{
-				ID: 162, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
+				ID: "account-162", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1,
 				Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://api.example.test"},
 				Extra: map[string]any{
 					"openai_passthrough":         passthrough,

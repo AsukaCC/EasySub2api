@@ -18,7 +18,7 @@ type stubIdentityCache struct {
 	lastSet     *Fingerprint
 }
 
-func (s *stubIdentityCache) GetFingerprint(_ context.Context, _ int64) (*Fingerprint, error) {
+func (s *stubIdentityCache) GetFingerprint(_ context.Context, _ string) (*Fingerprint, error) {
 	if s.fingerprint == nil {
 		return nil, nil
 	}
@@ -26,7 +26,7 @@ func (s *stubIdentityCache) GetFingerprint(_ context.Context, _ int64) (*Fingerp
 	return &clone, nil
 }
 
-func (s *stubIdentityCache) SetFingerprint(_ context.Context, _ int64, fp *Fingerprint) error {
+func (s *stubIdentityCache) SetFingerprint(_ context.Context, _ string, fp *Fingerprint) error {
 	s.setCalls++
 	clone := *fp
 	s.lastSet = &clone
@@ -34,11 +34,11 @@ func (s *stubIdentityCache) SetFingerprint(_ context.Context, _ int64, fp *Finge
 	return nil
 }
 
-func (s *stubIdentityCache) GetMaskedSessionID(_ context.Context, _ int64) (string, error) {
+func (s *stubIdentityCache) GetMaskedSessionID(_ context.Context, _ string) (string, error) {
 	return "", nil
 }
 
-func (s *stubIdentityCache) SetMaskedSessionID(_ context.Context, _ int64, _ string) error {
+func (s *stubIdentityCache) SetMaskedSessionID(_ context.Context, _ string, _ string) error {
 	return nil
 }
 
@@ -92,7 +92,7 @@ func TestGetOrCreateFingerprintRejectsMalformedUserAgentOnCreate(t *testing.T) {
 	svc := NewIdentityService(cache)
 
 	fp, err := svc.GetOrCreateFingerprint(
-		context.Background(), 1,
+		context.Background(), "account-1",
 		headersWithUA("claude-cli/999.0.0-local (undefined, cli)"),
 	)
 
@@ -114,7 +114,7 @@ func TestGetOrCreateFingerprintRejectsSentinelVersionOnUpgrade(t *testing.T) {
 	svc := NewIdentityService(cache)
 
 	fp, err := svc.GetOrCreateFingerprint(
-		context.Background(), 1,
+		context.Background(), "account-1",
 		headersWithUA("claude-cli/999.0.0-local (undefined, cli)"),
 	)
 
@@ -134,7 +134,7 @@ func TestGetOrCreateFingerprintStillUpgradesOnValidNewerVersion(t *testing.T) {
 	svc := NewIdentityService(cache)
 
 	newUA := "claude-cli/2.1.223 (external, cli)"
-	fp, err := svc.GetOrCreateFingerprint(context.Background(), 1, headersWithUA(newUA))
+	fp, err := svc.GetOrCreateFingerprint(context.Background(), "account-1", headersWithUA(newUA))
 
 	require.NoError(t, err)
 	require.Equal(t, newUA, fp.UserAgent)
@@ -147,7 +147,7 @@ func TestGetOrCreateFingerprintAcceptsValidUserAgentOnCreate(t *testing.T) {
 	svc := NewIdentityService(cache)
 
 	ua := "claude-cli/" + claude.CLICurrentVersion + " (external, cli)"
-	fp, err := svc.GetOrCreateFingerprint(context.Background(), 1, headersWithUA(ua))
+	fp, err := svc.GetOrCreateFingerprint(context.Background(), "account-1", headersWithUA(ua))
 
 	require.NoError(t, err)
 	require.Equal(t, ua, fp.UserAgent)
@@ -173,7 +173,7 @@ func TestGetOrCreateFingerprintHealsPoisonedCacheUsingValidClientUA(t *testing.T
 	svc := NewIdentityService(cache)
 
 	realUA := "claude-cli/2.1.22 (external, cli)"
-	fp, err := svc.GetOrCreateFingerprint(context.Background(), 1, headersWithUA(realUA))
+	fp, err := svc.GetOrCreateFingerprint(context.Background(), "account-1", headersWithUA(realUA))
 
 	require.NoError(t, err)
 	require.Equal(t, realUA, fp.UserAgent,
@@ -193,7 +193,7 @@ func TestGetOrCreateFingerprintHealsPoisonedCacheWithoutValidClientUA(t *testing
 	svc := NewIdentityService(cache)
 
 	fp, err := svc.GetOrCreateFingerprint(
-		context.Background(), 1,
+		context.Background(), "account-1",
 		headersWithUA("claude-cli/999.0.0-local (undefined, cli)"),
 	)
 
@@ -212,7 +212,7 @@ func TestGetOrCreateFingerprintDoesNotRewriteHealthyCache(t *testing.T) {
 	svc := NewIdentityService(cache)
 
 	fp, err := svc.GetOrCreateFingerprint(
-		context.Background(), 1,
+		context.Background(), "account-1",
 		headersWithUA("claude-cli/2.1.22 (external, cli)"),
 	)
 
@@ -226,7 +226,7 @@ func TestGetOrCreateFingerprintMissingUserAgentKeepsDefault(t *testing.T) {
 	cache := &stubIdentityCache{}
 	svc := NewIdentityService(cache)
 
-	fp, err := svc.GetOrCreateFingerprint(context.Background(), 1, http.Header{})
+	fp, err := svc.GetOrCreateFingerprint(context.Background(), "account-1", http.Header{})
 
 	require.NoError(t, err)
 	require.Equal(t, defaultFingerprint.UserAgent, fp.UserAgent)

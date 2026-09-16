@@ -86,7 +86,7 @@ func TestCodexImagesLunaErrorDoesNotCoolImageAccount(t *testing.T) {
 		t.Run(fmt.Sprint(stream), func(t *testing.T) {
 			body := []byte(fmt.Sprintf(`{"model":"gpt-image-1","prompt":"draw","stream":%t}`, stream))
 			c, rec := newOpenAIImagesTestContext(t, body)
-			upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+			upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 				require.Equal(t, "/backend-api/codex/responses", req.URL.Path)
 				return &http.Response{StatusCode: 400, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"type":"invalid_request_error","message":"The 'gpt-5.6-luna' model is not supported when using Codex with a ChatGPT account."}}`))}, nil
 			}}
@@ -107,7 +107,7 @@ func TestCodexImagesLunaErrorDoesNotCoolImageAccount(t *testing.T) {
 func TestCodexDirectImagesShadowCredentials(t *testing.T) {
 	parent := directImagesTestAccount()
 	parent.Status = StatusActive
-	shadow := &Account{ID: 99, ParentAccountID: &parent.ID, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	shadow := &Account{ID: "id-99", ParentAccountID: &parent.ID, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 	body := []byte(`{"model":"gpt-image-2","prompt":"draw"}`)
 	c, _ := newOpenAIImagesTestContext(t, body)
 	upstream := &httpUpstreamRecorder{resp: openAIImagesJSONResponse()}

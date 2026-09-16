@@ -28,7 +28,7 @@ func newOllamaCloudUsageRepositoryTestClient(t *testing.T) (*dbent.Client, sqlmo
 
 func ollamaCloudUsageRepositoryAccount() *service.Account {
 	return &service.Account{
-		ID: 17, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
+		ID: "account-17", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "key", "base_url": "https://ollama.com"},
 		Extra: map[string]any{
 			service.OllamaCloudUsageSessionExtraKey:     "cipher:wos-session=secret",
@@ -80,13 +80,13 @@ func TestOllamaCloudUsageManagedWriteRejectsChangedProxyIdentity(t *testing.T) {
 	client, mock := newOllamaCloudUsageRepositoryTestClient(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT protocol, host, port") + `.*` + regexp.QuoteMeta("FOR SHARE")).
-		WithArgs(int64(9)).
+		WithArgs("proxy-9").
 		WillReturnRows(sqlmock.NewRows([]string{"protocol", "host", "port", "username", "password", "status"}).
 			AddRow("http", "new.example", 3128, "user", "pass", service.StatusActive))
 	mock.ExpectRollback()
 
 	account := ollamaCloudUsageRepositoryAccount()
-	proxyID := int64(9)
+	proxyID := "proxy-9"
 	account.ProxyID = &proxyID
 	account.Proxy = &service.Proxy{
 		ID: proxyID, Protocol: "http", Host: "old.example", Port: 3128,
@@ -168,7 +168,7 @@ func TestListOllamaCloudUsageGroupAccountsUsesOneStrictBatchQuery(t *testing.T) 
 	repo := newAccountRepositoryWithSQL(nil, captureQuerySQL{db: db, captured: &capturedSQL}, nil)
 	first := ollamaCloudUsageRepositoryAccount()
 	second := ollamaCloudUsageRepositoryAccount()
-	second.ID = 18
+	second.ID = "account-18"
 	second.Platform = service.PlatformAnthropic
 	second.Credentials = map[string]any{"api_key": "key", "base_url": "https://www.ollama.com:443/v1"}
 
@@ -240,7 +240,7 @@ func TestBulkUpdateOllamaIdentityCleanupIsValueConditional(t *testing.T) {
 	exec := &recordingSQLExecutor{result: rowsAffectedResult(1)}
 	repo := newAccountRepositoryWithSQL(nil, exec, nil)
 
-	_, err := repo.BulkUpdate(context.Background(), []int64{17}, service.AccountBulkUpdate{
+	_, err := repo.BulkUpdate(context.Background(), []string{"account-17"}, service.AccountBulkUpdate{
 		Credentials: map[string]any{"base_url": "https://www.ollama.com:443/v1"},
 	})
 
@@ -261,15 +261,15 @@ func TestUpdateCredentialsIdentityChangeClearsAllOllamaManagedExtra(t *testing.T
 	client, mock := newOllamaCloudUsageRepositoryTestClient(t)
 	mock.ExpectBegin()
 	mock.ExpectExec(`(?s)UPDATE accounts.*credentials -> 'api_key' IS DISTINCT FROM.*ollama_cloud_usage_session.*ollama_cloud_usage_auto_refresh.*ollama_cloud_usage_snapshot`).
-		WithArgs(`{"api_key":"new-key","base_url":"https://ollama.com"}`, int64(17)).
+		WithArgs(`{"api_key":"new-key","base_url":"https://ollama.com"}`, "account-17").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).
-		WithArgs(service.SchedulerOutboxEventAccountChanged, int64(17), nil, nil, sqlmock.AnyArg()).
+		WithArgs(service.SchedulerOutboxEventAccountChanged, "account-17", nil, nil, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	repo := newAccountRepositoryWithSQL(client, nil, nil)
 
-	err := repo.UpdateCredentials(context.Background(), 17, map[string]any{
+	err := repo.UpdateCredentials(context.Background(), "account-17", map[string]any{
 		"api_key": "new-key", "base_url": "https://ollama.com",
 	})
 
@@ -300,15 +300,15 @@ func TestUpdateCredentialsCleanupBranchRequiresChangedCredentials(t *testing.T) 
 	client, mock := newOllamaCloudUsageRepositoryTestClient(t)
 	mock.ExpectBegin()
 	mock.ExpectExec(`(?s)UPDATE accounts.*CASE.*AND credentials IS DISTINCT FROM \$1::jsonb\s+AND \(\s+credentials -> 'api_key' IS DISTINCT FROM`).
-		WithArgs(`{"api_key":"same-key","base_url":"https://relay.example.com/v1"}`, int64(17)).
+		WithArgs(`{"api_key":"same-key","base_url":"https://relay.example.com/v1"}`, "account-17").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).
-		WithArgs(service.SchedulerOutboxEventAccountChanged, int64(17), nil, nil, sqlmock.AnyArg()).
+		WithArgs(service.SchedulerOutboxEventAccountChanged, "account-17", nil, nil, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	repo := newAccountRepositoryWithSQL(client, nil, nil)
 
-	err := repo.UpdateCredentials(context.Background(), 17, map[string]any{
+	err := repo.UpdateCredentials(context.Background(), "account-17", map[string]any{
 		"api_key": "same-key", "base_url": "https://relay.example.com/v1",
 	})
 

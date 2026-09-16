@@ -53,7 +53,7 @@ func TestBlockingLatestTurnOnlyConfigRoundTrip(t *testing.T) {
 			Model: DefaultGuardModel, TimeoutMS: 1000, InputLimit: 1000, Enabled: true,
 		}},
 	}
-	next, err := manager.buildNextStorage(DefaultStorageConfig(), request, 9)
+	next, err := manager.buildNextStorage(DefaultStorageConfig(), request, "user-9")
 	require.NoError(t, err)
 	require.True(t, next.BlockingLatestTurnOnly)
 	require.Contains(t, changeSummary(next), `"blocking_latest_turn_only":true`)
@@ -209,19 +209,19 @@ func TestBuildNextStoragePreserveReplaceAndClearToken(t *testing.T) {
 	current.Endpoints = []StorageEndpoint{{ID: "one", Name: "One", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080", Model: DefaultGuardModel, TokenCiphertext: "enc:old", TimeoutMS: 1000, InputLimit: 1000}}
 	base := UpdateConfigRequest{ExpectedConfigVersion: 1, Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, Scanners: []string{"PII"}, AllGroups: true,
 		Endpoints: []UpdateEndpoint{{ID: "one", Name: "One", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080", TimeoutMS: 1000, InputLimit: 1000}}}
-	preserved, err := manager.buildNextStorage(current, base, 9)
+	preserved, err := manager.buildNextStorage(current, base, "user-9")
 	require.NoError(t, err)
 	require.Equal(t, "enc:old", preserved.Endpoints[0].TokenCiphertext)
 	replacedReq := base
 	replacedReq.Endpoints = append([]UpdateEndpoint(nil), base.Endpoints...)
 	replacedReq.Endpoints[0].Token = "new"
-	replaced, err := manager.buildNextStorage(current, replacedReq, 9)
+	replaced, err := manager.buildNextStorage(current, replacedReq, "user-9")
 	require.NoError(t, err)
 	require.Equal(t, "enc:new", replaced.Endpoints[0].TokenCiphertext)
 	clearedReq := base
 	clearedReq.Endpoints = append([]UpdateEndpoint(nil), base.Endpoints...)
 	clearedReq.Endpoints[0].ClearToken = true
-	cleared, err := manager.buildNextStorage(current, clearedReq, 9)
+	cleared, err := manager.buildNextStorage(current, clearedReq, "user-9")
 	require.NoError(t, err)
 	require.Empty(t, cleared.Endpoints[0].TokenCiphertext)
 }
@@ -241,18 +241,18 @@ func TestBuildNextStorageRejectsNewTokenWithoutConfiguredEncryptionKey(t *testin
 	newTokenReq := base
 	newTokenReq.Endpoints = append([]UpdateEndpoint(nil), base.Endpoints...)
 	newTokenReq.Endpoints[0].Token = "fresh-token"
-	_, err := manager.buildNextStorage(current, newTokenReq, 9)
+	_, err := manager.buildNextStorage(current, newTokenReq, "user-9")
 	require.Error(t, err)
 	require.Equal(t, ErrorCodeEncryptionKeyRequired, infraerrors.Reason(err))
 
-	preserved, err := manager.buildNextStorage(current, base, 9)
+	preserved, err := manager.buildNextStorage(current, base, "user-9")
 	require.NoError(t, err)
 	require.Equal(t, "enc:old", preserved.Endpoints[0].TokenCiphertext)
 
 	clearedReq := base
 	clearedReq.Endpoints = append([]UpdateEndpoint(nil), base.Endpoints...)
 	clearedReq.Endpoints[0].ClearToken = true
-	cleared, err := manager.buildNextStorage(current, clearedReq, 9)
+	cleared, err := manager.buildNextStorage(current, clearedReq, "user-9")
 	require.NoError(t, err)
 	require.Empty(t, cleared.Endpoints[0].TokenCiphertext)
 }
@@ -435,7 +435,7 @@ func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {
 		{name: "capacity high", mutate: func(req *UpdateConfigRequest) { req.QueueCapacity = MaxQueueCapacity + 1 }, reason: "prompt_audit_invalid_queue_capacity"},
 		{name: "unknown scanner", mutate: func(req *UpdateConfigRequest) { req.Scanners = []string{"made_up"} }, reason: "prompt_audit_invalid_scanner"},
 		{name: "group required", mutate: func(req *UpdateConfigRequest) { req.AllGroups = false; req.GroupIDs = nil }, reason: "prompt_audit_groups_required"},
-		{name: "group positive", mutate: func(req *UpdateConfigRequest) { req.AllGroups = false; req.GroupIDs = []int64{0} }, reason: "prompt_audit_invalid_group"},
+		{name: "group required value", mutate: func(req *UpdateConfigRequest) { req.AllGroups = false; req.GroupIDs = []string{""} }, reason: "prompt_audit_invalid_group"},
 		{name: "timeout low", mutate: func(req *UpdateConfigRequest) { req.Endpoints[0].TimeoutMS = MinTimeoutMS - 1 }, reason: "prompt_audit_invalid_timeout"},
 		{name: "timeout high", mutate: func(req *UpdateConfigRequest) { req.Endpoints[0].TimeoutMS = MaxTimeoutMS + 1 }, reason: "prompt_audit_invalid_timeout"},
 		{name: "input low", mutate: func(req *UpdateConfigRequest) { req.Endpoints[0].InputLimit = MinInputLimit - 1 }, reason: "prompt_audit_invalid_input_limit"},
@@ -445,7 +445,7 @@ func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := valid
 			req.Scanners = append([]string(nil), valid.Scanners...)
-			req.GroupIDs = append([]int64(nil), valid.GroupIDs...)
+			req.GroupIDs = append([]string(nil), valid.GroupIDs...)
 			req.Endpoints = append([]UpdateEndpoint(nil), valid.Endpoints...)
 			tt.mutate(&req)
 			err := validateUpdateConfigRequest(req)

@@ -54,7 +54,7 @@ func TestBuildCodexAgentIdentityKeysUseChatGPTAccountOnly(t *testing.T) {
 
 func TestCodexAgentIdentityIndexSeparatesTeamsForSameUser(t *testing.T) {
 	existing := service.Account{
-		ID: 1,
+		ID: "account-1",
 		Credentials: map[string]any{
 			"auth_mode":          service.OpenAIAuthModeAgentIdentity,
 			"chatgpt_account_id": "team-a",
@@ -71,7 +71,7 @@ func TestCodexAgentIdentityIndexSeparatesTeamsForSameUser(t *testing.T) {
 	teamAKeys := buildCodexAgentIdentityKeys("team-a")
 	matched, matchedKey := index.Find(teamAKeys, "same-user")
 	require.NotNil(t, matched)
-	require.Equal(t, int64(1), matched.ID)
+	require.Equal(t, "account-1", matched.ID)
 	require.Equal(t, "account:team-a", matchedKey)
 }
 
@@ -97,7 +97,7 @@ func TestImportCodexSessionsMergesAgentIdentityRuntimesForSameTeam(t *testing.T)
 	firstIdentity, ok := first["agent_identity"].(map[string]any)
 	require.True(t, ok)
 	existing := service.Account{
-		ID:       41,
+		ID:       "account-41",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
 		Credentials: map[string]any{

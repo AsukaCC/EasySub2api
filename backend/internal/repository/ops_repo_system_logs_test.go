@@ -11,9 +11,9 @@ import (
 func TestBuildOpsSystemLogsWhere_WithClientRequestIDAndUserID(t *testing.T) {
 	start := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2026, 2, 2, 0, 0, 0, 0, time.UTC)
-	userID := int64(12)
-	apiKeyID := int64(56)
-	accountID := int64(34)
+	userID := "user-12"
+	apiKeyID := "key-56"
+	accountID := "account-34"
 
 	filter := &service.OpsSystemLogFilter{
 		StartTime:       &start,
@@ -69,8 +69,8 @@ func TestBuildOpsSystemLogsCleanupWhere_RequireConstraint(t *testing.T) {
 }
 
 func TestBuildOpsSystemLogsCleanupWhere_WithClientRequestIDAndUserID(t *testing.T) {
-	userID := int64(9)
-	apiKeyID := int64(10)
+	userID := "user-9"
+	apiKeyID := "key-10"
 	filter := &service.OpsSystemLogCleanupFilter{
 		Host:            "api-node-2",
 		ClientRequestID: "creq-9",

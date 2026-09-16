@@ -22,7 +22,7 @@ func TestFilterSchedulerCredentialsKeepsSubscriptionPlanType(t *testing.T) {
 
 func TestSchedulerMetadataAccountKeepsOpenAISubscriptionIdentity(t *testing.T) {
 	account := service.Account{
-		ID:       24,
+		ID:       "account-24",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -59,7 +59,7 @@ func TestSchedulerMetadataAccountProjectsUpstreamBillingProbe(t *testing.T) {
 		"last_error":    lastError,
 	}
 	account := service.Account{
-		ID: 42,
+		ID: "account-42",
 		Extra: map[string]any{
 			"upstream_billing_probe": probe,
 			"unused_large_field":     "drop-me",

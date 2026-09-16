@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -13,7 +14,7 @@ type upstreamBillingProbeAdminRepo struct {
 	*upstreamBillingProbeAccountRepo
 }
 
-func (r *upstreamBillingProbeAdminRepo) ListShadowsByParent(context.Context, int64) ([]*Account, error) {
+func (r *upstreamBillingProbeAdminRepo) ListShadowsByParent(context.Context, string) ([]*Account, error) {
 	return nil, nil
 }
 
@@ -69,11 +70,11 @@ func (r *accountBillingSettingsAdminRepo) UpdateWithAccountBillingSettings(
 }
 
 func TestUpdateAccountRoutesRateIntentThroughAtomicBillingUpdater(t *testing.T) {
-	accountID := int64(109)
+	accountID := "109"
 	initialRate := 0.1
 	concurrentRate := 0.2
 	repo := &accountBillingSettingsAdminRepo{
-		upstreamBillingProbeAccountRepo: &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+		upstreamBillingProbeAccountRepo: &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 			accountID: {
 				ID:             accountID,
 				Name:           "before",
@@ -162,8 +163,8 @@ func TestCreateAccountAcceptsDedicatedUpstreamBillingProbeSetting(t *testing.T) 
 }
 
 func TestUpdateAccountPreservesManagedUpstreamBillingProbeStateForUnrelatedEdit(t *testing.T) {
-	accountID := int64(110)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "110"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformOpenAI,
@@ -190,12 +191,12 @@ func TestUpdateAccountPreservesManagedUpstreamBillingProbeStateForUnrelatedEdit(
 }
 
 func TestUpdateAccountPreservesGrokBillingSnapshotForUnrelatedEdit(t *testing.T) {
-	accountID := int64(112)
+	accountID := "112"
 	billing := &xai.BillingSummary{
 		StatusCode:       http.StatusForbidden,
 		WeeklyStatusCode: http.StatusForbidden,
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformGrok,
@@ -218,8 +219,8 @@ func TestUpdateAccountPreservesGrokBillingSnapshotForUnrelatedEdit(t *testing.T)
 }
 
 func TestUpdateAccountPreservesProbeSnapshotWhenIdentityValuesAreUnchanged(t *testing.T) {
-	accountID := int64(119)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "119"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformOpenAI,
@@ -283,8 +284,8 @@ func TestUpdateAccountInvalidatesProbeSnapshotWhenUpstreamIdentityChanges(t *tes
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			accountID := int64(120 + i)
-			repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+			accountID := fmt.Sprintf("120-%d", i)
+			repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 				accountID: {
 					ID:       accountID,
 					Platform: PlatformOpenAI,
@@ -317,10 +318,10 @@ func TestUpdateAccountInvalidatesProbeSnapshotWhenUpstreamIdentityChanges(t *tes
 }
 
 func TestUpdateAccountInvalidatesProbeSnapshotWhenProxyChanges(t *testing.T) {
-	accountID := int64(140)
-	oldProxyID := int64(7)
-	newProxyID := int64(8)
-	baseRepo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "140"
+	oldProxyID := "proxy-7"
+	newProxyID := "proxy-8"
+	baseRepo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:          accountID,
 			Platform:    PlatformOpenAI,
@@ -347,10 +348,10 @@ func TestUpdateAccountInvalidatesProbeSnapshotWhenProxyChanges(t *testing.T) {
 }
 
 func TestUpdateAccountPreservesProbeSnapshotWhenProxyIsUnchanged(t *testing.T) {
-	accountID := int64(141)
-	existingProxyID := int64(7)
-	unchangedProxyID := int64(7)
-	baseRepo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "141"
+	existingProxyID := "proxy-7"
+	unchangedProxyID := "proxy-7"
+	baseRepo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:          accountID,
 			Platform:    PlatformOpenAI,
@@ -376,8 +377,8 @@ func TestUpdateAccountPreservesProbeSnapshotWhenProxyIsUnchanged(t *testing.T) {
 }
 
 func TestUpdateAccountAcceptsProbeEnabledAndRejectsInjectedSnapshot(t *testing.T) {
-	accountID := int64(111)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "111"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformOpenAI,
@@ -403,11 +404,11 @@ func TestUpdateAccountAcceptsProbeEnabledAndRejectsInjectedSnapshot(t *testing.T
 }
 
 func TestUpdateAccountRateSyncControlsProbeAndManualMode(t *testing.T) {
-	accountID := int64(151)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "151"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
-			Platform: PlatformGemini,
+			Platform: PlatformGrok,
 			Type:     AccountTypeAPIKey,
 			Status:   StatusActive,
 			Extra:    map[string]any{},
@@ -435,9 +436,9 @@ func TestUpdateAccountRateSyncControlsProbeAndManualMode(t *testing.T) {
 // 单账号编辑必须和批量路径语义一致：同步开启时倍率归上游所有，手工值会在下一次
 // 成功探测时被覆盖，因此直接拒绝而不是静默接受。
 func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
-	newRepo := func(accountID int64, extra map[string]any) *upstreamBillingProbeAccountRepo {
+	newRepo := func(accountID string, extra map[string]any) *upstreamBillingProbeAccountRepo {
 		initialRate := 0.25
-		return &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+		return &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 			accountID: {
 				ID:             accountID,
 				Platform:       PlatformOpenAI,
@@ -455,7 +456,7 @@ func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
 	}
 
 	t.Run("sync enabled rejects manual rate", func(t *testing.T) {
-		accountID := int64(153)
+		accountID := "153"
 		repo := newRepo(accountID, mergeMap(nil, syncEnabled))
 
 		_, err := (&adminServiceImpl{accountRepo: repo}).UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
@@ -467,7 +468,7 @@ func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
 	})
 
 	t.Run("enabling sync in the same request rejects manual rate", func(t *testing.T) {
-		accountID := int64(154)
+		accountID := "154"
 		repo := newRepo(accountID, map[string]any{})
 		enable := true
 
@@ -482,7 +483,7 @@ func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
 
 	// 用户显式收回所有权：同一请求关闭同步并改倍率必须放行。
 	t.Run("disabling sync in the same request allows manual rate", func(t *testing.T) {
-		accountID := int64(155)
+		accountID := "155"
 		repo := newRepo(accountID, mergeMap(nil, syncEnabled))
 		disable := false
 
@@ -498,7 +499,7 @@ func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
 	})
 
 	t.Run("sync disabled allows manual rate", func(t *testing.T) {
-		accountID := int64(156)
+		accountID := "156"
 		repo := newRepo(accountID, map[string]any{UpstreamBillingProbeEnabledExtraKey: true})
 
 		updated, err := (&adminServiceImpl{accountRepo: repo}).UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
@@ -512,8 +513,8 @@ func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
 }
 
 func TestUpdateAccountRejectsSyncWithExplicitlyDisabledProbe(t *testing.T) {
-	accountID := int64(152)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "152"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformAnthropic,
@@ -534,8 +535,8 @@ func TestUpdateAccountRejectsSyncWithExplicitlyDisabledProbe(t *testing.T) {
 }
 
 func TestUpdateAccountExplicitProbeDisableUsesDedicatedExtraUpdate(t *testing.T) {
-	accountID := int64(113)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "113"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformOpenAI,
@@ -559,8 +560,8 @@ func TestUpdateAccountExplicitProbeDisableUsesDedicatedExtraUpdate(t *testing.T)
 }
 
 func TestUpdateAccountExplicitUnchangedProbeEnabledStillUsesDedicatedExtraUpdate(t *testing.T) {
-	accountID := int64(114)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "114"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformOpenAI,
@@ -580,8 +581,8 @@ func TestUpdateAccountExplicitUnchangedProbeEnabledStillUsesDedicatedExtraUpdate
 }
 
 func TestUpdateAccountRejectsInvalidProbeEnabled(t *testing.T) {
-	accountID := int64(112)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "112"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {
 			ID:       accountID,
 			Platform: PlatformOpenAI,
@@ -600,8 +601,8 @@ func TestUpdateAccountRejectsInvalidProbeEnabled(t *testing.T) {
 }
 
 func TestUpdateAccountExtraDropsManagedBillingProbeFields(t *testing.T) {
-	accountID := int64(153)
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+	accountID := "153"
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
 		accountID: {ID: accountID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}}
 
@@ -623,7 +624,7 @@ func TestBulkUpdateAccountsDropsManagedUpstreamBillingProbeState(t *testing.T) {
 	repo := &upstreamBillingProbeAccountRepo{}
 	svc := &adminServiceImpl{accountRepo: repo}
 	input := &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Extra: map[string]any{
 			"custom":                               "value",
 			UpstreamBillingProbeEnabledExtraKey:    true,
@@ -646,13 +647,13 @@ func TestBulkUpdateAccountsDropsManagedUpstreamBillingProbeState(t *testing.T) {
 func TestBulkUpdateAccountsAcceptsDedicatedUpstreamBillingProbeSetting(t *testing.T) {
 	for _, enabled := range []bool{true, false} {
 		t.Run(map[bool]string{true: "enable", false: "disable"}[enabled], func(t *testing.T) {
-			repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
-				1: {ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
-				2: {ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+			repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
+				"1": {ID: "1", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+				"2": {ID: "2", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 			}}
 
 			result, err := (&adminServiceImpl{accountRepo: repo}).BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-				AccountIDs:   []int64{1, 2},
+				AccountIDs:   []string{"1", "2"},
 				ProbeEnabled: &enabled,
 			})
 
@@ -672,13 +673,13 @@ func TestBulkUpdateAccountsAcceptsDedicatedUpstreamBillingProbeSetting(t *testin
 func TestBulkUpdateAccountsRejectsProbeSettingForIneligibleTargetBeforeWrite(t *testing.T) {
 	for _, enabled := range []bool{true, false} {
 		t.Run(map[bool]string{true: "enable", false: "disable"}[enabled], func(t *testing.T) {
-			repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
-				1: {ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
-				2: {ID: 2, Platform: PlatformOpenAI, Type: AccountTypeOAuth},
+			repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
+				"1": {ID: "1", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+				"2": {ID: "2", Platform: PlatformOpenAI, Type: AccountTypeOAuth},
 			}}
 
 			_, err := (&adminServiceImpl{accountRepo: repo}).BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-				AccountIDs:   []int64{1, 2},
+				AccountIDs:   []string{"1", "2"},
 				ProbeEnabled: &enabled,
 			})
 
@@ -690,12 +691,12 @@ func TestBulkUpdateAccountsRejectsProbeSettingForIneligibleTargetBeforeWrite(t *
 
 func TestBulkUpdateAccountsRejectsProbeSettingWhenTargetIsMissing(t *testing.T) {
 	enabled := true
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
-		1: {ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{
+		"1": {ID: "1", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}}
 
 	_, err := (&adminServiceImpl{accountRepo: repo}).BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs:   []int64{1, 2},
+		AccountIDs:   []string{"1", "2"},
 		ProbeEnabled: &enabled,
 	})
 
@@ -706,7 +707,7 @@ func TestBulkUpdateAccountsRejectsProbeSettingWhenTargetIsMissing(t *testing.T) 
 func TestBulkUpdateAccountsInvalidatesProbeSnapshotForIdentityCredentials(t *testing.T) {
 	repo := &upstreamBillingProbeAccountRepo{}
 	input := &BulkUpdateAccountsInput{
-		AccountIDs:  []int64{1},
+		AccountIDs:  []string{"1"},
 		Credentials: map[string]any{"api_key": "sk-new"},
 	}
 
@@ -720,10 +721,10 @@ func TestBulkUpdateAccountsInvalidatesProbeSnapshotForIdentityCredentials(t *tes
 }
 
 func TestBulkUpdateAccountsInvalidatesProbeSnapshotForProxyUpdate(t *testing.T) {
-	proxyID := int64(9)
+	proxyID := "proxy-9"
 	baseRepo := &upstreamBillingProbeAccountRepo{}
 	input := &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		ProxyID:    &proxyID,
 	}
 
@@ -739,7 +740,7 @@ func TestBulkUpdateAccountsInvalidatesProbeSnapshotForProxyUpdate(t *testing.T) 
 func TestBulkUpdateAccountsKeepsProbeSnapshotForUnrelatedCredentials(t *testing.T) {
 	repo := &upstreamBillingProbeAccountRepo{}
 	input := &BulkUpdateAccountsInput{
-		AccountIDs:  []int64{1},
+		AccountIDs:  []string{"1"},
 		Credentials: map[string]any{"model_mapping": map[string]any{"gpt-old": "gpt-new"}},
 	}
 

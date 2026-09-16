@@ -27,7 +27,7 @@ type openAIImagesFailoverAccountRepo struct {
 	accounts []service.Account
 }
 
-func (r openAIImagesFailoverAccountRepo) GetByID(_ context.Context, id int64) (*service.Account, error) {
+func (r openAIImagesFailoverAccountRepo) GetByID(_ context.Context, id string) (*service.Account, error) {
 	for i := range r.accounts {
 		if r.accounts[i].ID == id {
 			account := r.accounts[i]
@@ -37,7 +37,7 @@ func (r openAIImagesFailoverAccountRepo) GetByID(_ context.Context, id int64) (*
 	return nil, service.ErrNoAvailableAccounts
 }
 
-func (r openAIImagesFailoverAccountRepo) ListSchedulableByGroupIDAndPlatform(_ context.Context, _ int64, platform string) ([]service.Account, error) {
+func (r openAIImagesFailoverAccountRepo) ListSchedulableByGroupIDAndPlatform(_ context.Context, _ string, platform string) ([]service.Account, error) {
 	return r.accountsForPlatform(platform), nil
 }
 
@@ -62,10 +62,10 @@ func (r openAIImagesFailoverAccountRepo) accountsForPlatform(platform string) []
 type openAIImagesFailoverHTTPUpstream struct {
 	service.HTTPUpstream
 	mu         sync.Mutex
-	accountIDs []int64
+	accountIDs []string
 }
 
-func (u *openAIImagesFailoverHTTPUpstream) Do(_ *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
+func (u *openAIImagesFailoverHTTPUpstream) Do(_ *http.Request, _ string, accountID string, _ int) (*http.Response, error) {
 	u.mu.Lock()
 	u.accountIDs = append(u.accountIDs, accountID)
 	u.mu.Unlock()
@@ -81,18 +81,18 @@ func (u *openAIImagesFailoverHTTPUpstream) Do(_ *http.Request, _ string, account
 	}, nil
 }
 
-func (u *openAIImagesFailoverHTTPUpstream) calls() []int64 {
+func (u *openAIImagesFailoverHTTPUpstream) calls() []string {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return append([]int64(nil), u.accountIDs...)
+	return append([]string(nil), u.accountIDs...)
 }
 
 func TestOpenAIGatewayHandlerImages_ServerErrorFailsOverAndReturnsClearErrorWhenExhausted(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	groupID := int64(3130)
+	groupID := "group-3130"
 	accounts := []service.Account{
 		{
-			ID:          1,
+			ID:          "account-1",
 			Name:        "image-account-1",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeOAuth,
@@ -103,7 +103,7 @@ func TestOpenAIGatewayHandlerImages_ServerErrorFailsOverAndReturnsClearErrorWhen
 			Credentials: map[string]any{"access_token": "token-1"},
 		},
 		{
-			ID:          2,
+			ID:          "account-2",
 			Name:        "image-account-2",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeOAuth,
@@ -166,15 +166,15 @@ func TestOpenAIGatewayHandlerImages_ServerErrorFailsOverAndReturnsClearErrorWhen
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = req
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID:      99,
+		ID:      "key-99",
 		GroupID: &groupID,
 		Group: &service.Group{
 			ID:                   groupID,
 			AllowImageGeneration: true,
 		},
-		User: &service.User{ID: 100},
+		User: &service.User{ID: "user-100"},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 100, Concurrency: 0})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-100", Concurrency: 0})
 
 	handler.Images(c)
 
@@ -188,7 +188,7 @@ func TestOpenAIGatewayHandlerImages_ServerErrorFailsOverAndReturnsClearErrorWhen
 	require.Equal(t, "1536x1024", loggedFields["img_size"])
 	require.NotContains(t, loggedFields, "prompt")
 
-	require.Equal(t, []int64{1, 2}, upstream.calls())
+	require.Equal(t, []string{"account-1", "account-2"}, upstream.calls())
 	require.Equal(t, http.StatusBadGateway, rec.Code)
 	require.Equal(t, "upstream_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
 	require.Equal(t, "Upstream service temporarily unavailable", gjson.GetBytes(rec.Body.Bytes(), "error.message").String())

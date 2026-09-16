@@ -16,10 +16,10 @@ import (
 
 func plazaGroups() []service.PlazaGroup {
 	return []service.PlazaGroup{
-		{ID: 1, Name: "public-standard", Platform: "anthropic", SubscriptionType: "standard", RateMultiplier: 1},
-		{ID: 2, Name: "exclusive-a", Platform: "anthropic", IsExclusive: true, RateMultiplier: 0.5},
-		{ID: 3, Name: "public-subscription", Platform: "openai", SubscriptionType: "subscription", RateMultiplier: 1},
-		{ID: 4, Name: "exclusive-b", Platform: "openai", IsExclusive: true, RateMultiplier: 0.8},
+		{ID: "group-1", Name: "public-standard", Platform: "anthropic", SubscriptionType: "standard", RateMultiplier: 1},
+		{ID: "group-2", Name: "exclusive-a", Platform: "anthropic", IsExclusive: true, RateMultiplier: 0.5},
+		{ID: "group-3", Name: "public-subscription", Platform: "openai", SubscriptionType: "subscription", RateMultiplier: 1},
+		{ID: "group-4", Name: "exclusive-b", Platform: "openai", IsExclusive: true, RateMultiplier: 0.8},
 	}
 }
 
@@ -27,26 +27,26 @@ func TestFilterPlazaVisibleGroups_AnonymousSeesOnlyNonExclusive(t *testing.T) {
 	// 匿名(allowedExclusive == nil):仅非专属分组;订阅型公开分组照常可见(橱窗语义)。
 	visible := filterPlazaVisibleGroups(plazaGroups(), nil)
 	require.Len(t, visible, 2)
-	ids := []int64{visible[0].ID, visible[1].ID}
-	require.ElementsMatch(t, []int64{1, 3}, ids)
+	ids := []string{visible[0].ID, visible[1].ID}
+	require.ElementsMatch(t, []string{"group-1", "group-3"}, ids)
 }
 
 func TestFilterPlazaVisibleGroups_AuthedSeesGrantedExclusive(t *testing.T) {
 	// 登录:非专属 + 授权的专属;未授权的专属仍不可见。
-	allowed := map[int64]struct{}{2: {}}
+	allowed := map[string]struct{}{"group-2": {}}
 	visible := filterPlazaVisibleGroups(plazaGroups(), allowed)
 	require.Len(t, visible, 3)
-	ids := make([]int64, 0, len(visible))
+	ids := make([]string, 0, len(visible))
 	for _, g := range visible {
 		ids = append(ids, g.ID)
 	}
-	require.ElementsMatch(t, []int64{1, 2, 3}, ids)
+	require.ElementsMatch(t, []string{"group-1", "group-2", "group-3"}, ids)
 }
 
 func TestFilterPlazaVisibleGroups_AuthedEmptySetSeesNoExclusive(t *testing.T) {
 	// 登录但无任何专属授权(空集合,非 nil):与匿名同样只见非专属,
 	// 但语义区分要保持——空集合不能被当作 nil 匿名分支。
-	visible := filterPlazaVisibleGroups(plazaGroups(), map[int64]struct{}{})
+	visible := filterPlazaVisibleGroups(plazaGroups(), map[string]struct{}{})
 	require.Len(t, visible, 2)
 }
 
@@ -64,7 +64,7 @@ func TestModelPlazaHandler_NilSettingServiceFailsClosed404(t *testing.T) {
 
 func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	g := service.PlazaGroup{
-		ID: 2, Name: "vip", Description: "d", Platform: "anthropic",
+		ID: "group-2", Name: "vip", Description: "d", Platform: "anthropic",
 		SubscriptionType: "standard", RateMultiplier: 1, IsExclusive: true,
 		Models: []service.PlazaModel{{
 			Name:     "claude-sonnet",
@@ -81,7 +81,7 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	}
 
 	// 有专属倍率:user_rate_multiplier 序列化输出
-	dto := toModelPlazaGroupDTO(&g, map[int64]float64{2: 0.5})
+	dto := toModelPlazaGroupDTO(&g, map[string]float64{"group-2": 0.5})
 	raw, err := json.Marshal(dto)
 	require.NoError(t, err)
 	var decoded map[string]any

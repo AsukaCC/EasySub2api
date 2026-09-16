@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"testing"
@@ -14,30 +15,30 @@ import (
 
 type upstreamCostTrackingConcurrencyCache struct {
 	ConcurrencyCache
-	loadMap       map[int64]*AccountLoadInfo
-	acquireLimits map[int64][]int
-	releases      map[int64]int
+	loadMap       map[string]*AccountLoadInfo
+	acquireLimits map[string][]int
+	releases      map[string]int
 	rejectAcquire bool
 }
 
-func (c *upstreamCostTrackingConcurrencyCache) AcquireAccountSlot(_ context.Context, accountID int64, maxConcurrency int, _ string) (bool, error) {
+func (c *upstreamCostTrackingConcurrencyCache) AcquireAccountSlot(_ context.Context, accountID string, maxConcurrency int, _ string) (bool, error) {
 	if c.acquireLimits == nil {
-		c.acquireLimits = make(map[int64][]int)
+		c.acquireLimits = make(map[string][]int)
 	}
 	c.acquireLimits[accountID] = append(c.acquireLimits[accountID], maxConcurrency)
 	return !c.rejectAcquire, nil
 }
 
-func (c *upstreamCostTrackingConcurrencyCache) ReleaseAccountSlot(_ context.Context, accountID int64, _ string) error {
+func (c *upstreamCostTrackingConcurrencyCache) ReleaseAccountSlot(_ context.Context, accountID string, _ string) error {
 	if c.releases == nil {
-		c.releases = make(map[int64]int)
+		c.releases = make(map[string]int)
 	}
 	c.releases[accountID]++
 	return nil
 }
 
-func (c *upstreamCostTrackingConcurrencyCache) GetAccountsLoadBatch(_ context.Context, accounts []AccountWithConcurrency) (map[int64]*AccountLoadInfo, error) {
-	out := make(map[int64]*AccountLoadInfo, len(accounts))
+func (c *upstreamCostTrackingConcurrencyCache) GetAccountsLoadBatch(_ context.Context, accounts []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
+	out := make(map[string]*AccountLoadInfo, len(accounts))
 	for _, account := range accounts {
 		if load := c.loadMap[account.ID]; load != nil {
 			copied := *load
@@ -47,11 +48,11 @@ func (c *upstreamCostTrackingConcurrencyCache) GetAccountsLoadBatch(_ context.Co
 	return out, nil
 }
 
-func (c *upstreamCostTrackingConcurrencyCache) limits(accountID int64) []int {
+func (c *upstreamCostTrackingConcurrencyCache) limits(accountID string) []int {
 	return append([]int(nil), c.acquireLimits[accountID]...)
 }
 
-func (c *upstreamCostTrackingConcurrencyCache) releaseCount(accountID int64) int {
+func (c *upstreamCostTrackingConcurrencyCache) releaseCount(accountID string) int {
 	return c.releases[accountID]
 }
 
@@ -65,11 +66,11 @@ func (c *upstreamCostTrackingConcurrencyCache) totalAcquires() int {
 
 type upstreamCostCountingAccountRepo struct {
 	AccountRepository
-	accounts map[int64]*Account
+	accounts map[string]*Account
 	getCalls int
 }
 
-func (r *upstreamCostCountingAccountRepo) GetByID(_ context.Context, accountID int64) (*Account, error) {
+func (r *upstreamCostCountingAccountRepo) GetByID(_ context.Context, accountID string) (*Account, error) {
 	r.getCalls++
 	account := r.accounts[accountID]
 	if account == nil {
@@ -85,7 +86,7 @@ func (r *upstreamCostCountingAccountRepo) calls() int {
 
 func upstreamCostTestAccount(id int64, status string, rate float64, receivedAt time.Time, interval time.Duration) *Account {
 	return &Account{
-		ID:       id,
+		ID:       fmt.Sprintf("account-%d", id),
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Extra: map[string]any{
@@ -107,7 +108,7 @@ func upstreamCostTestAccount(id int64, status string, rate float64, receivedAt t
 }
 
 func upstreamCostTestOAuthAccount(id int64) *Account {
-	return &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	return &Account{ID: fmt.Sprintf("account-%d", id), Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 }
 
 func TestAdvancedCostSchedulerUsesTopKOverflowWhenPreferredAccountIsKnownFull(t *testing.T) {
@@ -122,7 +123,7 @@ func TestAdvancedCostSchedulerUsesTopKOverflowWhenPreferredAccountIsKnownFull(t 
 		account.Schedulable = true
 		account.Concurrency = 1
 	}
-	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[int64]*AccountLoadInfo{
+	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[string]*AccountLoadInfo{
 		cheap.ID:     {AccountID: cheap.ID, CurrentConcurrency: 1, LoadRate: 100},
 		expensive.ID: {AccountID: expensive.ID},
 	}}
@@ -135,7 +136,7 @@ func TestAdvancedCostSchedulerUsesTopKOverflowWhenPreferredAccountIsKnownFull(t 
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
 		concurrencyService: NewConcurrencyService(cache),
 	}
-	groupID := int64(1)
+	groupID := "group-1"
 
 	selection, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
@@ -148,9 +149,10 @@ func TestAdvancedCostSchedulerUsesTopKOverflowWhenPreferredAccountIsKnownFull(t 
 func TestAdvancedSchedulerCapsRejectedCostOverflowAcquires(t *testing.T) {
 	selectionOrder := make([]openAIAccountCandidateScore, 0, 15_000)
 	for id := int64(1); id <= 15_000; id++ {
-		account := &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+		accountID := fmt.Sprintf("account-%d", id)
+		account := &Account{ID: accountID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 		selectionOrder = append(selectionOrder, openAIAccountCandidateScore{
-			account: account, loadInfo: &AccountLoadInfo{AccountID: id}, loadKnown: false,
+			account: account, loadInfo: &AccountLoadInfo{AccountID: accountID}, loadKnown: false,
 		})
 	}
 	cache := &upstreamCostTrackingConcurrencyCache{rejectAcquire: true}
@@ -169,8 +171,8 @@ func TestAdvancedSchedulerCapsRejectedCostOverflowAcquires(t *testing.T) {
 
 func TestOpenAICostOverflowExpandedOnlyWhenCostAddsCandidates(t *testing.T) {
 	candidates := []openAIAccountCandidateScore{
-		{account: &Account{ID: 1, Extra: map[string]any{"openai_compact_supported": true}}},
-		{account: &Account{ID: 2}},
+		{account: &Account{ID: "account-1", Extra: map[string]any{"openai_compact_supported": true}}},
+		{account: &Account{ID: "account-2"}},
 	}
 	plan := openAIAccountLoadPlan{candidates: candidates, topK: 1, includeOverflowFallback: true}
 	require.True(t, openAICostOverflowExpanded(OpenAIAccountScheduleRequest{}, plan))
@@ -186,14 +188,15 @@ func TestOpenAICostOverflowExpandedOnlyWhenCostAddsCandidates(t *testing.T) {
 func TestAdvancedSchedulerKnownFullOverflowStillFindsAvailableAccount(t *testing.T) {
 	selectionOrder := make([]openAIAccountCandidateScore, 0, openAIAccountSelectionProbeLimit+2)
 	for id := int64(1); id <= openAIAccountSelectionProbeLimit+1; id++ {
-		account := &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+		accountID := fmt.Sprintf("account-%d", id)
+		account := &Account{ID: accountID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 		selectionOrder = append(selectionOrder, openAIAccountCandidateScore{
 			account:   account,
-			loadInfo:  &AccountLoadInfo{AccountID: id, CurrentConcurrency: 1, LoadRate: 100},
+			loadInfo:  &AccountLoadInfo{AccountID: accountID, CurrentConcurrency: 1, LoadRate: 100},
 			loadKnown: true,
 		})
 	}
-	availableID := int64(openAIAccountSelectionProbeLimit + 2)
+	availableID := fmt.Sprintf("account-%d", openAIAccountSelectionProbeLimit+2)
 	available := &Account{ID: availableID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 	selectionOrder = append(selectionOrder, openAIAccountCandidateScore{
 		account: available, loadInfo: &AccountLoadInfo{AccountID: availableID}, loadKnown: true,
@@ -216,17 +219,18 @@ func TestAdvancedSchedulerKnownFullOverflowStillFindsAvailableAccount(t *testing
 
 func TestAdvancedSchedulerSharesProbeBudgetWithFallbackDBRechecks(t *testing.T) {
 	const size = 15_000
-	latestAccounts := make(map[int64]*Account, size)
-	snapshotAccounts := make(map[int64]*Account, size)
+	latestAccounts := make(map[string]*Account, size)
+	snapshotAccounts := make(map[string]*Account, size)
 	selectionOrder := make([]openAIAccountCandidateScore, 0, size)
 	for id := int64(1); id <= size; id++ {
-		stale := &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+		accountID := fmt.Sprintf("account-%d", id)
+		stale := &Account{ID: accountID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 		latest := *stale
 		latest.Status = StatusDisabled
-		snapshotAccounts[id] = stale
-		latestAccounts[id] = &latest
+		snapshotAccounts[accountID] = stale
+		latestAccounts[accountID] = &latest
 		selectionOrder = append(selectionOrder, openAIAccountCandidateScore{
-			account: stale, loadInfo: &AccountLoadInfo{AccountID: id}, loadKnown: false,
+			account: stale, loadInfo: &AccountLoadInfo{AccountID: accountID}, loadKnown: false,
 		})
 	}
 	repo := &upstreamCostCountingAccountRepo{accounts: latestAccounts}
@@ -268,7 +272,7 @@ func TestAdvancedCostSchedulerKeepsCompactSupportedOverflowAheadOfUnknown(t *tes
 		account.Schedulable = true
 		account.Concurrency = 1
 	}
-	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[int64]*AccountLoadInfo{
+	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[string]*AccountLoadInfo{
 		preferred.ID: {AccountID: preferred.ID, CurrentConcurrency: 1, LoadRate: 100},
 		overflow.ID:  {AccountID: overflow.ID},
 		unknown.ID:   {AccountID: unknown.ID},
@@ -282,7 +286,7 @@ func TestAdvancedCostSchedulerKeepsCompactSupportedOverflowAheadOfUnknown(t *tes
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
 		concurrencyService: NewConcurrencyService(cache),
 	}
-	groupID := int64(1)
+	groupID := "group-1"
 
 	selection, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, true)
 	require.NoError(t, err)
@@ -294,7 +298,7 @@ func TestAdvancedCostSchedulerKeepsCompactSupportedOverflowAheadOfUnknown(t *tes
 }
 
 func TestAdvancedSchedulerUnknownLoadFailsOpen(t *testing.T) {
-	account := &Account{ID: 21, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+	account := &Account{ID: "account-21", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 	cache := &upstreamCostTrackingConcurrencyCache{}
 	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{concurrencyService: NewConcurrencyService(cache)}}
 
@@ -308,12 +312,12 @@ func TestAdvancedSchedulerUnknownLoadFailsOpen(t *testing.T) {
 }
 
 func TestAdvancedSchedulerReleasesSlotWhenDBDisablesCandidate(t *testing.T) {
-	stale := &Account{ID: 31, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
-	backup := &Account{ID: 32, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+	stale := &Account{ID: "account-31", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+	backup := &Account{ID: "account-32", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 	disabled := *stale
 	disabled.Status = StatusDisabled
-	repo := &upstreamCostCountingAccountRepo{accounts: map[int64]*Account{stale.ID: &disabled, backup.ID: backup}}
-	snapshot := &openAISnapshotCacheStub{accountsByID: map[int64]*Account{stale.ID: stale, backup.ID: backup}}
+	repo := &upstreamCostCountingAccountRepo{accounts: map[string]*Account{stale.ID: &disabled, backup.ID: backup}}
+	snapshot := &openAISnapshotCacheStub{accountsByID: map[string]*Account{stale.ID: stale, backup.ID: backup}}
 	cache := &upstreamCostTrackingConcurrencyCache{}
 	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{
 		accountRepo:        repo,
@@ -332,11 +336,11 @@ func TestAdvancedSchedulerReleasesSlotWhenDBDisablesCandidate(t *testing.T) {
 }
 
 func TestAdvancedSchedulerReacquiresOnceWhenDBConcurrencyChanges(t *testing.T) {
-	stale := &Account{ID: 41, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 10}
+	stale := &Account{ID: "account-41", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 10}
 	latest := *stale
 	latest.Concurrency = 1
-	repo := &upstreamCostCountingAccountRepo{accounts: map[int64]*Account{stale.ID: &latest}}
-	snapshot := &openAISnapshotCacheStub{accountsByID: map[int64]*Account{stale.ID: stale}}
+	repo := &upstreamCostCountingAccountRepo{accounts: map[string]*Account{stale.ID: &latest}}
+	snapshot := &openAISnapshotCacheStub{accountsByID: map[string]*Account{stale.ID: stale}}
 	cache := &upstreamCostTrackingConcurrencyCache{}
 	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{
 		accountRepo:        repo,
@@ -356,11 +360,11 @@ func TestAdvancedSchedulerReacquiresOnceWhenDBConcurrencyChanges(t *testing.T) {
 
 func TestAdvancedSchedulerKnownFullPoolsDoNotRecheckDB(t *testing.T) {
 	for _, size := range []int{100, 15_000} {
-		t.Run(strconv.Itoa(size), func(t *testing.T) {
-			accounts := make(map[int64]*Account, size)
+			t.Run(strconv.Itoa(size), func(t *testing.T) {
+			accounts := make(map[string]*Account, size)
 			selectionOrder := make([]openAIAccountCandidateScore, 0, size)
 			for i := 1; i <= size; i++ {
-				account := &Account{ID: int64(i), Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
+				account := &Account{ID: fmt.Sprintf("account-%d", i), Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1}
 				accounts[account.ID] = account
 				selectionOrder = append(selectionOrder, openAIAccountCandidateScore{
 					account:   account,
@@ -417,7 +421,7 @@ func TestOpenAIUpstreamCostFactorsSparseProbeIsNeutral(t *testing.T) {
 	accounts = append(accounts, upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 1, now.Add(-time.Minute), 30*time.Minute))
 	for id := int64(2); id <= 10; id++ {
 		accounts = append(accounts, &Account{
-			ID:       id,
+			ID:       fmt.Sprintf("account-%d", id),
 			Platform: PlatformOpenAI,
 			Type:     AccountTypeAPIKey,
 			Extra: map[string]any{
@@ -432,7 +436,7 @@ func TestOpenAIUpstreamCostFactorsSparseProbeIsNeutral(t *testing.T) {
 
 	factors := openAIUpstreamCostFactors(accounts, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	for id := int64(1); id <= 10; id++ {
-		require.Equal(t, openAIUpstreamCostNeutralFactor, factors[id])
+		require.Equal(t, openAIUpstreamCostNeutralFactor, factors[fmt.Sprintf("account-%d", id)])
 	}
 }
 
@@ -443,14 +447,14 @@ func TestOpenAIUpstreamCostFactorsCoverageShrinksSparseSignal(t *testing.T) {
 		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
 	}
 	for id := int64(3); id <= 10; id++ {
-		accounts = append(accounts, &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey})
+		accounts = append(accounts, &Account{ID: fmt.Sprintf("account-%d", id), Platform: PlatformOpenAI, Type: AccountTypeAPIKey})
 	}
 
 	factors := openAIUpstreamCostFactors(accounts, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	center := math.Sqrt(0.03 * 0.8)
-	require.InDelta(t, 0.5+0.2*(1/(1+0.03/center)-0.5), factors[1], 1e-12)
-	require.InDelta(t, 0.5+0.2*(1/(1+0.8/center)-0.5), factors[2], 1e-12)
-	require.Equal(t, openAIUpstreamCostNeutralFactor, factors[3])
+	require.InDelta(t, 0.5+0.2*(1/(1+0.03/center)-0.5), factors["account-1"], 1e-12)
+	require.InDelta(t, 0.5+0.2*(1/(1+0.8/center)-0.5), factors["account-2"], 1e-12)
+	require.Equal(t, openAIUpstreamCostNeutralFactor, factors["account-3"])
 }
 
 func TestOpenAIUpstreamCostFactorsUseMedianAgainstOutlier(t *testing.T) {
@@ -462,16 +466,16 @@ func TestOpenAIUpstreamCostFactorsUseMedianAgainstOutlier(t *testing.T) {
 	}
 
 	factors := openAIUpstreamCostFactors(accounts, now, defaultOpenAIOAuthSchedulingRateMultiplier)
-	require.InDelta(t, 2.0/3.0, factors[1], 1e-12)
-	require.InDelta(t, 0.5, factors[2], 1e-12)
-	require.InDelta(t, 1/(1+100/0.2), factors[3], 1e-12)
+	require.InDelta(t, 2.0/3.0, factors["account-1"], 1e-12)
+	require.InDelta(t, 0.5, factors["account-2"], 1e-12)
+	require.InDelta(t, 1/(1+100/0.2), factors["account-3"], 1e-12)
 }
 
 func TestOpenAILegacyUpstreamRateOrderRequiresComparableRates(t *testing.T) {
 	now := time.Now()
 	oneKnown := newOpenAILegacyUpstreamRateOrder([]*Account{
 		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
-		{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "account-2", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	require.False(t, oneKnown.enabled)
 
@@ -484,11 +488,11 @@ func TestOpenAILegacyUpstreamRateOrderRequiresComparableRates(t *testing.T) {
 	distinct := newOpenAILegacyUpstreamRateOrder([]*Account{
 		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
 		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
-		{ID: 3, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "account-3", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	require.True(t, distinct.enabled)
-	require.Negative(t, distinct.compare(&Account{ID: 1}, &Account{ID: 2}))
-	require.Negative(t, distinct.compare(&Account{ID: 2}, &Account{ID: 3}))
+	require.Negative(t, distinct.compare(&Account{ID: "account-1"}, &Account{ID: "account-2"}))
+	require.Negative(t, distinct.compare(&Account{ID: "account-2"}, &Account{ID: "account-3"}))
 }
 
 // 探测资格已放宽到全部 API-key 平台，但调度侧的信任面没有跟着扩大：
@@ -574,13 +578,13 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityUsesConfiguredOAuthReference(t
 		cfg:              cfg,
 		rateLimitService: &RateLimitService{settingService: NewSettingService(settings, cfg)},
 	}
-	groupID := int64(1)
+	groupID := "group-1"
 
 	first, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
 	require.Equal(t, cheap.ID, first.Account.ID)
 
-	second, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", map[int64]struct{}{cheap.ID: {}}, OpenAIUpstreamTransportAny, false)
+	second, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", map[string]struct{}{cheap.ID: {}}, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
 	require.Equal(t, oauth.ID, second.Account.ID)
 }
@@ -621,19 +625,19 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedSched
 	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
 	accounts := []Account{*cheap, *expensive}
-	groupID := int64(1)
+	groupID := "group-1"
 
 	tests := []struct {
 		name      string
 		enabled   bool
 		loadBatch bool
 		loadErr   error
-		wantID    int64
+		wantID string
 	}{
-		{name: "switch off keeps priority first", loadBatch: true, wantID: 2},
-		{name: "load batch", enabled: true, loadBatch: true, wantID: 1},
-		{name: "load batch disabled", enabled: true, wantID: 1},
-		{name: "load lookup failure", enabled: true, loadBatch: true, loadErr: errors.New("load unavailable"), wantID: 1},
+		{name: "switch off keeps priority first", loadBatch: true, wantID: "account-2"},
+		{name: "load batch", enabled: true, loadBatch: true, wantID: "account-1"},
+		{name: "load batch disabled", enabled: true, wantID: "account-1"},
+		{name: "load lookup failure", enabled: true, loadBatch: true, loadErr: errors.New("load unavailable"), wantID: "account-1"},
 	}
 
 	for _, tt := range tests {
@@ -652,9 +656,9 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedSched
 				rateLimitService: &RateLimitService{settingService: NewSettingService(settings, cfg)},
 				concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{
 					loadBatchErr: tt.loadErr,
-					loadMap: map[int64]*AccountLoadInfo{
-						1: {AccountID: 1, LoadRate: 90},
-						2: {AccountID: 2, LoadRate: 10},
+					loadMap: map[string]*AccountLoadInfo{
+						"account-1": {AccountID: "account-1", LoadRate: 90},
+						"account-2": {AccountID: "account-2", LoadRate: 10},
 					},
 				}),
 			}
@@ -691,11 +695,11 @@ func TestOpenAIGatewayServiceAdvancedSchedulerIgnoresLegacyLowRateSwitch(t *test
 		rateLimitService:   &RateLimitService{settingService: NewSettingService(settings, cfg)},
 		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{}),
 	}
-	groupID := int64(1)
+	groupID := "group-1"
 
 	selection, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), selection.Account.ID)
+	require.Equal(t, "account-2", selection.Account.ID)
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
 	}
@@ -723,16 +727,16 @@ func TestOpenAIGatewayServiceLegacyLowRatePrioritySkipsCooledDownAccount(t *test
 		cache:            &schedulerTestGatewayCache{},
 		cfg:              cfg,
 		rateLimitService: &RateLimitService{settingService: NewSettingService(settings, cfg)},
-		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{loadMap: map[int64]*AccountLoadInfo{
-			1: {AccountID: 1},
-			2: {AccountID: 2},
+		concurrencyService: NewConcurrencyService(schedulerTestConcurrencyCache{loadMap: map[string]*AccountLoadInfo{
+			"account-1": {AccountID: "account-1"},
+			"account-2": {AccountID: "account-2"},
 		}}),
 	}
-	groupID := int64(1)
+	groupID := "group-1"
 
 	selection, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), selection.Account.ID)
+	require.Equal(t, "account-2", selection.Account.ID)
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
 	}
@@ -764,9 +768,9 @@ func TestOpenAIFreshUpstreamBillingRateUsesFreshCachedSuccessOnly(t *testing.T) 
 func TestBuildOpenAISelectionOrderIncludesOverflowOnlyForCostScheduling(t *testing.T) {
 	scheduler := &defaultOpenAIAccountScheduler{}
 	candidates := []openAIAccountCandidateScore{
-		{account: &Account{ID: 1}, loadInfo: &AccountLoadInfo{}, score: 3},
-		{account: &Account{ID: 2}, loadInfo: &AccountLoadInfo{}, score: 2},
-		{account: &Account{ID: 3}, loadInfo: &AccountLoadInfo{}, score: 1},
+		{account: &Account{ID: "account-1"}, loadInfo: &AccountLoadInfo{}, score: 3},
+		{account: &Account{ID: "account-2"}, loadInfo: &AccountLoadInfo{}, score: 2},
+		{account: &Account{ID: "account-3"}, loadInfo: &AccountLoadInfo{}, score: 1},
 	}
 
 	legacy := scheduler.buildOpenAISelectionOrder(OpenAIAccountScheduleRequest{}, openAIAccountLoadPlan{
@@ -780,7 +784,7 @@ func TestBuildOpenAISelectionOrderIncludesOverflowOnlyForCostScheduling(t *testi
 		topK:                    1,
 		includeOverflowFallback: true,
 	})
-	require.Equal(t, []int64{1, 2, 3}, []int64{
+	require.Equal(t, []string{"account-1", "account-2", "account-3"}, []string{
 		costAware[0].account.ID,
 		costAware[1].account.ID,
 		costAware[2].account.ID,
@@ -807,10 +811,10 @@ func TestBuildOpenAIAccountLoadPlanUsesCostOnlyForTokenScope(t *testing.T) {
 		cfg:              cfg,
 		rateLimitService: &RateLimitService{settingService: NewSettingService(settings, cfg)},
 	}}
-	loadMap := map[int64]*AccountLoadInfo{
-		1: {AccountID: 1},
-		2: {AccountID: 2},
-		3: {AccountID: 3},
+	loadMap := map[string]*AccountLoadInfo{
+		"account-1": {AccountID: "account-1"},
+		"account-2": {AccountID: "account-2"},
+		"account-3": {AccountID: "account-3"},
 	}
 
 	tokenPlan := scheduler.buildOpenAIAccountLoadPlan(context.Background(), OpenAIAccountScheduleRequest{UseUpstreamTokenCost: true}, accounts, loadMap)
@@ -826,12 +830,12 @@ func TestBuildOpenAIAccountLoadPlanUsesCostOnlyForTokenScope(t *testing.T) {
 
 func TestBuildOpenAIAccountSchedulerScoreSnapshotUpstreamCostIsExactNoOpWithoutSignal(t *testing.T) {
 	accounts := []*Account{
-		{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
-		{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "account-1", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "account-2", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}
-	loadMap := map[int64]*AccountLoadInfo{
-		1: {AccountID: 1, LoadRate: 20},
-		2: {AccountID: 2, LoadRate: 80},
+	loadMap := map[string]*AccountLoadInfo{
+		"account-1": {AccountID: "account-1", LoadRate: 20},
+		"account-2": {AccountID: "account-2", LoadRate: 80},
 	}
 	weights := GatewayOpenAIWSSchedulerScoreWeightsView{Priority: 1, Load: 1, Queue: 0.7, ErrorRate: 0.8, TTFT: 0.5}
 	baseline := buildOpenAIAccountSchedulerScoreSnapshot(accounts, loadMap, weights, false, defaultOpenAIOAuthSchedulingRateMultiplier)
@@ -850,5 +854,5 @@ func TestBuildOpenAIAccountSchedulerScoreSnapshotUsesUpstreamCostSignal(t *testi
 	weights := GatewayOpenAIWSSchedulerScoreWeightsView{UpstreamCost: 1.5}
 	scores := buildOpenAIAccountSchedulerScoreSnapshot(accounts, nil, weights, false, defaultOpenAIOAuthSchedulingRateMultiplier)
 
-	require.Greater(t, scores[1].BaseScore, scores[2].BaseScore)
+	require.Greater(t, scores["account-1"].BaseScore, scores["account-2"].BaseScore)
 }

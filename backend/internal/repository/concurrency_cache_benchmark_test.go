@@ -28,7 +28,7 @@ func BenchmarkAccountConcurrency(b *testing.B) {
 	for _, size := range []int{10, 100, 1000} {
 		size := size
 		b.Run(fmt.Sprintf("zset/slots=%d", size), func(b *testing.B) {
-			accountID := time.Now().UnixNano()
+			accountID := fmt.Sprintf("account-%d", time.Now().UnixNano())
 			key := accountSlotKey(accountID)
 
 			b.StopTimer()
@@ -62,14 +62,14 @@ func BenchmarkAccountConcurrency(b *testing.B) {
 		})
 
 		b.Run(fmt.Sprintf("scan/slots=%d", size), func(b *testing.B) {
-			accountID := time.Now().UnixNano()
-			pattern := fmt.Sprintf("%s%d:*", accountSlotKeyPrefix, accountID)
+			accountID := fmt.Sprintf("account-%d", time.Now().UnixNano())
+			pattern := fmt.Sprintf("%s%s:*", accountSlotKeyPrefix, accountID)
 			keys := make([]string, 0, size)
 
 			b.StopTimer()
 			pipe := rdb.Pipeline()
 			for i := 0; i < size; i++ {
-				key := fmt.Sprintf("%s%d:req_%d", accountSlotKeyPrefix, accountID, i)
+				key := fmt.Sprintf("%s%s:req_%d", accountSlotKeyPrefix, accountID, i)
 				keys = append(keys, key)
 				pipe.Set(ctx, key, "1", benchSlotTTL)
 			}

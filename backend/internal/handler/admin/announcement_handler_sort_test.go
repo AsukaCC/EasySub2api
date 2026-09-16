@@ -28,7 +28,7 @@ func (r *announcementRepoCapture) List(ctx context.Context, params pagination.Pa
 	}, nil
 }
 
-func (r *announcementRepoCapture) GetByID(ctx context.Context, id int64) (*service.Announcement, error) {
+func (r *announcementRepoCapture) GetByID(ctx context.Context, id string) (*service.Announcement, error) {
 	return &service.Announcement{
 		ID:        id,
 		Title:     "announcement",
@@ -58,8 +58,8 @@ type announcementReadRepoCapture struct {
 	service.AnnouncementReadRepository
 }
 
-func (r *announcementReadRepoCapture) GetReadMapByUsers(ctx context.Context, announcementID int64, userIDs []int64) (map[int64]time.Time, error) {
-	return map[int64]time.Time{}, nil
+func (r *announcementReadRepoCapture) GetReadMapByUsers(ctx context.Context, announcementID string, userIDs []string) (map[string]time.Time, error) {
+	return map[string]time.Time{}, nil
 }
 
 type announcementUserSubRepoCapture struct {
@@ -114,7 +114,7 @@ func TestAdminAnnouncementReadStatusSortParams(t *testing.T) {
 	userRepo := &announcementUserRepoCapture{}
 	router := newAnnouncementSortTestRouter(announcementRepo, userRepo)
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/announcements/1/read-status?sort_by=balance&sort_order=DESC", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/announcements/00000000-0000-4000-8000-000000000001/read-status?sort_by=balance&sort_order=DESC", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -128,7 +128,7 @@ func TestAdminAnnouncementReadStatusSortDefaults(t *testing.T) {
 	userRepo := &announcementUserRepoCapture{}
 	router := newAnnouncementSortTestRouter(announcementRepo, userRepo)
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/announcements/1/read-status", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/announcements/00000000-0000-4000-8000-000000000001/read-status", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

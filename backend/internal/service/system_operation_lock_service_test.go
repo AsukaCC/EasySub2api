@@ -70,7 +70,7 @@ type flakySystemLockRenewRepo struct {
 	extendCalls int32
 }
 
-func (r *flakySystemLockRenewRepo) ExtendProcessingLock(ctx context.Context, id int64, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
+func (r *flakySystemLockRenewRepo) ExtendProcessingLock(ctx context.Context, id string, requestFingerprint string, newLockedUntil, newExpiresAt time.Time) (bool, error) {
 	call := atomic.AddInt32(&r.extendCalls, 1)
 	if call == 1 {
 		return false, errors.New("transient extend failure")
@@ -182,22 +182,22 @@ func (s *systemLockRepoStub) GetByScopeAndKeyHash(context.Context, string, strin
 	return cloneRecord(s.existing), nil
 }
 
-func (s *systemLockRepoStub) TryReclaim(context.Context, int64, string, time.Time, time.Time, time.Time) (bool, error) {
+func (s *systemLockRepoStub) TryReclaim(context.Context, string, string, time.Time, time.Time, time.Time) (bool, error) {
 	if s.reclaimErr != nil {
 		return false, s.reclaimErr
 	}
 	return s.reclaimOK, nil
 }
 
-func (s *systemLockRepoStub) ExtendProcessingLock(context.Context, int64, string, time.Time, time.Time) (bool, error) {
+func (s *systemLockRepoStub) ExtendProcessingLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return true, nil
 }
 
-func (s *systemLockRepoStub) MarkSucceeded(context.Context, int64, int, string, time.Time) error {
+func (s *systemLockRepoStub) MarkSucceeded(context.Context, string, int, string, time.Time) error {
 	return s.markSuccErr
 }
 
-func (s *systemLockRepoStub) MarkFailedRetryable(context.Context, int64, string, time.Time, time.Time) error {
+func (s *systemLockRepoStub) MarkFailedRetryable(context.Context, string, string, time.Time, time.Time) error {
 	return s.markFailErr
 }
 
@@ -249,7 +249,7 @@ func TestSystemOperationLockService_ExistingNilAndReclaimBranches(t *testing.T) 
 	require.Equal(t, infraerrors.Code(ErrIdempotencyStoreUnavail), infraerrors.Code(err))
 
 	repo.existing = &IdempotencyRecord{
-		ID:                 1,
+		ID:                 "record-1",
 		Scope:              systemOperationLockScope,
 		IdempotencyKeyHash: HashIdempotencyKey(systemOperationLockKey),
 		RequestFingerprint: "other-op",
@@ -292,9 +292,9 @@ func TestSystemOperationLockService_ReleaseBranchesAndOperationID(t *testing.T) 
 		SystemOperationTTL: 10 * time.Second,
 		ProcessingTimeout:  2 * time.Second,
 	})
-	lock = &SystemOperationLock{recordID: 1, operationID: "op2", stopCh: make(chan struct{})}
+	lock = &SystemOperationLock{recordID: "record-1", operationID: "op2", stopCh: make(chan struct{})}
 	require.Error(t, svc.Release(context.Background(), lock, true, ""))
-	lock = &SystemOperationLock{recordID: 1, operationID: "op3", stopCh: make(chan struct{})}
+	lock = &SystemOperationLock{recordID: "record-1", operationID: "op3", stopCh: make(chan struct{})}
 	require.Error(t, svc.Release(context.Background(), lock, false, "BAD"))
 
 	var nilLockSvc *SystemOperationLockService

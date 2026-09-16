@@ -33,7 +33,7 @@ type stubOpenAIAccountRepo struct {
 
 type tempUnschedulableOpenAIAccountRepo struct {
 	stubOpenAIAccountRepo
-	modelRateLimitAccountID int64
+	modelRateLimitAccountID string
 	modelRateLimitKey       string
 }
 
@@ -59,7 +59,7 @@ func (r *snapshotUpdateAccountRepo) UpdateExtra(ctx context.Context, id string, 
 	return nil
 }
 
-func (r stubOpenAIAccountRepo) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r stubOpenAIAccountRepo) GetByID(ctx context.Context, id string) (*Account, error) {
 	for i := range r.accounts {
 		if r.accounts[i].ID == id {
 			return &r.accounts[i], nil
@@ -68,17 +68,17 @@ func (r stubOpenAIAccountRepo) GetByID(ctx context.Context, id int64) (*Account,
 	return nil, errors.New("account not found")
 }
 
-func (r stubOpenAIAccountRepo) GetByIDs(ctx context.Context, ids []int64) ([]*Account, error) {
+func (r stubOpenAIAccountRepo) GetByIDs(ctx context.Context, ids []string) ([]*Account, error) {
 	if len(ids) == 0 {
 		return []*Account{}, nil
 	}
-	index := make(map[int64]*Account, len(r.accounts))
+	index := make(map[string]*Account, len(r.accounts))
 	for i := range r.accounts {
 		account := &r.accounts[i]
 		index[account.ID] = account
 	}
 	out := make([]*Account, 0, len(ids))
-	seen := make(map[int64]struct{}, len(ids))
+	seen := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
 		if _, ok := seen[id]; ok {
 			continue
@@ -91,7 +91,7 @@ func (r stubOpenAIAccountRepo) GetByIDs(ctx context.Context, ids []int64) ([]*Ac
 	return out, nil
 }
 
-func (r stubOpenAIAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]Account, error) {
+func (r stubOpenAIAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID string, platform string) ([]Account, error) {
 	var result []Account
 	for _, acc := range r.accounts {
 		if acc.Platform == platform {
@@ -143,7 +143,7 @@ func TestOpenAIGatewayService_ForwardAsAnthropic_CapacityShedReturnsRequestScope
 		},
 	}}
 	repo := &tempUnschedulableOpenAIAccountRepo{}
-	rateLimitService := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	rateLimitService := NewRateLimitService(repo, &config.Config{}, nil)
 	svc := &OpenAIGatewayService{
 		cfg: &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{
 			Enabled: false, AllowInsecureHTTP: true,
@@ -152,7 +152,7 @@ func TestOpenAIGatewayService_ForwardAsAnthropic_CapacityShedReturnsRequestScope
 		rateLimitService: rateLimitService,
 	}
 	account := &Account{
-		ID: 5099, Name: "temporary-unschedulable", Platform: PlatformOpenAI,
+		ID: "id-5099", Name: "temporary-unschedulable", Platform: PlatformOpenAI,
 		Type: AccountTypeAPIKey, Concurrency: 1,
 		Credentials: map[string]any{
 			"api_key":                    "sk-test",
@@ -186,7 +186,7 @@ func TestOpenAIGatewayService_ForwardAsAnthropic_CapacityShedReturnsRequestScope
 	secondContext.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
 	secondContext.Request.Header.Set("Content-Type", "application/json")
 	secondAccount := *account
-	secondAccount.ID = 5100
+	secondAccount.ID = "id-5100"
 	secondAccount.Name = "healthy-failover-account"
 	result, secondErr := svc.ForwardAsAnthropic(context.Background(), secondContext, &secondAccount, body, "", "")
 	require.NoError(t, secondErr)
@@ -198,10 +198,10 @@ func TestOpenAIGatewayService_ForwardAsAnthropic_CapacityShedReturnsRequestScope
 func TestFailoverOpenAIUpstreamHTTPError_NilContextSkipsTempUnschedulablePolicy(t *testing.T) {
 	repo := &tempUnschedulableOpenAIAccountRepo{}
 	svc := &OpenAIGatewayService{
-		rateLimitService: NewRateLimitService(repo, nil, &config.Config{}, nil, nil),
+		rateLimitService: NewRateLimitService(repo, &config.Config{}, nil),
 	}
 	account := &Account{
-		ID: 5099, Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		ID: "id-5099", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{
 			"temp_unschedulable_enabled": true,
 			"temp_unschedulable_rules": []any{map[string]any{
@@ -228,7 +228,7 @@ type groupAwareStubOpenAIAccountRepo struct {
 	stubOpenAIAccountRepo
 }
 
-func (r groupAwareStubOpenAIAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]Account, error) {
+func (r groupAwareStubOpenAIAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID string, platform string) ([]Account, error) {
 	var result []Account
 	for _, acc := range r.accounts {
 		if acc.Platform == platform && openAIStickyAccountMatchesGroup(&acc, &groupID) {
@@ -251,9 +251,9 @@ func (r groupAwareStubOpenAIAccountRepo) ListSchedulableUngroupedByPlatform(ctx 
 type stubConcurrencyCache struct {
 	ConcurrencyCache
 	loadBatchErr    error
-	loadMap         map[int64]*AccountLoadInfo
-	acquireResults  map[int64]bool
-	waitCounts      map[int64]int
+	loadMap         map[string]*AccountLoadInfo
+	acquireResults  map[string]bool
+	waitCounts      map[string]int
 	skipDefaultLoad bool
 }
 
@@ -297,7 +297,7 @@ func (w *failingGinWriter) Write(p []byte) (int, error) {
 	return w.ResponseWriter.Write(p)
 }
 
-func (c stubConcurrencyCache) AcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
+func (c stubConcurrencyCache) AcquireAccountSlot(ctx context.Context, accountID string, maxConcurrency int, requestID string) (bool, error) {
 	if c.acquireResults != nil {
 		if result, ok := c.acquireResults[accountID]; ok {
 			return result, nil
@@ -306,15 +306,15 @@ func (c stubConcurrencyCache) AcquireAccountSlot(ctx context.Context, accountID 
 	return true, nil
 }
 
-func (c stubConcurrencyCache) ReleaseAccountSlot(ctx context.Context, accountID int64, requestID string) error {
+func (c stubConcurrencyCache) ReleaseAccountSlot(ctx context.Context, accountID string, requestID string) error {
 	return nil
 }
 
-func (c stubConcurrencyCache) GetAccountsLoadBatch(ctx context.Context, accounts []AccountWithConcurrency) (map[int64]*AccountLoadInfo, error) {
+func (c stubConcurrencyCache) GetAccountsLoadBatch(ctx context.Context, accounts []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
 	if c.loadBatchErr != nil {
 		return nil, c.loadBatchErr
 	}
-	out := make(map[int64]*AccountLoadInfo, len(accounts))
+	out := make(map[string]*AccountLoadInfo, len(accounts))
 	if c.skipDefaultLoad && c.loadMap != nil {
 		for _, acc := range accounts {
 			if load, ok := c.loadMap[acc.ID]; ok {
@@ -385,7 +385,7 @@ func TestOpenAIGatewayService_ClientSessionHeaderPriority(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
-	c.Set("api_key", &APIKey{ID: 901, Group: &Group{Platform: PlatformGrok}})
+	c.Set("api_key", &APIKey{ID: "id-901", Group: &Group{Platform: PlatformGrok}})
 
 	headers := []struct {
 		name  string
@@ -534,11 +534,11 @@ func TestOpenAIGatewayService_BindHTTPResponseAccount(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
-	groupID := int64(4201)
-	c.Set("api_key", &APIKey{ID: 501, GroupID: &groupID})
+	groupID := "group-4201"
+	c.Set("api_key", &APIKey{ID: "id-501", GroupID: &groupID})
 
 	svc := &OpenAIGatewayService{}
-	account := &Account{ID: 37001, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	account := &Account{ID: "id-37001", Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
 	svc.bindHTTPResponseAccount(context.Background(), c, account, "resp_http_001")
 
 	got, err := svc.getOpenAIWSStateStore().GetResponseAccount(context.Background(), groupID, "resp_http_001")
@@ -653,7 +653,7 @@ func TestOpenAIGatewayService_GenerateSessionHash_EmptyBodyStillEmpty(t *testing
 	require.Empty(t, svc.GenerateSessionHash(c, nil))
 }
 
-func (c stubConcurrencyCache) GetAccountWaitingCount(ctx context.Context, accountID int64) (int, error) {
+func (c stubConcurrencyCache) GetAccountWaitingCount(ctx context.Context, accountID string) (int, error) {
 	if c.waitCounts != nil {
 		if count, ok := c.waitCounts[accountID]; ok {
 			return count, nil
@@ -663,7 +663,7 @@ func (c stubConcurrencyCache) GetAccountWaitingCount(ctx context.Context, accoun
 }
 
 type stubGatewayCache struct {
-	sessionBindings map[string]int64
+	sessionBindings map[string]string
 	deletedSessions map[string]int
 }
 
@@ -671,12 +671,12 @@ func (c *stubGatewayCache) GetSessionAccountID(ctx context.Context, groupID stri
 	if id, ok := c.sessionBindings[sessionHash]; ok {
 		return id, nil
 	}
-	return 0, errors.New("not found")
+	return "", errors.New("not found")
 }
 
 func (c *stubGatewayCache) SetSessionAccountID(ctx context.Context, groupID string, sessionHash string, accountID string, ttl time.Duration) error {
 	if c.sessionBindings == nil {
-		c.sessionBindings = make(map[string]int64)
+		c.sessionBindings = make(map[string]string)
 	}
 	c.sessionBindings[sessionHash] = accountID
 	return nil
@@ -715,10 +715,10 @@ func (c *stubGatewayCache) ReleaseGrokVideoBilled(_ context.Context, _ string) e
 func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T) {
 	now := time.Now()
 	resetAt := now.Add(10 * time.Minute)
-	groupID := int64(1)
+	groupID := "group-1"
 
 	rateLimited := Account{
-		ID:               1,
+		ID:               "id-1",
 		Platform:         PlatformOpenAI,
 		Type:             AccountTypeAPIKey,
 		Status:           StatusActive,
@@ -728,7 +728,7 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T)
 		RateLimitResetAt: &resetAt,
 	}
 	available := Account{
-		ID:          2,
+		ID:          "id-2",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -750,7 +750,7 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T)
 		t.Fatalf("expected selection with account")
 	}
 	if selection.Account.ID != available.ID {
-		t.Fatalf("expected account %d, got %d", available.ID, selection.Account.ID)
+		t.Fatalf("expected account %s, got %s", available.ID, selection.Account.ID)
 	}
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
@@ -759,10 +759,10 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T)
 
 func TestOpenAISelectAccountWithLoadAwareness_ImageRateLimitSkipsOnlyImageRequests(t *testing.T) {
 	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
-	groupID := int64(1)
+	groupID := "group-1"
 
 	imageLimited := Account{
-		ID:          1,
+		ID:          "id-1",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -778,7 +778,7 @@ func TestOpenAISelectAccountWithLoadAwareness_ImageRateLimitSkipsOnlyImageReques
 		},
 	}
 	available := Account{
-		ID:          2,
+		ID:          "id-2",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -811,10 +811,10 @@ func TestOpenAISelectAccountWithLoadAwareness_ImageRateLimitSkipsOnlyImageReques
 func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulableWhenNoConcurrencyService(t *testing.T) {
 	now := time.Now()
 	resetAt := now.Add(10 * time.Minute)
-	groupID := int64(1)
+	groupID := "group-1"
 
 	rateLimited := Account{
-		ID:               1,
+		ID:               "id-1",
 		Platform:         PlatformOpenAI,
 		Type:             AccountTypeAPIKey,
 		Status:           StatusActive,
@@ -824,7 +824,7 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulableWhenNoConcurre
 		RateLimitResetAt: &resetAt,
 	}
 	available := Account{
-		ID:          2,
+		ID:          "id-2",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -846,7 +846,7 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulableWhenNoConcurre
 		t.Fatalf("expected selection with account")
 	}
 	if selection.Account.ID != available.ID {
-		t.Fatalf("expected account %d, got %d", available.ID, selection.Account.ID)
+		t.Fatalf("expected account %s, got %s", available.ID, selection.Account.ID)
 	}
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
@@ -857,12 +857,12 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyUnschedulableClearsSess
 	sessionHash := "session-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusDisabled, Schedulable: true, Concurrency: 1},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusDisabled, Schedulable: true, Concurrency: 1},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -874,30 +874,30 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyUnschedulableClearsSess
 	if err != nil {
 		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
 	}
-	if acc == nil || acc.ID != 2 {
+	if acc == nil || acc.ID != "id-2" {
 		t.Fatalf("expected account 2, got %+v", acc)
 	}
 	if cache.deletedSessions["openai:"+sessionHash] != 1 {
 		t.Fatalf("expected sticky session to be deleted")
 	}
-	if cache.sessionBindings["openai:"+sessionHash] != 2 {
+	if cache.sessionBindings["openai:"+sessionHash] != "id-2" {
 		t.Fatalf("expected sticky session to bind to account 2")
 	}
 }
 
 func TestOpenAISelectAccountForModelWithExclusions_StickyOutsideGroupClearsSession(t *testing.T) {
 	sessionHash := "session-outside-group"
-	groupID := int64(1001)
+	groupID := "group-1001"
 	repo := groupAwareStubOpenAIAccountRepo{
 		stubOpenAIAccountRepo{
 			accounts: []Account{
-				{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
-				{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, AccountGroups: []AccountGroup{{GroupID: groupID}}},
+				{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
+				{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, AccountGroups: []AccountGroup{{GroupID: groupID}}},
 			},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -909,28 +909,28 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyOutsideGroupClearsSessi
 	if err != nil {
 		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
 	}
-	if acc == nil || acc.ID != 2 {
+	if acc == nil || acc.ID != "id-2" {
 		t.Fatalf("expected account 2, got %+v", acc)
 	}
 	if cache.deletedSessions["openai:"+sessionHash] != 1 {
 		t.Fatalf("expected sticky session to be deleted")
 	}
-	if cache.sessionBindings["openai:"+sessionHash] != 2 {
+	if cache.sessionBindings["openai:"+sessionHash] != "id-2" {
 		t.Fatalf("expected sticky session to bind to account 2")
 	}
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_StickyUnschedulableClearsSession(t *testing.T) {
 	sessionHash := "session-2"
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusDisabled, Schedulable: true, Concurrency: 1},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusDisabled, Schedulable: true, Concurrency: 1},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -943,13 +943,13 @@ func TestOpenAISelectAccountWithLoadAwareness_StickyUnschedulableClearsSession(t
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
-	if selection == nil || selection.Account == nil || selection.Account.ID != 2 {
+	if selection == nil || selection.Account == nil || selection.Account.ID != "id-2" {
 		t.Fatalf("expected account 2, got %+v", selection)
 	}
 	if cache.deletedSessions["openai:"+sessionHash] != 1 {
 		t.Fatalf("expected sticky session to be deleted")
 	}
-	if cache.sessionBindings["openai:"+sessionHash] != 2 {
+	if cache.sessionBindings["openai:"+sessionHash] != "id-2" {
 		t.Fatalf("expected sticky session to bind to account 2")
 	}
 	if selection.ReleaseFunc != nil {
@@ -959,17 +959,17 @@ func TestOpenAISelectAccountWithLoadAwareness_StickyUnschedulableClearsSession(t
 
 func TestOpenAISelectAccountWithLoadAwareness_StickyOutsideGroupClearsSession(t *testing.T) {
 	sessionHash := "session-load-outside-group"
-	groupID := int64(1002)
+	groupID := "group-1002"
 	repo := groupAwareStubOpenAIAccountRepo{
 		stubOpenAIAccountRepo{
 			accounts: []Account{
-				{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
-				{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, AccountGroups: []AccountGroup{{GroupID: groupID}}},
+				{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1},
+				{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, AccountGroups: []AccountGroup{{GroupID: groupID}}},
 			},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -982,13 +982,13 @@ func TestOpenAISelectAccountWithLoadAwareness_StickyOutsideGroupClearsSession(t 
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
-	if selection == nil || selection.Account == nil || selection.Account.ID != 2 {
+	if selection == nil || selection.Account == nil || selection.Account.ID != "id-2" {
 		t.Fatalf("expected account 2, got %+v", selection)
 	}
 	if cache.deletedSessions["openai:"+sessionHash] != 1 {
 		t.Fatalf("expected sticky session to be deleted")
 	}
-	if cache.sessionBindings["openai:"+sessionHash] != 2 {
+	if cache.sessionBindings["openai:"+sessionHash] != "id-2" {
 		t.Fatalf("expected sticky session to bind to account 2")
 	}
 	if selection.ReleaseFunc != nil {
@@ -1000,7 +1000,7 @@ func TestOpenAISelectAccountForModelWithExclusions_NoModelSupport(t *testing.T) 
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
 			{
-				ID:          1,
+				ID:          "id-1",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -1028,11 +1028,11 @@ func TestOpenAISelectAccountForModelWithExclusions_NoModelSupport(t *testing.T) 
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
@@ -1053,10 +1053,10 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 	if selection == nil || selection.Account == nil {
 		t.Fatalf("expected selection")
 	}
-	if selection.Account.ID != 2 {
-		t.Fatalf("expected account 2, got %d", selection.Account.ID)
+	if selection.Account.ID != "id-2" {
+		t.Fatalf("expected account 2, got %s", selection.Account.ID)
 	}
-	if cache.sessionBindings["openai:fallback"] != 2 {
+	if cache.sessionBindings["openai:fallback"] != "id-2" {
 		t.Fatalf("expected sticky session updated")
 	}
 	if selection.ReleaseFunc != nil {
@@ -1065,17 +1065,17 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_NoSlotFallbackWait(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
 	concurrencyCache := stubConcurrencyCache{
-		acquireResults: map[int64]bool{1: false},
-		loadMap: map[int64]*AccountLoadInfo{
-			1: {AccountID: 1, LoadRate: 10},
+		acquireResults: map[string]bool{"id-1": false},
+		loadMap: map[string]*AccountLoadInfo{
+			"id-1": {AccountID: "id-1", LoadRate: 10},
 		},
 	}
 
@@ -1092,7 +1092,7 @@ func TestOpenAISelectAccountWithLoadAwareness_NoSlotFallbackWait(t *testing.T) {
 	if selection == nil || selection.WaitPlan == nil {
 		t.Fatalf("expected wait plan fallback")
 	}
-	if selection.Account == nil || selection.Account.ID != 1 {
+	if selection.Account == nil || selection.Account.ID != "id-1" {
 		t.Fatalf("expected account 1")
 	}
 }
@@ -1101,7 +1101,7 @@ func TestOpenAISelectAccountForModelWithExclusions_SetsStickyBinding(t *testing.
 	sessionHash := "bind"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
@@ -1115,28 +1115,28 @@ func TestOpenAISelectAccountForModelWithExclusions_SetsStickyBinding(t *testing.
 	if err != nil {
 		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
 	}
-	if acc == nil || acc.ID != 1 {
+	if acc == nil || acc.ID != "id-1" {
 		t.Fatalf("expected account 1")
 	}
-	if cache.sessionBindings["openai:"+sessionHash] != 1 {
+	if cache.sessionBindings["openai:"+sessionHash] != "id-1" {
 		t.Fatalf("expected sticky session binding")
 	}
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_StickyWaitPlan(t *testing.T) {
 	sessionHash := "sticky-wait"
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 	concurrencyCache := stubConcurrencyCache{
-		acquireResults: map[int64]bool{1: false},
-		waitCounts:     map[int64]int{1: 0},
+		acquireResults: map[string]bool{"id-1": false},
+		waitCounts:     map[string]int{"id-1": 0},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -1152,24 +1152,24 @@ func TestOpenAISelectAccountWithLoadAwareness_StickyWaitPlan(t *testing.T) {
 	if selection == nil || selection.WaitPlan == nil {
 		t.Fatalf("expected sticky wait plan")
 	}
-	if selection.Account == nil || selection.Account.ID != 1 {
+	if selection.Account == nil || selection.Account.ID != "id-1" {
 		t.Fatalf("expected account 1")
 	}
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_PrefersLowerLoad(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
 	concurrencyCache := stubConcurrencyCache{
-		loadMap: map[int64]*AccountLoadInfo{
-			1: {AccountID: 1, LoadRate: 80},
-			2: {AccountID: 2, LoadRate: 10},
+		loadMap: map[string]*AccountLoadInfo{
+			"id-1": {AccountID: "id-1", LoadRate: 80},
+			"id-2": {AccountID: "id-2", LoadRate: 10},
 		},
 	}
 
@@ -1183,10 +1183,10 @@ func TestOpenAISelectAccountWithLoadAwareness_PrefersLowerLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
-	if selection == nil || selection.Account == nil || selection.Account.ID != 2 {
+	if selection == nil || selection.Account == nil || selection.Account.ID != "id-2" {
 		t.Fatalf("expected account 2")
 	}
-	if cache.sessionBindings["openai:load"] != 2 {
+	if cache.sessionBindings["openai:load"] != "id-2" {
 		t.Fatalf("expected sticky session updated")
 	}
 }
@@ -1195,12 +1195,12 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyExcludedFallback(t *tes
 	sessionHash := "excluded"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -1208,12 +1208,12 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyExcludedFallback(t *tes
 		cache:       cache,
 	}
 
-	excluded := map[int64]struct{}{1: {}}
+	excluded := map[string]struct{}{"id-1": {}}
 	acc, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, sessionHash, "gpt-4", excluded)
 	if err != nil {
 		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
 	}
-	if acc == nil || acc.ID != 2 {
+	if acc == nil || acc.ID != "id-2" {
 		t.Fatalf("expected account 2")
 	}
 }
@@ -1222,12 +1222,12 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyNonOpenAI(t *testing.T)
 	sessionHash := "non-openai"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
+			{ID: "id-1", Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
 		},
 	}
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+		sessionBindings: map[string]string{"openai:" + sessionHash: "id-1"},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -1239,7 +1239,7 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyNonOpenAI(t *testing.T)
 	if err != nil {
 		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
 	}
-	if acc == nil || acc.ID != 2 {
+	if acc == nil || acc.ID != "id-2" {
 		t.Fatalf("expected account 2")
 	}
 }
@@ -1266,11 +1266,11 @@ func TestOpenAISelectAccountForModelWithExclusions_NoAccounts(t *testing.T) {
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_NoCandidates(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	resetAt := time.Now().Add(1 * time.Hour)
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1, RateLimitResetAt: &resetAt},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1, RateLimitResetAt: &resetAt},
 		},
 	}
 	cache := &stubGatewayCache{}
@@ -1292,16 +1292,16 @@ func TestOpenAISelectAccountWithLoadAwareness_NoCandidates(t *testing.T) {
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_AllFullWaitPlan(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
 	concurrencyCache := stubConcurrencyCache{
-		loadMap: map[int64]*AccountLoadInfo{
-			1: {AccountID: 1, LoadRate: 100},
+		loadMap: map[string]*AccountLoadInfo{
+			"id-1": {AccountID: "id-1", LoadRate: 100},
 		},
 	}
 
@@ -1321,16 +1321,16 @@ func TestOpenAISelectAccountWithLoadAwareness_AllFullWaitPlan(t *testing.T) {
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorNoAcquire(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
 	concurrencyCache := stubConcurrencyCache{
 		loadBatchErr:   errors.New("load batch failed"),
-		acquireResults: map[int64]bool{1: false},
+		acquireResults: map[string]bool{"id-1": false},
 	}
 
 	svc := &OpenAIGatewayService{
@@ -1349,17 +1349,17 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorNoAcquire(t *testing
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_MissingLoadInfo(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
 	concurrencyCache := stubConcurrencyCache{
-		loadMap: map[int64]*AccountLoadInfo{
-			1: {AccountID: 1, LoadRate: 50},
+		loadMap: map[string]*AccountLoadInfo{
+			"id-1": {AccountID: "id-1", LoadRate: 50},
 		},
 		skipDefaultLoad: true,
 	}
@@ -1374,7 +1374,7 @@ func TestOpenAISelectAccountWithLoadAwareness_MissingLoadInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
-	if selection == nil || selection.Account == nil || selection.Account.ID != 2 {
+	if selection == nil || selection.Account == nil || selection.Account.ID != "id-2" {
 		t.Fatalf("expected account 2")
 	}
 }
@@ -1384,8 +1384,8 @@ func TestOpenAISelectAccountForModelWithExclusions_LeastRecentlyUsed(t *testing.
 	newTime := time.Now().Add(-1 * time.Hour)
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Priority: 1, LastUsedAt: &newTime},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Priority: 1, LastUsedAt: &oldTime},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Priority: 1, LastUsedAt: &newTime},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Priority: 1, LastUsedAt: &oldTime},
 		},
 	}
 	cache := &stubGatewayCache{}
@@ -1399,25 +1399,25 @@ func TestOpenAISelectAccountForModelWithExclusions_LeastRecentlyUsed(t *testing.
 	if err != nil {
 		t.Fatalf("SelectAccountForModelWithExclusions error: %v", err)
 	}
-	if acc == nil || acc.ID != 2 {
+	if acc == nil || acc.ID != "id-2" {
 		t.Fatalf("expected account 2")
 	}
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_PreferNeverUsed(t *testing.T) {
-	groupID := int64(1)
+	groupID := "group-1"
 	lastUsed := time.Now().Add(-1 * time.Hour)
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1, LastUsedAt: &lastUsed},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: "id-1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1, LastUsedAt: &lastUsed},
+			{ID: "id-2", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 		},
 	}
 	cache := &stubGatewayCache{}
 	concurrencyCache := stubConcurrencyCache{
-		loadMap: map[int64]*AccountLoadInfo{
-			1: {AccountID: 1, LoadRate: 10},
-			2: {AccountID: 2, LoadRate: 10},
+		loadMap: map[string]*AccountLoadInfo{
+			"id-1": {AccountID: "id-1", LoadRate: 10},
+			"id-2": {AccountID: "id-2", LoadRate: 10},
 		},
 	}
 
@@ -1431,7 +1431,7 @@ func TestOpenAISelectAccountWithLoadAwareness_PreferNeverUsed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
-	if selection == nil || selection.Account == nil || selection.Account.ID != 2 {
+	if selection == nil || selection.Account == nil || selection.Account.ID != "id-2" {
 		t.Fatalf("expected account 2")
 	}
 }
@@ -1459,7 +1459,7 @@ func TestOpenAIStreamingTimeout(t *testing.T) {
 	}
 
 	start := time.Now()
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, start, "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1"}, start, "model", "model")
 	_ = pw.Close()
 	_ = pr.Close()
 
@@ -1494,7 +1494,7 @@ func TestOpenAIStreamingContextCanceledReturnsIncompleteErrorWithoutInjectingErr
 		Header:     http.Header{},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "model", "model")
 	if err == nil || !strings.Contains(err.Error(), "stream usage incomplete") {
 		t.Fatalf("expected incomplete stream error, got %v", err)
 	}
@@ -1524,7 +1524,7 @@ func TestOpenAIStreamingReadErrorBeforeOutputReturnsFailover(t *testing.T) {
 		Header:     http.Header{"X-Request-Id": []string{"rid-disconnect"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -1535,9 +1535,9 @@ func TestOpenAIStreamingReadErrorBeforeOutputReturnsFailover(t *testing.T) {
 
 func TestOpenAIStreamingPostOutputDisconnectQuarantinesSharedProxyWithoutSameStreamFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	proxyID := int64(4698)
+	proxyID := "proxy-4698"
 	account := &Account{
-		ID:       469801,
+		ID:       "id-469801",
 		Name:     "oauth-on-shared-proxy",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
@@ -1590,8 +1590,8 @@ func TestOpenAIStreamingPostOutputDisconnectQuarantinesSharedProxyWithoutSameStr
 
 func TestOpenAIStreamingTerminalAndClientCancellationDoNotQuarantineProxy(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	proxyID := int64(4699)
-	account := &Account{ID: 469901, Name: "oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ProxyID: &proxyID}
+	proxyID := "proxy-4699"
+	account := &Account{ID: "id-469901", Name: "oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ProxyID: &proxyID}
 	svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
 
 	terminalRecorder := httptest.NewRecorder()
@@ -1667,7 +1667,7 @@ func TestOpenAIStreamingResponseFailedBeforeOutputReturnsFailover(t *testing.T) 
 		Header: http.Header{"X-Request-Id": []string{"rid-failed"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -1710,7 +1710,7 @@ func TestOpenAIStreamingResponseFailedBeforeOutputCapacityErrorReturnsFailover(t
 	}
 
 	account := &Account{
-		ID:       1,
+		ID:       "id-1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Name:     "pool-account",
@@ -1757,7 +1757,7 @@ func TestOpenAIStreamingResponseFailedBeforeOutputServerOverloadedCodeReturnsFai
 		Header: http.Header{"X-Request-Id": []string{"rid-overloaded-failed"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -1803,7 +1803,7 @@ func TestOpenAIStreamingResponseFailedBeforeOutputRateLimitUsesPoolRetryPolicy(t
 		},
 	}
 	account := &Account{
-		ID:       1,
+		ID:       "id-1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Name:     "pool-account",
@@ -1868,7 +1868,7 @@ func TestOpenAIStreamingResponseFailedRateLimitDoesNotBlockAccountScheduling(t *
 		},
 	}
 	account := &Account{
-		ID:       11,
+		ID:       "id-11",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Name:     "oauth-account",
@@ -1919,7 +1919,7 @@ func TestOpenAIStreamingResponseFailedAfterOutputSanitizesVerboseResponseForClie
 		Header: http.Header{"X-Request-Id": []string{"rid-failed-after-output"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 
 	body := rec.Body.String()
@@ -1961,7 +1961,7 @@ func TestOpenAIStreamingContextWindowResponseFailedBeforeOutputPassesThrough(t *
 		Header: http.Header{"X-Request-Id": []string{"rid-context-window-failed"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))
@@ -2007,7 +2007,7 @@ func TestOpenAIStreamingContextWindowResponseFailedBeforeOutputAppliesPassthroug
 		Header: http.Header{"X-Request-Id": []string{"rid-context-window-passthrough-rule"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))
@@ -2053,7 +2053,7 @@ func TestOpenAIStreamingPreambleOnlyMissingTerminalReturnsFailover(t *testing.T)
 		Header: http.Header{"X-Request-Id": []string{"rid-missing-terminal"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -2098,7 +2098,7 @@ func TestOpenAIStreamingPreambleKeepaliveUsesDownstreamIdle(t *testing.T) {
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":2}}}\n\n"))
 	}()
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	_ = pr.Close()
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -2136,7 +2136,7 @@ func TestOpenAIStreamingNormalizesTerminalOutputFromDeltas(t *testing.T) {
 		Header: http.Header{"X-Request-Id": []string{"rid-sdk-parse"}},
 	}
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -2173,7 +2173,7 @@ func TestOpenAIStreamingNormalizesTerminalOutputToEmptyArray(t *testing.T) {
 		Header: http.Header{"X-Request-Id": []string{"rid-empty-output"}},
 	}
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -2213,7 +2213,7 @@ func TestOpenAIStreamingPolicyResponseFailedBeforeOutputPassesThrough(t *testing
 		Header: http.Header{"X-Request-Id": []string{"rid-policy-failed"}},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))
@@ -2251,7 +2251,7 @@ func TestOpenAIStreamingClientDisconnectDrainsUpstreamUsage(t *testing.T) {
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":3,\"output_tokens\":5,\"input_tokens_details\":{\"cached_tokens\":1}}}}\n\n"))
 	}()
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "model", "model")
 	_ = pr.Close()
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
@@ -2294,7 +2294,7 @@ func TestOpenAIStreamingMissingTerminalEventReturnsIncompleteError(t *testing.T)
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\",\"output_index\":0}\n\n"))
 	}()
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "model", "model")
 	_ = pr.Close()
 	if err == nil || !strings.Contains(err.Error(), "missing terminal event") {
 		t.Fatalf("expected missing terminal event error, got %v", err)
@@ -2326,7 +2326,7 @@ func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t 
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\",\"output_index\":0}\n\n"))
 	}()
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "", "")
+	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "", "")
 	_ = pr.Close()
 	if err == nil || !strings.Contains(err.Error(), "missing terminal event") {
 		t.Fatalf("expected missing terminal event error, got %v", err)
@@ -2335,8 +2335,8 @@ func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t 
 
 func TestOpenAIStreamingPassthroughPostOutputDisconnectQuarantinesSharedProxy(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	proxyID := int64(4698)
-	account := &Account{ID: 469804, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, ProxyID: &proxyID}
+	proxyID := "proxy-4698"
+	account := &Account{ID: "id-469804", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, ProxyID: &proxyID}
 	svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
 	// collapseInterval 0: the loop below records within the production collapse
 	// window and must count as distinct failure events here.
@@ -2396,7 +2396,7 @@ func TestOpenAIStreamingPassthroughResponseFailedBeforeOutputReturnsFailover(t *
 		Header: http.Header{"X-Request-Id": []string{"rid-passthrough-failed"}},
 	}
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
+	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -2440,7 +2440,7 @@ func TestOpenAIStreamingPassthroughContextWindowResponseFailedBeforeOutputApplie
 		Header: http.Header{"X-Request-Id": []string{"rid-pass-context-window-passthrough-rule"}},
 	}
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
+	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))
@@ -2484,7 +2484,7 @@ func TestOpenAIStreamingPassthroughContextWindowResponseFailedBeforeOutputWithou
 		Header: http.Header{"X-Request-Id": []string{"rid-pass-context-window-no-rule"}},
 	}
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
+	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))
@@ -2528,7 +2528,7 @@ func TestOpenAIStreamingPassthroughResponseFailedAfterOutputSanitizesVerboseResp
 		Header: http.Header{"X-Request-Id": []string{"rid-pass-failed-after-output"}},
 	}
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
+	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "", "")
 	require.Error(t, err)
 
 	body := rec.Body.String()
@@ -2567,7 +2567,7 @@ func TestOpenAIStreamingPassthroughResponseDoneWithoutDoneMarkerStillSucceeds(t 
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.done\",\"response\":{\"usage\":{\"input_tokens\":2,\"output_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":1}}}}\n\n"))
 	}()
 
-	result, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "", "")
+	result, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "", "")
 	_ = pr.Close()
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -2602,7 +2602,7 @@ func TestOpenAIStreamingPassthroughResponseIncompleteWithoutDoneMarkerStillSucce
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.incomplete\",\"response\":{\"usage\":{\"input_tokens\":2,\"output_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":1}}}}\n\n"))
 	}()
 
-	result, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "", "")
+	result, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "", "")
 	_ = pr.Close()
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -2641,7 +2641,7 @@ func TestOpenAIStreamingTooLong(t *testing.T) {
 		_, _ = pw.Write([]byte(payload))
 	}()
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 2}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-2"}, time.Now(), "model", "model")
 	_ = pr.Close()
 
 	if !errors.Is(err, bufio.ErrTooLong) {
@@ -2746,7 +2746,7 @@ func TestOpenAIStreamingHeadersOverride(t *testing.T) {
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{}}\n\n"))
 	}()
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "model", "model")
 	_ = pr.Close()
 	if err != nil {
 		t.Fatalf("handleStreamingResponse error: %v", err)
@@ -2790,7 +2790,7 @@ func TestOpenAIStreamingReuseScannerBufferAndStillWorks(t *testing.T) {
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"input_tokens_details\":{\"cached_tokens\":3}}}}\n\n"))
 	}()
 
-	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1"}, time.Now(), "model", "model")
 	_ = pr.Close()
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -2895,7 +2895,7 @@ func TestOpenAIUpdateCodexUsageSnapshotFromHeaders(t *testing.T) {
 	headers.Set("x-codex-primary-reset-after-seconds", "600")
 	headers.Set("x-codex-secondary-reset-after-seconds", "86400")
 
-	svc.UpdateCodexUsageSnapshotFromHeaders(context.Background(), 123, headers)
+	svc.UpdateCodexUsageSnapshotFromHeaders(context.Background(), "account-123", headers)
 
 	select {
 	case updates := <-repo.updateExtraCalls:
@@ -3507,7 +3507,7 @@ func TestHandleNonStreamingResponse_APIKeyFallsBackToSSEBodyWhenContentTypeIsWro
 			`data: [DONE]`,
 		}, "\n"))),
 	}
-	account := &Account{ID: 1, Type: AccountTypeAPIKey}
+	account := &Account{ID: "id-1", Type: AccountTypeAPIKey}
 
 	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, account, "gpt-5.4", "gpt-5.4")
 	require.NoError(t, err)
@@ -3539,7 +3539,7 @@ func TestHandleNonStreamingResponse_OAuthJSONBodyWithDataEventTextKeepsJSONUsage
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(jsonBody)),
 	}
-	account := &Account{ID: 146, Type: AccountTypeOAuth}
+	account := &Account{ID: "id-146", Type: AccountTypeOAuth}
 
 	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, account, "gpt-5.4", "gpt-5.4")
 	require.NoError(t, err)
@@ -3568,7 +3568,7 @@ func TestHandleNonStreamingResponse_ObservesUpstreamModelBeforeClientRewrite(t *
 			`{"id":"resp_model_audit","object":"response","model":"gpt-5.5","status":"completed","output":[],"usage":{"input_tokens":3,"output_tokens":2,"total_tokens":5}}`,
 		)),
 	}
-	account := &Account{ID: 1, Type: AccountTypeAPIKey}
+	account := &Account{ID: "id-1", Type: AccountTypeAPIKey}
 
 	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, account, "gpt-5.6-sol", "gpt-5.5")
 	require.NoError(t, err)
@@ -3703,7 +3703,7 @@ func TestStreamingPassthroughCyberPolicyMarksAndPassesThrough(t *testing.T) {
 		Header: http.Header{"X-Request-Id": []string{"rid-cyber"}},
 	}
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "a"}, time.Now(), "m", "m")
+	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "a"}, time.Now(), "m", "m")
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr), "cyber must NOT failover")
@@ -3732,7 +3732,7 @@ func TestHandleStreamingResponseCyberPolicyMarks(t *testing.T) {
 		}, "\n"))),
 		Header: http.Header{"X-Request-Id": []string{"rid"}},
 	}
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "a"}, time.Now(), "m", "m")
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "a"}, time.Now(), "m", "m")
 	require.Error(t, err)
 	var fo *UpstreamFailoverError
 	require.False(t, errors.As(err, &fo))
@@ -3751,7 +3751,7 @@ func TestHandleErrorResponseCyberPolicyPassthrough(t *testing.T) {
 		Header:     http.Header{"Content-Type": []string{"application/json"}, "X-Request-Id": []string{"rid"}},
 		Body:       io.NopCloser(strings.NewReader(cyberBody)),
 	}
-	_, err := svc.handleErrorResponse(context.Background(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "a"}, nil)
+	_, err := svc.handleErrorResponse(context.Background(), resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "a"}, nil)
 	require.Error(t, err)
 	require.Equal(t, http.StatusBadRequest, rec.Code, "passthrough upstream 400, not rewrapped 502")
 	require.Contains(t, rec.Body.String(), "cyber_policy", "client sees original cyber body")
@@ -3779,7 +3779,7 @@ func TestHandleCompatErrorResponseCyberPolicyEarlyReturn(t *testing.T) {
 		gotStatus, gotType, gotMsg = statusCode, errType, message
 	}
 	// cyber 命中应早返回(写兼容错误 + 不冷却账号)，而非落到通用 "Upstream request failed"。
-	_, err := svc.handleCompatErrorResponse(resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "a"}, writeError)
+	_, err := svc.handleCompatErrorResponse(resp, c, &Account{ID: "id-1", Platform: PlatformOpenAI, Name: "a"}, writeError)
 	require.Error(t, err)
 	require.Equal(t, http.StatusBadRequest, gotStatus)
 	require.Equal(t, "invalid_request_error", gotType)

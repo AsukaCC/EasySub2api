@@ -47,7 +47,7 @@ func (s *imageTaskMemoryStore) Delete(_ context.Context, _ string) error {
 func TestImageTaskServiceLifecycleAndOwnership(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithOptions(store, time.Hour, 10*time.Minute)
-	owner := ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	owner := ImageTaskOwner{UserID: "user-7", APIKeyID: "api-key-9"}
 
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestImageTaskServiceLifecycleAndOwnership(t *testing.T) {
 	require.Equal(t, owner.UserID, store.task.UserID)
 	require.Equal(t, owner.APIKeyID, store.task.APIKeyID)
 
-	_, err = svc.Get(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 10}, created.ID)
+	_, err = svc.Get(context.Background(), ImageTaskOwner{UserID: "user-7", APIKeyID: "api-key-10"}, created.ID)
 	require.ErrorIs(t, err, ErrImageTaskNotFound)
 
 	result := json.RawMessage(`{"created":123,"data":[{"url":"https://example.test/image.png"}]}`)
@@ -77,14 +77,14 @@ func TestImageTaskServiceQueuedStartsInQueuedState(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)
 
-	task, err := svc.CreateQueued(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 9}, PlatformOpenAI, "generations", "application/json", "image-tasks/request")
+	task, err := svc.CreateQueued(context.Background(), ImageTaskOwner{UserID: "user-7", APIKeyID: "api-key-9"}, PlatformOpenAI, "generations", "application/json", "image-tasks/request")
 	require.NoError(t, err)
 	require.Equal(t, ImageTaskStatusQueued, task.Status)
 	require.Equal(t, ImageTaskStatusQueued, store.task.Status)
 	require.Equal(t, PlatformOpenAI, store.task.Platform)
 	require.Equal(t, "generations", store.task.Endpoint)
 
-	canceled, err := svc.Cancel(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 9}, task.ID)
+	canceled, err := svc.Cancel(context.Background(), ImageTaskOwner{UserID: "user-7", APIKeyID: "api-key-9"}, task.ID)
 	require.NoError(t, err)
 	require.Equal(t, ImageTaskStatusCanceled, canceled.Status)
 }
@@ -92,7 +92,7 @@ func TestImageTaskServiceQueuedStartsInQueuedState(t *testing.T) {
 func TestImageTaskServiceRetryAndDeleteKeepTaskOwnership(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)
-	owner := ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	owner := ImageTaskOwner{UserID: "user-7", APIKeyID: "api-key-9"}
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)
 	require.NoError(t, svc.Fail(context.Background(), created.ID, http.StatusBadGateway, imageTaskErrorJSON("api_error", "temporary")))
@@ -101,7 +101,7 @@ func TestImageTaskServiceRetryAndDeleteKeepTaskOwnership(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, created.ID, retried.ID)
 	require.Equal(t, ImageTaskStatusQueued, retried.Status)
-	require.ErrorIs(t, svc.Delete(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 10}, created.ID), ErrImageTaskNotFound)
+	require.ErrorIs(t, svc.Delete(context.Background(), ImageTaskOwner{UserID: "user-7", APIKeyID: "api-key-10"}, created.ID), ErrImageTaskNotFound)
 	require.NoError(t, svc.Delete(context.Background(), owner, created.ID))
 	require.Nil(t, store.task)
 }
@@ -109,11 +109,11 @@ func TestImageTaskServiceRetryAndDeleteKeepTaskOwnership(t *testing.T) {
 func TestImageTaskServiceInvalidResultBecomesFailed(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)
-	created, err := svc.Create(context.Background(), ImageTaskOwner{UserID: 1, APIKeyID: 2})
+	created, err := svc.Create(context.Background(), ImageTaskOwner{UserID: "user-1", APIKeyID: "api-key-2"})
 	require.NoError(t, err)
 
 	require.NoError(t, svc.Complete(context.Background(), created.ID, http.StatusOK, json.RawMessage(`not-json`)))
-	got, err := svc.Get(context.Background(), ImageTaskOwner{UserID: 1, APIKeyID: 2}, created.ID)
+	got, err := svc.Get(context.Background(), ImageTaskOwner{UserID: "user-1", APIKeyID: "api-key-2"}, created.ID)
 	require.NoError(t, err)
 	require.Equal(t, ImageTaskStatusFailed, got.Status)
 	require.Equal(t, http.StatusBadGateway, got.HTTPStatus)
@@ -124,6 +124,6 @@ func TestImageTaskServiceMapsStoreFailures(t *testing.T) {
 	store := &imageTaskMemoryStore{saveErr: errors.New("redis down")}
 	svc := NewImageTaskService(store)
 
-	_, err := svc.Create(context.Background(), ImageTaskOwner{UserID: 1, APIKeyID: 2})
+	_, err := svc.Create(context.Background(), ImageTaskOwner{UserID: "user-1", APIKeyID: "api-key-2"})
 	require.ErrorIs(t, err, ErrImageTaskUnavailable)
 }

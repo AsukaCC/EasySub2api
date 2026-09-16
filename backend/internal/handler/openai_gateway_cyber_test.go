@@ -135,7 +135,7 @@ func TestRejectIfCyberSessionBlocked_FailOpen(t *testing.T) {
 	require.False(t, h.rejectIfCyberSessionBlocked(c, nil, []byte(`{}`), "gpt-5", cyberBlockFormatResponses), "nil apiKey → pass")
 
 	h2 := &OpenAIGatewayHandler{gatewayService: nil}
-	key := &service.APIKey{ID: 1}
+	key := &service.APIKey{ID: "key-1"}
 	require.False(t, h2.rejectIfCyberSessionBlocked(c, key, []byte(`{}`), "gpt-5", cyberBlockFormatResponses), "nil gateway service → pass")
 }
 

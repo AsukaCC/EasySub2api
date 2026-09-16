@@ -32,7 +32,7 @@ func newChannelModelPricingTimePricingRepo(t *testing.T) (*channelRepository, sq
 
 func modelPricingTimePricingRow(timePricing any) *sqlmock.Rows {
 	return sqlmock.NewRows(channelModelPricingTimePricingColumns).AddRow(
-		int64(11), int64(7), "openai", `["gpt-5"]`, service.BillingModeToken,
+		"pricing-11", "channel-7", "openai", `["gpt-5"]`, service.BillingModeToken,
 		nil, nil, nil, nil, nil, nil, nil, timePricing,
 		time.Date(2026, 8, 17, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
 	)
@@ -47,11 +47,11 @@ func expectEmptyModelPricingIntervals(mock sqlmock.Sqlmock) {
 func TestChannelModelPricingTimePricingListRoundTrip(t *testing.T) {
 	repo, mock := newChannelModelPricingTimePricingRepo(t)
 	mock.ExpectQuery(`(?s)SELECT .*per_request_price, time_pricing, created_at, updated_at.*FROM channel_model_pricing.*channel_id = \$1`).
-		WithArgs(int64(7)).
+		WithArgs("channel-7").
 		WillReturnRows(modelPricingTimePricingRow(channelModelPricingTimePricingJSON))
 	expectEmptyModelPricingIntervals(mock)
 
-	pricing, err := repo.ListModelPricing(context.Background(), 7)
+	pricing, err := repo.ListModelPricing(context.Background(), "channel-7")
 	require.NoError(t, err)
 	require.Len(t, pricing, 1)
 	require.NotNil(t, pricing[0].TimePricing)
@@ -65,11 +65,11 @@ func TestChannelModelPricingTimePricingListNullAndMalformed(t *testing.T) {
 	t.Run("SQL NULL maps to nil", func(t *testing.T) {
 		repo, mock := newChannelModelPricingTimePricingRepo(t)
 		mock.ExpectQuery(`(?s)SELECT .*per_request_price, time_pricing, created_at, updated_at.*FROM channel_model_pricing.*channel_id = \$1`).
-			WithArgs(int64(7)).
+			WithArgs("channel-7").
 			WillReturnRows(modelPricingTimePricingRow(nil))
 		expectEmptyModelPricingIntervals(mock)
 
-		pricing, err := repo.ListModelPricing(context.Background(), 7)
+		pricing, err := repo.ListModelPricing(context.Background(), "channel-7")
 		require.NoError(t, err)
 		require.Len(t, pricing, 1)
 		require.Nil(t, pricing[0].TimePricing)
@@ -79,10 +79,10 @@ func TestChannelModelPricingTimePricingListNullAndMalformed(t *testing.T) {
 	t.Run("malformed JSON returns repository error", func(t *testing.T) {
 		repo, mock := newChannelModelPricingTimePricingRepo(t)
 		mock.ExpectQuery(`(?s)SELECT .*per_request_price, time_pricing, created_at, updated_at.*FROM channel_model_pricing.*channel_id = \$1`).
-			WithArgs(int64(7)).
+			WithArgs("channel-7").
 			WillReturnRows(modelPricingTimePricingRow(`{"timezone":`))
 
-		_, err := repo.ListModelPricing(context.Background(), 7)
+		_, err := repo.ListModelPricing(context.Background(), "channel-7")
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "unmarshal time pricing"), "unexpected error: %v", err)
 		require.NoError(t, mock.ExpectationsWereMet())
@@ -91,8 +91,8 @@ func TestChannelModelPricingTimePricingListNullAndMalformed(t *testing.T) {
 
 func TestChannelModelPricingTimePricingCreateAndUpdateRoundTrip(t *testing.T) {
 	pricing := &service.ChannelModelPricing{
-		ID:        11,
-		ChannelID: 7,
+		ID:        "pricing-11",
+		ChannelID: "channel-7",
 		Platform:  "openai",
 		Models:    []string{"gpt-5"},
 		TimePricing: &service.ChannelTimePricing{
@@ -107,10 +107,10 @@ func TestChannelModelPricingTimePricingCreateAndUpdateRoundTrip(t *testing.T) {
 		repo, mock := newChannelModelPricingTimePricingRepo(t)
 		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO channel_model_pricing (channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_read_price, image_input_price, image_output_price, per_request_price, time_pricing)")).
 			WithArgs(
-				int64(7), "openai", []byte(`["gpt-5"]`), service.BillingModeToken,
+				"channel-7", "openai", []byte(`["gpt-5"]`), service.BillingModeToken,
 				nil, nil, nil, nil, nil, nil, nil, channelModelPricingTimePricingJSON,
 			).
-			WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(int64(11), time.Time{}, time.Time{}))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow("pricing-11", time.Time{}, time.Time{}))
 
 		require.NoError(t, repo.CreateModelPricing(context.Background(), pricing))
 		require.NoError(t, mock.ExpectationsWereMet())
@@ -121,7 +121,7 @@ func TestChannelModelPricingTimePricingCreateAndUpdateRoundTrip(t *testing.T) {
 		mock.ExpectExec(`(?s)UPDATE channel_model_pricing.*per_request_price = \$9, time_pricing = \$10, platform = \$11.*WHERE id = \$12`).
 			WithArgs(
 				[]byte(`["gpt-5"]`), service.BillingModeToken,
-				nil, nil, nil, nil, nil, nil, nil, channelModelPricingTimePricingJSON, "openai", int64(11),
+				nil, nil, nil, nil, nil, nil, nil, channelModelPricingTimePricingJSON, "openai", "pricing-11",
 			).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -143,8 +143,8 @@ func TestChannelModelPricingTimePricingCreateAndUpdateWriteNullWhenDisabled(t *t
 		t.Run(tt.name, func(t *testing.T) {
 			newPricing := func() *service.ChannelModelPricing {
 				return &service.ChannelModelPricing{
-					ID:          11,
-					ChannelID:   7,
+					ID:          "pricing-11",
+					ChannelID:   "channel-7",
 					Platform:    "openai",
 					Models:      []string{"gpt-5"},
 					TimePricing: tt.timePricing,
@@ -155,10 +155,10 @@ func TestChannelModelPricingTimePricingCreateAndUpdateWriteNullWhenDisabled(t *t
 				repo, mock := newChannelModelPricingTimePricingRepo(t)
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO channel_model_pricing (channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_read_price, image_input_price, image_output_price, per_request_price, time_pricing)")).
 					WithArgs(
-						int64(7), "openai", []byte(`["gpt-5"]`), service.BillingModeToken,
+						"channel-7", "openai", []byte(`["gpt-5"]`), service.BillingModeToken,
 						nil, nil, nil, nil, nil, nil, nil, nil,
 					).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(int64(11), time.Time{}, time.Time{}))
+					WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow("pricing-11", time.Time{}, time.Time{}))
 
 				require.NoError(t, repo.CreateModelPricing(context.Background(), newPricing()))
 				require.NoError(t, mock.ExpectationsWereMet())
@@ -169,7 +169,7 @@ func TestChannelModelPricingTimePricingCreateAndUpdateWriteNullWhenDisabled(t *t
 				mock.ExpectExec(`(?s)UPDATE channel_model_pricing.*per_request_price = \$9, time_pricing = \$10, platform = \$11.*WHERE id = \$12`).
 					WithArgs(
 						[]byte(`["gpt-5"]`), service.BillingModeToken,
-						nil, nil, nil, nil, nil, nil, nil, nil, "openai", int64(11),
+						nil, nil, nil, nil, nil, nil, nil, nil, "openai", "pricing-11",
 					).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 

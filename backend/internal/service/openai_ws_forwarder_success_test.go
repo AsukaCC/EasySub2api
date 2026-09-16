@@ -92,7 +92,7 @@ func TestOpenAIGatewayService_Forward_WSv2_SuccessAndBindSticky(t *testing.T) {
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
 	c.Request.Header.Set("User-Agent", "unit-test-agent/1.0")
-	groupID := int64(1001)
+	groupID := "group-1001"
 	c.Set("api_key", &APIKey{GroupID: &groupID})
 
 	cfg := &config.Config{}
@@ -127,7 +127,7 @@ func TestOpenAIGatewayService_Forward_WSv2_SuccessAndBindSticky(t *testing.T) {
 	}
 
 	account := &Account{
-		ID:          9,
+		ID:          "id-9",
 		Name:        "openai-ws",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -233,7 +233,7 @@ func TestOpenAIGatewayService_Forward_WSv2_UsesPatchedBodyAfterValidationDecode(
 	}
 
 	account := &Account{
-		ID:          10,
+		ID:          "id-10",
 		Name:        "openai-ws",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -317,7 +317,7 @@ func TestOpenAIGatewayService_Forward_WSv2_ImageGenerationCountsOutputs(t *testi
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
-	groupID := int64(1010)
+	groupID := "group-1010"
 	c.Set("api_key", &APIKey{
 		GroupID: &groupID,
 		Group: &Group{
@@ -350,7 +350,7 @@ func TestOpenAIGatewayService_Forward_WSv2_ImageGenerationCountsOutputs(t *testi
 	}
 
 	account := &Account{
-		ID:          10,
+		ID:          "id-10",
 		Name:        "openai-ws-image",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -473,10 +473,10 @@ func TestOpenAIGatewayService_BuildOpenAIWSHeadersDeviceModePreservesClientSessi
 
 func TestLogOpenAIWSBindResponseAccountWarn(t *testing.T) {
 	require.NotPanics(t, func() {
-		logOpenAIWSBindResponseAccountWarn(1, 2, "resp_ok", nil)
+		logOpenAIWSBindResponseAccountWarn("group-1", "account-2", "resp_ok", nil)
 	})
 	require.NotPanics(t, func() {
-		logOpenAIWSBindResponseAccountWarn(1, 2, "resp_err", errors.New("bind failed"))
+		logOpenAIWSBindResponseAccountWarn("group-1", "account-2", "resp_err", errors.New("bind failed"))
 	})
 }
 
@@ -487,7 +487,7 @@ func TestOpenAIGatewayService_Forward_WSv2_RewriteModelAndToolCallsOnCompletedEv
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
 	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.98.0")
-	groupID := int64(3001)
+	groupID := "group-3001"
 	c.Set("api_key", &APIKey{GroupID: &groupID})
 
 	cfg := &config.Config{}
@@ -524,7 +524,7 @@ func TestOpenAIGatewayService_Forward_WSv2_RewriteModelAndToolCallsOnCompletedEv
 	}
 
 	account := &Account{
-		ID:          1301,
+		ID:          "id-1301",
 		Name:        "openai-rewrite",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -574,7 +574,7 @@ func TestOpenAIGatewayService_Forward_WSv2_ResponseFailedIsNotSchedulingSuccess(
 
 	svc := &OpenAIGatewayService{
 		cfg:              cfg,
-		rateLimitService: NewRateLimitService(transientCooldownAccountRepo{}, nil, cfg, nil, nil),
+		rateLimitService: NewRateLimitService(transientCooldownAccountRepo{}, cfg, nil),
 		httpUpstream:     &httpUpstreamRecorder{},
 		cache:            &stubGatewayCache{},
 		openaiWSResolver: NewOpenAIWSProtocolResolver(cfg),
@@ -582,7 +582,7 @@ func TestOpenAIGatewayService_Forward_WSv2_ResponseFailedIsNotSchedulingSuccess(
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          1302,
+		ID:          "id-1302",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,
@@ -689,7 +689,7 @@ func TestOpenAIGatewayService_Forward_WSv2_PoolReuseNotOneToOne(t *testing.T) {
 		toolCorrector:    NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          19,
+		ID:          "id-19",
 		Name:        "openai-ws",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -710,7 +710,7 @@ func TestOpenAIGatewayService_Forward_WSv2_PoolReuseNotOneToOne(t *testing.T) {
 		c, _ := gin.CreateTestContext(rec)
 		c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
 		c.Request.Header.Set("User-Agent", "codex_cli_rs/0.98.0")
-		groupID := int64(2001)
+		groupID := "group-2001"
 		c.Set("api_key", &APIKey{GroupID: &groupID})
 
 		body := []byte(`{"model":"gpt-5.1","stream":false,"previous_response_id":"resp_prev_reuse","input":[{"type":"input_text","text":"hello"}]}`)
@@ -768,7 +768,7 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthStoreFalseByDefault(t *testing.T
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          29,
+		ID:          "id-29",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -800,8 +800,8 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthStoreFalseByDefault(t *testing.T
 	require.Equal(t, "remote_compaction_v2", captureDialer.lastHeaders.Get("x-codex-beta-features"))
 	// OAuth 账号的 session_id/conversation_id 应被 isolateOpenAISessionID 隔离，
 	// 测试中未设置 api_key 到 context，apiKeyID=0。
-	require.Equal(t, isolateOpenAISessionID(0, "sess-oauth-1"), captureDialer.lastHeaders.Get("session_id"))
-	require.Equal(t, isolateOpenAISessionID(0, "conv-oauth-1"), captureDialer.lastHeaders.Get("conversation_id"))
+	require.Equal(t, isolateOpenAISessionID("", "sess-oauth-1"), captureDialer.lastHeaders.Get("session_id"))
+	require.Equal(t, isolateOpenAISessionID("", "conv-oauth-1"), captureDialer.lastHeaders.Get("conversation_id"))
 }
 
 func TestOpenAIGatewayService_Forward_WSv2_OAuthOriginatorCompatibility(t *testing.T) {
@@ -870,7 +870,7 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthOriginatorCompatibility(t *testi
 				openaiWSPool:     pool,
 			}
 			account := &Account{
-				ID:          129,
+				ID:          "id-129",
 				Name:        "openai-oauth",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeOAuth,
@@ -936,7 +936,7 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthHonorsAccountUserAgent(t *testin
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          130,
+		ID:          "id-130",
 		Name:        "openai-oauth-custom-ua",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -1002,7 +1002,7 @@ func TestOpenAIGatewayService_Forward_WSv2_HeaderSessionFallbackFromPromptCacheK
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          31,
+		ID:          "id-31",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -1024,7 +1024,7 @@ func TestOpenAIGatewayService_Forward_WSv2_HeaderSessionFallbackFromPromptCacheK
 	require.Equal(t, "resp_prompt_cache_key", result.RequestID)
 
 	// OAuth 账号的 session_id 应被 isolateOpenAISessionID 隔离（apiKeyID=0，未在 context 设置）。
-	require.Equal(t, isolateOpenAISessionID(0, "pcache_123"), captureDialer.lastHeaders.Get("session_id"))
+	require.Equal(t, isolateOpenAISessionID("", "pcache_123"), captureDialer.lastHeaders.Get("session_id"))
 	require.Empty(t, captureDialer.lastHeaders.Get("conversation_id"))
 	require.NotNil(t, captureConn.lastWrite)
 	require.True(t, gjson.Get(requestToJSONString(captureConn.lastWrite), "stream").Exists())
@@ -1157,7 +1157,7 @@ func TestOpenAIGatewayService_Forward_WSv2_ResponseDoneUsageParsed(t *testing.T)
 		openaiWSPool:     pool,
 	}
 	account := &Account{
-		ID:          32,
+		ID:          "id-32",
 		Name:        "openai-ws-done",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1218,7 +1218,7 @@ func TestOpenAIGatewayService_Forward_WSv1_Unsupported(t *testing.T) {
 	}
 
 	account := &Account{
-		ID:          39,
+		ID:          "id-39",
 		Name:        "openai-ws-v1",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1310,7 +1310,7 @@ func TestOpenAIGatewayService_Forward_WSv2_TurnStateAndMetadataReplayOnReconnect
 	}
 
 	account := &Account{
-		ID:          49,
+		ID:          "id-49",
 		Name:        "openai-turn-state",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1338,7 +1338,7 @@ func TestOpenAIGatewayService_Forward_WSv2_TurnStateAndMetadataReplayOnReconnect
 
 	sessionHash := svc.GenerateSessionHash(c1, reqBody)
 	store := svc.getOpenAIWSStateStore()
-	turnState, ok := store.GetSessionTurnState(0, sessionHash)
+	turnState, ok := store.GetSessionTurnState("", sessionHash)
 	require.True(t, ok)
 	require.Equal(t, "turn_state_first", turnState)
 
@@ -1403,7 +1403,7 @@ func TestOpenAIGatewayService_Forward_WSv2_GeneratePrewarm(t *testing.T) {
 	}
 
 	account := &Account{
-		ID:          59,
+		ID:          "id-59",
 		Name:        "openai-prewarm",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1443,7 +1443,7 @@ func TestOpenAIGatewayService_PrewarmReadHonorsParentContext(t *testing.T) {
 		toolCorrector: NewCodexToolCorrector(),
 	}
 	account := &Account{
-		ID:          601,
+		ID:          "id-601",
 		Name:        "openai-prewarm-timeout",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1474,7 +1474,7 @@ func TestOpenAIGatewayService_PrewarmReadHonorsParentContext(t *testing.T) {
 		map[string]any{"model": "gpt-5.1"},
 		account,
 		nil,
-		0,
+		"",
 	)
 	elapsed := time.Since(start)
 	require.Error(t, err)
@@ -1516,7 +1516,7 @@ func TestOpenAIGatewayService_Forward_WSv2_TurnMetadataInPayloadOnConnReuse(t *t
 	}
 
 	account := &Account{
-		ID:          69,
+		ID:          "id-69",
 		Name:        "openai-turn-metadata",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1627,7 +1627,7 @@ func TestOpenAIGatewayService_Forward_WSv2StoreFalseSessionConnIsolation(t *test
 	}
 
 	account := &Account{
-		ID:          79,
+		ID:          "id-79",
 		Name:        "openai-store-false",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1734,7 +1734,7 @@ func TestOpenAIGatewayService_Forward_WSv2StoreFalseDisableForceNewConnAllowsReu
 	}
 
 	account := &Account{
-		ID:          80,
+		ID:          "id-80",
 		Name:        "openai-store-false-reuse",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -1826,7 +1826,7 @@ func TestOpenAIGatewayService_Forward_WSv2ReadTimeoutAppliesPerRead(t *testing.T
 	}
 
 	account := &Account{
-		ID:          81,
+		ID:          "id-81",
 		Name:        "openai-read-timeout",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

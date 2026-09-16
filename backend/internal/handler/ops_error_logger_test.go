@@ -39,9 +39,9 @@ type ingressRejectOpsRepo struct {
 	insertCalls int
 }
 
-func (r *ingressRejectOpsRepo) InsertErrorLog(context.Context, *service.OpsInsertErrorLogInput) (int64, error) {
+func (r *ingressRejectOpsRepo) InsertErrorLog(context.Context, *service.OpsInsertErrorLogInput) (string, error) {
 	r.insertCalls++
-	return 0, nil
+	return "", nil
 }
 
 func (r *ingressRejectOpsRepo) BatchInsertErrorLogs(context.Context, []*service.OpsInsertErrorLogInput) (int64, error) {
@@ -133,7 +133,7 @@ func TestEnqueueOpsErrorLog_QueueFullDrop(t *testing.T) {
 	opsErrorLogQueue = make(chan opsErrorLogJob, 1)
 	opsErrorLogMu.Unlock()
 
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	entry := &service.OpsInsertErrorLogInput{ErrorPhase: "upstream", ErrorType: "upstream_error"}
 
 	enqueueOpsErrorLog(ops, entry)
@@ -147,7 +147,7 @@ func TestEnqueueOpsErrorLog_QueueFullDrop(t *testing.T) {
 func TestEnqueueOpsErrorLog_EarlyReturnBranches(t *testing.T) {
 	resetOpsErrorLoggerStateForTest(t)
 
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	entry := &service.OpsInsertErrorLogInput{ErrorPhase: "upstream", ErrorType: "upstream_error"}
 
 	// nil 入参分支
@@ -206,7 +206,7 @@ func TestOpsCaptureWriterPool_DropsLargeBuffers(t *testing.T) {
 
 func TestEnqueueOpsErrorLog_SanitizesAndBoundsBodyBeforeQueue(t *testing.T) {
 	setupOpsErrorLogTestQueue(t, 1)
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	secret := strings.Repeat("s", service.OpsErrorLogQueueBodyMaxBytes)
 	entry := &service.OpsInsertErrorLogInput{
 		ErrorPhase: "request",
@@ -257,7 +257,7 @@ func TestOpsErrorLoggerMiddleware_HardSkipsIngressRejection(t *testing.T) {
 
 	settings := &ingressRejectSettingRepo{}
 	repo := &ingressRejectOpsRepo{}
-	ops := service.NewOpsService(repo, settings, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(repo, settings, nil, nil, nil, nil, nil, nil, nil)
 	// Construction may read unrelated runtime settings; only request-path reads matter here.
 	settings.getValueCalls = 0
 
@@ -302,7 +302,7 @@ func TestLogOpsStreamError_RecordsInBandConcurrencyLimit(t *testing.T) {
 	service.MarkOpsStreamError(c, "rate_limit_error",
 		"Concurrency limit exceeded for account, please retry later", http.StatusTooManyRequests)
 
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	logOpsStreamError(c, ops, http.StatusOK)
 
 	require.Equal(t, int64(1), OpsErrorLogEnqueuedTotal())
@@ -337,7 +337,7 @@ func TestLogOpsStreamError_UpstreamFailureCountsTowardsSLA(t *testing.T) {
 		http.StatusBadGateway,
 	)
 
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	logOpsStreamError(c, ops, http.StatusOK)
 
 	job := <-opsErrorLogQueue
@@ -359,7 +359,7 @@ func TestLogOpsStreamError_NoopWhenNotMarked(t *testing.T) {
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	logOpsStreamError(c, ops, http.StatusOK)
 
 	require.Equal(t, int64(0), OpsErrorLogEnqueuedTotal())
@@ -376,7 +376,7 @@ func TestLogOpsStreamError_SkipWhenPassthroughSkipMonitoring(t *testing.T) {
 	service.MarkOpsStreamError(c, "upstream_error", "Upstream request failed", http.StatusBadGateway)
 	c.Set(service.OpsSkipPassthroughKey, true)
 
-	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	logOpsStreamError(c, ops, http.StatusOK)
 
 	require.Equal(t, int64(0), OpsErrorLogEnqueuedTotal())
@@ -1200,20 +1200,20 @@ func TestGetOpsAPIKeyFallsBackToOpsFallbackKey(t *testing.T) {
 	require.Nil(t, getOpsAPIKey(c))
 
 	// 写入 ops 专用 fallback key 后应能取到，且带齐 user/group。
-	groupID := int64(55)
+	groupID := "group-55"
 	apiKey := &service.APIKey{
-		ID:      100,
+		ID:      "key-100",
 		GroupID: &groupID,
-		User:    &service.User{ID: 7},
+		User:    &service.User{ID: "user-7"},
 		Group:   &service.Group{ID: groupID, Platform: service.PlatformAnthropic},
 	}
 	c.Set(string(middleware2.ContextKeyOpsFallbackAPIKey), apiKey)
 
 	got := getOpsAPIKey(c)
 	require.NotNil(t, got)
-	require.Equal(t, int64(100), got.ID)
+	require.Equal(t, "key-100", got.ID)
 	require.NotNil(t, got.User)
-	require.Equal(t, int64(7), got.User.ID)
+	require.Equal(t, "user-7", got.User.ID)
 	require.NotNil(t, got.Group)
 	require.Equal(t, service.PlatformAnthropic, got.Group.Platform)
 }
@@ -1223,12 +1223,12 @@ func TestGetOpsAPIKeyPrefersPrimaryContextKey(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 
-	primary := &service.APIKey{ID: 1}
-	fallback := &service.APIKey{ID: 2}
+	primary := &service.APIKey{ID: "key-1"}
+	fallback := &service.APIKey{ID: "key-2"}
 	c.Set(string(middleware2.ContextKeyAPIKey), primary)
 	c.Set(string(middleware2.ContextKeyOpsFallbackAPIKey), fallback)
 
 	got := getOpsAPIKey(c)
 	require.NotNil(t, got)
-	require.Equal(t, int64(1), got.ID, "已鉴权请求应优先使用正式 api key")
+	require.Equal(t, "key-1", got.ID, "已鉴权请求应优先使用正式 api key")
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -38,7 +39,7 @@ func (s *grokImportAdminService) CreateAccount(_ context.Context, input *service
 	id := s.nextID
 	s.mu.Unlock()
 	return &service.Account{
-		ID:          id,
+		ID:          strconv.FormatInt(id, 10),
 		Name:        input.Name,
 		Platform:    input.Platform,
 		Type:        input.Type,
@@ -77,7 +78,7 @@ func TestGrokSSOBatchImportKeepsCreatedAccountsWhenOneAutomaticProbeFails(t *tes
 	oauthService := service.NewGrokOAuthService(nil, grokImportOAuthClientStub{})
 	defer oauthService.Stop()
 	prober := newGrokImportProbeStub(3)
-	prober.failures[502] = infraerrors.New(502, "GROK_TEST_PROBE_FAILED", "sensitive-upstream-body")
+	prober.failures["502"] = infraerrors.New(502, "GROK_TEST_PROBE_FAILED", "sensitive-upstream-body")
 	handler := NewGrokOAuthHandler(oauthService, adminService, nil, nil)
 	handler.importProber = prober
 
@@ -99,7 +100,7 @@ func TestGrokSSOBatchImportKeepsCreatedAccountsWhenOneAutomaticProbeFails(t *tes
 		awaitGrokProbeSignal(t, prober.done)
 	}
 	calls, _, _ := prober.snapshot()
-	require.Equal(t, map[int64]int{501: 1, 502: 1, 503: 1}, calls)
+	require.Equal(t, map[string]int{"501": 1, "502": 1, "503": 1}, calls)
 }
 
 func TestAccountCreateWithoutAutomaticGrokProbeServiceStillSucceeds(t *testing.T) {

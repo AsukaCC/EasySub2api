@@ -47,7 +47,7 @@ func mustCreateAPIKeyRepoUser(t *testing.T, ctx context.Context, client *dbent.C
 	return userEntityToService(u)
 }
 
-func mustCreateAPIKeyRepoAccount(t *testing.T, ctx context.Context, client *dbent.Client, name string) int64 {
+func mustCreateAPIKeyRepoAccount(t *testing.T, ctx context.Context, client *dbent.Client, name string) string {
 	t.Helper()
 	a, err := client.Account.Create().
 		SetName(name).
@@ -60,7 +60,7 @@ func mustCreateAPIKeyRepoAccount(t *testing.T, ctx context.Context, client *dben
 	return a.ID
 }
 
-func mustCreateAPIKeyRepoUsageLog(t *testing.T, ctx context.Context, client *dbent.Client, userID, apiKeyID, accountID int64, requestID string, createdAt time.Time, ipAddress *string) {
+func mustCreateAPIKeyRepoUsageLog(t *testing.T, ctx context.Context, client *dbent.Client, userID, apiKeyID, accountID string, requestID string, createdAt time.Time, ipAddress *string) {
 	t.Helper()
 	builder := client.UsageLog.Create().
 		SetUserID(userID).
@@ -116,7 +116,7 @@ func TestAPIKeyRepositoryListByUserIDAttachesLastUsedIP(t *testing.T) {
 	keys, _, err := repo.ListByUserID(ctx, user.ID, pagination.PaginationParams{Page: 1, PageSize: 10}, service.APIKeyListFilters{})
 	require.NoError(t, err)
 
-	byID := make(map[int64]service.APIKey, len(keys))
+	byID := make(map[string]service.APIKey, len(keys))
 	for _, key := range keys {
 		byID[key.ID] = key
 	}
@@ -127,10 +127,10 @@ func TestAPIKeyRepositoryListByUserIDAttachesLastUsedIP(t *testing.T) {
 }
 
 func TestLatestUsageLogIPsQueryPostgresUsesPerKeyLateralLookup(t *testing.T) {
-	query, args := latestUsageLogIPsQuery([]int64{11, 22}, dialect.Postgres)
+	query, args := latestUsageLogIPsQuery([]string{"key-11", "key-22"}, dialect.Postgres)
 	normalizedQuery := strings.Join(strings.Fields(query), " ")
 
-	require.Contains(t, normalizedQuery, "FROM unnest($1::bigint[]) AS requested(api_key_id)")
+	require.Contains(t, normalizedQuery, "FROM unnest($1::uuid[]) AS requested(api_key_id)")
 	require.Contains(t, normalizedQuery, "CROSS JOIN LATERAL")
 	require.Contains(t, normalizedQuery, "WHERE ul.api_key_id = requested.api_key_id")
 	require.Contains(t, normalizedQuery, "AND ul.ip_address IS NOT NULL")

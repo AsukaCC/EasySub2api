@@ -91,10 +91,10 @@ func TestPromptServiceRejectsInvalidDeleteConfirmationClaims(t *testing.T) {
 	now := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
 	start, end := now.Add(-time.Hour), now.Add(time.Hour)
 	filter := EventFilter{Decision: string(EventCritical), StartAt: &start, EndAt: &end}
-	const snapshotMaxID int64 = 10
+	const snapshotMaxID = "event-10"
 	filterHash := FilterHash(filter, snapshotMaxID)
 	validClaims := deleteClaims{
-		FilterHash: filterHash, SnapshotMaxID: snapshotMaxID, AdminID: 7,
+		FilterHash: filterHash, SnapshotMaxID: snapshotMaxID, AdminID: "user-7",
 		IssuedAt: now, ExpiresAt: now.Add(5 * time.Minute),
 	}
 	claimsToken := func(claims deleteClaims) string {
@@ -110,28 +110,28 @@ func TestPromptServiceRejectsInvalidDeleteConfirmationClaims(t *testing.T) {
 	tests := []struct {
 		name    string
 		request DeleteByFilterRequest
-		adminID int64
+		adminID string
 	}{
-		{name: "confirm false", request: func() DeleteByFilterRequest { value := validRequest; value.Confirm = false; return value }(), adminID: 7},
+		{name: "confirm false", request: func() DeleteByFilterRequest { value := validRequest; value.Confirm = false; return value }(), adminID: "user-7"},
 		{name: "malformed token", request: func() DeleteByFilterRequest {
 			value := validRequest
 			value.ConfirmationToken = "not-json"
 			return value
-		}(), adminID: 7},
-		{name: "different administrator", request: validRequest, adminID: 8},
+		}(), adminID: "user-7"},
+		{name: "different administrator", request: validRequest, adminID: "user-8"},
 		{name: "filter hash mismatch", request: func() DeleteByFilterRequest {
 			value := validRequest
 			value.FilterHash = strings.Repeat("b", 64)
 			return value
-		}(), adminID: 7},
-		{name: "snapshot mismatch", request: func() DeleteByFilterRequest { value := validRequest; value.SnapshotMaxID++; return value }(), adminID: 7},
+		}(), adminID: "user-7"},
+		{name: "snapshot mismatch", request: func() DeleteByFilterRequest { value := validRequest; value.SnapshotMaxID = "event-11"; return value }(), adminID: "user-7"},
 		{name: "expired", request: func() DeleteByFilterRequest {
 			value := validRequest
 			claims := validClaims
 			claims.ExpiresAt = now
 			value.ConfirmationToken = claimsToken(claims)
 			return value
-		}(), adminID: 7},
+		}(), adminID: "user-7"},
 	}
 
 	service := &PromptService{config: &fakeConfigStore{}, clock: fixedClock{now: now}}

@@ -334,7 +334,7 @@ func TestCodexIdentityKeysPreferStrongIdentifiers(t *testing.T) {
 
 func TestCodexAccountIndexDoesNotMatchDifferentUsersInSameChatGPTAccount(t *testing.T) {
 	existing := service.Account{
-		ID: 10,
+		ID: "account-10",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"chatgpt_user_id":    "user-1",
@@ -346,13 +346,13 @@ func TestCodexAccountIndexDoesNotMatchDifferentUsersInSameChatGPTAccount(t *test
 
 	keys := buildCodexImportIdentityKeys("team-1", "user-2", "", "token-2", "refresh-2")
 	if got, _ := index.Find(keys, "user-2"); got != nil {
-		t.Fatalf("Find matched account ID %d for a different chatgpt_user_id in the same team", got.ID)
+		t.Fatalf("Find matched account ID %s for a different chatgpt_user_id in the same team", got.ID)
 	}
 
 	keys = buildCodexImportIdentityKeys("team-1", "user-1", "", "token-2", "refresh-2")
 	got, _ := index.Find(keys, "user-1")
 	if got == nil || got.ID != existing.ID {
-		t.Fatalf("Find by same chatgpt_user_id = %v, want account ID %d", got, existing.ID)
+		t.Fatalf("Find by same chatgpt_user_id = %v, want account ID %s", got, existing.ID)
 	}
 }
 
@@ -360,7 +360,7 @@ func TestCodexAccountIndexFallsBackToAccountKeyWhenRefreshTokenExistsAndUserIDMi
 	// 含 refresh_token 的常规导入沿用 a5638a4e 的兼容逻辑：存量账号缺少
 	// chatgpt_user_id 时，携带 user id 的重新导入仍可命中并回填。
 	legacy := service.Account{
-		ID: 20,
+		ID: "account-20",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"access_token":       "token-old",
@@ -372,7 +372,7 @@ func TestCodexAccountIndexFallsBackToAccountKeyWhenRefreshTokenExistsAndUserIDMi
 	keys := buildCodexImportIdentityKeys("team-1", "user-1", "", "token-new", "refresh-new")
 	got, matchedKey := index.Find(keys, "user-1")
 	if got == nil || got.ID != legacy.ID {
-		t.Fatalf("Find legacy account without stored user id = %v, want account ID %d", got, legacy.ID)
+		t.Fatalf("Find legacy account without stored user id = %v, want account ID %s", got, legacy.ID)
 	}
 	if matchedKey != "account:team-1" {
 		t.Fatalf("matched key = %q, want account:team-1", matchedKey)
@@ -381,7 +381,7 @@ func TestCodexAccountIndexFallsBackToAccountKeyWhenRefreshTokenExistsAndUserIDMi
 	// 反向：含 refresh_token 的导入条目无法解析出 user id 时，仍应通过
 	// account 键命中已有账号，保持常规导入去重行为。
 	full := service.Account{
-		ID: 21,
+		ID: "account-21",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-2",
 			"chatgpt_user_id":    "user-9",
@@ -394,13 +394,13 @@ func TestCodexAccountIndexFallsBackToAccountKeyWhenRefreshTokenExistsAndUserIDMi
 	keys = buildCodexImportIdentityKeys("team-2", "", "", "token-opaque", "refresh-new")
 	got, _ = index.Find(keys, "")
 	if got == nil || got.ID != full.ID {
-		t.Fatalf("Find by account key without entry user id = %v, want account ID %d", got, full.ID)
+		t.Fatalf("Find by account key without entry user id = %v, want account ID %s", got, full.ID)
 	}
 }
 
 func TestCodexAccountIndexAccessTokenOnlyUsesTokenFingerprint(t *testing.T) {
 	existing := service.Account{
-		ID: 22,
+		ID: "account-22",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"chatgpt_user_id":    "user-1",
@@ -411,13 +411,13 @@ func TestCodexAccountIndexAccessTokenOnlyUsesTokenFingerprint(t *testing.T) {
 
 	keys := buildCodexImportIdentityKeys("team-1", "user-1", "", "token-new", "")
 	if got, matchedKey := index.Find(keys, "user-1"); got != nil {
-		t.Fatalf("accessToken-only import matched by %q despite different token: account ID %d", matchedKey, got.ID)
+		t.Fatalf("accessToken-only import matched by %q despite different token: account ID %s", matchedKey, got.ID)
 	}
 
 	keys = buildCodexImportIdentityKeys("team-1", "user-1", "", "token-old", "")
 	got, matchedKey := index.Find(keys, "user-1")
 	if got == nil || got.ID != existing.ID {
-		t.Fatalf("Find accessToken-only duplicate by fingerprint = %v, want account ID %d", got, existing.ID)
+		t.Fatalf("Find accessToken-only duplicate by fingerprint = %v, want account ID %s", got, existing.ID)
 	}
 	if !strings.HasPrefix(matchedKey, "access:") {
 		t.Fatalf("matched key = %q, want access fingerprint", matchedKey)
@@ -426,7 +426,7 @@ func TestCodexAccountIndexAccessTokenOnlyUsesTokenFingerprint(t *testing.T) {
 
 func TestCodexAccountIndexKeepsAllCandidatesForSharedAccountKey(t *testing.T) {
 	legacy := service.Account{
-		ID: 30,
+		ID: "account-30",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"access_token":       "token-legacy",
@@ -434,7 +434,7 @@ func TestCodexAccountIndexKeepsAllCandidatesForSharedAccountKey(t *testing.T) {
 		},
 	}
 	member := service.Account{
-		ID: 31,
+		ID: "account-31",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"chatgpt_user_id":    "user-2",
@@ -454,7 +454,7 @@ func TestCodexAccountIndexKeepsAllCandidatesForSharedAccountKey(t *testing.T) {
 		keys := buildCodexImportIdentityKeys("team-1", "user-1", "", "token-new", "refresh-new")
 		got, matchedKey := index.Find(keys, "user-1")
 		if got == nil || got.ID != legacy.ID {
-			t.Fatalf("Find with shared account key = %v, want legacy account ID %d", got, legacy.ID)
+			t.Fatalf("Find with shared account key = %v, want legacy account ID %s", got, legacy.ID)
 		}
 		if matchedKey != "account:team-1" {
 			t.Fatalf("matched key = %q, want account:team-1", matchedKey)
@@ -463,7 +463,7 @@ func TestCodexAccountIndexKeepsAllCandidatesForSharedAccountKey(t *testing.T) {
 		keys = buildCodexImportIdentityKeys("team-1", "user-2", "", "token-new", "refresh-new")
 		got, matchedKey = index.Find(keys, "user-2")
 		if got == nil || got.ID != member.ID {
-			t.Fatalf("Find by user key = %v, want member account ID %d", got, member.ID)
+			t.Fatalf("Find by user key = %v, want member account ID %s", got, member.ID)
 		}
 		if matchedKey != "user:user-2" {
 			t.Fatalf("matched key = %q, want user:user-2", matchedKey)
@@ -473,7 +473,7 @@ func TestCodexAccountIndexKeepsAllCandidatesForSharedAccountKey(t *testing.T) {
 
 func TestCodexAccountIndexUpsertReplacesSameAccount(t *testing.T) {
 	legacy := service.Account{
-		ID: 40,
+		ID: "account-40",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"access_token":       "token-old",
@@ -482,7 +482,7 @@ func TestCodexAccountIndexUpsertReplacesSameAccount(t *testing.T) {
 	index := buildCodexAccountIndex([]service.Account{legacy})
 
 	backfilled := service.Account{
-		ID: 40,
+		ID: "account-40",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-1",
 			"chatgpt_user_id":    "user-1",
@@ -496,13 +496,13 @@ func TestCodexAccountIndexUpsertReplacesSameAccount(t *testing.T) {
 	// 其他成员的条目不应再通过旧副本（无 user id）命中该账号。
 	keys := buildCodexImportIdentityKeys("team-1", "user-2", "", "token-other", "refresh-other")
 	if got, matchedKey := index.Find(keys, "user-2"); got != nil {
-		t.Fatalf("stale candidate matched after upsert by %q: account ID %d", matchedKey, got.ID)
+		t.Fatalf("stale candidate matched after upsert by %q: account ID %s", matchedKey, got.ID)
 	}
 
 	keys = buildCodexImportIdentityKeys("team-1", "user-1", "", "token-other", "refresh-other")
 	got, _ := index.Find(keys, "user-1")
 	if got == nil || got.ID != backfilled.ID {
-		t.Fatalf("Find after upsert = %v, want account ID %d", got, backfilled.ID)
+		t.Fatalf("Find after upsert = %v, want account ID %s", got, backfilled.ID)
 	}
 	if uid := codexCredentialString(got.Credentials, "chatgpt_user_id"); uid != "user-1" {
 		t.Fatalf("upsert did not replace credentials, chatgpt_user_id = %q", uid)
@@ -511,7 +511,7 @@ func TestCodexAccountIndexUpsertReplacesSameAccount(t *testing.T) {
 
 func TestCodexAccountIndexUpdateRemovesAllPreviousKeys(t *testing.T) {
 	legacy := service.Account{
-		ID: 50,
+		ID: "account-50",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-old",
 			"chatgpt_user_id":    "user-old",
@@ -523,7 +523,7 @@ func TestCodexAccountIndexUpdateRemovesAllPreviousKeys(t *testing.T) {
 	index := buildCodexAccountIndex([]service.Account{legacy})
 
 	updated := service.Account{
-		ID: 50,
+		ID: "account-50",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-new",
 			"chatgpt_user_id":    "user-new",
@@ -537,7 +537,7 @@ func TestCodexAccountIndexUpdateRemovesAllPreviousKeys(t *testing.T) {
 	oldKeys := append(buildCodexStoredIdentityKeys("team-old", "user-old", "old@example.com", "access-old"), "agent:runtime-old")
 	for _, key := range oldKeys {
 		if got, matchedKey := index.Find([]string{key}, "user-old"); got != nil {
-			t.Fatalf("stale account matched by %q: account ID %d", matchedKey, got.ID)
+			t.Fatalf("stale account matched by %q: account ID %s", matchedKey, got.ID)
 		}
 	}
 
@@ -552,14 +552,14 @@ func TestCodexAccountIndexUpdateRemovesAllPreviousKeys(t *testing.T) {
 
 func TestCodexAccountIndexUpdatePreservesSharedKeyCandidateOrder(t *testing.T) {
 	first := service.Account{
-		ID: 60,
+		ID: "account-60",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-shared",
 			"access_token":       "access-first-old",
 		},
 	}
 	second := service.Account{
-		ID: 61,
+		ID: "account-61",
 		Credentials: map[string]any{
 			"chatgpt_account_id": "team-shared",
 			"access_token":       "access-second",
@@ -688,7 +688,7 @@ func TestImportCodexSessionsAccessTokenOnlySameWorkspaceAndUserDifferentTokensCr
 func TestImportCodexSessionsAccessTokenOnlySameUserUpdatesExisting(t *testing.T) {
 	existingToken := buildCodexAccessToken(t, "workspace-1", "user-1", time.Now().Add(time.Hour))
 	svc := newCodexImportMemoryAdminService([]service.Account{{
-		ID:       10,
+		ID:       "account-10",
 		Name:     "existing",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
@@ -715,7 +715,7 @@ func TestImportCodexSessionsAccessTokenOnlySameUserUpdatesExisting(t *testing.T)
 	if len(svc.createdAccounts) != 0 {
 		t.Fatalf("created accounts = %d, want 0", len(svc.createdAccounts))
 	}
-	if len(svc.updatedAccounts) != 1 || svc.updatedAccounts[0].id != 10 {
+	if len(svc.updatedAccounts) != 1 || svc.updatedAccounts[0].id != "account-10" {
 		t.Fatalf("updated accounts = %+v, want account 10", svc.updatedAccounts)
 	}
 	if got := svc.updatedAccounts[0].input.Extra["openai_long_context_billing_enabled"]; got != false {
@@ -727,7 +727,7 @@ func TestImportCodexSessionsUpgradesAccessTokenOnlyAccountWithRefreshToken(t *te
 	oldToken := buildCodexAccessTokenWithJTI(t, "workspace-1", "user-1", "old-token", time.Now().Add(time.Hour))
 	newToken := buildCodexAccessTokenWithJTI(t, "workspace-1", "user-1", "new-token", time.Now().Add(time.Hour))
 	svc := newCodexImportMemoryAdminService([]service.Account{{
-		ID:       12,
+		ID:       "account-12",
 		Name:     "existing",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
@@ -753,7 +753,7 @@ func TestImportCodexSessionsUpgradesAccessTokenOnlyAccountWithRefreshToken(t *te
 	if result.Created != 0 || result.Updated != 1 || result.Failed != 0 {
 		t.Fatalf("result = %+v, want one updated account", result)
 	}
-	if len(svc.updatedAccounts) != 1 || svc.updatedAccounts[0].id != 12 {
+	if len(svc.updatedAccounts) != 1 || svc.updatedAccounts[0].id != "account-12" {
 		t.Fatalf("updated accounts = %+v, want account 12", svc.updatedAccounts)
 	}
 	if got := svc.updatedAccounts[0].input.Credentials["refresh_token"]; got != "refresh-new" {
@@ -764,7 +764,7 @@ func TestImportCodexSessionsUpgradesAccessTokenOnlyAccountWithRefreshToken(t *te
 func TestImportCodexSessionsAccessTokenOnlyPreservesExistingRefreshToken(t *testing.T) {
 	existingToken := buildCodexAccessToken(t, "workspace-1", "user-1", time.Now().Add(time.Hour))
 	svc := newCodexImportMemoryAdminService([]service.Account{{
-		ID:       13,
+		ID:       "account-13",
 		Name:     "existing",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
@@ -808,7 +808,7 @@ func TestImportCodexSessionsBatchOldAccessTokenDoesNotRollbackRefreshToken(t *te
 	oldToken := buildCodexAccessTokenWithJTI(t, "workspace-1", "user-1", "old-token", time.Now().Add(time.Hour))
 	newToken := buildCodexAccessTokenWithJTI(t, "workspace-1", "user-1", "new-token", time.Now().Add(time.Hour))
 	svc := newCodexImportMemoryAdminService([]service.Account{{
-		ID:       14,
+		ID:       "account-14",
 		Name:     "existing",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
@@ -836,10 +836,10 @@ func TestImportCodexSessionsBatchOldAccessTokenDoesNotRollbackRefreshToken(t *te
 	if result.Updated != 1 || result.Created != 1 || result.Failed != 0 {
 		t.Fatalf("result = %+v, want first item updated and stale access token created separately", result)
 	}
-	if len(svc.updatedAccounts) != 1 || svc.updatedAccounts[0].id != 14 {
+	if len(svc.updatedAccounts) != 1 || svc.updatedAccounts[0].id != "account-14" {
 		t.Fatalf("updated accounts = %+v, want account 14 updated once", svc.updatedAccounts)
 	}
-	stored, err := svc.GetAccount(context.Background(), 14)
+	stored, err := svc.GetAccount(context.Background(), "account-14")
 	if err != nil {
 		t.Fatalf("GetAccount error = %v", err)
 	}
@@ -854,7 +854,7 @@ func TestImportCodexSessionsBatchOldAccessTokenDoesNotRollbackRefreshToken(t *te
 func TestImportCodexSessionsWithRefreshTokenKeepsExistingDedup(t *testing.T) {
 	existingToken := buildCodexAccessToken(t, "workspace-1", "user-1", time.Now().Add(time.Hour))
 	svc := newCodexImportMemoryAdminService([]service.Account{{
-		ID:       11,
+		ID:       "account-11",
 		Name:     "existing",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
@@ -885,9 +885,9 @@ func TestImportCodexSessionsWithRefreshTokenKeepsExistingDedup(t *testing.T) {
 
 type codexImportMemoryAdminService struct {
 	*stubAdminService
-	nextID          int64
+	nextID          int
 	updatedAccounts []struct {
-		id    int64
+		id    string
 		input *service.UpdateAccountInput
 	}
 }
@@ -907,7 +907,7 @@ func (s *codexImportMemoryAdminService) CreateAccount(ctx context.Context, input
 		return nil, s.createAccountErr
 	}
 	account := service.Account{
-		ID:          s.nextID,
+		ID:          fmt.Sprintf("account-%d", s.nextID),
 		Name:        input.Name,
 		Platform:    input.Platform,
 		Type:        input.Type,
@@ -920,9 +920,9 @@ func (s *codexImportMemoryAdminService) CreateAccount(ctx context.Context, input
 	return &account, nil
 }
 
-func (s *codexImportMemoryAdminService) UpdateAccount(ctx context.Context, id int64, input *service.UpdateAccountInput) (*service.Account, error) {
+func (s *codexImportMemoryAdminService) UpdateAccount(ctx context.Context, id string, input *service.UpdateAccountInput) (*service.Account, error) {
 	s.updatedAccounts = append(s.updatedAccounts, struct {
-		id    int64
+		id    string
 		input *service.UpdateAccountInput
 	}{id: id, input: input})
 	if s.updateAccountErr != nil {
@@ -939,7 +939,7 @@ func (s *codexImportMemoryAdminService) UpdateAccount(ctx context.Context, id in
 	return &account, nil
 }
 
-func (s *codexImportMemoryAdminService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {
+func (s *codexImportMemoryAdminService) GetAccount(ctx context.Context, id string) (*service.Account, error) {
 	for idx := range s.accounts {
 		if s.accounts[idx].ID == id {
 			return &s.accounts[idx], nil

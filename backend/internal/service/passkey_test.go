@@ -37,7 +37,7 @@ type passkeyPwUserRepoStub struct {
 	user *User
 }
 
-func (s *passkeyPwUserRepoStub) GetByID(context.Context, int64) (*User, error) {
+func (s *passkeyPwUserRepoStub) GetByID(context.Context, string) (*User, error) {
 	return s.user, nil
 }
 
@@ -47,16 +47,16 @@ type passkeyPwRepoStub struct {
 	deleteCalled bool
 }
 
-func (s *passkeyPwRepoStub) EnsureUserHandle(_ context.Context, _ int64, candidate []byte) ([]byte, error) {
+func (s *passkeyPwRepoStub) EnsureUserHandle(_ context.Context, _ string, candidate []byte) ([]byte, error) {
 	s.handleCalled = true
 	return candidate, nil
 }
 
-func (s *passkeyPwRepoStub) ListByUserID(context.Context, int64) ([]PasskeyCredentialRecord, error) {
+func (s *passkeyPwRepoStub) ListByUserID(context.Context, string) ([]PasskeyCredentialRecord, error) {
 	return nil, nil
 }
 
-func (s *passkeyPwRepoStub) Delete(context.Context, int64, int64) error {
+func (s *passkeyPwRepoStub) Delete(context.Context, string, string) error {
 	s.deleteCalled = true
 	return nil
 }
@@ -85,7 +85,7 @@ func newPasskeyPwService(t *testing.T, user *User) (*PasskeyService, *passkeyPwR
 // 注册与吊销必须验证账号密码：被窃会话不得静默添加/移除凭据。
 // 用密码而非 TOTP step-up，保证未配置 TOTP 加密密钥的部署同样受保护。
 func TestPasskeyEnrollmentAndRevocationRequireAccountPassword(t *testing.T) {
-	user := &User{ID: 7, Email: "user@example.com", Status: StatusActive}
+	user := &User{ID: "user-7", Email: "user@example.com", Status: StatusActive}
 	require.NoError(t, user.SetPassword("correct-password"))
 	svc, repo := newPasskeyPwService(t, user)
 
@@ -101,12 +101,12 @@ func TestPasskeyEnrollmentAndRevocationRequireAccountPassword(t *testing.T) {
 	require.Equal(t, "session-token", token)
 	require.True(t, repo.handleCalled)
 
-	err = svc.Delete(context.Background(), user.ID, 1, "")
+	err = svc.Delete(context.Background(), user.ID, "passkey-1", "")
 	require.ErrorIs(t, err, ErrPasswordRequired)
-	err = svc.Delete(context.Background(), user.ID, 1, "wrong-password")
+	err = svc.Delete(context.Background(), user.ID, "passkey-1", "wrong-password")
 	require.ErrorIs(t, err, ErrPasswordIncorrect)
 	require.False(t, repo.deleteCalled)
 
-	require.NoError(t, svc.Delete(context.Background(), user.ID, 1, "correct-password"))
+	require.NoError(t, svc.Delete(context.Background(), user.ID, "passkey-1", "correct-password"))
 	require.True(t, repo.deleteCalled)
 }

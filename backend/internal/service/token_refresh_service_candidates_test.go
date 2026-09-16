@@ -17,7 +17,7 @@ type tokenRefreshCandidateRepo struct {
 	AccountRepository
 	mu                    sync.Mutex
 	accounts              []Account
-	updatedCredentialIDs  []int64
+	updatedCredentialIDs  []string
 	setErrorCalls         int
 	setTempUnschedCalls   int
 	clearTempCalls        int
@@ -70,21 +70,21 @@ func (r *tokenRefreshCandidateRepo) ListOAuthRefreshCandidatePage(_ context.Cont
 	return page, nil
 }
 
-func (r *tokenRefreshCandidateRepo) UpdateCredentials(_ context.Context, id int64, _ map[string]any) error {
+func (r *tokenRefreshCandidateRepo) UpdateCredentials(_ context.Context, id string, _ map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.updatedCredentialIDs = append(r.updatedCredentialIDs, id)
 	return nil
 }
 
-func (r *tokenRefreshCandidateRepo) SetError(context.Context, int64, string) error {
+func (r *tokenRefreshCandidateRepo) SetError(context.Context, string, string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setErrorCalls++
 	return nil
 }
 
-func (r *tokenRefreshCandidateRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, reason string) error {
+func (r *tokenRefreshCandidateRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, reason string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.setTempUnschedCalls++
@@ -92,7 +92,7 @@ func (r *tokenRefreshCandidateRepo) SetTempUnschedulable(_ context.Context, _ in
 	return nil
 }
 
-func (r *tokenRefreshCandidateRepo) ClearTempUnschedulable(context.Context, int64) error {
+func (r *tokenRefreshCandidateRepo) ClearTempUnschedulable(context.Context, string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.clearTempCalls++
@@ -119,7 +119,7 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 	repo := &tokenRefreshCandidateRepo{
 		accounts: []Account{
 			{
-				ID:          1,
+				ID:          "1",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -127,7 +127,7 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 				Credentials: map[string]any{"refresh_token": "refresh-token"},
 			},
 			{
-				ID:          2,
+				ID:          "2",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -135,14 +135,14 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 				Credentials: map[string]any{},
 			},
 			{
-				ID:          3,
+				ID:          "3",
 				Platform:    PlatformGemini,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
 				Credentials: map[string]any{"refresh_token": "refresh-token"},
 			},
 			{
-				ID:                      4,
+				ID:                      "4",
 				Platform:                PlatformAntigravity,
 				Type:                    AccountTypeOAuth,
 				Status:                  StatusActive,
@@ -152,7 +152,7 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 				TempUnschedulableReason: "token refresh retry exhausted: network timeout",
 			},
 			{
-				ID:          5,
+				ID:          "5",
 				Platform:    "other",
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -160,7 +160,7 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 				Credentials: map[string]any{"refresh_token": "refresh-token"},
 			},
 			{
-				ID:                      6,
+				ID:                      "6",
 				Platform:                PlatformAntigravity,
 				Type:                    AccountTypeOAuth,
 				Status:                  StatusActive,
@@ -171,7 +171,7 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 				TempUnschedulableReason: "OAuth 401: unauthorized",
 			},
 			{
-				ID:          7,
+				ID:          "7",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -195,7 +195,7 @@ func TestTokenRefreshService_ProcessRefreshUsesOAuthRefreshCandidates(t *testing
 	svc.processRefresh()
 
 	require.Zero(t, repo.listActiveCalls, "TokenRefreshService should not use the broad active-account query")
-	require.ElementsMatch(t, []int64{1, 6}, repo.updatedCredentialIDs)
+	require.ElementsMatch(t, []string{"1", "6"}, repo.updatedCredentialIDs)
 	require.Equal(t, 1, repo.clearTempCalls, "successful refresh should clear the OAuth 401 temp-unschedulable state")
 }
 
@@ -221,7 +221,7 @@ func TestTokenRefreshService_RefreshFailureDoesNotCallPrivacy(t *testing.T) {
 				},
 			}
 			account := &Account{
-				ID:       11,
+				ID:       "11",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Credentials: map[string]any{

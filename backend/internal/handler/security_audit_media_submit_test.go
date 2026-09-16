@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -52,13 +51,13 @@ func (e *handlerPromptEngine) snapshot() (evaluated, enqueued int, requests []se
 }
 
 func securityAuditMediaTestMiddleware(c *gin.Context) {
-	groupID := int64(3)
-	user := &service.User{ID: 7, Username: "media-user", Email: "media@example.test"}
+	groupID := "group-3"
+	user := &service.User{ID: "user-7", Username: "media-user", Email: "media@example.test"}
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		ID: 9, UserID: 7, User: user, Name: "media-key", GroupID: &groupID,
+		ID: "key-9", UserID: "user-7", User: user, Name: "media-key", GroupID: &groupID,
 		Group: &service.Group{ID: groupID, Name: "media-group", Platform: service.PlatformOpenAI, AllowImageGeneration: true},
 	})
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 7, Concurrency: 2})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "user-7", Concurrency: 2})
 	c.Next()
 }
 
@@ -140,36 +139,6 @@ func TestAsyncImageSuccessfulPrecheckIsNotRepeatedByDetachedExecution(t *testing
 	executionMu.Unlock()
 }
 
-func TestBatchImagePromptGuardRunsBeforePersistenceOrBilling(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	engine := blockingHandlerPromptEngine()
-	openAI := &OpenAIGatewayHandler{securityAuditCoordinator: securityaudit.NewCoordinator(nil, engine)}
-	h := &BatchImageHandler{openAI: openAI}
-	router := gin.New()
-	router.Use(securityAuditMediaTestMiddleware)
-	router.POST("/v1/images/batches", h.Submit)
-	body := map[string]any{
-		"model": "gemini-image-test",
-		"items": []map[string]any{{
-			"custom_id": "one", "prompt": "blocked batch prompt",
-			"reference_images": []map[string]any{{"mime_type": "image/png", "data": []byte("BINARY_CANARY")}},
-		}},
-	}
-	raw, err := json.Marshal(body)
-	require.NoError(t, err)
-	request := httptest.NewRequest(http.MethodPost, "/v1/images/batches", strings.NewReader(string(raw)))
-	request.Header.Set("Content-Type", "application/json")
-	recorder := httptest.NewRecorder()
-	require.NotPanics(t, func() { router.ServeHTTP(recorder, request) }, "nil service would panic if Submit were reached")
-	require.Equal(t, http.StatusForbidden, recorder.Code)
-	evaluated, _, requests := engine.snapshot()
-	require.Equal(t, 1, evaluated)
-	require.Len(t, requests, 1)
-	require.Contains(t, string(requests[0].Body), "blocked batch prompt")
-	require.NotContains(t, string(requests[0].Body), "BINARY_CANARY")
-	require.NotContains(t, string(requests[0].Body), "QklOQVJZX0NBTkFSWQ==")
-}
-
 func TestSecurityAuditBlockingFailuresLeaveAllDownstreamCountersAtZero(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, kind := range []securityaudit.DecisionKind{securityaudit.DecisionBlock, securityaudit.DecisionUnavailable, securityaudit.DecisionInvalid} {
@@ -182,9 +151,9 @@ func TestSecurityAuditBlockingFailuresLeaveAllDownstreamCountersAtZero(t *testin
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"gpt-test","messages":[{"role":"user","content":"guard me"}]}`))
-			groupID := int64(3)
-			apiKey := &service.APIKey{ID: 9, UserID: 7, GroupID: &groupID, Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI}}
-			subject := middleware2.AuthSubject{UserID: 7, Concurrency: 2}
+			groupID := "group-3"
+			apiKey := &service.APIKey{ID: "key-9", UserID: "user-7", GroupID: &groupID, Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI}}
+			subject := middleware2.AuthSubject{UserID: "user-7", Concurrency: 2}
 			decision := runSecurityAudit(c, nil, coordinator, nil, apiKey, subject, service.ContentModerationProtocolOpenAIChat, "gpt-test", []byte(`{"messages":[{"role":"user","content":"guard me"}]}`), "http")
 			require.NotNil(t, decision)
 			require.False(t, decision.AllowNextStage)

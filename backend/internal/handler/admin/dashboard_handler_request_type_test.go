@@ -43,7 +43,7 @@ func (s *dashboardUsageRepoCapture) GetUsageTrendWithFilters(
 	ctx context.Context,
 	startTime, endTime time.Time,
 	granularity string,
-	userID, apiKeyID, accountID, groupID int64,
+	userID, apiKeyID, accountID, groupID string,
 	model string,
 	requestType *int16,
 	stream *bool,
@@ -78,7 +78,7 @@ func (s *dashboardUsageRepoCapture) GetGroupStatsWithUsageFilters(
 func (s *dashboardUsageRepoCapture) GetModelStatsWithFilters(
 	ctx context.Context,
 	startTime, endTime time.Time,
-	userID, apiKeyID, accountID, groupID int64,
+	userID, apiKeyID, accountID, groupID string,
 	requestType *int16,
 	stream *bool,
 	billingType *int8,
@@ -252,7 +252,7 @@ func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 	dashboardUsersRankingCache = newSnapshotCache(5 * time.Minute)
 	repo := &dashboardUsageRepoCapture{
 		ranking: []usagestats.UserSpendingRankingItem{
-			{UserID: 7, Email: "rank@example.com", ActualCost: 10.5, Requests: 3, Tokens: 300},
+			{UserID: "user-7", Email: "rank@example.com", ActualCost: 10.5, Requests: 3, Tokens: 300},
 		},
 		rankingTotal: 88.8,
 	}

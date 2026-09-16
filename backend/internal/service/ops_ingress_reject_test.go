@@ -48,14 +48,14 @@ func TestOpsIngressRejectAggregatorUsesGlobalBucketCapacity(t *testing.T) {
 		ip := fmt.Sprintf("target-%d", i)
 		key := ingressRejectKey{reason: "invalid_api_key", routeFamily: "messages", protocol: "anthropic", clientIP: ip}
 		if ingressRejectHash(key)%ingressRejectShardCount == 0 {
-			a.RecordIngressReject(key.reason, key.routeFamily, key.protocol, ip, 0, 0)
+			a.RecordIngressReject(key.reason, key.routeFamily, key.protocol, ip, "", "")
 			inserted++
 		}
 	}
 	require.Equal(t, int64(600), a.Health().Cardinality)
 
 	for i := 0; i < ingressRejectMaxEntries; i++ {
-		a.RecordIngressReject("invalid_api_key", "messages", "anthropic", fmt.Sprintf("rotating-%d", i), 0, 0)
+		a.RecordIngressReject("invalid_api_key", "messages", "anthropic", fmt.Sprintf("rotating-%d", i), "", "")
 	}
 	health := a.Health()
 	require.Equal(t, int64(ingressRejectMaxEntries), health.Cardinality)
@@ -79,7 +79,7 @@ func TestOpsIngressRejectAggregatorConcurrentCountAndStopFlush(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < perGoroutine; j++ {
-				a.RecordIngressReject("invalid_api_key", "responses", "openai", "192.0.2.10", 0, 0)
+				a.RecordIngressReject("invalid_api_key", "responses", "openai", "192.0.2.10", "", "")
 			}
 		}()
 	}
@@ -90,14 +90,14 @@ func TestOpsIngressRejectAggregatorConcurrentCountAndStopFlush(t *testing.T) {
 	require.Equal(t, int64(goroutines*perGoroutine), repo.requests)
 	repo.mu.Unlock()
 	require.False(t, a.Health().Accepting)
-	a.RecordIngressReject("invalid_api_key", "responses", "openai", "192.0.2.10", 0, 0)
+	a.RecordIngressReject("invalid_api_key", "responses", "openai", "192.0.2.10", "", "")
 }
 
 func TestOpsIngressRejectAggregatorRetriesBoundedPendingBatch(t *testing.T) {
 	repo := &ingressRejectRepoStub{failCount: 1}
 	a := NewOpsIngressRejectAggregator(repo)
 	a.accepting.Store(true)
-	a.RecordIngressReject("group_deleted", "messages", "anthropic", "192.0.2.20", 1, 2)
+	a.RecordIngressReject("group_deleted", "messages", "anthropic", "192.0.2.20", "user-1", "api-key-2")
 	a.snapshotAndEnqueue(false)
 	a.flushPending()
 	health := a.Health()

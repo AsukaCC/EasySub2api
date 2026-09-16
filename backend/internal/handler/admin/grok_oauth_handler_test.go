@@ -25,19 +25,19 @@ import (
 type grokQuotaHandlerAccountRepo struct {
 	service.AccountRepository
 	account *service.Account
-	updates map[int64]map[string]any
+	updates map[string]map[string]any
 }
 
-func (r *grokQuotaHandlerAccountRepo) GetByID(_ context.Context, id int64) (*service.Account, error) {
+func (r *grokQuotaHandlerAccountRepo) GetByID(_ context.Context, id string) (*service.Account, error) {
 	if r.account != nil && r.account.ID == id {
 		return r.account, nil
 	}
 	return nil, service.ErrAccountNotFound
 }
 
-func (r *grokQuotaHandlerAccountRepo) UpdateExtra(_ context.Context, id int64, updates map[string]any) error {
+func (r *grokQuotaHandlerAccountRepo) UpdateExtra(_ context.Context, id string, updates map[string]any) error {
 	if r.updates == nil {
-		r.updates = make(map[int64]map[string]any)
+		r.updates = make(map[string]map[string]any)
 	}
 	r.updates[id] = updates
 	return nil
@@ -62,7 +62,7 @@ func (s *grokOAuthReconcilerStub) ReconcileGrokOAuth(_ context.Context, input se
 	return s.result, s.err
 }
 
-func (u *grokQuotaHandlerUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *grokQuotaHandlerUpstream) Do(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	var body []byte
 	if req.Body != nil {
 		body, _ = io.ReadAll(req.Body)
@@ -91,7 +91,7 @@ func (u *grokQuotaHandlerUpstream) Do(req *http.Request, _ string, _ int64, _ in
 func (u *grokQuotaHandlerUpstream) DoWithTLS(
 	req *http.Request,
 	proxyURL string,
-	accountID int64,
+	accountID string,
 	accountConcurrency int,
 	_ *tlsfingerprint.Profile,
 ) (*http.Response, error) {
@@ -101,8 +101,9 @@ func (u *grokQuotaHandlerUpstream) DoWithTLS(
 func TestGrokOAuthHandlerQueryQuotaProbesUpstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	const accountID = "42000000-0000-0000-0000-000000000042"
 	repo := &grokQuotaHandlerAccountRepo{account: &service.Account{
-		ID:          42,
+		ID:          accountID,
 		Platform:    service.PlatformGrok,
 		Type:        service.AccountTypeOAuth,
 		Status:      service.StatusActive,
@@ -121,7 +122,7 @@ func TestGrokOAuthHandlerQueryQuotaProbesUpstream(t *testing.T) {
 	router := gin.New()
 	router.GET("/api/v1/admin/grok/accounts/:id/quota", handler.QueryQuota)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/grok/accounts/42/quota", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/grok/accounts/"+accountID+"/quota", nil)
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -159,14 +160,15 @@ func TestGrokOAuthHandlerQueryQuotaProbesUpstream(t *testing.T) {
 	}
 	require.True(t, responsesProbeSeen)
 	require.True(t, modelsSyncSeen)
-	require.NotNil(t, repo.updates[42])
+	require.NotNil(t, repo.updates[accountID])
 }
 
 func TestGrokOAuthHandlerResetQuotaReturnsUnsupported(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	const accountID = "43000000-0000-0000-0000-000000000043"
 	repo := &grokQuotaHandlerAccountRepo{account: &service.Account{
-		ID:       43,
+		ID:       accountID,
 		Platform: service.PlatformGrok,
 		Type:     service.AccountTypeOAuth,
 	}}
@@ -176,7 +178,7 @@ func TestGrokOAuthHandlerResetQuotaReturnsUnsupported(t *testing.T) {
 	router := gin.New()
 	router.POST("/api/v1/admin/grok/accounts/:id/reset-quota", handler.ResetQuota)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/43/reset-quota", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/"+accountID+"/reset-quota", nil)
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusNotImplemented, rec.Code)
@@ -374,8 +376,8 @@ func TestGrokOAuthHandlerReconcileDefaultsToDryRun(t *testing.T) {
 		Scanned:     2,
 		Actionable:  1,
 		WouldBlock:  1,
-		Items:       []service.GrokOAuthReconcileItem{{AccountID: 42, Reason: service.GrokOAuthReconcileReasonMissingRefreshToken, Action: service.GrokOAuthReconcileActionBlock, Outcome: service.GrokOAuthReconcileOutcomePlanned}},
-		NextAfterID: 0,
+		Items:       []service.GrokOAuthReconcileItem{{AccountID: "42000000-0000-0000-0000-000000000042", Reason: service.GrokOAuthReconcileReasonMissingRefreshToken, Action: service.GrokOAuthReconcileActionBlock, Outcome: service.GrokOAuthReconcileOutcomePlanned}},
+		NextAfterID: "",
 	}}
 	handler := NewGrokOAuthHandler(nil, nil, nil, reconciler)
 	router := gin.New()
@@ -419,7 +421,8 @@ func TestGrokOAuthHandlerReconcileExplicitApply(t *testing.T) {
 	router := gin.New()
 	router.POST("/api/v1/admin/grok/oauth/reconcile", handler.ReconcileOAuthAccounts)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/oauth/reconcile", strings.NewReader(`{"apply":true,"dry_run":false,"after_id":10,"limit":25,"refresh_window_seconds":3600}`))
+	const afterID = "10000000-0000-0000-0000-000000000010"
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/oauth/reconcile", strings.NewReader(`{"apply":true,"dry_run":false,"after_id":"`+afterID+`","limit":25,"refresh_window_seconds":3600}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(rec, req)
@@ -428,7 +431,7 @@ func TestGrokOAuthHandlerReconcileExplicitApply(t *testing.T) {
 	require.Equal(t, 1, reconciler.calls)
 	require.True(t, reconciler.input.Apply)
 	require.False(t, reconciler.input.DryRun)
-	require.Equal(t, int64(10), reconciler.input.AfterID)
+	require.Equal(t, afterID, reconciler.input.AfterID)
 	require.Equal(t, 25, reconciler.input.Limit)
 	require.Equal(t, time.Hour, reconciler.input.RefreshWindow)
 }

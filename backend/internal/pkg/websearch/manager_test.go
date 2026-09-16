@@ -215,9 +215,9 @@ func TestIsProviderAvailable_Valid(t *testing.T) {
 // --- resolveProxyID ---
 
 func TestResolveProxyID_AccountProxyOverrides(t *testing.T) {
-	cfg := ProviderConfig{ProxyID: 42}
-	require.Equal(t, int64(0), resolveProxyID(cfg, "http://account-proxy:8080"))
-	require.Equal(t, int64(42), resolveProxyID(cfg, ""))
+	cfg := ProviderConfig{ProxyID: "proxy-42"}
+	require.Empty(t, resolveProxyID(cfg, "http://account-proxy:8080"))
+	require.Equal(t, "proxy-42", resolveProxyID(cfg, ""))
 }
 
 // --- isProxyError ---
@@ -250,12 +250,12 @@ func TestIsProxyError_APIError_NotProxy(t *testing.T) {
 
 func TestIsProxyAvailable_NilRedis(t *testing.T) {
 	m := NewManager(nil, nil)
-	require.True(t, m.isProxyAvailable(context.Background(), 42))
+	require.True(t, m.isProxyAvailable(context.Background(), "proxy-42"))
 }
 
 func TestIsProxyAvailable_ZeroID(t *testing.T) {
 	m := NewManager(nil, nil)
-	require.True(t, m.isProxyAvailable(context.Background(), 0))
+	require.True(t, m.isProxyAvailable(context.Background(), ""))
 }
 
 // --- selectByQuotaWeight ---

@@ -12,8 +12,8 @@ func TestAPIKeyFromService_MapsLastUsedAt(t *testing.T) {
 	lastUsed := time.Now().UTC().Truncate(time.Second)
 	lastUsedIP := "203.0.113.10"
 	src := &service.APIKey{
-		ID:                 1,
-		UserID:             2,
+		ID:                 "key-1",
+		UserID:             "user-2",
 		Key:                "sk-map-last-used",
 		Name:               "Mapper",
 		Status:             service.StatusActive,
@@ -33,8 +33,8 @@ func TestAPIKeyFromService_MapsLastUsedAt(t *testing.T) {
 
 func TestAPIKeyFromService_MapsNilLastUsedAt(t *testing.T) {
 	src := &service.APIKey{
-		ID:     1,
-		UserID: 2,
+		ID:     "key-1",
+		UserID: "user-2",
 		Key:    "sk-map-last-used-nil",
 		Name:   "MapperNil",
 		Status: service.StatusActive,

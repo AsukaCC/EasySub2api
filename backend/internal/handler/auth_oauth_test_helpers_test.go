@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func buildEncodedOAuthBindUserCookie(t *testing.T, userID int64, secret string) string {
+func buildEncodedOAuthBindUserCookie(t *testing.T, userID string, secret string) string {
 	t.Helper()
 	value, err := buildOAuthBindUserCookieValue(userID, secret)
 	require.NoError(t, err)

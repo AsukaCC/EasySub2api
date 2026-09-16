@@ -2130,7 +2130,7 @@ func TestBindOIDCOAuthLoginAppliesFirstBindGrantOnce(t *testing.T) {
 		settingValues: map[string]string{
 			service.SettingKeyAuthSourceDefaultOIDCBalance:          "12.5",
 			service.SettingKeyAuthSourceDefaultOIDCConcurrency:      "3",
-			service.SettingKeyAuthSourceDefaultOIDCSubscriptions:    `[{"group_id":101,"validity_days":30}]`,
+			service.SettingKeyAuthSourceDefaultOIDCSubscriptions:    `[{"group_id":"group-101","validity_days":30}]`,
 			service.SettingKeyAuthSourceDefaultOIDCGrantOnFirstBind: "true",
 		},
 		defaultSubAssigner: defaultSubAssigner,
@@ -2188,8 +2188,8 @@ func TestBindOIDCOAuthLoginAppliesFirstBindGrantOnce(t *testing.T) {
 	require.Equal(t, 5, storedUser.Concurrency)
 	require.Zero(t, storedUser.TotalRecharged)
 	require.Len(t, defaultSubAssigner.calls, 1)
-	require.Equal(t, int64(existingUser.ID), defaultSubAssigner.calls[0].UserID)
-	require.Equal(t, int64(101), defaultSubAssigner.calls[0].GroupID)
+	require.Equal(t, existingUser.ID, defaultSubAssigner.calls[0].UserID)
+	require.Equal(t, "group-101", defaultSubAssigner.calls[0].GroupID)
 	require.Equal(t, 30, defaultSubAssigner.calls[0].ValidityDays)
 	require.Equal(t, 1, countProviderGrantRecords(t, client, existingUser.ID, "oidc", "first_bind"))
 
@@ -2612,7 +2612,7 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 	redeemRepo := &oauthPendingFlowRedeemCodeRepo{client: client}
 	var promoService *service.PromoService
 	if options.promoRepo != nil {
-		promoService = service.NewPromoService(options.promoRepo, userRepo, nil, client, nil)
+		promoService = service.NewPromoService(options.promoRepo, userRepo, nil, client, nil, settingSvc)
 	}
 	var emailService *service.EmailService
 	if options.emailCache != nil {
@@ -2684,7 +2684,7 @@ type oauthPendingFlowPromoRepoStub struct {
 func newOAuthPendingFlowPromoRepoStub(code string, bonusAmount float64) *oauthPendingFlowPromoRepoStub {
 	return &oauthPendingFlowPromoRepoStub{
 		promo: &service.PromoCode{
-			ID:          1,
+			ID:          "promo-1",
 			Code:        code,
 			BonusAmount: bonusAmount,
 			Status:      service.PromoCodeStatusActive,
@@ -2696,7 +2696,7 @@ func (r *oauthPendingFlowPromoRepoStub) Create(context.Context, *service.PromoCo
 	panic("unexpected Create call")
 }
 
-func (r *oauthPendingFlowPromoRepoStub) GetByID(context.Context, int64) (*service.PromoCode, error) {
+func (r *oauthPendingFlowPromoRepoStub) GetByID(context.Context, string) (*service.PromoCode, error) {
 	panic("unexpected GetByID call")
 }
 
@@ -2721,7 +2721,7 @@ func (r *oauthPendingFlowPromoRepoStub) Update(context.Context, *service.PromoCo
 	panic("unexpected Update call")
 }
 
-func (r *oauthPendingFlowPromoRepoStub) Delete(context.Context, int64) error {
+func (r *oauthPendingFlowPromoRepoStub) Delete(context.Context, string) error {
 	panic("unexpected Delete call")
 }
 
@@ -2738,15 +2738,15 @@ func (r *oauthPendingFlowPromoRepoStub) CreateUsage(_ context.Context, usage *se
 	return nil
 }
 
-func (r *oauthPendingFlowPromoRepoStub) GetUsageByPromoCodeAndUser(context.Context, int64, int64) (*service.PromoCodeUsage, error) {
+func (r *oauthPendingFlowPromoRepoStub) GetUsageByPromoCodeAndUser(context.Context, string, string) (*service.PromoCodeUsage, error) {
 	return nil, nil
 }
 
-func (r *oauthPendingFlowPromoRepoStub) ListUsagesByPromoCode(context.Context, int64, pagination.PaginationParams) ([]service.PromoCodeUsage, *pagination.PaginationResult, error) {
+func (r *oauthPendingFlowPromoRepoStub) ListUsagesByPromoCode(context.Context, string, pagination.PaginationParams) ([]service.PromoCodeUsage, *pagination.PaginationResult, error) {
 	panic("unexpected ListUsagesByPromoCode call")
 }
 
-func (r *oauthPendingFlowPromoRepoStub) IncrementUsedCount(context.Context, int64) error {
+func (r *oauthPendingFlowPromoRepoStub) IncrementUsedCount(context.Context, string) error {
 	if r.promo != nil {
 		r.promo.UsedCount++
 	}
@@ -2853,11 +2853,11 @@ func (s *oauthPendingFlowEmailCacheStub) SetPasswordResetEmailCooldown(context.C
 	return nil
 }
 
-func (s *oauthPendingFlowEmailCacheStub) IncrNotifyCodeUserRate(context.Context, int64, time.Duration) (int64, error) {
+func (s *oauthPendingFlowEmailCacheStub) IncrNotifyCodeUserRate(context.Context, string, time.Duration) (int64, error) {
 	return 0, nil
 }
 
-func (s *oauthPendingFlowEmailCacheStub) GetNotifyCodeUserRate(context.Context, int64) (int64, error) {
+func (s *oauthPendingFlowEmailCacheStub) GetNotifyCodeUserRate(context.Context, string) (int64, error) {
 	return 0, nil
 }
 
@@ -2873,7 +2873,7 @@ func (s *oauthPendingFlowRefreshTokenCacheStub) DeleteRefreshToken(context.Conte
 	return nil
 }
 
-func (s *oauthPendingFlowRefreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, int64) error {
+func (s *oauthPendingFlowRefreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, string) error {
 	return nil
 }
 
@@ -2881,7 +2881,7 @@ func (s *oauthPendingFlowRefreshTokenCacheStub) DeleteTokenFamily(context.Contex
 	return nil
 }
 
-func (s *oauthPendingFlowRefreshTokenCacheStub) AddToUserTokenSet(context.Context, int64, string, time.Duration) error {
+func (s *oauthPendingFlowRefreshTokenCacheStub) AddToUserTokenSet(context.Context, string, string, time.Duration) error {
 	return nil
 }
 
@@ -2889,7 +2889,7 @@ func (s *oauthPendingFlowRefreshTokenCacheStub) AddToFamilyTokenSet(context.Cont
 	return nil
 }
 
-func (s *oauthPendingFlowRefreshTokenCacheStub) GetUserTokenHashes(context.Context, int64) ([]string, error) {
+func (s *oauthPendingFlowRefreshTokenCacheStub) GetUserTokenHashes(context.Context, string) ([]string, error) {
 	return nil, nil
 }
 
@@ -2913,7 +2913,7 @@ func (r *oauthPendingFlowRedeemCodeRepo) CreateBatch(context.Context, []service.
 	panic("unexpected CreateBatch call")
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) GetByID(context.Context, int64) (*service.RedeemCode, error) {
+func (r *oauthPendingFlowRedeemCodeRepo) GetByID(context.Context, string) (*service.RedeemCode, error) {
 	panic("unexpected GetByID call")
 }
 
@@ -2974,15 +2974,15 @@ func (r *oauthPendingFlowRedeemCodeRepo) Update(ctx context.Context, code *servi
 	return err
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) BatchUpdate(context.Context, []int64, service.RedeemCodeBatchUpdateFields) (int64, error) {
+func (r *oauthPendingFlowRedeemCodeRepo) BatchUpdate(context.Context, []string, service.RedeemCodeBatchUpdateFields) (int64, error) {
 	panic("unexpected BatchUpdate call")
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) Delete(context.Context, int64) error {
+func (r *oauthPendingFlowRedeemCodeRepo) Delete(context.Context, string) error {
 	panic("unexpected Delete call")
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) Use(ctx context.Context, id, userID int64) error {
+func (r *oauthPendingFlowRedeemCodeRepo) Use(ctx context.Context, id, userID string) error {
 	affected, err := r.client.RedeemCode.Update().
 		Where(redeemcode.IDEQ(id), redeemcode.StatusEQ(service.StatusUnused)).
 		SetStatus(service.StatusUsed).
@@ -3006,15 +3006,15 @@ func (r *oauthPendingFlowRedeemCodeRepo) ListWithFilters(context.Context, pagina
 	panic("unexpected ListWithFilters call")
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) ListByUser(context.Context, int64, int) ([]service.RedeemCode, error) {
+func (r *oauthPendingFlowRedeemCodeRepo) ListByUser(context.Context, string, int) ([]service.RedeemCode, error) {
 	panic("unexpected ListByUser call")
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) ListByUserPaginated(context.Context, int64, pagination.PaginationParams, string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
+func (r *oauthPendingFlowRedeemCodeRepo) ListByUserPaginated(context.Context, string, pagination.PaginationParams, string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected ListByUserPaginated call")
 }
 
-func (r *oauthPendingFlowRedeemCodeRepo) SumPositiveBalanceByUser(context.Context, int64) (float64, error) {
+func (r *oauthPendingFlowRedeemCodeRepo) SumPositiveBalanceByUser(context.Context, string) (float64, error) {
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
@@ -3041,7 +3041,7 @@ type oauthPendingFlowAvatarRecord struct {
 	URL             string
 }
 
-func loadUserAvatarRecord(t *testing.T, client *dbent.Client, userID int64) *oauthPendingFlowAvatarRecord {
+func loadUserAvatarRecord(t *testing.T, client *dbent.Client, userID string) *oauthPendingFlowAvatarRecord {
 	t.Helper()
 
 	var rows entsql.Rows
@@ -3068,7 +3068,7 @@ func loadUserAvatarRecord(t *testing.T, client *dbent.Client, userID int64) *oau
 func countProviderGrantRecords(
 	t *testing.T,
 	client *dbent.Client,
-	userID int64,
+	userID string,
 	providerType string,
 	grantReason string,
 ) int {
@@ -3100,6 +3100,46 @@ var _ service.RegistrationEmailDomainRepository = (*oauthPendingFlowUserRepo)(ni
 
 type oauthPendingFlowUserRepoOptions struct {
 	rejectDeleteWhileAuthIdentityExists bool
+}
+
+func (r *oauthPendingFlowUserRepo) GetWalletSummary(context.Context, string) (service.WalletSummary, error) {
+	panic("unexpected GetWalletSummary call")
+}
+
+func (r *oauthPendingFlowUserRepo) CreditWallet(context.Context, service.WalletCreditInput) (service.WalletMutationResult, error) {
+	panic("unexpected CreditWallet call")
+}
+
+func (r *oauthPendingFlowUserRepo) DebitWallet(context.Context, service.WalletDebitInput) (service.WalletMutationResult, error) {
+	panic("unexpected DebitWallet call")
+}
+
+func (r *oauthPendingFlowUserRepo) SetWalletBalance(context.Context, service.WalletSetInput) (service.WalletMutationResult, error) {
+	panic("unexpected SetWalletBalance call")
+}
+
+func (r *oauthPendingFlowUserRepo) HoldWallet(context.Context, service.WalletHoldInput) (service.WalletHoldResult, error) {
+	panic("unexpected HoldWallet call")
+}
+
+func (r *oauthPendingFlowUserRepo) CaptureWalletHold(context.Context, string, string) (service.WalletHoldResult, error) {
+	panic("unexpected CaptureWalletHold call")
+}
+
+func (r *oauthPendingFlowUserRepo) ReleaseWalletHold(context.Context, string, string) (service.WalletHoldResult, error) {
+	panic("unexpected ReleaseWalletHold call")
+}
+
+func (r *oauthPendingFlowUserRepo) RefundWalletHold(context.Context, string, float64, string) (service.WalletMutationResult, error) {
+	panic("unexpected RefundWalletHold call")
+}
+
+func (r *oauthPendingFlowUserRepo) ListWalletTransactions(context.Context, string, int, int) (service.WalletTransactionPage, error) {
+	panic("unexpected ListWalletTransactions call")
+}
+
+func (r *oauthPendingFlowUserRepo) ExpireBonusBalances(context.Context, int) ([]string, error) {
+	panic("unexpected ExpireBonusBalances call")
 }
 
 func (r *oauthPendingFlowUserRepo) Create(ctx context.Context, user *service.User) error {
@@ -3169,7 +3209,7 @@ func (r *oauthPendingFlowUserRepo) CreateWithEmailAliasGuardAndDomainLimit(ctx c
 	return r.CreateWithEmailAliasGuard(ctx, user)
 }
 
-func (r *oauthPendingFlowUserRepo) GetByID(ctx context.Context, id int64) (*service.User, error) {
+func (r *oauthPendingFlowUserRepo) GetByID(ctx context.Context, id string) (*service.User, error) {
 	entity, err := r.client.User.Get(ctx, id)
 	if err != nil {
 		if dbent.IsNotFound(err) {
@@ -3220,11 +3260,11 @@ func (r *oauthPendingFlowUserRepo) Update(ctx context.Context, user *service.Use
 	return nil
 }
 
-func (r *oauthPendingFlowUserRepo) UpdateUserLastActiveAt(ctx context.Context, userID int64, activeAt time.Time) error {
+func (r *oauthPendingFlowUserRepo) UpdateUserLastActiveAt(ctx context.Context, userID string, activeAt time.Time) error {
 	return r.client.User.UpdateOneID(userID).SetLastActiveAt(activeAt).Exec(ctx)
 }
 
-func (r *oauthPendingFlowUserRepo) Delete(ctx context.Context, id int64) error {
+func (r *oauthPendingFlowUserRepo) Delete(ctx context.Context, id string) error {
 	if r.options.rejectDeleteWhileAuthIdentityExists {
 		count, err := r.client.AuthIdentity.Query().Where(authidentity.UserIDEQ(id)).Count(ctx)
 		if err != nil {
@@ -3237,7 +3277,7 @@ func (r *oauthPendingFlowUserRepo) Delete(ctx context.Context, id int64) error {
 	return r.client.User.DeleteOneID(id).Exec(ctx)
 }
 
-func (r *oauthPendingFlowUserRepo) GetUserAvatar(ctx context.Context, userID int64) (*service.UserAvatar, error) {
+func (r *oauthPendingFlowUserRepo) GetUserAvatar(ctx context.Context, userID string) (*service.UserAvatar, error) {
 	driver := r.client.Driver()
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		driver = tx.Client().Driver()
@@ -3275,7 +3315,7 @@ func (r *oauthPendingFlowUserRepo) GetUserAvatar(ctx context.Context, userID int
 	return &avatar, nil
 }
 
-func (r *oauthPendingFlowUserRepo) UpsertUserAvatar(ctx context.Context, userID int64, input service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
+func (r *oauthPendingFlowUserRepo) UpsertUserAvatar(ctx context.Context, userID string, input service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
 	driver := r.client.Driver()
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		driver = tx.Client().Driver()
@@ -3318,7 +3358,7 @@ ON CONFLICT(user_id) DO UPDATE SET
 	}, nil
 }
 
-func (r *oauthPendingFlowUserRepo) DeleteUserAvatar(ctx context.Context, userID int64) error {
+func (r *oauthPendingFlowUserRepo) DeleteUserAvatar(ctx context.Context, userID string) error {
 	driver := r.client.Driver()
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		driver = tx.Client().Driver()
@@ -3336,7 +3376,7 @@ func (r *oauthPendingFlowUserRepo) ListWithFilters(context.Context, pagination.P
 	panic("unexpected ListWithFilters call")
 }
 
-func (r *oauthPendingFlowUserRepo) UpdateBalance(ctx context.Context, userID int64, amount float64) error {
+func (r *oauthPendingFlowUserRepo) UpdateBalance(ctx context.Context, userID string, amount float64) error {
 	client := r.client
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		client = tx.Client()
@@ -3344,38 +3384,38 @@ func (r *oauthPendingFlowUserRepo) UpdateBalance(ctx context.Context, userID int
 	return client.User.UpdateOneID(userID).AddBalance(amount).Exec(ctx)
 }
 
-func (r *oauthPendingFlowUserRepo) DeductBalance(context.Context, int64, float64) error {
+func (r *oauthPendingFlowUserRepo) DeductBalance(context.Context, string, float64) error {
 	panic("unexpected DeductBalance call")
 }
 
-func (r *oauthPendingFlowUserRepo) AdjustBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
+func (r *oauthPendingFlowUserRepo) AdjustBalance(ctx context.Context, id string, delta float64) (service.BalanceChange, error) {
 	panic("unexpected AdjustBalance call")
 }
 
-func (r *oauthPendingFlowUserRepo) SetBalance(ctx context.Context, id int64, value float64) (service.BalanceChange, error) {
+func (r *oauthPendingFlowUserRepo) SetBalance(ctx context.Context, id string, value float64) (service.BalanceChange, error) {
 	panic("unexpected SetBalance call")
 }
 
-func (r *oauthPendingFlowUserRepo) UpdateConcurrency(context.Context, int64, int) error {
+func (r *oauthPendingFlowUserRepo) UpdateConcurrency(context.Context, string, int) error {
 	panic("unexpected UpdateConcurrency call")
 }
 
-func (r *oauthPendingFlowUserRepo) BatchSetConcurrency(context.Context, []int64, int) (int, error) {
+func (r *oauthPendingFlowUserRepo) BatchSetConcurrency(context.Context, []string, int) (int, error) {
 	panic("unexpected BatchSetConcurrency call")
 }
 
-func (r *oauthPendingFlowUserRepo) BatchAddConcurrency(context.Context, []int64, int) (int, error) {
+func (r *oauthPendingFlowUserRepo) BatchAddConcurrency(context.Context, []string, int) (int, error) {
 	panic("unexpected BatchAddConcurrency call")
 }
-func (r *oauthPendingFlowUserRepo) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+func (r *oauthPendingFlowUserRepo) BatchUpdateLimits(context.Context, []string, *int, *int) (int, error) {
 	panic("unexpected BatchUpdateLimits call")
 }
 
-func (r *oauthPendingFlowUserRepo) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
-	return map[int64]*time.Time{}, nil
+func (r *oauthPendingFlowUserRepo) GetLatestUsedAtByUserIDs(context.Context, []string) (map[string]*time.Time, error) {
+	return map[string]*time.Time{}, nil
 }
 
-func (r *oauthPendingFlowUserRepo) GetLatestUsedAtByUserID(context.Context, int64) (*time.Time, error) {
+func (r *oauthPendingFlowUserRepo) GetLatestUsedAtByUserID(context.Context, string) (*time.Time, error) {
 	return nil, nil
 }
 
@@ -3398,19 +3438,19 @@ func (r *oauthPendingFlowUserRepo) ExistsByEmailAlias(ctx context.Context, email
 	return false, nil
 }
 
-func (r *oauthPendingFlowUserRepo) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
+func (r *oauthPendingFlowUserRepo) RemoveGroupFromAllowedGroups(context.Context, string) (int64, error) {
 	panic("unexpected RemoveGroupFromAllowedGroups call")
 }
 
-func (r *oauthPendingFlowUserRepo) AddGroupToAllowedGroups(context.Context, int64, int64) error {
+func (r *oauthPendingFlowUserRepo) AddGroupToAllowedGroups(context.Context, string, string) error {
 	panic("unexpected AddGroupToAllowedGroups call")
 }
 
-func (r *oauthPendingFlowUserRepo) RemoveGroupFromUserAllowedGroups(context.Context, int64, int64) error {
+func (r *oauthPendingFlowUserRepo) RemoveGroupFromUserAllowedGroups(context.Context, string, string) error {
 	panic("unexpected RemoveGroupFromUserAllowedGroups call")
 }
 
-func (r *oauthPendingFlowUserRepo) ListUserAuthIdentities(ctx context.Context, userID int64) ([]service.UserAuthIdentityRecord, error) {
+func (r *oauthPendingFlowUserRepo) ListUserAuthIdentities(ctx context.Context, userID string) ([]service.UserAuthIdentityRecord, error) {
 	identities, err := r.client.AuthIdentity.Query().
 		Where(authidentity.UserIDEQ(userID)).
 		All(ctx)
@@ -3437,11 +3477,11 @@ func (r *oauthPendingFlowUserRepo) ListUserAuthIdentities(ctx context.Context, u
 	return records, nil
 }
 
-func (r *oauthPendingFlowUserRepo) UnbindUserAuthProvider(context.Context, int64, string) error {
+func (r *oauthPendingFlowUserRepo) UnbindUserAuthProvider(context.Context, string, string) error {
 	panic("unexpected UnbindUserAuthProvider call")
 }
 
-func (r *oauthPendingFlowUserRepo) UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error {
+func (r *oauthPendingFlowUserRepo) UpdateTotpSecret(ctx context.Context, userID string, encryptedSecret *string) error {
 	update := r.client.User.UpdateOneID(userID)
 	if encryptedSecret == nil {
 		update = update.ClearTotpSecretEncrypted()
@@ -3451,14 +3491,14 @@ func (r *oauthPendingFlowUserRepo) UpdateTotpSecret(ctx context.Context, userID 
 	return update.Exec(ctx)
 }
 
-func (r *oauthPendingFlowUserRepo) EnableTotp(ctx context.Context, userID int64) error {
+func (r *oauthPendingFlowUserRepo) EnableTotp(ctx context.Context, userID string) error {
 	return r.client.User.UpdateOneID(userID).
 		SetTotpEnabled(true).
 		SetTotpEnabledAt(time.Now().UTC()).
 		Exec(ctx)
 }
 
-func (r *oauthPendingFlowUserRepo) DisableTotp(ctx context.Context, userID int64) error {
+func (r *oauthPendingFlowUserRepo) DisableTotp(ctx context.Context, userID string) error {
 	return r.client.User.UpdateOneID(userID).
 		SetTotpEnabled(false).
 		ClearTotpSecretEncrypted().
@@ -3466,7 +3506,7 @@ func (r *oauthPendingFlowUserRepo) DisableTotp(ctx context.Context, userID int64
 		Exec(ctx)
 }
 
-func (r *oauthPendingFlowUserRepo) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.User, error) {
+func (r *oauthPendingFlowUserRepo) GetByIDIncludeDeleted(ctx context.Context, id string) (*service.User, error) {
 	return r.GetByID(ctx, id)
 }
 
@@ -3511,27 +3551,27 @@ func (s *oauthPendingFlowDefaultSubAssignerStub) AssignOrExtendSubscription(
 }
 
 type oauthPendingFlowTotpCacheStub struct {
-	setupSessions  map[int64]*service.TotpSetupSession
+	setupSessions  map[string]*service.TotpSetupSession
 	loginSessions  map[string]*service.TotpLoginSession
-	verifyAttempts map[int64]int
+	verifyAttempts map[string]int
 }
 
-func (s *oauthPendingFlowTotpCacheStub) GetSetupSession(_ context.Context, userID int64) (*service.TotpSetupSession, error) {
+func (s *oauthPendingFlowTotpCacheStub) GetSetupSession(_ context.Context, userID string) (*service.TotpSetupSession, error) {
 	if s == nil || s.setupSessions == nil {
 		return nil, nil
 	}
 	return s.setupSessions[userID], nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) SetSetupSession(_ context.Context, userID int64, session *service.TotpSetupSession, _ time.Duration) error {
+func (s *oauthPendingFlowTotpCacheStub) SetSetupSession(_ context.Context, userID string, session *service.TotpSetupSession, _ time.Duration) error {
 	if s.setupSessions == nil {
-		s.setupSessions = map[int64]*service.TotpSetupSession{}
+		s.setupSessions = map[string]*service.TotpSetupSession{}
 	}
 	s.setupSessions[userID] = session
 	return nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) DeleteSetupSession(_ context.Context, userID int64) error {
+func (s *oauthPendingFlowTotpCacheStub) DeleteSetupSession(_ context.Context, userID string) error {
 	delete(s.setupSessions, userID)
 	return nil
 }
@@ -3556,31 +3596,31 @@ func (s *oauthPendingFlowTotpCacheStub) DeleteLoginSession(_ context.Context, te
 	return nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) IncrementVerifyAttempts(_ context.Context, userID int64) (int, error) {
+func (s *oauthPendingFlowTotpCacheStub) IncrementVerifyAttempts(_ context.Context, userID string) (int, error) {
 	if s.verifyAttempts == nil {
-		s.verifyAttempts = map[int64]int{}
+		s.verifyAttempts = map[string]int{}
 	}
 	s.verifyAttempts[userID]++
 	return s.verifyAttempts[userID], nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) GetVerifyAttempts(_ context.Context, userID int64) (int, error) {
+func (s *oauthPendingFlowTotpCacheStub) GetVerifyAttempts(_ context.Context, userID string) (int, error) {
 	if s == nil || s.verifyAttempts == nil {
 		return 0, nil
 	}
 	return s.verifyAttempts[userID], nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) ClearVerifyAttempts(_ context.Context, userID int64) error {
+func (s *oauthPendingFlowTotpCacheStub) ClearVerifyAttempts(_ context.Context, userID string) error {
 	delete(s.verifyAttempts, userID)
 	return nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) SetStepUpGrant(_ context.Context, _ int64, _ string, _ time.Duration) error {
+func (s *oauthPendingFlowTotpCacheStub) SetStepUpGrant(_ context.Context, _ string, _ string, _ time.Duration) error {
 	return nil
 }
 
-func (s *oauthPendingFlowTotpCacheStub) HasStepUpGrant(_ context.Context, _ int64, _ string) (bool, error) {
+func (s *oauthPendingFlowTotpCacheStub) HasStepUpGrant(_ context.Context, _ string, _ string) (bool, error) {
 	return false, nil
 }
 

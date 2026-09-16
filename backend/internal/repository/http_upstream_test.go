@@ -43,7 +43,7 @@ func TestHTTPUpstreamDoCanDisableRedirectsPerRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	resp, err := upstream.Do(req, "", 1, 1)
+	resp, err := upstream.Do(req, "", "account-1", 1)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -67,7 +67,7 @@ func TestHTTPUpstreamDoWithTLSPlainHTTPUsesConfiguredHTTPProxy(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, upstream.URL, nil)
 	require.NoError(t, err)
 	client := NewHTTPUpstream(nil)
-	resp, err := client.DoWithTLS(req, proxy.URL, 41, 1, &tlsfingerprint.Profile{Name: "unused-for-http"})
+	resp, err := client.DoWithTLS(req, proxy.URL, "account-41", 1, &tlsfingerprint.Profile{Name: "unused-for-http"})
 	require.NoError(t, err)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -87,7 +87,7 @@ func TestHTTPUpstreamDoWithTLSPlainHTTPUsesConfiguredSOCKSProxy(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, upstream.URL, nil)
 	require.NoError(t, err)
 	client := NewHTTPUpstream(nil)
-	resp, err := client.DoWithTLS(req, proxyURL, 42, 1, &tlsfingerprint.Profile{Name: "unused-for-http"})
+	resp, err := client.DoWithTLS(req, proxyURL, "account-42", 1, &tlsfingerprint.Profile{Name: "unused-for-http"})
 	require.NoError(t, err)
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
@@ -197,7 +197,7 @@ func TestHTTPUpstreamDoAppliesGrokCLIIdentityBeforeOAuthRoundTrip(t *testing.T) 
 			svc, ok := upstream.(*httpUpstreamService)
 			require.True(t, ok)
 
-			const accountID int64 = 4084
+			const accountID = "account-4084"
 			isolation := svc.getIsolationMode()
 			profile := service.HTTPUpstreamProfileDefault
 			proxyKey := directProxyKey
@@ -247,7 +247,7 @@ func TestHTTPUpstreamDoFallsBackToOfficialGrokAPIOnCLIAccessDenied(t *testing.T)
 	svc, ok := upstream.(*httpUpstreamService)
 	require.True(t, ok)
 
-	const accountID int64 = 4421
+	const accountID = "account-4421"
 	isolation := svc.getIsolationMode()
 	profile := service.HTTPUpstreamProfileDefault
 	proxyKey := directProxyKey
@@ -606,7 +606,7 @@ func (s *HTTPUpstreamSuite) TestCustomResponseHeaderTimeout() {
 // 验证解析失败时拒绝回退到直连模式
 func (s *HTTPUpstreamSuite) TestGetOrCreateClient_InvalidURLReturnsError() {
 	svc := s.newService()
-	_, err := svc.getClientEntry("://bad-proxy-url", 1, 1, service.HTTPUpstreamProfileDefault, false, false)
+	_, err := svc.getClientEntry("://bad-proxy-url", "account-1", 1, service.HTTPUpstreamProfileDefault, false, false)
 	require.Error(s.T(), err, "expected error for invalid proxy URL")
 }
 
@@ -619,7 +619,7 @@ func (s *HTTPUpstreamSuite) TestOpenAIProfileDefaultsToHTTP2AndNoHeaderTimeout()
 		},
 	}
 	svc := s.newService()
-	entry, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry, err := svc.getClientEntry("", "account-1", 1, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
@@ -636,7 +636,7 @@ func (s *HTTPUpstreamSuite) TestLongStreamProfileUsesSharedHTTP2KeepAlive() {
 		},
 	}
 	svc := s.newService()
-	entry, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileLongStream, false, false)
+	entry, err := svc.getClientEntry("", "account-1", 1, service.HTTPUpstreamProfileLongStream, false, false)
 	require.NoError(s.T(), err)
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
@@ -655,7 +655,7 @@ func (s *HTTPUpstreamSuite) TestOpenAIProfileCustomHeaderTimeout() {
 		},
 	}
 	svc := s.newService()
-	entry, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry, err := svc.getClientEntry("", "account-1", 1, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
@@ -670,7 +670,7 @@ func (s *HTTPUpstreamSuite) TestOpenAIProfileTLSFingerprintDoesNotInheritGeneric
 		},
 	}
 	svc := s.newService()
-	entry, err := svc.getClientEntryWithTLS("", 1, 1, &tlsfingerprint.Profile{Name: "test"}, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry, err := svc.getClientEntryWithTLS("", "account-1", 1, &tlsfingerprint.Profile{Name: "test"}, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
@@ -682,7 +682,7 @@ func (s *HTTPUpstreamSuite) TestOpenAIProfileHTTP2DisabledUsesHTTP1Transport() {
 		OpenAIHTTP2: config.GatewayOpenAIHTTP2Config{Enabled: false},
 	}
 	svc := s.newService()
-	entry, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry, err := svc.getClientEntry("", "account-1", 1, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
@@ -696,11 +696,11 @@ func (s *HTTPUpstreamSuite) TestOpenAIHeaderTimeoutChangeRebuildsClient() {
 		OpenAIHTTP2: config.GatewayOpenAIHTTP2Config{Enabled: true},
 	}
 	svc := s.newService()
-	entry1, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry1, err := svc.getClientEntry("", "account-1", 1, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 
 	s.cfg.Gateway.OpenAIResponseHeaderTimeout = 1800
-	entry2, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry2, err := svc.getClientEntry("", "account-1", 1, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 	require.NotSame(s.T(), entry1, entry2, "OpenAI header timeout changes must rebuild cached client")
 	transport, ok := entry2.client.Transport.(*http.Transport)
@@ -739,7 +739,7 @@ func (s *HTTPUpstreamSuite) TestOpenAIHTTP2ProxyCompatibilityErrorActivatesFallb
 	svc.recordOpenAIHTTP2Failure(service.HTTPUpstreamProfileOpenAI, upstreamProtocolModeOpenAIH2, proxyURL, errors.New("http2: protocol error"))
 	require.True(s.T(), svc.isOpenAIHTTP2FallbackActive(proxyURL))
 
-	entry, err := svc.getClientEntry(proxyURL, 1, 1, service.HTTPUpstreamProfileOpenAI, false, false)
+	entry, err := svc.getClientEntry(proxyURL, "account-1", 1, service.HTTPUpstreamProfileOpenAI, false, false)
 	require.NoError(s.T(), err)
 	transport, ok := entry.client.Transport.(*http.Transport)
 	require.True(s.T(), ok, "expected *http.Transport")
@@ -766,11 +766,11 @@ func (s *HTTPUpstreamSuite) TestAcquireClient_OverLimitReturnsError() {
 		MaxUpstreamClients:      1,
 	}
 	svc := s.newService()
-	entry1, err := svc.acquireClient("http://proxy-a:8080", 1, 1)
+	entry1, err := svc.acquireClient("http://proxy-a:8080", "account-1", 1)
 	require.NoError(s.T(), err, "expected first acquire to succeed")
 	require.NotNil(s.T(), entry1, "expected entry")
 
-	entry2, err := svc.acquireClient("http://proxy-b:8080", 2, 1)
+	entry2, err := svc.acquireClient("http://proxy-b:8080", "account-2", 1)
 	require.Error(s.T(), err, "expected error when cache limit reached")
 	require.Nil(s.T(), entry2, "expected nil entry when cache limit reached")
 }
@@ -788,7 +788,7 @@ func (s *HTTPUpstreamSuite) TestDo_WithoutProxy_GoesDirect() {
 
 	req, err := http.NewRequest(http.MethodGet, upstream.URL+"/x", nil)
 	require.NoError(s.T(), err, "NewRequest")
-	resp, err := up.Do(req, "", 1, 1)
+	resp, err := up.Do(req, "", "account-1", 1)
 	require.NoError(s.T(), err, "Do")
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
@@ -813,7 +813,7 @@ func (s *HTTPUpstreamSuite) TestDo_WithHTTPProxy_UsesProxy() {
 	// 发送请求到外部地址，应通过代理
 	req, err := http.NewRequest(http.MethodGet, "http://example.com/test", nil)
 	require.NoError(s.T(), err, "NewRequest")
-	resp, err := up.Do(req, proxySrv.URL, 1, 1)
+	resp, err := up.Do(req, proxySrv.URL, "account-1", 1)
 	require.NoError(s.T(), err, "Do")
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
@@ -839,7 +839,7 @@ func (s *HTTPUpstreamSuite) TestDo_EmptyProxy_UsesDirect() {
 	up := NewHTTPUpstream(s.cfg)
 	req, err := http.NewRequest(http.MethodGet, upstream.URL+"/y", nil)
 	require.NoError(s.T(), err, "NewRequest")
-	resp, err := up.Do(req, "", 1, 1)
+	resp, err := up.Do(req, "", "account-1", 1)
 	require.NoError(s.T(), err, "Do with empty proxy")
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
@@ -950,7 +950,7 @@ func (s *HTTPUpstreamSuite) TestIdleTTLDoesNotEvictActive() {
 	atomic.StoreInt64(&entry1.lastUsed, time.Now().Add(-2*time.Minute).UnixNano())
 	atomic.StoreInt64(&entry1.inFlight, 1) // 模拟有活跃请求
 	// 创建新客户端，触发淘汰检查
-	_, _ = svc.getOrCreateClient("", 2, 1)
+	_, _ = svc.getOrCreateClient("", "account-2", 1)
 
 	require.True(s.T(), hasEntry(svc, entry1), "有活跃请求时不应回收")
 }
@@ -963,7 +963,7 @@ func TestHTTPUpstreamSuite(t *testing.T) {
 // mustGetOrCreateClient 测试辅助函数，调用 getOrCreateClient 并断言无错误
 func mustGetOrCreateClient(t *testing.T, svc *httpUpstreamService, proxyURL string, accountID int64, concurrency int) *upstreamClientEntry {
 	t.Helper()
-	entry, err := svc.getOrCreateClient(proxyURL, accountID, concurrency)
+	entry, err := svc.getOrCreateClient(proxyURL, fmt.Sprintf("account-%d", accountID), concurrency)
 	require.NoError(t, err, "getOrCreateClient(%q, %d, %d)", proxyURL, accountID, concurrency)
 	return entry
 }

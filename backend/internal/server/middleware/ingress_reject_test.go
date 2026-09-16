@@ -16,7 +16,7 @@ type ingressRejectRecorderStub struct {
 	clientIP string
 }
 
-func (r *ingressRejectRecorderStub) RecordIngressReject(_, _, _, clientIP string, _, _ int64) {
+func (r *ingressRejectRecorderStub) RecordIngressReject(_, _, _, clientIP, _, _ string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.calls++

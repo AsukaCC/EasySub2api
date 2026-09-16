@@ -55,7 +55,7 @@ func TestUsageCleanupTaskFromService_RequestTypeMapping(t *testing.T) {
 
 	requestType := int16(service.RequestTypeStream)
 	task := &service.UsageCleanupTask{
-		ID:     1,
+		ID:     "task-1",
 		Status: service.UsageCleanupStatusPending,
 		Filters: service.UsageCleanupFilters{
 			RequestType: &requestType,

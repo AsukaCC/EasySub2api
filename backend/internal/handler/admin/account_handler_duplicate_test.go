@@ -18,12 +18,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	duplicateSourceAccountID = "42000000-0000-0000-0000-000000000042"
+	duplicateCopyAccountID   = "43000000-0000-0000-0000-000000000043"
+	duplicateAdminUserID     = "77000000-0000-0000-0000-000000000077"
+)
+
 type duplicateAccountAdminServiceStub struct {
 	service.AdminService
 	account      *service.Account
 	calls        int
 	recoverCalls int
-	accountID    int64
+	accountID    string
 	actorScope   string
 	operationKey string
 	recoverScope string
@@ -47,7 +53,7 @@ type failOnceMarkSucceededRepo struct {
 	failNext bool
 }
 
-func (r *failOnceMarkSucceededRepo) MarkSucceeded(ctx context.Context, id int64, responseStatus int, responseBody string, expiresAt time.Time) error {
+func (r *failOnceMarkSucceededRepo) MarkSucceeded(ctx context.Context, id string, responseStatus int, responseBody string, expiresAt time.Time) error {
 	if r.failNext {
 		r.failNext = false
 		return errors.New("mark succeeded failed")
@@ -55,7 +61,7 @@ func (r *failOnceMarkSucceededRepo) MarkSucceeded(ctx context.Context, id int64,
 	return r.memoryIdempotencyRepoStub.MarkSucceeded(ctx, id, responseStatus, responseBody, expiresAt)
 }
 
-func (s *duplicateAccountAdminServiceStub) DuplicateAccount(_ context.Context, accountID int64, actorScope, operationKey string) (*service.Account, error) {
+func (s *duplicateAccountAdminServiceStub) DuplicateAccount(_ context.Context, accountID string, actorScope, operationKey string) (*service.Account, error) {
 	s.calls++
 	s.accountID = accountID
 	s.actorScope = actorScope
@@ -64,7 +70,7 @@ func (s *duplicateAccountAdminServiceStub) DuplicateAccount(_ context.Context, a
 	return s.account, nil
 }
 
-func (s *duplicateAccountAdminServiceStub) RecoverDuplicateAccount(_ context.Context, _ int64, actorScope, operationKey string) (*service.Account, error) {
+func (s *duplicateAccountAdminServiceStub) RecoverDuplicateAccount(_ context.Context, _ string, actorScope, operationKey string) (*service.Account, error) {
 	s.recoverCalls++
 	s.recoverScope = actorScope
 	s.recoverKey = operationKey
@@ -77,14 +83,14 @@ func (s *duplicateAccountAdminServiceStub) RecoverDuplicateAccount(_ context.Con
 	return s.account, nil
 }
 
-func (s *blockingDuplicateAdminServiceStub) DuplicateAccount(_ context.Context, _ int64, _, _ string) (*service.Account, error) {
+func (s *blockingDuplicateAdminServiceStub) DuplicateAccount(_ context.Context, _ string, _, _ string) (*service.Account, error) {
 	s.calls.Add(1)
 	close(s.started)
 	<-s.release
 	return s.account, nil
 }
 
-func (s *blockingDuplicateAdminServiceStub) RecoverDuplicateAccount(_ context.Context, _ int64, _, _ string) (*service.Account, error) {
+func (s *blockingDuplicateAdminServiceStub) RecoverDuplicateAccount(_ context.Context, _ string, _, _ string) (*service.Account, error) {
 	s.recoverCalls.Add(1)
 	return nil, s.recoverErr
 }
@@ -98,7 +104,7 @@ func setupDuplicateAccountRouter(t *testing.T, svc service.AdminService) *gin.En
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 77})
+		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: duplicateAdminUserID})
 		c.Next()
 	})
 	handler := NewAccountHandler(svc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -109,7 +115,7 @@ func setupDuplicateAccountRouter(t *testing.T, svc service.AdminService) *gin.En
 func TestDuplicateAccountHandlerRedactsCredentials(t *testing.T) {
 	svc := &duplicateAccountAdminServiceStub{
 		account: &service.Account{
-			ID:          43,
+			ID:          duplicateCopyAccountID,
 			Name:        "primary (Copy)",
 			Platform:    service.PlatformAnthropic,
 			Type:        service.AccountTypeAPIKey,
@@ -120,7 +126,7 @@ func TestDuplicateAccountHandlerRedactsCredentials(t *testing.T) {
 	}
 	router := setupDuplicateAccountRouter(t, svc)
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/42/duplicate", nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+duplicateSourceAccountID+"/duplicate", nil)
 
 	router.ServeHTTP(recorder, request)
 
@@ -154,7 +160,7 @@ func TestDuplicateAccountHandlerRejectsInvalidID(t *testing.T) {
 func TestDuplicateAccountHandlerReplaysSameIdempotencyKey(t *testing.T) {
 	svc := &duplicateAccountAdminServiceStub{
 		account: &service.Account{
-			ID:          43,
+			ID:          duplicateCopyAccountID,
 			Name:        "primary (Copy)",
 			Platform:    service.PlatformAnthropic,
 			Type:        service.AccountTypeAPIKey,
@@ -168,7 +174,7 @@ func TestDuplicateAccountHandlerReplaysSameIdempotencyKey(t *testing.T) {
 
 	call := func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/42/duplicate", nil)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+duplicateSourceAccountID+"/duplicate", nil)
 		request.Header.Set("Idempotency-Key", "duplicate-account-42")
 		router.ServeHTTP(recorder, request)
 		return recorder
@@ -180,8 +186,8 @@ func TestDuplicateAccountHandlerReplaysSameIdempotencyKey(t *testing.T) {
 	require.Equal(t, http.StatusOK, first.Code)
 	require.Equal(t, http.StatusOK, second.Code)
 	require.Equal(t, 1, svc.calls)
-	require.Equal(t, int64(42), svc.accountID)
-	require.Equal(t, "admin:77", svc.actorScope)
+	require.Equal(t, duplicateSourceAccountID, svc.accountID)
+	require.Equal(t, "admin:"+duplicateAdminUserID, svc.actorScope)
 	require.Equal(t, "duplicate-account-42", svc.operationKey)
 	require.Equal(t, "true", second.Header().Get("X-Idempotency-Replayed"))
 }
@@ -189,7 +195,7 @@ func TestDuplicateAccountHandlerReplaysSameIdempotencyKey(t *testing.T) {
 func TestDuplicateAccountHandlerRecoversAfterMarkSucceededFailure(t *testing.T) {
 	svc := &duplicateAccountAdminServiceStub{
 		account: &service.Account{
-			ID:          43,
+			ID:          duplicateCopyAccountID,
 			Name:        "primary (Copy)",
 			Platform:    service.PlatformAnthropic,
 			Type:        service.AccountTypeAPIKey,
@@ -203,7 +209,7 @@ func TestDuplicateAccountHandlerRecoversAfterMarkSucceededFailure(t *testing.T) 
 
 	call := func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/42/duplicate", nil)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+duplicateSourceAccountID+"/duplicate", nil)
 		request.Header.Set("Idempotency-Key", "duplicate-account-42-recovery")
 		router.ServeHTTP(recorder, request)
 		return recorder
@@ -218,15 +224,15 @@ func TestDuplicateAccountHandlerRecoversAfterMarkSucceededFailure(t *testing.T) 
 	require.Equal(t, "true", second.Header().Get("X-Idempotency-Recovered"))
 	require.Equal(t, 1, svc.calls, "ambiguous retries must not repeat the create side effect")
 	require.Equal(t, 2, svc.recoverCalls)
-	require.Equal(t, "admin:77", svc.recoverScope)
+	require.Equal(t, "admin:"+duplicateAdminUserID, svc.recoverScope)
 	require.Equal(t, "duplicate-account-42-recovery", svc.recoverKey)
-	require.Contains(t, second.Body.String(), `"id":43`)
+	require.Contains(t, second.Body.String(), `"id":"`+duplicateCopyAccountID+`"`)
 }
 
 func TestDuplicateAccountHandlerPreservesIdempotencyErrorWhenRecoveryLookupFails(t *testing.T) {
 	svc := &duplicateAccountAdminServiceStub{
 		account: &service.Account{
-			ID:          43,
+			ID:          duplicateCopyAccountID,
 			Name:        "primary (Copy)",
 			Platform:    service.PlatformAnthropic,
 			Type:        service.AccountTypeAPIKey,
@@ -239,7 +245,7 @@ func TestDuplicateAccountHandlerPreservesIdempotencyErrorWhenRecoveryLookupFails
 	repo := &failOnceMarkSucceededRepo{memoryIdempotencyRepoStub: newMemoryIdempotencyRepoStub(), failNext: true}
 	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(repo, service.DefaultIdempotencyConfig()))
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/42/duplicate", nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+duplicateSourceAccountID+"/duplicate", nil)
 	request.Header.Set("Idempotency-Key", "duplicate-account-42-recovery-error")
 
 	router.ServeHTTP(recorder, request)
@@ -248,13 +254,13 @@ func TestDuplicateAccountHandlerPreservesIdempotencyErrorWhenRecoveryLookupFails
 	require.Contains(t, recorder.Body.String(), "IDEMPOTENCY_STORE_UNAVAILABLE")
 	require.Equal(t, 1, svc.calls)
 	require.Equal(t, 1, svc.recoverCalls)
-	require.Equal(t, "admin:77", svc.recoverScope)
+	require.Equal(t, "admin:"+duplicateAdminUserID, svc.recoverScope)
 }
 
 func TestDuplicateAccountHandlerDoesNotReexecuteWhileOriginalIsProcessing(t *testing.T) {
 	svc := &blockingDuplicateAdminServiceStub{
 		account: &service.Account{
-			ID:          43,
+			ID:          duplicateCopyAccountID,
 			Name:        "primary (Copy)",
 			Platform:    service.PlatformAnthropic,
 			Type:        service.AccountTypeAPIKey,
@@ -270,7 +276,7 @@ func TestDuplicateAccountHandlerDoesNotReexecuteWhileOriginalIsProcessing(t *tes
 
 	call := func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/42/duplicate", nil)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+duplicateSourceAccountID+"/duplicate", nil)
 		request.Header.Set("Idempotency-Key", "duplicate-account-42-active")
 		router.ServeHTTP(recorder, request)
 		return recorder

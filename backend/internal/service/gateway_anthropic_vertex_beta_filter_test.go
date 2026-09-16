@@ -26,7 +26,7 @@ func newVertexBetaTestContext(t *testing.T, anthropicBeta string) *gin.Context {
 	return c
 }
 
-func newVertexServiceAccount(id int64) *Account {
+func newVertexServiceAccount(id string) *Account {
 	return &Account{
 		ID:       id,
 		Platform: PlatformAnthropic,
@@ -53,7 +53,7 @@ func TestVertexBetaFilter_StripsUnsupportedClaudeCodeTokens(t *testing.T) {
 
 	svc := &GatewayService{}
 	req, _, err := svc.buildUpstreamRequest(
-		context.Background(), c, newVertexServiceAccount(401), body,
+		context.Background(), c, newVertexServiceAccount("account-401"), body,
 		"vertex-token", "service_account", "claude-opus-4-7@20260417", false, false,
 	)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestVertexBetaFilter_DropsHeaderWhenAllUnsupported(t *testing.T) {
 
 	svc := &GatewayService{}
 	req, _, err := svc.buildUpstreamRequest(
-		context.Background(), c, newVertexServiceAccount(402), body,
+		context.Background(), c, newVertexServiceAccount("account-402"), body,
 		"vertex-token", "service_account", "claude-opus-4-7@20260417", false, false,
 	)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestVertexBetaFilter_BodySanitizeKeysOnFinalBeta(t *testing.T) {
 
 	svc := &GatewayService{}
 	req, _, err := svc.buildUpstreamRequest(
-		context.Background(), c, newVertexServiceAccount(403), body,
+		context.Background(), c, newVertexServiceAccount("account-403"), body,
 		"vertex-token", "service_account", "claude-opus-4-7@20260417", false, false,
 	)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestVertexBetaFilter_BlocksViaBetaPolicy(t *testing.T) {
 	body := []byte(`{"model":"claude-opus-4-7","max_tokens":32,"messages":[{"role":"user","content":"hi"}]}`)
 
 	_, _, err = svc.buildUpstreamRequest(
-		context.Background(), c, newVertexServiceAccount(404), body,
+		context.Background(), c, newVertexServiceAccount("account-404"), body,
 		"vertex-token", "service_account", "claude-opus-4-7@20260417", false, false,
 	)
 	require.Error(t, err)

@@ -65,12 +65,12 @@ func TestJitteredTTL_AverageNearCenter(t *testing.T) {
 
 func TestBillingKeyGeneration(t *testing.T) {
 	t.Run("balance_key", func(t *testing.T) {
-		key := billingBalanceKey(12345)
+		key := billingBalanceKey("12345")
 		assert.Equal(t, "billing:balance:12345", key)
 	})
 
 	t.Run("sub_key", func(t *testing.T) {
-		key := billingSubKey(100, 200)
+		key := billingSubKey("100", "200")
 		assert.Equal(t, "billing:sub:100:200", key)
 	})
 }

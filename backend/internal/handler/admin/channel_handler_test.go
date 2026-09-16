@@ -32,7 +32,7 @@ func TestChannelToResponse_NilInput(t *testing.T) {
 func TestChannelToResponse_FullChannel(t *testing.T) {
 	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
 	ch := &service.Channel{
-		ID:                 42,
+		ID:                 "channel-42",
 		Name:               "test-channel",
 		Description:        "desc",
 		Status:             "active",
@@ -40,10 +40,10 @@ func TestChannelToResponse_FullChannel(t *testing.T) {
 		RestrictModels:     true,
 		CreatedAt:          now,
 		UpdatedAt:          now.Add(time.Hour),
-		GroupIDs:           []int64{1, 2, 3},
+		GroupIDs:           []string{"group-1", "group-2", "group-3"},
 		ModelPricing: []service.ChannelModelPricing{
 			{
-				ID:              10,
+				ID:              "pricing-10",
 				Platform:        "openai",
 				Models:          []string{"gpt-4"},
 				BillingMode:     service.BillingModeToken,
@@ -61,13 +61,13 @@ func TestChannelToResponse_FullChannel(t *testing.T) {
 
 	resp := channelToResponse(ch)
 	require.NotNil(t, resp)
-	require.Equal(t, int64(42), resp.ID)
+	require.Equal(t, "channel-42", resp.ID)
 	require.Equal(t, "test-channel", resp.Name)
 	require.Equal(t, "desc", resp.Description)
 	require.Equal(t, "active", resp.Status)
 	require.Equal(t, "upstream", resp.BillingModelSource)
 	require.True(t, resp.RestrictModels)
-	require.Equal(t, []int64{1, 2, 3}, resp.GroupIDs)
+	require.Equal(t, []string{"group-1", "group-2", "group-3"}, resp.GroupIDs)
 	require.Equal(t, "2025-06-01T12:00:00Z", resp.CreatedAt)
 	require.Equal(t, "2025-06-01T13:00:00Z", resp.UpdatedAt)
 
@@ -78,7 +78,7 @@ func TestChannelToResponse_FullChannel(t *testing.T) {
 	// pricing
 	require.Len(t, resp.ModelPricing, 1)
 	p := resp.ModelPricing[0]
-	require.Equal(t, int64(10), p.ID)
+	require.Equal(t, "pricing-10", p.ID)
 	require.Equal(t, "openai", p.Platform)
 	require.Equal(t, []string{"gpt-4"}, p.Models)
 	require.Equal(t, "token", p.BillingMode)
@@ -93,7 +93,7 @@ func TestChannelToResponse_FullChannel(t *testing.T) {
 func TestChannelToResponse_EmptyDefaults(t *testing.T) {
 	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	ch := &service.Channel{
-		ID:                 1,
+		ID:                 "channel-1",
 		Name:               "ch",
 		BillingModelSource: service.BillingModelSourceChannelMapped,
 		CreatedAt:          now,
@@ -127,7 +127,7 @@ func TestChannelToResponse_EmptyDefaults(t *testing.T) {
 func TestChannelToResponse_BillingModelSourcePassthrough(t *testing.T) {
 	// handler 不再兜底 BillingModelSource：空值应原样透传（由 service 层负责默认回填）。
 	ch := &service.Channel{
-		ID:                 1,
+		ID:                 "channel-1",
 		Name:               "ch",
 		BillingModelSource: "",
 		CreatedAt:          time.Now(),
@@ -140,7 +140,7 @@ func TestChannelToResponse_BillingModelSourcePassthrough(t *testing.T) {
 func TestChannelToResponse_NilModels(t *testing.T) {
 	now := time.Now()
 	ch := &service.Channel{
-		ID:        1,
+		ID:        "channel-1",
 		Name:      "ch",
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -160,7 +160,7 @@ func TestChannelToResponse_NilModels(t *testing.T) {
 func TestChannelToResponse_WithIntervals(t *testing.T) {
 	now := time.Now()
 	ch := &service.Channel{
-		ID:        1,
+		ID:        "channel-1",
 		Name:      "ch",
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -170,7 +170,7 @@ func TestChannelToResponse_WithIntervals(t *testing.T) {
 				BillingMode: service.BillingModePerRequest,
 				Intervals: []service.PricingInterval{
 					{
-						ID:              100,
+						ID:              "interval-100",
 						MinTokens:       0,
 						MaxTokens:       intPtr(1000),
 						TierLabel:       "1K",
@@ -182,7 +182,7 @@ func TestChannelToResponse_WithIntervals(t *testing.T) {
 						SortOrder:       1,
 					},
 					{
-						ID:        101,
+						ID:        "interval-101",
 						MinTokens: 1000,
 						MaxTokens: nil,
 						TierLabel: "unlimited",
@@ -199,7 +199,7 @@ func TestChannelToResponse_WithIntervals(t *testing.T) {
 	require.Len(t, intervals, 2)
 
 	iv0 := intervals[0]
-	require.Equal(t, int64(100), iv0.ID)
+	require.Equal(t, "interval-100", iv0.ID)
 	require.Equal(t, 0, iv0.MinTokens)
 	require.Equal(t, intPtr(1000), iv0.MaxTokens)
 	require.Equal(t, "1K", iv0.TierLabel)
@@ -211,7 +211,7 @@ func TestChannelToResponse_WithIntervals(t *testing.T) {
 	require.Equal(t, 1, iv0.SortOrder)
 
 	iv1 := intervals[1]
-	require.Equal(t, int64(101), iv1.ID)
+	require.Equal(t, "interval-101", iv1.ID)
 	require.Equal(t, 1000, iv1.MinTokens)
 	require.Nil(t, iv1.MaxTokens)
 	require.Equal(t, "unlimited", iv1.TierLabel)
@@ -221,13 +221,13 @@ func TestChannelToResponse_WithIntervals(t *testing.T) {
 func TestChannelToResponse_MultipleEntries(t *testing.T) {
 	now := time.Now()
 	ch := &service.Channel{
-		ID:        1,
+		ID:        "channel-1",
 		Name:      "multi",
 		CreatedAt: now,
 		UpdatedAt: now,
 		ModelPricing: []service.ChannelModelPricing{
 			{
-				ID:          1,
+				ID:          "pricing-1",
 				Platform:    "anthropic",
 				Models:      []string{"claude-sonnet-4"},
 				BillingMode: service.BillingModeToken,
@@ -235,14 +235,14 @@ func TestChannelToResponse_MultipleEntries(t *testing.T) {
 				OutputPrice: float64Ptr(0.015),
 			},
 			{
-				ID:              2,
+				ID:              "pricing-2",
 				Platform:        "openai",
 				Models:          []string{"gpt-4", "gpt-4o"},
 				BillingMode:     service.BillingModePerRequest,
 				PerRequestPrice: float64Ptr(1.0),
 			},
 			{
-				ID:               3,
+				ID:               "pricing-3",
 				Platform:         "gemini",
 				Models:           []string{"gemini-2.5-pro"},
 				BillingMode:      service.BillingModeImage,
@@ -255,17 +255,17 @@ func TestChannelToResponse_MultipleEntries(t *testing.T) {
 	resp := channelToResponse(ch)
 	require.Len(t, resp.ModelPricing, 3)
 
-	require.Equal(t, int64(1), resp.ModelPricing[0].ID)
+	require.Equal(t, "pricing-1", resp.ModelPricing[0].ID)
 	require.Equal(t, "anthropic", resp.ModelPricing[0].Platform)
 	require.Equal(t, []string{"claude-sonnet-4"}, resp.ModelPricing[0].Models)
 	require.Equal(t, "token", resp.ModelPricing[0].BillingMode)
 
-	require.Equal(t, int64(2), resp.ModelPricing[1].ID)
+	require.Equal(t, "pricing-2", resp.ModelPricing[1].ID)
 	require.Equal(t, "openai", resp.ModelPricing[1].Platform)
 	require.Equal(t, []string{"gpt-4", "gpt-4o"}, resp.ModelPricing[1].Models)
 	require.Equal(t, "per_request", resp.ModelPricing[1].BillingMode)
 
-	require.Equal(t, int64(3), resp.ModelPricing[2].ID)
+	require.Equal(t, "pricing-3", resp.ModelPricing[2].ID)
 	require.Equal(t, "gemini", resp.ModelPricing[2].Platform)
 	require.Equal(t, []string{"gemini-2.5-pro"}, resp.ModelPricing[2].Models)
 	require.Equal(t, "image", resp.ModelPricing[2].BillingMode)

@@ -30,8 +30,8 @@ func profitControlWSAccount(id int64, rate float64, now time.Time) Account {
 
 // previous_response_id 粘连：利润不合格 → 跳过复用但不删绑定；倍率恢复 → 重新粘连。
 func TestProfitControl_PreviousResponseStickyVetoKeepsBinding(t *testing.T) {
-	ctx := profitControlTestCtx(profitControlTestGroup(23, 0.5, 0))
-	groupID := int64(23)
+	ctx := profitControlTestCtx(profitControlTestGroup("group-23", 0.5, 0))
+	groupID := "group-23"
 	now := time.Now()
 	expensive := profitControlWSAccount(31, 0.8, now)
 
@@ -85,7 +85,7 @@ func TestProfitControl_LegacyEngineFiltersCandidates(t *testing.T) {
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("false"),
 		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
 	}
-	groupID := int64(7)
+	groupID := "group-7"
 
 	t.Run("legacy path only admits profitable accounts", func(t *testing.T) {
 		ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
@@ -135,7 +135,7 @@ func TestProfitControl_FailoverDoesNotReadmitExcluded(t *testing.T) {
 		account.Schedulable = true
 		account.Concurrency = 2
 	}
-	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[int64]*AccountLoadInfo{
+	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[string]*AccountLoadInfo{
 		cheap.ID:     {AccountID: cheap.ID},
 		expensive.ID: {AccountID: expensive.ID},
 	}}
@@ -145,11 +145,11 @@ func TestProfitControl_FailoverDoesNotReadmitExcluded(t *testing.T) {
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
 		concurrencyService: NewConcurrencyService(cache),
 	}
-	groupID := int64(7)
+	groupID := "group-7"
 	ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
 
 	// 模拟 failover：上一轮失败的 cheap 已进入 excludedIDs，仅剩 expensive 不合格。
-	excluded := map[int64]struct{}{cheap.ID: {}}
+	excluded := map[string]struct{}{cheap.ID: {}}
 	selection, _, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "", "gpt-test", excluded, OpenAIUpstreamTransportAny, false)
 	require.Nil(t, selection, "failover 后不得回收利润不合格账号")
 	require.Error(t, err)
@@ -196,7 +196,7 @@ func TestProfitControl_RateRecoveryReadmitsAccount(t *testing.T) {
 	expensive.Status = StatusActive
 	expensive.Schedulable = true
 	expensive.Concurrency = 2
-	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[int64]*AccountLoadInfo{
+	cache := &upstreamCostTrackingConcurrencyCache{loadMap: map[string]*AccountLoadInfo{
 		expensive.ID: {AccountID: expensive.ID},
 	}}
 	svc := &OpenAIGatewayService{
@@ -205,7 +205,7 @@ func TestProfitControl_RateRecoveryReadmitsAccount(t *testing.T) {
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
 		concurrencyService: NewConcurrencyService(cache),
 	}
-	groupID := int64(7)
+	groupID := "group-7"
 	ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
 
 	selection, _, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
@@ -234,7 +234,7 @@ type profitControlUserRateRepo struct {
 	rate *float64
 }
 
-func (r profitControlUserRateRepo) GetByUserAndGroup(context.Context, int64, int64) (*float64, error) {
+func (r profitControlUserRateRepo) GetByUserAndGroup(context.Context, string, string) (*float64, error) {
 	return r.rate, nil
 }
 
@@ -246,11 +246,11 @@ func TestProfitControl_GateUsesUserOverrideRate(t *testing.T) {
 			profitControlUserRateRepo{rate: &override}, nil, time.Minute, nil, "test.profit",
 		),
 	}
-	groupID := int64(7)
+	groupID := "group-7"
 	group := profitControlTestGroup(groupID, 0, 0)
 	group.RateMultiplier = 2.0
 
-	ctx := context.WithValue(profitControlTestCtx(group), ctxkey.UserID, int64(42))
+	ctx := context.WithValue(profitControlTestCtx(group), ctxkey.UserID, "user-42")
 	gate := svc.resolveOpenAIProfitControlGate(ctx, &groupID)
 	require.NotNil(t, gate)
 	require.InDelta(t, 0.5, gate.threshold, 1e-12, "阈值必须基于用户覆盖倍率 0.5，而不是分组默认 2.0")
@@ -266,25 +266,25 @@ type profitControlGroupRepo struct {
 	group *Group
 }
 
-func (r profitControlGroupRepo) GetByIDLite(context.Context, int64) (*Group, error) {
+func (r profitControlGroupRepo) GetByIDLite(context.Context, string) (*Group, error) {
 	return r.group, nil
 }
 
 // GetByID 故意 panic：利润门只需要分组配置，不需要 GetByID 附带的账号计数
 // 聚合查询。装门走 GetByID 会在 composite/模型路由/fallback 的每次装门（WS
 // 每 turn 一次）上多打一条聚合，且发生在「是否启用利润控制」判定之前。
-func (r profitControlGroupRepo) GetByID(context.Context, int64) (*Group, error) {
+func (r profitControlGroupRepo) GetByID(context.Context, string) (*Group, error) {
 	panic("profit control gate must read groups via GetByIDLite (no account-count aggregation)")
 }
 
 // composite 路由：门配置取被调度成员分组，D 取请求真实计费分组（ctx 认证分组）。
 func TestProfitControl_CompositeUsesBillingGroupRate(t *testing.T) {
-	memberGroupID := int64(7)
+	memberGroupID := "group-7"
 	memberGroup := profitControlTestGroup(memberGroupID, 0.5, 0)
 	memberGroup.RateMultiplier = 99 // 若 D 误取成员分组倍率，阈值会是 49.5
 
 	billingGroup := &Group{
-		ID:             1001,
+		ID:             "group-1001",
 		Platform:       PlatformComposite,
 		Status:         StatusActive,
 		Hydrated:       true,
@@ -335,9 +335,9 @@ func TestProfitControl_LegacyEngineDefersStickyBindingUnderGate(t *testing.T) {
 		account.Schedulable = true
 		account.Concurrency = 2
 	}
-	groupID := int64(9)
+	groupID := "group-9"
 	const sessionHash = "legacy-sticky"
-	newSvc := func(bindings map[string]int64) (*OpenAIGatewayService, *schedulerTestGatewayCache) {
+	newSvc := func(bindings map[string]string) (*OpenAIGatewayService, *schedulerTestGatewayCache) {
 		cache := &schedulerTestGatewayCache{sessionBindings: bindings}
 		return &OpenAIGatewayService{
 			accountRepo:        stubOpenAIAccountRepo{accounts: []Account{*cheap, *expensive}},
@@ -349,7 +349,7 @@ func TestProfitControl_LegacyEngineDefersStickyBindingUnderGate(t *testing.T) {
 	}
 
 	t.Run("gated selection defers binding to terminal admission", func(t *testing.T) {
-		svc, cache := newSvc(map[string]int64{})
+		svc, cache := newSvc(map[string]string{})
 		ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
 		selection, _, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", sessionHash, "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 		require.NoError(t, err)
@@ -363,7 +363,7 @@ func TestProfitControl_LegacyEngineDefersStickyBindingUnderGate(t *testing.T) {
 	})
 
 	t.Run("ungated selection keeps official eager binding", func(t *testing.T) {
-		svc, cache := newSvc(map[string]int64{})
+		svc, cache := newSvc(map[string]string{})
 		group := profitControlTestGroup(groupID, 0.5, 0)
 		group.ProfitControlEnabled = false
 		selection, _, err := svc.SelectAccountWithScheduler(profitControlTestCtx(group), &groupID, "", sessionHash, "gpt-test", nil, OpenAIUpstreamTransportAny, false)

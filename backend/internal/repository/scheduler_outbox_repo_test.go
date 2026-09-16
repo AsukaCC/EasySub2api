@@ -25,10 +25,10 @@ func TestSchedulerOutboxRepositoryFirstCreatedAtAfter(t *testing.T) {
 		LIMIT 1
 	`
 	mock.ExpectQuery(regexp.QuoteMeta(expectedSQL)).
-		WithArgs(int64(42)).
+		WithArgs("event-42").
 		WillReturnRows(sqlmock.NewRows([]string{"created_at"}).AddRow(createdAt))
 
-	got, ok, err := repo.FirstCreatedAtAfter(context.Background(), 42)
+	got, ok, err := repo.FirstCreatedAtAfter(context.Background(), "event-42")
 
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -50,10 +50,10 @@ func TestSchedulerOutboxRepositoryFirstCreatedAtAfterReturnsNotFound(t *testing.
 		LIMIT 1
 	`
 	mock.ExpectQuery(regexp.QuoteMeta(expectedSQL)).
-		WithArgs(int64(42)).
+		WithArgs("event-42").
 		WillReturnRows(sqlmock.NewRows([]string{"created_at"}))
 
-	got, ok, err := repo.FirstCreatedAtAfter(context.Background(), 42)
+	got, ok, err := repo.FirstCreatedAtAfter(context.Background(), "event-42")
 
 	require.NoError(t, err)
 	require.False(t, ok)
@@ -81,10 +81,10 @@ func TestSchedulerOutboxRepositoryDeleteConsumedUpToUsesBoundedCTE(t *testing.T)
 		WHERE o.id = d.id
 	`
 	mock.ExpectExec(regexp.QuoteMeta(expectedSQL)).
-		WithArgs(int64(42), 5000).
+		WithArgs("event-42", 5000).
 		WillReturnResult(sqlmock.NewResult(0, 17))
 
-	deleted, err := repo.DeleteConsumedUpTo(context.Background(), 42, 5000)
+	deleted, err := repo.DeleteConsumedUpTo(context.Background(), "event-42", 5000)
 
 	require.NoError(t, err)
 	require.EqualValues(t, 17, deleted)
@@ -98,7 +98,7 @@ func TestSchedulerOutboxRepositoryDeleteConsumedUpToSkipsNonPositiveWatermark(t 
 
 	repo := &schedulerOutboxRepository{db: db}
 
-	deleted, err := repo.DeleteConsumedUpTo(context.Background(), 0, 5000)
+	deleted, err := repo.DeleteConsumedUpTo(context.Background(), "", 5000)
 
 	require.NoError(t, err)
 	require.EqualValues(t, 0, deleted)
@@ -148,7 +148,7 @@ func TestSchedulerOutboxRepositoryTryAcquireCleanupLockUnavailable(t *testing.T)
 // 把 payload marshal 成 "null" 写入 dedup_key 哈希，破坏与其他 nil-payload
 // 调用的去重一致性。本测试用 ungrouped 账号场景验证两条路径的 dedup_key 一致。
 func TestEnqueueSchedulerOutbox_UngroupedAccountDedupesWithLiteralNilPayload(t *testing.T) {
-	accountID := int64(42)
+	accountID := "account-42"
 
 	// Path A: 显式 nil payload（如 SetError、SetStatus 等调用模式）
 	keyLiteralNil := schedulerOutboxDedupKey("account_changed", &accountID, nil, nil)

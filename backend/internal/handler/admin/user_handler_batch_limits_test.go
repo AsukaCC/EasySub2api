@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -19,7 +20,7 @@ type batchLimitsAdminServiceStub struct {
 }
 
 type batchLimitsAdminServiceCall struct {
-	userIDs     []int64
+	userIDs     []string
 	concurrency *int
 	rpmLimit    *int
 }
@@ -32,9 +33,9 @@ func cloneIntPointer(value *int) *int {
 	return &cloned
 }
 
-func (s *batchLimitsAdminServiceStub) BatchUpdateLimits(_ context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error) {
+func (s *batchLimitsAdminServiceStub) BatchUpdateLimits(_ context.Context, userIDs []string, concurrency, rpmLimit *int) (int, error) {
 	s.calls = append(s.calls, batchLimitsAdminServiceCall{
-		userIDs:     append([]int64(nil), userIDs...),
+		userIDs:     append([]string(nil), userIDs...),
 		concurrency: cloneIntPointer(concurrency),
 		rpmLimit:    cloneIntPointer(rpmLimit),
 	})
@@ -69,9 +70,9 @@ func TestUserHandlerBatchUpdateLimitsAcceptsPartialAndZeroValues(t *testing.T) {
 		expectedConcurrency *int
 		expectedRPMLimit    *int
 	}{
-		{name: "concurrency only", body: `{"user_ids":[1,2],"concurrency":10}`, expectedConcurrency: pointerTo(10)},
-		{name: "both limits", body: `{"user_ids":[1,2],"concurrency":8,"rpm_limit":60}`, expectedConcurrency: pointerTo(8), expectedRPMLimit: pointerTo(60)},
-		{name: "explicit zero", body: `{"user_ids":[1,2],"concurrency":0,"rpm_limit":0}`, expectedConcurrency: pointerTo(0), expectedRPMLimit: pointerTo(0)},
+		{name: "concurrency only", body: `{"user_ids":["1","2"],"concurrency":10}`, expectedConcurrency: pointerTo(10)},
+		{name: "both limits", body: `{"user_ids":["1","2"],"concurrency":8,"rpm_limit":60}`, expectedConcurrency: pointerTo(8), expectedRPMLimit: pointerTo(60)},
+		{name: "explicit zero", body: `{"user_ids":["1","2"],"concurrency":0,"rpm_limit":0}`, expectedConcurrency: pointerTo(0), expectedRPMLimit: pointerTo(0)},
 	}
 
 	for _, test := range tests {
@@ -81,7 +82,7 @@ func TestUserHandlerBatchUpdateLimitsAcceptsPartialAndZeroValues(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, recorder.Code)
 			require.Len(t, serviceStub.calls, 1)
-			require.Equal(t, []int64{1, 2}, serviceStub.calls[0].userIDs)
+			require.Equal(t, []string{"1", "2"}, serviceStub.calls[0].userIDs)
 			require.Equal(t, test.expectedConcurrency, serviceStub.calls[0].concurrency)
 			require.Equal(t, test.expectedRPMLimit, serviceStub.calls[0].rpmLimit)
 
@@ -97,9 +98,9 @@ func TestUserHandlerBatchUpdateLimitsAcceptsPartialAndZeroValues(t *testing.T) {
 }
 
 func TestUserHandlerBatchUpdateLimitsRejectsInvalidRequests(t *testing.T) {
-	tooManyIDs := make([]int64, 501)
+	tooManyIDs := make([]string, 501)
 	for index := range tooManyIDs {
-		tooManyIDs[index] = int64(index + 1)
+		tooManyIDs[index] = strconv.Itoa(index + 1)
 	}
 	tooManyBody, err := json.Marshal(map[string]any{"user_ids": tooManyIDs, "rpm_limit": 10})
 	require.NoError(t, err)
@@ -108,7 +109,7 @@ func TestUserHandlerBatchUpdateLimitsRejectsInvalidRequests(t *testing.T) {
 		name string
 		body []byte
 	}{
-		{name: "no limits", body: []byte(`{"user_ids":[1]}`)},
+		{name: "no limits", body: []byte(`{"user_ids":["1"]}`)},
 		{name: "invalid json", body: []byte(`{"user_ids":`)},
 		{name: "missing user ids", body: []byte(`{"rpm_limit":10}`)},
 		{name: "more than 500 ids", body: tooManyBody},
@@ -127,17 +128,17 @@ func TestUserHandlerBatchUpdateLimitsRejectsInvalidRequests(t *testing.T) {
 
 func TestUserHandlerBatchUpdateLimitsAllUsesEveryListedUser(t *testing.T) {
 	base := newStubAdminService()
-	base.users = []service.User{{ID: 11}, {ID: 12}, {ID: 13}}
+	base.users = []service.User{{ID: "11"}, {ID: "12"}, {ID: "13"}}
 	serviceStub := &batchLimitsAdminServiceStub{stubAdminService: base}
 	recorder := postBatchLimits(
 		t,
 		setupBatchLimitsRouter(serviceStub),
-		[]byte(`{"all":true,"user_ids":[999],"rpm_limit":0}`),
+		[]byte(`{"all":true,"user_ids":["999"],"rpm_limit":0}`),
 	)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Len(t, serviceStub.calls, 1)
-	require.Equal(t, []int64{11, 12, 13}, serviceStub.calls[0].userIDs)
+	require.Equal(t, []string{"11", "12", "13"}, serviceStub.calls[0].userIDs)
 	require.Equal(t, 1, base.lastListUsers.calls)
 }
 

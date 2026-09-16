@@ -22,7 +22,7 @@ func newMiniRedisCache(t *testing.T) (*billingCache, *miniredis.Miniredis) {
 
 func TestUserPlatformQuotaCache_GetMissReturnsNotFound(t *testing.T) {
 	c, _ := newMiniRedisCache(t)
-	entry, ok, err := c.GetUserPlatformQuotaCache(context.Background(), 1, "anthropic")
+	entry, ok, err := c.GetUserPlatformQuotaCache(context.Background(), "user-1", "anthropic")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,10 +45,10 @@ func TestUserPlatformQuotaCache_SetThenGet(t *testing.T) {
 		DailyLimitUSD:    &dailyLimit,
 		DailyWindowStart: &ts,
 	}
-	if err := c.SetUserPlatformQuotaCache(ctx, 1, "openai", in, time.Minute); err != nil {
+	if err := c.SetUserPlatformQuotaCache(ctx, "user-1", "openai", in, time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	got, ok, err := c.GetUserPlatformQuotaCache(ctx, 1, "openai")
+	got, ok, err := c.GetUserPlatformQuotaCache(ctx, "user-1", "openai")
 	if err != nil || !ok {
 		t.Fatalf("get: ok=%v err=%v", ok, err)
 	}
@@ -74,10 +74,10 @@ func TestUserPlatformQuotaCache_NilLimitSetThenGet(t *testing.T) {
 		SchemaVersion: service.UserPlatformQuotaCacheSchemaV1,
 		// DailyLimitUSD nil → 无限额
 	}
-	if err := c.SetUserPlatformQuotaCache(ctx, 1, "openai", in, time.Minute); err != nil {
+	if err := c.SetUserPlatformQuotaCache(ctx, "user-1", "openai", in, time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	got, ok, err := c.GetUserPlatformQuotaCache(ctx, 1, "openai")
+	got, ok, err := c.GetUserPlatformQuotaCache(ctx, "user-1", "openai")
 	if err != nil || !ok {
 		t.Fatalf("get: ok=%v err=%v", ok, err)
 	}
@@ -88,10 +88,10 @@ func TestUserPlatformQuotaCache_NilLimitSetThenGet(t *testing.T) {
 
 func TestUserPlatformQuotaCache_IncrMissIsNoop(t *testing.T) {
 	c, _ := newMiniRedisCache(t)
-	if err := c.IncrUserPlatformQuotaUsageCache(context.Background(), 1, "openai", 0.5, time.Minute, false); err != nil {
+	if err := c.IncrUserPlatformQuotaUsageCache(context.Background(), "user-1", "openai", 0.5, time.Minute, false); err != nil {
 		t.Fatal(err)
 	}
-	_, ok, _ := c.GetUserPlatformQuotaCache(context.Background(), 1, "openai")
+	_, ok, _ := c.GetUserPlatformQuotaCache(context.Background(), "user-1", "openai")
 	if ok {
 		t.Error("expected key absent after no-op incr")
 	}
@@ -101,17 +101,17 @@ func TestUserPlatformQuotaCache_IncrHitAccumulates(t *testing.T) {
 	c, _ := newMiniRedisCache(t)
 	ctx := context.Background()
 	// SchemaVersion 必须显式设为 V1,否则 Lua 脚本会因 schema 不匹配而 return 0,跳过累加。
-	_ = c.SetUserPlatformQuotaCache(ctx, 1, "openai", &service.UserPlatformQuotaCacheEntry{
+	_ = c.SetUserPlatformQuotaCache(ctx, "user-1", "openai", &service.UserPlatformQuotaCacheEntry{
 		Version:       1,
 		SchemaVersion: service.UserPlatformQuotaCacheSchemaV1,
 	}, time.Minute)
-	if err := c.IncrUserPlatformQuotaUsageCache(ctx, 1, "openai", 0.5, time.Minute, false); err != nil {
+	if err := c.IncrUserPlatformQuotaUsageCache(ctx, "user-1", "openai", 0.5, time.Minute, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.IncrUserPlatformQuotaUsageCache(ctx, 1, "openai", 0.25, time.Minute, false); err != nil {
+	if err := c.IncrUserPlatformQuotaUsageCache(ctx, "user-1", "openai", 0.25, time.Minute, false); err != nil {
 		t.Fatal(err)
 	}
-	got, _, _ := c.GetUserPlatformQuotaCache(ctx, 1, "openai")
+	got, _, _ := c.GetUserPlatformQuotaCache(ctx, "user-1", "openai")
 	if got.DailyUsageUSD != 0.75 || got.WeeklyUsageUSD != 0.75 || got.MonthlyUsageUSD != 0.75 {
 		t.Errorf("got %+v, want daily/weekly/monthly=0.75", got)
 	}
@@ -123,11 +123,11 @@ func TestUserPlatformQuotaCache_IncrHitAccumulates(t *testing.T) {
 func TestUserPlatformQuotaCache_Delete(t *testing.T) {
 	c, _ := newMiniRedisCache(t)
 	ctx := context.Background()
-	_ = c.SetUserPlatformQuotaCache(ctx, 1, "openai", &service.UserPlatformQuotaCacheEntry{Version: 1}, time.Minute)
-	if err := c.DeleteUserPlatformQuotaCache(ctx, 1, "openai"); err != nil {
+	_ = c.SetUserPlatformQuotaCache(ctx, "user-1", "openai", &service.UserPlatformQuotaCacheEntry{Version: 1}, time.Minute)
+	if err := c.DeleteUserPlatformQuotaCache(ctx, "user-1", "openai"); err != nil {
 		t.Fatal(err)
 	}
-	_, ok, _ := c.GetUserPlatformQuotaCache(ctx, 1, "openai")
+	_, ok, _ := c.GetUserPlatformQuotaCache(ctx, "user-1", "openai")
 	if ok {
 		t.Error("expected miss after delete")
 	}

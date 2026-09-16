@@ -29,7 +29,7 @@ func (s *userHandlerRepoStub) Create(context.Context, *service.User) error { ret
 func (s *userHandlerRepoStub) CreateWithEmailAliasGuard(context.Context, *service.User) error {
 	return nil
 }
-func (s *userHandlerRepoStub) GetByID(context.Context, int64) (*service.User, error) {
+func (s *userHandlerRepoStub) GetByID(context.Context, string) (*service.User, error) {
 	cloned := *s.user
 	return &cloned, nil
 }
@@ -46,8 +46,8 @@ func (s *userHandlerRepoStub) Update(_ context.Context, user *service.User, _ se
 	s.user = &cloned
 	return nil
 }
-func (s *userHandlerRepoStub) Delete(context.Context, int64) error { return nil }
-func (s *userHandlerRepoStub) GetUserAvatar(context.Context, int64) (*service.UserAvatar, error) {
+func (s *userHandlerRepoStub) Delete(context.Context, string) error { return nil }
+func (s *userHandlerRepoStub) GetUserAvatar(context.Context, string) (*service.UserAvatar, error) {
 	if s.user == nil || s.user.AvatarURL == "" {
 		return nil, nil
 	}
@@ -59,7 +59,7 @@ func (s *userHandlerRepoStub) GetUserAvatar(context.Context, int64) (*service.Us
 		SHA256:          s.user.AvatarSHA256,
 	}, nil
 }
-func (s *userHandlerRepoStub) UpsertUserAvatar(_ context.Context, _ int64, input service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
+func (s *userHandlerRepoStub) UpsertUserAvatar(_ context.Context, _ string, input service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
 	s.user.AvatarURL = input.URL
 	s.user.AvatarSource = input.StorageProvider
 	s.user.AvatarMIME = input.ContentType
@@ -73,7 +73,7 @@ func (s *userHandlerRepoStub) UpsertUserAvatar(_ context.Context, _ int64, input
 		SHA256:          input.SHA256,
 	}, nil
 }
-func (s *userHandlerRepoStub) DeleteUserAvatar(context.Context, int64) error {
+func (s *userHandlerRepoStub) DeleteUserAvatar(context.Context, string) error {
 	s.user.AvatarURL = ""
 	s.user.AvatarSource = ""
 	s.user.AvatarMIME = ""
@@ -87,63 +87,93 @@ func (s *userHandlerRepoStub) List(context.Context, pagination.PaginationParams)
 func (s *userHandlerRepoStub) ListWithFilters(context.Context, pagination.PaginationParams, service.UserListFilters) ([]service.User, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (s *userHandlerRepoStub) UpdateBalance(context.Context, int64, float64) error { return nil }
-func (s *userHandlerRepoStub) DeductBalance(context.Context, int64, float64) error { return nil }
-func (s *userHandlerRepoStub) UpdateConcurrency(context.Context, int64, int) error { return nil }
-func (s *userHandlerRepoStub) BatchSetConcurrency(context.Context, []int64, int) (int, error) {
+func (s *userHandlerRepoStub) UpdateBalance(context.Context, string, float64) error { return nil }
+func (s *userHandlerRepoStub) DeductBalance(context.Context, string, float64) error { return nil }
+func (s *userHandlerRepoStub) UpdateConcurrency(context.Context, string, int) error { return nil }
+func (s *userHandlerRepoStub) BatchSetConcurrency(context.Context, []string, int) (int, error) {
 	return 0, nil
 }
 
-func (s *userHandlerRepoStub) AdjustBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
+func (s *userHandlerRepoStub) AdjustBalance(ctx context.Context, id string, delta float64) (service.BalanceChange, error) {
 	panic("unexpected AdjustBalance call")
 }
 
-func (s *userHandlerRepoStub) SetBalance(ctx context.Context, id int64, value float64) (service.BalanceChange, error) {
+func (s *userHandlerRepoStub) SetBalance(ctx context.Context, id string, value float64) (service.BalanceChange, error) {
 	panic("unexpected SetBalance call")
 }
-func (s *userHandlerRepoStub) BatchAddConcurrency(context.Context, []int64, int) (int, error) {
+func (s *userHandlerRepoStub) GetWalletSummary(context.Context, string) (service.WalletSummary, error) {
+	panic("unexpected GetWalletSummary call")
+}
+func (s *userHandlerRepoStub) CreditWallet(context.Context, service.WalletCreditInput) (service.WalletMutationResult, error) {
+	panic("unexpected CreditWallet call")
+}
+func (s *userHandlerRepoStub) DebitWallet(context.Context, service.WalletDebitInput) (service.WalletMutationResult, error) {
+	panic("unexpected DebitWallet call")
+}
+func (s *userHandlerRepoStub) SetWalletBalance(context.Context, service.WalletSetInput) (service.WalletMutationResult, error) {
+	panic("unexpected SetWalletBalance call")
+}
+func (s *userHandlerRepoStub) HoldWallet(context.Context, service.WalletHoldInput) (service.WalletHoldResult, error) {
+	panic("unexpected HoldWallet call")
+}
+func (s *userHandlerRepoStub) CaptureWalletHold(context.Context, string, string) (service.WalletHoldResult, error) {
+	panic("unexpected CaptureWalletHold call")
+}
+func (s *userHandlerRepoStub) ReleaseWalletHold(context.Context, string, string) (service.WalletHoldResult, error) {
+	panic("unexpected ReleaseWalletHold call")
+}
+func (s *userHandlerRepoStub) RefundWalletHold(context.Context, string, float64, string) (service.WalletMutationResult, error) {
+	panic("unexpected RefundWalletHold call")
+}
+func (s *userHandlerRepoStub) ListWalletTransactions(context.Context, string, int, int) (service.WalletTransactionPage, error) {
+	panic("unexpected ListWalletTransactions call")
+}
+func (s *userHandlerRepoStub) ExpireBonusBalances(context.Context, int) ([]string, error) {
+	panic("unexpected ExpireBonusBalances call")
+}
+func (s *userHandlerRepoStub) BatchAddConcurrency(context.Context, []string, int) (int, error) {
 	return 0, nil
 }
-func (s *userHandlerRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+func (s *userHandlerRepoStub) BatchUpdateLimits(context.Context, []string, *int, *int) (int, error) {
 	return 0, nil
 }
 func (s *userHandlerRepoStub) ExistsByEmail(context.Context, string) (bool, error) { return false, nil }
 func (s *userHandlerRepoStub) ExistsByEmailAlias(context.Context, string) (bool, error) {
 	return false, nil
 }
-func (s *userHandlerRepoStub) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
+func (s *userHandlerRepoStub) RemoveGroupFromAllowedGroups(context.Context, string) (int64, error) {
 	return 0, nil
 }
-func (s *userHandlerRepoStub) AddGroupToAllowedGroups(context.Context, int64, int64) error {
+func (s *userHandlerRepoStub) AddGroupToAllowedGroups(context.Context, string, string) error {
 	return nil
 }
-func (s *userHandlerRepoStub) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
-	return map[int64]*time.Time{}, nil
+func (s *userHandlerRepoStub) GetLatestUsedAtByUserIDs(context.Context, []string) (map[string]*time.Time, error) {
+	return map[string]*time.Time{}, nil
 }
-func (s *userHandlerRepoStub) GetLatestUsedAtByUserID(context.Context, int64) (*time.Time, error) {
+func (s *userHandlerRepoStub) GetLatestUsedAtByUserID(context.Context, string) (*time.Time, error) {
 	return nil, nil
 }
-func (s *userHandlerRepoStub) UpdateUserLastActiveAt(_ context.Context, _ int64, activeAt time.Time) error {
+func (s *userHandlerRepoStub) UpdateUserLastActiveAt(_ context.Context, _ string, activeAt time.Time) error {
 	if s.user != nil {
 		s.user.LastActiveAt = &activeAt
 	}
 	return nil
 }
-func (s *userHandlerRepoStub) RemoveGroupFromUserAllowedGroups(context.Context, int64, int64) error {
+func (s *userHandlerRepoStub) RemoveGroupFromUserAllowedGroups(context.Context, string, string) error {
 	return nil
 }
-func (s *userHandlerRepoStub) UpdateTotpSecret(context.Context, int64, *string) error { return nil }
-func (s *userHandlerRepoStub) EnableTotp(context.Context, int64) error                { return nil }
-func (s *userHandlerRepoStub) DisableTotp(context.Context, int64) error               { return nil }
-func (s *userHandlerRepoStub) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.User, error) {
+func (s *userHandlerRepoStub) UpdateTotpSecret(context.Context, string, *string) error { return nil }
+func (s *userHandlerRepoStub) EnableTotp(context.Context, string) error                { return nil }
+func (s *userHandlerRepoStub) DisableTotp(context.Context, string) error               { return nil }
+func (s *userHandlerRepoStub) GetByIDIncludeDeleted(ctx context.Context, id string) (*service.User, error) {
 	return s.GetByID(ctx, id)
 }
-func (s *userHandlerRepoStub) ListUserAuthIdentities(context.Context, int64) ([]service.UserAuthIdentityRecord, error) {
+func (s *userHandlerRepoStub) ListUserAuthIdentities(context.Context, string) ([]service.UserAuthIdentityRecord, error) {
 	out := make([]service.UserAuthIdentityRecord, len(s.identities))
 	copy(out, s.identities)
 	return out, nil
 }
-func (s *userHandlerRepoStub) UnbindUserAuthProvider(_ context.Context, _ int64, provider string) error {
+func (s *userHandlerRepoStub) UnbindUserAuthProvider(_ context.Context, _ string, provider string) error {
 	s.unbound = append(s.unbound, provider)
 	filtered := s.identities[:0]
 	for _, identity := range s.identities {
@@ -161,7 +191,7 @@ func TestUserHandlerUpdateProfileReturnsAvatarURL(t *testing.T) {
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:       11,
+			ID:       "11000000-0000-0000-0000-000000000011",
 			Email:    "handler-avatar@example.com",
 			Username: "handler-avatar",
 			Role:     service.RoleUser,
@@ -175,7 +205,7 @@ func TestUserHandlerUpdateProfileReturnsAvatarURL(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/user", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 11})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "11000000-0000-0000-0000-000000000011"})
 
 	handler.UpdateProfile(c)
 
@@ -200,7 +230,7 @@ func TestUserHandlerGetProfileReturnsIdentitySummaries(t *testing.T) {
 	verifiedAt := time.Date(2026, 4, 20, 8, 30, 0, 0, time.UTC)
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:       11,
+			ID:       "11000000-0000-0000-0000-000000000011",
 			Email:    "identity@example.com",
 			Username: "identity-user",
 			Role:     service.RoleUser,
@@ -231,7 +261,7 @@ func TestUserHandlerGetProfileReturnsIdentitySummaries(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/user/profile", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 11})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "11000000-0000-0000-0000-000000000011"})
 
 	handler.GetProfile(c)
 
@@ -287,7 +317,7 @@ func TestUserHandlerGetProfileReturnsLegacyCompatibilityFields(t *testing.T) {
 	verifiedAt := time.Date(2026, 4, 20, 8, 30, 0, 0, time.UTC)
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:           21,
+			ID:           "21000000-0000-0000-0000-000000000021",
 			Email:        "legacy-profile@example.com",
 			Username:     "linuxdo-handle",
 			Role:         service.RoleUser,
@@ -313,7 +343,7 @@ func TestUserHandlerGetProfileReturnsLegacyCompatibilityFields(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/user/profile", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 21})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "21000000-0000-0000-0000-000000000021"})
 
 	handler.GetProfile(c)
 
@@ -365,7 +395,7 @@ func TestUserHandlerGetProfileDoesNotInferEditedProfileSourcesWithoutMatchingIde
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:           22,
+			ID:           "22000000-0000-0000-0000-000000000022",
 			Email:        "edited-profile@example.com",
 			Username:     "custom-name",
 			Role:         service.RoleUser,
@@ -390,7 +420,7 @@ func TestUserHandlerGetProfileDoesNotInferEditedProfileSourcesWithoutMatchingIde
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/user/profile", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 22})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "22000000-0000-0000-0000-000000000022"})
 
 	handler.GetProfile(c)
 
@@ -412,7 +442,7 @@ type userHandlerEmailCacheStub struct {
 }
 
 type userHandlerRefreshTokenCacheStub struct {
-	revokedUserIDs []int64
+	revokedUserIDs []string
 }
 
 func (s *userHandlerRefreshTokenCacheStub) StoreRefreshToken(context.Context, string, *service.RefreshTokenData, time.Duration) error {
@@ -427,7 +457,7 @@ func (s *userHandlerRefreshTokenCacheStub) DeleteRefreshToken(context.Context, s
 	return nil
 }
 
-func (s *userHandlerRefreshTokenCacheStub) DeleteUserRefreshTokens(_ context.Context, userID int64) error {
+func (s *userHandlerRefreshTokenCacheStub) DeleteUserRefreshTokens(_ context.Context, userID string) error {
 	s.revokedUserIDs = append(s.revokedUserIDs, userID)
 	return nil
 }
@@ -436,7 +466,7 @@ func (s *userHandlerRefreshTokenCacheStub) DeleteTokenFamily(context.Context, st
 	return nil
 }
 
-func (s *userHandlerRefreshTokenCacheStub) AddToUserTokenSet(context.Context, int64, string, time.Duration) error {
+func (s *userHandlerRefreshTokenCacheStub) AddToUserTokenSet(context.Context, string, string, time.Duration) error {
 	return nil
 }
 
@@ -444,7 +474,7 @@ func (s *userHandlerRefreshTokenCacheStub) AddToFamilyTokenSet(context.Context, 
 	return nil
 }
 
-func (s *userHandlerRefreshTokenCacheStub) GetUserTokenHashes(context.Context, int64) ([]string, error) {
+func (s *userHandlerRefreshTokenCacheStub) GetUserTokenHashes(context.Context, string) ([]string, error) {
 	return nil, nil
 }
 
@@ -500,11 +530,11 @@ func (s *userHandlerEmailCacheStub) SetPasswordResetEmailCooldown(context.Contex
 	return nil
 }
 
-func (s *userHandlerEmailCacheStub) GetNotifyCodeUserRate(context.Context, int64) (int64, error) {
+func (s *userHandlerEmailCacheStub) GetNotifyCodeUserRate(context.Context, string) (int64, error) {
 	return 0, nil
 }
 
-func (s *userHandlerEmailCacheStub) IncrNotifyCodeUserRate(context.Context, int64, time.Duration) (int64, error) {
+func (s *userHandlerEmailCacheStub) IncrNotifyCodeUserRate(context.Context, string, time.Duration) (int64, error) {
 	return 0, nil
 }
 
@@ -513,7 +543,7 @@ func TestUserHandlerBindEmailIdentityReturnsProfileResponse(t *testing.T) {
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:       11,
+			ID:       "11000000-0000-0000-0000-000000000011",
 			Email:    "legacy-user" + service.LinuxDoConnectSyntheticEmailDomain,
 			Username: "legacy-user",
 			Role:     service.RoleUser,
@@ -543,7 +573,7 @@ func TestUserHandlerBindEmailIdentityReturnsProfileResponse(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/user/account-bindings/email", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "provider", Value: "email"}}
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 11})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "11000000-0000-0000-0000-000000000011"})
 
 	handler.BindEmailIdentity(c)
 
@@ -567,7 +597,7 @@ func TestUserHandlerUnbindIdentityReturnsUpdatedProfile(t *testing.T) {
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:       21,
+			ID:       "21000000-0000-0000-0000-000000000021",
 			Email:    "identity@example.com",
 			Username: "identity-user",
 			Role:     service.RoleUser,
@@ -594,7 +624,7 @@ func TestUserHandlerUnbindIdentityReturnsUpdatedProfile(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/user/account-bindings/oidc", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 21})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "21000000-0000-0000-0000-000000000021"})
 	c.Params = gin.Params{{Key: "provider", Value: "oidc"}}
 
 	handler.UnbindIdentity(c)
@@ -621,7 +651,7 @@ func TestUserHandlerUnbindIdentityRevokesAllUserSessionsWhenAuthServiceConfigure
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:           23,
+			ID:           "23000000-0000-0000-0000-000000000023",
 			Email:        "identity@example.com",
 			Username:     "identity-user",
 			Role:         service.RoleUser,
@@ -654,13 +684,13 @@ func TestUserHandlerUnbindIdentityRevokesAllUserSessionsWhenAuthServiceConfigure
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/user/account-bindings/oidc", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 23})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "23000000-0000-0000-0000-000000000023"})
 	c.Params = gin.Params{{Key: "provider", Value: "oidc"}}
 
 	handler.UnbindIdentity(c)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
-	require.Equal(t, []int64{23}, refreshTokenCache.revokedUserIDs)
+	require.Equal(t, []string{"23000000-0000-0000-0000-000000000023"}, refreshTokenCache.revokedUserIDs)
 	// 撤销依赖的是 refresh session 清理，而不是 token_version：users 表没有这一列
 	// （见 resolvedTokenVersion，实际值由 email+password_hash 指纹推导），
 	// 所以此前"自增 TokenVersion 再整行写回"不持久化任何东西，
@@ -673,7 +703,7 @@ func TestUserHandlerUnbindIdentityDoesNotRevokeSessionsWhenNothingWasUnbound(t *
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:           24,
+			ID:           "24000000-0000-0000-0000-000000000024",
 			Email:        "identity@example.com",
 			Username:     "identity-user",
 			Role:         service.RoleUser,
@@ -701,7 +731,7 @@ func TestUserHandlerUnbindIdentityDoesNotRevokeSessionsWhenNothingWasUnbound(t *
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/user/account-bindings/oidc", nil)
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 24})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "24000000-0000-0000-0000-000000000024"})
 	c.Params = gin.Params{{Key: "provider", Value: "oidc"}}
 
 	handler.UnbindIdentity(c)
@@ -716,7 +746,7 @@ func TestUserHandlerBindEmailIdentityRejectsWrongCurrentPasswordForBoundEmail(t 
 	gin.SetMode(gin.TestMode)
 
 	user := &service.User{
-		ID:       11,
+		ID:       "11000000-0000-0000-0000-000000000011",
 		Email:    "current@example.com",
 		Username: "bound-user",
 		Role:     service.RoleUser,
@@ -747,7 +777,7 @@ func TestUserHandlerBindEmailIdentityRejectsWrongCurrentPasswordForBoundEmail(t 
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/user/account-bindings/email", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 11})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "11000000-0000-0000-0000-000000000011"})
 
 	handler.BindEmailIdentity(c)
 
@@ -770,7 +800,7 @@ func TestUserHandlerStartIdentityBindingReturnsAuthorizeURL(t *testing.T) {
 
 	repo := &userHandlerRepoStub{
 		user: &service.User{
-			ID:       11,
+			ID:       "11000000-0000-0000-0000-000000000011",
 			Email:    "identity@example.com",
 			Username: "identity-user",
 			Role:     service.RoleUser,
@@ -784,7 +814,7 @@ func TestUserHandlerStartIdentityBindingReturnsAuthorizeURL(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/user/auth-identities/bind/start", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 11})
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: "11000000-0000-0000-0000-000000000011"})
 
 	handler.StartIdentityBinding(c)
 

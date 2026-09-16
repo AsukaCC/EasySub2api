@@ -17,7 +17,7 @@ type grokMediaEligibilityProberStub struct {
 	calls    int
 }
 
-func (s *grokMediaEligibilityProberStub) ProbeMediaEligibility(context.Context, int64) (bool, string, error) {
+func (s *grokMediaEligibilityProberStub) ProbeMediaEligibility(context.Context, string) (bool, string, error) {
 	s.calls++
 	return s.eligible, s.reason, s.err
 }
@@ -143,7 +143,7 @@ func TestEnsureGrokMediaAccountEligibility(t *testing.T) {
 	t.Run("unobserved oauth is probed before forwarding", func(t *testing.T) {
 		prober := &grokMediaEligibilityProberStub{eligible: true, reason: "eligible"}
 		h := &OpenAIGatewayHandler{grokMediaEligibilityProber: prober}
-		account := &service.Account{ID: 7, Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
+		account := &service.Account{ID: "account-7", Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
 
 		eligible, reason, err := h.ensureGrokMediaAccountEligibility(context.Background(), account)
 
@@ -155,7 +155,7 @@ func TestEnsureGrokMediaAccountEligibility(t *testing.T) {
 
 	t.Run("missing prober fails closed", func(t *testing.T) {
 		h := &OpenAIGatewayHandler{}
-		account := &service.Account{ID: 8, Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
+		account := &service.Account{ID: "account-8", Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
 
 		eligible, reason, err := h.ensureGrokMediaAccountEligibility(context.Background(), account)
 
@@ -168,7 +168,7 @@ func TestEnsureGrokMediaAccountEligibility(t *testing.T) {
 		probeErr := errors.New("probe failed")
 		prober := &grokMediaEligibilityProberStub{reason: "billing_unobserved", err: probeErr}
 		h := &OpenAIGatewayHandler{grokMediaEligibilityProber: prober}
-		account := &service.Account{ID: 9, Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
+		account := &service.Account{ID: "account-9", Platform: service.PlatformGrok, Type: service.AccountTypeOAuth}
 
 		eligible, reason, err := h.ensureGrokMediaAccountEligibility(context.Background(), account)
 

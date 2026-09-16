@@ -18,7 +18,7 @@ import (
 // （媒体/count_tokens/live 等门范围外路径）跳门且防御性装门无法把门加回来。
 func TestProfitControl_RequestPricingContext(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	groupID := int64(61)
+	groupID := "group-61"
 	now := time.Now()
 	expensive := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(expensive, 0.8)
@@ -49,7 +49,7 @@ func TestProfitControl_RequestPricingContext(t *testing.T) {
 // failover 重入复用同一门：请求中途分组配置变化不得改变本请求阈值。
 func TestProfitControl_GateReuseKeepsThresholdAcrossFailover(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	groupID := int64(62)
+	groupID := "group-62"
 	group := profitControlTestGroup(groupID, 0.5, 0)
 	ctx := svc.withOpenAIProfitControlGate(profitControlTestCtx(group), &groupID)
 	gate, ok := ctx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate)
@@ -65,7 +65,7 @@ func TestProfitControl_GateReuseKeepsThresholdAcrossFailover(t *testing.T) {
 
 	// 换分组（composite/模型路由成员调度）重新解析；成员分组无门时必须清除
 	// 父分组门，阈值不得跨组泄漏。
-	otherID := int64(63)
+	otherID := "group-63"
 	otherCtx := svc.withOpenAIProfitControlGate(reCtx, &otherID)
 	otherGate, _ := otherCtx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate)
 	require.Nil(t, otherGate, "成员分组未启用利润控制时父分组门必须清除")
@@ -78,7 +78,7 @@ func TestProfitControl_GateReuseKeepsThresholdAcrossFailover(t *testing.T) {
 // D 固定在 pricingAt：高峰因子按请求开始时刻计算，与"当前时刻"无关。
 func TestProfitControl_PricingAtFixesDownstreamPeakFactor(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	groupID := int64(64)
+	groupID := "group-64"
 	group := profitControlTestGroup(groupID, 0, 0)
 	group.SubscriptionType = SubscriptionTypeSubscription
 	group.PeakRateEnabled = true
@@ -123,7 +123,7 @@ func TestProfitControl_ResponsesCapabilityUsesTextGateAtScheduler(t *testing.T) 
 		rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
 		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
 	}
-	groupID := int64(77)
+	groupID := "group-77"
 	ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
 
 	_, _, err := svc.SelectAccountWithSchedulerForCapability(ctx, &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, OpenAIEndpointCapabilityChatCompletions, false, false, true)
@@ -142,7 +142,7 @@ func TestProfitControl_AccountRateSemantics(t *testing.T) {
 	manualOAuth := profitControlTestAccountWithRate(upstreamCostTestOAuthAccount(3), 0.3)
 	expensive := profitControlTestAccountWithRate(upstreamCostTestAccount(4, UpstreamBillingProbeStatusOK, 0.1, now.Add(-3*time.Hour), 30*time.Minute), 0.8)
 
-	group := profitControlTestGroup(77, 0.5, 0)
+	group := profitControlTestGroup("group-77", 0.5, 0)
 	group.RateMultiplier = 1
 	base := context.WithValue(profitControlTestCtx(group), openAIPricingAtCtxKey{}, now)
 	gate := (&OpenAIGatewayService{}).resolveOpenAIProfitControlGate(base, &group.ID)
@@ -171,13 +171,13 @@ func TestOpenAIUsagePricingAt(t *testing.T) {
 }
 
 func TestOpenAIProfitControlStickyBindingOccursOnlyAfterTerminalAdmission(t *testing.T) {
-	groupID := int64(81)
-	expensiveID := int64(901)
-	cheapID := int64(902)
+	groupID := "group-81"
+	expensiveID := "account-901"
+	cheapID := "account-902"
 	const sessionHash = "profit-sticky"
 	const cacheKey = "openai:" + sessionHash
 	cache := &schedulerTestGatewayCache{
-		sessionBindings: map[string]int64{cacheKey: expensiveID},
+		sessionBindings: map[string]string{cacheKey: expensiveID},
 	}
 	svc := &OpenAIGatewayService{cache: cache}
 	ctx := context.WithValue(context.Background(), openAIProfitControlGateCtxKey{}, &openAIProfitControlGate{
@@ -192,7 +192,7 @@ func TestOpenAIProfitControlStickyBindingOccursOnlyAfterTerminalAdmission(t *tes
 	require.NoError(t, svc.BindStickySessionAfterProfitAdmission(ctx, &groupID, sessionHash, cheapID))
 	require.Equal(t, expensiveID, cache.sessionBindings[cacheKey], "终检通过的 fallback 账号不得覆盖原粘性绑定")
 
-	cache.sessionBindings[cacheKey] = 0
+	cache.sessionBindings[cacheKey] = ""
 	require.NoError(t, svc.BindStickySessionAfterProfitAdmission(ctx, &groupID, sessionHash, cheapID))
 	require.Equal(t, cheapID, cache.sessionBindings[cacheKey], "无既有绑定时应在终检通过后建立粘性")
 }
@@ -201,7 +201,7 @@ func TestOpenAIProfitControlStickyBindingOccursOnlyAfterTerminalAdmission(t *tes
 // 配置重装门（区别于请求级同门复用）；已装门时以门所属调度分组为准。
 func TestProfitControl_TurnPricingContext(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	groupID := int64(63)
+	groupID := "group-63"
 	expensive := upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 0.8, time.Now().Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(expensive, 0.8)
 
@@ -222,11 +222,11 @@ func TestProfitControl_TurnPricingContext(t *testing.T) {
 	})
 
 	t.Run("keeps scheduled group of the existing gate", func(t *testing.T) {
-		scheduledGroupID := int64(64)
+		scheduledGroupID := "group-64"
 		scheduled := profitControlTestGroup(scheduledGroupID, 0.5, 0)
 		connCtx, _ := svc.WithOpenAIRequestPricingContext(profitControlTestCtx(scheduled), &scheduledGroupID)
 		// 入口分组与调度分组不同（composite 成员分组场景）：turn 重装取门的分组。
-		entryGroupID := int64(65)
+		entryGroupID := "group-65"
 		turnCtx, _ := svc.WithOpenAITurnPricingContext(connCtx, &entryGroupID)
 		gate, ok := turnCtx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate)
 		require.True(t, ok)
@@ -255,13 +255,13 @@ func TestProfitControl_TurnPricingContext(t *testing.T) {
 // 无门时准入后绑定回退官方 eager 语义：等待/抢槽路径不得因利润控制关闭而
 // 失去粘性绑定（评审 M-Bind 回归锚点）。
 func TestOpenAIProfitControlAfterAdmissionBindEagerWithoutGate(t *testing.T) {
-	groupID := int64(82)
-	expensiveID := int64(903)
-	cheapID := int64(904)
+	groupID := "group-82"
+	expensiveID := "account-903"
+	cheapID := "account-904"
 	const sessionHash = "no-gate-sticky"
 	const cacheKey = "openai:" + sessionHash
 	cache := &schedulerTestGatewayCache{
-		sessionBindings: map[string]int64{cacheKey: expensiveID},
+		sessionBindings: map[string]string{cacheKey: expensiveID},
 	}
 	svc := &OpenAIGatewayService{cache: cache}
 

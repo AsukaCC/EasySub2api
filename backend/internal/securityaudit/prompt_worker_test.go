@@ -49,7 +49,7 @@ func (s *fakeConfigStore) EffectiveMode() Mode {
 }
 func (s *fakeConfigStore) BlockingActivationDegraded() bool { return false }
 func (s *fakeConfigStore) Public() (PublicConfig, error)    { return PublicConfig{}, nil }
-func (s *fakeConfigStore) Save(context.Context, UpdateConfigRequest, int64) (PublicConfig, error) {
+func (s *fakeConfigStore) Save(context.Context, UpdateConfigRequest, string) (PublicConfig, error) {
 	return PublicConfig{}, nil
 }
 func (s *fakeConfigStore) RuntimeState() (int64, int64, *time.Time, string) {
@@ -106,17 +106,17 @@ func (r *fakeJobRepository) CreateStagingWithCapacity(_ context.Context, snapsho
 		return nil, r.createErr
 	}
 	if r.createJob == nil {
-		r.createJob = &Job{ID: 1, Snapshot: snapshot}
+		r.createJob = &Job{ID: "job-1", Snapshot: snapshot}
 	}
 	return r.createJob, nil
 }
-func (r *fakeJobRepository) PublishQueued(context.Context, int64) error {
+func (r *fakeJobRepository) PublishQueued(context.Context, string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.record("publish_queued")
 	return r.publishErr
 }
-func (r *fakeJobRepository) MarkStagingFailed(_ context.Context, _ int64, code, _ string) error {
+func (r *fakeJobRepository) MarkStagingFailed(_ context.Context, _ string, code, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.record("mark_staging_failed")
@@ -133,7 +133,7 @@ func (r *fakeJobRepository) ClaimNextJob(context.Context, time.Time) (*Job, bool
 	r.claimQueue = r.claimQueue[1:]
 	return job, true, nil
 }
-func (r *fakeJobRepository) RefreshLease(context.Context, int64, int64, time.Time) error {
+func (r *fakeJobRepository) RefreshLease(context.Context, string, int64, time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.refreshes++
@@ -151,16 +151,16 @@ func (r *fakeJobRepository) Complete(_ context.Context, _ *Job, result *Normaliz
 		return nil, nil
 	}
 	r.eventCount++
-	return &Event{ID: 99, Decision: result.Decision}, nil
+	return &Event{ID: "event-99", Decision: result.Decision}, nil
 }
-func (r *fakeJobRepository) Retry(_ context.Context, _, _ int64, next time.Time, code, _ string) error {
+func (r *fakeJobRepository) Retry(_ context.Context, _ string, _ int64, next time.Time, code, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.retried++
 	r.retryAt, r.retryCode = next, code
 	return r.retryErr
 }
-func (r *fakeJobRepository) Fail(_ context.Context, _, _ int64, code, _ string) error {
+func (r *fakeJobRepository) Fail(_ context.Context, _ string, _ int64, code, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.failed++
@@ -183,16 +183,16 @@ type fakePayloadStore struct {
 	mu sync.Mutex
 
 	trace     *[]string
-	values    map[int64]string
+	values    map[string]string
 	setErr    error
 	getErr    error
 	deleteErr error
 	pingErr   error
 	setTTL    time.Duration
-	deleted   []int64
+	deleted   []string
 }
 
-func (s *fakePayloadStore) Set(_ context.Context, jobID int64, value string, ttl time.Duration) error {
+func (s *fakePayloadStore) Set(_ context.Context, jobID string, value string, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.trace != nil {
@@ -202,12 +202,12 @@ func (s *fakePayloadStore) Set(_ context.Context, jobID int64, value string, ttl
 		return s.setErr
 	}
 	if s.values == nil {
-		s.values = map[int64]string{}
+		s.values = map[string]string{}
 	}
 	s.values[jobID], s.setTTL = value, ttl
 	return nil
 }
-func (s *fakePayloadStore) Get(_ context.Context, jobID int64) (string, error) {
+func (s *fakePayloadStore) Get(_ context.Context, jobID string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.getErr != nil {
@@ -219,7 +219,7 @@ func (s *fakePayloadStore) Get(_ context.Context, jobID int64) (string, error) {
 	}
 	return value, nil
 }
-func (s *fakePayloadStore) Delete(_ context.Context, jobID int64) error {
+func (s *fakePayloadStore) Delete(_ context.Context, jobID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.trace != nil {
@@ -246,13 +246,13 @@ func asyncRequest() Request {
 func TestEnqueuerStagingPayloadPublishProtocolAndFailureCleanup(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		trace := []string{}
-		repo := &fakeJobRepository{trace: &trace, createJob: &Job{ID: 41}}
-		payload := &fakePayloadStore{trace: &trace, values: map[int64]string{}}
+		repo := &fakeJobRepository{trace: &trace, createJob: &Job{ID: "job-41"}}
+		payload := &fakePayloadStore{trace: &trace, values: map[string]string{}}
 		enqueuer := NewEnqueuer(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload)
 		require.NoError(t, enqueuer.Enqueue(context.Background(), asyncRequest()))
 		require.Equal(t, []string{"create_staging", "payload_set", "publish_queued"}, trace)
 		require.Empty(t, repo.createdSnapshot.ScanText)
-		require.Equal(t, "payload canary text", payload.values[41])
+		require.Equal(t, "payload canary text", payload.values["job-41"])
 		require.Equal(t, DefaultPayloadTTL, payload.setTTL)
 	})
 
@@ -260,7 +260,7 @@ func TestEnqueuerStagingPayloadPublishProtocolAndFailureCleanup(t *testing.T) {
 		for _, createErr := range []error{ErrQueueFull, ErrQueueAdmissionBusy, errors.New("database down")} {
 			trace := []string{}
 			repo := &fakeJobRepository{trace: &trace, createErr: createErr}
-			payload := &fakePayloadStore{trace: &trace, values: map[int64]string{}}
+			payload := &fakePayloadStore{trace: &trace, values: map[string]string{}}
 			err := NewEnqueuer(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload).Enqueue(context.Background(), asyncRequest())
 			require.ErrorIs(t, err, createErr)
 			require.Equal(t, []string{"create_staging"}, trace)
@@ -269,8 +269,8 @@ func TestEnqueuerStagingPayloadPublishProtocolAndFailureCleanup(t *testing.T) {
 
 	t.Run("payload failure marks staging failed", func(t *testing.T) {
 		trace := []string{}
-		repo := &fakeJobRepository{trace: &trace, createJob: &Job{ID: 42}}
-		payload := &fakePayloadStore{trace: &trace, values: map[int64]string{}, setErr: errors.New("redis down")}
+		repo := &fakeJobRepository{trace: &trace, createJob: &Job{ID: "job-42"}}
+		payload := &fakePayloadStore{trace: &trace, values: map[string]string{}, setErr: errors.New("redis down")}
 		err := NewEnqueuer(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload).Enqueue(context.Background(), asyncRequest())
 		require.Error(t, err)
 		require.Equal(t, []string{"create_staging", "payload_set", "mark_staging_failed"}, trace)
@@ -279,13 +279,13 @@ func TestEnqueuerStagingPayloadPublishProtocolAndFailureCleanup(t *testing.T) {
 
 	t.Run("publish failure removes payload and marks staging failed", func(t *testing.T) {
 		trace := []string{}
-		repo := &fakeJobRepository{trace: &trace, createJob: &Job{ID: 43}, publishErr: errors.New("publish down")}
-		payload := &fakePayloadStore{trace: &trace, values: map[int64]string{}}
+		repo := &fakeJobRepository{trace: &trace, createJob: &Job{ID: "job-43"}, publishErr: errors.New("publish down")}
+		payload := &fakePayloadStore{trace: &trace, values: map[string]string{}}
 		err := NewEnqueuer(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload).Enqueue(context.Background(), asyncRequest())
 		require.Error(t, err)
 		require.Equal(t, []string{"create_staging", "payload_set", "publish_queued", "payload_delete", "mark_staging_failed"}, trace)
 		require.Equal(t, "queue_publish_failed", repo.markedCode)
-		require.NotContains(t, payload.values, int64(43))
+		require.NotContains(t, payload.values, "job-43")
 	})
 }
 
@@ -299,7 +299,7 @@ func TestEnqueuerSkipsOffOutOfScopeAndNoText(t *testing.T) {
 		{name: "out of scope", cfg: func() ActiveConfig {
 			cfg := asyncConfig()
 			cfg.AllGroups = false
-			cfg.GroupIDs = []int64{9}
+			cfg.GroupIDs = []string{"group-9"}
 			return cfg
 		}(), req: asyncRequest()},
 		{name: "no user text", cfg: asyncConfig(), req: Request{Protocol: "openai_chat_completions", Body: []byte(`{"messages":[{"role":"function","content":"not audited"}]}`)}},
@@ -317,8 +317,8 @@ func TestEnqueuerSkipsOffOutOfScopeAndNoText(t *testing.T) {
 func TestEnqueuerRecordsAcceptedDroppedAndSkippedMetrics(t *testing.T) {
 	t.Run("accepted increments enqueued", func(t *testing.T) {
 		metrics := NewAtomicMetrics()
-		repo := &fakeJobRepository{createJob: &Job{ID: 44}}
-		payload := &fakePayloadStore{values: map[int64]string{}}
+		repo := &fakeJobRepository{createJob: &Job{ID: "job-44"}}
+		payload := &fakePayloadStore{values: map[string]string{}}
 
 		require.NoError(t, NewEnqueuer(
 			&fakeConfigStore{cfg: asyncConfig(), active: true},
@@ -360,13 +360,13 @@ func TestEnqueuerRecordsAcceptedDroppedAndSkippedMetrics(t *testing.T) {
 }
 
 func workerJob(attempts, maxAttempts int) *Job {
-	return &Job{ID: 51, ClaimVersion: 3, Attempts: attempts, MaxAttempts: maxAttempts, ConfigVersion: 7,
+	return &Job{ID: "job-51", ClaimVersion: 3, Attempts: attempts, MaxAttempts: maxAttempts, ConfigVersion: 7,
 		Snapshot: PromptSnapshot{RequestID: "worker-request", PromptLength: 6, RedactedPreview: "red***"}}
 }
 
 func TestWorkerCompletesPassWithoutEventRefreshesEveryChunkAndDeletesPayload(t *testing.T) {
 	repo := &fakeJobRepository{}
-	payload := &fakePayloadStore{values: map[int64]string{51: "abcdef"}}
+	payload := &fakePayloadStore{values: map[string]string{"job-51": "abcdef"}}
 	scannerCalls := 0
 	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, chunk string, _ []string) (*NormalizedResult, error) {
 		scannerCalls++
@@ -381,7 +381,7 @@ func TestWorkerCompletesPassWithoutEventRefreshesEveryChunkAndDeletesPayload(t *
 	require.NotNil(t, repo.completedResult)
 	require.Equal(t, EventPass, repo.completedResult.Decision)
 	require.False(t, repo.completedStore)
-	require.Equal(t, []int64{51}, payload.deleted)
+	require.Equal(t, []string{"job-51"}, payload.deleted)
 	require.Equal(t, int64(1), metrics.Snapshot().Total)
 	require.Equal(t, int64(1), metrics.Snapshot().Allowed)
 }
@@ -404,7 +404,7 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &fakeJobRepository{}
-			payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
+			payload := &fakePayloadStore{values: map[string]string{"job-51": "abc"}}
 			metrics := NewAtomicMetrics()
 			runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
 				return nil, tt.err
@@ -419,7 +419,7 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 			} else {
 				require.Equal(t, 1, repo.failed)
 				require.Equal(t, tt.err.Code, repo.failedCode)
-				require.Equal(t, []int64{51}, payload.deleted)
+				require.Equal(t, []string{"job-51"}, payload.deleted)
 			}
 			snapshot := metrics.Snapshot()
 			require.Equal(t, int64(1), snapshot.Total)
@@ -432,7 +432,7 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 	}
 
 	repo := &fakeJobRepository{}
-	payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
+	payload := &fakePayloadStore{values: map[string]string{"job-51": "abc"}}
 	metrics := NewAtomicMetrics()
 	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
 		if endpoint.ID == "first" {
@@ -450,7 +450,7 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 func TestWorkerPanicLeaseLossAndLifecycleAreContained(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		repo := &fakeJobRepository{}
-		payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
+		payload := &fakePayloadStore{values: map[string]string{"job-51": "abc"}}
 		runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
 			panic("scanner panic canary")
 		}), NewAtomicMetrics())
@@ -464,7 +464,7 @@ func TestWorkerPanicLeaseLossAndLifecycleAreContained(t *testing.T) {
 
 	t.Run("lease loss", func(t *testing.T) {
 		repo := &fakeJobRepository{refreshErr: ErrLeaseLost}
-		payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
+		payload := &fakePayloadStore{values: map[string]string{"job-51": "abc"}}
 		calls := 0
 		runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
 			calls++
@@ -519,7 +519,7 @@ func TestPromptAuditSyntheticAsyncBaseline(t *testing.T) {
 	cfg.Endpoints[0].InputLimit = 256
 	cfg.StorePassEvents = false
 	repo := &fakeJobRepository{}
-	payload := &fakePayloadStore{values: make(map[int64]string, totalRequests)}
+	payload := &fakePayloadStore{values: make(map[string]string, totalRequests)}
 	metrics := NewAtomicMetrics()
 	knownBenignFindings := 0
 	knownMaliciousBlocked := 0
@@ -553,7 +553,7 @@ func TestPromptAuditSyntheticAsyncBaseline(t *testing.T) {
 		case index == 100:
 			text = "timeout-100"
 		}
-		jobID := int64(index)
+		jobID := fmt.Sprintf("job-%03d", index)
 		payload.values[jobID] = text
 		job := &Job{ID: jobID, ClaimVersion: 1, Attempts: 1, MaxAttempts: 1, ConfigVersion: cfg.ConfigVersion,
 			Snapshot: PromptSnapshot{RequestID: fmt.Sprintf("baseline-%03d", index), PromptLength: len([]rune(text)), RedactedPreview: "synthetic"}}
@@ -584,12 +584,12 @@ func TestPromptAuditSyntheticAsyncBaseline(t *testing.T) {
 }
 
 func TestRequestCloneOwnsMutableInputs(t *testing.T) {
-	groupID := int64(7)
+	groupID := "group-7"
 	req := Request{Body: []byte("original"), GroupID: &groupID}
 	clone := req.Clone()
 	clone.Body[0] = 'X'
-	*clone.GroupID = 8
+	*clone.GroupID = "group-8"
 	require.Equal(t, []byte("original"), req.Body)
-	require.Equal(t, int64(7), *req.GroupID)
+	require.Equal(t, "group-7", *req.GroupID)
 	require.False(t, reflect.ValueOf(req.Body).Pointer() == reflect.ValueOf(clone.Body).Pointer())
 }

@@ -26,11 +26,11 @@ func TestChannelMonitorV2DisplayModelIsPlatformScoped(t *testing.T) {
 
 func TestChannelMonitorV2MatrixDimensionKey(t *testing.T) {
 	cfg := service.ChannelMonitorV2Config{Platforms: []service.ChannelMonitorV2PlatformConfig{{Platform: "openai", Enabled: true, Models: []string{"gpt-5"}}}}
-	key := channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatformGroupModel, cfg, "openai", 7, "gpt-5")
-	require.Equal(t, channelMonitorV2MatrixKey{platform: "openai", groupID: 7, model: "gpt-5"}, key)
-	key = channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatformModel, cfg, "openai", 7, "unlisted")
+	key := channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatformGroupModel, cfg, "openai", "group-7", "gpt-5")
+	require.Equal(t, channelMonitorV2MatrixKey{platform: "openai", groupID: "group-7", model: "gpt-5"}, key)
+	key = channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatformModel, cfg, "openai", "group-7", "unlisted")
 	require.Equal(t, channelMonitorV2MatrixKey{platform: "openai", model: service.ChannelMonitorV2OtherModel}, key)
-	key = channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatform, cfg, "openai", 7, "gpt-5")
+	key = channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatform, cfg, "openai", "group-7", "gpt-5")
 	require.Equal(t, channelMonitorV2MatrixKey{platform: "openai"}, key)
 }
 
@@ -71,7 +71,7 @@ func TestChannelMonitorV2WhereUsesConfiguredScopeAndEmptyFilterMeansAllConfigure
 	filter := service.ChannelMonitorV2Filter{Start: time.Unix(1, 0), End: time.Unix(2, 0)}
 	cfg := service.ChannelMonitorV2Config{
 		Platforms: []service.ChannelMonitorV2PlatformConfig{{Platform: "openai", Enabled: true}, {Platform: "grok", Enabled: false}},
-		GroupIDs:  []int64{3, 4},
+		GroupIDs:  []string{"group-3", "group-4"},
 	}
 	where, args := channelMonitorV2Where(filter, cfg, "m")
 	require.Contains(t, where, "m.platform = ANY($3)")
@@ -81,11 +81,11 @@ func TestChannelMonitorV2WhereUsesConfiguredScopeAndEmptyFilterMeansAllConfigure
 
 func TestChannelMonitorV2WhereRejectsGroupFilterOutsideConfiguredScope(t *testing.T) {
 	filter := service.ChannelMonitorV2Filter{
-		Start: time.Unix(1, 0), End: time.Unix(2, 0), GroupIDs: []int64{9},
+		Start: time.Unix(1, 0), End: time.Unix(2, 0), GroupIDs: []string{"group-9"},
 	}
 	cfg := service.ChannelMonitorV2Config{
 		Platforms: []service.ChannelMonitorV2PlatformConfig{{Platform: "openai", Enabled: true}},
-		GroupIDs:  []int64{3, 4},
+		GroupIDs:  []string{"group-3", "group-4"},
 	}
 	where, args := channelMonitorV2Where(filter, cfg, "m")
 	require.Contains(t, where, "FALSE")
@@ -253,7 +253,7 @@ func TestChannelMonitorV2CatalogFilterClearsMultiSelectDimensions(t *testing.T) 
 	end := time.Unix(2, 0)
 	filter := service.ChannelMonitorV2Filter{
 		Start: start, End: end, Bucket: time.Minute,
-		Platforms: []string{"openai"}, GroupIDs: []int64{3}, Models: []string{"gpt-5"},
+		Platforms: []string{"openai"}, GroupIDs: []string{"group-3"}, Models: []string{"gpt-5"},
 	}
 	catalog := channelMonitorV2CatalogFilter(filter)
 	require.Nil(t, catalog.Platforms)
@@ -269,7 +269,7 @@ func TestChannelMonitorV2CatalogFilterClearsMultiSelectDimensions(t *testing.T) 
 			{Platform: "openai", Enabled: true},
 			{Platform: "grok", Enabled: true},
 		},
-		GroupIDs: []int64{3, 4},
+		GroupIDs: []string{"group-3", "group-4"},
 	}
 	catalogWhere, catalogArgs := channelMonitorV2Where(catalog, cfg, "m")
 	_, metricArgs := channelMonitorV2Where(filter, cfg, "m")
@@ -283,6 +283,6 @@ func TestChannelMonitorV2CatalogFilterClearsMultiSelectDimensions(t *testing.T) 
 	// Metrics WHERE is narrower once multi-select platforms/groups are applied.
 	require.NotEqual(t, catalogArgs, metricArgs)
 	// Group seeding without multi-select uses full config allow-list.
-	require.Equal(t, []int64{3, 4}, configuredChannelMonitorV2GroupIDs(catalog, cfg))
-	require.Equal(t, []int64{3}, configuredChannelMonitorV2GroupIDs(filter, cfg))
+	require.Equal(t, []string{"group-3", "group-4"}, configuredChannelMonitorV2GroupIDs(catalog, cfg))
+	require.Equal(t, []string{"group-3"}, configuredChannelMonitorV2GroupIDs(filter, cfg))
 }

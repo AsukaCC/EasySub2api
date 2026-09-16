@@ -142,7 +142,7 @@ func TestQueryUsageResetCreditCountPrecedence(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			account := &Account{
-				ID:       100,
+				ID:       "account-100",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Status:   StatusActive,
@@ -150,7 +150,7 @@ func TestQueryUsageResetCreditCountPrecedence(t *testing.T) {
 					"chatgpt_account_id": "org-parent123",
 				},
 			}
-			repo := &stubQuotaAccountRepo{accounts: map[int64]*Account{100: account}}
+			repo := &stubQuotaAccountRepo{accounts: map[string]*Account{"account-100": account}}
 			tokenCache := &stubQuotaTokenCache{tokens: map[string]string{
 				OpenAITokenCacheKey(account): "fake-token",
 			}}
@@ -172,7 +172,7 @@ func TestQueryUsageResetCreditCountPrecedence(t *testing.T) {
 			defer srv.Close()
 
 			svc := NewOpenAIQuotaService(repo, nil, tokenProvider, newQuotaRedirectingFactory(srv))
-			usage, err := svc.QueryUsage(context.Background(), 100)
+			usage, err := svc.QueryUsage(context.Background(), "account-100")
 			require.NoError(t, err)
 			require.NotNil(t, usage)
 			require.Equal(t, 1, detailCalls)

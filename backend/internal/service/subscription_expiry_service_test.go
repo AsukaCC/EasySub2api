@@ -20,23 +20,23 @@ func (r *subscriptionExpiryRepoStub) Create(context.Context, *UserSubscription) 
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) GetByID(context.Context, int64) (*UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) GetByID(context.Context, string) (*UserSubscription, error) {
 	return nil, ErrSubscriptionNotFound
 }
 
-func (r *subscriptionExpiryRepoStub) GetByIDForUpdate(context.Context, int64) (*UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) GetByIDForUpdate(context.Context, string) (*UserSubscription, error) {
 	return nil, ErrSubscriptionNotFound
 }
 
-func (r *subscriptionExpiryRepoStub) GetByIDIncludeDeleted(context.Context, int64) (*UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) GetByIDIncludeDeleted(context.Context, string) (*UserSubscription, error) {
 	return nil, ErrSubscriptionNotFound
 }
 
-func (r *subscriptionExpiryRepoStub) GetByUserIDAndGroupID(context.Context, int64, int64) (*UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) GetByUserIDAndGroupID(context.Context, string, string) (*UserSubscription, error) {
 	return nil, ErrSubscriptionNotFound
 }
 
-func (r *subscriptionExpiryRepoStub) GetActiveByUserIDAndGroupID(context.Context, int64, int64) (*UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) GetActiveByUserIDAndGroupID(context.Context, string, string) (*UserSubscription, error) {
 	return nil, ErrSubscriptionNotFound
 }
 
@@ -44,72 +44,72 @@ func (r *subscriptionExpiryRepoStub) Update(context.Context, *UserSubscription) 
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) Delete(context.Context, int64) error {
+func (r *subscriptionExpiryRepoStub) Delete(context.Context, string) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) Restore(context.Context, int64, string) (*UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) Restore(context.Context, string, string) (*UserSubscription, error) {
 	return nil, ErrSubscriptionNotFound
 }
 
-func (r *subscriptionExpiryRepoStub) ListByUserID(context.Context, int64) ([]UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) ListByUserID(context.Context, string) ([]UserSubscription, error) {
 	return nil, nil
 }
 
-func (r *subscriptionExpiryRepoStub) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
+func (r *subscriptionExpiryRepoStub) ListActiveByUserID(context.Context, string) ([]UserSubscription, error) {
 	return nil, nil
 }
 
-func (r *subscriptionExpiryRepoStub) ListByGroupID(context.Context, int64, pagination.PaginationParams) ([]UserSubscription, *pagination.PaginationResult, error) {
+func (r *subscriptionExpiryRepoStub) ListByGroupID(context.Context, string, pagination.PaginationParams) ([]UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
 
-func (r *subscriptionExpiryRepoStub) List(context.Context, pagination.PaginationParams, *int64, *int64, string, string, string, string) ([]UserSubscription, *pagination.PaginationResult, error) {
+func (r *subscriptionExpiryRepoStub) List(context.Context, pagination.PaginationParams, *string, *string, string, string, string, string) ([]UserSubscription, *pagination.PaginationResult, error) {
 	r.listCalls++
 	return nil, &pagination.PaginationResult{Page: 1, Pages: 1}, nil
 }
 
-func (r *subscriptionExpiryRepoStub) ExistsByUserIDAndGroupID(context.Context, int64, int64) (bool, error) {
+func (r *subscriptionExpiryRepoStub) ExistsByUserIDAndGroupID(context.Context, string, string) (bool, error) {
 	return false, nil
 }
 
-func (r *subscriptionExpiryRepoStub) ExistsActiveByUserIDAndGroupID(context.Context, int64, int64) (bool, error) {
+func (r *subscriptionExpiryRepoStub) ExistsActiveByUserIDAndGroupID(context.Context, string, string) (bool, error) {
 	return false, nil
 }
 
-func (r *subscriptionExpiryRepoStub) ExtendExpiry(context.Context, int64, time.Time) error {
+func (r *subscriptionExpiryRepoStub) ExtendExpiry(context.Context, string, time.Time) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) UpdateStatus(context.Context, int64, string) error {
+func (r *subscriptionExpiryRepoStub) UpdateStatus(context.Context, string, string) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) UpdateNotes(context.Context, int64, string) error {
+func (r *subscriptionExpiryRepoStub) UpdateNotes(context.Context, string, string) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) ActivateWindows(context.Context, int64, time.Time, time.Time) error {
+func (r *subscriptionExpiryRepoStub) ActivateWindows(context.Context, string, time.Time, time.Time) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) ResetUsageWindows(context.Context, int64, bool, bool, bool, time.Time, time.Time) error {
+func (r *subscriptionExpiryRepoStub) ResetUsageWindows(context.Context, string, bool, bool, bool, time.Time, time.Time) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) ResetDailyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (r *subscriptionExpiryRepoStub) ResetDailyUsage(context.Context, string, *time.Time, time.Time) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) ResetWeeklyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (r *subscriptionExpiryRepoStub) ResetWeeklyUsage(context.Context, string, *time.Time, time.Time) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) ResetMonthlyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (r *subscriptionExpiryRepoStub) ResetMonthlyUsage(context.Context, string, *time.Time, time.Time) error {
 	return nil
 }
 
-func (r *subscriptionExpiryRepoStub) IncrementUsage(context.Context, int64, float64) error {
+func (r *subscriptionExpiryRepoStub) IncrementUsage(context.Context, string, float64) error {
 	return nil
 }
 

@@ -45,7 +45,7 @@ func TestAccountAdminBoundariesRejectMalformedOpenAILongContextBillingValue(t *t
 			name:   "bulk update",
 			method: http.MethodPost,
 			path:   "/accounts/bulk-update",
-			body:   `{"account_ids":[1],` + malformedExtra + `}`,
+			body:   `{"account_ids":["1"],` + malformedExtra + `}`,
 			mount: func(router *gin.Engine, handler *AccountHandler) {
 				router.POST("/accounts/bulk-update", handler.BulkUpdate)
 			},
@@ -117,7 +117,7 @@ func TestApplyOAuthCredentialsRejectsMalformedOpenAILongContextBillingBeforeMuta
 	gin.SetMode(gin.TestMode)
 	stub := newStubAdminService()
 	stub.getAccountResult = &service.Account{
-		ID:       1,
+		ID:       "1",
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
 	}

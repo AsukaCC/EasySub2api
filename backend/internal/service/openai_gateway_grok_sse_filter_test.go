@@ -175,7 +175,7 @@ func TestGrokResponsesBillingPingFilterPreservesUsageAndTerminalEvent(t *testing
 		`data: {"type":"response.completed","response":{"id":"resp_1","usage":{"input_tokens":3,"output_tokens":5}}}`,
 		"",
 	}, "\n")
-	account := &Account{ID: 1, Platform: PlatformGrok}
+	account := &Account{ID: "account-1", Platform: PlatformGrok}
 	resp := &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{},

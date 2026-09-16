@@ -17,7 +17,7 @@ import (
 // compatCyberOAuthAccount 是 compat cyber 测试共用的 OAuth 账号。
 func compatCyberOAuthAccount() *Account {
 	return &Account{
-		ID:          1,
+		ID:          "account-1",
 		Name:        "openai-oauth",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,

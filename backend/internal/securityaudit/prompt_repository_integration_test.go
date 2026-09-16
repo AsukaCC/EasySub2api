@@ -64,9 +64,9 @@ func resetPromptAuditIntegrationDB(t *testing.T, db *sql.DB) {
 	require.NoError(t, err)
 }
 
-func insertIdentity(t *testing.T, db *sql.DB, table string) int64 {
+func insertIdentity(t *testing.T, db *sql.DB, table string) string {
 	t.Helper()
-	var id int64
+	var id string
 	require.NoError(t, db.QueryRow(`INSERT INTO `+table+` DEFAULT VALUES RETURNING id`).Scan(&id))
 	return id
 }
@@ -388,7 +388,7 @@ func TestPromptAuditRepositoryHighWaterAndSafeDeletion(t *testing.T) {
 	require.NoError(t, err)
 	batchTwo, err := repo.RecordBlocking(ctx, integrationSnapshot("batch-two"), 1, integrationResult(EventCritical), true)
 	require.NoError(t, err)
-	ids := []int64{batchTwo.ID, batchOne.ID, batchOne.ID}
+	ids := []string{batchTwo.ID, batchOne.ID, batchOne.ID}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] > ids[j] })
 	batchResult, err := repo.DeleteEventsByIDs(ctx, ids)
 	require.NoError(t, err)
@@ -410,7 +410,7 @@ func TestPromptAuditServiceConfirmationKeepsPostPreviewEventsAndConcurrentDelete
 	service := &PromptService{
 		config: &fakeConfigStore{}, repo: repo, payload: NewRedisPayloadStore(nil), clock: fixedClock{now: now},
 	}
-	preview, err := service.PreviewDelete(ctx, filter, 77)
+	preview, err := service.PreviewDelete(ctx, filter, "user-77")
 	require.NoError(t, err)
 	require.Equal(t, int64(12), preview.MatchedCount)
 
@@ -419,7 +419,7 @@ func TestPromptAuditServiceConfirmationKeepsPostPreviewEventsAndConcurrentDelete
 	result, err := service.DeleteByFilter(ctx, DeleteByFilterRequest{
 		Filter: filter, SnapshotMaxID: preview.SnapshotMaxID, FilterHash: preview.FilterHash,
 		ConfirmationToken: preview.ConfirmationToken, Confirm: true,
-	}, 77)
+	}, "user-77")
 	require.NoError(t, err)
 	require.Equal(t, int64(12), result.DeletedEvents)
 	_, err = repo.GetEvent(ctx, newer.ID)

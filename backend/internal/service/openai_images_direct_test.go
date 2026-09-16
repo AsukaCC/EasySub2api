@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 )
 
 func directImagesTestAccount() *Account {
-	return &Account{ID: 35, Platform: PlatformOpenAI, Type: AccountTypeOAuth,
+	return &Account{ID: "id-35", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "test-token", "chatgpt_account_id": "test-account"}}
 }
 
@@ -84,7 +85,7 @@ func TestCodexDirectImagesHTTPErrorDoesNotFallback(t *testing.T) {
 	for _, status := range []int{400, 401, 403, 429, 500, 502, 503} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			calls := 0
-			upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+			upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 				calls++
 				require.Equal(t, "/backend-api/codex/images/generations", req.URL.Path)
 				return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"type":"server_error","message":"image request rejected"}}`))}, nil
@@ -206,7 +207,7 @@ func TestCodexDirectImagesAccountTestAndWhitelist(t *testing.T) {
 	require.Equal(t, "/backend-api/codex/images/generations", upstream.lastReq.URL.Path)
 	require.Contains(t, rec.Body.String(), `"success":true`)
 	newCodexModelsOAuthCacheServer(t, `{"models":[{"slug":"gpt-5.6-luna"}]}`)
-	svc.openaiGatewayService = &OpenAIGatewayService{}
+	svc.openAIGatewayService = &OpenAIGatewayService{}
 	account := newCodexModelsTestAccount()
 	account.Credentials["model_mapping"] = map[string]any{"gpt-image-2.5-flare": "gpt-image-2.5-flare"}
 	models, err := svc.FetchOpenAIAccountModels(context.Background(), account)
@@ -214,4 +215,18 @@ func TestCodexDirectImagesAccountTestAndWhitelist(t *testing.T) {
 	for _, model := range models {
 		require.NotEqual(t, "gpt-image-2.5-sunburst", model.ID)
 	}
+}
+
+func newCodexModelsOAuthCacheServer(t *testing.T, body string) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, body)
+	}))
+	previousURL := chatgptCodexModelsURL
+	chatgptCodexModelsURL = server.URL
+	t.Cleanup(func() {
+		chatgptCodexModelsURL = previousURL
+		server.Close()
+	})
 }

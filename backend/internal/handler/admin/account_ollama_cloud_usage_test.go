@@ -22,7 +22,7 @@ type ollamaCloudUsageHandlerTestRepo struct {
 	groupResolveCalls int
 }
 
-func (r *ollamaCloudUsageHandlerTestRepo) GetByID(_ context.Context, id int64) (*service.Account, error) {
+func (r *ollamaCloudUsageHandlerTestRepo) GetByID(_ context.Context, id string) (*service.Account, error) {
 	if r.account != nil && r.account.ID == id {
 		return r.account, nil
 	}
@@ -120,7 +120,7 @@ func TestOllamaCloudUsageEncryptionKeyStateConsistentAcrossAccountResponses(t *t
 	for _, configured := range []bool{false, true} {
 		t.Run("configured="+strconv.FormatBool(configured), func(t *testing.T) {
 			account := &service.Account{
-				ID:          7,
+				ID:          "7",
 				Name:        "ollama",
 				Platform:    service.PlatformOpenAI,
 				Type:        service.AccountTypeAPIKey,
@@ -189,7 +189,7 @@ func TestOllamaCloudUsageSharedStateMatchesListDetailAndSpecialEndpointWithoutLi
 	gin.SetMode(gin.TestMode)
 	now := time.Now().UTC()
 	source := &service.Account{
-		ID: 7, Name: "source", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
+		ID: "7", Name: "source", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
 		Credentials: map[string]any{"base_url": "https://ollama.com", "api_key": "shared-secret-key"},
 		Extra: map[string]any{
 			service.OllamaCloudUsageSessionExtraKey:     "ciphertext-secret",
@@ -202,7 +202,7 @@ func TestOllamaCloudUsageSharedStateMatchesListDetailAndSpecialEndpointWithoutLi
 		Status: service.StatusActive,
 	}
 	sibling := &service.Account{
-		ID: 8, Name: "sibling", Platform: service.PlatformAnthropic, Type: service.AccountTypeAPIKey,
+		ID: "8", Name: "sibling", Platform: service.PlatformAnthropic, Type: service.AccountTypeAPIKey,
 		Credentials: map[string]any{"base_url": "HTTPS://WWW.OLLAMA.COM:443/v1", "api_key": "shared-secret-key"},
 		Extra:       map[string]any{}, Status: service.StatusActive,
 	}
@@ -226,7 +226,7 @@ func TestOllamaCloudUsageSharedStateMatchesListDetailAndSpecialEndpointWithoutLi
 	var listPayload struct {
 		Data struct {
 			Items []struct {
-				ID               int64                          `json:"id"`
+				ID               string                         `json:"id"`
 				OllamaCloudUsage *service.OllamaCloudUsageState `json:"ollama_cloud_usage"`
 			} `json:"items"`
 		} `json:"data"`

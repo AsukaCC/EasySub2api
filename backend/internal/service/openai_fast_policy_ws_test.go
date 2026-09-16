@@ -80,7 +80,7 @@ func TestWSResponseCreate_UserScopedRuleOverridesGlobalRule(t *testing.T) {
 				ServiceTier: OpenAIFastTierPriority,
 				Action:      BetaPolicyActionPass,
 				Scope:       BetaPolicyScopeAll,
-				UserIDs:     []int64{42},
+				UserIDs:     []string{"user-42"},
 			},
 		},
 	}
@@ -88,13 +88,13 @@ func TestWSResponseCreate_UserScopedRuleOverridesGlobalRule(t *testing.T) {
 	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
 	frame := []byte(`{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}`)
 
-	allowedUserCtx := context.WithValue(context.Background(), ctxkey.UserID, int64(42))
+	allowedUserCtx := context.WithValue(context.Background(), ctxkey.UserID, "user-42")
 	updated, blocked, err := svc.applyOpenAIFastPolicyToWSResponseCreate(allowedUserCtx, account, "gpt-5.5", frame)
 	require.NoError(t, err)
 	require.Nil(t, blocked)
 	require.Equal(t, "priority", gjson.GetBytes(updated, "service_tier").String())
 
-	otherUserCtx := context.WithValue(context.Background(), ctxkey.UserID, int64(43))
+	otherUserCtx := context.WithValue(context.Background(), ctxkey.UserID, "user-43")
 	updated, blocked, err = svc.applyOpenAIFastPolicyToWSResponseCreate(otherUserCtx, account, "gpt-5.5", frame)
 	require.NoError(t, err)
 	require.Nil(t, blocked)
@@ -426,7 +426,7 @@ func TestWSResponseCreate_IngressFiltersServiceTierBeforeUpstream(t *testing.T) 
 	}
 
 	account := &Account{
-		ID:          901,
+		ID:          "account-901",
 		Name:        "openai-ws-filter",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -556,7 +556,7 @@ func TestWSResponseCreate_IngressBlockSendsErrorEventAndSkipsUpstream(t *testing
 	}
 
 	account := &Account{
-		ID:          902,
+		ID:          "account-902",
 		Name:        "openai-ws-block",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

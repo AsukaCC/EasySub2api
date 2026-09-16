@@ -96,7 +96,7 @@ func runPassthroughFlushTest(
 		context.Background(),
 		resp,
 		c,
-		&Account{ID: 1, Platform: PlatformOpenAI, Name: "flush-test"},
+		&Account{ID: "account-1", Platform: PlatformOpenAI, Name: "flush-test"},
 		time.Now(),
 		"",
 		"",
