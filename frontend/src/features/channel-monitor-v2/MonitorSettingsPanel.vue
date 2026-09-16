@@ -27,13 +27,13 @@
 
     <div
       v-if="loading"
-      class="features-channel-monitor-v2-monitor-settings-panel__panel-3 card"
+      class="features-channel-monitor-v2-monitor-settings-panel__panel-3 card monitor-glass-card"
     >
       <span class="features-channel-monitor-v2-monitor-settings-panel__text-2">{{ t('channelMonitorV2.settings.loading') }}</span>
     </div>
 
     <template v-else-if="draft">
-      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-4 card">
+      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-4 card monitor-glass-card">
         <div class="features-channel-monitor-v2-monitor-settings-panel__panel-5">
           <div>
             <strong class="features-channel-monitor-v2-monitor-settings-panel__strong">{{ t('channelMonitorV2.settings.refreshTitle') }}</strong>
@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card">
+      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card monitor-glass-card">
         <div class="features-channel-monitor-v2-monitor-settings-panel__panel-8 card-header">
           <h3 class="features-channel-monitor-v2-monitor-settings-panel__strong">{{ t('channelMonitorV2.settings.platformsTitle') }}</h3>
           <p class="features-channel-monitor-v2-monitor-settings-panel__description-2">
@@ -92,7 +92,7 @@
         </div>
       </div>
 
-      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card">
+      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card monitor-glass-card">
         <div class="features-channel-monitor-v2-monitor-settings-panel__panel-11 card-header">
           <div>
             <h3 class="features-channel-monitor-v2-monitor-settings-panel__strong">{{ t('channelMonitorV2.settings.groupsTitle') }}</h3>
@@ -134,7 +134,7 @@
         </div>
       </div>
 
-      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card">
+      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card monitor-glass-card">
         <div class="features-channel-monitor-v2-monitor-settings-panel__panel-8 card-header">
           <h3 class="features-channel-monitor-v2-monitor-settings-panel__strong">{{ t('channelMonitorV2.settings.errorsTitle') }}</h3>
           <p class="features-channel-monitor-v2-monitor-settings-panel__description-2">
@@ -171,7 +171,7 @@
         </div>
       </div>
 
-      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card">
+      <div class="features-channel-monitor-v2-monitor-settings-panel__panel-7 card monitor-glass-card">
         <div class="features-channel-monitor-v2-monitor-settings-panel__panel-8 card-header">
           <h3 class="features-channel-monitor-v2-monitor-settings-panel__strong">{{ t('channelMonitorV2.settings.healthTitle') }}</h3>
           <p class="features-channel-monitor-v2-monitor-settings-panel__description-2">

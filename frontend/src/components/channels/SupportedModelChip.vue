@@ -36,7 +36,7 @@
         v-show="show"
         ref="popoverEl"
         role="tooltip"
-        class="components-channels-supported-model-chip__panel-2"
+        class="components-channels-supported-model-chip__panel-2 model-chip-popover"
         :class="[popoverBorderClass]"
         :style="popoverStyle"
       >
@@ -290,6 +290,9 @@ function updatePosition() {
   popoverStyle.value = {
     top: `${Math.round(top)}px`,
     left: `${Math.round(left)}px`,
+    zIndex: trigger.closest('.modal-overlay, [role="dialog"]')
+      ? 'var(--z-tooltip)'
+      : 'var(--z-dropdown)',
   }
 }
 

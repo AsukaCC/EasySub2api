@@ -278,9 +278,8 @@
     <BaseDialog
       :show="settingsOpen"
       :title="t('imageWorkbench.settings')"
-      width="narrow"
+      width="normal"
       close-on-click-outside
-      :close-on-escape="false"
       @close="settingsOpen = false"
     >
       <div class="settings-tabs" role="tablist">
@@ -2120,20 +2119,23 @@ select option {
   display: flex;
   gap: .25rem;
   margin: 0 0 1rem;
+  overflow-x: auto;
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .settings-tabs button {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: .6rem;
+  padding: .55rem .4rem;
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }
 
 .settings-tabs button.active {
