@@ -216,6 +216,9 @@ func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrder
 			return nil, infraerrors.Forbidden("BALANCE_PAYMENT_DISABLED", "balance recharge has been disabled")
 		}
 	case payment.OrderTypeSubscription:
+		if !cfg.SubscriptionEnabled {
+			return nil, infraerrors.Forbidden("SUBSCRIPTION_PAYMENT_DISABLED", "subscription purchases have been disabled")
+		}
 		return s.validateSubOrder(ctx, req)
 	default:
 		return nil, infraerrors.BadRequest("INVALID_ORDER_TYPE", "order type must be balance or subscription")

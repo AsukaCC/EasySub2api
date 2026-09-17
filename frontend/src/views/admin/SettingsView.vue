@@ -9489,6 +9489,7 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   subscription_enabled: true,
+  site_billing_mode: "recharge_and_subscription",
   payment_balance_recharge_multiplier: 1,
   payment_recharge_bonus_tiers: [],
   payment_subscription_usd_to_cny_rate: 0,

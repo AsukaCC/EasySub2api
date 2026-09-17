@@ -269,6 +269,7 @@ import {
   setNavigationIndicatorGeometry
 } from '@/utils/navigationMotion'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { adminSupportTicketsAPI, supportTicketsAPI } from '@/api/supportTickets'
 
 interface NavItem {
@@ -787,6 +788,7 @@ const ChevronDownIcon = {
 // yet. Admin-only flags (not in public settings) stay inline below.
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
+const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagUsageGuide = makeSidebarFlag(FeatureFlags.usageGuide)
 const flagImageWorkbench = makeSidebarFlag(FeatureFlags.imageWorkbench)
@@ -797,6 +799,16 @@ const flagAdminChannelMonitor = () => adminSettingsStore.channelMonitorEnabled
 const flagAdminModelPlaza = () => adminSettingsStore.modelPlazaEnabled
 const flagAdminRiskControl = () => adminSettingsStore.riskControlEnabled
 const flagAdminAffiliate = () => adminSettingsStore.affiliateEnabled
+const purchaseNavLabel = computed(() => {
+  switch (resolveSiteBillingMode(appStore.cachedPublicSettings)) {
+    case 'recharge_only':
+      return t('nav.recharge')
+    case 'subscription_only':
+      return t('nav.subscribe')
+    default:
+      return t('nav.buySubscription')
+  }
+})
 // Ticket navigation is fail-closed while its summary is loading. Public settings are
 // injected before the shell renders, so an enabled feature still appears immediately;
 // disabled users only see the entry after the summary confirms historical tickets.
@@ -828,8 +840,8 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     ...(withDashboard ? [{ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon }] : []),
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/usage-guide', label: t('nav.usageGuide'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagUsageGuide },
-    { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
-    { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
+    { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/tickets', label: t('nav.supportTickets'), icon: TicketIcon, hideInSimpleMode: true, featureFlag: flagSupportTickets, badge: supportUserSummary.value.unread },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
@@ -949,7 +961,7 @@ const adminNavSections = computed((): NavSection[] => {
             { path: '/admin/users/levels', label: t('nav.userLevels'), icon: ChartIcon },
           ],
         },
-        { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
+        { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
         { path: '/admin/tickets', label: t('nav.ticketManagement'), icon: TicketIcon, badge: supportAdminSummary.value.unread },
         {
           path: '/admin/orders',

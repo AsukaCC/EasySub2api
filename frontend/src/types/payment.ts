@@ -130,6 +130,7 @@ export interface CheckoutInfoResponse {
   global_max: number
   plans: SubscriptionPlan[]
   balance_disabled: boolean
+  subscription_enabled?: boolean
   /** Deprecated compatibility field. Recharge conversion is fixed at 1:1. */
   balance_recharge_multiplier: number
   /** Fixed point bonuses; the highest qualifying CNY threshold wins. */

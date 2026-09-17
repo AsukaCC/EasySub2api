@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import PaymentView from '../PaymentView.vue'
@@ -23,6 +23,12 @@ const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
+const fetchPendingSubscriptions = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+const appStoreState = vi.hoisted(() => ({
+  setPublicSettings(_value: Record<string, unknown> | undefined) {
+    return undefined
+  },
+}))
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -66,7 +72,9 @@ vi.mock('@/stores/payment', () => ({
 vi.mock('@/stores/subscriptions', () => ({
   useSubscriptionStore: () => ({
     activeSubscriptions: [],
+    pendingSubscriptions: [],
     fetchActiveSubscriptions,
+    fetchPendingSubscriptions,
   }),
 }))
 
@@ -116,6 +124,7 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     global_max: 0,
     plans: [],
     balance_disabled: false,
+    subscription_enabled: true,
     balance_recharge_multiplier: 1,
     subscription_usd_to_cny_rate: 0,
     recharge_fee_rate: 0,
@@ -218,6 +227,7 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
   createOrder.mockReset()
   refreshUser.mockReset()
   fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+  fetchPendingSubscriptions.mockReset().mockResolvedValue(undefined)
   showError.mockReset()
   showInfo.mockReset()
   showWarning.mockReset()
@@ -256,6 +266,7 @@ async function mountSubscriptionPlanList(planCount: number) {
   createOrder.mockReset()
   refreshUser.mockReset()
   fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+  fetchPendingSubscriptions.mockReset().mockResolvedValue(undefined)
   showError.mockReset()
   showInfo.mockReset()
   showWarning.mockReset()
@@ -848,7 +859,7 @@ describe('PaymentView subscription feature flag', () => {
 
     expect(tabLabels(wrapper)).toEqual([])
     expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
-    expect(wrapper.text()).toContain('payment.rechargeAccount')
+    expect(wrapper.text()).toContain('payment.rechargeNow')
   })
 
   it('shows an unavailable notice instead of a doomed top-up form when balance recharge is disabled too', async () => {
@@ -872,7 +883,7 @@ describe('PaymentView subscription feature flag', () => {
 
     expect(tabLabels(wrapper)).toEqual([])
     expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
-    expect(wrapper.text()).toContain('payment.rechargeAccount')
+    expect(wrapper.text()).toContain('payment.rechargeNow')
     wrapper.unmount()
   })
 

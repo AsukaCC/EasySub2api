@@ -649,6 +649,7 @@ export interface SystemSettings {
   payment_enabled: boolean;
   payment_user_visible: boolean;
   risk_control_enabled: boolean;
+  site_billing_mode: 'recharge_and_subscription' | 'recharge_only' | 'subscription_only';
 
   // Cyber session block
   cyber_session_block_enabled: boolean;
@@ -981,6 +982,7 @@ export interface UpdateSettingsRequest {
   payment_enabled?: boolean;
   payment_user_visible?: boolean;
   risk_control_enabled?: boolean;
+  site_billing_mode?: 'recharge_and_subscription' | 'recharge_only' | 'subscription_only';
 
   // Cyber session block
   cyber_session_block_enabled?: boolean;

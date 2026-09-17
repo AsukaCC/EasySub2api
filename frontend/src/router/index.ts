@@ -13,6 +13,7 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 
 /**
  * Route definitions with lazy loading
@@ -1225,7 +1226,7 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.userFeature || (!authStore.isAdmin && to.meta.requiresPayment) || to.meta.requiresRiskControl) && !appStore.publicSettingsLoaded) {
+  if ((to.meta.userFeature || (!authStore.isAdmin && to.meta.requiresPayment) || to.meta.requiresRiskControl || to.meta.requiresSubscription) && !appStore.publicSettingsLoaded) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
@@ -1269,11 +1270,11 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // 订阅功能是 opt-out 开关：只有显式 false 才拦截「我的订阅」页直达。
+  // 仅充值站点不开放用户订阅管理页。统一字段优先，旧布尔字段继续兼容。
   if (
     to.meta.requiresSubscription &&
     appStore.publicSettingsLoaded &&
-    appStore.cachedPublicSettings?.subscription_enabled === false
+    resolveSiteBillingMode(appStore.cachedPublicSettings) === 'recharge_only'
   ) {
     next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return

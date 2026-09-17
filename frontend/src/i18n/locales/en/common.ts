@@ -251,6 +251,8 @@ export default {
     github: 'GitHub',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge Points',
+    recharge: 'Recharge',
+    subscribe: 'Subscribe',
     docs: 'Docs',
     myOrders: 'My Orders',
     supportTickets: 'Support Tickets',

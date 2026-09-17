@@ -17,6 +17,30 @@
       </div>
 
       <section v-else class="feature-management__list" :aria-busy="loading">
+        <article class="feature-management__row">
+          <div class="feature-management__identity">
+            <span class="feature-management__icon"><Icon name="creditCard" size="md" /></span>
+            <div>
+              <div class="feature-management__title-line">
+                <h2>{{ t('admin.settings.features.siteBillingMode.title') }}</h2>
+                <span class="feature-management__status is-on">{{ siteBillingModeLabel }}</span>
+              </div>
+              <p>{{ t('admin.settings.features.siteBillingMode.description') }}</p>
+              <p class="feature-management__hint">{{ siteBillingModeHint }}</p>
+            </div>
+          </div>
+          <div class="feature-management__controls feature-management__controls--billing-mode">
+            <label class="feature-management__select-label">
+              <span>{{ t('admin.settings.features.siteBillingMode.label') }}</span>
+              <Select
+                :model-value="siteBillingMode"
+                :options="siteBillingModeOptions"
+                :disabled="saving.has('site-billing-mode')"
+                @update:model-value="onSiteBillingModeChange"
+              />
+            </label>
+          </div>
+        </article>
         <article v-for="feature in features" :key="feature.id" class="feature-management__row">
           <div class="feature-management__identity">
             <span class="feature-management__icon"><Icon :name="feature.icon" size="md" /></span>
@@ -75,14 +99,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
 import type { UpdateSettingsRequest } from '@/api/admin/settings'
 import { useAdminSettingsStore, useAppStore } from '@/stores'
+import {
+  SITE_BILLING_MODES,
+  SITE_BILLING_MODE_I18N_KEYS,
+  resolveSiteBillingMode,
+  type SiteBillingMode,
+} from '@/utils/siteBillingMode'
 
 type EnabledKey =
   | 'channel_monitor_enabled'
@@ -122,6 +153,7 @@ const adminSettingsStore = useAdminSettingsStore()
 const loading = ref(false)
 const loaded = ref(false)
 const saving = ref(new Set<string>())
+const siteBillingMode = ref<SiteBillingMode>('recharge_and_subscription')
 const state = reactive<FeatureState>({
   channel_monitor_enabled: true,
   channel_monitor_user_visible: true,
@@ -164,10 +196,24 @@ const features: FeatureDefinition[] = [
   { id: 'ops-monitoring', titleKey: 'admin.settings.featureManagement.modules.opsMonitoring', descriptionKey: 'admin.settings.featureManagement.moduleDescriptions.opsMonitoring', enabledKey: 'ops_monitoring_enabled', configPath: '/admin/ops/settings', icon: 'server' },
 ]
 
+const siteBillingModeOptions = computed<SelectOption[]>(() =>
+  SITE_BILLING_MODES.map((mode) => ({
+    value: mode,
+    label: t(`admin.settings.features.siteBillingMode.options.${SITE_BILLING_MODE_I18N_KEYS[mode]}`),
+  })),
+)
+const siteBillingModeLabel = computed(() =>
+  t(`admin.settings.features.siteBillingMode.options.${SITE_BILLING_MODE_I18N_KEYS[siteBillingMode.value]}`),
+)
+const siteBillingModeHint = computed(() =>
+  t(`admin.settings.features.siteBillingMode.hints.${SITE_BILLING_MODE_I18N_KEYS[siteBillingMode.value]}`),
+)
+
 async function load() {
   loading.value = true
   try {
     const settings = await adminAPI.settings.getSettings()
+    siteBillingMode.value = resolveSiteBillingMode(settings)
     for (const feature of features) {
       state[feature.enabledKey] = Boolean(settings[feature.enabledKey])
       if (feature.visibleKey) state[feature.visibleKey] = Boolean(settings[feature.visibleKey])
@@ -179,6 +225,31 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function updateSiteBillingMode(next: SiteBillingMode) {
+  if (saving.value.has('site-billing-mode')) return
+  const previous = siteBillingMode.value
+  siteBillingMode.value = next
+  saving.value = new Set(saving.value).add('site-billing-mode')
+  try {
+    const updated = await adminAPI.settings.updateSettings({ site_billing_mode: next })
+    siteBillingMode.value = resolveSiteBillingMode(updated)
+    await Promise.all([appStore.fetchPublicSettings(true), adminSettingsStore.fetch(true)])
+  } catch {
+    siteBillingMode.value = previous
+    appStore.showError(t('admin.settings.featureManagement.saveFailed'))
+  } finally {
+    const nextSaving = new Set(saving.value)
+    nextSaving.delete('site-billing-mode')
+    saving.value = nextSaving
+  }
+}
+
+function onSiteBillingModeChange(value: string | number | boolean | null) {
+  const next = value as SiteBillingMode
+  if (!SITE_BILLING_MODES.includes(next)) return
+  void updateSiteBillingMode(next)
 }
 
 async function updateFeature(feature: FeatureDefinition, kind: 'enabled' | 'visible' | EnabledKey, next: boolean) {
@@ -242,10 +313,13 @@ onMounted(load)
 .feature-management__title-line { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .feature-management__title-line h2 { margin: 0; font-size: var(--font-size-base); }
 .feature-management__identity p { margin: .35rem 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.5; }
+.feature-management__identity .feature-management__hint { margin-top: .55rem; font-size: var(--font-size-xs); }
 .feature-management__status { padding: .18rem .45rem; border-radius: 4px; font-size: var(--font-size-xs); font-weight: 600; background: var(--color-surface-muted); color: var(--color-text-secondary); }
 .feature-management__status.is-on, .feature-management__status.is-published { color: var(--color-text-success); }
 .feature-management__status.is-off { color: var(--color-text-danger); }
 .feature-management__controls { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; }
+.feature-management__controls--billing-mode { min-width: 15rem; }
+.feature-management__select-label { display: grid; width: 100%; gap: .4rem; color: var(--color-text-secondary); font-size: var(--font-size-xs); }
 .feature-management__switch { display: grid; justify-items: center; gap: .35rem; color: var(--color-text-secondary); font-size: var(--font-size-xs); white-space: nowrap; }
 .feature-management__loading { min-height: 18rem; display: grid; place-content: center; justify-items: center; gap: .75rem; color: var(--color-text-secondary); }
 .feature-management__loading svg { animation: feature-spin 1s linear infinite; }

@@ -26,6 +26,8 @@ const appStore = vi.hoisted(() => ({
     payment_enabled?: boolean
     risk_control_enabled?: boolean
     subscription_enabled?: boolean
+    payment_balance_disabled?: boolean
+    site_billing_mode?: string
     custom_menu_items?: []
   },
   fetchPublicSettings: vi.fn(),
@@ -140,6 +142,26 @@ describe('feature route guard', () => {
     expect(next).toHaveBeenCalledWith()
   })
 
+  it('waits for public settings before rejecting a recharge-only subscription route', async () => {
+    const deferred = createDeferred<{ site_billing_mode: string }>()
+    appStore.fetchPublicSettings.mockImplementation(async () => {
+      const settings = await deferred.promise
+      appStore.cachedPublicSettings = settings
+      appStore.publicSettingsLoaded = true
+      return settings
+    })
+
+    const { navigation, next } = runGuard({ requiresSubscription: true }, '/subscriptions')
+
+    await vi.waitFor(() => expect(appStore.fetchPublicSettings).toHaveBeenCalledTimes(1))
+    expect(next).not.toHaveBeenCalled()
+
+    deferred.resolve({ site_billing_mode: 'recharge_only' })
+    await navigation
+    expect(next).toHaveBeenCalledOnce()
+    expect(next).toHaveBeenCalledWith('/dashboard')
+  })
+
   it.each([
     ['payment', { requiresPayment: true }, '/purchase'],
     ['risk control', { requiresRiskControl: true }, '/admin/risk-control'],
@@ -157,14 +179,14 @@ describe('feature route guard', () => {
   })
 
   it.each([
-    ['payment', { requiresPayment: true }, { payment_enabled: false }, '/dashboard'],
+    ['payment', { requiresPayment: true }, { payment_enabled: false }, { path: '/feature-unavailable', query: { feature: 'payment' } }],
     [
       'risk control',
       { requiresRiskControl: true },
       { risk_control_enabled: false },
-      '/admin/settings',
+      '/admin/settings/features',
     ],
-    ['subscription', { requiresSubscription: true }, { subscription_enabled: false }, '/dashboard'],
+    ['subscription', { requiresSubscription: true }, { site_billing_mode: 'recharge_only' }, '/dashboard'],
   ])('redirects when loaded settings explicitly disable %s', async (_name, meta, settings, target) => {
     authStore.isAdmin = meta.requiresRiskControl === true
     appStore.cachedPublicSettings = settings
@@ -190,6 +212,8 @@ describe('subscription route guard (opt-out flag)', () => {
   it.each([
     ['missing key', {}],
     ['explicit true', { subscription_enabled: true }],
+    ['explicit combined mode', { site_billing_mode: 'recharge_and_subscription' }],
+    ['subscription-only mode', { site_billing_mode: 'subscription_only' }],
   ])('lets /subscriptions through when the flag is %s', async (_name, settings) => {
     appStore.cachedPublicSettings = settings
 
@@ -202,7 +226,7 @@ describe('subscription route guard (opt-out flag)', () => {
 
   it('sends admins to the admin dashboard when subscriptions are disabled', async () => {
     authStore.isAdmin = true
-    appStore.cachedPublicSettings = { subscription_enabled: false }
+    appStore.cachedPublicSettings = { site_billing_mode: 'recharge_only' }
 
     const { navigation, next } = runGuard({ requiresSubscription: true }, '/subscriptions')
     await navigation

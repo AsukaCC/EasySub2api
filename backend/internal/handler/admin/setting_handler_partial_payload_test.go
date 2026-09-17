@@ -203,3 +203,30 @@ func TestUpdateSettingsSubscriptionEnabledIsWritableAndKeptWhenOmitted(t *testin
 	require.Equal(t, "false", repo.values[service.SettingKeySubscriptionEnabled],
 		"a payload without subscription_enabled must not flip the stored value back to true")
 }
+
+func TestUpdateSettingsSiteBillingModeWritesCompatibilitySettings(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		mode                string
+		wantMode            string
+		wantSubscription    string
+		wantBalanceDisabled string
+	}{
+		{name: "combined", mode: service.SiteBillingModeRechargeAndSubscription, wantMode: service.SiteBillingModeRechargeAndSubscription, wantSubscription: "true", wantBalanceDisabled: "false"},
+		{name: "recharge only", mode: service.SiteBillingModeRechargeOnly, wantMode: service.SiteBillingModeRechargeOnly, wantSubscription: "false", wantBalanceDisabled: "false"},
+		{name: "subscription only", mode: service.SiteBillingModeSubscriptionOnly, wantMode: service.SiteBillingModeSubscriptionOnly, wantSubscription: "true", wantBalanceDisabled: "true"},
+		{name: "invalid defaults combined", mode: "invalid", wantMode: service.SiteBillingModeRechargeAndSubscription, wantSubscription: "true", wantBalanceDisabled: "false"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, repo := newStepUpSwitchTestHandler(t, map[string]string{})
+			h.paymentConfigService = service.NewPaymentConfigService(nil, repo, nil)
+
+			rec := doUpdateSettings(t, h, map[string]any{"site_billing_mode": tc.mode}, nil)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Equal(t, tc.wantSubscription, repo.values[service.SettingKeySubscriptionEnabled])
+			require.Equal(t, tc.wantBalanceDisabled, repo.values[service.SettingBalancePayDisabled])
+			require.Contains(t, rec.Body.String(), `"site_billing_mode":"`+tc.wantMode+`"`)
+		})
+	}
+}
