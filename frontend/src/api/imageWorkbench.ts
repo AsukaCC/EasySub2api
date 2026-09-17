@@ -226,18 +226,29 @@ export async function loadWorkbenchCredentials(): Promise<{ keys: ApiKey[]; grou
     keysAPI.list(1, 200, { status: 'active' }),
     userGroupsAPI.getAvailable(),
   ])
+  const allKeys = [...keyPage.items]
+  for (let page = 2; page <= keyPage.pages; page += 1) {
+    const nextPage = await keysAPI.list(page, keyPage.page_size, { status: 'active' })
+    allKeys.push(...nextPage.items)
+  }
   const groupMap = new Map(groups.map((group) => [group.id, group]))
-  const keys = keyPage.items.map((key) => ({
+  const keys = allKeys.map((key) => ({
     ...key,
     group: key.group || (key.group_id ? groupMap.get(key.group_id) : undefined),
   }))
   return { keys, groups }
 }
 
-export function eligibleImageKeys(keys: ApiKey[], adapter: ImagePlatformAdapter): ApiKey[] {
+export function eligibleImageKeys(keys: ApiKey[], adapter: ImagePlatformAdapter, groups: Group[] = []): ApiKey[] {
+  const groupMap = new Map(groups.map((group) => [group.id, group]))
   return keys.filter((key) => {
-    const group = key.group
-    return key.status === 'active' && group?.platform === adapter.groupPlatform && group.allow_image_generation === true
+    if (key.status !== 'active') return false
+    const groupIds = key.group_ids?.length ? key.group_ids : [key.group_id || key.group?.id || '']
+    return groupIds.some((id) => {
+      const group = groupMap.get(id) || (key.group?.id === id ? key.group : undefined)
+      return group?.allow_image_generation === true &&
+        (group.platform === adapter.groupPlatform || group.platform === 'composite')
+    })
   })
 }
 
@@ -245,10 +256,18 @@ export async function listImageModels(key: string, adapter: ImagePlatformAdapter
   const response = await fetch(buildGatewayUrl('/v1/models'), {
     headers: { Authorization: `Bearer ${key}` },
   })
-  if (!response.ok) throw new Error(`Models request failed (${response.status})`)
-  const payload = await response.json() as { data?: ImageModel[] } | ImageModel[]
-  const models = Array.isArray(payload) ? payload : payload.data || []
-  return models.filter((model) => adapter.isImageModel(model.id))
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || payload?.message || `Models request failed (${response.status})`)
+  }
+  const models: unknown = Array.isArray(payload) ? payload : payload?.data
+  if (!Array.isArray(models)) throw new Error('Invalid models response')
+  const seen = new Set<string>()
+  return models.filter((model): model is ImageModel => {
+    if (!model || typeof model.id !== 'string' || !adapter.isImageModel(model.id) || seen.has(model.id)) return false
+    seen.add(model.id)
+    return true
+  })
 }
 
 export async function generateImage(key: string, params: ImageGenerationParams, reference?: File): Promise<ImageResult[]> {

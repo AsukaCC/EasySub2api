@@ -1164,6 +1164,7 @@ export default {
     emptyHistory: 'No saved images yet',
     noKeys: 'No image Key is available for this platform. Check group permissions or contact an administrator.',
     noModels: 'No image models are available for this Key.',
+    modelsLoadFailed: 'Failed to load image models',
     loading: 'Loading…',
     queued: 'Waiting for background processing…',
     generating: 'Generating…',
