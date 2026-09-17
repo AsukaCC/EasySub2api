@@ -247,7 +247,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		if baseMultiplier < 0 || !finiteNonnegative(baseMultiplier) {
 			baseMultiplier = 0
 		}
-		multiplier = baseMultiplier
 	}
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, baseMultiplier, pricingAt)
 	if input.RateMultiplierOverride != nil {

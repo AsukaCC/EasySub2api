@@ -41,9 +41,9 @@ var (
 		CacheReadInputImageTokenCost: 2e-06,
 		InputCostPerImageToken:       8e-06,
 		OutputCostPerImageToken:      3e-05,
-		LiteLLMProvider:         "openai",
-		Mode:                    "image_generation",
-		SupportsPromptCaching:   true,
+		LiteLLMProvider:              "openai",
+		Mode:                         "image_generation",
+		SupportsPromptCaching:        true,
 	}
 	openAIGPT54FallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:       2.5e-06, // $2.5 per MTok
