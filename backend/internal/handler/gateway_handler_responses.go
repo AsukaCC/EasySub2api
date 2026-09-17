@@ -260,8 +260,11 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
 		var result *service.ForwardResult
-		setActualUpstreamEndpoint(c, "")
-		result, err = h.gatewayService.ForwardAsResponses(admissionCtx, c, account, forwardBody, parsedReq)
+		if prepareAntigravityCompatForward(c, account) {
+			result, err = h.antigravityGatewayService.ForwardAsResponses(admissionCtx, c, account, forwardBody, parsedReq)
+		} else {
+			result, err = h.gatewayService.ForwardAsResponses(admissionCtx, c, account, forwardBody, parsedReq)
+		}
 
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
