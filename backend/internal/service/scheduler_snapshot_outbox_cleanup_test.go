@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -237,7 +238,7 @@ func TestSchedulerSnapshotServicePollOutboxCleansConsumedRowsAfterWatermark(t *t
 	cache := &outboxCleanupCache{}
 	repo := &outboxCleanupRepo{
 		events: []SchedulerOutboxEvent{
-			{ID: outboxID(10000), EventType: SchedulerOutboxEventAccountLastUsed},
+			{ID: outboxID("10000"), EventType: SchedulerOutboxEventAccountLastUsed},
 		},
 		rows:         outboxIDRange(1, 10003),
 		lockAcquired: true,
@@ -246,10 +247,10 @@ func TestSchedulerSnapshotServicePollOutboxCleansConsumedRowsAfterWatermark(t *t
 
 	svc.pollOutbox()
 
-	if cache.watermark != outboxID(10000) {
+	if cache.watermark != outboxID("10000") {
 		t.Fatalf("expected watermark 10000, got %q", cache.watermark)
 	}
-	if !reflect.DeepEqual(cache.setWatermarks, []string{outboxID(10000)}) {
+	if !reflect.DeepEqual(cache.setWatermarks, []string{outboxID("10000")}) {
 		t.Fatalf("unexpected watermark writes: %#v", cache.setWatermarks)
 	}
 	if !reflect.DeepEqual(repo.rows, outboxIDs(10001, 10002, 10003)) {
@@ -262,7 +263,7 @@ func TestSchedulerSnapshotServicePollOutboxCleansConsumedRowsAfterWatermark(t *t
 		t.Fatalf("expected cleanup to loop until a short batch, got %d calls", len(repo.deleteCalls))
 	}
 	for _, call := range repo.deleteCalls {
-		if call.watermark != outboxID(10000) || call.limit != schedulerOutboxCleanupBatch {
+		if call.watermark != outboxID("10000") || call.limit != schedulerOutboxCleanupBatch {
 			t.Fatalf("unexpected cleanup call: %#v", call)
 		}
 	}
@@ -272,7 +273,7 @@ func TestSchedulerSnapshotServicePollOutboxSkipsCleanupWhenLockUnavailable(t *te
 	cache := &outboxCleanupCache{}
 	repo := &outboxCleanupRepo{
 		events: []SchedulerOutboxEvent{
-			{ID: outboxID(3), EventType: SchedulerOutboxEventAccountLastUsed},
+			{ID: outboxID("3"), EventType: SchedulerOutboxEventAccountLastUsed},
 		},
 		rows:         outboxIDs(1, 2, 3, 4),
 		lockAcquired: false,
@@ -281,7 +282,7 @@ func TestSchedulerSnapshotServicePollOutboxSkipsCleanupWhenLockUnavailable(t *te
 
 	svc.pollOutbox()
 
-	if cache.watermark != outboxID(3) {
+	if cache.watermark != outboxID("3") {
 		t.Fatalf("expected watermark 3, got %q", cache.watermark)
 	}
 	if !reflect.DeepEqual(repo.rows, outboxIDs(1, 2, 3, 4)) {
@@ -305,7 +306,7 @@ func TestSchedulerSnapshotServicePollOutboxDoesNotCleanupOnHandleFailure(t *test
 	repo := &outboxCleanupRepo{
 		events: []SchedulerOutboxEvent{
 			{
-				ID:        outboxID(5),
+				ID:        outboxID("5"),
 				EventType: SchedulerOutboxEventAccountLastUsed,
 				Payload: map[string]any{
 					"last_used": map[string]any{"account-101": float64(123)},
@@ -338,7 +339,7 @@ func TestSchedulerSnapshotServicePollOutboxDoesNotUseConsumedEventForLag(t *test
 	repo := &outboxCleanupRepo{
 		events: []SchedulerOutboxEvent{
 			{
-				ID:        outboxID(7),
+				ID:        outboxID("7"),
 				EventType: SchedulerOutboxEventAccountLastUsed,
 				CreatedAt: time.Now().Add(-time.Hour),
 			},
@@ -357,10 +358,10 @@ func TestSchedulerSnapshotServicePollOutboxDoesNotUseConsumedEventForLag(t *test
 
 	svc.pollOutbox()
 
-	if cache.watermark != outboxID(7) {
+	if cache.watermark != outboxID("7") {
 		t.Fatalf("expected watermark 7, got %q", cache.watermark)
 	}
-	if !reflect.DeepEqual(repo.firstCreatedAfterID, []string{outboxID(7)}) {
+	if !reflect.DeepEqual(repo.firstCreatedAfterID, []string{outboxID("7")}) {
 		t.Fatalf("expected lag check after consumed watermark, got %#v", repo.firstCreatedAfterID)
 	}
 	if cache.listBucketCalls != 0 {
@@ -404,7 +405,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagLatchesPersistentDegradation(t *t
 		t.Run(tt.name, func(t *testing.T) {
 			cache := &outboxCleanupCache{listBuckets: []SchedulerBucket{{Platform: PlatformOpenAI, Mode: SchedulerModeSingle}}}
 			repo := &outboxCleanupRepo{
-				events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: tt.createdAt}},
+				events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: tt.createdAt}},
 				rows:   tt.rows,
 			}
 			cfg := &config.Config{
@@ -432,7 +433,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagLatchesPersistentDegradation(t *t
 func TestSchedulerSnapshotServiceCheckOutboxLagFailedRebuildRearmsAfterRecovery(t *testing.T) {
 	cache := &outboxCleanupCache{listBucketErr: errors.New("list buckets failed")}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now().Add(-time.Hour)}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now().Add(-time.Hour)}},
 		rows:   outboxIDs(1),
 	}
 	cfg := &config.Config{
@@ -451,10 +452,10 @@ func TestSchedulerSnapshotServiceCheckOutboxLagFailedRebuildRearmsAfterRecovery(
 		t.Fatalf("expected a failed rebuild to stay bounded within the episode, got %d attempts", cache.listBucketCalls)
 	}
 
-	svc.checkOutboxLag(context.Background(), outboxID(1))
-	repo.events = append(repo.events, SchedulerOutboxEvent{ID: outboxID(2), CreatedAt: time.Now().Add(-time.Hour)})
+	svc.checkOutboxLag(context.Background(), outboxID("1"))
+	repo.events = append(repo.events, SchedulerOutboxEvent{ID: outboxID("2"), CreatedAt: time.Now().Add(-time.Hour)})
 	repo.rows = outboxIDs(2)
-	svc.checkOutboxLag(context.Background(), outboxID(1))
+	svc.checkOutboxLag(context.Background(), outboxID("1"))
 
 	if cache.listBucketCalls != 2 {
 		t.Fatalf("expected recovery to rearm a failed rebuild for the next episode, got %d attempts", cache.listBucketCalls)
@@ -467,7 +468,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagFailedRebuildRetriesAfterCooldown
 		listBuckets:   []SchedulerBucket{{Platform: PlatformOpenAI, Mode: SchedulerModeSingle}},
 	}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now().Add(-time.Hour)}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now().Add(-time.Hour)}},
 		rows:   outboxIDs(1),
 	}
 	cfg := &config.Config{
@@ -527,7 +528,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagFailedRebuildRetriesAfterCooldown
 func TestSchedulerSnapshotServiceCheckOutboxLagBacklogRetryDoesNotBypassNewLagThreshold(t *testing.T) {
 	cache := &outboxCleanupCache{listBucketErr: errors.New("list buckets failed")}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now()}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now()}},
 		rows:   outboxIDRange(1, 100),
 	}
 	cfg := &config.Config{
@@ -569,7 +570,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagBacklogRetryDoesNotBypassNewLagTh
 func TestSchedulerSnapshotServiceCheckOutboxLagLagRetryDoesNotDelayOrEscalateNewBacklog(t *testing.T) {
 	cache := &outboxCleanupCache{listBucketErr: errors.New("list buckets failed")}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now().Add(-time.Hour)}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now().Add(-time.Hour)}},
 		rows:   outboxIDs(1),
 	}
 	cfg := &config.Config{
@@ -608,7 +609,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagLagRetryDoesNotDelayOrEscalateNew
 func TestSchedulerSnapshotServiceCheckOutboxLagBacklogRetrySurvivesUnknownBacklog(t *testing.T) {
 	cache := &outboxCleanupCache{listBucketErr: errors.New("list buckets failed")}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now()}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now()}},
 		rows:   outboxIDRange(1, 100),
 	}
 	cfg := &config.Config{
@@ -663,7 +664,7 @@ func TestSchedulerSnapshotServiceCheckOutboxLagBacklogRetrySurvivesUnknownBacklo
 func TestSchedulerSnapshotServiceCheckOutboxLagPreemptsUnknownBacklogRetryAtThreshold(t *testing.T) {
 	cache := &outboxCleanupCache{listBucketErr: errors.New("list buckets failed")}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now()}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now()}},
 		rows:   outboxIDRange(1, 100),
 	}
 	cfg := &config.Config{
@@ -728,7 +729,7 @@ func TestOutboxRebuildRetryDelayIsExponentiallyBounded(t *testing.T) {
 func TestSchedulerSnapshotServicePollOutboxEmptyBatchClearsDegradedEpisode(t *testing.T) {
 	cache := &outboxCleanupCache{listBuckets: []SchedulerBucket{{Platform: PlatformOpenAI, Mode: SchedulerModeSingle}}}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now().Add(-time.Hour)}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now().Add(-time.Hour)}},
 		rows:   outboxIDs(1),
 	}
 	cfg := &config.Config{
@@ -743,7 +744,7 @@ func TestSchedulerSnapshotServicePollOutboxEmptyBatchClearsDegradedEpisode(t *te
 	svc := NewSchedulerSnapshotService(cache, repo, &outboxCleanupAccountRepo{}, nil, cfg)
 
 	svc.checkOutboxLag(context.Background(), "")
-	cache.watermark = outboxID(1)
+	cache.watermark = outboxID("1")
 	svc.pollOutbox()
 
 	if !reflect.DeepEqual(repo.firstCreatedAfterID, []string{""}) {
@@ -753,9 +754,9 @@ func TestSchedulerSnapshotServicePollOutboxEmptyBatchClearsDegradedEpisode(t *te
 		t.Fatalf("expected empty poll to skip a redundant backlog query, got %d health checks", repo.maxIDCalls)
 	}
 
-	repo.events = append(repo.events, SchedulerOutboxEvent{ID: outboxID(2), CreatedAt: time.Now().Add(-time.Hour)})
+	repo.events = append(repo.events, SchedulerOutboxEvent{ID: outboxID("2"), CreatedAt: time.Now().Add(-time.Hour)})
 	repo.rows = outboxIDs(2)
-	svc.checkOutboxLag(context.Background(), outboxID(1))
+	svc.checkOutboxLag(context.Background(), outboxID("1"))
 	if cache.listBucketCalls != 2 {
 		t.Fatalf("expected empty-poll recovery to rearm the next degraded episode, got %d attempts", cache.listBucketCalls)
 	}
@@ -822,7 +823,7 @@ func TestSchedulerSnapshotServicePollOutboxHealthyEmptyBatchSkipsLagHealthQuerie
 
 func TestSchedulerSnapshotServiceEmptyPollDoesNotReleaseRunningRebuild(t *testing.T) {
 	baseCache := &outboxCleanupCache{
-		watermark:   outboxID(1),
+		watermark:   outboxID("1"),
 		listBuckets: []SchedulerBucket{{Platform: PlatformOpenAI, Mode: SchedulerModeSingle}},
 	}
 	cache := &blockingOutboxCleanupCache{
@@ -831,7 +832,7 @@ func TestSchedulerSnapshotServiceEmptyPollDoesNotReleaseRunningRebuild(t *testin
 		release:            make(chan struct{}),
 	}
 	repo := &outboxCleanupRepo{
-		events: []SchedulerOutboxEvent{{ID: outboxID(1), CreatedAt: time.Now().Add(-time.Hour)}},
+		events: []SchedulerOutboxEvent{{ID: outboxID("1"), CreatedAt: time.Now().Add(-time.Hour)}},
 		rows:   outboxIDs(1),
 	}
 	cfg := &config.Config{
@@ -900,14 +901,18 @@ func TestSchedulerSnapshotServiceCleanupSkipsNonPositiveWatermark(t *testing.T) 
 	}
 }
 
-func outboxID(id int64) string {
-	return fmt.Sprintf("event-%020d", id)
+func outboxID(id string) string {
+	numericID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("invalid numeric outbox fixture ID %q: %v", id, err))
+	}
+	return fmt.Sprintf("event-%020d", numericID)
 }
 
 func outboxIDs(ids ...int64) []string {
 	values := make([]string, 0, len(ids))
 	for _, id := range ids {
-		values = append(values, outboxID(id))
+		values = append(values, outboxID(strconv.FormatInt(id, 10)))
 	}
 	return values
 }
@@ -915,7 +920,7 @@ func outboxIDs(ids ...int64) []string {
 func outboxIDRange(start, end int64) []string {
 	values := make([]string, 0, end-start+1)
 	for id := start; id <= end; id++ {
-		values = append(values, outboxID(id))
+		values = append(values, outboxID(strconv.FormatInt(id, 10)))
 	}
 	return values
 }

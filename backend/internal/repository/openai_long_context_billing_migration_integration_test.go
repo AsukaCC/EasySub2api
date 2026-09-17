@@ -28,7 +28,7 @@ VALUES ('migration-175-ordinary', 'openai', 'oauth', '{}'::jsonb)
 RETURNING id
 `).Scan(&ordinaryID))
 
-	var parentID int64
+	var parentID string
 	require.NoError(t, tx.QueryRowContext(ctx, `
 INSERT INTO accounts (name, platform, type, extra)
 VALUES ('migration-175-parent', 'openai', 'oauth', '{"openai_long_context_billing_enabled":false}'::jsonb)

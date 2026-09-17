@@ -25,7 +25,7 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryUsesRollupTail(t *testing.T) {
 
 	result, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
 	require.NoError(t, err)
-	require.Equal(t, int64(7), result[0].GroupID)
+	require.Equal(t, "7", result[0].GroupID)
 	require.InDelta(t, 12.5, result[0].TotalCost, 0.0000001)
 	require.InDelta(t, 1.25, result[0].TodayCost, 0.0000001)
 	require.InDelta(t, 2.5, result[0].YesterdayCost, 0.0000001)

@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -11,7 +12,9 @@ import (
 )
 
 func TestGrokModelQuotaBlock_FiltersOnlyNamedModel(t *testing.T) {
-	id := time.Now().UnixNano()%1_000_000 + 5000
+	idNumber := time.Now().UnixNano()%1_000_000 + 5000
+	id := strconv.FormatInt(idNumber, 10)
+	nextID := strconv.FormatInt(idNumber+1, 10)
 	markGrokModelQuotaBlock(id, "grok-4.5", time.Now().Add(time.Hour))
 	now := time.Now()
 	require.True(t, isGrokModelQuotaBlocked(id, "grok-4.5", now))
@@ -19,15 +22,15 @@ func TestGrokModelQuotaBlock_FiltersOnlyNamedModel(t *testing.T) {
 
 	accounts := []Account{
 		{ID: id, Platform: PlatformGrok, Type: AccountTypeOAuth},
-		{ID: id + 1, Platform: PlatformGrok, Type: AccountTypeOAuth},
+		{ID: nextID, Platform: PlatformGrok, Type: AccountTypeOAuth},
 	}
 	filtered := filterGrokModelQuotaBlockedAccounts(accounts, "grok-4.5", now)
 	require.Len(t, filtered, 1)
-	require.Equal(t, id+1, filtered[0].ID)
+	require.Equal(t, nextID, filtered[0].ID)
 }
 
 func TestGrokModelQuotaBlockFiltersMappedUpstreamModel(t *testing.T) {
-	id := time.Now().UnixNano()%1_000_000 + 7000
+	id := strconv.FormatInt(time.Now().UnixNano()%1_000_000+7000, 10)
 	markGrokModelQuotaBlock(id, "grok-4.5", time.Now().Add(time.Hour))
 	account := Account{
 		ID:       id,
@@ -77,7 +80,7 @@ func TestAccountGrokNeedsReauth(t *testing.T) {
 func TestApplyGrokUpstreamFailure_ModelSpecificFreeUsage(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9109, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9109", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	body := []byte(`{"error":{"code":"subscription:free-usage-exhausted","message":"You've used all the included free usage for model grok-4.5. Usage resets over a rolling 24-hour window."}}`)
 
 	svc.handleGrokAccountUpstreamError(context.Background(), account, 400, nil, body)
@@ -90,7 +93,7 @@ func TestApplyGrokUpstreamFailure_ModelSpecificFreeUsage(t *testing.T) {
 func TestApplyGrokUpstreamFailure_SpendingLimitRemainsRecoverable(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9110, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9110", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	body := []byte(`{"code":"personal-team-blocked:spending-limit","error":"spending limit reached"}`)
 
 	svc.handleGrokAccountUpstreamError(context.Background(), account, 403, nil, body)

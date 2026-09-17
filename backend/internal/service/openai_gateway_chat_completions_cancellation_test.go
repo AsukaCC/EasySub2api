@@ -62,7 +62,7 @@ type contextBoundHTTPUpstream struct {
 	body *contextBoundBlockingReadCloser
 }
 
-func (u *contextBoundHTTPUpstream) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *contextBoundHTTPUpstream) Do(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	u.body.ctx = req.Context()
 	return &http.Response{
 		StatusCode: http.StatusOK,
@@ -71,7 +71,7 @@ func (u *contextBoundHTTPUpstream) Do(req *http.Request, _ string, _ int64, _ in
 	}, nil
 }
 
-func (u *contextBoundHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *contextBoundHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 

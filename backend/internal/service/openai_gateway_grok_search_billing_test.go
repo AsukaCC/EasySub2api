@@ -25,8 +25,8 @@ func TestForwardGrokResponses_PropagatesSearchCountFromJSON(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 
-	account := healthyGrokOAuthGatewayTestAccount(9901, "access-token")
-	repo := &mockAccountRepoForPlatform{accountsByID: map[int64]*Account{account.ID: account}}
+	account := healthyGrokOAuthGatewayTestAccount("9901", "access-token")
+	repo := &mockAccountRepoForPlatform{accountsByID: map[string]*Account{account.ID: account}}
 	upstreamBody := `{
 		"id":"resp_search_bill",
 		"object":"response",
@@ -65,8 +65,8 @@ func TestForwardGrokResponses_PropagatesSearchCountFromSSE(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 
-	account := healthyGrokOAuthGatewayTestAccount(9902, "access-token")
-	repo := &mockAccountRepoForPlatform{accountsByID: map[int64]*Account{account.ID: account}}
+	account := healthyGrokOAuthGatewayTestAccount("9902", "access-token")
+	repo := &mockAccountRepoForPlatform{accountsByID: map[string]*Account{account.ID: account}}
 	// item.done + response.completed for same call_id must count once after wire-up.
 	sse := "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"web_search_call\",\"id\":\"ws1\",\"call_id\":\"c1\"}}\n\n" +
 		"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_s\",\"status\":\"completed\",\"output\":[{\"type\":\"web_search_call\",\"id\":\"ws1\",\"call_id\":\"c1\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n"
@@ -97,15 +97,15 @@ func TestGetSchedulableAccount_AppliesGrokFreeSoftGate(t *testing.T) {
 	cfg.Gateway.Grok.FreeQuotaWindowHours = 24
 	cfg.Gateway.Grok.FreeQuotaStatsCacheSeconds = 60
 
-	account := healthyGrokOAuthGatewayTestAccount(8801, "tok")
+	account := healthyGrokOAuthGatewayTestAccount("8801", "tok")
 	account.Credentials["subscription_tier"] = "free"
 	account.Status = StatusActive
 	account.Schedulable = true
 
 	repo := &mockAccountRepoForPlatform{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}
-	usageRepo := &grokFreeQuotaUsageRepoStub{stats: map[int64]*usagestats.AccountStats{
+	usageRepo := &grokFreeQuotaUsageRepoStub{stats: map[string]*usagestats.AccountStats{
 		account.ID: {Tokens: 480_000}, // above 95% of 500k
 	}}
 	// Clear shared gateway free-gate cache so this test is deterministic.
@@ -144,15 +144,15 @@ func TestOpenAIGetSchedulableAccount_AppliesGrokFreeSoftGate(t *testing.T) {
 	cfg.Gateway.Grok.FreeQuotaWindowHours = 24
 	cfg.Gateway.Grok.FreeQuotaStatsCacheSeconds = 60
 
-	account := healthyGrokOAuthGatewayTestAccount(8802, "tok")
+	account := healthyGrokOAuthGatewayTestAccount("8802", "tok")
 	account.Credentials["subscription_tier"] = "free"
 	account.Status = StatusActive
 	account.Schedulable = true
 
 	repo := &mockAccountRepoForPlatform{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}
-	usageRepo := &grokFreeQuotaUsageRepoStub{stats: map[int64]*usagestats.AccountStats{
+	usageRepo := &grokFreeQuotaUsageRepoStub{stats: map[string]*usagestats.AccountStats{
 		account.ID: {Tokens: 480_000},
 	}}
 	openaiGrokFreeQuotaGateCache.Range(func(key, _ any) bool {

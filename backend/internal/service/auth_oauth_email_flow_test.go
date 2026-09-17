@@ -16,8 +16,8 @@ import (
 type redeemCodeRepoStub struct {
 	codesByCode map[string]*RedeemCode
 	useCalls    []struct {
-		id     int64
-		userID int64
+		id     string
+		userID string
 	}
 	updateCalls []*RedeemCode
 }
@@ -30,7 +30,7 @@ func (s *redeemCodeRepoStub) CreateBatch(context.Context, []RedeemCode) error {
 	panic("unexpected CreateBatch call")
 }
 
-func (s *redeemCodeRepoStub) GetByID(context.Context, int64) (*RedeemCode, error) {
+func (s *redeemCodeRepoStub) GetByID(context.Context, string) (*RedeemCode, error) {
 	panic("unexpected GetByID call")
 }
 
@@ -59,15 +59,15 @@ func (s *redeemCodeRepoStub) Update(_ context.Context, code *RedeemCode) error {
 	return nil
 }
 
-func (s *redeemCodeRepoStub) BatchUpdate(context.Context, []int64, RedeemCodeBatchUpdateFields) (int64, error) {
+func (s *redeemCodeRepoStub) BatchUpdate(context.Context, []string, RedeemCodeBatchUpdateFields) (int64, error) {
 	panic("unexpected BatchUpdate call")
 }
 
-func (s *redeemCodeRepoStub) Delete(context.Context, int64) error {
+func (s *redeemCodeRepoStub) Delete(context.Context, string) error {
 	panic("unexpected Delete call")
 }
 
-func (s *redeemCodeRepoStub) Use(_ context.Context, id, userID int64) error {
+func (s *redeemCodeRepoStub) Use(_ context.Context, id, userID string) error {
 	for code, redeemCode := range s.codesByCode {
 		if redeemCode.ID != id {
 			continue
@@ -78,8 +78,8 @@ func (s *redeemCodeRepoStub) Use(_ context.Context, id, userID int64) error {
 		redeemCode.UsedAt = &now
 		s.codesByCode[code] = redeemCode
 		s.useCalls = append(s.useCalls, struct {
-			id     int64
-			userID int64
+			id     string
+			userID string
 		}{id: id, userID: userID})
 		return nil
 	}
@@ -94,15 +94,15 @@ func (s *redeemCodeRepoStub) ListWithFilters(context.Context, pagination.Paginat
 	panic("unexpected ListWithFilters call")
 }
 
-func (s *redeemCodeRepoStub) ListByUser(context.Context, int64, int) ([]RedeemCode, error) {
+func (s *redeemCodeRepoStub) ListByUser(context.Context, string, int) ([]RedeemCode, error) {
 	panic("unexpected ListByUser call")
 }
 
-func (s *redeemCodeRepoStub) ListByUserPaginated(context.Context, int64, pagination.PaginationParams, string) ([]RedeemCode, *pagination.PaginationResult, error) {
+func (s *redeemCodeRepoStub) ListByUserPaginated(context.Context, string, pagination.PaginationParams, string) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected ListByUserPaginated call")
 }
 
-func (s *redeemCodeRepoStub) SumPositiveBalanceByUser(context.Context, int64) (float64, error) {
+func (s *redeemCodeRepoStub) SumPositiveBalanceByUser(context.Context, string) (float64, error) {
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
@@ -152,7 +152,7 @@ func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFai
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
 			"INVITE123": {
-				ID:     7,
+				ID: "7",
 				Code:   "INVITE123",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUnused,
@@ -193,7 +193,7 @@ func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFai
 	require.Nil(t, user)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "generate token pair")
-	require.Equal(t, []int64{42}, userRepo.deletedIDs)
+	require.Equal(t, []string{"42"}, userRepo.deletedIDs)
 	require.Len(t, userRepo.created, 1)
 	require.Empty(t, redeemRepo.useCalls)
 	require.Empty(t, redeemRepo.updateCalls)
@@ -445,12 +445,12 @@ func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) 
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
 			"INVITE123": {
-				ID:     7,
+				ID: "7",
 				Code:   "INVITE123",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUsed,
-				UsedBy: func() *int64 {
-					v := int64(42)
+				UsedBy: func() *string {
+					v := "42"
 					return &v
 				}(),
 				UsedAt: func() *time.Time {
@@ -472,10 +472,10 @@ func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) 
 		nil,
 	)
 
-	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), 42, "INVITE123")
+	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), "42", "INVITE123")
 
 	require.NoError(t, err)
-	require.Equal(t, []int64{42}, userRepo.deletedIDs)
+	require.Equal(t, []string{"42"}, userRepo.deletedIDs)
 	require.Len(t, redeemRepo.updateCalls, 1)
 	require.Equal(t, StatusUnused, redeemRepo.updateCalls[0].Status)
 	require.Nil(t, redeemRepo.updateCalls[0].UsedBy)
@@ -495,7 +495,7 @@ func TestRollbackOAuthEmailAccountCreationPropagatesDeleteError(t *testing.T) {
 		nil,
 	)
 
-	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), 42, "")
+	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), "42", "")
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "delete created oauth user")
@@ -519,7 +519,7 @@ func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) 
 	)
 
 	user := &User{
-		ID:           99,
+		ID: "99",
 		Email:        "newuser@example.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -547,7 +547,7 @@ func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) 
 		}
 	}
 	require.NotNil(t, anthropicRecord, "expected anthropic platform record")
-	require.Equal(t, int64(99), anthropicRecord.UserID)
+	require.Equal(t, "99", anthropicRecord.UserID)
 	require.NotNil(t, anthropicRecord.DailyLimitUSD)
 	require.InDelta(t, 5.5, *anthropicRecord.DailyLimitUSD, 0.0001)
 }

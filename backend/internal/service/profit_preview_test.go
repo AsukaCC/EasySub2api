@@ -14,7 +14,7 @@ func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testin
 	group.Name = "VIP-preview"
 
 	cheap := profitControlTestAccountWithRate(
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 1.0, now.Add(-3*time.Hour), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 1.0, now.Add(-3*time.Hour), 30*time.Minute),
 		0.5,
 	)
 	cheap.Name = "cheap"
@@ -22,7 +22,7 @@ func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testin
 	cheap.Credentials = map[string]any{"model_mapping": map[string]any{"gpt-sol": "gpt-sol"}}
 
 	boundary := profitControlTestAccountWithRate(
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
 		0.8,
 	)
 	boundary.Name = "boundary"
@@ -32,12 +32,12 @@ func TestPreviewProfitAdmissionUsesAccountRatesAndPreinitializesModels(t *testin
 	}}
 
 	expensive := profitControlTestAccountWithRate(
-		upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 0.2, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("3", UpstreamBillingProbeStatusOK, 0.2, now.Add(-time.Minute), 30*time.Minute),
 		1.0,
 	)
 	expensive.Name = "expensive"
 
-	invalid := upstreamCostTestOAuthAccount(4)
+	invalid := upstreamCostTestOAuthAccount("4")
 	invalid.Name = "invalid"
 
 	reports := PreviewProfitAdmission([]ProfitPreviewGroupInput{{
@@ -84,11 +84,11 @@ func TestPreviewProfitAdmissionAssumeEnabled(t *testing.T) {
 	group.ProfitControlEnabled = false
 
 	cheapAccount := profitControlTestAccountWithRate(
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.9, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.9, now.Add(-time.Minute), 30*time.Minute),
 		0.2,
 	)
 	expensiveAccount := profitControlTestAccountWithRate(
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.2, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.2, now.Add(-time.Minute), 30*time.Minute),
 		0.9,
 	)
 

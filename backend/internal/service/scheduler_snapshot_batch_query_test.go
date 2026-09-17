@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 )
 
 type batchAccountQueryKey struct {
-	groupID  int64
+	groupID  string
 	platform string
 	mixed    bool
 }
@@ -40,11 +41,11 @@ func newBatchAccountQueryRepo() *batchAccountQueryRepo {
 	}
 }
 
-func (r *batchAccountQueryRepo) ListSchedulableByGroupIDAndPlatform(_ context.Context, groupID int64, platform string) ([]Account, error) {
+func (r *batchAccountQueryRepo) ListSchedulableByGroupIDAndPlatform(_ context.Context, groupID string, platform string) ([]Account, error) {
 	return r.run(batchAccountQueryKey{groupID: groupID, platform: platform})
 }
 
-func (r *batchAccountQueryRepo) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID int64, platforms []string) ([]Account, error) {
+func (r *batchAccountQueryRepo) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID string, platforms []string) ([]Account, error) {
 	return r.run(batchAccountQueryKey{groupID: groupID, platform: platforms[0], mixed: true})
 }
 
@@ -56,7 +57,7 @@ func (r *batchAccountQueryRepo) ListSchedulableUngroupedByPlatforms(_ context.Co
 	return r.run(batchAccountQueryKey{platform: platforms[0], mixed: true})
 }
 
-func (r *batchAccountQueryRepo) ListModelAvailabilityCandidates(context.Context, *int64, []string, bool) ([]Account, error) {
+func (r *batchAccountQueryRepo) ListModelAvailabilityCandidates(context.Context, *string, []string, bool) ([]Account, error) {
 	panic("unexpected ListModelAvailabilityCandidates call")
 }
 
@@ -84,7 +85,7 @@ func (r *batchAccountQueryRepo) run(key batchAccountQueryKey) ([]Account, error)
 		return append([]Account(nil), result.accounts...), result.err
 	}
 	return []Account{{
-		ID:          int64(call),
+		ID:          strconv.Itoa(call),
 		Name:        "source",
 		Platform:    key.platform,
 		Status:      StatusActive,
@@ -141,7 +142,7 @@ func newBatchSnapshotAccountIDCache() *batchSnapshotAccountIDCache {
 	}
 }
 
-func (c *batchSnapshotAccountIDCache) SetSnapshotAndReturnAccountIDs(ctx context.Context, bucket SchedulerBucket, token SchedulerBucketWriteToken, accounts []Account) ([]int64, error) {
+func (c *batchSnapshotAccountIDCache) SetSnapshotAndReturnAccountIDs(ctx context.Context, bucket SchedulerBucket, token SchedulerBucketWriteToken, accounts []Account) ([]string, error) {
 	c.reuseMu.Lock()
 	c.fullCalls[bucket]++
 	c.reuseMu.Unlock()
@@ -156,16 +157,16 @@ func (c *batchSnapshotAccountIDCache) SetSnapshotAndReturnAccountIDs(ctx context
 		return nil, lateErr
 	}
 	if returnEmpty {
-		return []int64{}, nil
+		return []string{}, nil
 	}
-	ids := make([]int64, 0, len(accounts))
+	ids := make([]string, 0, len(accounts))
 	for _, account := range accounts {
 		ids = append(ids, account.ID)
 	}
 	return ids, nil
 }
 
-func (c *batchSnapshotAccountIDCache) SetSnapshotByAccountIDs(ctx context.Context, bucket SchedulerBucket, token SchedulerBucketWriteToken, accountIDs []int64) error {
+func (c *batchSnapshotAccountIDCache) SetSnapshotByAccountIDs(ctx context.Context, bucket SchedulerBucket, token SchedulerBucketWriteToken, accountIDs []string) error {
 	c.reuseMu.Lock()
 	c.idOnlyCalls[bucket]++
 	err := c.idOnlyError[bucket]
@@ -261,7 +262,7 @@ func newBatchQueryTestService(cache SchedulerCache, accounts AccountRepository, 
 }
 
 func TestSchedulerRebuildBatchReusesSingleForcedQueryAndKeepsSnapshotsIndependent(t *testing.T) {
-	const groupID int64 = 201
+	const groupID string = "201"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotCache()
@@ -302,7 +303,7 @@ func TestSchedulerRebuildBatchReusesSingleForcedQueryAndKeepsSnapshotsIndependen
 }
 
 func TestSchedulerRebuildBatchReusesAccountPayloadForSingleForced(t *testing.T) {
-	const groupID int64 = 211
+	const groupID string = "211"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotAccountIDCache()
@@ -322,7 +323,7 @@ func TestSchedulerRebuildBatchReusesAccountPayloadForSingleForced(t *testing.T) 
 }
 
 func TestSchedulerRebuildBatchDoesNotReuseAccountPayloadAfterFirstWriterFailure(t *testing.T) {
-	const groupID int64 = 212
+	const groupID string = "212"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	wantErr := errors.New("snapshot write failed")
@@ -344,7 +345,7 @@ func TestSchedulerRebuildBatchDoesNotReuseAccountPayloadAfterFirstWriterFailure(
 }
 
 func TestSchedulerRebuildBatchDoesNotReuseAccountPayloadAfterLateFirstWriterFailure(t *testing.T) {
-	const groupID int64 = 216
+	const groupID string = "216"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	wantErr := errors.New("snapshot activation failed")
@@ -366,7 +367,7 @@ func TestSchedulerRebuildBatchDoesNotReuseAccountPayloadAfterLateFirstWriterFail
 }
 
 func TestSchedulerRebuildBatchDoesNotReuseAccountPayloadAfterLockBusy(t *testing.T) {
-	const groupID int64 = 213
+	const groupID string = "213"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotAccountIDCache()
@@ -386,7 +387,7 @@ func TestSchedulerRebuildBatchDoesNotReuseAccountPayloadAfterLockBusy(t *testing
 }
 
 func TestSchedulerRebuildBatchKeepsMixedAndDifferentQueriesOnFullWrites(t *testing.T) {
-	const groupID int64 = 214
+	const groupID string = "214"
 	openAISingle := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	openAIForced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	anthropicSingle := SchedulerBucket{GroupID: groupID, Platform: PlatformAnthropic, Mode: SchedulerModeSingle}
@@ -415,7 +416,7 @@ func TestSchedulerRebuildBatchKeepsMixedAndDifferentQueriesOnFullWrites(t *testi
 }
 
 func TestSchedulerRebuildBatchPropagatesAccountIDOnlyWriteFailure(t *testing.T) {
-	const groupID int64 = 215
+	const groupID string = "215"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	wantErr := errors.New("id-only write failed")
@@ -431,7 +432,7 @@ func TestSchedulerRebuildBatchPropagatesAccountIDOnlyWriteFailure(t *testing.T) 
 }
 
 func TestSchedulerRebuildBatchReusesSuccessfulEmptyAccountIDs(t *testing.T) {
-	const groupID int64 = 217
+	const groupID string = "217"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotAccountIDCache()
@@ -451,8 +452,8 @@ func TestSchedulerRebuildBatchReusesSuccessfulEmptyAccountIDs(t *testing.T) {
 }
 
 func TestSchedulerRebuildBatchReusesAccountPayloadForSimpleGroupZero(t *testing.T) {
-	single := SchedulerBucket{GroupID: 0, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
-	forced := SchedulerBucket{GroupID: 0, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
+	single := SchedulerBucket{GroupID: "0", Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
+	forced := SchedulerBucket{GroupID: "0", Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotAccountIDCache()
 	svc := newBatchQueryTestService(cache, newBatchAccountQueryRepo(), config.RunModeSimple)
 
@@ -466,12 +467,12 @@ func TestSchedulerRebuildBatchReusesAccountPayloadForSimpleGroupZero(t *testing.
 }
 
 func TestSchedulerAccountQueryCacheReleasesSnapshotAccountIDs(t *testing.T) {
-	single := schedulerBucketWriteTask{bucket: SchedulerBucket{GroupID: 218, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}}
-	forced := schedulerBucketWriteTask{bucket: SchedulerBucket{GroupID: 218, Platform: PlatformOpenAI, Mode: SchedulerModeForced}}
+	single := schedulerBucketWriteTask{bucket: SchedulerBucket{GroupID: "218", Platform: PlatformOpenAI, Mode: SchedulerModeSingle}}
+	forced := schedulerBucketWriteTask{bucket: SchedulerBucket{GroupID: "218", Platform: PlatformOpenAI, Mode: SchedulerModeForced}}
 	queries := newSchedulerAccountQueryCache([]schedulerBucketWriteTask{single, forced})
 	key, ok := schedulerAccountQueryKeyForBucket(single.bucket)
 	require.True(t, ok)
-	queries.snapshotAccountIDs[key] = []int64{1, 2}
+	queries.snapshotAccountIDs[key] = []string{"1", "2"}
 
 	queries.release(single.bucket)
 	require.Contains(t, queries.snapshotAccountIDs, key)
@@ -482,15 +483,15 @@ func TestSchedulerAccountQueryCacheReleasesSnapshotAccountIDs(t *testing.T) {
 }
 
 func TestSchedulerRebuildBatchKeepsMixedAndDifferentKeysIndependent(t *testing.T) {
-	const groupID int64 = 202
+	const groupID string = "202"
 	buckets := []SchedulerBucket{
 		{GroupID: groupID, Platform: PlatformAnthropic, Mode: SchedulerModeSingle},
 		{GroupID: groupID, Platform: PlatformAnthropic, Mode: SchedulerModeForced},
 		{GroupID: groupID, Platform: PlatformAnthropic, Mode: SchedulerModeMixed},
-		{GroupID: groupID + 1, Platform: PlatformAnthropic, Mode: SchedulerModeSingle},
+		{GroupID: "203", Platform: PlatformAnthropic, Mode: SchedulerModeSingle},
 		{GroupID: groupID, Platform: PlatformGemini, Mode: SchedulerModeForced},
-		{GroupID: 0, Platform: PlatformOpenAI, Mode: SchedulerModeSingle},
-		{GroupID: -1, Platform: PlatformOpenAI, Mode: SchedulerModeForced},
+		{GroupID: "0", Platform: PlatformOpenAI, Mode: SchedulerModeSingle},
+		{GroupID: "-1", Platform: PlatformOpenAI, Mode: SchedulerModeForced},
 	}
 	cache := newBatchSnapshotCache()
 	repo := newBatchAccountQueryRepo()
@@ -499,7 +500,7 @@ func TestSchedulerRebuildBatchKeepsMixedAndDifferentKeysIndependent(t *testing.T
 	require.NoError(t, svc.rebuildBuckets(context.Background(), buckets, "test"))
 	require.Equal(t, 1, repo.callCount(batchAccountQueryKey{groupID: groupID, platform: PlatformAnthropic}))
 	require.Equal(t, 1, repo.callCount(batchAccountQueryKey{groupID: groupID, platform: PlatformAnthropic, mixed: true}))
-	require.Equal(t, 1, repo.callCount(batchAccountQueryKey{groupID: groupID + 1, platform: PlatformAnthropic}))
+	require.Equal(t, 1, repo.callCount(batchAccountQueryKey{groupID: "203", platform: PlatformAnthropic}))
 	require.Equal(t, 1, repo.callCount(batchAccountQueryKey{groupID: groupID, platform: PlatformGemini}))
 	require.Equal(t, 2, repo.callCount(batchAccountQueryKey{platform: PlatformOpenAI}), "group0 and a negative historical group must not share")
 	for _, bucket := range buckets {
@@ -511,8 +512,8 @@ func TestSchedulerRebuildBatchKeepsMixedAndDifferentKeysIndependent(t *testing.T
 }
 
 func TestSchedulerRebuildBatchKeepsSimpleModeBucketGroupsIndependent(t *testing.T) {
-	single := SchedulerBucket{GroupID: 204, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
-	forced := SchedulerBucket{GroupID: 0, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
+	single := SchedulerBucket{GroupID: "204", Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
+	forced := SchedulerBucket{GroupID: "0", Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotCache()
 	repo := newBatchAccountQueryRepo()
 	svc := newBatchQueryTestService(cache, repo, config.RunModeSimple)
@@ -529,13 +530,13 @@ func TestSchedulerRebuildBatchDoesNotCacheMixedOrHistoricalQueries(t *testing.T)
 	}{
 		{
 			name:   "mixed",
-			bucket: SchedulerBucket{GroupID: 204, Platform: PlatformAnthropic, Mode: SchedulerModeMixed},
-			key:    batchAccountQueryKey{groupID: 204, platform: PlatformAnthropic, mixed: true},
+			bucket: SchedulerBucket{GroupID: "204", Platform: PlatformAnthropic, Mode: SchedulerModeMixed},
+			key:    batchAccountQueryKey{groupID: "204", platform: PlatformAnthropic, mixed: true},
 		},
 		{
 			name:   "historical",
-			bucket: SchedulerBucket{GroupID: 204, Platform: PlatformOpenAI, Mode: "unknown"},
-			key:    batchAccountQueryKey{groupID: 204, platform: PlatformOpenAI},
+			bucket: SchedulerBucket{GroupID: "204", Platform: PlatformOpenAI, Mode: "unknown"},
+			key:    batchAccountQueryKey{groupID: "204", platform: PlatformOpenAI},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -562,7 +563,7 @@ func TestSchedulerRebuildBatchDoesNotCacheMixedOrHistoricalQueries(t *testing.T)
 }
 
 func TestSchedulerRebuildBatchRetriesQueryFailureForFollowingBucket(t *testing.T) {
-	const groupID int64 = 205
+	const groupID string = "205"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	wantErr := errors.New("first query failed")
@@ -570,7 +571,7 @@ func TestSchedulerRebuildBatchRetriesQueryFailureForFollowingBucket(t *testing.T
 	repo := newBatchAccountQueryRepo()
 	repo.results[key] = []batchAccountQueryResult{
 		{err: wantErr},
-		{accounts: []Account{{ID: 2051, Name: "retry", Platform: PlatformOpenAI}}},
+		{accounts: []Account{{ID: "2051", Name: "retry", Platform: PlatformOpenAI}}},
 	}
 	cache := newBatchSnapshotCache()
 	svc := newBatchQueryTestService(cache, repo, config.RunModeStandard)
@@ -588,7 +589,7 @@ func TestSchedulerRebuildBatchRetriesQueryFailureForFollowingBucket(t *testing.T
 }
 
 func TestSchedulerFullRebuildSharesSuccessfulQueryAcrossStrictAndOrdinarySegments(t *testing.T) {
-	const groupID int64 = 206
+	const groupID string = "206"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 	cache := newBatchSnapshotCache()
@@ -618,7 +619,7 @@ func TestSchedulerFullRebuildSharesSuccessfulQueryAcrossStrictAndOrdinarySegment
 }
 
 func TestSchedulerRebuildBatchPreservesLockBusyAndFencingPolicy(t *testing.T) {
-	const groupID int64 = 207
+	const groupID string = "207"
 	single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 	forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 
@@ -685,7 +686,7 @@ func TestSchedulerRebuildBatchReleasesResultsAfterLastConsumer(t *testing.T) {
 	tasks := make([]schedulerBucketWriteTask, 0, groups*2)
 	wantLockErr := errors.New("lock failed")
 	for i := 1; i <= groups; i++ {
-		groupID := int64(300 + i)
+		groupID := strconv.Itoa(300 + i)
 		single := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle}
 		forced := SchedulerBucket{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 		if i == 1 {
@@ -715,7 +716,7 @@ func TestSchedulerRebuildBatchReleasesResultsAfterLastConsumer(t *testing.T) {
 	require.Empty(t, queries.accounts)
 	require.Empty(t, queries.remaining)
 	for i := 1; i <= groups; i++ {
-		key := batchAccountQueryKey{groupID: int64(300 + i), platform: PlatformOpenAI}
+		key := batchAccountQueryKey{groupID: strconv.Itoa(300 + i), platform: PlatformOpenAI}
 		require.Equal(t, 1, repo.callCount(key), key)
 	}
 }
@@ -725,7 +726,7 @@ type batchQueryBenchmarkRepo struct {
 	accounts []Account
 }
 
-func (r *batchQueryBenchmarkRepo) ListSchedulableByGroupIDAndPlatform(context.Context, int64, string) ([]Account, error) {
+func (r *batchQueryBenchmarkRepo) ListSchedulableByGroupIDAndPlatform(context.Context, string, string) ([]Account, error) {
 	return r.accounts, nil
 }
 
@@ -753,7 +754,7 @@ func (c *batchQueryBenchmarkCache) SetSnapshot(_ context.Context, _ SchedulerBuc
 }
 
 func BenchmarkSchedulerRebuildBatchQueryReuse(b *testing.B) {
-	const groupID int64 = 208
+	const groupID string = "208"
 	buckets := []SchedulerBucket{
 		{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeSingle},
 		{GroupID: groupID, Platform: PlatformOpenAI, Mode: SchedulerModeForced},

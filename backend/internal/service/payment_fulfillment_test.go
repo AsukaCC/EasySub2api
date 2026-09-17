@@ -42,11 +42,11 @@ func (p paymentFulfillmentTestProvider) Refund(ctx context.Context, req payment.
 }
 
 type paymentFulfillmentAffiliateAccrueCall struct {
-	inviterID     int64
-	inviteeUserID int64
+	inviterID     string
+	inviteeUserID string
 	amount        float64
 	freezeHours   int
-	sourceOrderID *int64
+	sourceOrderID *string
 }
 
 type paymentFulfillmentAffiliateRepoStub struct {
@@ -55,7 +55,7 @@ type paymentFulfillmentAffiliateRepoStub struct {
 	accrueCalls    []paymentFulfillmentAffiliateAccrueCall
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*AffiliateSummary, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID string) (*AffiliateSummary, error) {
 	switch {
 	case r.inviteeSummary != nil && r.inviteeSummary.UserID == userID:
 		cp := *r.inviteeSummary
@@ -72,12 +72,12 @@ func (r *paymentFulfillmentAffiliateRepoStub) GetAffiliateByCode(context.Context
 	panic("unexpected GetAffiliateByCode call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, int64, int64) (bool, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, string, string) (bool, error) {
 	panic("unexpected BindInviter call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {
-	var sourceCopy *int64
+func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID string, amount float64, freezeHours int, sourceOrderID *string) (bool, error) {
+	var sourceCopy *string
 	if sourceOrderID != nil {
 		v := *sourceOrderID
 		sourceCopy = &v
@@ -92,35 +92,39 @@ func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inv
 	return true, nil
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, int64, int64) (float64, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, string, string) (float64, error) {
 	return 0, nil
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) ThawFrozenQuota(context.Context, int64) (float64, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) ThawFrozenQuota(context.Context, string) (float64, error) {
 	panic("unexpected ThawFrozenQuota call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) TransferQuotaToBalance(context.Context, int64) (float64, float64, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) TransferQuotaToBalance(context.Context, string) (float64, float64, error) {
 	panic("unexpected TransferQuotaToBalance call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) ListInvitees(context.Context, int64, int) ([]AffiliateInvitee, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) ListInvitees(context.Context, string, int) ([]AffiliateInvitee, error) {
 	panic("unexpected ListInvitees call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) UpdateUserAffCode(context.Context, int64, string) error {
+func (r *paymentFulfillmentAffiliateRepoStub) RegenerateUserAffCode(context.Context, string, time.Time, int) (string, int, error) {
+	panic("unexpected RegenerateUserAffCode call")
+}
+
+func (r *paymentFulfillmentAffiliateRepoStub) UpdateUserAffCode(context.Context, string, string) error {
 	panic("unexpected UpdateUserAffCode call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) ResetUserAffCode(context.Context, int64) (string, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) ResetUserAffCode(context.Context, string) (string, error) {
 	panic("unexpected ResetUserAffCode call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) SetUserRebateRate(context.Context, int64, *float64) error {
+func (r *paymentFulfillmentAffiliateRepoStub) SetUserRebateRate(context.Context, string, *float64) error {
 	panic("unexpected SetUserRebateRate call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) BatchSetUserRebateRate(context.Context, []int64, *float64) error {
+func (r *paymentFulfillmentAffiliateRepoStub) BatchSetUserRebateRate(context.Context, []string, *float64) error {
 	panic("unexpected BatchSetUserRebateRate call")
 }
 
@@ -140,7 +144,7 @@ func (r *paymentFulfillmentAffiliateRepoStub) ListAffiliateTransferRecords(conte
 	panic("unexpected ListAffiliateTransferRecords call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) GetAffiliateUserOverview(context.Context, int64) (*AffiliateUserOverview, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) GetAffiliateUserOverview(context.Context, string) (*AffiliateUserOverview, error) {
 	panic("unexpected GetAffiliateUserOverview call")
 }
 
@@ -477,20 +481,6 @@ func TestValidateProviderNotificationMetadataAllowsLegacyOrdersWithoutSnapshotFi
 	assert.NoError(t, err)
 }
 
-func TestParseLegacyPaymentOrderID(t *testing.T) {
-	t.Parallel()
-
-	oid, ok := parseLegacyPaymentOrderID("sub2_42", &dbent.NotFoundError{})
-	assert.True(t, ok)
-	assert.EqualValues(t, 42, oid)
-
-	_, ok = parseLegacyPaymentOrderID("42", &dbent.NotFoundError{})
-	assert.False(t, ok)
-
-	_, ok = parseLegacyPaymentOrderID("sub2_42", errors.New("db down"))
-	assert.False(t, ok)
-}
-
 func TestIsValidProviderAmount(t *testing.T) {
 	t.Parallel()
 
@@ -614,7 +604,7 @@ func TestAlreadyProcessedRecoversStaleRechargingLease(t *testing.T) {
 		time.Now().Add(-paymentFulfillmentLeaseDuration-time.Minute),
 	)
 	_, err := client.PaymentAuditLog.Create().
-		SetOrderID(strconv.FormatInt(order.ID, 10)).
+		SetOrderID(order.ID).
 		SetAction("SUBSCRIPTION_ASSIGNED").
 		SetDetail(`{"groupID":7,"validityDays":30}`).
 		SetOperator("system").
@@ -622,7 +612,7 @@ func TestAlreadyProcessedRecoversStaleRechargingLease(t *testing.T) {
 	require.NoError(t, err)
 
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "7", Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
 	}
 	svc := &PaymentService{
 		entClient:       client,
@@ -685,7 +675,7 @@ func TestExecuteBalanceFulfillmentRecoversAfterRedeemWithoutCreditingAgain(t *te
 
 	redeemRepo := &redeemCodeRepoStub{codesByCode: map[string]*RedeemCode{
 		order.RechargeCode: {
-			ID:     101,
+			ID: "101",
 			Code:   order.RechargeCode,
 			Type:   RedeemTypeBalance,
 			Value:  order.Amount,
@@ -718,7 +708,7 @@ func TestDuplicatePaymentNotificationDoesNotReprocessCompletedBalanceOrder(t *te
 
 	redeemRepo := &redeemCodeRepoStub{codesByCode: map[string]*RedeemCode{
 		order.RechargeCode: {
-			ID:     102,
+			ID: "102",
 			Code:   order.RechargeCode,
 			Type:   RedeemTypeBalance,
 			Value:  order.Amount,
@@ -780,7 +770,7 @@ func TestExecuteSubscriptionFulfillmentRecoversCommittedAssignmentWithoutExtendi
 	expiresAt := time.Now().Add(30 * 24 * time.Hour).Truncate(time.Second)
 	subRepo := newSubscriptionUserSubRepoStub()
 	subRepo.seed(&UserSubscription{
-		ID:        99,
+		ID: "99",
 		UserID:    order.UserID,
 		GroupID:   *order.SubscriptionGroupID,
 		StartsAt:  time.Now().Add(-time.Hour),
@@ -789,7 +779,7 @@ func TestExecuteSubscriptionFulfillmentRecoversCommittedAssignmentWithoutExtendi
 		Notes:     "manual note\n" + paymentSubscriptionOrderNote(order.ID) + "\nretained note",
 	})
 	groupRepo := &subscriptionGroupRepoStub{
-		group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "7", Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
 	}
 	svc := &PaymentService{
 		entClient:       client,
@@ -802,7 +792,7 @@ func TestExecuteSubscriptionFulfillmentRecoversCommittedAssignmentWithoutExtendi
 
 	assignmentAuditCount, err := client.PaymentAuditLog.Query().
 		Where(
-			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.OrderIDEQ(order.ID),
 			paymentauditlog.ActionEQ("SUBSCRIPTION_ASSIGNED"),
 		).
 		Count(ctx)
@@ -822,7 +812,7 @@ func TestExecuteSubscriptionFulfillmentRecoversCommittedAssignmentWithoutExtendi
 
 	assignmentAuditCount, err = client.PaymentAuditLog.Query().
 		Where(
-			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.OrderIDEQ(order.ID),
 			paymentauditlog.ActionEQ("SUBSCRIPTION_ASSIGNED"),
 		).
 		Count(ctx)
@@ -864,8 +854,8 @@ func createPaymentFulfillmentSubscriptionOrder(
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-fulfillment").
 		SetOrderType(payment.OrderTypeSubscription).
-		SetPlanID(100).
-		SetSubscriptionGroupID(7).
+		SetPlanID("100").
+		SetSubscriptionGroupID("7").
 		SetSubscriptionDays(30).
 		SetStatus(status).
 		SetPaidAt(time.Now().Add(-time.Hour)).
@@ -909,8 +899,8 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-sub-affiliate").
 		SetOrderType(payment.OrderTypeSubscription).
-		SetPlanID(99).
-		SetSubscriptionGroupID(7).
+		SetPlanID("99").
+		SetSubscriptionGroupID("7").
 		SetSubscriptionDays(30).
 		SetStatus(OrderStatusPaid).
 		SetExpiresAt(time.Now().Add(time.Hour)).
@@ -919,7 +909,7 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-	inviterID := int64(9001)
+	inviterID := "9001"
 	affiliateRepo := &paymentFulfillmentAffiliateRepoStub{
 		inviteeSummary: &AffiliateSummary{
 			UserID:    user.ID,
@@ -940,11 +930,11 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 	}}, nil)
 	subRepo := newSubscriptionUserSubRepoStub()
 	subscriptionSvc := NewSubscriptionService(&subscriptionGroupRepoStub{
-		group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "7", Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
 	}, subRepo, nil, nil, nil)
 	svc := &PaymentService{
 		entClient:        client,
-		groupRepo:        &subscriptionGroupRepoStub{group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription}},
+		groupRepo:        &subscriptionGroupRepoStub{group: &Group{ID: "7", Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription}},
 		subscriptionSvc:  subscriptionSvc,
 		affiliateService: NewAffiliateService(affiliateRepo, settingSvc, nil, nil),
 	}
@@ -964,7 +954,7 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 	require.Equal(t, 1, subRepo.createCalls)
 
 	applied, err := client.PaymentAuditLog.Query().
-		Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("AFFILIATE_REBATE_APPLIED")).
+		Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("AFFILIATE_REBATE_APPLIED")).
 		Only(ctx)
 	require.NoError(t, err)
 	require.Contains(t, applied.Detail, `"baseAmount":9.99`)
@@ -995,8 +985,8 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-sub-affiliate-idempotent").
 		SetOrderType(payment.OrderTypeSubscription).
-		SetPlanID(100).
-		SetSubscriptionGroupID(7).
+		SetPlanID("100").
+		SetSubscriptionGroupID("7").
 		SetSubscriptionDays(30).
 		SetStatus(OrderStatusPaid).
 		SetExpiresAt(time.Now().Add(time.Hour)).
@@ -1005,21 +995,21 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 		Save(ctx)
 	require.NoError(t, err)
 	_, err = client.PaymentAuditLog.Create().
-		SetOrderID(strconv.FormatInt(order.ID, 10)).
+		SetOrderID(order.ID).
 		SetAction("SUBSCRIPTION_SUCCESS").
 		SetDetail(`{"groupID":7,"validityDays":30}`).
 		SetOperator("system").
 		Save(ctx)
 	require.NoError(t, err)
 	_, err = client.PaymentAuditLog.Create().
-		SetOrderID(strconv.FormatInt(order.ID, 10)).
+		SetOrderID(order.ID).
 		SetAction("AFFILIATE_REBATE_APPLIED").
 		SetDetail(`{"baseAmount":80,"rebateAmount":16}`).
 		SetOperator("system").
 		Save(ctx)
 	require.NoError(t, err)
 
-	inviterID := int64(9001)
+	inviterID := "9001"
 	affiliateRepo := &paymentFulfillmentAffiliateRepoStub{
 		inviteeSummary: &AffiliateSummary{
 			UserID:    user.ID,
@@ -1039,11 +1029,11 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 	}}, nil)
 	subRepo := newSubscriptionUserSubRepoStub()
 	subscriptionSvc := NewSubscriptionService(&subscriptionGroupRepoStub{
-		group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
+		group: &Group{ID: "7", Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription},
 	}, subRepo, nil, nil, nil)
 	svc := &PaymentService{
 		entClient:        client,
-		groupRepo:        &subscriptionGroupRepoStub{group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription}},
+		groupRepo:        &subscriptionGroupRepoStub{group: &Group{ID: "7", Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription}},
 		subscriptionSvc:  subscriptionSvc,
 		affiliateService: NewAffiliateService(affiliateRepo, settingSvc, nil, nil),
 	}

@@ -23,7 +23,7 @@ func TestListDueOllamaCloudUsageAccountsOrderingLimitAndProxyHydration(t *testin
 		Username: "user", Password: "pass", Status: service.StatusActive,
 	})
 
-	createAccount := func(name, baseURL string, proxyID *int64, snapshot map[string]any, lastUsed *time.Time) *service.Account {
+	createAccount := func(name, baseURL string, proxyID *string, snapshot map[string]any, lastUsed *time.Time) *service.Account {
 		t.Helper()
 		extra := map[string]any{
 			service.OllamaCloudUsageSessionExtraKey:     "cipher:wos-session=fixture",
@@ -588,7 +588,7 @@ func TestListDueOllamaCloudUsageAccountsSQLDueRulesMatchService(t *testing.T) {
 
 	// 21 groups with activity after fetch but debounce not elapsed — previously
 	// these alone could fill LIMIT 20 every minute and starve true due groups.
-	notDueIDs := make(map[int64]struct{}, 21)
+	notDueIDs := make(map[string]struct{}, 21)
 	for i := 0; i < 21; i++ {
 		// fetched 10m ago, last used 10s ago → due_at = lastUsed+debounce = now+50s (not due)
 		acc := createOK(fmt.Sprintf("ollama-not-due-debounce-%02d", i), now.Add(-10*time.Minute), now.Add(-10*time.Second))

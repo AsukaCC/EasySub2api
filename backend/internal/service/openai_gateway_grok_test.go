@@ -402,13 +402,13 @@ func TestForwardGrokResponsesCodexAdditionalToolsUsesMixedCacheIntent(t *testing
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Request.Header.Set(grokClientToolCacheOptInHeader, "prefer-cache")
-	c.Set("api_key", &APIKey{ID: 4501})
+	c.Set("api_key", &APIKey{ID: "4501"})
 
-	account := healthyGrokOAuthGatewayTestAccount(4501, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("4501", "access-token")
 	account.Credentials["subscription_tier"] = "free"
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{account.ID: account},
+			accountsByID: map[string]*Account{account.ID: account},
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
@@ -476,11 +476,11 @@ func TestForwardGrokResponsesClaudeDesktopClientToolsUseCacheRoute(t *testing.T)
 		]
 	}`)
 
-	account := healthyGrokOAuthGatewayTestAccount(4504, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("4504", "access-token")
 	account.Credentials["subscription_tier"] = "free"
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{account.ID: account},
+			accountsByID: map[string]*Account{account.ID: account},
 		},
 	}
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
@@ -515,7 +515,7 @@ func TestForwardGrokResponsesClaudeDesktopClientToolsUseCacheRoute(t *testing.T)
 		c.Request.Header.Set("X-App", "cli")
 		c.Request.Header.Set("anthropic-client-platform", "desktop_app")
 		c.Request.Header.Set("X-Claude-Code-Session-Id", "claude-desktop-session")
-		c.Set("api_key", &APIKey{ID: 4504})
+		c.Set("api_key", &APIKey{ID: "4504"})
 		return c
 	}
 
@@ -551,7 +551,7 @@ func TestForwardGrokResponsesClaudeDesktopClientToolsUseCacheRoute(t *testing.T)
 }
 
 func TestGrokResponsesCacheIdentityIncludesPromotedCodexTools(t *testing.T) {
-	c := newGrokCacheTestContext(4503)
+	c := newGrokCacheTestContext("4503")
 	lookupBody := []byte(`{"model":"grok","input":[{"type":"additional_tools","tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}]},{"type":"message","role":"user","content":"same prompt"}]}`)
 	readBody := []byte(`{"model":"grok","input":[{"type":"additional_tools","tools":[{"type":"function","name":"read_file","parameters":{"type":"object"}}]},{"type":"message","role":"user","content":"same prompt"}]}`)
 
@@ -586,7 +586,7 @@ func TestCodexUnsupportedAdditionalToolsDoNotBecomeToolFreeCacheIntent(t *testin
 	mixedCacheIntent := patched
 	patched, err = applyGrokResponsesCacheIdentity(patched, body, "isolated-id", true)
 	require.NoError(t, err)
-	account := healthyGrokOAuthGatewayTestAccount(4502, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("4502", "access-token")
 	account.Credentials["subscription_tier"] = "free"
 	patched, err = applyGrokFreeRequestToolCacheRoute(nil, patched, mixedCacheIntent, account, "isolated-id")
 
@@ -976,7 +976,7 @@ func TestForwardGrokMediaImagesGenerationNormalizesImagineAlias(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          61,
+		ID: "61",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1094,7 +1094,7 @@ func TestForwardGrokMediaAppliesAccountModelMappingAfterEndpointNormalization(t 
 			c.Request.Header.Set("Content-Type", "application/json")
 
 			account := &Account{
-				ID:          66,
+				ID: "66",
 				Name:        "grok-mapped",
 				Platform:    PlatformGrok,
 				Type:        AccountTypeAPIKey,
@@ -1134,7 +1134,7 @@ func TestForwardGrokMediaImagesGenerationRejectsEmptySuccessfulResponse(t *testi
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          66,
+		ID: "66",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1171,7 +1171,7 @@ func TestForwardGrokMediaImagesGenerationStripsUnsupportedSize(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          65,
+		ID: "65",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1221,7 +1221,7 @@ func TestForwardGrokMediaImagesEditMultipartConvertsToJSON(t *testing.T) {
 	c.Request.Header.Set("Content-Type", writer.FormDataContentType())
 
 	account := &Account{
-		ID:          62,
+		ID: "62",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1265,7 +1265,7 @@ func TestForwardGrokMediaVideoGenerationReturnsUsageAndResponseID(t *testing.T) 
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          63,
+		ID: "63",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1312,7 +1312,7 @@ func TestForwardGrokMediaVideoGenerationReturnsTaskIDAsResponseID(t *testing.T) 
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          63,
+		ID: "63",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1357,7 +1357,7 @@ func TestForwardGrokMediaVideoGenerationPreservesImageToVideoModel(t *testing.T)
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          63,
+		ID: "63",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1397,7 +1397,7 @@ func TestForwardGrokMediaOAuthImageToVideoUsesOfficialAPIForLargeBody(t *testing
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          66,
+		ID: "66",
 		Name:        "grok-oauth",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -1438,7 +1438,7 @@ func TestForwardGrokMediaVideoStatusUsesGETWithoutBody(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/v1/videos/request-123", nil)
 
 	account := &Account{
-		ID:          62,
+		ID: "62",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1493,7 +1493,7 @@ func TestForwardGrokMediaVideoMutationEndpoints(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 
 			account := &Account{
-				ID: 71, Name: "grok", Platform: PlatformGrok, Type: AccountTypeAPIKey, Concurrency: 1,
+				ID: "71", Name: "grok", Platform: PlatformGrok, Type: AccountTypeAPIKey, Concurrency: 1,
 				Credentials: map[string]any{
 					"api_key":       "api-key",
 					"base_url":      "https://xai.test/v1",
@@ -1526,27 +1526,27 @@ func TestGrokMediaVideoRequestBindingIsScopedToUserAndAPIKey(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodGet, "/v1/videos/video-request-123", nil)
 	c.Request.Header.Set("session_id", "shared-client-session")
-	groupID := int64(7)
+	groupID := "7"
 	cache := &stubGatewayCache{}
 	svc := &OpenAIGatewayService{cache: cache}
-	const userID int64 = 41
-	const apiKeyID int64 = 51
+	const userID string = "41"
+	const apiKeyID string = "51"
 	require.NotEmpty(t, svc.GenerateExplicitSessionHash(c, nil))
 	ctx := c.Request.Context()
 
 	hash := GrokMediaVideoRequestSessionHash("video-request-123", userID, apiKeyID)
 	require.NotEmpty(t, hash)
-	require.NoError(t, svc.BindGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", userID, apiKeyID, 63))
+	require.NoError(t, svc.BindGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", userID, apiKeyID, "63"))
 
 	accountID, err := svc.ResolveGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", userID, apiKeyID)
 	require.NoError(t, err)
-	require.Equal(t, int64(63), accountID)
+	require.Equal(t, "63", accountID)
 
-	accountID, err = svc.ResolveGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", userID+1, apiKeyID)
+	accountID, err = svc.ResolveGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", "42", apiKeyID)
 	require.Error(t, err)
 	require.Zero(t, accountID)
 
-	accountID, err = svc.ResolveGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", userID, apiKeyID+1)
+	accountID, err = svc.ResolveGrokMediaVideoRequestAccount(ctx, &groupID, "video-request-123", userID, "52")
 	require.Error(t, err)
 	require.Zero(t, accountID)
 }
@@ -1562,7 +1562,7 @@ func TestForwardGrokMedia429ReconcilesRateLimitBeforeCustomErrorBypass(t *testin
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          64,
+		ID: "64",
 		Name:        "grok",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1603,7 +1603,7 @@ func TestGrokMedia429FailoverPreservesRetryAfter(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
 	account := &Account{
-		ID: 641, Name: "grok-oauth", Platform: PlatformGrok, Type: AccountTypeOAuth,
+		ID: "641", Name: "grok-oauth", Platform: PlatformGrok, Type: AccountTypeOAuth,
 		Status: StatusActive, Schedulable: true,
 		Credentials: map[string]any{
 			"custom_error_codes_enabled": true,
@@ -1627,7 +1627,7 @@ func TestGrokMedia429FailoverPreservesRetryAfter(t *testing.T) {
 	require.Equal(t, "45", failoverErr.ResponseHeaders.Get("Retry-After"))
 }
 
-func healthyGrokOAuthGatewayTestAccount(id int64, token string) *Account {
+func healthyGrokOAuthGatewayTestAccount(id string, token string) *Account {
 	return &Account{
 		ID:          id,
 		Name:        "grok",
@@ -1652,12 +1652,12 @@ func TestForwardAsChatCompletionsForGrokStopFallsBackToXAIChatCompletions(t *tes
 	c, _ := gin.CreateTestContext(recorder)
 	body := []byte(`{"model":"grok","messages":[{"role":"user","content":"hi"}],"stream":false,"stop":"done","prompt_cache_key":"raw-client-cache-key"}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
-	c.Set("api_key", &APIKey{ID: 5101})
+	c.Set("api_key", &APIKey{ID: "5101"})
 
-	account := healthyGrokOAuthGatewayTestAccount(51, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("51", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{51: account},
+			accountsByID: map[string]*Account{"51": account},
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
@@ -1691,7 +1691,7 @@ func TestForwardAsChatCompletionsForGrokStopFallsBackToXAIChatCompletions(t *tes
 	require.Equal(t, 1, result.Usage.InputTokens)
 	require.Equal(t, 2, result.Usage.OutputTokens)
 	require.Equal(t, 1, result.Usage.CacheReadInputTokens)
-	require.NotNil(t, repo.updates[51][grokQuotaSnapshotExtraKey])
+	require.NotNil(t, repo.updates["51"][grokQuotaSnapshotExtraKey])
 	require.Equal(t, http.StatusOK, recorder.Code)
 }
 
@@ -1704,12 +1704,12 @@ func TestForwardGrokResponsesStreamingDefaultsEmptyModelTo45AndSnapshots(t *test
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Request.Header.Set("OpenAI-Beta", "responses=experimental")
-	c.Set("api_key", &APIKey{ID: 5201})
+	c.Set("api_key", &APIKey{ID: "5201"})
 
-	account := healthyGrokOAuthGatewayTestAccount(52, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("52", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{52: account},
+			accountsByID: map[string]*Account{"52": account},
 		},
 	}
 	upstreamBody := strings.Join([]string{
@@ -1759,7 +1759,7 @@ func TestForwardGrokResponsesStreamingDefaultsEmptyModelTo45AndSnapshots(t *test
 	require.Equal(t, "high", *result.ReasoningEffort)
 	require.Contains(t, recorder.Header().Get("Content-Type"), "text/event-stream")
 	require.Contains(t, recorder.Body.String(), "response.output_text.delta")
-	require.NotNil(t, repo.updates[52][grokQuotaSnapshotExtraKey])
+	require.NotNil(t, repo.updates["52"][grokQuotaSnapshotExtraKey])
 }
 
 func TestForwardGrokResponsesAPIKeyUsesXAIResponses(t *testing.T) {
@@ -1772,7 +1772,7 @@ func TestForwardGrokResponsesAPIKeyUsesXAIResponses(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	account := &Account{
-		ID:          53,
+		ID: "53",
 		Name:        "grok-api-key",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1822,10 +1822,10 @@ func TestForwardGrokResponsesRetriesInvalidEncryptedContentOnce(t *testing.T) {
 		"stream":false
 	}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
-	c.Set("api_key", &APIKey{ID: 4535})
+	c.Set("api_key", &APIKey{ID: "4535"})
 
 	account := &Account{
-		ID:          4535,
+		ID: "4535",
 		Name:        "grok-api-key",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1923,7 +1923,7 @@ func TestForwardGrokResponsesInvalidEncryptedContentRecoveryDoesNotOvermatch(t *
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 
 			account := &Account{
-				ID:          4536,
+				ID: "4536",
 				Name:        "grok-api-key",
 				Platform:    PlatformGrok,
 				Type:        AccountTypeAPIKey,
@@ -1955,7 +1955,7 @@ func TestForwardGrokResponsesInvalidEncryptedContentRecoveryNestedErrorShape(t *
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 
 	account := &Account{
-		ID:          4538,
+		ID: "4538",
 		Name:        "grok-api-key",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -1993,7 +1993,7 @@ func TestForwardGrokResponsesInvalidEncryptedContentRetryFailureIsTerminal(t *te
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 
 	account := &Account{
-		ID:          4537,
+		ID: "4537",
 		Name:        "grok-api-key",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -2043,7 +2043,7 @@ func TestForwardAsChatCompletionsForGrokAPIKeyUsesConfiguredRawEndpointWithoutOA
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	account := &Account{
-		ID:          706,
+		ID: "706",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
@@ -2075,7 +2075,7 @@ func TestForwardAsChatCompletionsForGrokAPIKeyRejectsNonStreamingResponseWithout
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	account := &Account{
-		ID:          707,
+		ID: "707",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
@@ -2108,7 +2108,7 @@ func TestAccountTestServiceGrokAPIKeyUsesXAIResponses(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID:          54,
+		ID: "54",
 		Name:        "grok-api-key",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -2142,7 +2142,7 @@ func TestAccountTestServiceGrokAPIKeyAllowsConfiguredHTTPWhenGlobalPolicyDoes(t 
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID:          55,
+		ID: "55",
 		Name:        "grok-api-key-http",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeAPIKey,
@@ -2176,7 +2176,7 @@ func TestAccountTestServiceGrokAPIKeyAllowsConfiguredHTTPWhenGlobalPolicyDoes(t 
 func TestAccountTestServiceGrokOAuthPaymentRequiredTemporarilyUnschedulesAccount(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	account := healthyGrokOAuthGatewayTestAccount(56, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("56", "access-token")
 	repo := &grokQuotaAccountRepo{}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusPaymentRequired,
@@ -2213,10 +2213,10 @@ func TestForwardAsChatCompletionsForGrokStreamingUsesRawXAIChatCompletions(t *te
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	account := healthyGrokOAuthGatewayTestAccount(53, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("53", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{53: account},
+			accountsByID: map[string]*Account{"53": account},
 		},
 	}
 	upstreamBody := strings.Join([]string{
@@ -2257,7 +2257,7 @@ func TestForwardAsChatCompletionsForGrokStreamingUsesRawXAIChatCompletions(t *te
 	require.Equal(t, 4, result.Usage.OutputTokens)
 	require.Equal(t, 1, result.Usage.CacheReadInputTokens)
 	require.Contains(t, recorder.Body.String(), "data: [DONE]")
-	require.NotNil(t, repo.updates[53][grokQuotaSnapshotExtraKey])
+	require.NotNil(t, repo.updates["53"][grokQuotaSnapshotExtraKey])
 }
 
 func TestForwardGrokResponsesNonStreamingUsesCacheIdentityAndCachedUsage(t *testing.T) {
@@ -2268,16 +2268,16 @@ func TestForwardGrokResponsesNonStreamingUsesCacheIdentityAndCachedUsage(t *test
 	body := []byte(`{"model":"grok","input":"hi","stream":false,"tools":[{"type":"namespace","name":"client_tools"}],"tool_choice":{"type":"namespace","name":"client_tools"}}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set("api_key", &APIKey{ID: 5202})
+	c.Set("api_key", &APIKey{ID: "5202"})
 
-	account := healthyGrokOAuthGatewayTestAccount(56, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("56", "access-token")
 	observedResetAt := time.Now().Add(-time.Second).UTC().Truncate(time.Second)
 	observedLimitedAt := observedResetAt.Add(-grokRateLimitRepeatCooldown)
 	account.RateLimitedAt = &observedLimitedAt
 	account.RateLimitResetAt = &observedResetAt
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{56: account},
+			accountsByID: map[string]*Account{"56": account},
 		},
 		recoveryClearResult: true,
 	}
@@ -2324,18 +2324,18 @@ func TestForwardGrokResponsesFailoverKeepsCacheIdentityAcrossAccounts(t *testing
 	c, _ := gin.CreateTestContext(recorder)
 	body := []byte(`{"model":"grok","input":[{"role":"user","content":"stable prefix"}],"stream":false}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
-	c.Set("api_key", &APIKey{ID: 5203})
+	c.Set("api_key", &APIKey{ID: "5203"})
 
-	newAccount := func(id int64, token string) *Account {
+	newAccount := func(id string, token string) *Account {
 		account := healthyGrokOAuthGatewayTestAccount(id, token)
-		account.Name = fmt.Sprintf("grok-%d", id)
+		account.Name = fmt.Sprintf("grok-%s", id)
 		return account
 	}
-	firstAccount := newAccount(58, "access-token-a")
-	secondAccount := newAccount(59, "access-token-b")
+	firstAccount := newAccount("58", "access-token-a")
+	secondAccount := newAccount("59", "access-token-b")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{58: firstAccount, 59: secondAccount},
+			accountsByID: map[string]*Account{"58": firstAccount, "59": secondAccount},
 		},
 	}
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
@@ -2384,12 +2384,12 @@ func TestForwardAsChatCompletionsForGrokStreamingStopFallsBackToRawXAIChatComple
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Request.Header.Set(grokConversationIDHeader, "native-client-conversation")
-	c.Set("api_key", &APIKey{ID: 5301})
+	c.Set("api_key", &APIKey{ID: "5301"})
 
-	account := healthyGrokOAuthGatewayTestAccount(53, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("53", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{53: account},
+			accountsByID: map[string]*Account{"53": account},
 		},
 	}
 	upstreamBody := strings.Join([]string{
@@ -2433,7 +2433,7 @@ func TestForwardAsChatCompletionsForGrokStreamingStopFallsBackToRawXAIChatComple
 	require.Equal(t, 4, result.Usage.OutputTokens)
 	require.Equal(t, 1, result.Usage.CacheReadInputTokens)
 	require.Contains(t, recorder.Body.String(), "data: [DONE]")
-	require.NotNil(t, repo.updates[53][grokQuotaSnapshotExtraKey])
+	require.NotNil(t, repo.updates["53"][grokQuotaSnapshotExtraKey])
 }
 
 func TestForwardAsChatCompletionsForGrokComposerBridgesImageInput(t *testing.T) {
@@ -2444,12 +2444,12 @@ func TestForwardAsChatCompletionsForGrokComposerBridgesImageInput(t *testing.T) 
 	body := []byte(`{"model":"grok-composer-2.5-fast","messages":[{"role":"system","content":"You are concise."},{"role":"user","content":[{"type":"text","text":"What is shown?"},{"type":"image_url","image_url":{"url":"data:image/png;base64,QUJD"}}]}],"stream":false}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set("api_key", &APIKey{ID: 5501})
+	c.Set("api_key", &APIKey{ID: "5501"})
 
-	account := healthyGrokOAuthGatewayTestAccount(55, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("55", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{55: account},
+			accountsByID: map[string]*Account{"55": account},
 		},
 	}
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
@@ -2495,7 +2495,7 @@ func TestForwardAsChatCompletionsForGrokComposerBridgesImageInput(t *testing.T) 
 	require.Equal(t, 14, result.Usage.InputTokens)
 	require.Equal(t, 12, result.Usage.OutputTokens)
 	require.Equal(t, "It shows ABC.", gjson.Get(recorder.Body.String(), "choices.0.message.content").String())
-	require.NotNil(t, repo.updates[55][grokQuotaSnapshotExtraKey])
+	require.NotNil(t, repo.updates["55"][grokQuotaSnapshotExtraKey])
 }
 
 func TestForwardAsAnthropicForGrokUsesXAIResponses(t *testing.T) {
@@ -2505,14 +2505,14 @@ func TestForwardAsAnthropicForGrokUsesXAIResponses(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	body := []byte(`{"model":"grok","max_tokens":32,"stream":false,"messages":[{"role":"user","content":"hi"}]}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
-	c.Set("api_key", &APIKey{ID: 5401})
+	c.Set("api_key", &APIKey{ID: "5401"})
 	c.Request.Header.Set("OpenAI-Beta", "grok-experimental")
 	c.Request.Header.Set("originator", "opencode")
 
-	account := healthyGrokOAuthGatewayTestAccount(54, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("54", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{54: account},
+			accountsByID: map[string]*Account{"54": account},
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: grokMessagesSSECompletedResponse("resp_grok_messages", 3)}
@@ -2562,9 +2562,9 @@ func TestForwardAsAnthropicForGrokFunctionToolUsesCacheCapableMixedRoute(t *test
 		"tool_choice":{"type":"auto"}
 	}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
-	c.Set("api_key", &APIKey{ID: 5403})
+	c.Set("api_key", &APIKey{ID: "5403"})
 
-	account := healthyGrokOAuthGatewayTestAccount(58, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("58", "access-token")
 	account.Extra = map[string]any{grokBillingExtraKey: map[string]any{
 		"status_code":        http.StatusOK,
 		"source":             "billing_probe",
@@ -2572,7 +2572,7 @@ func TestForwardAsAnthropicForGrokFunctionToolUsesCacheCapableMixedRoute(t *test
 	}}
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{58: account},
+			accountsByID: map[string]*Account{"58": account},
 		},
 	}
 	responseBody := strings.Join([]string{
@@ -2628,12 +2628,12 @@ func TestForwardAsAnthropicForGrokStreamingPreservesCacheUsage(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	body := []byte(`{"model":"grok","max_tokens":32,"stream":true,"messages":[{"role":"user","content":"hi"}]}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
-	c.Set("api_key", &APIKey{ID: 5402})
+	c.Set("api_key", &APIKey{ID: "5402"})
 
-	account := healthyGrokOAuthGatewayTestAccount(57, "access-token")
+	account := healthyGrokOAuthGatewayTestAccount("57", "access-token")
 	repo := &grokQuotaAccountRepo{
 		mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-			accountsByID: map[int64]*Account{57: account},
+			accountsByID: map[string]*Account{"57": account},
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: grokMessagesSSECompletedResponse("resp_grok_messages_stream", 2)}
@@ -2671,7 +2671,7 @@ func grokMessagesSSECompletedResponse(responseID string, cachedTokens int) *http
 func TestHandleGrokAccountUpstreamErrorSpendingLimitUsesRecoverableProbeCool(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 2570, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "2570", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	before := time.Now()
 	body := []byte(`{"code":"personal-team-blocked:spending-limit","error":"You have run out of credits"}`)
 
@@ -2723,7 +2723,7 @@ func TestHandleGrokAccountUpstreamErrorTempUnschedulesNonRateLimitStates(t *test
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := &Account{ID: 61, Platform: PlatformGrok, Type: AccountTypeOAuth}
+			account := &Account{ID: "61", Platform: PlatformGrok, Type: AccountTypeOAuth}
 			repo := &grokQuotaAccountRepo{}
 			svc := &OpenAIGatewayService{accountRepo: repo}
 			before := time.Now()
@@ -2742,7 +2742,7 @@ func TestHandleGrokAccountUpstreamErrorTempUnschedulesNonRateLimitStates(t *test
 }
 
 func TestHandleGrokAccountUpstreamErrorSpendingLimit403RateLimits(t *testing.T) {
-	account := &Account{ID: 614, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "614", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	before := time.Now()
@@ -2761,7 +2761,7 @@ func TestHandleGrokAccountUpstreamErrorSpendingLimit403RateLimits(t *testing.T) 
 func TestHandleGrokAccountUpstreamError5xxRespectsPoolMode(t *testing.T) {
 	t.Run("pool mode keeps scheduling state", func(t *testing.T) {
 		account := &Account{
-			ID:       611,
+			ID: "611",
 			Platform: PlatformGrok,
 			Type:     AccountTypeAPIKey,
 			Credentials: map[string]any{
@@ -2780,7 +2780,7 @@ func TestHandleGrokAccountUpstreamError5xxRespectsPoolMode(t *testing.T) {
 	})
 
 	t.Run("non-pool mode keeps two minute cooldown", func(t *testing.T) {
-		account := &Account{ID: 612, Platform: PlatformGrok, Type: AccountTypeAPIKey}
+		account := &Account{ID: "612", Platform: PlatformGrok, Type: AccountTypeAPIKey}
 		repo := &grokQuotaAccountRepo{}
 		svc := &OpenAIGatewayService{accountRepo: repo}
 		before := time.Now()
@@ -2796,7 +2796,7 @@ func TestHandleGrokAccountUpstreamError5xxRespectsPoolMode(t *testing.T) {
 }
 
 func TestHandleGrokAccountUpstreamError429SetsRateLimitedFromRetryAfter(t *testing.T) {
-	account := &Account{ID: 61, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "61", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	before := time.Now()
@@ -2812,7 +2812,7 @@ func TestHandleGrokAccountUpstreamError429SetsRateLimitedFromRetryAfter(t *testi
 
 func TestHandleGrokAccountUpstreamError429PoolModeKeepsSchedulingState(t *testing.T) {
 	account := &Account{
-		ID:       613,
+		ID: "613",
 		Platform: PlatformGrok,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -2836,7 +2836,7 @@ func TestHandleGrokAccountUpstreamError429PoolModeKeepsSchedulingState(t *testin
 
 func TestHandleGrokAccountUpstreamError402RecoversAfterCooldownExpiry(t *testing.T) {
 	account := &Account{
-		ID: 610, Platform: PlatformGrok, Type: AccountTypeOAuth,
+		ID: "610", Platform: PlatformGrok, Type: AccountTypeOAuth,
 		Status: StatusActive, Schedulable: true,
 	}
 	repo := &grokQuotaAccountRepo{}
@@ -2866,7 +2866,7 @@ func TestHandleGrokAccountUpstreamError429UsesLatestExhaustedWindowReset(t *test
 		"X-Ratelimit-Remaining-Tokens":   []string{"0"},
 		"X-Ratelimit-Reset-Tokens":       []string{fmt.Sprintf("%d", tokenReset.Unix())},
 	}
-	account := &Account{ID: 62, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "62", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 
@@ -2878,7 +2878,7 @@ func TestHandleGrokAccountUpstreamError429UsesLatestExhaustedWindowReset(t *test
 }
 
 func TestHandleGrokAccountUpstreamError429UsesFallbackReset(t *testing.T) {
-	account := &Account{ID: 63, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "63", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	before := time.Now()
@@ -2913,7 +2913,7 @@ func TestGrokRateLimitResetAtForAccountEscalatesRepeated429s(t *testing.T) {
 			previousReset := now.Add(-time.Second)
 			previousLimited := previousReset.Add(-tt.previousCooldown)
 			account := &Account{
-				ID:               630,
+				ID: "630",
 				Platform:         PlatformGrok,
 				Type:             AccountTypeOAuth,
 				RateLimitedAt:    &previousLimited,
@@ -2934,7 +2934,7 @@ func TestGrokRateLimitResetAtForAccountPreservesAuthoritativeAndQuietRecovery(t 
 	previousReset := now.Add(-grokRateLimitBackoffQuietPeriod - time.Second)
 	previousLimited := previousReset.Add(-grokRateLimitSustainedCooldown)
 	account := &Account{
-		ID:               631,
+		ID: "631",
 		Platform:         PlatformGrok,
 		Type:             AccountTypeOAuth,
 		RateLimitedAt:    &previousLimited,
@@ -2969,7 +2969,7 @@ func TestGrokRateLimitResetAtForAccountLeavesAPIKey429PolicyUnchanged(t *testing
 	previousReset := now.Add(-time.Second)
 	previousLimited := previousReset.Add(-grokRateLimitSustainedCooldown)
 	account := &Account{
-		ID:               632,
+		ID: "632",
 		Platform:         PlatformGrok,
 		Type:             AccountTypeAPIKey,
 		RateLimitedAt:    &previousLimited,
@@ -3011,7 +3011,7 @@ func TestGrokRateLimitResetAtUsesFutureWindowAfterRetryAfterExpires(t *testing.T
 func TestHandleGrokAccountUpstreamError429DoesNotShortenExistingPause(t *testing.T) {
 	existingUntil := time.Now().Add(15 * time.Minute)
 	account := &Account{
-		ID:                      64,
+		ID: "64",
 		Platform:                PlatformGrok,
 		Type:                    AccountTypeOAuth,
 		TempUnschedulableUntil:  &existingUntil,
@@ -3033,7 +3033,7 @@ func TestHandleGrokAccountUpstreamError429DoesNotShortenExistingPause(t *testing
 }
 
 func TestUpdateGrokUsageSnapshotExhaustedSuccessBypassesThrottleAndSetsRateLimited(t *testing.T) {
-	account := &Account{ID: 65, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "65", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{
 		accountRepo:           repo,
@@ -3072,7 +3072,7 @@ func TestUpdateGrokUsageSnapshotExhaustedSuccessBypassesThrottleAndSetsRateLimit
 func TestUpdateGrokUsageSnapshotAvailableSuccessDoesNotSetRateLimited(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 66, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "66", Platform: PlatformGrok, Type: AccountTypeOAuth}
 
 	svc.updateGrokUsageSnapshot(context.Background(), account, &xai.QuotaSnapshot{
 		StatusCode: http.StatusOK,
@@ -3092,7 +3092,7 @@ func TestUpdateGrokUsageFromResponseHeaderlessSuccessClearsObservedCooldown(t *t
 	limitedAt := now.Add(-grokRateLimitRepeatCooldown)
 	observedResetAt := now.Add(-time.Second)
 	account := &Account{
-		ID:               660,
+		ID: "660",
 		Platform:         PlatformGrok,
 		Type:             AccountTypeOAuth,
 		RateLimitedAt:    &limitedAt,
@@ -3122,7 +3122,7 @@ func TestUpdateGrokUsageFromResponseRecoveryRespectsCancellationAndAPIKeyBoundar
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		account := &Account{
-			ID:               661,
+			ID: "661",
 			Platform:         PlatformGrok,
 			Type:             AccountTypeOAuth,
 			RateLimitedAt:    &observedLimitedAt,
@@ -3138,7 +3138,7 @@ func TestUpdateGrokUsageFromResponseRecoveryRespectsCancellationAndAPIKeyBoundar
 
 	t.Run("API key success does not alter OAuth cooldown state", func(t *testing.T) {
 		account := &Account{
-			ID:               662,
+			ID: "662",
 			Platform:         PlatformGrok,
 			Type:             AccountTypeAPIKey,
 			RateLimitedAt:    &observedLimitedAt,
@@ -3156,7 +3156,7 @@ func TestUpdateGrokUsageFromResponseRecoveryRespectsCancellationAndAPIKeyBoundar
 func TestUpdateGrokUsageSnapshotExhaustedSuccessWithoutResetUsesFallback(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 67, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "67", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	before := time.Now()
 
 	svc.updateGrokUsageSnapshot(context.Background(), account, &xai.QuotaSnapshot{
@@ -3187,7 +3187,7 @@ func TestOpenAIWSHTTPBridgeGrok429PersistsRateLimit(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"rate limited"}}`)),
 	}}
 	svc := &OpenAIGatewayService{accountRepo: repo, httpUpstream: upstream}
-	account := &Account{ID: 68, Platform: PlatformGrok, Type: AccountTypeOAuth, Concurrency: 1}
+	account := &Account{ID: "68", Platform: PlatformGrok, Type: AccountTypeOAuth, Concurrency: 1}
 	before := time.Now()
 
 	result, err := svc.proxyOpenAIWSHTTPBridgeTurn(
@@ -3225,9 +3225,9 @@ func TestOpenAIWSHTTPBridgeSSEErrorSideEffectsRunOncePerPlatform(t *testing.T) {
 				httpUpstream: upstream,
 			}
 			if platform == PlatformOpenAI {
-				svc.rateLimitService = NewRateLimitService(repo, nil, cfg, nil, nil)
+				svc.rateLimitService = NewRateLimitService(repo, cfg, nil)
 			}
-			account := &Account{ID: 70, Platform: platform, Type: AccountTypeOAuth, Concurrency: 1}
+			account := &Account{ID: "70", Platform: platform, Type: AccountTypeOAuth, Concurrency: 1}
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
 			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
@@ -3262,7 +3262,7 @@ func TestOpenAIWSHTTPBridgeGrokExhaustedSuccessPersistsRateLimit(t *testing.T) {
 	resp.Header.Set("X-Ratelimit-Reset-Requests", fmt.Sprintf("%d", resetAt.Unix()))
 	upstream := &httpUpstreamRecorder{resp: resp}
 	svc := &OpenAIGatewayService{accountRepo: repo, httpUpstream: upstream}
-	account := &Account{ID: 69, Platform: PlatformGrok, Type: AccountTypeOAuth, Concurrency: 1}
+	account := &Account{ID: "69", Platform: PlatformGrok, Type: AccountTypeOAuth, Concurrency: 1}
 
 	result, err := svc.proxyOpenAIWSHTTPBridgeTurn(
 		context.Background(), nil, account, "token",
@@ -3282,7 +3282,7 @@ func TestFailoverOpenAIUpstreamHTTPErrorUsesOnlyGrokRateLimitPolicy(t *testing.T
 	gin.SetMode(gin.TestMode)
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 70, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "70", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	resp := &http.Response{
 		StatusCode: http.StatusTooManyRequests,
 		Header:     http.Header{"Retry-After": []string{"45"}},

@@ -215,19 +215,19 @@ func TestGetRequestTierPrice_NilPerRequestPrice(t *testing.T) {
 // channel (active, groupID=100, platform=anthropic) with the specified pricing.
 func newResolverWithChannel(t *testing.T, pricing []ChannelModelPricing) *ModelPricingResolver {
 	t.Helper()
-	const groupID = 100
+	const groupID = "100"
 	repo := &mockChannelRepository{
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			return []Channel{{
-				ID:           1,
+				ID: "1",
 				Name:         "test-channel",
 				Status:       StatusActive,
-				GroupIDs:     []int64{groupID},
+				GroupIDs: []string{},
 				ModelPricing: pricing,
 			}}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
-			return map[int64]string{groupID: "anthropic"}, nil
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
+			return map[string]string{groupID: "anthropic"}, nil
 		},
 	}
 	cs := NewChannelService(repo, nil, nil, nil, nil)
@@ -236,7 +236,7 @@ func newResolverWithChannel(t *testing.T, pricing []ChannelModelPricing) *ModelP
 }
 
 // groupIDPtr returns a pointer to groupID 100 (the test constant).
-func groupIDPtr() *int64 { v := int64(100); return &v }
+func groupIDPtr() *string { v := "100"; return &v }
 
 // ---------------------------------------------------------------------------
 // 1. Token mode overrides
@@ -567,7 +567,7 @@ func TestResolve_WithChannelOverride_CacheError(t *testing.T) {
 	bs := newTestBillingServiceForResolver()
 	r := NewModelPricingResolver(cs, bs)
 
-	gid := int64(100)
+	gid := "100"
 	resolved := r.Resolve(context.Background(), PricingInput{
 		Model:   "claude-sonnet-4",
 		GroupID: &gid,
@@ -839,7 +839,7 @@ func TestResolve_GroupPricingOverridesChannel(t *testing.T) {
 		Platform: "anthropic", Models: []string{"claude-sonnet-4"}, BillingMode: BillingModeToken,
 		InputPrice: testPtrFloat64(10e-6), OutputPrice: testPtrFloat64(20e-6),
 	}})
-	group := &Group{ID: 100, ModelPricing: []ChannelModelPricing{{
+	group := &Group{ID: "100", ModelPricing: []ChannelModelPricing{{
 		Models: []string{"claude-sonnet-*"}, BillingMode: BillingModeToken,
 		InputPrice: testPtrFloat64(1e-6), OutputPrice: testPtrFloat64(2e-6),
 	}}}
@@ -857,7 +857,7 @@ func TestResolve_GroupLongContextUsesPresetNotCustomIntervals(t *testing.T) {
 	bs.fallbackPrices["claude-sonnet-4"].LongContextInputMultiplier = 2
 	bs.fallbackPrices["claude-sonnet-4"].LongContextOutputMultiplier = 2
 	r := NewModelPricingResolver(nil, bs)
-	group := &Group{ID: 100, ModelPricing: []ChannelModelPricing{{
+	group := &Group{ID: "100", ModelPricing: []ChannelModelPricing{{
 		Models: []string{"claude-sonnet-4"}, BillingMode: BillingModeToken,
 		InputPrice: testPtrFloat64(1e-6), OutputPrice: testPtrFloat64(2e-6),
 		Intervals: []PricingInterval{

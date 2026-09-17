@@ -13,16 +13,16 @@ import (
 type batchLimitsUserRepoStub struct {
 	*userRepoStub
 	calls       int
-	userIDs     []int64
+	userIDs     []string
 	concurrency *int
 	rpmLimit    *int
 	affected    int
 	err         error
 }
 
-func (s *batchLimitsUserRepoStub) BatchUpdateLimits(_ context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error) {
+func (s *batchLimitsUserRepoStub) BatchUpdateLimits(_ context.Context, userIDs []string, concurrency, rpmLimit *int) (int, error) {
 	s.calls++
-	s.userIDs = append([]int64(nil), userIDs...)
+	s.userIDs = append([]string(nil), userIDs...)
 	s.concurrency = cloneBatchLimitValue(concurrency)
 	s.rpmLimit = cloneBatchLimitValue(rpmLimit)
 	return s.affected, s.err
@@ -47,17 +47,17 @@ func TestAdminServiceBatchUpdateLimitsPassesOnlyProvidedFields(t *testing.T) {
 
 	affected, err := service.BatchUpdateLimits(
 		context.Background(),
-		[]int64{3, 0, 3, 7, -1},
+		[]string{"3", "0", "3", "7", "-1"},
 		&concurrency,
 		nil,
 	)
 
 	require.NoError(t, err)
 	require.Equal(t, 2, affected)
-	require.Equal(t, []int64{3, 7}, repo.userIDs)
+	require.Equal(t, []string{"3", "7"}, repo.userIDs)
 	require.Equal(t, pointerToInt(0), repo.concurrency)
 	require.Nil(t, repo.rpmLimit)
-	require.Equal(t, []int64{3, 7}, invalidator.userIDs)
+	require.Equal(t, []string{"3", "7"}, invalidator.userIDs)
 }
 
 func TestAdminServiceBatchUpdateLimitsDoesNotInvalidateCacheOnRepositoryError(t *testing.T) {
@@ -69,7 +69,7 @@ func TestAdminServiceBatchUpdateLimitsDoesNotInvalidateCacheOnRepositoryError(t 
 	invalidator := &authCacheInvalidatorStub{}
 	service := &adminServiceImpl{userRepo: repo, authCacheInvalidator: invalidator}
 
-	affected, err := service.BatchUpdateLimits(context.Background(), []int64{1, 2}, nil, &rpmLimit)
+	affected, err := service.BatchUpdateLimits(context.Background(), []string{"1", "2"}, nil, &rpmLimit)
 
 	require.EqualError(t, err, "database unavailable")
 	require.Zero(t, affected)
@@ -80,7 +80,7 @@ func TestAdminServiceBatchUpdateLimitsRequiresAField(t *testing.T) {
 	repo := &batchLimitsUserRepoStub{userRepoStub: &userRepoStub{}}
 	service := &adminServiceImpl{userRepo: repo, authCacheInvalidator: &authCacheInvalidatorStub{}}
 
-	affected, err := service.BatchUpdateLimits(context.Background(), []int64{1}, nil, nil)
+	affected, err := service.BatchUpdateLimits(context.Background(), []string{"1"}, nil, nil)
 
 	require.Error(t, err)
 	require.Zero(t, affected)

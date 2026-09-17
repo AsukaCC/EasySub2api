@@ -462,7 +462,7 @@ func TestSweepExpiredProxyWithoutFallbackInvalidatesOnlyExistingProbeSnapshot(t 
 	withSnapshot := newAccount("expired-proxy-with-snapshot", map[string]any{"status": service.UpstreamBillingProbeStatusOK}, true)
 	withoutSnapshot := newAccount("expired-proxy-without-snapshot", nil, false)
 	withJSONNull := newAccount("expired-proxy-null-snapshot", nil, true)
-	untouchedUpdatedAt := make(map[int64]time.Time, 2)
+	untouchedUpdatedAt := make(map[string]time.Time, 2)
 	for _, untouched := range []*service.Account{withoutSnapshot, withJSONNull} {
 		loaded, err := accountRepo.GetByID(ctx, untouched.ID)
 		require.NoError(t, err)

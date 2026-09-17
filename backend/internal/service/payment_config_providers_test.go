@@ -8,7 +8,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"strconv"
 	"testing"
 	"time"
 
@@ -704,7 +703,7 @@ func createPendingProviderConfigOrder(t *testing.T, ctx context.Context, client 
 		Save(ctx)
 	require.NoError(t, err)
 
-	instanceID := strconv.FormatInt(instance.ID, 10)
+	instanceID := instance.ID
 	_, err = client.PaymentOrder.Create().
 		SetUserID(user.ID).
 		SetUserEmail(user.Email).

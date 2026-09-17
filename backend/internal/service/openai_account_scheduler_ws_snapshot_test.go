@@ -12,15 +12,15 @@ import (
 
 func TestOpenAIGatewayService_SelectAccountWithScheduler_UsesWSPassthroughSnapshotFlags(t *testing.T) {
 	ctx := context.Background()
-	groupID := int64(10105)
+	groupID := "10105"
 	account := &Account{
-		ID:          35001,
+		ID: "35001",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		GroupIDs:    []int64{groupID},
+		GroupIDs: []string{},
 		Extra: map[string]any{
 			"openai_oauth_responses_websockets_v2_mode": OpenAIWSIngressModePassthrough,
 		},
@@ -28,7 +28,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_UsesWSPassthroughSnapsh
 
 	snapshotCache := &openAISnapshotCacheStub{
 		snapshotAccounts: []*Account{account},
-		accountsByID:     map[int64]*Account{account.ID: account},
+		accountsByID:     map[string]*Account{account.ID: account},
 	}
 	cfg := &config.Config{}
 	cfg.Gateway.OpenAIWS.Enabled = true

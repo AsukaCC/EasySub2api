@@ -27,7 +27,7 @@ type epFixedUpstream struct {
 	calls      int
 }
 
-func (u *epFixedUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+func (u *epFixedUpstream) Do(req *http.Request, proxyURL string, accountID string, accountConcurrency int) (*http.Response, error) {
 	u.calls++
 	return &http.Response{
 		StatusCode: u.statusCode,
@@ -36,7 +36,7 @@ func (u *epFixedUpstream) Do(req *http.Request, proxyURL string, accountID int64
 	}, nil
 }
 
-func (u *epFixedUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *epFixedUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
@@ -47,12 +47,12 @@ type epAccountRepo struct {
 	setErrCalls int
 }
 
-func (r *epAccountRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, _ string) error {
+func (r *epAccountRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, _ string) error {
 	r.tempCalls++
 	return nil
 }
 
-func (r *epAccountRepo) SetError(_ context.Context, _ int64, _ string) error {
+func (r *epAccountRepo) SetError(_ context.Context, _ string, _ string) error {
 	r.setErrCalls++
 	return nil
 }
@@ -73,7 +73,7 @@ func saveAndSetBaseURLs(t *testing.T) {
 	})
 }
 
-func newRetryParams(account *Account, upstream HTTPUpstream, handleError func(context.Context, string, *Account, int, http.Header, []byte, string, int64, string, bool) *handleModelRateLimitResult) antigravityRetryLoopParams {
+func newRetryParams(account *Account, upstream HTTPUpstream, handleError func(context.Context, string, *Account, int, http.Header, []byte, string, string, string, bool) *handleModelRateLimitResult) antigravityRetryLoopParams {
 	return antigravityRetryLoopParams{
 		ctx:            context.Background(),
 		prefix:         "[ep-test]",
@@ -145,10 +145,10 @@ func TestRetryLoop_ErrorPolicy_CustomErrorCodes(t *testing.T) {
 
 			upstream := &epFixedUpstream{statusCode: tt.upstreamStatus, body: tt.upstreamBody}
 			repo := &epAccountRepo{}
-			rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 
 			account := &Account{
-				ID:          100,
+				ID: "100",
 				Type:        AccountTypeAPIKey,
 				Platform:    PlatformAntigravity,
 				Schedulable: true,
@@ -163,7 +163,7 @@ func TestRetryLoop_ErrorPolicy_CustomErrorCodes(t *testing.T) {
 			svc := &AntigravityGatewayService{rateLimitService: rlSvc}
 
 			var handleErrorCount int
-			p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+			p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 				handleErrorCount++
 				return nil
 			})
@@ -189,7 +189,7 @@ func TestRetryLoop_ErrorPolicy_CustomErrorCodes(t *testing.T) {
 func TestRetryLoop_ErrorPolicy_TempUnschedulable(t *testing.T) {
 	tempRulesAccount := func(rules []any) *Account {
 		return &Account{
-			ID:          200,
+			ID: "200",
 			Type:        AccountTypeOAuth,
 			Platform:    PlatformAntigravity,
 			Schedulable: true,
@@ -219,11 +219,11 @@ func TestRetryLoop_ErrorPolicy_TempUnschedulable(t *testing.T) {
 
 		upstream := &epFixedUpstream{statusCode: 503, body: `overloaded`}
 		repo := &epAccountRepo{}
-		rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 		svc := &AntigravityGatewayService{rateLimitService: rlSvc}
 
 		account := tempRulesAccount([]any{overloadedRule})
-		p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+		p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 			t.Error("handleError should not be called for temp unschedulable")
 			return nil
 		})
@@ -242,11 +242,11 @@ func TestRetryLoop_ErrorPolicy_TempUnschedulable(t *testing.T) {
 
 		upstream := &epFixedUpstream{statusCode: 429, body: `rate limited keyword`}
 		repo := &epAccountRepo{}
-		rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 		svc := &AntigravityGatewayService{rateLimitService: rlSvc}
 
 		account := tempRulesAccount([]any{rateLimitRule})
-		p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+		p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 			t.Error("handleError should not be called for temp unschedulable")
 			return nil
 		})
@@ -265,7 +265,7 @@ func TestRetryLoop_ErrorPolicy_TempUnschedulable(t *testing.T) {
 
 		upstream := &epFixedUpstream{statusCode: 503, body: `random`}
 		repo := &epAccountRepo{}
-		rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 		svc := &AntigravityGatewayService{rateLimitService: rlSvc}
 
 		account := tempRulesAccount([]any{overloadedRule})
@@ -276,7 +276,7 @@ func TestRetryLoop_ErrorPolicy_TempUnschedulable(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+		p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 			return nil
 		})
 		p.ctx = ctx
@@ -302,7 +302,7 @@ func TestRetryLoop_ErrorPolicy_NilRateLimitService(t *testing.T) {
 	svc := &AntigravityGatewayService{rateLimitService: nil}
 
 	account := &Account{
-		ID:          300,
+		ID: "300",
 		Type:        AccountTypeOAuth,
 		Platform:    PlatformAntigravity,
 		Schedulable: true,
@@ -313,7 +313,7 @@ func TestRetryLoop_ErrorPolicy_NilRateLimitService(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+	p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 		return nil
 	})
 	p.ctx = ctx
@@ -335,12 +335,12 @@ func TestRetryLoop_ErrorPolicy_NoPolicy_OriginalBehavior(t *testing.T) {
 
 	upstream := &epFixedUpstream{statusCode: 429, body: `{"error":"rate limited"}`}
 	repo := &epAccountRepo{}
-	rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 	svc := &AntigravityGatewayService{rateLimitService: rlSvc}
 
 	// Plain OAuth account with no error policy configured
 	account := &Account{
-		ID:          400,
+		ID: "400",
 		Type:        AccountTypeOAuth,
 		Platform:    PlatformAntigravity,
 		Schedulable: true,
@@ -349,7 +349,7 @@ func TestRetryLoop_ErrorPolicy_NoPolicy_OriginalBehavior(t *testing.T) {
 	}
 
 	var handleErrorCount int
-	p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+	p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 		handleErrorCount++
 		return nil
 	})
@@ -373,25 +373,25 @@ func TestRetryLoop_ErrorPolicy_NoPolicy_OriginalBehavior(t *testing.T) {
 type epTrackingRepo struct {
 	mockAccountRepoForGemini
 	rateLimitedCalls int
-	rateLimitedID    int64
+	rateLimitedID    string
 	setErrCalls      int
-	setErrID         int64
+	setErrID         string
 	tempCalls        int
 }
 
-func (r *epTrackingRepo) SetRateLimited(_ context.Context, id int64, _ time.Time) error {
+func (r *epTrackingRepo) SetRateLimited(_ context.Context, id string, _ time.Time) error {
 	r.rateLimitedCalls++
 	r.rateLimitedID = id
 	return nil
 }
 
-func (r *epTrackingRepo) SetError(_ context.Context, id int64, _ string) error {
+func (r *epTrackingRepo) SetError(_ context.Context, id string, _ string) error {
 	r.setErrCalls++
 	r.setErrID = id
 	return nil
 }
 
-func (r *epTrackingRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, _ string) error {
+func (r *epTrackingRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, _ string) error {
 	r.tempCalls++
 	return nil
 }
@@ -419,11 +419,11 @@ func TestCustomErrorCode599_SkippedErrors_Return500_NoRateLimit(t *testing.T) {
 				body:       `{"error":"some upstream error"}`,
 			}
 			repo := &epTrackingRepo{}
-			rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 			svc := &AntigravityGatewayService{rateLimitService: rlSvc}
 
 			account := &Account{
-				ID:          500,
+				ID: "500",
 				Type:        AccountTypeAPIKey,
 				Platform:    PlatformAntigravity,
 				Schedulable: true,
@@ -436,7 +436,7 @@ func TestCustomErrorCode599_SkippedErrors_Return500_NoRateLimit(t *testing.T) {
 			}
 
 			var handleErrorCount int
-			p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ int64, _ string, _ bool) *handleModelRateLimitResult {
+			p := newRetryParams(account, upstream, func(_ context.Context, _ string, _ *Account, _ int, _ http.Header, _ []byte, _ string, _ string, _ string, _ bool) *handleModelRateLimitResult {
 				handleErrorCount++
 				return nil
 			})

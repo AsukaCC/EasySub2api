@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,23 +17,23 @@ import (
 type duplicateGroupRepoStub struct {
 	GroupRepository
 	nextID             int64
-	groups             map[int64]*Group
+	groups             map[string]*Group
 	names              map[string]struct{}
-	byOperation        map[string]int64
-	sourceBindings     map[int64][]AccountGroup
-	createdBindings    map[int64][]AccountGroup
-	createdFromSources []int64
+	byOperation        map[string]string
+	sourceBindings     map[string][]AccountGroup
+	createdBindings    map[string][]AccountGroup
+	createdFromSources []string
 	atomicCreateErr    error
 }
 
 func newDuplicateGroupRepoStub(source *Group) *duplicateGroupRepoStub {
 	repo := &duplicateGroupRepoStub{
 		nextID:          100,
-		groups:          make(map[int64]*Group),
+		groups:          make(map[string]*Group),
 		names:           make(map[string]struct{}),
-		byOperation:     make(map[string]int64),
-		sourceBindings:  make(map[int64][]AccountGroup),
-		createdBindings: make(map[int64][]AccountGroup),
+		byOperation:     make(map[string]string),
+		sourceBindings:  make(map[string][]AccountGroup),
+		createdBindings: make(map[string][]AccountGroup),
 	}
 	if source != nil {
 		repo.groups[source.ID] = source
@@ -59,14 +60,13 @@ func cloneGroupForDuplicateTest(group *Group) *Group {
 	cloned.FallbackGroupID = cloneGroupValuePointer(group.FallbackGroupID)
 	cloned.FallbackGroupIDOnInvalidRequest = cloneGroupValuePointer(group.FallbackGroupIDOnInvalidRequest)
 	cloned.ModelRouting = cloneGroupModelRouting(group.ModelRouting)
-	cloned.SupportedModelScopes = append([]string(nil), group.SupportedModelScopes...)
 	cloned.MessagesDispatchModelConfig = cloneGroupMessagesDispatchModelConfig(group.MessagesDispatchModelConfig)
 	cloned.ModelsListConfig.Models = append([]string(nil), group.ModelsListConfig.Models...)
 	cloned.AccountGroups = append([]AccountGroup(nil), group.AccountGroups...)
 	return &cloned
 }
 
-func (r *duplicateGroupRepoStub) GetByID(_ context.Context, id int64) (*Group, error) {
+func (r *duplicateGroupRepoStub) GetByID(_ context.Context, id string) (*Group, error) {
 	group := r.groups[id]
 	if group == nil {
 		return nil, ErrGroupNotFound
@@ -78,13 +78,13 @@ func (r *duplicateGroupRepoStub) GetByID(_ context.Context, id int64) (*Group, e
 
 func (r *duplicateGroupRepoStub) FindByDuplicateOperationID(_ context.Context, operationID string) (*Group, error) {
 	id := r.byOperation[operationID]
-	if id == 0 {
+	if id == "" {
 		return nil, nil
 	}
 	return cloneGroupForDuplicateTest(r.groups[id]), nil
 }
 
-func (r *duplicateGroupRepoStub) CreateFromSource(_ context.Context, group *Group, sourceGroupID int64) error {
+func (r *duplicateGroupRepoStub) CreateFromSource(_ context.Context, group *Group, sourceGroupID string) error {
 	if r.atomicCreateErr != nil {
 		return r.atomicCreateErr
 	}
@@ -97,7 +97,7 @@ func (r *duplicateGroupRepoStub) CreateFromSource(_ context.Context, group *Grou
 		return ErrGroupExists
 	}
 	r.nextID++
-	group.ID = r.nextID
+	group.ID = strconv.FormatInt(r.nextID, 10)
 	group.CreatedAt = time.Now().UTC()
 	group.UpdatedAt = group.CreatedAt
 	bindings := append([]AccountGroup(nil), r.sourceBindings[sourceGroupID]...)
@@ -121,7 +121,7 @@ func groupDuplicateTestPointer[T any](value T) *T { return &value }
 func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing.T) {
 	createdAt := time.Date(2026, time.July, 1, 2, 3, 4, 0, time.UTC)
 	source := &Group{
-		ID:                           41,
+		ID: "41",
 		Name:                         "高级订阅",
 		Description:                  "configuration",
 		Platform:                     PlatformOpenAI,
@@ -139,14 +139,11 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 		MonthlyLimitUSD:              groupDuplicateTestPointer(33.0),
 		DefaultValidityDays:          91,
 		AllowImageGeneration:         true,
-		AllowBatchImageGeneration:    true,
 		ImageRateIndependent:         true,
 		ImageRateMultiplier:          1.4,
 		ImagePrice1K:                 groupDuplicateTestPointer(0.01),
 		ImagePrice2K:                 groupDuplicateTestPointer(0.02),
 		ImagePrice4K:                 groupDuplicateTestPointer(0.04),
-		BatchImageDiscountMultiplier: 0.4,
-		BatchImageHoldMultiplier:     0.7,
 		VideoRateIndependent:         true,
 		VideoRateMultiplier:          2.1,
 		VideoPrice480P:               groupDuplicateTestPointer(0.1),
@@ -157,12 +154,10 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 		},
 		WebSearchPricePerCall:           groupDuplicateTestPointer(0.005),
 		ClaudeCodeOnly:                  true,
-		FallbackGroupID:                 groupDuplicateTestPointer(int64(7)),
-		FallbackGroupIDOnInvalidRequest: groupDuplicateTestPointer(int64(8)),
-		ModelRouting:                    map[string][]int64{"gpt-*": {13, 17}},
+		FallbackGroupID:                 groupDuplicateTestPointer("7"),
+		FallbackGroupIDOnInvalidRequest: groupDuplicateTestPointer("8"),
+		ModelRouting:                    map[string][]string{"gpt-*": {"13", "17"}},
 		ModelRoutingEnabled:             true,
-		MCPXMLInject:                    true,
-		SupportedModelScopes:            []string{"claude", "gemini_text"},
 		SortOrder:                       9,
 		AllowMessagesDispatch:           true,
 		AllowLive:                       true,
@@ -185,12 +180,12 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 		ActiveAccountCount:      8,
 		RateLimitedAccountCount: 2,
 		DuplicateOperationID:    "old-operation-must-not-copy",
-		AccountGroups:           []AccountGroup{{AccountID: 13, GroupID: 41, Priority: 37}},
+		AccountGroups:           []AccountGroup{{AccountID: "13", GroupID: "41", Priority: 37}},
 	}
 	repo := newDuplicateGroupRepoStub(source)
 	repo.sourceBindings[source.ID] = []AccountGroup{
-		{AccountID: 13, GroupID: source.ID, Priority: 37},
-		{AccountID: 17, GroupID: source.ID, Priority: 8},
+		{AccountID: "13", GroupID: source.ID, Priority: 37},
+		{AccountID: "17", GroupID: source.ID, Priority: 8},
 	}
 	svc := &adminServiceImpl{groupRepo: repo, groupDuplicateRepo: repo}
 
@@ -219,22 +214,20 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 	require.EqualValues(t, 2, duplicate.AccountCount)
 	require.EqualValues(t, 2, duplicate.ActiveAccountCount)
 	require.NotEmpty(t, duplicate.DuplicateOperationID)
-	require.Equal(t, []int64{source.ID}, repo.createdFromSources)
+	require.Equal(t, []string{source.ID}, repo.createdFromSources)
 	require.Equal(t, []AccountGroup{
-		{AccountID: 13, GroupID: duplicate.ID, Priority: 37},
-		{AccountID: 17, GroupID: duplicate.ID, Priority: 8},
+		{AccountID: "13", GroupID: duplicate.ID, Priority: 37},
+		{AccountID: "17", GroupID: duplicate.ID, Priority: 8},
 	}, repo.createdBindings[duplicate.ID])
 
-	duplicate.ModelRouting["gpt-*"][0] = 999
+	duplicate.ModelRouting["gpt-*"][0] = "999"
 	duplicate.VideoModelPrices[VideoPriceFamilyGrokImagineVideo15][VideoBillingResolution720P] = 999
-	duplicate.SupportedModelScopes[0] = "changed"
 	duplicate.MessagesDispatchModelConfig.ExactModelMappings["claude-special"] = "changed"
 	duplicate.ModelsListConfig.Models[0] = "changed"
 	duplicate.ReasoningEffortMappings[0].To = "changed"
 	*duplicate.DailyLimitUSD = 999
-	require.Equal(t, int64(13), source.ModelRouting["gpt-*"][0])
+	require.Equal(t, "13", source.ModelRouting["gpt-*"][0])
 	require.Equal(t, 0.14, source.VideoModelPrices[VideoPriceFamilyGrokImagineVideo15][VideoBillingResolution720P])
-	require.Equal(t, "claude", source.SupportedModelScopes[0])
 	require.Equal(t, "gpt-special", source.MessagesDispatchModelConfig.ExactModelMappings["claude-special"])
 	require.Equal(t, "gpt-5.4", source.ModelsListConfig.Models[0])
 	require.Equal(t, "xhigh", source.ReasoningEffortMappings[0].To)
@@ -242,7 +235,7 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 }
 
 func TestDuplicateGroupRecoversSameOperationAndScopesByAdmin(t *testing.T) {
-	source := &Group{ID: 9, Name: "team", Platform: PlatformAnthropic, Status: StatusActive}
+	source := &Group{ID: "9", Name: "team", Platform: PlatformAnthropic, Status: StatusActive}
 	repo := newDuplicateGroupRepoStub(source)
 	svc := &adminServiceImpl{groupRepo: repo, groupDuplicateRepo: repo}
 	ctx := context.Background()
@@ -263,7 +256,7 @@ func TestDuplicateGroupRecoversSameOperationAndScopesByAdmin(t *testing.T) {
 }
 
 func TestDuplicateGroupAdvancesNameAndTruncatesUnicodeByRunes(t *testing.T) {
-	source := &Group{ID: 12, Name: "team", Platform: PlatformAnthropic, Status: StatusActive}
+	source := &Group{ID: "12", Name: "team", Platform: PlatformAnthropic, Status: StatusActive}
 	repo := newDuplicateGroupRepoStub(source)
 	repo.names["team (Copy)"] = struct{}{}
 	svc := &adminServiceImpl{groupRepo: repo, groupDuplicateRepo: repo}
@@ -278,7 +271,7 @@ func TestDuplicateGroupAdvancesNameAndTruncatesUnicodeByRunes(t *testing.T) {
 }
 
 func TestDuplicateGroupAtomicCreateFailureReturnsNoCopy(t *testing.T) {
-	source := &Group{ID: 15, Name: "team", Platform: PlatformAnthropic, Status: StatusActive}
+	source := &Group{ID: "15", Name: "team", Platform: PlatformAnthropic, Status: StatusActive}
 	repo := newDuplicateGroupRepoStub(source)
 	repo.atomicCreateErr = errors.New("binding insert failed")
 	svc := &adminServiceImpl{groupRepo: repo, groupDuplicateRepo: repo}

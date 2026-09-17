@@ -17,26 +17,26 @@ import (
 type accountRepoStubForBulkUpdate struct {
 	accountRepoStub
 	bulkUpdateErr       error
-	bulkUpdateIDs       []int64
+	bulkUpdateIDs       []string
 	bulkUpdateCalls     int
 	lastBulkUpdate      AccountBulkUpdate
-	bindGroupErrByID    map[int64]error
-	bindGroupsCalls     []int64
-	bindGroupsByAccount map[int64][]int64
+	bindGroupErrByID    map[string]error
+	bindGroupsCalls     []string
+	bindGroupsByAccount map[string][]string
 	createAccount       *Account
-	createID            int64
+	createID            string
 	createErr           error
 	updatedAccounts     []*Account
 	updateErr           error
 	getByIDsAccounts    []*Account
 	getByIDsErr         error
 	getByIDsCalled      bool
-	getByIDsIDs         []int64
-	getByIDAccounts     map[int64]*Account
-	getByIDErrByID      map[int64]error
-	getByIDCalled       []int64
-	listByGroupData     map[int64][]Account
-	listByGroupErr      map[int64]error
+	getByIDsIDs         []string
+	getByIDAccounts     map[string]*Account
+	getByIDErrByID      map[string]error
+	getByIDCalled       []string
+	listByGroupData     map[string][]Account
+	listByGroupErr      map[string]error
 	listData            []Account
 	listResult          *pagination.PaginationResult
 	listErr             error
@@ -47,14 +47,14 @@ type accountRepoStubForBulkUpdate struct {
 		accountType string
 		status      string
 		search      string
-		groupID     int64
+		groupID     string
 		privacyMode string
 	}
 }
 
-func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
+func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []string, updates AccountBulkUpdate) (int64, error) {
 	s.bulkUpdateCalls++
-	s.bulkUpdateIDs = append([]int64{}, ids...)
+	s.bulkUpdateIDs = append([]string{}, ids...)
 	s.lastBulkUpdate = updates
 	if s.bulkUpdateErr != nil {
 		return 0, s.bulkUpdateErr
@@ -71,7 +71,7 @@ func requireApplicationErrorReason(t *testing.T, err error, reason string) {
 
 func (s *accountRepoStubForBulkUpdate) Create(_ context.Context, account *Account) error {
 	s.createAccount = account
-	if s.createID > 0 {
+	if s.createID != "" {
 		account.ID = s.createID
 	}
 	return s.createErr
@@ -82,28 +82,28 @@ func (s *accountRepoStubForBulkUpdate) Update(_ context.Context, account *Accoun
 	return s.updateErr
 }
 
-func (s *accountRepoStubForBulkUpdate) BindGroups(_ context.Context, accountID int64, groupIDs []int64) error {
+func (s *accountRepoStubForBulkUpdate) BindGroups(_ context.Context, accountID string, groupIDs []string) error {
 	s.bindGroupsCalls = append(s.bindGroupsCalls, accountID)
 	if s.bindGroupsByAccount == nil {
-		s.bindGroupsByAccount = make(map[int64][]int64)
+		s.bindGroupsByAccount = make(map[string][]string)
 	}
-	s.bindGroupsByAccount[accountID] = append([]int64{}, groupIDs...)
+	s.bindGroupsByAccount[accountID] = append([]string{}, groupIDs...)
 	if err, ok := s.bindGroupErrByID[accountID]; ok {
 		return err
 	}
 	return nil
 }
 
-func (s *accountRepoStubForBulkUpdate) GetByIDs(_ context.Context, ids []int64) ([]*Account, error) {
+func (s *accountRepoStubForBulkUpdate) GetByIDs(_ context.Context, ids []string) ([]*Account, error) {
 	s.getByIDsCalled = true
-	s.getByIDsIDs = append([]int64{}, ids...)
+	s.getByIDsIDs = append([]string{}, ids...)
 	if s.getByIDsErr != nil {
 		return nil, s.getByIDsErr
 	}
 	return s.getByIDsAccounts, nil
 }
 
-func (s *accountRepoStubForBulkUpdate) GetByID(_ context.Context, id int64) (*Account, error) {
+func (s *accountRepoStubForBulkUpdate) GetByID(_ context.Context, id string) (*Account, error) {
 	s.getByIDCalled = append(s.getByIDCalled, id)
 	if err, ok := s.getByIDErrByID[id]; ok {
 		return nil, err
@@ -114,7 +114,7 @@ func (s *accountRepoStubForBulkUpdate) GetByID(_ context.Context, id int64) (*Ac
 	return nil, errors.New("account not found")
 }
 
-func (s *accountRepoStubForBulkUpdate) ListByGroup(_ context.Context, groupID int64) ([]Account, error) {
+func (s *accountRepoStubForBulkUpdate) ListByGroup(_ context.Context, groupID string) ([]Account, error) {
 	if err, ok := s.listByGroupErr[groupID]; ok {
 		return nil, err
 	}
@@ -124,11 +124,11 @@ func (s *accountRepoStubForBulkUpdate) ListByGroup(_ context.Context, groupID in
 	return nil, nil
 }
 
-func (s *accountRepoStubForBulkUpdate) ListAllWithFilters(context.Context, string, string, string, string, int64, string) ([]Account, error) {
+func (s *accountRepoStubForBulkUpdate) ListAllWithFilters(context.Context, string, string, string, string, string, string, string) ([]Account, error) {
 	return nil, nil
 }
 
-func (s *accountRepoStubForBulkUpdate) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStubForBulkUpdate) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID string, privacyMode string, expiryStatus string) ([]Account, *pagination.PaginationResult, error) {
 	s.listCalled = true
 	s.lastListParams = params
 	s.lastListFilters.platform = platform
@@ -153,7 +153,7 @@ func TestAdminService_BulkUpdateAccounts_AllSuccessIDs(t *testing.T) {
 
 	schedulable := true
 	input := &BulkUpdateAccountsInput{
-		AccountIDs:  []int64{1, 2, 3},
+		AccountIDs: []string{"1", "2", "3"},
 		Schedulable: &schedulable,
 	}
 
@@ -161,7 +161,7 @@ func TestAdminService_BulkUpdateAccounts_AllSuccessIDs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 3, result.Success)
 	require.Equal(t, 0, result.Failed)
-	require.ElementsMatch(t, []int64{1, 2, 3}, result.SuccessIDs)
+	require.ElementsMatch(t, []string{"1", "2", "3"}, result.SuccessIDs)
 	require.Empty(t, result.FailedIDs)
 	require.Len(t, result.Results, 3)
 }
@@ -170,20 +170,20 @@ func TestAdminService_BulkUpdateAccounts_RejectsRateChangeForSyncedAccounts(t *t
 	repo := &accountRepoStubForBulkUpdate{
 		getByIDsAccounts: []*Account{
 			{
-				ID: 1,
+				ID: "1",
 				Extra: map[string]any{
 					UpstreamBillingProbeEnabledExtraKey:    true,
 					UpstreamBillingRateSyncEnabledExtraKey: true,
 				},
 			},
-			{ID: 2, Extra: map[string]any{}},
+			{ID: "2", Extra: map[string]any{}},
 		},
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 	rateMultiplier := 0.5
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs:     []int64{1, 2},
+		AccountIDs: []string{"1", "2"},
 		RateMultiplier: &rateMultiplier,
 	})
 
@@ -201,30 +201,28 @@ func TestAdminService_BulkUpdateAccounts_RejectsRateChangeForSyncedAccounts(t *t
 // TestAdminService_BulkUpdateAccounts_PartialFailureIDs 验证部分失败时 success_ids/failed_ids 正确。
 func TestAdminService_BulkUpdateAccounts_PartialFailureIDs(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{
-		bindGroupErrByID: map[int64]error{
-			2: errors.New("bind failed"),
+		bindGroupErrByID: map[string]error{"2": errors.New("bind failed"),
 		},
 	}
 	svc := &adminServiceImpl{
 		accountRepo: repo,
-		groupRepo:   &groupRepoStubForAdmin{getByID: &Group{ID: 10, Name: "g10"}},
+		groupRepo:   &groupRepoStubForAdmin{getByID: &Group{ID: "10", Name: "g10"}},
 	}
 
-	groupIDs := []int64{10}
+	groupIDs := []string{"10"}
 	schedulable := false
 	input := &BulkUpdateAccountsInput{
-		AccountIDs:            []int64{1, 2, 3},
+		AccountIDs: []string{"1", "2", "3"},
 		GroupIDs:              &groupIDs,
 		Schedulable:           &schedulable,
-		SkipMixedChannelCheck: true,
 	}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), input)
 	require.NoError(t, err)
 	require.Equal(t, 2, result.Success)
 	require.Equal(t, 1, result.Failed)
-	require.ElementsMatch(t, []int64{1, 3}, result.SuccessIDs)
-	require.ElementsMatch(t, []int64{2}, result.FailedIDs)
+	require.ElementsMatch(t, []string{"1", "3"}, result.SuccessIDs)
+	require.ElementsMatch(t, []string{"2"}, result.FailedIDs)
 	require.Len(t, result.Results, 3)
 }
 
@@ -232,9 +230,9 @@ func TestAdminService_BulkUpdateAccounts_NilGroupRepoReturnsError(t *testing.T) 
 	repo := &accountRepoStubForBulkUpdate{}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	groupIDs := []int64{10}
+	groupIDs := []string{"10"}
 	input := &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		GroupIDs:   &groupIDs,
 	}
 
@@ -250,21 +248,21 @@ func TestAdminService_BulkUpdateAccounts_NilGroupRepoReturnsError(t *testing.T) 
 func TestAdminService_BulkUpdateAccounts_MixedChannelPreCheckBlocksOnExistingConflict(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{
 		getByIDsAccounts: []*Account{
-			{ID: 1, Platform: PlatformAntigravity},
+			{ID: "1", Platform: PlatformAntigravity},
 		},
 		// Group 10 already contains an Anthropic account.
-		listByGroupData: map[int64][]Account{
-			10: {{ID: 99, Platform: PlatformAnthropic}},
+		listByGroupData: map[string][]Account{
+			"10": {{ID: "99", Platform: PlatformAnthropic}},
 		},
 	}
 	svc := &adminServiceImpl{
 		accountRepo: repo,
-		groupRepo:   &groupRepoStubForAdmin{getByID: &Group{ID: 10, Name: "target-group"}},
+		groupRepo:   &groupRepoStubForAdmin{getByID: &Group{ID: "10", Name: "target-group"}},
 	}
 
-	groupIDs := []int64{10}
+	groupIDs := []string{"10"}
 	input := &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		GroupIDs:   &groupIDs,
 	}
 
@@ -279,8 +277,8 @@ func TestAdminService_BulkUpdateAccounts_MixedChannelPreCheckBlocksOnExistingCon
 func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{
 		listData: []Account{
-			{ID: 7},
-			{ID: 11},
+			{ID: "7"},
+			{ID: "11"},
 		},
 		listResult: &pagination.PaginationResult{Total: 2},
 	}
@@ -311,23 +309,23 @@ func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 	require.Equal(t, AccountTypeOAuth, repo.lastListFilters.accountType)
 	require.Equal(t, StatusActive, repo.lastListFilters.status)
 	require.Equal(t, "bulk-target", repo.lastListFilters.search)
-	require.Equal(t, int64(12), repo.lastListFilters.groupID)
+	require.Equal(t, "12", repo.lastListFilters.groupID)
 	require.Equal(t, PrivacyModeCFBlocked, repo.lastListFilters.privacyMode)
-	require.Equal(t, []int64{7, 11}, repo.bulkUpdateIDs)
+	require.Equal(t, []string{"7", "11"}, repo.bulkUpdateIDs)
 	require.Equal(t, 2, result.Success)
 	require.Equal(t, 0, result.Failed)
-	require.Equal(t, []int64{7, 11}, result.SuccessIDs)
+	require.Equal(t, []string{"7", "11"}, result.SuccessIDs)
 }
 
 func TestAdminServiceBulkUpdateAccounts_NormalizesOpenAISettings(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{
-		{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
-		{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "2", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1, 2},
+		AccountIDs: []string{"1", "2"},
 		Credentials: map[string]any{
 			openAIEndpointCapabilitiesCredentialKey: []any{"chat_completions", "embeddings"},
 		},
@@ -352,12 +350,12 @@ func TestAdminServiceBulkUpdateAccounts_AcceptsLongContextAccountTypes(t *testin
 	for _, accountType := range []string{AccountTypeOAuth, AccountTypeSetupToken, AccountTypeAPIKey} {
 		t.Run(accountType, func(t *testing.T) {
 			repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{{
-				ID: 1, Platform: PlatformOpenAI, Type: accountType,
+				ID: "1", Platform: PlatformOpenAI, Type: accountType,
 			}}}
 			svc := &adminServiceImpl{accountRepo: repo}
 
 			result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-				AccountIDs: []int64{1},
+				AccountIDs: []string{"1"},
 				Extra:      map[string]any{openAILongContextBillingEnabledKey: false},
 			})
 
@@ -370,12 +368,12 @@ func TestAdminServiceBulkUpdateAccounts_AcceptsLongContextAccountTypes(t *testin
 
 func TestAdminServiceBulkUpdateAccounts_EmbeddingsOnlyResetsResponsesMode(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{
-		{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+		{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	_, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Credentials: map[string]any{
 			openAIEndpointCapabilitiesCredentialKey: []string{"embeddings"},
 		},
@@ -413,7 +411,7 @@ func TestAdminServiceBulkUpdateAccounts_RejectsInvalidOpenAISettingValuesBeforeW
 			repo := &accountRepoStubForBulkUpdate{}
 			svc := &adminServiceImpl{accountRepo: repo}
 			result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-				AccountIDs:  []int64{1},
+				AccountIDs: []string{"1"},
 				Credentials: tt.credentials,
 				Extra:       tt.extra,
 			})
@@ -432,33 +430,33 @@ func TestAdminServiceBulkUpdateAccounts_RejectsInvalidOpenAITargetsBeforeWrite(t
 	}{
 		{
 			name:     "missing account",
-			accounts: []*Account{{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}},
+			accounts: []*Account{{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth}},
 			input: &BulkUpdateAccountsInput{
-				AccountIDs: []int64{1, 2},
+				AccountIDs: []string{"1", "2"},
 				Extra:      map[string]any{openAILongContextBillingEnabledKey: true},
 			},
 		},
 		{
 			name:     "mixed platform long context",
-			accounts: []*Account{{ID: 1, Platform: PlatformAnthropic, Type: AccountTypeOAuth}},
+			accounts: []*Account{{ID: "1", Platform: PlatformAnthropic, Type: AccountTypeOAuth}},
 			input: &BulkUpdateAccountsInput{
-				AccountIDs: []int64{1},
+				AccountIDs: []string{"1"},
 				Extra:      map[string]any{openAILongContextBillingEnabledKey: true},
 			},
 		},
 		{
 			name:     "oauth endpoint capabilities",
-			accounts: []*Account{{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}},
+			accounts: []*Account{{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth}},
 			input: &BulkUpdateAccountsInput{
-				AccountIDs:  []int64{1},
+				AccountIDs: []string{"1"},
 				Credentials: map[string]any{openAIEndpointCapabilitiesCredentialKey: nil},
 			},
 		},
 		{
 			name:     "unsupported OpenAI long context account type",
-			accounts: []*Account{{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeServiceAccount}},
+			accounts: []*Account{{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeServiceAccount}},
 			input: &BulkUpdateAccountsInput{
-				AccountIDs: []int64{1},
+				AccountIDs: []string{"1"},
 				Extra:      map[string]any{openAILongContextBillingEnabledKey: true},
 			},
 		},
@@ -478,7 +476,7 @@ func TestAdminServiceBulkUpdateAccounts_RejectsInvalidOpenAITargetsBeforeWrite(t
 
 func TestAdminServiceBulkUpdateAccounts_ForcedResponsesRequiresChatCapability(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{{
-		ID:       1,
+		ID: "1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -488,7 +486,7 @@ func TestAdminServiceBulkUpdateAccounts_ForcedResponsesRequiresChatCapability(t 
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Extra:      map[string]any{"openai_responses_mode": "force_chat_completions"},
 	})
 
@@ -499,7 +497,7 @@ func TestAdminServiceBulkUpdateAccounts_ForcedResponsesRequiresChatCapability(t 
 
 func TestAdminServiceBulkUpdateAccounts_ForcedResponsesAcceptsChatCapabilityUpdate(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{{
-		ID:       1,
+		ID: "1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -509,7 +507,7 @@ func TestAdminServiceBulkUpdateAccounts_ForcedResponsesAcceptsChatCapabilityUpda
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	_, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Credentials: map[string]any{
 			openAIEndpointCapabilitiesCredentialKey: []any{"chat_completions"},
 		},
@@ -521,15 +519,15 @@ func TestAdminServiceBulkUpdateAccounts_ForcedResponsesAcceptsChatCapabilityUpda
 }
 
 func TestAdminServiceBulkUpdateAccounts_ReportsLongContextShadowInheritance(t *testing.T) {
-	parentID := int64(1)
+	parentID := "1"
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{
 		{ID: parentID, Platform: PlatformOpenAI, Type: AccountTypeOAuth},
-		{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
+		{ID: "2", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{parentID, 2},
+		AccountIDs: []string{parentID, "2"},
 		Extra:      map[string]any{openAILongContextBillingEnabledKey: true},
 	})
 
@@ -539,15 +537,15 @@ func TestAdminServiceBulkUpdateAccounts_ReportsLongContextShadowInheritance(t *t
 }
 
 func TestAdminServiceBulkUpdateAccounts_RequiresParentForShadowOnlyLongContextUpdate(t *testing.T) {
-	parentID := int64(10)
+	parentID := "10"
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{
-		{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
-		{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
+		{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
+		{ID: "2", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1, 2},
+		AccountIDs: []string{"1", "2"},
 		Extra:      map[string]any{openAILongContextBillingEnabledKey: true},
 	})
 
@@ -557,15 +555,15 @@ func TestAdminServiceBulkUpdateAccounts_RequiresParentForShadowOnlyLongContextUp
 }
 
 func TestAdminServiceBulkUpdateAccounts_ShadowLongContextAllowsOtherUpdates(t *testing.T) {
-	parentID := int64(10)
+	parentID := "10"
 	repo := &accountRepoStubForBulkUpdate{getByIDsAccounts: []*Account{{
-		ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID,
+		ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID,
 	}}}
 	svc := &adminServiceImpl{accountRepo: repo}
 	status := StatusDisabled
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Status:     status,
 		Extra:      map[string]any{openAILongContextBillingEnabledKey: false},
 	})
@@ -579,9 +577,9 @@ func TestAdminServiceBulkUpdateAccounts_ShadowLongContextAllowsOtherUpdates(t *t
 
 func TestAdminServiceBulkUpdateAccounts_ValidatesFilterResolvedOpenAITargets(t *testing.T) {
 	repo := &accountRepoStubForBulkUpdate{
-		listData:         []Account{{ID: 7}},
+		listData:         []Account{{ID: "7"}},
 		listResult:       &pagination.PaginationResult{Total: 1},
-		getByIDsAccounts: []*Account{{ID: 7, Platform: PlatformAnthropic, Type: AccountTypeOAuth}},
+		getByIDsAccounts: []*Account{{ID: "7", Platform: PlatformAnthropic, Type: AccountTypeOAuth}},
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
@@ -592,6 +590,6 @@ func TestAdminServiceBulkUpdateAccounts_ValidatesFilterResolvedOpenAITargets(t *
 
 	require.Nil(t, result)
 	requireApplicationErrorReason(t, err, "OPENAI_BULK_TARGET_INVALID")
-	require.Equal(t, []int64{7}, repo.getByIDsIDs)
+	require.Equal(t, []string{"7"}, repo.getByIDsIDs)
 	require.Zero(t, repo.bulkUpdateCalls)
 }

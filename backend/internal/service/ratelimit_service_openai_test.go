@@ -133,32 +133,32 @@ func TestCalculateOpenAI429ResetTime_ReversedWindowOrder(t *testing.T) {
 
 type openAI429SnapshotRepo struct {
 	mockAccountRepoForGemini
-	rateLimitedID      int64
+	rateLimitedID      string
 	updatedExtra       map[string]any
-	bulkUpdatedIDs     []int64
+	bulkUpdatedIDs     []string
 	bulkUpdatedPayload AccountBulkUpdate
 }
 
-func (r *openAI429SnapshotRepo) SetRateLimited(_ context.Context, id int64, _ time.Time) error {
+func (r *openAI429SnapshotRepo) SetRateLimited(_ context.Context, id string, _ time.Time) error {
 	r.rateLimitedID = id
 	return nil
 }
 
-func (r *openAI429SnapshotRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *openAI429SnapshotRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	r.updatedExtra = updates
 	return nil
 }
 
-func (r *openAI429SnapshotRepo) BulkUpdate(_ context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
-	r.bulkUpdatedIDs = append([]int64(nil), ids...)
+func (r *openAI429SnapshotRepo) BulkUpdate(_ context.Context, ids []string, updates AccountBulkUpdate) (int64, error) {
+	r.bulkUpdatedIDs = append([]string(nil), ids...)
 	r.bulkUpdatedPayload = updates
 	return int64(len(ids)), nil
 }
 
 func TestHandle429_OpenAIPersistsCodexSnapshotImmediately(t *testing.T) {
 	repo := &openAI429SnapshotRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
-	account := &Account{ID: 123, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	svc := NewRateLimitService(repo, nil, nil)
+	account := &Account{ID: "123", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 
 	headers := http.Header{}
 	headers.Set("x-codex-primary-used-percent", "100")
@@ -171,7 +171,7 @@ func TestHandle429_OpenAIPersistsCodexSnapshotImmediately(t *testing.T) {
 	svc.handle429(context.Background(), account, headers, nil)
 
 	if repo.rateLimitedID != account.ID {
-		t.Fatalf("rateLimitedID = %d, want %d", repo.rateLimitedID, account.ID)
+		t.Fatalf("rateLimitedID = %s, want %s", repo.rateLimitedID, account.ID)
 	}
 	if len(repo.updatedExtra) == 0 {
 		t.Fatal("expected codex snapshot to be persisted on 429")
@@ -186,9 +186,9 @@ func TestHandle429_OpenAIPersistsCodexSnapshotImmediately(t *testing.T) {
 
 func TestHandle429_OpenAISyncsObservedPlanType(t *testing.T) {
 	repo := &openAI429SnapshotRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	svc := NewRateLimitService(repo, nil, nil)
 	account := &Account{
-		ID:          124,
+		ID: "124",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Credentials: map[string]any{"plan_type": "plus"},
@@ -197,7 +197,7 @@ func TestHandle429_OpenAISyncsObservedPlanType(t *testing.T) {
 
 	svc.handle429(context.Background(), account, http.Header{}, body)
 
-	require.Equal(t, []int64{account.ID}, repo.bulkUpdatedIDs)
+	require.Equal(t, []string{account.ID}, repo.bulkUpdatedIDs)
 	require.Equal(t, "free", repo.bulkUpdatedPayload.Credentials["plan_type"])
 	require.Equal(t, "free", account.Credentials["plan_type"])
 	require.Equal(t, account.ID, repo.rateLimitedID)
@@ -215,11 +215,11 @@ func TestHandle429_SkipsSparkShadow(t *testing.T) {
 	headers.Set("x-codex-secondary-reset-after-seconds", "18000")
 	headers.Set("x-codex-secondary-window-minutes", "300")
 
-	parentID := int64(900)
+	parentID := "900"
 	shadowRepo := &openAI429SnapshotRepo{}
-	shadowSvc := NewRateLimitService(shadowRepo, nil, nil, nil, nil)
+	shadowSvc := NewRateLimitService(shadowRepo, nil, nil)
 	shadow := &Account{
-		ID:              901,
+		ID: "901",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		ParentAccountID: &parentID,
@@ -233,8 +233,8 @@ func TestHandle429_SkipsSparkShadow(t *testing.T) {
 
 	// 反向对照:普通 OpenAI OAuth 账号仍按 global 429 限流。
 	normalRepo := &openAI429SnapshotRepo{}
-	normalSvc := NewRateLimitService(normalRepo, nil, nil, nil, nil)
-	normal := &Account{ID: 902, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	normalSvc := NewRateLimitService(normalRepo, nil, nil)
+	normal := &Account{ID: "902", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 
 	normalSvc.handle429(context.Background(), normal, headers, nil)
 
@@ -313,9 +313,9 @@ func TestNormalizedCodexLimits_OnlyPrimaryData(t *testing.T) {
 
 func TestRateLimitService_HandleUpstreamError_403PreservesOriginalUpstreamMessage(t *testing.T) {
 	repo := &rateLimitAccountRepoStub{}
-	service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	service := NewRateLimitService(repo, &config.Config{}, nil)
 	account := &Account{
-		ID:       201,
+		ID: "201",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 	}
@@ -336,9 +336,9 @@ func TestRateLimitService_HandleUpstreamError_403PreservesOriginalUpstreamMessag
 
 func TestRateLimitService_HandleUpstreamError_403FallsBackToRawBody(t *testing.T) {
 	repo := &rateLimitAccountRepoStub{}
-	service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	service := NewRateLimitService(repo, &config.Config{}, nil)
 	account := &Account{
-		ID:       202,
+		ID: "202",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 	}

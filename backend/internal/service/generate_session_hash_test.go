@@ -4,6 +4,7 @@ package service
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/domain"
@@ -146,8 +147,8 @@ func TestGenerateSessionHash_DifferentMessagesProduceDifferentHash(t *testing.T)
 func TestGenerateSessionHash_DifferentSessionContextProducesDifferentHash(t *testing.T) {
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "hello")}, "")
-	parsed1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "192.168.1.1", UserAgent: "Mozilla/5.0", APIKeyID: 100})
-	parsed2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.1", UserAgent: "curl/7.0", APIKeyID: 200})
+	parsed1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "192.168.1.1", UserAgent: "Mozilla/5.0", APIKeyID: "100"})
+	parsed2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.1", UserAgent: "curl/7.0", APIKeyID: "200"})
 
 	h1 := svc.GenerateSessionHash(parsed1)
 	h2 := svc.GenerateSessionHash(parsed2)
@@ -158,7 +159,7 @@ func TestGenerateSessionHash_DifferentSessionContextProducesDifferentHash(t *tes
 
 func TestGenerateSessionHash_SameSessionContextProducesSameHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "192.168.1.1", UserAgent: "Mozilla/5.0", APIKeyID: 100}
+	ctx := &SessionContext{ClientIP: "192.168.1.1", UserAgent: "Mozilla/5.0", APIKeyID: "100"}
 	body := anthropicSessionBody(nil, []any{msg("user", "hello")}, "")
 	mk := func() *ParsedRequest { return mustParseSessionHashRequest(t, body, ctx) }
 
@@ -170,7 +171,7 @@ func TestGenerateSessionHash_SameSessionContextProducesSameHash(t *testing.T) {
 func TestGenerateSessionHash_MetadataOverridesSessionContext(t *testing.T) {
 	svc := &GatewayService{}
 	metadata := "user_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2_account__session_123e4567-e89b-12d3-a456-426614174000"
-	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{msg("user", "hello")}, metadata), &SessionContext{ClientIP: "192.168.1.1", UserAgent: "Mozilla/5.0", APIKeyID: 100})
+	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{msg("user", "hello")}, metadata), &SessionContext{ClientIP: "192.168.1.1", UserAgent: "Mozilla/5.0", APIKeyID: "100"})
 
 	hash := svc.GenerateSessionHash(parsed)
 	require.Equal(t, "123e4567-e89b-12d3-a456-426614174000", hash, "metadata session_id should take priority over SessionContext")
@@ -198,7 +199,7 @@ func TestGenerateSessionHash_NilSessionContextBackwardCompatible(t *testing.T) {
 
 func TestGenerateSessionHash_ContinuousConversation_HashChangesWithMessages(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	round1 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a helpful assistant.", []any{msg("user", "hello")}, ""), ctx)
 	round2 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a helpful assistant.", []any{msg("user", "hello"), msg("assistant", "Hi there!"), msg("user", "How are you?")}, ""), ctx)
 	round3 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a helpful assistant.", []any{msg("user", "hello"), msg("assistant", "Hi there!"), msg("user", "How are you?"), msg("assistant", "I'm doing well!"), msg("user", "Tell me a joke")}, ""), ctx)
@@ -216,7 +217,7 @@ func TestGenerateSessionHash_ContinuousConversation_HashChangesWithMessages(t *t
 
 func TestGenerateSessionHash_ContinuousConversation_SameRoundSameHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	body := anthropicSessionBody("You are a helpful assistant.", []any{msg("user", "hello"), msg("assistant", "Hi there!"), msg("user", "How are you?")}, "")
 	mk := func() *ParsedRequest { return mustParseSessionHashRequest(t, body, ctx) }
 
@@ -227,7 +228,7 @@ func TestGenerateSessionHash_ContinuousConversation_SameRoundSameHash(t *testing
 
 func TestGenerateSessionHash_ResponsesDifferentInputProducesDifferentHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "codex_cli_rs/0.1.0", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "codex_cli_rs/0.1.0", APIKeyID: "1"}
 	first := mustParseResponsesSessionHashRequest(t, `{"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"help me with Go"}]}]}`, ctx)
 	second := mustParseResponsesSessionHashRequest(t, `{"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"help me with Python"}]}]}`, ctx)
 
@@ -240,7 +241,7 @@ func TestGenerateSessionHash_ResponsesDifferentInputProducesDifferentHash(t *tes
 
 func TestGenerateSessionHash_ResponsesGrowingInputKeepsStableHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "codex_cli_rs/0.1.0", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "codex_cli_rs/0.1.0", APIKeyID: "1"}
 	round1 := mustParseResponsesSessionHashRequest(t, `{"input":[{"type":"message","role":"developer","content":[{"type":"input_text","text":"Be concise."}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"help me with Go"}]}]}`, ctx)
 	round2 := mustParseResponsesSessionHashRequest(t, `{"input":[{"type":"message","role":"developer","content":[{"type":"input_text","text":"Be concise."}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"help me with Go"}]},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Sure."}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"add tests"}]}]}`, ctx)
 
@@ -252,7 +253,7 @@ func TestGenerateSessionHash_ResponsesGrowingInputKeepsStableHash(t *testing.T) 
 
 func TestGenerateSessionHash_MessagesPathIgnoresResponsesInput(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	first := mustParseResponsesSessionHashRequest(t, `{"messages":[{"role":"user","content":"hello"}],"input":"first"}`, ctx)
 	second := mustParseResponsesSessionHashRequest(t, `{"messages":[{"role":"user","content":"hello"}],"input":"second"}`, ctx)
 
@@ -263,7 +264,7 @@ func TestGenerateSessionHash_MessagesPathIgnoresResponsesInput(t *testing.T) {
 
 func TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 
 	t.Run("metadata user id", func(t *testing.T) {
 		metadata := "user_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2_account__session_123e4567-e89b-12d3-a456-426614174000"
@@ -274,14 +275,14 @@ func TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources(
 	t.Run("cache control", func(t *testing.T) {
 		body := `{"system":[{"type":"text","text":"stable cache anchor","cache_control":{"type":"ephemeral"}}],"input":"hello"}`
 		first := mustParseResponsesSessionHashRequest(t, body, ctx)
-		second := mustParseResponsesSessionHashRequest(t, body, &SessionContext{ClientIP: "9.8.7.6", UserAgent: "other", APIKeyID: 2})
+		second := mustParseResponsesSessionHashRequest(t, body, &SessionContext{ClientIP: "9.8.7.6", UserAgent: "other", APIKeyID: "2"})
 		require.Equal(t, svc.GenerateSessionHash(first), svc.GenerateSessionHash(second))
 	})
 }
 
 func TestGenerateSessionHash_MessageRollback(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	original := mustParseSessionHashRequest(t, anthropicSessionBody("System prompt", []any{msg("user", "msg1"), msg("assistant", "reply1"), msg("user", "msg2"), msg("assistant", "reply2"), msg("user", "msg3")}, ""), ctx)
 	rollback := mustParseSessionHashRequest(t, anthropicSessionBody("System prompt", []any{msg("user", "msg1"), msg("assistant", "reply1"), msg("user", "msg2"), msg("assistant", "reply2"), msg("user", "different msg3")}, ""), ctx)
 
@@ -292,7 +293,7 @@ func TestGenerateSessionHash_MessageRollback(t *testing.T) {
 
 func TestGenerateSessionHash_MessageRollbackSameContent(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	body := anthropicSessionBody("System prompt", []any{msg("user", "msg1"), msg("assistant", "reply1"), msg("user", "msg2")}, "")
 	mk := func() *ParsedRequest { return mustParseSessionHashRequest(t, body, ctx) }
 
@@ -303,8 +304,8 @@ func TestGenerateSessionHash_MessageRollbackSameContent(t *testing.T) {
 
 func TestGenerateSessionHash_SameSystemDifferentUsers(t *testing.T) {
 	svc := &GatewayService{}
-	user1 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a code reviewer.", []any{msg("user", "Review this Go code")}, ""), &SessionContext{ClientIP: "1.1.1.1", UserAgent: "vscode", APIKeyID: 1})
-	user2 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a code reviewer.", []any{msg("user", "Review this Python code")}, ""), &SessionContext{ClientIP: "2.2.2.2", UserAgent: "vscode", APIKeyID: 2})
+	user1 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a code reviewer.", []any{msg("user", "Review this Go code")}, ""), &SessionContext{ClientIP: "1.1.1.1", UserAgent: "vscode", APIKeyID: "1"})
+	user2 := mustParseSessionHashRequest(t, anthropicSessionBody("You are a code reviewer.", []any{msg("user", "Review this Python code")}, ""), &SessionContext{ClientIP: "2.2.2.2", UserAgent: "vscode", APIKeyID: "2"})
 
 	h1 := svc.GenerateSessionHash(user1)
 	h2 := svc.GenerateSessionHash(user2)
@@ -314,8 +315,8 @@ func TestGenerateSessionHash_SameSystemDifferentUsers(t *testing.T) {
 func TestGenerateSessionHash_SameSystemSameMessageDifferentContext(t *testing.T) {
 	svc := &GatewayService{}
 	body := anthropicSessionBody("You are a helpful assistant.", []any{msg("user", "hello")}, "")
-	user1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "Mozilla/5.0", APIKeyID: 10})
-	user2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "Mozilla/5.0", APIKeyID: 20})
+	user1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "Mozilla/5.0", APIKeyID: "10"})
+	user2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "Mozilla/5.0", APIKeyID: "20"})
 
 	h1 := svc.GenerateSessionHash(user1)
 	h2 := svc.GenerateSessionHash(user2)
@@ -326,7 +327,7 @@ func TestGenerateSessionHash_SessionContext_IPDifference(t *testing.T) {
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "test")}, "")
 	base := func(ip string) *ParsedRequest {
-		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: ip, UserAgent: "same-ua", APIKeyID: 1})
+		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: ip, UserAgent: "same-ua", APIKeyID: "1"})
 	}
 
 	h1 := svc.GenerateSessionHash(base("1.1.1.1"))
@@ -338,7 +339,7 @@ func TestGenerateSessionHash_SessionContext_UADifference(t *testing.T) {
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "test")}, "")
 	base := func(ua string) *ParsedRequest {
-		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: ua, APIKeyID: 1})
+		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: ua, APIKeyID: "1"})
 	}
 
 	h1 := svc.GenerateSessionHash(base("Mozilla/5.0"))
@@ -350,7 +351,7 @@ func TestGenerateSessionHash_SessionContext_UAVersionNoiseIgnored(t *testing.T) 
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "test")}, "")
 	base := func(ua string) *ParsedRequest {
-		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: ua, APIKeyID: 1})
+		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: ua, APIKeyID: "1"})
 	}
 
 	h1 := svc.GenerateSessionHash(base("Mozilla/5.0 codex_cli_rs/0.1.0"))
@@ -362,7 +363,7 @@ func TestGenerateSessionHash_SessionContext_FreeformUAVersionNoiseIgnored(t *tes
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "test")}, "")
 	base := func(ua string) *ParsedRequest {
-		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: ua, APIKeyID: 1})
+		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: ua, APIKeyID: "1"})
 	}
 
 	h1 := svc.GenerateSessionHash(base("Codex CLI 0.1.0"))
@@ -373,12 +374,12 @@ func TestGenerateSessionHash_SessionContext_FreeformUAVersionNoiseIgnored(t *tes
 func TestGenerateSessionHash_SessionContext_APIKeyIDDifference(t *testing.T) {
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "test")}, "")
-	base := func(keyID int64) *ParsedRequest {
+	base := func(keyID string) *ParsedRequest {
 		return mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "same-ua", APIKeyID: keyID})
 	}
 
-	h1 := svc.GenerateSessionHash(base(1))
-	h2 := svc.GenerateSessionHash(base(2))
+	h1 := svc.GenerateSessionHash(base("1"))
+	h2 := svc.GenerateSessionHash(base("2"))
 	require.NotEqual(t, h1, h2, "different APIKeyID should produce different hash")
 }
 
@@ -387,7 +388,7 @@ func TestGenerateSessionHash_MultipleUsersSameFirstMessage(t *testing.T) {
 	hashes := make(map[string]bool)
 	body := anthropicSessionBody(nil, []any{msg("user", "hello")}, "")
 	for i := 0; i < 5; i++ {
-		parsed := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "192.168.1." + string(rune('1'+i)), UserAgent: "client-" + string(rune('A'+i)), APIKeyID: int64(i + 1)})
+		parsed := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "192.168.1." + string(rune('1'+i)), UserAgent: "client-" + string(rune('A'+i)), APIKeyID: strconv.Itoa(i + 1)})
 		h := svc.GenerateSessionHash(parsed)
 		require.NotEmpty(t, h)
 		require.False(t, hashes[h], "hash collision detected for user %d", i)
@@ -398,7 +399,7 @@ func TestGenerateSessionHash_MultipleUsersSameFirstMessage(t *testing.T) {
 
 func TestGenerateSessionHash_SameUserGrowingConversation(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "browser", APIKeyID: 42}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "browser", APIKeyID: "42"}
 	messages := []any{
 		msg("user", "msg1"), msg("assistant", "reply1"), msg("user", "msg2"), msg("assistant", "reply2"),
 		msg("user", "msg3"), msg("assistant", "reply3"), msg("user", "msg4"),
@@ -420,7 +421,7 @@ func TestGenerateSessionHash_SameUserGrowingConversation(t *testing.T) {
 
 func TestGenerateSessionHash_MultipleUserMessages(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{msg("user", "first"), msg("user", "second"), msg("user", "third"), msg("user", "fourth"), msg("user", "fifth")}, ""), ctx)
 	h := svc.GenerateSessionHash(parsed)
 	require.NotEmpty(t, h)
@@ -432,7 +433,7 @@ func TestGenerateSessionHash_MultipleUserMessages(t *testing.T) {
 
 func TestGenerateSessionHash_MessageOrderMatters(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	parsed1 := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{msg("user", "alpha"), msg("user", "beta")}, ""), ctx)
 	parsed2 := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{msg("user", "beta"), msg("user", "alpha")}, ""), ctx)
 
@@ -443,7 +444,7 @@ func TestGenerateSessionHash_MessageOrderMatters(t *testing.T) {
 
 func TestGenerateSessionHash_StructuredContent(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	content := []any{map[string]any{"type": "text", "text": "Look at this"}, map[string]any{"type": "text", "text": "And this too"}}
 	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{msg("user", content)}, ""), ctx)
 
@@ -453,7 +454,7 @@ func TestGenerateSessionHash_StructuredContent(t *testing.T) {
 
 func TestGenerateSessionHash_ArraySystemPrompt(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	system := []any{map[string]any{"type": "text", "text": "You are a helpful assistant."}, map[string]any{"type": "text", "text": "Be concise."}}
 	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(system, []any{msg("user", "hello")}, ""), ctx)
 
@@ -465,8 +466,8 @@ func TestGenerateSessionHash_CacheControlOverridesSessionContext(t *testing.T) {
 	svc := &GatewayService{}
 	system := []any{map[string]any{"type": "text", "text": "You are a tool-specific assistant.", "cache_control": map[string]any{"type": "ephemeral"}}}
 	body := anthropicSessionBody(system, []any{msg("user", "hello")}, "")
-	parsed1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "ua1", APIKeyID: 100})
-	parsed2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "ua2", APIKeyID: 200})
+	parsed1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "ua1", APIKeyID: "100"})
+	parsed2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "ua2", APIKeyID: "200"})
 
 	h1 := svc.GenerateSessionHash(parsed1)
 	h2 := svc.GenerateSessionHash(parsed2)
@@ -475,7 +476,7 @@ func TestGenerateSessionHash_CacheControlOverridesSessionContext(t *testing.T) {
 
 func TestGenerateSessionHash_EmptyMessages(t *testing.T) {
 	svc := &GatewayService{}
-	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{}, ""), &SessionContext{ClientIP: "1.1.1.1", UserAgent: "test", APIKeyID: 1})
+	parsed := mustParseSessionHashRequest(t, anthropicSessionBody(nil, []any{}, ""), &SessionContext{ClientIP: "1.1.1.1", UserAgent: "test", APIKeyID: "1"})
 
 	h := svc.GenerateSessionHash(parsed)
 	require.NotEmpty(t, h, "empty messages with SessionContext should still produce a hash from context")
@@ -492,7 +493,7 @@ func TestGenerateSessionHash_EmptyMessagesNoContext(t *testing.T) {
 func TestGenerateSessionHash_SessionContextWithEmptyFields(t *testing.T) {
 	svc := &GatewayService{}
 	body := anthropicSessionBody(nil, []any{msg("user", "test")}, "")
-	withEmptyCtx := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "", UserAgent: "", APIKeyID: 0})
+	withEmptyCtx := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "", UserAgent: "", APIKeyID: "0"})
 	withoutCtx := mustParseSessionHashRequest(t, body, nil)
 
 	h1 := svc.GenerateSessionHash(withEmptyCtx)
@@ -502,7 +503,7 @@ func TestGenerateSessionHash_SessionContextWithEmptyFields(t *testing.T) {
 
 func TestGenerateSessionHash_LongConversation(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "test", APIKeyID: "1"}
 	messages := make([]any, 0, 40)
 	for i := 0; i < 20; i++ {
 		messages = append(messages, msg("user", "user message "+string(rune('A'+i))))
@@ -521,7 +522,7 @@ func TestGenerateSessionHash_LongConversation(t *testing.T) {
 
 func TestGenerateSessionHash_GeminiContentsProducesHash(t *testing.T) {
 	svc := &GatewayService{}
-	parsed := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "Hello from Gemini")}), &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1})
+	parsed := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "Hello from Gemini")}), &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"})
 
 	h := svc.GenerateSessionHash(parsed)
 	require.NotEmpty(t, h, "Gemini contents with parts should produce a non-empty hash")
@@ -529,7 +530,7 @@ func TestGenerateSessionHash_GeminiContentsProducesHash(t *testing.T) {
 
 func TestGenerateSessionHash_GeminiDifferentContentsDifferentHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"}
 	parsed1 := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "Hello")}), ctx)
 	parsed2 := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "Goodbye")}), ctx)
 
@@ -540,7 +541,7 @@ func TestGenerateSessionHash_GeminiDifferentContentsDifferentHash(t *testing.T) 
 
 func TestGenerateSessionHash_GeminiSameContentsSameHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"}
 	body := geminiSessionBody(nil, []any{geminiMsg("user", "Hello"), geminiMsg("model", "Hi there!")})
 	mk := func() *ParsedRequest { return mustParseGeminiSessionHashRequest(t, body, ctx) }
 
@@ -551,7 +552,7 @@ func TestGenerateSessionHash_GeminiSameContentsSameHash(t *testing.T) {
 
 func TestGenerateSessionHash_GeminiMultiTurnHashChanges(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"}
 	round1 := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "hello")}), ctx)
 	round2 := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "hello"), geminiMsg("model", "Hi!"), geminiMsg("user", "How are you?")}), ctx)
 
@@ -565,8 +566,8 @@ func TestGenerateSessionHash_GeminiMultiTurnHashChanges(t *testing.T) {
 func TestGenerateSessionHash_GeminiDifferentUsersSameContentDifferentHash(t *testing.T) {
 	svc := &GatewayService{}
 	body := geminiSessionBody(nil, []any{geminiMsg("user", "hello")})
-	user1 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "gemini-cli", APIKeyID: 10})
-	user2 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "gemini-cli", APIKeyID: 20})
+	user1 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "gemini-cli", APIKeyID: "10"})
+	user2 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "gemini-cli", APIKeyID: "20"})
 
 	h1 := svc.GenerateSessionHash(user1)
 	h2 := svc.GenerateSessionHash(user2)
@@ -575,7 +576,7 @@ func TestGenerateSessionHash_GeminiDifferentUsersSameContentDifferentHash(t *tes
 
 func TestGenerateSessionHash_GeminiSystemInstructionAffectsHash(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"}
 	withSys := mustParseGeminiSessionHashRequest(t, geminiSessionBody([]any{map[string]any{"text": "You are a coding assistant."}}, []any{geminiMsg("user", "hello")}), ctx)
 	withoutSys := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "hello")}), ctx)
 
@@ -586,7 +587,7 @@ func TestGenerateSessionHash_GeminiSystemInstructionAffectsHash(t *testing.T) {
 
 func TestGenerateSessionHash_GeminiMultiPartMessage(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"}
 	parsed := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, []any{geminiMsg("user", "Part 1", "Part 2", "Part 3")}), ctx)
 	h := svc.GenerateSessionHash(parsed)
 	require.NotEmpty(t, h, "multi-part Gemini message should produce a hash")
@@ -598,7 +599,7 @@ func TestGenerateSessionHash_GeminiMultiPartMessage(t *testing.T) {
 
 func TestGenerateSessionHash_GeminiNonTextPartsIgnored(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: 1}
+	ctx := &SessionContext{ClientIP: "1.2.3.4", UserAgent: "gemini-cli", APIKeyID: "1"}
 	content := []any{map[string]any{"role": "user", "parts": []any{map[string]any{"text": "Describe this image"}, map[string]any{"inline_data": map[string]any{"mime_type": "image/png", "data": "base64..."}}}}}
 	parsed := mustParseGeminiSessionHashRequest(t, geminiSessionBody(nil, content), ctx)
 
@@ -608,7 +609,7 @@ func TestGenerateSessionHash_GeminiNonTextPartsIgnored(t *testing.T) {
 
 func TestGenerateSessionHash_GeminiMultiTurnHashNotSticky(t *testing.T) {
 	svc := &GatewayService{}
-	ctx := &SessionContext{ClientIP: "10.0.0.1", UserAgent: "gemini-cli", APIKeyID: 42}
+	ctx := &SessionContext{ClientIP: "10.0.0.1", UserAgent: "gemini-cli", APIKeyID: "42"}
 	rounds := []string{
 		geminiSessionBody([]any{map[string]any{"text": "You are a coding assistant."}}, []any{geminiMsg("user", "Write a Go function")}),
 		geminiSessionBody([]any{map[string]any{"text": "You are a coding assistant."}}, []any{geminiMsg("user", "Write a Go function"), geminiMsg("model", "func hello() {}"), geminiMsg("user", "Add error handling")}),
@@ -633,16 +634,16 @@ func TestGenerateSessionHash_GeminiMultiTurnHashNotSticky(t *testing.T) {
 func TestGenerateSessionHash_GeminiEndToEnd(t *testing.T) {
 	svc := &GatewayService{}
 	body := geminiSessionBody([]any{map[string]any{"text": "You are a coding assistant."}}, []any{geminiMsg("user", "Write a Go function"), geminiMsg("model", "Here is a function..."), geminiMsg("user", "Now add error handling")})
-	parsed := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.1", UserAgent: "gemini-cli/1.0", APIKeyID: 42})
+	parsed := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.1", UserAgent: "gemini-cli/1.0", APIKeyID: "42"})
 
 	h := svc.GenerateSessionHash(parsed)
 	require.NotEmpty(t, h, "end-to-end Gemini flow should produce a hash")
 
-	parsed2 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.1", UserAgent: "gemini-cli/1.0", APIKeyID: 42})
+	parsed2 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.1", UserAgent: "gemini-cli/1.0", APIKeyID: "42"})
 	h2 := svc.GenerateSessionHash(parsed2)
 	require.Equal(t, h, h2, "same request should produce same hash")
 
-	parsed3 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.2", UserAgent: "gemini-cli/1.0", APIKeyID: 99})
+	parsed3 := mustParseGeminiSessionHashRequest(t, body, &SessionContext{ClientIP: "10.0.0.2", UserAgent: "gemini-cli/1.0", APIKeyID: "99"})
 	h3 := svc.GenerateSessionHash(parsed3)
 	require.NotEqual(t, h, h3, "different user with same Gemini request should get different hash")
 }

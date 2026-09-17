@@ -117,7 +117,7 @@ func TestDingTalkClient_GetDeptInfo_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(42), info.DeptID)
 	require.Equal(t, "AI数据", info.Name)
-	require.Equal(t, int64(1), info.ParentID)
+	require.Equal(t, "1", info.ParentID)
 }
 
 // TestDingTalkClient_GetDeptInfo_ErrCode60003 验证 errcode=60003（部门不存在）时返回错误。

@@ -16,7 +16,7 @@ type runtimeBlockRecorder struct {
 	accounts   []*Account
 	until      []time.Time
 	reasons    []string
-	clearedIDs []int64
+	clearedIDs []string
 }
 
 func (r *runtimeBlockRecorder) BlockAccountScheduling(account *Account, until time.Time, reason string) {
@@ -25,7 +25,7 @@ func (r *runtimeBlockRecorder) BlockAccountScheduling(account *Account, until ti
 	r.reasons = append(r.reasons, reason)
 }
 
-func (r *runtimeBlockRecorder) ClearAccountSchedulingBlock(accountID int64) {
+func (r *runtimeBlockRecorder) ClearAccountSchedulingBlock(accountID string) {
 	r.clearedIDs = append(r.clearedIDs, accountID)
 }
 
@@ -33,11 +33,11 @@ func TestRateLimitService_HandleUpstreamError_OpenAI403FirstHitTempUnschedulable
 	repo := &rateLimitAccountRepoStub{}
 	counter := &openAI403CounterCacheStub{counts: []int64{1}}
 	blocker := &runtimeBlockRecorder{}
-	service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	service := NewRateLimitService(repo, &config.Config{}, nil)
 	service.SetOpenAI403CounterCache(counter)
 	service.SetAccountRuntimeBlocker(blocker)
 	account := &Account{
-		ID:       301,
+		ID: "301",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 	}
@@ -64,10 +64,10 @@ func TestRateLimitService_HandleUpstreamError_OpenAI403FirstHitTempUnschedulable
 func TestRateLimitService_HandleUpstreamError_OpenAI403ThresholdDisables(t *testing.T) {
 	repo := &rateLimitAccountRepoStub{}
 	counter := &openAI403CounterCacheStub{counts: []int64{3}}
-	service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	service := NewRateLimitService(repo, &config.Config{}, nil)
 	service.SetOpenAI403CounterCache(counter)
 	account := &Account{
-		ID:       302,
+		ID: "302",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 	}

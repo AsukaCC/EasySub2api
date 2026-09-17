@@ -78,7 +78,7 @@ func TestCreateAndRedeem_SubscriptionRequiresGroupID(t *testing.T) {
 }
 
 func TestCreateAndRedeem_SubscriptionRequiresNonZeroValidityDays(t *testing.T) {
-	groupID := int64(5)
+	groupID := "5"
 	h := newCreateAndRedeemHandler()
 
 	// zero should be rejected
@@ -112,7 +112,7 @@ func TestCreateAndRedeem_SubscriptionRequiresNonZeroValidityDays(t *testing.T) {
 }
 
 func TestCreateAndRedeem_SubscriptionValidParamsPassValidation(t *testing.T) {
-	groupID := int64(5)
+	groupID := "5"
 	h := newCreateAndRedeemHandler()
 	code := postCreateAndRedeemValidation(t, h, map[string]any{
 		"code":          "test-sub-valid",

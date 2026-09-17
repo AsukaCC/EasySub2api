@@ -90,7 +90,7 @@ func TestShouldFailoverGrokUpstreamError_ContentPolicyStillNoFailover(t *testing
 func TestHandleGrokAccountUpstreamError_FreeUsageBodyCoolsAccount(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9101, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9101", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	before := time.Now()
 	body := []byte(`{"error":{"code":"subscription:free-usage-exhausted","message":"You've used all the included free usage. Usage resets over a rolling 24-hour window."}}`)
 
@@ -107,7 +107,7 @@ func TestHandleGrokAccountUpstreamError_FreeUsageBodyCoolsAccount(t *testing.T) 
 func TestHandleGrokAccountUpstreamError_FreeUsageUsesUpstreamReset(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9102, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9102", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	body := []byte(`{"error":{"code":"subscription:free-usage-exhausted","message":"free usage exhausted; rolling 24-hour window"}}`)
 
 	svc.handleGrokAccountUpstreamError(context.Background(), account, http.StatusTooManyRequests,
@@ -120,7 +120,7 @@ func TestHandleGrokAccountUpstreamError_FreeUsageUsesUpstreamReset(t *testing.T)
 func TestHandleGrokAccountUpstreamError_EmptyOutputCoolsAccount(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9102, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9102", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	before := time.Now()
 
 	svc.handleGrokAccountUpstreamError(
@@ -136,7 +136,7 @@ func TestHandleGrokAccountUpstreamError_EmptyOutputCoolsAccount(t *testing.T) {
 func TestHandleGrokAccountUpstreamError_MultiAgentCapacityBlocksOnlyThatModel(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9120, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9120", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	ctx := withGrokTeamRateLimitModel(context.Background(), "grok-4.20-multi-agent-0309")
 
 	svc.handleGrokAccountUpstreamError(
@@ -153,7 +153,7 @@ func TestHandleGrokAccountUpstreamError_FreeUsageDoesNotCoolPoolMode(t *testing.
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	account := &Account{
-		ID:       9103,
+		ID: "9103",
 		Platform: PlatformGrok,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -171,7 +171,7 @@ func TestHandleGrokAccountUpstreamError_FreeUsageDoesNotCoolPoolMode(t *testing.
 func TestHandleGrokAccountUpstreamError_ContentPolicyStillNoMutation(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9104, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9104", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	body := []byte(`{"error":{"code":"new_sensitive","message":"text is sensitive"}}`)
 
 	svc.handleGrokAccountUpstreamError(context.Background(), account, http.StatusForbidden, nil, body)
@@ -182,7 +182,7 @@ func TestHandleGrokAccountUpstreamError_ContentPolicyStillNoMutation(t *testing.
 func TestHandleGrokAccountUpstreamError_Entitlement403Unchanged(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 9105, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "9105", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	before := time.Now()
 
 	svc.handleGrokAccountUpstreamError(

@@ -81,17 +81,17 @@ type longContextBillingRepoStub struct {
 }
 
 func (r *longContextBillingRepoStub) Create(_ context.Context, account *Account) error {
-	account.ID = 1
+	account.ID = "1"
 	r.account = account
 	r.createdAccount = account
 	return nil
 }
 
-func (r *longContextBillingRepoStub) GetByID(_ context.Context, _ int64) (*Account, error) {
+func (r *longContextBillingRepoStub) GetByID(_ context.Context, _ string) (*Account, error) {
 	return r.account, nil
 }
 
-func (r *longContextBillingRepoStub) GetByIDs(_ context.Context, _ []int64) ([]*Account, error) {
+func (r *longContextBillingRepoStub) GetByIDs(_ context.Context, _ []string) ([]*Account, error) {
 	if r.accounts != nil {
 		return r.accounts, nil
 	}
@@ -106,12 +106,12 @@ func (r *longContextBillingRepoStub) Update(_ context.Context, account *Account)
 	return nil
 }
 
-func (r *longContextBillingRepoStub) UpdateExtra(_ context.Context, _ int64, _ map[string]any) error {
+func (r *longContextBillingRepoStub) UpdateExtra(_ context.Context, _ string, _ map[string]any) error {
 	r.updateExtraCalls++
 	return nil
 }
 
-func (r *longContextBillingRepoStub) BulkUpdate(_ context.Context, _ []int64, _ AccountBulkUpdate) (int64, error) {
+func (r *longContextBillingRepoStub) BulkUpdate(_ context.Context, _ []string, _ AccountBulkUpdate) (int64, error) {
 	r.bulkUpdateCalls++
 	return 1, nil
 }
@@ -149,14 +149,14 @@ func TestAdminServiceCreateAccountRejectsMalformedOpenAILongContextBillingValue(
 
 func TestAdminServiceUpdateAccountPreservesOpenAILongContextBillingOptOutWhenOmitted(t *testing.T) {
 	repo := &longContextBillingRepoStub{account: &Account{
-		ID:       1,
+		ID: "1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Extra:    map[string]any{openAILongContextBillingEnabledKey: false},
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	account, err := svc.UpdateAccount(context.Background(), 1, &UpdateAccountInput{Extra: map[string]any{}})
+	account, err := svc.UpdateAccount(context.Background(), "1", &UpdateAccountInput{Extra: map[string]any{}})
 
 	require.NoError(t, err)
 	require.Equal(t, false, account.Extra[openAILongContextBillingEnabledKey])
@@ -164,7 +164,7 @@ func TestAdminServiceUpdateAccountPreservesOpenAILongContextBillingOptOutWhenOmi
 
 func TestAdminServiceUpdateAccountAllowsExplicitCodexImportOptIn(t *testing.T) {
 	repo := &longContextBillingRepoStub{account: &Account{
-		ID:          1,
+		ID: "1",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "old-token"},
@@ -175,7 +175,7 @@ func TestAdminServiceUpdateAccountAllowsExplicitCodexImportOptIn(t *testing.T) {
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	account, err := svc.UpdateAccount(context.Background(), 1, &UpdateAccountInput{
+	account, err := svc.UpdateAccount(context.Background(), "1", &UpdateAccountInput{
 		Credentials: map[string]any{"access_token": "new-token"},
 		Extra: map[string]any{
 			openAILongContextBillingEnabledKey: true,
@@ -189,7 +189,7 @@ func TestAdminServiceUpdateAccountAllowsExplicitCodexImportOptIn(t *testing.T) {
 
 func TestAdminServiceUpdateAccountAllowsExplicitOptInOutsideCodexImport(t *testing.T) {
 	repo := &longContextBillingRepoStub{account: &Account{
-		ID:       1,
+		ID: "1",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Extra: map[string]any{
@@ -199,7 +199,7 @@ func TestAdminServiceUpdateAccountAllowsExplicitOptInOutsideCodexImport(t *testi
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	account, err := svc.UpdateAccount(context.Background(), 1, &UpdateAccountInput{Extra: map[string]any{
+	account, err := svc.UpdateAccount(context.Background(), "1", &UpdateAccountInput{Extra: map[string]any{
 		openAILongContextBillingEnabledKey: true,
 		"import_source":                    "codex_session",
 	}})
@@ -209,10 +209,10 @@ func TestAdminServiceUpdateAccountAllowsExplicitOptInOutsideCodexImport(t *testi
 }
 
 func TestAdminServiceUpdateAccountRejectsMalformedOpenAILongContextBillingValue(t *testing.T) {
-	repo := &longContextBillingRepoStub{account: &Account{ID: 1, Platform: PlatformOpenAI}}
+	repo := &longContextBillingRepoStub{account: &Account{ID: "1", Platform: PlatformOpenAI}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	account, err := svc.UpdateAccount(context.Background(), 1, &UpdateAccountInput{Extra: map[string]any{
+	account, err := svc.UpdateAccount(context.Background(), "1", &UpdateAccountInput{Extra: map[string]any{
 		openAILongContextBillingEnabledKey: 1,
 	}})
 
@@ -221,10 +221,10 @@ func TestAdminServiceUpdateAccountRejectsMalformedOpenAILongContextBillingValue(
 }
 
 func TestAdminServiceUpdateAccountExtraRejectsMalformedOpenAILongContextBillingValue(t *testing.T) {
-	repo := &longContextBillingRepoStub{account: &Account{ID: 1, Platform: PlatformOpenAI}}
+	repo := &longContextBillingRepoStub{account: &Account{ID: "1", Platform: PlatformOpenAI}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	err := svc.UpdateAccountExtra(context.Background(), 1, map[string]any{
+	err := svc.UpdateAccountExtra(context.Background(), "1", map[string]any{
 		openAILongContextBillingEnabledKey: "true",
 	})
 
@@ -233,10 +233,10 @@ func TestAdminServiceUpdateAccountExtraRejectsMalformedOpenAILongContextBillingV
 }
 
 func TestAdminServiceUpdateAccountExtraAllowsProviderOwnedValueForNonOpenAIAccount(t *testing.T) {
-	repo := &longContextBillingRepoStub{account: &Account{ID: 1, Platform: PlatformAnthropic}}
+	repo := &longContextBillingRepoStub{account: &Account{ID: "1", Platform: PlatformAnthropic}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	err := svc.UpdateAccountExtra(context.Background(), 1, map[string]any{
+	err := svc.UpdateAccountExtra(context.Background(), "1", map[string]any{
 		openAILongContextBillingEnabledKey: "provider-owned",
 	})
 
@@ -245,11 +245,11 @@ func TestAdminServiceUpdateAccountExtraAllowsProviderOwnedValueForNonOpenAIAccou
 }
 
 func TestAdminServiceBulkUpdateAccountsRejectsMalformedOpenAILongContextBillingValue(t *testing.T) {
-	repo := &longContextBillingRepoStub{account: &Account{ID: 1, Platform: PlatformOpenAI}}
+	repo := &longContextBillingRepoStub{account: &Account{ID: "1", Platform: PlatformOpenAI}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Extra:      map[string]any{openAILongContextBillingEnabledKey: []bool{true}},
 	})
 
@@ -259,11 +259,11 @@ func TestAdminServiceBulkUpdateAccountsRejectsMalformedOpenAILongContextBillingV
 }
 
 func TestAdminServiceBulkUpdateAccountsRejectsOpenAILongContextKeyForNonOpenAIAccounts(t *testing.T) {
-	repo := &longContextBillingRepoStub{account: &Account{ID: 1, Platform: PlatformGrok}}
+	repo := &longContextBillingRepoStub{account: &Account{ID: "1", Platform: PlatformGrok}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1},
+		AccountIDs: []string{"1"},
 		Extra:      map[string]any{openAILongContextBillingEnabledKey: true},
 	})
 
@@ -276,13 +276,13 @@ func TestAdminServiceBulkUpdateAccountsRejectsOpenAILongContextKeyForNonOpenAIAc
 
 func TestAdminServiceBulkUpdateAccountsRejectsMalformedValueForMixedTargetsIncludingOpenAI(t *testing.T) {
 	repo := &longContextBillingRepoStub{accounts: []*Account{
-		{ID: 1, Platform: PlatformGrok},
-		{ID: 2, Platform: PlatformOpenAI},
+		{ID: "1", Platform: PlatformGrok},
+		{ID: "2", Platform: PlatformOpenAI},
 	}}
 	svc := &adminServiceImpl{accountRepo: repo}
 
 	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
-		AccountIDs: []int64{1, 2},
+		AccountIDs: []string{"1", "2"},
 		Extra:      map[string]any{openAILongContextBillingEnabledKey: "malformed"},
 	})
 

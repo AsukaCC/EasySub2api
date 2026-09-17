@@ -375,7 +375,7 @@ func TestAuthIdentityLegacyExternalSafetyMigration_ReportsConflictsAndDowngrades
 		"linuxdo-invalid-json@example.com",
 		"wechat-openid-invalid-json@example.com",
 	} {
-		var userID int64
+		var userID string
 		require.NoError(t, tx.QueryRowContext(ctx, `
 INSERT INTO users (email, password_hash, role, status, balance, concurrency)
 VALUES ($1, 'hash', 'user', 'active', 0, 1)

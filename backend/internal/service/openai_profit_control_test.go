@@ -112,67 +112,67 @@ func TestOpenAIProfitControlVetoReason(t *testing.T) {
 	}
 
 	t.Run("no gate admits everything", func(t *testing.T) {
-		vetoed, reason := openAIProfitControlVetoReason(context.Background(), upstreamCostTestOAuthAccount(1))
+		vetoed, reason := openAIProfitControlVetoReason(context.Background(), upstreamCostTestOAuthAccount("1"))
 		require.False(t, vetoed)
 		require.Empty(t, reason)
 	})
 
 	t.Run("fresh rate below threshold admits", func(t *testing.T) {
-		account := profitControlTestAccountWithRate(upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0.5)
+		account := profitControlTestAccountWithRate(upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0.5)
 		vetoed, _ := openAIProfitControlVetoReason(gateCtx(0.7), account)
 		require.False(t, vetoed)
 	})
 
 	t.Run("rate exactly at threshold admits via epsilon", func(t *testing.T) {
-		account := profitControlTestAccountWithRate(upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0.7)
+		account := profitControlTestAccountWithRate(upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0.7)
 		vetoed, _ := openAIProfitControlVetoReason(gateCtx(0.7), account)
 		require.False(t, vetoed)
 	})
 
 	t.Run("rate within float noise above threshold admits", func(t *testing.T) {
-		account := profitControlTestAccountWithRate(upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0.7+1e-12)
+		account := profitControlTestAccountWithRate(upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0.7+1e-12)
 		vetoed, _ := openAIProfitControlVetoReason(gateCtx(0.7), account)
 		require.False(t, vetoed)
 	})
 
 	t.Run("rate above threshold is vetoed", func(t *testing.T) {
-		account := profitControlTestAccountWithRate(upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.1, now.Add(-time.Minute), 30*time.Minute), 0.8)
+		account := profitControlTestAccountWithRate(upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.1, now.Add(-time.Minute), 30*time.Minute), 0.8)
 		vetoed, reason := openAIProfitControlVetoReason(gateCtx(0.7), account)
 		require.True(t, vetoed)
 		require.Equal(t, openAIProfitFilterReasonThreshold, reason)
 	})
 
 	t.Run("zero threshold only admits free upstream", func(t *testing.T) {
-		free := profitControlTestAccountWithRate(upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0)
+		free := profitControlTestAccountWithRate(upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 99, now.Add(-time.Minute), 30*time.Minute), 0)
 		vetoed, _ := openAIProfitControlVetoReason(gateCtx(0), free)
 		require.False(t, vetoed)
-		paid := profitControlTestAccountWithRate(upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0, now.Add(-time.Minute), 30*time.Minute), 0.01)
+		paid := profitControlTestAccountWithRate(upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0, now.Add(-time.Minute), 30*time.Minute), 0.01)
 		vetoed, reason := openAIProfitControlVetoReason(gateCtx(0), paid)
 		require.True(t, vetoed)
 		require.Equal(t, openAIProfitFilterReasonThreshold, reason)
 	})
 
 	t.Run("missing account rate is invalid", func(t *testing.T) {
-		vetoed, reason := openAIProfitControlVetoReason(gateCtx(0.7), upstreamCostTestOAuthAccount(1))
+		vetoed, reason := openAIProfitControlVetoReason(gateCtx(0.7), upstreamCostTestOAuthAccount("1"))
 		require.True(t, vetoed)
 		require.Equal(t, openAIProfitFilterReasonInvalidAccountRate, reason)
 	})
 
 	t.Run("oauth account with manual rate is priceable", func(t *testing.T) {
-		account := profitControlTestAccountWithRate(upstreamCostTestOAuthAccount(1), 0.2)
+		account := profitControlTestAccountWithRate(upstreamCostTestOAuthAccount("1"), 0.2)
 		vetoed, _ := openAIProfitControlVetoReason(gateCtx(0.7), account)
 		require.False(t, vetoed)
 	})
 
 	t.Run("stale probe does not affect manual account rate", func(t *testing.T) {
-		account := profitControlTestAccountWithRate(upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 99, now.Add(-3*time.Hour), 30*time.Minute), 0.1)
+		account := profitControlTestAccountWithRate(upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 99, now.Add(-3*time.Hour), 30*time.Minute), 0.1)
 		vetoed, _ := openAIProfitControlVetoReason(gateCtx(0.7), account)
 		require.False(t, vetoed)
 	})
 
 	t.Run("negative and non-finite rates are invalid", func(t *testing.T) {
 		for _, rate := range []float64{-1, math.NaN(), math.Inf(1)} {
-			account := profitControlTestAccountWithRate(upstreamCostTestOAuthAccount(1), rate)
+			account := profitControlTestAccountWithRate(upstreamCostTestOAuthAccount("1"), rate)
 			vetoed, reason := openAIProfitControlVetoReason(gateCtx(0.7), account)
 			require.True(t, vetoed)
 			require.Equal(t, openAIProfitFilterReasonInvalidAccountRate, reason)
@@ -185,9 +185,9 @@ func TestProfitControlSchedulerFiltersCandidates(t *testing.T) {
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
-	oauth := upstreamCostTestOAuthAccount(3)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	oauth := upstreamCostTestOAuthAccount("3")
 	profitControlTestAccountWithRate(cheap, 0.3)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	for _, account := range []*Account{cheap, expensive, oauth} {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -21,11 +22,11 @@ type raceSafeUserRepo struct {
 	mu      sync.Mutex
 	nextID  int64
 	byEmail map[string]*User
-	byID    map[int64]*User
+	byID    map[string]*User
 }
 
 func newRaceSafeUserRepo() *raceSafeUserRepo {
-	return &raceSafeUserRepo{nextID: 1, byEmail: map[string]*User{}, byID: map[int64]*User{}}
+	return &raceSafeUserRepo{nextID: 1, byEmail: map[string]*User{}, byID: map[string]*User{}}
 }
 
 func (s *raceSafeUserRepo) ExistsByEmail(_ context.Context, email string) (bool, error) {
@@ -45,7 +46,7 @@ func (s *raceSafeUserRepo) CreateWithEmailAliasGuard(_ context.Context, user *Us
 	if _, ok := s.byEmail[user.Email]; ok {
 		return ErrEmailExists
 	}
-	user.ID = s.nextID
+	user.ID = strconv.FormatInt(s.nextID, 10)
 	s.nextID++
 	clone := *user
 	s.byEmail[user.Email] = &clone
@@ -64,7 +65,7 @@ func (s *raceSafeUserRepo) GetByEmail(_ context.Context, email string) (*User, e
 	return &clone, nil
 }
 
-func (s *raceSafeUserRepo) GetByID(_ context.Context, id int64) (*User, error) {
+func (s *raceSafeUserRepo) GetByID(_ context.Context, id string) (*User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	u, ok := s.byID[id]
@@ -99,7 +100,7 @@ func (s *raceSafeRedeemRepo) GetByCode(_ context.Context, code string) (*RedeemC
 	return &clone, nil
 }
 
-func (s *raceSafeRedeemRepo) Use(_ context.Context, id, userID int64) error {
+func (s *raceSafeRedeemRepo) Use(_ context.Context, id, userID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, c := range s.codes {
@@ -129,7 +130,7 @@ func TestAuthService_Register_InvitationCodeSingleUseUnderConcurrency(t *testing
 	const code = "INV-RACE-001"
 	userRepo := newRaceSafeUserRepo()
 	redeemRepo := &raceSafeRedeemRepo{codes: map[string]*RedeemCode{
-		code: {ID: 1, Code: code, Type: RedeemTypeInvitation, Status: StatusUnused},
+		code: {ID: "1", Code: code, Type: RedeemTypeInvitation, Status: StatusUnused},
 	}}
 	settings := map[string]string{
 		"registration_enabled":    "true",
@@ -190,7 +191,7 @@ func TestAuthService_Register_InvitationCodeRejectedWhenAlreadyUsed(t *testing.T
 	const code = "INV-RACE-002"
 	userRepo := newRaceSafeUserRepo()
 	redeemRepo := &raceSafeRedeemRepo{codes: map[string]*RedeemCode{
-		code: {ID: 2, Code: code, Type: RedeemTypeInvitation, Status: StatusUsed},
+		code: {ID: "2", Code: code, Type: RedeemTypeInvitation, Status: StatusUsed},
 	}}
 	settings := map[string]string{
 		"registration_enabled":    "true",

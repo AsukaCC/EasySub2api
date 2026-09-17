@@ -52,25 +52,25 @@ func (m *mockClaudeOAuthClient) RefreshToken(ctx context.Context, refreshToken, 
 // --- mock: ProxyRepository (最小实现，仅覆盖 OAuthService 依赖的方法) ---
 
 type mockProxyRepoForOAuth struct {
-	getByIDFunc func(ctx context.Context, id int64) (*Proxy, error)
+	getByIDFunc func(ctx context.Context, id string) (*Proxy, error)
 }
 
 func (m *mockProxyRepoForOAuth) Create(ctx context.Context, proxy *Proxy) error {
 	panic("Create not implemented")
 }
-func (m *mockProxyRepoForOAuth) GetByID(ctx context.Context, id int64) (*Proxy, error) {
+func (m *mockProxyRepoForOAuth) GetByID(ctx context.Context, id string) (*Proxy, error) {
 	if m.getByIDFunc != nil {
 		return m.getByIDFunc(ctx, id)
 	}
 	return nil, fmt.Errorf("proxy not found")
 }
-func (m *mockProxyRepoForOAuth) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
+func (m *mockProxyRepoForOAuth) ListByIDs(ctx context.Context, ids []string) ([]Proxy, error) {
 	panic("ListByIDs not implemented")
 }
 func (m *mockProxyRepoForOAuth) Update(ctx context.Context, proxy *Proxy) error {
 	panic("Update not implemented")
 }
-func (m *mockProxyRepoForOAuth) Delete(ctx context.Context, id int64) error {
+func (m *mockProxyRepoForOAuth) Delete(ctx context.Context, id string) error {
 	panic("Delete not implemented")
 }
 func (m *mockProxyRepoForOAuth) List(ctx context.Context, params pagination.PaginationParams) ([]Proxy, *pagination.PaginationResult, error) {
@@ -91,10 +91,10 @@ func (m *mockProxyRepoForOAuth) ListActiveWithAccountCount(ctx context.Context) 
 func (m *mockProxyRepoForOAuth) ExistsByHostPortAuth(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	panic("ExistsByHostPortAuth not implemented")
 }
-func (m *mockProxyRepoForOAuth) CountAccountsByProxyID(ctx context.Context, proxyID int64) (int64, error) {
+func (m *mockProxyRepoForOAuth) CountAccountsByProxyID(ctx context.Context, proxyID string) (int64, error) {
 	panic("CountAccountsByProxyID not implemented")
 }
-func (m *mockProxyRepoForOAuth) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
+func (m *mockProxyRepoForOAuth) ListAccountSummariesByProxyID(ctx context.Context, proxyID string) ([]ProxyAccountSummary, error) {
 	panic("ListAccountSummariesByProxyID not implemented")
 }
 func (m *mockProxyRepoForOAuth) SweepExpiredProxies(ctx context.Context, now time.Time) (int64, error) {
@@ -172,9 +172,9 @@ func TestOAuthService_GenerateAuthURL_WithProxy(t *testing.T) {
 	t.Parallel()
 
 	proxyRepo := &mockProxyRepoForOAuth{
-		getByIDFunc: func(ctx context.Context, id int64) (*Proxy, error) {
+		getByIDFunc: func(ctx context.Context, id string) (*Proxy, error) {
 			return &Proxy{
-				ID:       1,
+				ID: "1",
 				Protocol: "http",
 				Host:     "proxy.example.com",
 				Port:     8080,
@@ -184,7 +184,7 @@ func TestOAuthService_GenerateAuthURL_WithProxy(t *testing.T) {
 	svc := NewOAuthService(proxyRepo, &mockClaudeOAuthClient{})
 	defer svc.Stop()
 
-	proxyID := int64(1)
+	proxyID := "1"
 	result, err := svc.GenerateAuthURL(context.Background(), &proxyID)
 	if err != nil {
 		t.Fatalf("GenerateAuthURL 返回错误: %v", err)
@@ -450,7 +450,7 @@ func TestOAuthService_RefreshAccountToken_NoRefreshToken(t *testing.T) {
 
 	// 无 refresh_token 的账号
 	account := &Account{
-		ID:       1,
+		ID: "1",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -473,7 +473,7 @@ func TestOAuthService_RefreshAccountToken_EmptyRefreshToken(t *testing.T) {
 	defer svc.Stop()
 
 	account := &Account{
-		ID:       2,
+		ID: "2",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -508,7 +508,7 @@ func TestOAuthService_RefreshAccountToken_Success(t *testing.T) {
 	defer svc.Stop()
 
 	account := &Account{
-		ID:       3,
+		ID: "3",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -530,7 +530,7 @@ func TestOAuthService_RefreshAccountToken_WithProxy(t *testing.T) {
 	t.Parallel()
 
 	proxyRepo := &mockProxyRepoForOAuth{
-		getByIDFunc: func(ctx context.Context, id int64) (*Proxy, error) {
+		getByIDFunc: func(ctx context.Context, id string) (*Proxy, error) {
 			return &Proxy{
 				Protocol: "socks5",
 				Host:     "socks.example.com",
@@ -556,9 +556,9 @@ func TestOAuthService_RefreshAccountToken_WithProxy(t *testing.T) {
 	svc := NewOAuthService(proxyRepo, client)
 	defer svc.Stop()
 
-	proxyID := int64(10)
+	proxyID := "10"
 	account := &Account{
-		ID:       4,
+		ID: "4",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		ProxyID:  &proxyID,

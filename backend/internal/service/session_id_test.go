@@ -127,7 +127,7 @@ func TestExtractClientSessionID_GrokConversationHeader(t *testing.T) {
 		grokConversationIDHeader: "grok-native-session",
 	})
 	c.Set("api_key", &APIKey{
-		ID:    42,
+		ID: "42",
 		Group: &Group{Platform: PlatformGrok},
 	})
 
@@ -139,7 +139,7 @@ func TestExtractClientSessionID_GrokConversationHeaderForCompositeRoute(t *testi
 		grokConversationIDHeader: "grok-composite-session",
 	})
 	c.Set("api_key", &APIKey{
-		ID:    43,
+		ID: "43",
 		Group: &Group{Platform: PlatformComposite},
 	})
 	c.Request = c.Request.WithContext(WithResolvedTargetPlatform(context.Background(), PlatformGrok))

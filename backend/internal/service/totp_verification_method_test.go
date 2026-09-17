@@ -18,14 +18,14 @@ type totpVMUserRepoStub struct {
 	disableCalled bool
 }
 
-func (s *totpVMUserRepoStub) GetByID(ctx context.Context, id int64) (*User, error) {
+func (s *totpVMUserRepoStub) GetByID(ctx context.Context, id string) (*User, error) {
 	if s.user == nil {
 		return nil, errors.New("user not found")
 	}
 	return s.user, nil
 }
 
-func (s *totpVMUserRepoStub) DisableTotp(ctx context.Context, userID int64) error {
+func (s *totpVMUserRepoStub) DisableTotp(ctx context.Context, userID string) error {
 	s.disableCalled = true
 	s.totpDisabled = true
 	return nil
@@ -56,7 +56,7 @@ func newTotpVMService(t *testing.T, user *User, emailVerifyEnabled bool) (*TotpS
 }
 
 func TestGetVerificationMethodAdminAlwaysPassword(t *testing.T) {
-	admin := &User{ID: 1, Email: "admin@example.com", Role: RoleAdmin}
+	admin := &User{ID: "1", Email: "admin@example.com", Role: RoleAdmin}
 	svc, _ := newTotpVMService(t, admin, true)
 
 	method, err := svc.GetVerificationMethod(context.Background(), admin.ID)
@@ -65,7 +65,7 @@ func TestGetVerificationMethodAdminAlwaysPassword(t *testing.T) {
 }
 
 func TestGetVerificationMethodRegularUserFollowsEmailVerifySetting(t *testing.T) {
-	user := &User{ID: 2, Email: "user@example.com", Role: RoleUser}
+	user := &User{ID: "2", Email: "user@example.com", Role: RoleUser}
 
 	svcEmailOn, _ := newTotpVMService(t, user, true)
 	method, err := svcEmailOn.GetVerificationMethod(context.Background(), user.ID)
@@ -79,7 +79,7 @@ func TestGetVerificationMethodRegularUserFollowsEmailVerifySetting(t *testing.T)
 }
 
 func TestTotpDisableAdminUsesPasswordEvenWithEmailVerifyEnabled(t *testing.T) {
-	admin := &User{ID: 1, Email: "admin@example.com", Role: RoleAdmin, TotpEnabled: true}
+	admin := &User{ID: "1", Email: "admin@example.com", Role: RoleAdmin, TotpEnabled: true}
 	require.NoError(t, admin.SetPassword("correct-password"))
 	svc, userRepo := newTotpVMService(t, admin, true)
 
@@ -98,7 +98,7 @@ func TestTotpDisableAdminUsesPasswordEvenWithEmailVerifyEnabled(t *testing.T) {
 }
 
 func TestTotpDisableRegularUserStillRequiresEmailCode(t *testing.T) {
-	user := &User{ID: 2, Email: "user@example.com", Role: RoleUser, TotpEnabled: true}
+	user := &User{ID: "2", Email: "user@example.com", Role: RoleUser, TotpEnabled: true}
 	require.NoError(t, user.SetPassword("whatever"))
 	svc, _ := newTotpVMService(t, user, true)
 

@@ -16,7 +16,7 @@ func TestResolveGrokStreamIdleTimeout(t *testing.T) {
 }
 
 func TestGrokStreamIdleFailoverError(t *testing.T) {
-	account := &Account{ID: 1, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "1", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	err := grokStreamIdleFailoverError(account, 180*time.Second)
 	require.NotNil(t, err)
 	require.Equal(t, 502, err.StatusCode)

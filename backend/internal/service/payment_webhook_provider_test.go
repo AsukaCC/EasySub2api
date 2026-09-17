@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"strconv"
 	"testing"
 	"time"
 
@@ -245,11 +244,11 @@ func TestGetOrderProviderInstanceUsesProviderSnapshotWhenPinnedColumnMissing(t *
 	require.NoError(t, err)
 
 	order := &dbent.PaymentOrder{
-		ID:          42,
+		ID: "42",
 		PaymentType: payment.TypeStripe,
 		ProviderSnapshot: map[string]any{
 			"schema_version":       1,
-			"provider_instance_id": strconv.FormatInt(inst.ID, 10),
+			"provider_instance_id": inst.ID,
 			"provider_key":         payment.TypeStripe,
 		},
 	}
@@ -278,7 +277,7 @@ func TestGetOrderProviderInstanceRejectsMissingSnapshotInstanceWithoutLegacyFall
 	require.NoError(t, err)
 
 	order := &dbent.PaymentOrder{
-		ID:          43,
+		ID: "43",
 		PaymentType: payment.TypeStripe,
 		ProviderSnapshot: map[string]any{
 			"schema_version":       1,
@@ -489,7 +488,7 @@ func TestGetWebhookProviderUsesProviderSnapshotBeforeWxpayFallback(t *testing.T)
 		SetSrcHost("api.example.com").
 		SetProviderSnapshot(map[string]any{
 			"schema_version":       1,
-			"provider_instance_id": strconv.FormatInt(instA.ID, 10),
+			"provider_instance_id": instA.ID,
 			"provider_key":         payment.TypeWxpay,
 			"payment_mode":         "native",
 		}).

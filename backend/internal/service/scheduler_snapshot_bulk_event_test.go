@@ -23,7 +23,7 @@ func newBulkEventAccountRepo(accounts ...*Account) *bulkEventAccountRepo {
 	}
 }
 
-func (r *bulkEventAccountRepo) GetByIDs(context.Context, []int64) ([]*Account, error) {
+func (r *bulkEventAccountRepo) GetByIDs(context.Context, []string) ([]*Account, error) {
 	return append([]*Account(nil), r.accounts...), nil
 }
 
@@ -31,8 +31,8 @@ type bulkEventSnapshotCache struct {
 	*batchSnapshotCache
 
 	accountMu        sync.Mutex
-	setAccountIDs    []int64
-	deleteAccountIDs []int64
+	setAccountIDs    []string
+	deleteAccountIDs []string
 }
 
 func newBulkEventSnapshotCache() *bulkEventSnapshotCache {
@@ -46,17 +46,17 @@ func (c *bulkEventSnapshotCache) SetAccount(_ context.Context, account *Account)
 	return nil
 }
 
-func (c *bulkEventSnapshotCache) DeleteAccount(_ context.Context, accountID int64) error {
+func (c *bulkEventSnapshotCache) DeleteAccount(_ context.Context, accountID string) error {
 	c.accountMu.Lock()
 	defer c.accountMu.Unlock()
 	c.deleteAccountIDs = append(c.deleteAccountIDs, accountID)
 	return nil
 }
 
-func (c *bulkEventSnapshotCache) accountWrites() (set []int64, deleted []int64) {
+func (c *bulkEventSnapshotCache) accountWrites() (set []string, deleted []string) {
 	c.accountMu.Lock()
 	defer c.accountMu.Unlock()
-	return append([]int64(nil), c.setAccountIDs...), append([]int64(nil), c.deleteAccountIDs...)
+	return append([]string(nil), c.setAccountIDs...), append([]string(nil), c.deleteAccountIDs...)
 }
 
 func (c *bulkEventSnapshotCache) capturedBuckets() []SchedulerBucket {
@@ -69,7 +69,7 @@ func newBulkEventTestService(cache SchedulerCache, accounts AccountRepository) *
 	return NewSchedulerSnapshotService(cache, nil, accounts, nil, &config.Config{RunMode: config.RunModeStandard})
 }
 
-func bulkEventPayload(accountIDs []int64, groupIDs []int64) map[string]any {
+func bulkEventPayload(accountIDs []string, groupIDs []string) map[string]any {
 	accountValues := make([]any, 0, len(accountIDs))
 	for _, id := range accountIDs {
 		accountValues = append(accountValues, id)
@@ -84,7 +84,7 @@ func bulkEventPayload(accountIDs []int64, groupIDs []int64) map[string]any {
 	}
 }
 
-func schedulerBucketsForTest(groupIDs []int64, platforms ...string) []SchedulerBucket {
+func schedulerBucketsForTest(groupIDs []string, platforms ...string) []SchedulerBucket {
 	buckets := make([]SchedulerBucket, 0, len(groupIDs)*len(platforms)*3)
 	for _, platform := range platforms {
 		for _, groupID := range groupIDs {
@@ -102,110 +102,110 @@ func schedulerBucketsForTest(groupIDs []int64, platforms ...string) []SchedulerB
 
 func TestSchedulerBulkAccountEventScopesOpenAIRebuildToFreshPlatform(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
-	repo := newBulkEventAccountRepo(&Account{ID: 1, Platform: PlatformOpenAI, GroupIDs: []int64{12}})
+	repo := newBulkEventAccountRepo(&Account{ID: "1", Platform: PlatformOpenAI, GroupIDs: []string{"12"}})
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{1}, []int64{11}), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"1"}, []string{"11"}), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
-	require.ElementsMatch(t, schedulerBucketsForTest([]int64{11, 12}, PlatformOpenAI), cache.capturedBuckets())
+	require.ElementsMatch(t, schedulerBucketsForTest([]string{"11", "12"}, PlatformOpenAI), cache.capturedBuckets())
 	set, deleted := cache.accountWrites()
-	require.Equal(t, []int64{1}, set)
+	require.Equal(t, []string{"1"}, set)
 	require.Empty(t, deleted)
 }
 
 func TestSchedulerBulkAccountEventRebuildsOpenAIUngroupedBucket(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
-	repo := newBulkEventAccountRepo(&Account{ID: 6, Platform: PlatformOpenAI})
+	repo := newBulkEventAccountRepo(&Account{ID: "6", Platform: PlatformOpenAI})
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{6}, nil), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"6"}, nil), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
-	require.ElementsMatch(t, schedulerBucketsForTest([]int64{0}, PlatformOpenAI), cache.capturedBuckets())
+	require.ElementsMatch(t, schedulerBucketsForTest([]string{"0"}, PlatformOpenAI), cache.capturedBuckets())
 }
 
 func TestSchedulerBulkAccountEventKeepsGroupedAndUngroupedBuckets(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
 	repo := newBulkEventAccountRepo(
-		&Account{ID: 7, Platform: PlatformOpenAI, GroupIDs: []int64{51}},
-		&Account{ID: 8, Platform: PlatformOpenAI},
+		&Account{ID: "7", Platform: PlatformOpenAI, GroupIDs: []string{"51"}},
+		&Account{ID: "8", Platform: PlatformOpenAI},
 	)
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{7, 8}, nil), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"7", "8"}, nil), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
-	require.ElementsMatch(t, schedulerBucketsForTest([]int64{0, 51}, PlatformOpenAI), cache.capturedBuckets())
+	require.ElementsMatch(t, schedulerBucketsForTest([]string{"0", "51"}, PlatformOpenAI), cache.capturedBuckets())
 }
 
 func TestSchedulerBulkAccountEventDoesNotCrossCurrentGroupsBetweenPlatforms(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
 	repo := newBulkEventAccountRepo(
-		&Account{ID: 9, Platform: PlatformOpenAI, GroupIDs: []int64{61}},
-		&Account{ID: 10, Platform: PlatformGrok, GroupIDs: []int64{62}},
+		&Account{ID: "9", Platform: PlatformOpenAI, GroupIDs: []string{"61"}},
+		&Account{ID: "10", Platform: PlatformGrok, GroupIDs: []string{"62"}},
 	)
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{9, 10}, []int64{63}), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"9", "10"}, []string{"63"}), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
 	want := append(
-		schedulerBucketsForTest([]int64{61, 63}, PlatformOpenAI),
-		schedulerBucketsForTest([]int64{62, 63}, PlatformGrok)...,
+		schedulerBucketsForTest([]string{"61", "63"}, PlatformOpenAI),
+		schedulerBucketsForTest([]string{"62", "63"}, PlatformGrok)...,
 	)
 	require.ElementsMatch(t, want, cache.capturedBuckets())
 }
 
 func TestSchedulerBulkAccountEventUsesGroupZeroInSimpleMode(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
-	repo := newBulkEventAccountRepo(&Account{ID: 11, Platform: PlatformOpenAI, GroupIDs: []int64{71}})
+	repo := newBulkEventAccountRepo(&Account{ID: "11", Platform: PlatformOpenAI, GroupIDs: []string{"71"}})
 	svc := NewSchedulerSnapshotService(cache, nil, repo, nil, &config.Config{RunMode: config.RunModeSimple})
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{11}, []int64{72}), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"11"}, []string{"72"}), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
-	require.ElementsMatch(t, schedulerBucketsForTest([]int64{0}, PlatformOpenAI), cache.capturedBuckets())
+	require.ElementsMatch(t, schedulerBucketsForTest([]string{"0"}, PlatformOpenAI), cache.capturedBuckets())
 }
 
 func TestSchedulerBulkAccountEventConservativelyExpandsAntigravityPlatforms(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
 	// fresh 值可能已经关闭 mixed_scheduling，兼容平台仍要重建以清理旧快照。
-	repo := newBulkEventAccountRepo(&Account{ID: 2, Platform: PlatformAntigravity, GroupIDs: []int64{22}})
+	repo := newBulkEventAccountRepo(&Account{ID: "2", Platform: PlatformAntigravity, GroupIDs: []string{"22"}})
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{2}, []int64{21}), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"2"}, []string{"21"}), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
 	require.ElementsMatch(t,
-		schedulerBucketsForTest([]int64{21, 22}, PlatformAnthropic, PlatformGemini, PlatformAntigravity),
+		schedulerBucketsForTest([]string{"21", "22"}, PlatformAnthropic, PlatformGemini, PlatformAntigravity),
 		cache.capturedBuckets(),
 	)
 }
 
 func TestSchedulerBulkAccountEventMissingAccountFallsBackToAllPlatforms(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
-	repo := newBulkEventAccountRepo(&Account{ID: 3, Platform: PlatformOpenAI, GroupIDs: []int64{32}})
+	repo := newBulkEventAccountRepo(&Account{ID: "3", Platform: PlatformOpenAI, GroupIDs: []string{"32"}})
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{3, 4}, []int64{31}), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"3", "4"}, []string{"31"}), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
 	platforms := schedulerSnapshotPlatforms()
-	require.ElementsMatch(t, schedulerBucketsForTest([]int64{31, 32}, platforms[:]...), cache.capturedBuckets())
+	require.ElementsMatch(t, schedulerBucketsForTest([]string{"31", "32"}, platforms[:]...), cache.capturedBuckets())
 	set, deleted := cache.accountWrites()
-	require.Equal(t, []int64{3}, set)
-	require.Equal(t, []int64{4}, deleted)
+	require.Equal(t, []string{"3"}, set)
+	require.Equal(t, []string{"4"}, deleted)
 }
 
 func TestSchedulerBulkAccountEventUnknownPlatformFallsBackToAllPlatforms(t *testing.T) {
 	cache := newBulkEventSnapshotCache()
-	repo := newBulkEventAccountRepo(&Account{ID: 5, GroupIDs: []int64{42}})
+	repo := newBulkEventAccountRepo(&Account{ID: "5", GroupIDs: []string{"42"}})
 	svc := newBulkEventTestService(cache, repo)
 
-	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]int64{5}, []int64{41}), make(map[batchSeenKey]struct{}))
+	err := svc.handleBulkAccountEvent(context.Background(), bulkEventPayload([]string{"5"}, []string{"41"}), make(map[batchSeenKey]struct{}))
 
 	require.NoError(t, err)
 	platforms := schedulerSnapshotPlatforms()
-	require.ElementsMatch(t, schedulerBucketsForTest([]int64{41, 42}, platforms[:]...), cache.capturedBuckets())
+	require.ElementsMatch(t, schedulerBucketsForTest([]string{"41", "42"}, platforms[:]...), cache.capturedBuckets())
 }

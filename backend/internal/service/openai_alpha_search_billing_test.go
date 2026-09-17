@@ -45,11 +45,11 @@ func TestCalculateWebSearchCostDefaultAndOverride(t *testing.T) {
 func TestCalculateOpenAIRecordUsageCostWebSearchPerCall(t *testing.T) {
 	t.Parallel()
 	svc := &OpenAIGatewayService{billingService: &BillingService{}}
-	groupID := int64(11)
+	groupID := "11"
 
 	// 分组未配置单价：默认 0.01。按次搜索使用不含高峰因子的基础倍率（第 4 个倍率参数 2.0），
 	// 即使 token 倍率（含高峰，3.0）更高也不采用。
-	apiKey := &APIKey{ID: 1, GroupID: &groupID, Group: &Group{ID: groupID, Platform: PlatformOpenAI}}
+	apiKey := &APIKey{ID: "1", GroupID: &groupID, Group: &Group{ID: groupID, Platform: PlatformOpenAI}}
 	result := &OpenAIForwardResult{Model: "gpt-5.6-sol", UpstreamModel: "gpt-5.6-sol", WebSearchCalls: 1}
 	cost, err := svc.calculateOpenAIRecordUsageCost(context.Background(), result, apiKey, []string{"gpt-5.6-sol"}, 3.0, 1.0, 1.0, 2.0, UsageTokens{}, "", boolPtr(false), time.Time{})
 	require.NoError(t, err)
@@ -73,14 +73,14 @@ func TestCalculateOpenAIRecordUsageCostWebSearchPerCall(t *testing.T) {
 
 func TestAPIKeyService_SnapshotRoundTrip_PreservesWebSearchPricePerCall(t *testing.T) {
 	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
-	groupID := int64(9)
+	groupID := "9"
 	apiKey := &APIKey{
-		ID:      1,
-		UserID:  2,
+		ID: "1",
+		UserID: "2",
 		GroupID: &groupID,
 		Key:     "k-websearch",
 		Status:  StatusActive,
-		User:    &User{ID: 2, Status: StatusActive, Role: RoleUser},
+		User:    &User{ID: "2", Status: StatusActive, Role: RoleUser},
 		Group: &Group{
 			ID:                    groupID,
 			Name:                  "openai",

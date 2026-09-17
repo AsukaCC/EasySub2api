@@ -29,7 +29,7 @@ func TestAdminService_EnsureOpenAIPrivacy_RetriesNonSuccessModes(t *testing.T) {
 			}
 
 			account := &Account{
-				ID:       101,
+				ID: "101",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Credentials: map[string]any{
@@ -70,7 +70,7 @@ func TestTokenRefreshService_ensureOpenAIPrivacy_RetriesNonSuccessModes(t *testi
 			}, nil)
 
 			account := &Account{
-				ID:       202,
+				ID: "202",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Credentials: map[string]any{

@@ -60,7 +60,7 @@ func (s *UserSubscriptionRepoSuite) mustCreateGroup(name string) *service.Group 
 	return groupEntityToService(g)
 }
 
-func (s *UserSubscriptionRepoSuite) mustCreateSubscription(userID, groupID int64, mutate func(*dbent.UserSubscriptionCreate)) *dbent.UserSubscription {
+func (s *UserSubscriptionRepoSuite) mustCreateSubscription(userID, groupID string, mutate func(*dbent.UserSubscriptionCreate)) *dbent.UserSubscription {
 	s.T().Helper()
 
 	now := time.Now()

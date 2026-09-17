@@ -300,9 +300,9 @@ func TestUsageLogRepositoryCreateBestEffort_QueueFullBlocksUntilCtxDeadline(t *t
 
 	start := time.Now()
 	err := repo.CreateBestEffort(ctx, &service.UsageLog{
-		UserID:       1,
-		APIKeyID:     2,
-		AccountID:    3,
+		UserID: "1",
+		APIKeyID: "2",
+		AccountID: "3",
 		RequestID:    uuid.NewString(),
 		Model:        "claude-3",
 		InputTokens:  10,
@@ -335,9 +335,9 @@ func TestUsageLogRepositoryCreateBestEffort_QueueFullWaitsForDrain(t *testing.T)
 	defer cancel()
 
 	err := repo.CreateBestEffort(ctx, &service.UsageLog{
-		UserID:       1,
-		APIKeyID:     2,
-		AccountID:    3,
+		UserID: "1",
+		APIKeyID: "2",
+		AccountID: "3",
 		RequestID:    uuid.NewString(),
 		Model:        "claude-3",
 		InputTokens:  10,

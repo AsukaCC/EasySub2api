@@ -25,7 +25,7 @@ func TestListDueUpstreamBillingProbeAccountsHandlesInvalidCalendarDate(t *testin
 
 	insert := func(name, nextProbeAt string) int64 {
 		t.Helper()
-		var id int64
+		var id string
 		extra := fmt.Sprintf(`{
 			"upstream_billing_probe_enabled": true,
 			"upstream_billing_probe": {"status": "ok", "next_probe_at": %q}
@@ -52,7 +52,7 @@ func TestListDueUpstreamBillingProbeAccountsHandlesInvalidCalendarDate(t *testin
 
 func insertUpstreamBillingProbeAccount(ctx context.Context, t *testing.T, tx sqlQueryer, name, nextProbeAt string) int64 {
 	t.Helper()
-	var id int64
+	var id string
 	extra := fmt.Sprintf(`{
 		"upstream_billing_probe_enabled": true,
 		"upstream_billing_probe": {"status": "ok", "next_probe_at": %q}
@@ -169,7 +169,7 @@ func TestListDueUpstreamBillingProbeAccountsIncludesAllAPIKeyPlatforms(t *testin
 
 	insert := func(name, platform, accountType, nextProbeAt string) int64 {
 		t.Helper()
-		var id int64
+		var id string
 		extra := fmt.Sprintf(`{
 			"upstream_billing_probe_enabled": true,
 			"upstream_billing_probe": {"status": "ok", "next_probe_at": %q}

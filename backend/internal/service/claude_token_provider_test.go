@@ -93,7 +93,7 @@ type claudeAccountRepoStub struct {
 	updateCalled int32
 }
 
-func (r *claudeAccountRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *claudeAccountRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	atomic.AddInt32(&r.getCalled, 1)
 	if r.getErr != nil {
 		return nil, r.getErr
@@ -232,7 +232,7 @@ func (p *testClaudeTokenProvider) GetAccessToken(ctx context.Context, account *A
 func TestClaudeTokenProvider_CacheHit(t *testing.T) {
 	cache := newClaudeTokenCacheStub()
 	account := &Account{
-		ID:       100,
+		ID: "100",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -256,7 +256,7 @@ func TestClaudeTokenProvider_CacheMiss_FromCredentials(t *testing.T) {
 	// Token expires in far future, no refresh needed
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       101,
+		ID: "101",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -292,7 +292,7 @@ func TestClaudeTokenProvider_TokenRefresh(t *testing.T) {
 	// Token expires soon (within refresh skew)
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       102,
+		ID: "102",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -323,7 +323,7 @@ func TestClaudeTokenProvider_LockRaceCondition(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       103,
+		ID: "103",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -364,7 +364,7 @@ func TestClaudeTokenProvider_NilAccount(t *testing.T) {
 func TestClaudeTokenProvider_WrongPlatform(t *testing.T) {
 	provider := NewClaudeTokenProvider(nil, nil, nil)
 	account := &Account{
-		ID:       104,
+		ID: "104",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 	}
@@ -378,7 +378,7 @@ func TestClaudeTokenProvider_WrongPlatform(t *testing.T) {
 func TestClaudeTokenProvider_WrongAccountType(t *testing.T) {
 	provider := NewClaudeTokenProvider(nil, nil, nil)
 	account := &Account{
-		ID:       105,
+		ID: "105",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeAPIKey,
 	}
@@ -392,7 +392,7 @@ func TestClaudeTokenProvider_WrongAccountType(t *testing.T) {
 func TestClaudeTokenProvider_SetupTokenType(t *testing.T) {
 	provider := NewClaudeTokenProvider(nil, nil, nil)
 	account := &Account{
-		ID:       106,
+		ID: "106",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeSetupToken,
 	}
@@ -407,7 +407,7 @@ func TestClaudeTokenProvider_NilCache(t *testing.T) {
 	// Token doesn't need refresh
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       107,
+		ID: "107",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -430,7 +430,7 @@ func TestClaudeTokenProvider_CacheGetError(t *testing.T) {
 	// Token doesn't need refresh
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       108,
+		ID: "108",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -453,7 +453,7 @@ func TestClaudeTokenProvider_CacheSetError(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       109,
+		ID: "109",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -474,7 +474,7 @@ func TestClaudeTokenProvider_MissingAccessToken(t *testing.T) {
 	cache := newClaudeTokenCacheStub()
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       110,
+		ID: "110",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -501,7 +501,7 @@ func TestClaudeTokenProvider_RefreshError(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       111,
+		ID: "111",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -531,7 +531,7 @@ func TestClaudeTokenProvider_OAuthServiceNotConfigured(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       112,
+		ID: "112",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -577,7 +577,7 @@ func TestClaudeTokenProvider_TTLCalculation(t *testing.T) {
 			cache := newClaudeTokenCacheStub()
 			expiresAt := time.Now().Add(tt.expiresIn).Format(time.RFC3339)
 			account := &Account{
-				ID:       200,
+				ID: "200",
 				Platform: PlatformAnthropic,
 				Type:     AccountTypeOAuth,
 				Credentials: map[string]any{
@@ -615,7 +615,7 @@ func TestClaudeTokenProvider_AccountRepoGetError(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       113,
+		ID: "113",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -654,7 +654,7 @@ func TestClaudeTokenProvider_AccountUpdateError(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       114,
+		ID: "114",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -692,7 +692,7 @@ func TestClaudeTokenProvider_RefreshPreservesExistingCredentials(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       115,
+		ID: "115",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -738,7 +738,7 @@ func TestClaudeTokenProvider_DoubleCheckCacheAfterLock(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       116,
+		ID: "116",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -776,7 +776,7 @@ func TestClaudeTokenProvider_Real_LockFailedWait(t *testing.T) {
 	// Token expires soon (within refresh skew) to trigger lock attempt
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       300,
+		ID: "300",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -807,7 +807,7 @@ func TestClaudeTokenProvider_Real_CacheHitAfterWait(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       301,
+		ID: "301",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -837,7 +837,7 @@ func TestClaudeTokenProvider_Real_NoExpiresAt(t *testing.T) {
 
 	// Token with nil expires_at (no expiry set)
 	account := &Account{
-		ID:       302,
+		ID: "302",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -859,7 +859,7 @@ func TestClaudeTokenProvider_Real_WhitespaceToken(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       303,
+		ID: "303",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -879,7 +879,7 @@ func TestClaudeTokenProvider_Real_EmptyCredentialToken(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       304,
+		ID: "304",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -902,7 +902,7 @@ func TestClaudeTokenProvider_Real_LockError(t *testing.T) {
 	// Token expires soon (within refresh skew)
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       305,
+		ID: "305",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -922,7 +922,7 @@ func TestClaudeTokenProvider_Real_NilCredentials(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       306,
+		ID: "306",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{

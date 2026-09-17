@@ -459,7 +459,7 @@ func TestAuthServiceLogin_DoesNotRetryEmailFirstBindDefaultsForBackfilledEmailId
 func countProviderGrantRecords(
 	t *testing.T,
 	client *dbent.Client,
-	userID int64,
+	userID string,
 	providerType string,
 	grantReason string,
 ) int {

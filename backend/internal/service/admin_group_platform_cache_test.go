@@ -16,7 +16,7 @@ type groupPlatformRepoStub struct {
 	updated *Group
 }
 
-func (r *groupPlatformRepoStub) GetByID(_ context.Context, _ int64) (*Group, error) {
+func (r *groupPlatformRepoStub) GetByID(_ context.Context, _ string) (*Group, error) {
 	cloned := *r.group
 	return &cloned, nil
 }
@@ -64,11 +64,11 @@ func TestUpdateGroupInvalidatesChannelCacheOnPlatformChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &groupPlatformRepoStub{group: &Group{ID: 7, Name: "g", Platform: tt.fromPlatform}}
+			repo := &groupPlatformRepoStub{group: &Group{ID: "7", Name: "g", Platform: tt.fromPlatform}}
 			spy := &channelCacheInvalidatorSpy{}
 			svc := &adminServiceImpl{groupRepo: repo, channelCacheInvalidator: spy}
 
-			got, err := svc.UpdateGroup(context.Background(), 7, &UpdateGroupInput{Platform: tt.inputPlatform})
+			got, err := svc.UpdateGroup(context.Background(), "7", &UpdateGroupInput{Platform: tt.inputPlatform})
 			require.NoError(t, err)
 			require.NotNil(t, got)
 			require.Equal(t, tt.wantCalls, spy.calls)
@@ -78,10 +78,10 @@ func TestUpdateGroupInvalidatesChannelCacheOnPlatformChange(t *testing.T) {
 
 // 依赖可以不注入（例如测试或裁剪构建），此时不应 panic——缓存靠 TTL 自然重建。
 func TestUpdateGroupWithoutChannelCacheInvalidator(t *testing.T) {
-	repo := &groupPlatformRepoStub{group: &Group{ID: 7, Name: "g", Platform: PlatformAnthropic}}
+	repo := &groupPlatformRepoStub{group: &Group{ID: "7", Name: "g", Platform: PlatformAnthropic}}
 	svc := &adminServiceImpl{groupRepo: repo}
 
-	got, err := svc.UpdateGroup(context.Background(), 7, &UpdateGroupInput{Platform: PlatformOpenAI})
+	got, err := svc.UpdateGroup(context.Background(), "7", &UpdateGroupInput{Platform: PlatformOpenAI})
 	require.NoError(t, err)
 	require.Equal(t, PlatformOpenAI, got.Platform)
 }

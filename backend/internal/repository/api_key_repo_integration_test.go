@@ -437,7 +437,7 @@ func (s *APIKeyRepoSuite) mustCreateGroup(name string) *service.Group {
 	return groupEntityToService(g)
 }
 
-func (s *APIKeyRepoSuite) mustCreateApiKey(userID int64, key, name string, groupID *int64) *service.APIKey {
+func (s *APIKeyRepoSuite) mustCreateApiKey(userID string, key, name string, groupID *string) *service.APIKey {
 	s.T().Helper()
 
 	k := &service.APIKey{

@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ type grokCredentialRaceRepo struct {
 	mu sync.RWMutex
 }
 
-func (r *grokCredentialRaceRepo) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *grokCredentialRaceRepo) GetByID(ctx context.Context, id string) (*Account, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.tokenRefreshAccountRepo.GetByID(ctx, id)
@@ -83,7 +84,7 @@ func TestGrokTokenProviderRefreshesExpiredTokenOnRequestPath(t *testing.T) {
 
 	expiredAt := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 	account := &Account{
-		ID:          54,
+		ID: "54",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -97,7 +98,7 @@ func TestGrokTokenProviderRefreshesExpiredTokenOnRequestPath(t *testing.T) {
 		},
 	}
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{54: account}
+	repo.accountsByID = map[string]*Account{"54": account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	oauthSvc := NewGrokOAuthService(nil, &grokOAuthClientStub{
 		refreshResponse: &xai.TokenResponse{
@@ -115,9 +116,9 @@ func TestGrokTokenProviderRefreshesExpiredTokenOnRequestPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "new-access-token", token)
 	require.Equal(t, 1, repo.updateCredentialsCalls)
-	require.Equal(t, "new-access-token", repo.accountsByID[54].GetGrokAccessToken())
-	require.Equal(t, "refresh-token", repo.accountsByID[54].GetGrokRefreshToken())
-	require.Equal(t, xai.DefaultCLIBaseURL, repo.accountsByID[54].GetGrokBaseURL())
+	require.Equal(t, "new-access-token", repo.accountsByID["54"].GetGrokAccessToken())
+	require.Equal(t, "refresh-token", repo.accountsByID["54"].GetGrokRefreshToken())
+	require.Equal(t, xai.DefaultCLIBaseURL, repo.accountsByID["54"].GetGrokBaseURL())
 	require.Equal(t, "grok:account:54", cache.setKey)
 	require.Equal(t, "new-access-token", cache.setToken)
 	require.Greater(t, cache.setTTL, time.Duration(0))
@@ -127,7 +128,7 @@ func TestGrokTokenProviderRefreshesExpiredTokenOnRequestPath(t *testing.T) {
 func TestGrokTokenProviderRefreshFailureUnschedulesWithRedactedReason(t *testing.T) {
 	expiredAt := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 	account := &Account{
-		ID:          55,
+		ID: "55",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -140,7 +141,7 @@ func TestGrokTokenProviderRefreshFailureUnschedulesWithRedactedReason(t *testing
 		},
 	}
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{55: account}
+	repo.accountsByID = map[string]*Account{"55": account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{
@@ -155,9 +156,9 @@ func TestGrokTokenProviderRefreshFailureUnschedulesWithRedactedReason(t *testing
 }
 
 func TestGrokTokenProviderLockHeldWaitsForRefreshedCacheAndNeverUsesExpiredToken(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(56)
+	account := expiredGrokOAuthAccountForCredentialTest("56")
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialRaceRepo{tokenRefreshAccountRepo: baseRepo}
 	cache := &grokTokenCacheForProviderTest{lockResult: false, token: "expired-access-token"}
 	provider := NewGrokTokenProvider(repo, cache)
@@ -186,9 +187,9 @@ func TestGrokTokenProviderLockHeldWaitsForRefreshedCacheAndNeverUsesExpiredToken
 }
 
 func TestGrokTokenProviderLockHeldTimeoutDoesNotReturnExpiredToken(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(57)
+	account := expiredGrokOAuthAccountForCredentialTest("57")
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	cache := &grokTokenCacheForProviderTest{lockResult: false}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{})
@@ -201,9 +202,9 @@ func TestGrokTokenProviderLockHeldTimeoutDoesNotReturnExpiredToken(t *testing.T)
 }
 
 func TestGrokTokenProviderLockHeldRejectsChangedTokenWithoutExpiry(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(58)
+	account := expiredGrokOAuthAccountForCredentialTest("58")
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialRaceRepo{tokenRefreshAccountRepo: baseRepo}
 	cache := &grokTokenCacheForProviderTest{lockResult: false, token: "expired-access-token"}
 	provider := NewGrokTokenProvider(repo, cache)
@@ -231,9 +232,9 @@ func TestGrokTokenProviderLockHeldRejectsChangedTokenWithoutExpiry(t *testing.T)
 }
 
 func TestGrokTokenProviderLockHeldUsesVersionedDBTokenAndRepairsStaleCache(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(60)
+	account := expiredGrokOAuthAccountForCredentialTest("60")
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialRaceRepo{tokenRefreshAccountRepo: baseRepo}
 	cache := &grokTokenCacheForProviderTest{lockResult: false, token: "expired-access-token"}
 	provider := NewGrokTokenProvider(repo, cache)
@@ -260,7 +261,7 @@ func TestGrokTokenProviderLockHeldUsesVersionedDBTokenAndRepairsStaleCache(t *te
 func TestGrokTokenProviderRejectsStaleDBTokenWithoutExpiry(t *testing.T) {
 	expiresAt := time.Now().Add(2 * grokTokenRefreshSkew).UTC().Format(time.RFC3339)
 	account := &Account{
-		ID:          59,
+		ID: "59",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -277,7 +278,7 @@ func TestGrokTokenProviderRejectsStaleDBTokenWithoutExpiry(t *testing.T) {
 	latest.Credentials["_token_version"] = time.Now().UnixMilli()
 	delete(latest.Credentials, "expires_at")
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: &latest}
+	repo.accountsByID = map[string]*Account{account.ID: &latest}
 	cache := &grokTokenCacheForProviderTest{}
 	provider := NewGrokTokenProvider(repo, cache)
 
@@ -306,7 +307,7 @@ func TestGrokTokenProviderManualTestBypassesSchedulingGate(t *testing.T) {
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(120 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(120 + index))
 			account.Credentials["access_token"] = "still-valid-token"
 			account.Credentials["expires_at"] = time.Now().Add(2 * grokTokenRefreshSkew).UTC().Format(time.RFC3339)
 			tt.mutate(account)
@@ -329,7 +330,7 @@ func TestGrokTokenProviderManualTestRefreshesExpiredTokenWhileUnschedulable(t *t
 
 	expiredAt := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 	account := &Account{
-		ID:          130,
+		ID: "130",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -343,7 +344,7 @@ func TestGrokTokenProviderManualTestRefreshesExpiredTokenWhileUnschedulable(t *t
 		},
 	}
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{130: account}
+	repo.accountsByID = map[string]*Account{"130": account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	oauthSvc := NewGrokOAuthService(nil, &grokOAuthClientStub{
 		refreshResponse: &xai.TokenResponse{
@@ -365,7 +366,7 @@ func TestGrokTokenProviderManualTestRefreshesExpiredTokenWhileUnschedulable(t *t
 
 func TestGrokTokenProviderManualTestFallsBackToValidTokenOnRefreshFailure(t *testing.T) {
 	account := &Account{
-		ID:          131,
+		ID: "131",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -378,7 +379,7 @@ func TestGrokTokenProviderManualTestFallsBackToValidTokenOnRefreshFailure(t *tes
 		},
 	}
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{131: account}
+	repo.accountsByID = map[string]*Account{"131": account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{
@@ -391,10 +392,10 @@ func TestGrokTokenProviderManualTestFallsBackToValidTokenOnRefreshFailure(t *tes
 }
 
 func TestGrokTokenProviderManualTestReportsRefreshFailureWhenTokenExpired(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(132)
+	account := expiredGrokOAuthAccountForCredentialTest("132")
 	account.Schedulable = false
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{
@@ -408,9 +409,9 @@ func TestGrokTokenProviderManualTestReportsRefreshFailureWhenTokenExpired(t *tes
 }
 
 func TestGrokTokenProviderManualTestLockHeldWithExpiredTokenReturnsSpecificError(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(133)
+	account := expiredGrokOAuthAccountForCredentialTest("133")
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	cache := &grokTokenCacheForProviderTest{lockResult: false}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{})
@@ -422,7 +423,7 @@ func TestGrokTokenProviderManualTestLockHeldWithExpiredTokenReturnsSpecificError
 }
 
 func TestGrokTokenProviderManualTestRequiresRefreshToken(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(134)
+	account := expiredGrokOAuthAccountForCredentialTest("134")
 	delete(account.Credentials, "refresh_token")
 	provider := NewGrokTokenProvider(&tokenRefreshAccountRepo{}, &grokTokenCacheForProviderTest{})
 
@@ -446,7 +447,7 @@ func TestGrokTokenProviderRejectsIneligibleSelectedAccountBeforeWarmCache(t *tes
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(90 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(90 + index))
 			account.Credentials["access_token"] = "warm-cache-token"
 			account.Credentials["expires_at"] = time.Now().Add(2 * grokTokenRefreshSkew).UTC().Format(time.RFC3339)
 			tt.mutate(account)

@@ -18,13 +18,13 @@ import (
 type duplicateAccountRepoStub struct {
 	*sparkShadowRepoStub
 	atomicCreateErr error
-	accountGroupsOf map[int64][]AccountGroup
+	accountGroupsOf map[string][]AccountGroup
 }
 
 func newDuplicateAccountRepoStub() *duplicateAccountRepoStub {
 	return &duplicateAccountRepoStub{
 		sparkShadowRepoStub: newSparkShadowRepoStub(),
-		accountGroupsOf:     make(map[int64][]AccountGroup),
+		accountGroupsOf:     make(map[string][]AccountGroup),
 	}
 }
 
@@ -32,7 +32,7 @@ func (s *duplicateAccountRepoStub) CreateWithAccountGroups(ctx context.Context, 
 	if s.atomicCreateErr != nil {
 		return s.atomicCreateErr
 	}
-	groupIDs := make([]int64, 0, len(groups))
+	groupIDs := make([]string, 0, len(groups))
 	for _, group := range groups {
 		groupIDs = append(groupIDs, group.GroupID)
 	}
@@ -48,7 +48,7 @@ func (s *duplicateAccountRepoStub) CreateWithAccountGroups(ctx context.Context, 
 	account.AccountGroups = clonedGroups
 	s.accountGroupsOf[account.ID] = clonedGroups
 	if len(groupIDs) > 0 {
-		s.groupsOf[account.ID] = append([]int64(nil), groupIDs...)
+		s.groupsOf[account.ID] = append([]string(nil), groupIDs...)
 	}
 	stored := *account
 	s.accounts[account.ID] = &stored
@@ -76,8 +76,8 @@ func TestDuplicateAccountCopiesConfigurationAndResetsRuntimeState(t *testing.T) 
 	svc := &adminServiceImpl{accountRepo: repo, accountDuplicateRepo: repo}
 
 	notes := "keep this note"
-	proxyID := int64(17)
-	originalProxyID := int64(11)
+	proxyID := "17"
+	originalProxyID := "11"
 	rateMultiplier := 1.25
 	loadFactor := 9
 	expiresAt := time.Date(2027, time.March, 4, 5, 6, 7, 0, time.UTC)
@@ -129,8 +129,8 @@ func TestDuplicateAccountCopiesConfigurationAndResetsRuntimeState(t *testing.T) 
 			"crs_kind":                        "openai-api-key",
 			"crs_synced_at":                   "2026-07-15T00:00:00Z",
 		},
-		GroupIDs:                []int64{7, 3},
-		AccountGroups:           []AccountGroup{{GroupID: 7, Priority: 50}, {GroupID: 3, Priority: 7}},
+		GroupIDs: []string{"7", "3"},
+		AccountGroups:           []AccountGroup{{GroupID: "7", Priority: 50}, {GroupID: "3", Priority: 7}},
 		RateLimitedAt:           &rateLimitedAt,
 		RateLimitResetAt:        &rateLimitResetAt,
 		OverloadUntil:           &overloadUntil,
@@ -172,8 +172,8 @@ func TestDuplicateAccountCopiesConfigurationAndResetsRuntimeState(t *testing.T) 
 	require.Equal(t, source.LoadFactor, duplicate.LoadFactor)
 	require.Equal(t, source.GroupIDs, repo.groupsOf[duplicate.ID])
 	require.Equal(t, []AccountGroup{
-		{AccountID: duplicate.ID, GroupID: 7, Priority: 50},
-		{AccountID: duplicate.ID, GroupID: 3, Priority: 7},
+		{AccountID: duplicate.ID, GroupID: "7", Priority: 50},
+		{AccountID: duplicate.ID, GroupID: "3", Priority: 7},
 	}, repo.accountGroupsOf[duplicate.ID])
 
 	require.Equal(t, StatusActive, duplicate.Status)
@@ -204,7 +204,7 @@ func TestDuplicateAccountRejectsCredentialShadow(t *testing.T) {
 	ctx := context.Background()
 	repo := newDuplicateAccountRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo, accountDuplicateRepo: repo}
-	parentID := int64(99)
+	parentID := "99"
 	shadow := &Account{
 		Name:            "shadow",
 		Platform:        PlatformOpenAI,
@@ -275,8 +275,8 @@ func TestDuplicateAccountAtomicCreateFailureLeavesNoOrphan(t *testing.T) {
 		Platform:      PlatformAnthropic,
 		Type:          AccountTypeAPIKey,
 		Credentials:   map[string]any{"api_key": "secret"},
-		GroupIDs:      []int64{7},
-		AccountGroups: []AccountGroup{{GroupID: 7, Priority: 25}},
+		GroupIDs: []string{"7"},
+		AccountGroups: []AccountGroup{{GroupID: "7", Priority: 25}},
 	}
 	require.NoError(t, repo.Create(ctx, source))
 	repo.atomicCreateErr = errors.New("group binding failed")

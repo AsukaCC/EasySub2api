@@ -101,7 +101,7 @@ func TestAuthSubjectHelpers_RoundTrip(t *testing.T) {
 
 	sub, ok := GetAuthSubjectFromContext(c)
 	require.True(t, ok)
-	require.Equal(t, int64(1), sub.UserID)
+	require.Equal(t, "1", sub.UserID)
 	require.Equal(t, 2, sub.Concurrency)
 
 	role, ok := GetUserRoleFromContext(c)
@@ -116,11 +116,11 @@ func TestAPIKeyAndSubscriptionFromContext(t *testing.T) {
 	c.Set(string(ContextKeyAPIKey), key)
 	gotKey, ok := GetAPIKeyFromContext(c)
 	require.True(t, ok)
-	require.Equal(t, int64(1), gotKey.ID)
+	require.Equal(t, "1", gotKey.ID)
 
 	sub := &service.UserSubscription{ID: "subscription-2"}
 	c.Set(string(ContextKeySubscription), sub)
 	gotSub, ok := GetSubscriptionFromContext(c)
 	require.True(t, ok)
-	require.Equal(t, int64(2), gotSub.ID)
+	require.Equal(t, "2", gotSub.ID)
 }

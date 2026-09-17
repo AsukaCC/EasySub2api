@@ -106,7 +106,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 	inserted, err := repo.Create(context.Background(), log)
 	require.NoError(t, err)
 	require.True(t, inserted)
-	require.Equal(t, int64(99), log.ID)
+	require.Equal(t, "99", log.ID)
 	require.Nil(t, log.ServiceTier)
 	require.Equal(t, service.RequestTypeWSV2, log.RequestType)
 	require.True(t, log.Stream)

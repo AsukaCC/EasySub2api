@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func profitControlWSAccount(id int64, rate float64, now time.Time) Account {
+func profitControlWSAccount(id string, rate float64, now time.Time) Account {
 	account := upstreamCostTestAccount(id, UpstreamBillingProbeStatusOK, rate, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(account, rate)
 	account.Status = StatusActive
@@ -33,7 +33,7 @@ func TestProfitControl_PreviousResponseStickyVetoKeepsBinding(t *testing.T) {
 	ctx := profitControlTestCtx(profitControlTestGroup("group-23", 0.5, 0))
 	groupID := "group-23"
 	now := time.Now()
-	expensive := profitControlWSAccount(31, 0.8, now)
+	expensive := profitControlWSAccount("31", 0.8, now)
 
 	cache := &stubGatewayCache{}
 	store := NewOpenAIWSStateStore(cache)
@@ -56,7 +56,7 @@ func TestProfitControl_PreviousResponseStickyVetoKeepsBinding(t *testing.T) {
 	require.Equal(t, expensive.ID, boundAccountID)
 
 	// 上游倍率回落（探测刷新）后同一绑定重新可用。
-	recovered := profitControlWSAccount(31, 0.3, time.Now())
+	recovered := profitControlWSAccount("31", 0.3, time.Now())
 	svc.accountRepo = stubOpenAIAccountRepo{accounts: []Account{recovered}}
 	selection, err = svc.SelectAccountByPreviousResponseID(ctx, &groupID, "resp_profit", "gpt-5.1", nil, false)
 	require.NoError(t, err)
@@ -70,8 +70,8 @@ func TestProfitControl_PreviousResponseStickyVetoKeepsBinding(t *testing.T) {
 // legacy 引擎（高级调度器关闭）：候选过滤、全排除错误语义与既有语义一致。
 func TestProfitControl_LegacyEngineFiltersCandidates(t *testing.T) {
 	now := time.Now()
-	cheap := upstreamCostTestAccount(41, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(42, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("41", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("42", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(cheap, 0.3)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	for _, account := range []*Account{cheap, expensive} {
@@ -126,8 +126,8 @@ func TestProfitControl_FailoverDoesNotReadmitExcluded(t *testing.T) {
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	cheap := upstreamCostTestAccount(51, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(52, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("51", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("52", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(cheap, 0.3)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	for _, account := range []*Account{cheap, expensive} {
@@ -160,7 +160,7 @@ func TestProfitControl_FailoverDoesNotReadmitExcluded(t *testing.T) {
 // 抢槽后终检：候选构建后才变得不合格的账号（状态竞态）在取得槽位前被拦截。
 func TestProfitControl_PostSlotRecheckVetoes(t *testing.T) {
 	now := time.Now()
-	expensive := upstreamCostTestAccount(61, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("61", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	expensive.Status = StatusActive
 	expensive.Schedulable = true
@@ -191,7 +191,7 @@ func TestProfitControl_RateRecoveryReadmitsAccount(t *testing.T) {
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	expensive := upstreamCostTestAccount(71, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("71", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	expensive.Status = StatusActive
 	expensive.Schedulable = true
@@ -213,7 +213,7 @@ func TestProfitControl_RateRecoveryReadmitsAccount(t *testing.T) {
 	require.Error(t, err)
 
 	// 同步/手工写回：账号倍率回落到 0.3（阈值 0.5 内）后自动恢复参与。
-	recovered := upstreamCostTestAccount(71, UpstreamBillingProbeStatusOK, 0.3, time.Now().Add(-time.Minute), 30*time.Minute)
+	recovered := upstreamCostTestAccount("71", UpstreamBillingProbeStatusOK, 0.3, time.Now().Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(recovered, 0.3)
 	recovered.Status = StatusActive
 	recovered.Schedulable = true
@@ -307,8 +307,8 @@ func TestProfitControl_EligibilityFunctionVetoes(t *testing.T) {
 		threshold: 0.5,
 		pricingAt: now,
 	})
-	cheap := upstreamCostTestAccount(81, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(82, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("81", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("82", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(cheap, 0.3)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	for _, account := range []*Account{cheap, expensive} {
@@ -326,8 +326,8 @@ func TestProfitControl_EligibilityFunctionVetoes(t *testing.T) {
 // 终检否决的账号不能成为新绑定；无门保持官方 eager 绑定与原 TTL 语义。
 func TestProfitControl_LegacyEngineDefersStickyBindingUnderGate(t *testing.T) {
 	now := time.Now()
-	cheap := upstreamCostTestAccount(45, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(46, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("45", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("46", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	profitControlTestAccountWithRate(cheap, 0.3)
 	profitControlTestAccountWithRate(expensive, 0.8)
 	for _, account := range []*Account{cheap, expensive} {

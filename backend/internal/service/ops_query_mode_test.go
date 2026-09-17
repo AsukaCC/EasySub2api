@@ -47,7 +47,7 @@ func TestCloneOpsFilterWithMode(t *testing.T) {
 	})
 
 	t.Run("cloned filter has new mode", func(t *testing.T) {
-		groupID := int64(42)
+		groupID := "42"
 		original := &OpsDashboardFilter{
 			StartTime: time.Now(),
 			EndTime:   time.Now().Add(time.Hour),

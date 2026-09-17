@@ -16,7 +16,7 @@ type updateAccountOveragesRepoStub struct {
 	updateCalls int
 }
 
-func (r *updateAccountOveragesRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *updateAccountOveragesRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	return r.account, nil
 }
 
@@ -27,7 +27,7 @@ func (r *updateAccountOveragesRepoStub) Update(ctx context.Context, account *Acc
 }
 
 func TestUpdateAccount_DisableOveragesClearsAICreditsKey(t *testing.T) {
-	accountID := int64(101)
+	accountID := "101"
 	repo := &updateAccountOveragesRepoStub{
 		account: &Account{
 			ID:       accountID,
@@ -86,7 +86,7 @@ func TestUpdateAccount_DisableOveragesClearsAICreditsKey(t *testing.T) {
 }
 
 func TestUpdateAccount_EnableOveragesClearsModelRateLimitsBeforePersist(t *testing.T) {
-	accountID := int64(102)
+	accountID := "102"
 	repo := &updateAccountOveragesRepoStub{
 		account: &Account{
 			ID:       accountID,
@@ -123,7 +123,7 @@ func TestUpdateAccount_EnableOveragesClearsModelRateLimitsBeforePersist(t *testi
 }
 
 func TestUpdateAccount_EmptyExtraPayloadCanClearQuotaLimits(t *testing.T) {
-	accountID := int64(103)
+	accountID := "103"
 	repo := &updateAccountOveragesRepoStub{
 		account: &Account{
 			ID:       accountID,
@@ -159,7 +159,7 @@ func TestUpdateAccount_FixedWeeklyResetClearsLegacyRollingUsage(t *testing.T) {
 	daysSinceMonday := (int(now.Weekday()) + 6) % 7
 	currentWeekStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -daysSinceMonday)
 	legacyRollingStart := currentWeekStart.Add(-24 * time.Hour)
-	accountID := int64(104)
+	accountID := "104"
 	repo := &updateAccountOveragesRepoStub{
 		account: &Account{
 			ID:       accountID,

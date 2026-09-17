@@ -18,7 +18,7 @@ type dbFallbackRepoStub struct {
 	dbAccount *Account // returned by GetByID when non-nil
 }
 
-func (r *dbFallbackRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *dbFallbackRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	if r.dbAccount != nil && r.dbAccount.ID == id {
 		return r.dbAccount, nil
 	}
@@ -33,14 +33,14 @@ func TestCheckErrorPolicy_401_DBFallback_Escalates(t *testing.T) {
 	t.Run("gemini_escalates", func(t *testing.T) {
 		repo := &dbFallbackRepoStub{
 			dbAccount: &Account{
-				ID:                      20,
+				ID: "20",
 				TempUnschedulableReason: `{"status_code":401,"until_unix":1735689600}`,
 			},
 		}
-		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		svc := NewRateLimitService(repo, &config.Config{}, nil)
 
 		account := &Account{
-			ID:                      20,
+			ID: "20",
 			Type:                    AccountTypeOAuth,
 			Platform:                PlatformGemini,
 			TempUnschedulableReason: "",
@@ -63,14 +63,14 @@ func TestCheckErrorPolicy_401_DBFallback_Escalates(t *testing.T) {
 	t.Run("antigravity_stays_temp", func(t *testing.T) {
 		repo := &dbFallbackRepoStub{
 			dbAccount: &Account{
-				ID:                      20,
+				ID: "20",
 				TempUnschedulableReason: `{"status_code":401,"until_unix":1735689600}`,
 			},
 		}
-		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		svc := NewRateLimitService(repo, &config.Config{}, nil)
 
 		account := &Account{
-			ID:                      20,
+			ID: "20",
 			Type:                    AccountTypeOAuth,
 			Platform:                PlatformAntigravity,
 			TempUnschedulableReason: "",
@@ -96,14 +96,14 @@ func TestCheckErrorPolicy_401_DBFallback_NoDBRecord_FirstHit(t *testing.T) {
 	// DB also has no previous 401 record → should NOT escalate (first hit → temp unscheduled).
 	repo := &dbFallbackRepoStub{
 		dbAccount: &Account{
-			ID:                      21,
+			ID: "21",
 			TempUnschedulableReason: "", // DB also empty
 		},
 	}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(repo, &config.Config{}, nil)
 
 	account := &Account{
-		ID:                      21,
+		ID: "21",
 		Type:                    AccountTypeOAuth,
 		Platform:                PlatformAntigravity,
 		TempUnschedulableReason: "",
@@ -129,10 +129,10 @@ func TestCheckErrorPolicy_401_DBFallback_DBError_FirstHit(t *testing.T) {
 	repo := &dbFallbackRepoStub{
 		dbAccount: nil, // GetByID returns nil, nil
 	}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(repo, &config.Config{}, nil)
 
 	account := &Account{
-		ID:                      22,
+		ID: "22",
 		Type:                    AccountTypeOAuth,
 		Platform:                PlatformAntigravity,
 		TempUnschedulableReason: "",

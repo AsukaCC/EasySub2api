@@ -18,7 +18,7 @@ type fakeInsertRecorder struct {
 	lastCtx context.Context // 捕获最后一次 BulkInsertInitial 收到的 ctx（用于断言事务隔离）
 }
 
-func (f *fakeInsertRecorder) GetByUserPlatform(_ context.Context, _ int64, _ string) (*UserPlatformQuotaRecord, error) {
+func (f *fakeInsertRecorder) GetByUserPlatform(_ context.Context, _ string, _ string) (*UserPlatformQuotaRecord, error) {
 	return nil, nil
 }
 
@@ -31,19 +31,19 @@ func (f *fakeInsertRecorder) BulkInsertInitial(ctx context.Context, recs []UserP
 	return nil
 }
 
-func (f *fakeInsertRecorder) IncrementUsageWithReset(_ context.Context, _ int64, _ string, _ float64, _ time.Time) error {
+func (f *fakeInsertRecorder) IncrementUsageWithReset(_ context.Context, _ string, _ string, _ float64, _ time.Time) error {
 	return nil
 }
 
-func (f *fakeInsertRecorder) ListByUser(_ context.Context, _ int64) ([]UserPlatformQuotaRecord, error) {
+func (f *fakeInsertRecorder) ListByUser(_ context.Context, _ string) ([]UserPlatformQuotaRecord, error) {
 	return nil, nil
 }
 
-func (f *fakeInsertRecorder) UpsertForUser(_ context.Context, _ int64, _ []UserPlatformQuotaRecord) error {
+func (f *fakeInsertRecorder) UpsertForUser(_ context.Context, _ string, _ []UserPlatformQuotaRecord) error {
 	return nil
 }
 
-func (f *fakeInsertRecorder) ResetExpiredWindow(_ context.Context, _ int64, _ string, _ string, _ time.Time) error {
+func (f *fakeInsertRecorder) ResetExpiredWindow(_ context.Context, _ string, _ string, _ string, _ time.Time) error {
 	return nil
 }
 
@@ -64,7 +64,7 @@ func TestSnapshotPlatformQuotaDefaults_PassesToRepoBulkInsert(t *testing.T) {
 			"antigravity": {},
 		},
 	}
-	if err := s.snapshotPlatformQuotaDefaults(context.Background(), 999, plan); err != nil {
+	if err := s.snapshotPlatformQuotaDefaults(context.Background(), "999", plan); err != nil {
 		t.Fatal(err)
 	}
 	if len(fakeRepo.records) != 4 {
@@ -72,7 +72,7 @@ func TestSnapshotPlatformQuotaDefaults_PassesToRepoBulkInsert(t *testing.T) {
 	}
 	found := false
 	for _, r := range fakeRepo.records {
-		if r.UserID == 999 && r.Platform == "anthropic" && r.DailyLimitUSD != nil && *r.DailyLimitUSD == 5 {
+		if r.UserID == "999" && r.Platform == "anthropic" && r.DailyLimitUSD != nil && *r.DailyLimitUSD == 5 {
 			found = true
 		}
 	}
@@ -100,7 +100,7 @@ func TestSnapshotPlatformQuotaDefaults_DetachesCallerTransaction(t *testing.T) {
 	// 模拟调用方（OAuth pending handler）在事务 ctx 中调用快照
 	txCtx := dbent.NewTxContext(context.Background(), &dbent.Tx{})
 
-	if err := s.snapshotPlatformQuotaDefaults(txCtx, 999, plan); err != nil {
+	if err := s.snapshotPlatformQuotaDefaults(txCtx, "999", plan); err != nil {
 		t.Fatalf("snapshot should not error (fail-open): %v", err)
 	}
 
@@ -115,7 +115,7 @@ func TestSnapshotPlatformQuotaDefaults_DetachesCallerTransaction(t *testing.T) {
 func TestSnapshotPlatformQuotaDefaults_NilPlanIsNoop(t *testing.T) {
 	fakeRepo := &fakeInsertRecorder{}
 	s := &AuthService{userPlatformQuotaRepo: fakeRepo}
-	if err := s.snapshotPlatformQuotaDefaults(context.Background(), 1, nil); err != nil {
+	if err := s.snapshotPlatformQuotaDefaults(context.Background(), "1", nil); err != nil {
 		t.Errorf("nil plan should be noop, got %v", err)
 	}
 	if len(fakeRepo.records) != 0 {
@@ -132,7 +132,7 @@ func TestSnapshotPlatformQuotaDefaults_RepoErrorFailsOpen(t *testing.T) {
 			"anthropic": {DailyLimitUSD: &five},
 		},
 	}
-	if err := s.snapshotPlatformQuotaDefaults(context.Background(), 1, plan); err != nil {
+	if err := s.snapshotPlatformQuotaDefaults(context.Background(), "1", plan); err != nil {
 		t.Errorf("fail-open: expected nil even on repo error, got %v", err)
 	}
 }
@@ -143,7 +143,7 @@ func TestSnapshotPlatformQuotaDefaults_NilRepoIsNoop(t *testing.T) {
 	plan := &signupGrantPlan{
 		PlatformQuotas: map[string]*DefaultPlatformQuotaSetting{"a": {DailyLimitUSD: &five}},
 	}
-	if err := s.snapshotPlatformQuotaDefaults(context.Background(), 1, plan); err != nil {
+	if err := s.snapshotPlatformQuotaDefaults(context.Background(), "1", plan); err != nil {
 		t.Errorf("nil repo should be noop, got %v", err)
 	}
 }

@@ -14,14 +14,13 @@ import (
 
 func TestAPIKeyService_TouchLastUsed_InvalidKeyID(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		updateLastUsed: func(ctx context.Context, id int64, usedAt time.Time) error {
+		updateLastUsed: func(ctx context.Context, id string, usedAt time.Time) error {
 			return errors.New("should not be called")
 		},
 	}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	require.NoError(t, svc.TouchLastUsed(context.Background(), 0))
-	require.NoError(t, svc.TouchLastUsed(context.Background(), -1))
+	require.NoError(t, svc.TouchLastUsed(context.Background(), ""))
 	require.Empty(t, repo.touchedIDs)
 }
 
@@ -29,13 +28,13 @@ func TestAPIKeyService_TouchLastUsed_FirstTouchSucceeds(t *testing.T) {
 	repo := &apiKeyRepoStub{}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	err := svc.TouchLastUsed(context.Background(), 123)
+	err := svc.TouchLastUsed(context.Background(), "123")
 	require.NoError(t, err)
-	require.Equal(t, []int64{123}, repo.touchedIDs)
+	require.Equal(t, []string{"123"}, repo.touchedIDs)
 	require.Len(t, repo.touchedUsedAts, 1)
 	require.False(t, repo.touchedUsedAts[0].IsZero())
 
-	cached, ok := svc.lastUsedTouchL1.Load(int64(123))
+	cached, ok := svc.lastUsedTouchL1.Load("123")
 	require.True(t, ok, "successful touch should update debounce cache")
 	_, isTime := cached.(time.Time)
 	require.True(t, isTime)
@@ -45,41 +44,41 @@ func TestAPIKeyService_TouchLastUsed_DebouncedWithinWindow(t *testing.T) {
 	repo := &apiKeyRepoStub{}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	require.NoError(t, svc.TouchLastUsed(context.Background(), 123))
-	require.NoError(t, svc.TouchLastUsed(context.Background(), 123))
+	require.NoError(t, svc.TouchLastUsed(context.Background(), "123"))
+	require.NoError(t, svc.TouchLastUsed(context.Background(), "123"))
 
-	require.Equal(t, []int64{123}, repo.touchedIDs, "second touch within debounce window should not hit repository")
+	require.Equal(t, []string{"123"}, repo.touchedIDs, "second touch within debounce window should not hit repository")
 }
 
 func TestAPIKeyService_TouchLastUsed_ExpiredDebounceTouchesAgain(t *testing.T) {
 	repo := &apiKeyRepoStub{}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	require.NoError(t, svc.TouchLastUsed(context.Background(), 123))
+	require.NoError(t, svc.TouchLastUsed(context.Background(), "123"))
 
 	// 强制将 debounce 时间回拨到窗口之外，触发第二次写库。
-	svc.lastUsedTouchL1.Store(int64(123), time.Now().Add(-apiKeyLastUsedMinTouch-time.Second))
+	svc.lastUsedTouchL1.Store("123", time.Now().Add(-apiKeyLastUsedMinTouch-time.Second))
 
-	require.NoError(t, svc.TouchLastUsed(context.Background(), 123))
+	require.NoError(t, svc.TouchLastUsed(context.Background(), "123"))
 	require.Len(t, repo.touchedIDs, 2)
-	require.Equal(t, int64(123), repo.touchedIDs[0])
-	require.Equal(t, int64(123), repo.touchedIDs[1])
+	require.Equal(t, "123", repo.touchedIDs[0])
+	require.Equal(t, "123", repo.touchedIDs[1])
 }
 
 func TestAPIKeyService_TouchLastUsed_RepoError(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		updateLastUsed: func(ctx context.Context, id int64, usedAt time.Time) error {
+		updateLastUsed: func(ctx context.Context, id string, usedAt time.Time) error {
 			return errors.New("db write failed")
 		},
 	}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	err := svc.TouchLastUsed(context.Background(), 123)
+	err := svc.TouchLastUsed(context.Background(), "123")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "touch api key last used")
-	require.Equal(t, []int64{123}, repo.touchedIDs)
+	require.Equal(t, []string{"123"}, repo.touchedIDs)
 
-	cached, ok := svc.lastUsedTouchL1.Load(int64(123))
+	cached, ok := svc.lastUsedTouchL1.Load("123")
 	require.True(t, ok, "failed touch should still update retry debounce cache")
 	_, isTime := cached.(time.Time)
 	require.True(t, isTime)
@@ -87,19 +86,19 @@ func TestAPIKeyService_TouchLastUsed_RepoError(t *testing.T) {
 
 func TestAPIKeyService_TouchLastUsed_RepoErrorDebounced(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		updateLastUsed: func(ctx context.Context, id int64, usedAt time.Time) error {
+		updateLastUsed: func(ctx context.Context, id string, usedAt time.Time) error {
 			return errors.New("db write failed")
 		},
 	}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	firstErr := svc.TouchLastUsed(context.Background(), 456)
+	firstErr := svc.TouchLastUsed(context.Background(), "456")
 	require.Error(t, firstErr)
 	require.ErrorContains(t, firstErr, "touch api key last used")
 
-	secondErr := svc.TouchLastUsed(context.Background(), 456)
+	secondErr := svc.TouchLastUsed(context.Background(), "456")
 	require.NoError(t, secondErr, "failed touch should be debounced and skip immediate retry")
-	require.Equal(t, []int64{456}, repo.touchedIDs, "debounced retry should not hit repository again")
+	require.Equal(t, []string{"456"}, repo.touchedIDs, "debounced retry should not hit repository again")
 }
 
 type touchSingleflightRepo struct {
@@ -109,7 +108,7 @@ type touchSingleflightRepo struct {
 	blockCh chan struct{}
 }
 
-func (r *touchSingleflightRepo) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
+func (r *touchSingleflightRepo) UpdateLastUsed(ctx context.Context, id string, usedAt time.Time) error {
 	r.mu.Lock()
 	r.calls++
 	r.mu.Unlock()
@@ -134,7 +133,7 @@ func TestAPIKeyService_TouchLastUsed_ConcurrentFirstTouchDeduplicated(t *testing
 		go func() {
 			defer wg.Done()
 			<-startCh
-			errCh <- svc.TouchLastUsed(context.Background(), 321)
+			errCh <- svc.TouchLastUsed(context.Background(), "321")
 		}()
 	}
 

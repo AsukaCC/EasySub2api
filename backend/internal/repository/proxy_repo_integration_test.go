@@ -311,7 +311,7 @@ func (s *ProxyRepoSuite) mustCreateProxyWithTimes(name, status string, createdAt
 	return p
 }
 
-func (s *ProxyRepoSuite) mustInsertAccount(name string, proxyID *int64) {
+func (s *ProxyRepoSuite) mustInsertAccount(name string, proxyID *string) {
 	s.T().Helper()
 	var pid any
 	if proxyID != nil {

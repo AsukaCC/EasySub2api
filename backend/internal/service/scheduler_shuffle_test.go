@@ -18,10 +18,10 @@ func TestShuffleWithinSortGroups_Empty(t *testing.T) {
 
 func TestShuffleWithinSortGroups_SingleElement(t *testing.T) {
 	accounts := []accountWithLoad{
-		{account: &Account{ID: 1, Priority: 1}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "1", Priority: 1}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
 	shuffleWithinSortGroups(accounts)
-	require.Equal(t, int64(1), accounts[0].account.ID)
+	require.Equal(t, "1", accounts[0].account.ID)
 }
 
 func TestShuffleWithinSortGroups_DifferentGroups_OrderPreserved(t *testing.T) {
@@ -29,9 +29,9 @@ func TestShuffleWithinSortGroups_DifferentGroups_OrderPreserved(t *testing.T) {
 	earlier := now.Add(-1 * time.Hour)
 
 	accounts := []accountWithLoad{
-		{account: &Account{ID: 1, Priority: 1, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
-		{account: &Account{ID: 2, Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
-		{account: &Account{ID: 3, Priority: 2, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "1", Priority: 1, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "2", Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
+		{account: &Account{ID: "3", Priority: 2, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
 
 	// 每个元素都属于不同组（Priority 或 LoadRate 或 LastUsedAt 不同），顺序不变
@@ -39,9 +39,9 @@ func TestShuffleWithinSortGroups_DifferentGroups_OrderPreserved(t *testing.T) {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
 		shuffleWithinSortGroups(cpy)
-		require.Equal(t, int64(1), cpy[0].account.ID)
-		require.Equal(t, int64(2), cpy[1].account.ID)
-		require.Equal(t, int64(3), cpy[2].account.ID)
+		require.Equal(t, "1", cpy[0].account.ID)
+		require.Equal(t, "2", cpy[1].account.ID)
+		require.Equal(t, "3", cpy[2].account.ID)
 	}
 }
 
@@ -52,24 +52,24 @@ func TestShuffleWithinSortGroups_SameGroup_Shuffled(t *testing.T) {
 	sameSecond2 := time.Unix(now.Unix(), 500_000_000) // 同一秒但不同纳秒
 
 	accounts := []accountWithLoad{
-		{account: &Account{ID: 1, Priority: 1, LastUsedAt: &sameSecond}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
-		{account: &Account{ID: 2, Priority: 1, LastUsedAt: &sameSecond2}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
-		{account: &Account{ID: 3, Priority: 1, LastUsedAt: &sameSecond}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "1", Priority: 1, LastUsedAt: &sameSecond}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "2", Priority: 1, LastUsedAt: &sameSecond2}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "3", Priority: 1, LastUsedAt: &sameSecond}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
 
 	// 多次执行，验证所有 ID 都出现在第一个位置（说明确实被打乱了）
-	seen := map[int64]bool{}
+	seen := map[string]bool{}
 	for i := 0; i < 100; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
 		shuffleWithinSortGroups(cpy)
 		seen[cpy[0].account.ID] = true
 		// 无论怎么打乱，所有 ID 都应在候选中
-		ids := map[int64]bool{}
+		ids := map[string]bool{}
 		for _, a := range cpy {
 			ids[a.account.ID] = true
 		}
-		require.True(t, ids[1] && ids[2] && ids[3])
+		require.True(t, ids["1"] && ids["2"] && ids["3"])
 	}
 	// 至少 2 个不同的 ID 出现在首位（随机性验证）
 	require.GreaterOrEqual(t, len(seen), 2, "shuffle should produce different orderings")
@@ -77,12 +77,12 @@ func TestShuffleWithinSortGroups_SameGroup_Shuffled(t *testing.T) {
 
 func TestShuffleWithinSortGroups_NilLastUsedAt_SameGroup(t *testing.T) {
 	accounts := []accountWithLoad{
-		{account: &Account{ID: 1, Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
-		{account: &Account{ID: 2, Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
-		{account: &Account{ID: 3, Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
+		{account: &Account{ID: "1", Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
+		{account: &Account{ID: "2", Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
+		{account: &Account{ID: "3", Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
 	}
 
-	seen := map[int64]bool{}
+	seen := map[string]bool{}
 	for i := 0; i < 100; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
@@ -101,10 +101,10 @@ func TestShuffleWithinSortGroups_MixedGroups(t *testing.T) {
 	// 组2: Priority=1, LoadRate=20, LastUsedAt=now (ID 2, 3)   — 双元素组
 	// 组3: Priority=2, LoadRate=10, LastUsedAt=earlier (ID 4)  — 单元素组
 	accounts := []accountWithLoad{
-		{account: &Account{ID: 1, Priority: 1, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
-		{account: &Account{ID: 2, Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
-		{account: &Account{ID: 3, Priority: 1, LastUsedAt: &sameAsNow}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
-		{account: &Account{ID: 4, Priority: 2, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "1", Priority: 1, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: "2", Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
+		{account: &Account{ID: "3", Priority: 1, LastUsedAt: &sameAsNow}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
+		{account: &Account{ID: "4", Priority: 2, LastUsedAt: &earlier}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
 
 	for i := 0; i < 20; i++ {
@@ -113,12 +113,12 @@ func TestShuffleWithinSortGroups_MixedGroups(t *testing.T) {
 		shuffleWithinSortGroups(cpy)
 
 		// 组间顺序不变
-		require.Equal(t, int64(1), cpy[0].account.ID, "group 1 position fixed")
-		require.Equal(t, int64(4), cpy[3].account.ID, "group 3 position fixed")
+		require.Equal(t, "1", cpy[0].account.ID, "group 1 position fixed")
+		require.Equal(t, "4", cpy[3].account.ID, "group 3 position fixed")
 
 		// 组2 内部可以打乱，但仍在位置 1 和 2
-		mid := map[int64]bool{cpy[1].account.ID: true, cpy[2].account.ID: true}
-		require.True(t, mid[2] && mid[3], "group 2 elements should stay in positions 1-2")
+		mid := map[string]bool{cpy[1].account.ID: true, cpy[2].account.ID: true}
+		require.True(t, mid["2"] && mid["3"], "group 2 elements should stay in positions 1-2")
 	}
 }
 
@@ -130,19 +130,19 @@ func TestShuffleWithinPriorityAndLastUsed_Empty(t *testing.T) {
 }
 
 func TestShuffleWithinPriorityAndLastUsed_SingleElement(t *testing.T) {
-	accounts := []*Account{{ID: 1, Priority: 1}}
+	accounts := []*Account{{ID: "1", Priority: 1}}
 	shuffleWithinPriorityAndLastUsed(accounts, false)
-	require.Equal(t, int64(1), accounts[0].ID)
+	require.Equal(t, "1", accounts[0].ID)
 }
 
 func TestShuffleWithinPriorityAndLastUsed_SameGroup_Shuffled(t *testing.T) {
 	accounts := []*Account{
-		{ID: 1, Priority: 1, LastUsedAt: nil},
-		{ID: 2, Priority: 1, LastUsedAt: nil},
-		{ID: 3, Priority: 1, LastUsedAt: nil},
+		{ID: "1", Priority: 1, LastUsedAt: nil},
+		{ID: "2", Priority: 1, LastUsedAt: nil},
+		{ID: "3", Priority: 1, LastUsedAt: nil},
 	}
 
-	seen := map[int64]bool{}
+	seen := map[string]bool{}
 	for i := 0; i < 100; i++ {
 		cpy := make([]*Account, len(accounts))
 		copy(cpy, accounts)
@@ -154,18 +154,18 @@ func TestShuffleWithinPriorityAndLastUsed_SameGroup_Shuffled(t *testing.T) {
 
 func TestShuffleWithinPriorityAndLastUsed_DifferentPriority_OrderPreserved(t *testing.T) {
 	accounts := []*Account{
-		{ID: 1, Priority: 1, LastUsedAt: nil},
-		{ID: 2, Priority: 2, LastUsedAt: nil},
-		{ID: 3, Priority: 3, LastUsedAt: nil},
+		{ID: "1", Priority: 1, LastUsedAt: nil},
+		{ID: "2", Priority: 2, LastUsedAt: nil},
+		{ID: "3", Priority: 3, LastUsedAt: nil},
 	}
 
 	for i := 0; i < 20; i++ {
 		cpy := make([]*Account, len(accounts))
 		copy(cpy, accounts)
 		shuffleWithinPriorityAndLastUsed(cpy, false)
-		require.Equal(t, int64(1), cpy[0].ID)
-		require.Equal(t, int64(2), cpy[1].ID)
-		require.Equal(t, int64(3), cpy[2].ID)
+		require.Equal(t, "1", cpy[0].ID)
+		require.Equal(t, "2", cpy[1].ID)
+		require.Equal(t, "3", cpy[2].ID)
 	}
 }
 
@@ -174,18 +174,18 @@ func TestShuffleWithinPriorityAndLastUsed_DifferentLastUsedAt_OrderPreserved(t *
 	earlier := now.Add(-1 * time.Hour)
 
 	accounts := []*Account{
-		{ID: 1, Priority: 1, LastUsedAt: nil},
-		{ID: 2, Priority: 1, LastUsedAt: &earlier},
-		{ID: 3, Priority: 1, LastUsedAt: &now},
+		{ID: "1", Priority: 1, LastUsedAt: nil},
+		{ID: "2", Priority: 1, LastUsedAt: &earlier},
+		{ID: "3", Priority: 1, LastUsedAt: &now},
 	}
 
 	for i := 0; i < 20; i++ {
 		cpy := make([]*Account, len(accounts))
 		copy(cpy, accounts)
 		shuffleWithinPriorityAndLastUsed(cpy, false)
-		require.Equal(t, int64(1), cpy[0].ID)
-		require.Equal(t, int64(2), cpy[1].ID)
-		require.Equal(t, int64(3), cpy[2].ID)
+		require.Equal(t, "1", cpy[0].ID)
+		require.Equal(t, "2", cpy[1].ID)
+		require.Equal(t, "3", cpy[2].ID)
 	}
 }
 
@@ -287,12 +287,12 @@ func TestSameAccountGroup(t *testing.T) {
 func TestSortAccountsByPriorityAndLastUsed_WithShuffle(t *testing.T) {
 	t.Run("same priority and nil LastUsedAt are shuffled", func(t *testing.T) {
 		accounts := []*Account{
-			{ID: 1, Priority: 1, LastUsedAt: nil},
-			{ID: 2, Priority: 1, LastUsedAt: nil},
-			{ID: 3, Priority: 1, LastUsedAt: nil},
+			{ID: "1", Priority: 1, LastUsedAt: nil},
+			{ID: "2", Priority: 1, LastUsedAt: nil},
+			{ID: "3", Priority: 1, LastUsedAt: nil},
 		}
 
-		seen := map[int64]bool{}
+		seen := map[string]bool{}
 		for i := 0; i < 100; i++ {
 			cpy := make([]*Account, len(accounts))
 			copy(cpy, accounts)
@@ -305,14 +305,14 @@ func TestSortAccountsByPriorityAndLastUsed_WithShuffle(t *testing.T) {
 	t.Run("different priorities still sorted correctly", func(t *testing.T) {
 		now := time.Now()
 		accounts := []*Account{
-			{ID: 3, Priority: 3, LastUsedAt: &now},
-			{ID: 1, Priority: 1, LastUsedAt: &now},
-			{ID: 2, Priority: 2, LastUsedAt: &now},
+			{ID: "3", Priority: 3, LastUsedAt: &now},
+			{ID: "1", Priority: 1, LastUsedAt: &now},
+			{ID: "2", Priority: 2, LastUsedAt: &now},
 		}
 
 		sortAccountsByPriorityAndLastUsed(accounts, false)
-		require.Equal(t, int64(1), accounts[0].ID)
-		require.Equal(t, int64(2), accounts[1].ID)
-		require.Equal(t, int64(3), accounts[2].ID)
+		require.Equal(t, "1", accounts[0].ID)
+		require.Equal(t, "2", accounts[1].ID)
+		require.Equal(t, "3", accounts[2].ID)
 	})
 }

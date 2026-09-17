@@ -66,7 +66,7 @@ func TestBuildBalanceLowEmailBody_NoRechargeURLOmitsButton(t *testing.T) {
 func TestBuildQuotaAlertEmailBody_AllFieldsPresent(t *testing.T) {
 	s := &BalanceNotifyService{}
 	body := s.buildQuotaAlertEmailBody(
-		42,            // accountID
+		"42",          // accountID
 		"acc-foo",     // accountName
 		"anthropic",   // platform
 		"日限额 / Daily", // dimLabel
@@ -95,7 +95,7 @@ func TestBuildQuotaAlertEmailBody_AllFieldsPresent(t *testing.T) {
 func TestBuildQuotaAlertEmailBody_UnlimitedDisplay(t *testing.T) {
 	s := &BalanceNotifyService{}
 	body := s.buildQuotaAlertEmailBody(
-		1, "n", "p", "dim",
+		"1", "n", "p", "dim",
 		100.0, 0.0, // limit=0 triggers unlimited branch
 		0.0, "30%", "Site",
 	)
@@ -106,7 +106,7 @@ func TestBuildQuotaAlertEmailBody_UnlimitedDisplay(t *testing.T) {
 func TestBuildQuotaAlertEmailBody_PercentageThresholdDisplay(t *testing.T) {
 	s := &BalanceNotifyService{}
 	body := s.buildQuotaAlertEmailBody(
-		1, "n", "p", "dim",
+		"1", "n", "p", "dim",
 		700.0, 1000.0, 300.0,
 		"30%", // percentage-formatted threshold
 		"Site",
@@ -120,7 +120,7 @@ func TestBuildQuotaAlertEmailBody_RemainingClampedAtZero(t *testing.T) {
 	// display behavior with remaining=0.
 	s := &BalanceNotifyService{}
 	body := s.buildQuotaAlertEmailBody(
-		1, "n", "p", "dim",
+		"1", "n", "p", "dim",
 		1500.0, 1000.0, 0.0, // used > limit (over-quota)
 		"$100.00", "Site",
 	)
@@ -141,7 +141,7 @@ func TestBuildBalanceLowEmailBody_NoCSSFormatError(t *testing.T) {
 
 func TestBuildQuotaAlertEmailBody_NoCSSFormatError(t *testing.T) {
 	s := &BalanceNotifyService{}
-	body := s.buildQuotaAlertEmailBody(1, "n", "p", "d", 0, 0, 0, "$0.00", "Site")
+	body := s.buildQuotaAlertEmailBody("1", "n", "p", "d", 0, 0, 0, "$0.00", "Site")
 	require.True(t,
 		strings.Contains(body, "0%") && strings.Contains(body, "100%"),
 		"CSS gradient percentages not rendered; got: %s", body)

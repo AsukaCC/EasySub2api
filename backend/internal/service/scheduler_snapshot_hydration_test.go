@@ -12,7 +12,7 @@ import (
 
 type snapshotHydrationCache struct {
 	snapshot []*Account
-	accounts map[int64]*Account
+	accounts map[string]*Account
 }
 
 func (c *snapshotHydrationCache) GetSnapshot(ctx context.Context, bucket SchedulerBucket) ([]*Account, bool, error) {
@@ -35,7 +35,7 @@ func (c *snapshotHydrationCache) ReopenBucket(ctx context.Context, bucket Schedu
 	return SchedulerBucketWriteToken{Bucket: bucket, Epoch: 1}, nil
 }
 
-func (c *snapshotHydrationCache) TryAcquireGroupLifecycleLease(context.Context, int64, time.Duration) (SchedulerGroupLifecycleLease, bool, error) {
+func (c *snapshotHydrationCache) TryAcquireGroupLifecycleLease(context.Context, string, time.Duration) (SchedulerGroupLifecycleLease, bool, error) {
 	return SchedulerGroupLifecycleLease{}, false, nil
 }
 
@@ -43,7 +43,7 @@ func (c *snapshotHydrationCache) ReleaseGroupLifecycleLease(context.Context, Sch
 	return nil
 }
 
-func (c *snapshotHydrationCache) GetAccount(ctx context.Context, accountID int64) (*Account, error) {
+func (c *snapshotHydrationCache) GetAccount(ctx context.Context, accountID string) (*Account, error) {
 	if c.accounts == nil {
 		return nil, nil
 	}
@@ -54,11 +54,11 @@ func (c *snapshotHydrationCache) SetAccount(ctx context.Context, account *Accoun
 	return nil
 }
 
-func (c *snapshotHydrationCache) DeleteAccount(ctx context.Context, accountID int64) error {
+func (c *snapshotHydrationCache) DeleteAccount(ctx context.Context, accountID string) error {
 	return nil
 }
 
-func (c *snapshotHydrationCache) UpdateLastUsed(ctx context.Context, updates map[int64]time.Time) error {
+func (c *snapshotHydrationCache) UpdateLastUsed(ctx context.Context, updates map[string]time.Time) error {
 	return nil
 }
 
@@ -74,11 +74,11 @@ func (c *snapshotHydrationCache) ListBuckets(ctx context.Context) ([]SchedulerBu
 	return nil, nil
 }
 
-func (c *snapshotHydrationCache) GetOutboxWatermark(ctx context.Context) (int64, error) {
-	return 0, nil
+func (c *snapshotHydrationCache) GetOutboxWatermark(ctx context.Context) (string, error) {
+	return "", nil
 }
 
-func (c *snapshotHydrationCache) SetOutboxWatermark(ctx context.Context, id int64) error {
+func (c *snapshotHydrationCache) SetOutboxWatermark(ctx context.Context, id string) error {
 	return nil
 }
 
@@ -86,7 +86,7 @@ func TestOpenAISelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedul
 	cache := &snapshotHydrationCache{
 		snapshot: []*Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -100,9 +100,9 @@ func TestOpenAISelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedul
 				},
 			},
 		},
-		accounts: map[int64]*Account{
-			1: {
-				ID:          1,
+		accounts: map[string]*Account{
+			"1": {
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -118,7 +118,7 @@ func TestOpenAISelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedul
 	}
 
 	schedulerSnapshot := NewSchedulerSnapshotService(cache, nil, nil, nil, nil)
-	groupID := int64(2)
+	groupID := "2"
 	svc := &OpenAIGatewayService{
 		schedulerSnapshot: schedulerSnapshot,
 		cache:             &stubGatewayCache{},
@@ -138,7 +138,7 @@ func TestOpenAISelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedul
 
 func TestOpenAINewAcquiredSelectionResult_ReleasesSlotWhenHydrationFails(t *testing.T) {
 	cache := &snapshotHydrationCache{
-		accounts: map[int64]*Account{},
+		accounts: map[string]*Account{},
 	}
 	schedulerSnapshot := NewSchedulerSnapshotService(cache, nil, stubOpenAIAccountRepo{}, nil, nil)
 	svc := &OpenAIGatewayService{
@@ -146,7 +146,7 @@ func TestOpenAINewAcquiredSelectionResult_ReleasesSlotWhenHydrationFails(t *test
 	}
 	releaseCalls := 0
 
-	selection, err := svc.newAcquiredSelectionResult(context.Background(), &Account{ID: 1001}, func() {
+	selection, err := svc.newAcquiredSelectionResult(context.Background(), &Account{ID: "1001"}, func() {
 		releaseCalls++
 	})
 
@@ -165,7 +165,7 @@ func TestGatewaySelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedu
 	cache := &snapshotHydrationCache{
 		snapshot: []*Account{
 			{
-				ID:          9,
+				ID: "9",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -174,9 +174,9 @@ func TestGatewaySelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedu
 				Priority:    1,
 			},
 		},
-		accounts: map[int64]*Account{
-			9: {
-				ID:          9,
+		accounts: map[string]*Account{
+			"9": {
+				ID: "9",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -197,7 +197,7 @@ func TestGatewaySelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedu
 		cfg:               testConfig(),
 	}
 
-	result, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "claude-3-5-sonnet-20241022", nil, "", 0)
+	result, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "claude-3-5-sonnet-20241022", nil, "", "")
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 	cache := &snapshotHydrationCache{
 		snapshot: []*Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformAntigravity,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -222,9 +222,9 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 				Concurrency: 1,
 				Priority:    1,
 				AccountGroups: []AccountGroup{
-					{AccountID: 1, GroupID: 22},
+					{AccountID: "1", GroupID: "22"},
 				},
-				GroupIDs: []int64{22},
+				GroupIDs: []string{"22"},
 				Extra: map[string]any{
 					"mixed_scheduling": true,
 					modelRateLimitsKey: map[string]any{
@@ -235,7 +235,7 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 				},
 			},
 			{
-				ID:          2,
+				ID: "2",
 				Platform:    PlatformAntigravity,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -243,24 +243,24 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 				Concurrency: 1,
 				Priority:    2,
 				AccountGroups: []AccountGroup{
-					{AccountID: 2, GroupID: 22},
+					{AccountID: "2", GroupID: "22"},
 				},
-				GroupIDs: []int64{22},
+				GroupIDs: []string{"22"},
 				Extra: map[string]any{
 					"mixed_scheduling": true,
 				},
 			},
 		},
-		accounts: map[int64]*Account{
-			1: {ID: 1, Platform: PlatformAntigravity, Type: AccountTypeOAuth},
-			2: {ID: 2, Platform: PlatformAntigravity, Type: AccountTypeOAuth},
+		accounts: map[string]*Account{
+			"1": {ID: "1", Platform: PlatformAntigravity, Type: AccountTypeOAuth},
+			"2": {ID: "2", Platform: PlatformAntigravity, Type: AccountTypeOAuth},
 		},
 	}
-	groupID := int64(22)
+	groupID := "22"
 	svc := &GatewayService{
 		schedulerSnapshot: NewSchedulerSnapshotService(cache, nil, nil, nil, nil),
 		groupRepo: &mockGroupRepoForGateway{
-			groups: map[int64]*Group{
+			groups: map[string]*Group{
 				groupID: {
 					ID:       groupID,
 					Platform: PlatformGemini,
@@ -283,14 +283,14 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 		},
 	}
 
-	result, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gemini-3-flash-preview", nil, "", 0)
+	result, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gemini-3-flash-preview", nil, "", "")
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
 	if result == nil || result.Account == nil {
 		t.Fatalf("expected selected account")
 	}
-	if result.Account.ID != 2 {
-		t.Fatalf("expected scheduler to skip Gemini-family limited antigravity account 1, got %d", result.Account.ID)
+	if result.Account.ID != "2" {
+		t.Fatalf("expected scheduler to skip Gemini-family limited antigravity account 1, got %s", result.Account.ID)
 	}
 }

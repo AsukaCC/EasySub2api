@@ -15,7 +15,7 @@ type updateAccountCredsRepoStub struct {
 	updateCalls int
 }
 
-func (r *updateAccountCredsRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *updateAccountCredsRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	return r.account, nil
 }
 
@@ -26,7 +26,7 @@ func (r *updateAccountCredsRepoStub) Update(ctx context.Context, account *Accoun
 }
 
 func TestUpdateAccount_PreservesSensitiveCredsWhenIncomingOmits(t *testing.T) {
-	accountID := int64(202)
+	accountID := "202"
 	repo := &updateAccountCredsRepoStub{
 		account: &Account{
 			ID:       accountID,
@@ -63,7 +63,7 @@ func TestUpdateAccount_PreservesSensitiveCredsWhenIncomingOmits(t *testing.T) {
 }
 
 func TestUpdateAccount_ExplicitNewTokenOverwrites(t *testing.T) {
-	accountID := int64(203)
+	accountID := "203"
 	repo := &updateAccountCredsRepoStub{
 		account: &Account{
 			ID:       accountID,
@@ -92,7 +92,7 @@ func TestUpdateAccount_ExplicitNewTokenOverwrites(t *testing.T) {
 }
 
 func TestUpdateAccount_EmptyCredentialsSkipsUpdate(t *testing.T) {
-	accountID := int64(204)
+	accountID := "204"
 	repo := &updateAccountCredsRepoStub{
 		account: &Account{
 			ID:       accountID,

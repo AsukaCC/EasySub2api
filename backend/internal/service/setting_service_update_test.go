@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
-	"github.com/AsukaCC/EasySub2api/internal/pkg/antigravity"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -145,45 +144,10 @@ func (s *forwardedIPMigrationRepoStub) Delete(context.Context, string) error {
 	panic("unexpected Delete call")
 }
 
-type settingAntigravityUARepoStub struct {
-	values map[string]string
-}
-
-func (s *settingAntigravityUARepoStub) Get(ctx context.Context, key string) (*Setting, error) {
-	panic("unexpected Get call")
-}
-
-func (s *settingAntigravityUARepoStub) GetValue(ctx context.Context, key string) (string, error) {
-	if value, ok := s.values[key]; ok {
-		return value, nil
-	}
-	return "", ErrSettingNotFound
-}
-
-func (s *settingAntigravityUARepoStub) Set(ctx context.Context, key, value string) error {
-	panic("unexpected Set call")
-}
-
-func (s *settingAntigravityUARepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
-	panic("unexpected GetMultiple call")
-}
-
-func (s *settingAntigravityUARepoStub) SetMultiple(ctx context.Context, settings map[string]string) error {
-	panic("unexpected SetMultiple call")
-}
-
-func (s *settingAntigravityUARepoStub) GetAll(ctx context.Context) (map[string]string, error) {
-	panic("unexpected GetAll call")
-}
-
-func (s *settingAntigravityUARepoStub) Delete(ctx context.Context, key string) error {
-	panic("unexpected Delete call")
-}
-
 type defaultSubGroupReaderStub struct {
-	byID  map[int64]*Group
-	errBy map[int64]error
-	calls []int64
+	byID  map[string]*Group
+	errBy map[string]error
+	calls []string
 }
 
 func TestSettingService_AffiliateAdminRechargeSetting(t *testing.T) {
@@ -217,7 +181,7 @@ func TestSettingService_AffiliateAdminRechargeSetting(t *testing.T) {
 	})
 }
 
-func (s *defaultSubGroupReaderStub) GetByID(ctx context.Context, id int64) (*Group, error) {
+func (s *defaultSubGroupReaderStub) GetByID(ctx context.Context, id string) (*Group, error) {
 	s.calls = append(s.calls, id)
 	if err, ok := s.errBy[id]; ok {
 		return nil, err
@@ -241,8 +205,8 @@ func TestSettingService_UpdateSettings_PersistsCompactHomeEnabled(t *testing.T) 
 func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
-		byID: map[int64]*Group{
-			11: {ID: 11, SubscriptionType: SubscriptionTypeSubscription},
+		byID: map[string]*Group{
+			"11": {ID: "11", SubscriptionType: SubscriptionTypeSubscription},
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -250,11 +214,11 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testin
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
-			{GroupID: 11, ValidityDays: 30},
+			{GroupID: "11", ValidityDays: 30},
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, []int64{11}, groupReader.calls)
+	require.Equal(t, []string{"11"}, groupReader.calls)
 
 	raw, ok := repo.updates[SettingKeyDefaultSubscriptions]
 	require.True(t, ok)
@@ -262,15 +226,15 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testin
 	var got []DefaultSubscriptionSetting
 	require.NoError(t, json.Unmarshal([]byte(raw), &got))
 	require.Equal(t, []DefaultSubscriptionSetting{
-		{GroupID: 11, ValidityDays: 30},
+		{GroupID: "11", ValidityDays: 30},
 	}, got)
 }
 
 func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscriptionGroup(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
-		byID: map[int64]*Group{
-			12: {ID: 12, SubscriptionType: SubscriptionTypeStandard},
+		byID: map[string]*Group{
+			"12": {ID: "12", SubscriptionType: SubscriptionTypeStandard},
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -278,7 +242,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscripti
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
-			{GroupID: 12, ValidityDays: 7},
+			{GroupID: "12", ValidityDays: 7},
 		},
 	})
 	require.Error(t, err)
@@ -289,8 +253,8 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscripti
 func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNotFoundGroup(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
-		errBy: map[int64]error{
-			13: ErrGroupNotFound,
+		errBy: map[string]error{
+			"13": ErrGroupNotFound,
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -298,7 +262,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNotFoundGroup
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
-			{GroupID: 13, ValidityDays: 7},
+			{GroupID: "13", ValidityDays: 7},
 		},
 	})
 	require.Error(t, err)
@@ -310,8 +274,8 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNotFoundGroup
 func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGroup(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
-		byID: map[int64]*Group{
-			11: {ID: 11, SubscriptionType: SubscriptionTypeSubscription},
+		byID: map[string]*Group{
+			"11": {ID: "11", SubscriptionType: SubscriptionTypeSubscription},
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -319,8 +283,8 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
-			{GroupID: 11, ValidityDays: 30},
-			{GroupID: 11, ValidityDays: 60},
+			{GroupID: "11", ValidityDays: 30},
+			{GroupID: "11", ValidityDays: 60},
 		},
 	})
 	require.Error(t, err)
@@ -335,8 +299,8 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
-			{GroupID: 11, ValidityDays: 30},
-			{GroupID: 11, ValidityDays: 60},
+			{GroupID: "11", ValidityDays: 30},
+			{GroupID: "11", ValidityDays: 60},
 		},
 	})
 	require.Error(t, err)
@@ -370,9 +334,9 @@ func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Invalid(
 func TestParseDefaultSubscriptions_NormalizesValues(t *testing.T) {
 	got := parseDefaultSubscriptions(`[{"group_id":11,"validity_days":30},{"group_id":11,"validity_days":60},{"group_id":0,"validity_days":10},{"group_id":12,"validity_days":99999}]`)
 	require.Equal(t, []DefaultSubscriptionSetting{
-		{GroupID: 11, ValidityDays: 30},
-		{GroupID: 11, ValidityDays: 60},
-		{GroupID: 12, ValidityDays: MaxValidityDays},
+		{GroupID: "11", ValidityDays: 30},
+		{GroupID: "11", ValidityDays: 60},
+		{GroupID: "12", ValidityDays: MaxValidityDays},
 	}, got)
 }
 
@@ -550,17 +514,6 @@ func TestSettingService_GetAllSettings_OpenAIAdvancedSchedulerEffectiveValuesUse
 	require.Equal(t, "3", settings.OpenAIAdvancedSchedulerEffectiveWeightLoad)
 	require.Equal(t, "9", settings.OpenAIAdvancedSchedulerEffectiveWeightUpstreamCost)
 	require.Equal(t, "11", settings.OpenAIAdvancedSchedulerEffectiveWeightSessionSticky)
-}
-
-func TestSettingService_UpdateSettings_AntigravityUserAgentVersion(t *testing.T) {
-	repo := &settingUpdateRepoStub{}
-	svc := NewSettingService(repo, &config.Config{})
-
-	err := svc.UpdateSettings(context.Background(), &SystemSettings{
-		AntigravityUserAgentVersion: "1.23.2",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "1.23.2", repo.updates[SettingKeyAntigravityUserAgentVersion])
 }
 
 func TestSettingService_InitializeDefaultSettingsPersistsConfiguredForwardedClientIPHeaders(t *testing.T) {
@@ -822,30 +775,6 @@ func TestSettingService_LoadForwardedClientIPSettingsWriteFailureUsesComputedMod
 			require.Equal(t, test.wantEnabled, cfg.TrustForwardedIPForAPIKeyACL())
 		})
 	}
-}
-
-func TestSettingService_GetAntigravityUserAgentVersion_Precedence(t *testing.T) {
-	t.Run("后台设置优先", func(t *testing.T) {
-		svc := NewSettingService(&settingAntigravityUARepoStub{values: map[string]string{
-			SettingKeyAntigravityUserAgentVersion: "1.24.0",
-		}}, &config.Config{})
-
-		require.Equal(t, "1.24.0", svc.GetAntigravityUserAgentVersion(context.Background()))
-	})
-
-	t.Run("空值回退配置默认值", func(t *testing.T) {
-		svc := NewSettingService(&settingAntigravityUARepoStub{values: map[string]string{
-			SettingKeyAntigravityUserAgentVersion: "",
-		}}, &config.Config{})
-
-		require.Equal(t, antigravity.GetDefaultUserAgentVersion(), svc.GetAntigravityUserAgentVersion(context.Background()))
-	})
-
-	t.Run("缺失回退配置默认值", func(t *testing.T) {
-		svc := NewSettingService(&settingAntigravityUARepoStub{values: map[string]string{}}, &config.Config{})
-
-		require.Equal(t, antigravity.GetDefaultUserAgentVersion(), svc.GetAntigravityUserAgentVersion(context.Background()))
-	})
 }
 
 func TestSettingService_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(t *testing.T) {

@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +22,7 @@ type duplicateChannelMonitorRepoStub struct {
 	nextID      int64
 }
 
-func (r *duplicateChannelMonitorRepoStub) GetByID(_ context.Context, id int64) (*ChannelMonitor, error) {
+func (r *duplicateChannelMonitorRepoStub) GetByID(_ context.Context, id string) (*ChannelMonitor, error) {
 	if r.source == nil || r.source.ID != id {
 		return nil, ErrChannelMonitorNotFound
 	}
@@ -30,7 +31,7 @@ func (r *duplicateChannelMonitorRepoStub) GetByID(_ context.Context, id int64) (
 
 func (r *duplicateChannelMonitorRepoStub) Create(_ context.Context, monitor *ChannelMonitor) error {
 	r.nextID++
-	monitor.ID = 100 + r.nextID
+	monitor.ID = strconv.FormatInt(100+r.nextID, 10)
 	monitor.CreatedAt = time.Date(2026, time.July, 16, 8, 0, 0, 0, time.UTC)
 	monitor.UpdatedAt = monitor.CreatedAt
 
@@ -110,9 +111,9 @@ func (e *duplicateChannelMonitorEncryptor) Decrypt(ciphertext string) (string, e
 
 func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *testing.T) {
 	lastCheckedAt := time.Date(2026, time.July, 15, 7, 0, 0, 0, time.UTC)
-	templateID := int64(9)
+	templateID := "9"
 	source := &ChannelMonitor{
-		ID:               42,
+		ID: "42",
 		Name:             "primary",
 		Provider:         MonitorProviderOpenAI,
 		APIMode:          MonitorAPIModeResponses,
@@ -125,7 +126,7 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 		IntervalSeconds:  90,
 		JitterSeconds:    15,
 		LastCheckedAt:    &lastCheckedAt,
-		CreatedBy:        4,
+		CreatedBy:        "4",
 		CreatedAt:        lastCheckedAt.Add(-time.Hour),
 		UpdatedAt:        lastCheckedAt,
 		TemplateID:       &templateID,
@@ -138,7 +139,7 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 	repo := &duplicateChannelMonitorRepoStub{source: source}
 	service := NewChannelMonitorService(repo, &duplicateChannelMonitorEncryptor{})
 
-	duplicate, err := service.Duplicate(context.Background(), source.ID, 77, "admin:77", "copy-primary")
+	duplicate, err := service.Duplicate(context.Background(), source.ID, "77", "admin:77", "copy-primary")
 
 	require.NoError(t, err)
 	require.Len(t, repo.created, 1)
@@ -161,18 +162,18 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 	require.Equal(t, source.BodyOverride, duplicate.BodyOverride)
 	require.False(t, duplicate.Enabled)
 	require.Nil(t, duplicate.LastCheckedAt)
-	require.Equal(t, int64(77), duplicate.CreatedBy)
+	require.Equal(t, "77", duplicate.CreatedBy)
 	require.False(t, duplicate.APIKeyDecryptFailed)
 	require.NotEmpty(t, duplicate.DuplicateOperationID)
 
 	duplicate.ExtraModels[0] = "changed"
 	duplicate.ExtraHeaders["User-Agent"] = "changed"
 	duplicate.BodyOverride["metadata"].(map[string]any)["source"] = "changed"
-	*duplicate.TemplateID = 10
+	*duplicate.TemplateID = "10"
 	require.Equal(t, []string{"gpt-5.4", "gpt-5.3"}, source.ExtraModels)
 	require.Equal(t, "Codex", source.ExtraHeaders["User-Agent"])
 	require.Equal(t, "original", source.BodyOverride["metadata"].(map[string]any)["source"])
-	require.Equal(t, int64(9), *source.TemplateID)
+	require.Equal(t, "9", *source.TemplateID)
 	require.Equal(t, "OLD:top-secret", source.APIKey)
 	require.True(t, source.Enabled)
 	require.Equal(t, &lastCheckedAt, source.LastCheckedAt)
@@ -186,11 +187,11 @@ func TestDuplicateChannelMonitorNamePreservesSuffixWithinSchemaLimit(t *testing.
 }
 
 func TestDuplicateChannelMonitorRejectsUndecryptableAPIKey(t *testing.T) {
-	source := &ChannelMonitor{ID: 42, Name: "broken", APIKey: "OLD:broken"}
+	source := &ChannelMonitor{ID: "42", Name: "broken", APIKey: "OLD:broken"}
 	repo := &duplicateChannelMonitorRepoStub{source: source}
 	service := NewChannelMonitorService(repo, &duplicateChannelMonitorEncryptor{decryptErr: errors.New("wrong encryption key")})
 
-	duplicate, err := service.Duplicate(context.Background(), source.ID, 77, "admin:77", "copy-broken")
+	duplicate, err := service.Duplicate(context.Background(), source.ID, "77", "admin:77", "copy-broken")
 
 	require.Nil(t, duplicate)
 	require.ErrorIs(t, err, ErrChannelMonitorAPIKeyDecryptFailed)
@@ -200,7 +201,7 @@ func TestDuplicateChannelMonitorRejectsUndecryptableAPIKey(t *testing.T) {
 
 func TestDuplicateChannelMonitorRecoversCommittedCopyForSameOperation(t *testing.T) {
 	source := &ChannelMonitor{
-		ID:               42,
+		ID: "42",
 		Name:             "primary",
 		Provider:         MonitorProviderOpenAI,
 		APIMode:          MonitorAPIModeResponses,
@@ -213,9 +214,9 @@ func TestDuplicateChannelMonitorRecoversCommittedCopyForSameOperation(t *testing
 	repo := &duplicateChannelMonitorRepoStub{source: source}
 	service := NewChannelMonitorService(repo, &duplicateChannelMonitorEncryptor{})
 
-	first, err := service.Duplicate(context.Background(), source.ID, 77, "admin:77", "stable-key")
+	first, err := service.Duplicate(context.Background(), source.ID, "77", "admin:77", "stable-key")
 	require.NoError(t, err)
-	retry, err := service.Duplicate(context.Background(), source.ID, 77, "admin:77", "stable-key")
+	retry, err := service.Duplicate(context.Background(), source.ID, "77", "admin:77", "stable-key")
 	require.NoError(t, err)
 
 	require.Len(t, repo.created, 1, "same operation must not create a second monitor")
@@ -224,7 +225,7 @@ func TestDuplicateChannelMonitorRecoversCommittedCopyForSameOperation(t *testing
 	require.Equal(t, first.DuplicateOperationID, retry.DuplicateOperationID)
 	require.NotContains(t, retry.ExtraHeaders, ChannelMonitorDuplicateOperationIDMetadataKey)
 
-	otherActor, err := service.Duplicate(context.Background(), source.ID, 88, "admin:88", "stable-key")
+	otherActor, err := service.Duplicate(context.Background(), source.ID, "88", "admin:88", "stable-key")
 	require.NoError(t, err)
 	require.NotEqual(t, first.ID, otherActor.ID)
 	require.Len(t, repo.created, 2, "operation identity must include the actor scope")

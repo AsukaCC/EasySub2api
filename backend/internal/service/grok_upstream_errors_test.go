@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -101,7 +102,7 @@ func TestIsGrokContentPolicyRejection(t *testing.T) {
 func TestGrokContentPolicy403DoesNotMutateOrFailover(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 4715, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "4715", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	body := []byte(`{"error":{"code":"new_sensitive","message":"text is sensitive"}}`)
 
 	svc.handleGrokAccountUpstreamError(context.Background(), account, http.StatusForbidden, nil, body)
@@ -127,10 +128,10 @@ func TestGrokNonFailoverDoesNotApplyGenericTempUnschedulablePolicy(t *testing.T)
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{
 		accountRepo:      repo,
-		rateLimitService: NewRateLimitService(repo, nil, nil, nil, nil),
+		rateLimitService: NewRateLimitService(repo, nil, nil),
 	}
 	account := &Account{
-		ID:       5099,
+		ID: "5099",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -165,7 +166,7 @@ func TestGrokContentPolicy403SharedErrorFallbackDoesNotMutate(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	account := &Account{
-		ID:       4719,
+		ID: "4719",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -214,7 +215,7 @@ func TestGrokContentPolicy403MediaResponseBypassesCustomErrorCodes(t *testing.T)
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	account := &Account{
-		ID:       4720,
+		ID: "4720",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -251,7 +252,7 @@ func TestGrokContentPolicySSEErrorDoesNotMutateOrFailover(t *testing.T) {
 		)),
 	}}
 	svc := &OpenAIGatewayService{accountRepo: repo, httpUpstream: upstream}
-	account := &Account{ID: 4721, Platform: PlatformGrok, Type: AccountTypeOAuth, Concurrency: 1}
+	account := &Account{ID: "4721", Platform: PlatformGrok, Type: AccountTypeOAuth, Concurrency: 1}
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
@@ -282,7 +283,7 @@ func TestGrokContentPolicySSEErrorDoesNotMutateOrFailover(t *testing.T) {
 func TestHandleGrokAccountUpstreamErrorEntitlement403KeepsDefaultCooldown(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 4716, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "4716", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	before := time.Now()
 
 	svc.handleGrokAccountUpstreamError(
@@ -307,7 +308,7 @@ func TestHandleGrokAccountUpstreamErrorDefaultCooldownsRespectPoolMode(t *testin
 			repo := &grokQuotaAccountRepo{}
 			svc := &OpenAIGatewayService{accountRepo: repo}
 			account := &Account{
-				ID:       int64(4800 + statusCode),
+				ID:       strconv.Itoa(4800 + statusCode),
 				Platform: PlatformGrok,
 				Type:     AccountTypeAPIKey,
 				Credentials: map[string]any{
@@ -335,7 +336,7 @@ func TestHandleGrokAccountUpstreamErrorDefaultCooldownsRespectPoolMode(t *testin
 		repo := &grokQuotaAccountRepo{}
 		svc := &OpenAIGatewayService{accountRepo: repo}
 		account := &Account{
-			ID:       4723,
+			ID: "4723",
 			Platform: PlatformGrok,
 			Type:     AccountTypeAPIKey,
 			Credentials: map[string]any{
@@ -368,7 +369,7 @@ func TestHandleGrokAccountUpstreamError403UsesConfiguredRule(t *testing.T) {
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	account := &Account{
-		ID:       4717,
+		ID: "4717",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -398,7 +399,7 @@ func TestHandleGrokAccountUpstreamError403ConfiguredUnmatchedKeepsDefaultCooldow
 	repo := &grokQuotaAccountRepo{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	account := &Account{
-		ID:       4718,
+		ID: "4718",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{

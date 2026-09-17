@@ -27,7 +27,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "no_policy_oauth_returns_none",
 			account: &Account{
-				ID:       1,
+				ID: "1",
 				Type:     AccountTypeOAuth,
 				Platform: PlatformAntigravity,
 				// no custom error codes, no temp rules
@@ -39,7 +39,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "custom_error_codes_hit_returns_matched",
 			account: &Account{
-				ID:       2,
+				ID: "2",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -54,7 +54,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "custom_error_codes_miss_returns_skipped",
 			account: &Account{
-				ID:       3,
+				ID: "3",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -69,7 +69,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "temp_unschedulable_hit_returns_temp_unscheduled",
 			account: &Account{
-				ID:       4,
+				ID: "4",
 				Type:     AccountTypeOAuth,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -91,7 +91,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "temp_unschedulable_401_first_hit_returns_temp_unscheduled",
 			account: &Account{
-				ID:       14,
+				ID: "14",
 				Type:     AccountTypeOAuth,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -114,7 +114,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 			// second hit 仍然返回 TempUnscheduled。
 			name: "temp_unschedulable_401_second_hit_antigravity_stays_temp",
 			account: &Account{
-				ID:                      15,
+				ID: "15",
 				Type:                    AccountTypeOAuth,
 				Platform:                PlatformAntigravity,
 				TempUnschedulableReason: `{"status_code":401,"until_unix":1735689600}`,
@@ -136,7 +136,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "temp_unschedulable_body_miss_returns_none",
 			account: &Account{
-				ID:       5,
+				ID: "5",
 				Type:     AccountTypeOAuth,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -158,7 +158,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "custom_error_codes_override_temp_unschedulable",
 			account: &Account{
-				ID:       6,
+				ID: "6",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -182,7 +182,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "pool_mode_custom_error_codes_hit_returns_matched",
 			account: &Account{
-				ID:       7,
+				ID: "7",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformOpenAI,
 				Credentials: map[string]any{
@@ -198,7 +198,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "pool_mode_without_custom_error_codes_returns_skipped",
 			account: &Account{
-				ID:       8,
+				ID: "8",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformOpenAI,
 				Credentials: map[string]any{
@@ -212,7 +212,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "pool_mode_temp_unschedulable_hit_returns_temp_unscheduled",
 			account: &Account{
-				ID:       9,
+				ID: "9",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformOpenAI,
 				Credentials: map[string]any{
@@ -234,7 +234,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 		{
 			name: "pool_mode_temp_unschedulable_miss_returns_skipped",
 			account: &Account{
-				ID:       10,
+				ID: "10",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformOpenAI,
 				Credentials: map[string]any{
@@ -258,7 +258,7 @@ func TestCheckErrorPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &errorPolicyRepoStub{}
-			svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			svc := NewRateLimitService(repo, &config.Config{}, nil)
 
 			result := svc.CheckErrorPolicy(context.Background(), tt.account, tt.statusCode, tt.body)
 			require.Equal(t, tt.expected, result, "unexpected ErrorPolicyResult")
@@ -269,9 +269,9 @@ func TestCheckErrorPolicy(t *testing.T) {
 func TestHandleUpstreamError_PoolModePolicies(t *testing.T) {
 	t.Run("pool_mode_without_custom_error_codes_still_skips", func(t *testing.T) {
 		repo := &errorPolicyRepoStub{}
-		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		svc := NewRateLimitService(repo, &config.Config{}, nil)
 		account := &Account{
-			ID:       30,
+			ID: "30",
 			Type:     AccountTypeAPIKey,
 			Platform: PlatformOpenAI,
 			Credentials: map[string]any{
@@ -288,9 +288,9 @@ func TestHandleUpstreamError_PoolModePolicies(t *testing.T) {
 
 	t.Run("pool_mode_with_custom_error_codes_uses_local_error_policy", func(t *testing.T) {
 		repo := &errorPolicyRepoStub{}
-		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		svc := NewRateLimitService(repo, &config.Config{}, nil)
 		account := &Account{
-			ID:       31,
+			ID: "31",
 			Type:     AccountTypeAPIKey,
 			Platform: PlatformOpenAI,
 			Credentials: map[string]any{
@@ -309,9 +309,9 @@ func TestHandleUpstreamError_PoolModePolicies(t *testing.T) {
 
 	t.Run("pool_mode_explicit_temp_rule_stops_scheduling", func(t *testing.T) {
 		repo := &errorPolicyRepoStub{}
-		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		svc := NewRateLimitService(repo, &config.Config{}, nil)
 		account := &Account{
-			ID:       32,
+			ID: "32",
 			Type:     AccountTypeAPIKey,
 			Platform: PlatformOpenAI,
 			Credentials: map[string]any{
@@ -342,9 +342,9 @@ func TestHandleUpstreamError_PoolModePolicies(t *testing.T) {
 
 	t.Run("pool_mode_temp_rule_miss_still_skips", func(t *testing.T) {
 		repo := &errorPolicyRepoStub{}
-		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		svc := NewRateLimitService(repo, &config.Config{}, nil)
 		account := &Account{
-			ID:       33,
+			ID: "33",
 			Type:     AccountTypeAPIKey,
 			Platform: PlatformOpenAI,
 			Credentials: map[string]any{
@@ -392,7 +392,7 @@ func TestApplyErrorPolicy(t *testing.T) {
 		{
 			name: "none_not_handled",
 			account: &Account{
-				ID:       10,
+				ID: "10",
 				Type:     AccountTypeOAuth,
 				Platform: PlatformAntigravity,
 			},
@@ -405,7 +405,7 @@ func TestApplyErrorPolicy(t *testing.T) {
 		{
 			name: "skipped_handled_no_handleError",
 			account: &Account{
-				ID:       11,
+				ID: "11",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -422,7 +422,7 @@ func TestApplyErrorPolicy(t *testing.T) {
 		{
 			name: "matched_handled_calls_handleError",
 			account: &Account{
-				ID:       12,
+				ID: "12",
 				Type:     AccountTypeAPIKey,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -439,7 +439,7 @@ func TestApplyErrorPolicy(t *testing.T) {
 		{
 			name: "temp_unscheduled_returns_switch_error",
 			account: &Account{
-				ID:       13,
+				ID: "13",
 				Type:     AccountTypeOAuth,
 				Platform: PlatformAntigravity,
 				Credentials: map[string]any{
@@ -468,7 +468,7 @@ func TestApplyErrorPolicy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &errorPolicyRepoStub{}
-			rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 			svc := &AntigravityGatewayService{
 				rateLimitService: rlSvc,
 			}
@@ -479,7 +479,7 @@ func TestApplyErrorPolicy(t *testing.T) {
 				prefix:         "[test]",
 				account:        tt.account,
 				requestedModel: "claude-sonnet-4-5",
-				handleError: func(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, requestedModel string, groupID int64, sessionHash string, isStickySession bool) *handleModelRateLimitResult {
+				handleError: func(ctx context.Context, prefix string, account *Account, statusCode int, headers http.Header, body []byte, requestedModel string, groupID string, sessionHash string, isStickySession bool) *handleModelRateLimitResult {
 					handleErrorCount++
 					return nil
 				},
@@ -507,9 +507,9 @@ func TestApplyErrorPolicy(t *testing.T) {
 }
 
 func TestApplyErrorPolicy_GeminiRateLimitBypassesCustomSkip(t *testing.T) {
-	repo := &stubAntigravityAccountRepo{}
-	cache := &stubSmartRetryCache{}
-	rlSvc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	repo := &errorPolicyRepoStub{}
+	cache := &errorPolicyGatewayCache{}
+	rlSvc := NewRateLimitService(repo, &config.Config{}, nil)
 	svc := &AntigravityGatewayService{
 		rateLimitService: rlSvc,
 		accountRepo:      repo,
@@ -517,7 +517,7 @@ func TestApplyErrorPolicy_GeminiRateLimitBypassesCustomSkip(t *testing.T) {
 	}
 
 	account := &Account{
-		ID:       31,
+		ID: "31",
 		Type:     AccountTypeAPIKey,
 		Platform: PlatformAntigravity,
 		Credentials: map[string]any{
@@ -539,9 +539,9 @@ func TestApplyErrorPolicy_GeminiRateLimitBypassesCustomSkip(t *testing.T) {
 		prefix:      "[test]",
 		account:     account,
 		accountRepo: repo,
-		groupID:     42,
+		groupID:     "42",
 		sessionHash: "gemini:sticky",
-		handleError: func(context.Context, string, *Account, int, http.Header, []byte, string, int64, string, bool) *handleModelRateLimitResult {
+		handleError: func(context.Context, string, *Account, int, http.Header, []byte, string, string, string, bool) *handleModelRateLimitResult {
 			t.Fatal("model rate limit should be handled before custom error fallback")
 			return nil
 		},
@@ -553,11 +553,26 @@ func TestApplyErrorPolicy_GeminiRateLimitBypassesCustomSkip(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, outStatus)
 	require.NoError(t, retErr)
 	require.Len(t, repo.modelRateLimitCalls, 2)
-	require.Equal(t, "gemini-3-flash", repo.modelRateLimitCalls[0].modelKey)
-	require.Equal(t, antigravityGeminiModelRateLimitKey, repo.modelRateLimitCalls[1].modelKey)
+	require.Equal(t, "gemini-3-flash", repo.modelRateLimitCalls[0].scope)
+	require.Equal(t, antigravityGeminiModelRateLimitKey, repo.modelRateLimitCalls[1].scope)
 	require.Len(t, cache.deleteCalls, 1)
-	require.Equal(t, int64(42), cache.deleteCalls[0].groupID)
+	require.Equal(t, "42", cache.deleteCalls[0].groupID)
 	require.Equal(t, "gemini:sticky", cache.deleteCalls[0].sessionHash)
+}
+
+type errorPolicyDeleteCall struct {
+	groupID     string
+	sessionHash string
+}
+
+type errorPolicyGatewayCache struct {
+	stubGatewayCache
+	deleteCalls []errorPolicyDeleteCall
+}
+
+func (c *errorPolicyGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID string, sessionHash string) error {
+	c.deleteCalls = append(c.deleteCalls, errorPolicyDeleteCall{groupID: groupID, sessionHash: sessionHash})
+	return c.stubGatewayCache.DeleteSessionAccountID(ctx, groupID, sessionHash)
 }
 
 // ---------------------------------------------------------------------------
@@ -572,18 +587,18 @@ type errorPolicyRepoStub struct {
 	modelRateLimitCalls []modelNotFoundRateLimitCall
 }
 
-func (r *errorPolicyRepoStub) SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error {
+func (r *errorPolicyRepoStub) SetTempUnschedulable(ctx context.Context, id string, until time.Time, reason string) error {
 	r.tempCalls++
 	return nil
 }
 
-func (r *errorPolicyRepoStub) SetError(ctx context.Context, id int64, errorMsg string) error {
+func (r *errorPolicyRepoStub) SetError(ctx context.Context, id string, errorMsg string) error {
 	r.setErrCalls++
 	r.lastErrorMsg = errorMsg
 	return nil
 }
 
-func (r *errorPolicyRepoStub) SetModelRateLimit(_ context.Context, id int64, scope string, resetAt time.Time, reason ...string) error {
+func (r *errorPolicyRepoStub) SetModelRateLimit(_ context.Context, id string, scope string, resetAt time.Time, reason ...string) error {
 	call := modelNotFoundRateLimitCall{accountID: id, scope: scope, resetAt: resetAt}
 	if len(reason) > 0 {
 		call.reason = reason[0]

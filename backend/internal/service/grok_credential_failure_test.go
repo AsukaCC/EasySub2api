@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -22,7 +23,7 @@ type grokCredentialPersistingRepo struct {
 }
 
 func TestClassifyGrokCredentialFailureBillingExhaustionIsTransient(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(9901)
+	account := expiredGrokOAuthAccountForCredentialTest("9901")
 	for _, message := range []string{
 		"Grok OAuth refresh failed: spending limit reached",
 		"included free usage exhausted",
@@ -35,7 +36,7 @@ func TestClassifyGrokCredentialFailureBillingExhaustionIsTransient(t *testing.T)
 	}
 }
 
-func (r *grokCredentialPersistingRepo) SetError(ctx context.Context, id int64, message string) error {
+func (r *grokCredentialPersistingRepo) SetError(ctx context.Context, id string, message string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ type grokCredentialProxyRepoStub struct {
 	err   error
 }
 
-func (r *grokCredentialProxyRepoStub) GetByID(context.Context, int64) (*Proxy, error) {
+func (r *grokCredentialProxyRepoStub) GetByID(context.Context, string) (*Proxy, error) {
 	return r.proxy, r.err
 }
 
@@ -98,7 +99,7 @@ func (r *grokCredentialUncommittedDeadlineRepo) SetGrokCredentialTempUnschedulab
 
 func (r *grokCredentialCommitThenCancelRepo) SetGrokCredentialErrorIfMatch(
 	ctx context.Context,
-	id int64,
+	id string,
 	_ GrokCredentialMutationSnapshot,
 	reason string,
 ) (bool, error) {
@@ -115,7 +116,7 @@ func (r *grokCredentialCommitThenCancelRepo) SetGrokCredentialErrorIfMatch(
 
 func (r *grokCredentialCommitThenCancelRepo) SetGrokCredentialTempUnschedulableIfMatch(
 	ctx context.Context,
-	id int64,
+	id string,
 	_ GrokCredentialMutationSnapshot,
 	until time.Time,
 	reason string,
@@ -130,13 +131,13 @@ func (r *grokCredentialCommitThenCancelRepo) SetGrokCredentialTempUnschedulableI
 	return false, ctx.Err()
 }
 
-func (r *grokCredentialBlockingRepo) SetError(ctx context.Context, _ int64, _ string) error {
+func (r *grokCredentialBlockingRepo) SetError(ctx context.Context, _ string, _ string) error {
 	r.onceError.Do(func() { close(r.setErrorStarted) })
 	<-ctx.Done()
 	return ctx.Err()
 }
 
-func (r *grokCredentialBlockingRepo) SetTempUnschedulable(ctx context.Context, _ int64, _ time.Time, _ string) error {
+func (r *grokCredentialBlockingRepo) SetTempUnschedulable(ctx context.Context, _ string, _ time.Time, _ string) error {
 	r.onceTemp.Do(func() { close(r.setTempStarted) })
 	<-ctx.Done()
 	return ctx.Err()
@@ -204,11 +205,11 @@ func (r *grokCredentialCountingRefresher) Refresh(context.Context, *Account) (ma
 	return map[string]any{"access_token": "must-not-be-used"}, nil
 }
 
-func (r *grokCredentialRereadFailureRepo) GetByID(context.Context, int64) (*Account, error) {
+func (r *grokCredentialRereadFailureRepo) GetByID(context.Context, string) (*Account, error) {
 	return r.account, r.err
 }
 
-func (r *grokCredentialSequencedRepo) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *grokCredentialSequencedRepo) GetByID(ctx context.Context, id string) (*Account, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.getCall++
@@ -247,9 +248,9 @@ func TestUpstreamFailoverErrorNextAccountActionPreservesLegacyRetry(t *testing.T
 
 func TestGetRequestCredentialMapsPermanentGrokOAuthFailureAndRedactsSecrets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	account := expiredGrokOAuthAccountForCredentialTest(701)
+	account := expiredGrokOAuthAccountForCredentialTest("701")
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{
@@ -329,12 +330,12 @@ func TestGetRequestCredentialPermanentMappingsPersistAndInvalidate(t *testing.T)
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(720 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(720 + index))
 			account.Status = StatusActive
 			account.Schedulable = true
 			tt.prepare(account)
 			baseRepo := &tokenRefreshAccountRepo{}
-			baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+			baseRepo.accountsByID = map[string]*Account{account.ID: account}
 			repo := &grokCredentialPersistingRepo{tokenRefreshAccountRepo: baseRepo}
 			cache := &grokTokenCacheForProviderTest{lockResult: true, token: tt.cachedToken}
 			provider := NewGrokTokenProvider(repo, cache)
@@ -369,7 +370,7 @@ func TestGetRequestCredentialMissingAccessNeverRefreshesAndPermanentlyFailsOver(
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(760 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(760 + index))
 			account.Schedulable = true
 			delete(account.Credentials, "access_token")
 			if tt.expiresAt == nil {
@@ -378,7 +379,7 @@ func TestGetRequestCredentialMissingAccessNeverRefreshesAndPermanentlyFailsOver(
 				account.Credentials["expires_at"] = tt.expiresAt.UTC().Format(time.RFC3339)
 			}
 			baseRepo := &tokenRefreshAccountRepo{}
-			baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+			baseRepo.accountsByID = map[string]*Account{account.ID: account}
 			repo := &grokCredentialPersistingRepo{tokenRefreshAccountRepo: baseRepo}
 			cache := &grokTokenCacheForProviderTest{lockResult: true, token: "stale-cache-must-not-win"}
 			refresher := &grokCredentialCountingRefresher{}
@@ -405,12 +406,12 @@ func TestGetRequestCredentialMissingAccessNeverRefreshesAndPermanentlyFailsOver(
 }
 
 func TestGetRequestCredentialWarmCachedAccessWithMissingRefreshPermanentlyFailsOver(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(764)
+	account := expiredGrokOAuthAccountForCredentialTest("764")
 	account.Credentials["access_token"] = "valid-access"
 	account.Credentials["expires_at"] = time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
 	delete(account.Credentials, "refresh_token")
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialPersistingRepo{tokenRefreshAccountRepo: baseRepo}
 	cache := &grokTokenCacheForProviderTest{lockResult: true, token: "valid-access"}
 	refresher := &grokCredentialCountingRefresher{}
@@ -435,9 +436,9 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	gin.SetMode(gin.TestMode)
 
 	t.Run("account transient temporarily unschedules", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(702)
+		account := expiredGrokOAuthAccountForCredentialTest("702")
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		cache := &grokTokenCacheForProviderTest{lockResult: true}
 		provider := NewGrokTokenProvider(repo, cache)
 		provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{err: errors.New("temporary refresh transport failure")})
@@ -456,9 +457,9 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("shared provider configuration stops without mutation", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(703)
+		account := expiredGrokOAuthAccountForCredentialTest("703")
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		provider := NewGrokTokenProvider(repo, nil)
 		svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: provider}
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -483,9 +484,9 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 			{name: "missing row"},
 		} {
 			t.Run(tt.name, func(t *testing.T) {
-				account := expiredGrokOAuthAccountForCredentialTest(712)
+				account := expiredGrokOAuthAccountForCredentialTest("712")
 				baseRepo := &tokenRefreshAccountRepo{}
-				baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+				baseRepo.accountsByID = map[string]*Account{account.ID: account}
 				repo := &grokCredentialRereadFailureRepo{tokenRefreshAccountRepo: baseRepo, account: tt.account, err: tt.err}
 				cache := &grokTokenCacheForProviderTest{lockResult: true}
 				provider := NewGrokTokenProvider(repo, cache)
@@ -545,12 +546,12 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 			},
 		} {
 			t.Run(tt.name, func(t *testing.T) {
-				staleAccount := expiredGrokOAuthAccountForCredentialTest(713)
+				staleAccount := expiredGrokOAuthAccountForCredentialTest("713")
 				freshAccount := *staleAccount
 				freshAccount.Credentials = shallowCopyMap(staleAccount.Credentials)
 				tt.mutate(&freshAccount)
 				repo := &tokenRefreshAccountRepo{}
-				repo.accountsByID = map[int64]*Account{staleAccount.ID: &freshAccount}
+				repo.accountsByID = map[string]*Account{staleAccount.ID: &freshAccount}
 				cache := &grokTokenCacheForProviderTest{lockResult: true}
 				provider := NewGrokTokenProvider(repo, cache)
 				provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), NewGrokTokenRefresher(nil))
@@ -572,13 +573,13 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("fresh missing refresh credential permanently blocks the account", func(t *testing.T) {
-		staleAccount := expiredGrokOAuthAccountForCredentialTest(714)
+		staleAccount := expiredGrokOAuthAccountForCredentialTest("714")
 		staleAccount.Schedulable = true
 		freshAccount := *staleAccount
 		freshAccount.Credentials = shallowCopyMap(staleAccount.Credentials)
 		delete(freshAccount.Credentials, "refresh_token")
 		baseRepo := &tokenRefreshAccountRepo{}
-		baseRepo.accountsByID = map[int64]*Account{staleAccount.ID: &freshAccount}
+		baseRepo.accountsByID = map[string]*Account{staleAccount.ID: &freshAccount}
 		repo := &grokCredentialPersistingRepo{tokenRefreshAccountRepo: baseRepo}
 		cache := &grokTokenCacheForProviderTest{lockResult: true}
 		provider := NewGrokTokenProvider(repo, cache)
@@ -601,12 +602,12 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("refresh added after locked structural failure wins conditional mutation", func(t *testing.T) {
-		staleAccount := expiredGrokOAuthAccountForCredentialTest(717)
+		staleAccount := expiredGrokOAuthAccountForCredentialTest("717")
 		freshAccount := *staleAccount
 		freshAccount.Credentials = shallowCopyMap(staleAccount.Credentials)
 		delete(freshAccount.Credentials, "refresh_token")
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{staleAccount.ID: &freshAccount}
+		repo.accountsByID = map[string]*Account{staleAccount.ID: &freshAccount}
 		repo.beforeConditionalState = func() {
 			repaired := freshAccount
 			repaired.Credentials = shallowCopyMap(freshAccount.Credentials)
@@ -632,9 +633,9 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("expiry-only repair wins full credential fingerprint CAS", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(718)
+		account := expiredGrokOAuthAccountForCredentialTest("718")
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		repo.beforeConditionalState = func() {
 			repaired := *account
 			repaired.Credentials = shallowCopyMap(account.Credentials)
@@ -660,9 +661,9 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("generic token endpoint 403 stops as shared provider failure", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(708)
+		account := expiredGrokOAuthAccountForCredentialTest("708")
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		cache := &grokTokenCacheForProviderTest{lockResult: true}
 		provider := NewGrokTokenProvider(repo, cache)
 		provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{
@@ -684,12 +685,12 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("account proxy generic 403 remains bounded account transient", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(711)
-		proxyID := int64(43)
+		account := expiredGrokOAuthAccountForCredentialTest("711")
+		proxyID := "43"
 		account.ProxyID = &proxyID
 		account.Proxy = &Proxy{}
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		cache := &grokTokenCacheForProviderTest{lockResult: true}
 		provider := NewGrokTokenProvider(repo, cache)
 		provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{
@@ -711,12 +712,12 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("proxy repository read failure stops without account mutation", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(709)
-		proxyID := int64(41)
+		account := expiredGrokOAuthAccountForCredentialTest("709")
+		proxyID := "41"
 		account.ProxyID = &proxyID
 		account.Proxy = &Proxy{}
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		cache := &grokTokenCacheForProviderTest{lockResult: true}
 		oauthSvc := NewGrokOAuthService(&grokCredentialProxyRepoStub{err: errors.New("database temporarily unavailable")}, &grokOAuthClientStub{})
 		defer oauthSvc.Stop()
@@ -738,13 +739,13 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 	})
 
 	t.Run("structurally missing configured proxy permanently blocks only that account", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(710)
+		account := expiredGrokOAuthAccountForCredentialTest("710")
 		account.Status = StatusActive
 		account.Schedulable = true
-		proxyID := int64(42)
+		proxyID := "42"
 		account.ProxyID = &proxyID
 		baseRepo := &tokenRefreshAccountRepo{}
-		baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+		baseRepo.accountsByID = map[string]*Account{account.ID: account}
 		repo := &grokCredentialPersistingRepo{tokenRefreshAccountRepo: baseRepo}
 		cache := &grokTokenCacheForProviderTest{lockResult: true}
 		oauthSvc := NewGrokOAuthService(&grokCredentialProxyRepoStub{err: ErrProxyNotFound}, &grokOAuthClientStub{})
@@ -769,11 +770,11 @@ func TestGetRequestCredentialMapsTransientAndProviderFailuresSeparately(t *testi
 }
 
 func TestGetRequestCredentialRuntimeBlockWinsBeforeWarmTokenCache(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(716)
+	account := expiredGrokOAuthAccountForCredentialTest("716")
 	account.Credentials["access_token"] = "valid-access"
 	account.Credentials["expires_at"] = time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	cache := &grokTokenCacheForProviderTest{token: "valid-access"}
 	provider := NewGrokTokenProvider(repo, cache)
 	svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: provider}
@@ -792,14 +793,14 @@ func TestGetRequestCredentialRuntimeBlockWinsBeforeWarmTokenCache(t *testing.T) 
 }
 
 func TestGetRequestCredentialWarmCachedAccessWithMissingConfiguredProxyPermanentlyFailsOver(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(715)
+	account := expiredGrokOAuthAccountForCredentialTest("715")
 	account.Credentials["access_token"] = "valid-access"
 	account.Credentials["expires_at"] = time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
-	proxyID := int64(44)
+	proxyID := "44"
 	account.ProxyID = &proxyID
 	account.Proxy = nil
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialPersistingRepo{tokenRefreshAccountRepo: baseRepo}
 	cache := &grokTokenCacheForProviderTest{lockResult: true, token: "valid-access"}
 	refresher := &grokCredentialCountingRefresher{}
@@ -822,9 +823,9 @@ func TestGetRequestCredentialWarmCachedAccessWithMissingConfiguredProxyPermanent
 
 func TestGetRequestCredentialCancellationAndBudgetDoNotMutateAccount(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	account := expiredGrokOAuthAccountForCredentialTest(704)
+	account := expiredGrokOAuthAccountForCredentialTest("704")
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	provider := NewGrokTokenProvider(repo, nil)
 	svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: provider}
 
@@ -895,9 +896,9 @@ func TestGetRequestCredentialStateMutationFailureStopsAndKeepsRuntimeBlock(t *te
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(740 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(740 + index))
 			repo := &tokenRefreshAccountRepo{}
-			repo.accountsByID = map[int64]*Account{account.ID: account}
+			repo.accountsByID = map[string]*Account{account.ID: account}
 			cache := &grokTokenCacheForProviderTest{lockResult: true}
 			tt.configure(repo, cache)
 			provider := NewGrokTokenProvider(repo, cache)
@@ -921,9 +922,9 @@ func TestGetRequestCredentialStateMutationFailureStopsAndKeepsRuntimeBlock(t *te
 
 func TestGrokCredentialMutationBoundariesHonorParentCancellation(t *testing.T) {
 	t.Run("blocked SetError cancellation prevents cache and runtime mutation", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(730)
+		account := expiredGrokOAuthAccountForCredentialTest("730")
 		baseRepo := &tokenRefreshAccountRepo{}
-		baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+		baseRepo.accountsByID = map[string]*Account{account.ID: account}
 		repo := &grokCredentialBlockingRepo{
 			tokenRefreshAccountRepo: baseRepo,
 			setErrorStarted:         make(chan struct{}),
@@ -950,9 +951,9 @@ func TestGrokCredentialMutationBoundariesHonorParentCancellation(t *testing.T) {
 	})
 
 	t.Run("blocked temporary unschedule cancellation prevents runtime mutation", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(731)
+		account := expiredGrokOAuthAccountForCredentialTest("731")
 		baseRepo := &tokenRefreshAccountRepo{}
-		baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+		baseRepo.accountsByID = map[string]*Account{account.ID: account}
 		repo := &grokCredentialBlockingRepo{
 			tokenRefreshAccountRepo: baseRepo,
 			setErrorStarted:         make(chan struct{}),
@@ -977,9 +978,9 @@ func TestGrokCredentialMutationBoundariesHonorParentCancellation(t *testing.T) {
 	})
 
 	t.Run("post-commit cancellation finishes cache cleanup and retains quarantine", func(t *testing.T) {
-		account := expiredGrokOAuthAccountForCredentialTest(732)
+		account := expiredGrokOAuthAccountForCredentialTest("732")
 		repo := &tokenRefreshAccountRepo{}
-		repo.accountsByID = map[int64]*Account{account.ID: account}
+		repo.accountsByID = map[string]*Account{account.ID: account}
 		cache := &grokCredentialBlockingCache{deleteStarted: make(chan struct{}), releaseDelete: make(chan struct{})}
 		svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: NewGrokTokenProvider(repo, cache)}
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1003,9 +1004,9 @@ func TestGrokCredentialMutationBoundariesHonorParentCancellation(t *testing.T) {
 }
 
 func TestGrokCredentialMutationLockWaitHonorsCredentialBudget(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(735)
+	account := expiredGrokOAuthAccountForCredentialTest("735")
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: NewGrokTokenProvider(repo, &grokTokenCacheForProviderTest{})}
 	mutationLock := svc.grokCredentialMutationLock(account.ID)
 	require.NoError(t, mutationLock.Lock(context.Background()))
@@ -1028,9 +1029,9 @@ func TestGrokCredentialMutationLockWaitHonorsCredentialBudget(t *testing.T) {
 
 func TestGetRequestCredentialBudgetBoundsBlockedConditionalMutation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	account := expiredGrokOAuthAccountForCredentialTest(736)
+	account := expiredGrokOAuthAccountForCredentialTest("736")
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialBlockingRepo{
 		tokenRefreshAccountRepo: baseRepo,
 		setErrorStarted:         make(chan struct{}),
@@ -1075,7 +1076,7 @@ func TestGetRequestCredentialLockHeldTimeoutDoesNotQuarantineAccount(t *testing.
 			name: "authoritative row unchanged",
 			buildRepo: func(account *Account) AccountRepository {
 				repo := &tokenRefreshAccountRepo{}
-				repo.accountsByID = map[int64]*Account{account.ID: account}
+				repo.accountsByID = map[string]*Account{account.ID: account}
 				return repo
 			},
 			wantScope:  GatewayFailureScopeAccount,
@@ -1086,7 +1087,7 @@ func TestGetRequestCredentialLockHeldTimeoutDoesNotQuarantineAccount(t *testing.
 			name: "selected account was deleted",
 			buildRepo: func(account *Account) AccountRepository {
 				base := &tokenRefreshAccountRepo{}
-				base.accountsByID = map[int64]*Account{account.ID: account}
+				base.accountsByID = map[string]*Account{account.ID: account}
 				return &grokCredentialRereadFailureRepo{tokenRefreshAccountRepo: base}
 			},
 			wantScope:  GatewayFailureScopeAccount,
@@ -1097,7 +1098,7 @@ func TestGetRequestCredentialLockHeldTimeoutDoesNotQuarantineAccount(t *testing.
 			name: "shared account store unavailable",
 			buildRepo: func(account *Account) AccountRepository {
 				base := &tokenRefreshAccountRepo{}
-				base.accountsByID = map[int64]*Account{account.ID: account}
+				base.accountsByID = map[string]*Account{account.ID: account}
 				return &grokCredentialRereadFailureRepo{tokenRefreshAccountRepo: base, err: errors.New("database unavailable")}
 			},
 			wantScope:  GatewayFailureScopeProvider,
@@ -1108,7 +1109,7 @@ func TestGetRequestCredentialLockHeldTimeoutDoesNotQuarantineAccount(t *testing.
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(7400 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(7400 + index))
 			repo := tt.buildRepo(account)
 			cache := &grokTokenCacheForProviderTest{lockResult: false}
 			provider := NewGrokTokenProvider(repo, cache)
@@ -1163,9 +1164,9 @@ func TestGrokCredentialMutationCancellationAmbiguityConfirmsDurableCommit(t *tes
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(737 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(737 + index))
 			baseRepo := &tokenRefreshAccountRepo{}
-			baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+			baseRepo.accountsByID = map[string]*Account{account.ID: account}
 			repo := &grokCredentialCommitThenCancelRepo{tokenRefreshAccountRepo: baseRepo}
 			cache := &grokTokenCacheForProviderTest{}
 			svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: NewGrokTokenProvider(repo, cache)}
@@ -1198,9 +1199,9 @@ func TestGrokCredentialInnerStateDeadlineAmbiguityConfirmsDurableCommit(t *testi
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(7500 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(7500 + index))
 			baseRepo := &tokenRefreshAccountRepo{}
-			baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+			baseRepo.accountsByID = map[string]*Account{account.ID: account}
 			repo := &grokCredentialCommitThenCancelRepo{
 				tokenRefreshAccountRepo: baseRepo,
 				returnErr:               context.DeadlineExceeded,
@@ -1237,9 +1238,9 @@ func TestGrokCredentialUnconfirmedInnerStateDeadlineStopsAndRetainsSafetyBlock(t
 
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(7600 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(7600 + index))
 			baseRepo := &tokenRefreshAccountRepo{}
-			baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+			baseRepo.accountsByID = map[string]*Account{account.ID: account}
 			repo := &grokCredentialUncommittedDeadlineRepo{tokenRefreshAccountRepo: baseRepo}
 			cache := &grokTokenCacheForProviderTest{}
 			svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: NewGrokTokenProvider(repo, cache)}
@@ -1258,7 +1259,7 @@ func TestGrokCredentialUnconfirmedInnerStateDeadlineStopsAndRetainsSafetyBlock(t
 }
 
 func TestGrokCredentialRuntimeRollbackOwnership(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(734)
+	account := expiredGrokOAuthAccountForCredentialTest("734")
 	t.Run("later extending block survives", func(t *testing.T) {
 		svc := &OpenAIGatewayService{}
 		until := time.Now().Add(time.Minute)
@@ -1303,7 +1304,7 @@ func TestGrokCredentialRuntimeRollbackOwnership(t *testing.T) {
 func TestGetRequestCredentialAPIKeyBypassesOAuthFailureMapping(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID:       705,
+		ID: "705",
 		Platform: PlatformGrok,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{
@@ -1323,7 +1324,7 @@ func TestGetRequestCredentialAPIKeyBypassesOAuthFailureMapping(t *testing.T) {
 }
 
 func TestPermanentCredentialFailureDoesNotDisableConcurrentlyRefreshedAccount(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(707)
+	account := expiredGrokOAuthAccountForCredentialTest("707")
 	latest := *account
 	latest.Credentials = shallowCopyMap(account.Credentials)
 	latest.Credentials["access_token"] = "fresh-access-token"
@@ -1331,7 +1332,7 @@ func TestPermanentCredentialFailureDoesNotDisableConcurrentlyRefreshedAccount(t 
 	latest.Credentials["expires_at"] = time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	latest.Credentials["_token_version"] = time.Now().UnixMilli()
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: &latest}
+	repo.accountsByID = map[string]*Account{account.ID: &latest}
 	cache := &grokTokenCacheForProviderTest{}
 	svc := &OpenAIGatewayService{
 		accountRepo:       repo,
@@ -1360,9 +1361,9 @@ func TestCredentialFailureConditionalMutationLosesToConcurrentRefresh(t *testing
 		{name: "transient", refreshErr: errors.New("temporary refresh transport failure")},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(770 + index))
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(770 + index))
 			repo := &tokenRefreshAccountRepo{}
-			repo.accountsByID = map[int64]*Account{account.ID: account}
+			repo.accountsByID = map[string]*Account{account.ID: account}
 			repo.beforeConditionalState = func() {
 				fresh := *account
 				fresh.Credentials = shallowCopyMap(account.Credentials)
@@ -1400,16 +1401,16 @@ func TestCredentialFailureConditionalMutationLosesToConcurrentProxyRepair(t *tes
 		{name: "transient", refreshErr: errors.New("temporary refresh transport failure")},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			account := expiredGrokOAuthAccountForCredentialTest(int64(780 + index))
-			oldProxyID := int64(10)
+			account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(780 + index))
+			oldProxyID := "10"
 			account.ProxyID = &oldProxyID
 			account.Proxy = &Proxy{}
 			repo := &tokenRefreshAccountRepo{}
-			repo.accountsByID = map[int64]*Account{account.ID: account}
+			repo.accountsByID = map[string]*Account{account.ID: account}
 			repo.beforeConditionalState = func() {
 				fresh := *account
 				fresh.Credentials = shallowCopyMap(account.Credentials)
-				repairedProxyID := int64(11)
+				repairedProxyID := "11"
 				fresh.ProxyID = &repairedProxyID
 				repo.accountsByID[account.ID] = &fresh
 			}
@@ -1434,12 +1435,12 @@ func TestCredentialFailureConditionalMutationLosesToConcurrentProxyRepair(t *tes
 }
 
 func TestCredentialFailureConditionalMutationLosesToSameIDProxyRestoration(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(790)
-	proxyID := int64(10)
+	account := expiredGrokOAuthAccountForCredentialTest("790")
+	proxyID := "10"
 	account.ProxyID = &proxyID
 	account.Proxy = nil
 	repo := &tokenRefreshAccountRepo{}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	repo.beforeConditionalState = func() {
 		account.Proxy = &Proxy{ID: proxyID}
 	}
@@ -1482,9 +1483,9 @@ func TestCredentialFailureConditionalMutationLosesToConcurrentUnschedulableState
 	for classIndex, classCase := range classes {
 		for stateIndex, stateCase := range states {
 			t.Run(classCase.name+"/"+stateCase.name, func(t *testing.T) {
-				account := expiredGrokOAuthAccountForCredentialTest(int64(791 + classIndex*10 + stateIndex))
+				account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(791 + classIndex*10 + stateIndex))
 				repo := &tokenRefreshAccountRepo{}
-				repo.accountsByID = map[int64]*Account{account.ID: account}
+				repo.accountsByID = map[string]*Account{account.ID: account}
 				repo.beforeConditionalState = func() { stateCase.mutate(account) }
 				svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: NewGrokTokenProvider(repo, &grokTokenCacheForProviderTest{})}
 
@@ -1531,9 +1532,9 @@ func TestCredentialFailureCASMissDoesNotRecoverIneligibleLatestCredential(t *tes
 	for classIndex, classCase := range classes {
 		for stateIndex, stateCase := range states {
 			t.Run(classCase.name+"/"+stateCase.name, func(t *testing.T) {
-				account := expiredGrokOAuthAccountForCredentialTest(int64(800 + classIndex*20 + stateIndex))
+				account := expiredGrokOAuthAccountForCredentialTest(strconv.Itoa(800 + classIndex*20 + stateIndex))
 				repo := &tokenRefreshAccountRepo{}
-				repo.accountsByID = map[int64]*Account{account.ID: account}
+				repo.accountsByID = map[string]*Account{account.ID: account}
 				svc := &OpenAIGatewayService{accountRepo: repo, grokTokenProvider: NewGrokTokenProvider(repo, &grokTokenCacheForProviderTest{})}
 				repo.beforeConditionalState = func() {
 					latest := *account
@@ -1559,9 +1560,9 @@ func TestCredentialFailureCASMissDoesNotRecoverIneligibleLatestCredential(t *tes
 }
 
 func TestGetRequestCredentialSharedCredentialPersistenceFailureStopsWithoutAccountMutation(t *testing.T) {
-	account := expiredGrokOAuthAccountForCredentialTest(782)
+	account := expiredGrokOAuthAccountForCredentialTest("782")
 	repo := &tokenRefreshAccountRepo{conditionalSuccessErr: errors.New("database unavailable")}
-	repo.accountsByID = map[int64]*Account{account.ID: account}
+	repo.accountsByID = map[string]*Account{account.ID: account}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	provider := NewGrokTokenProvider(repo, cache)
 	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), &tokenRefresherStub{credentials: map[string]any{
@@ -1589,7 +1590,7 @@ func TestGetRequestCredentialSharedCredentialPersistenceFailureStopsWithoutAccou
 
 func TestGetRequestCredentialRecoversConcurrentRefreshWithoutFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	account := expiredGrokOAuthAccountForCredentialTest(733)
+	account := expiredGrokOAuthAccountForCredentialTest("733")
 	latest := *account
 	latest.Credentials = shallowCopyMap(account.Credentials)
 	latest.Credentials["access_token"] = "fresh-concurrent-access"
@@ -1597,7 +1598,7 @@ func TestGetRequestCredentialRecoversConcurrentRefreshWithoutFailover(t *testing
 	latest.Credentials["expires_at"] = time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
 	latest.Credentials["_token_version"] = time.Now().UnixMilli()
 	baseRepo := &tokenRefreshAccountRepo{}
-	baseRepo.accountsByID = map[int64]*Account{account.ID: account}
+	baseRepo.accountsByID = map[string]*Account{account.ID: account}
 	repo := &grokCredentialSequencedRepo{tokenRefreshAccountRepo: baseRepo, latest: &latest}
 	cache := &grokTokenCacheForProviderTest{lockResult: true}
 	provider := NewGrokTokenProvider(repo, cache)
@@ -1620,7 +1621,7 @@ func TestGetRequestCredentialRecoversConcurrentRefreshWithoutFailover(t *testing
 	require.False(t, hasEvents)
 }
 
-func expiredGrokOAuthAccountForCredentialTest(id int64) *Account {
+func expiredGrokOAuthAccountForCredentialTest(id string) *Account {
 	return &Account{
 		ID:          id,
 		Platform:    PlatformGrok,

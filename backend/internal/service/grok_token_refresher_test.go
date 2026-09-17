@@ -3,6 +3,7 @@
 package service
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -11,8 +12,8 @@ import (
 
 func TestGrokTokenRefreshWindowWithJitter_StableAndBounded(t *testing.T) {
 	base := grokTokenRefreshSkew
-	w1 := grokTokenRefreshWindowWithJitter(42, base)
-	w2 := grokTokenRefreshWindowWithJitter(42, base)
+	w1 := grokTokenRefreshWindowWithJitter("42", base)
+	w2 := grokTokenRefreshWindowWithJitter("42", base)
 	require.Equal(t, w1, w2, "same account id must yield stable window")
 	require.GreaterOrEqual(t, w1, grokTokenRefreshSkewMin)
 	require.LessOrEqual(t, w1, base)
@@ -21,8 +22,8 @@ func TestGrokTokenRefreshWindowWithJitter_StableAndBounded(t *testing.T) {
 	// but for sequential ids the hash spread is good enough to assert inequality
 	// across a small sample).
 	seen := map[time.Duration]bool{}
-	for id := int64(1); id <= 50; id++ {
-		seen[grokTokenRefreshWindowWithJitter(id, base)] = true
+	for id := 1; id <= 50; id++ {
+		seen[grokTokenRefreshWindowWithJitter(strconv.Itoa(id), base)] = true
 	}
 	require.Greater(t, len(seen), 1, "jitter should spread windows across accounts")
 }
@@ -32,7 +33,7 @@ func TestGrokTokenRefresher_NeedsRefresh_UsesSkewFloor(t *testing.T) {
 	// Expires in 50 minutes — within 1h skew, should need refresh.
 	expires := time.Now().Add(50 * time.Minute).UTC().Format(time.RFC3339)
 	account := &Account{
-		ID:       7,
+		ID: "7",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{

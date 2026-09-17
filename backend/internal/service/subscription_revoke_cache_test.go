@@ -19,7 +19,7 @@ type revokeCacheUserSubRepoStub struct {
 	getActiveCalls int
 }
 
-func (r *revokeCacheUserSubRepoStub) GetByID(_ context.Context, id int64) (*UserSubscription, error) {
+func (r *revokeCacheUserSubRepoStub) GetByID(_ context.Context, id string) (*UserSubscription, error) {
 	if r.sub == nil || r.sub.ID != id || r.deleted {
 		return nil, ErrSubscriptionNotFound
 	}
@@ -27,7 +27,7 @@ func (r *revokeCacheUserSubRepoStub) GetByID(_ context.Context, id int64) (*User
 	return &cp, nil
 }
 
-func (r *revokeCacheUserSubRepoStub) Delete(_ context.Context, id int64) error {
+func (r *revokeCacheUserSubRepoStub) Delete(_ context.Context, id string) error {
 	if r.sub == nil || r.sub.ID != id || r.deleted {
 		return ErrSubscriptionNotFound
 	}
@@ -35,7 +35,7 @@ func (r *revokeCacheUserSubRepoStub) Delete(_ context.Context, id int64) error {
 	return nil
 }
 
-func (r *revokeCacheUserSubRepoStub) GetActiveByUserIDAndGroupID(_ context.Context, userID, groupID int64) (*UserSubscription, error) {
+func (r *revokeCacheUserSubRepoStub) GetActiveByUserIDAndGroupID(_ context.Context, userID, groupID string) (*UserSubscription, error) {
 	r.getActiveCalls++
 	if r.deleted || r.sub == nil || r.sub.UserID != userID || r.sub.GroupID != groupID {
 		return nil, ErrSubscriptionNotFound
@@ -47,9 +47,9 @@ func (r *revokeCacheUserSubRepoStub) GetActiveByUserIDAndGroupID(_ context.Conte
 func TestRevokeSubscription_InvalidatesL1CacheSynchronously(t *testing.T) {
 	repo := &revokeCacheUserSubRepoStub{
 		sub: &UserSubscription{
-			ID:        1,
-			UserID:    10,
-			GroupID:   20,
+			ID:        "1",
+			UserID:    "10",
+			GroupID:   "20",
 			Status:    SubscriptionStatusActive,
 			ExpiresAt: time.Now().Add(time.Hour),
 		},
@@ -62,15 +62,15 @@ func TestRevokeSubscription_InvalidatesL1CacheSynchronously(t *testing.T) {
 	})
 	t.Cleanup(svc.Stop)
 
-	_, err := svc.GetActiveSubscription(context.Background(), 10, 20)
+	_, err := svc.GetActiveSubscription(context.Background(), "10", "20")
 	require.NoError(t, err)
 	svc.subCacheL1.Wait()
 	require.Equal(t, 1, repo.getActiveCalls)
 
-	err = svc.RevokeSubscription(context.Background(), 1)
+	err = svc.RevokeSubscription(context.Background(), "1")
 	require.NoError(t, err)
 
-	_, err = svc.GetActiveSubscription(context.Background(), 10, 20)
+	_, err = svc.GetActiveSubscription(context.Background(), "10", "20")
 	require.ErrorIs(t, err, ErrSubscriptionNotFound)
 	require.Equal(t, 2, repo.getActiveCalls, "撤销后应回源确认订阅已不存在，不能命中旧 L1")
 }
@@ -84,7 +84,7 @@ type restoreUserSubRepoStub struct {
 	restoredStatus string
 }
 
-func (r *restoreUserSubRepoStub) GetByIDIncludeDeleted(_ context.Context, id int64) (*UserSubscription, error) {
+func (r *restoreUserSubRepoStub) GetByIDIncludeDeleted(_ context.Context, id string) (*UserSubscription, error) {
 	if r.sub == nil || r.sub.ID != id {
 		return nil, ErrSubscriptionNotFound
 	}
@@ -92,11 +92,11 @@ func (r *restoreUserSubRepoStub) GetByIDIncludeDeleted(_ context.Context, id int
 	return &cp, nil
 }
 
-func (r *restoreUserSubRepoStub) ExistsActiveByUserIDAndGroupID(context.Context, int64, int64) (bool, error) {
+func (r *restoreUserSubRepoStub) ExistsActiveByUserIDAndGroupID(context.Context, string, string) (bool, error) {
 	return r.existsActive, nil
 }
 
-func (r *restoreUserSubRepoStub) Restore(_ context.Context, id int64, restoredStatus string) (*UserSubscription, error) {
+func (r *restoreUserSubRepoStub) Restore(_ context.Context, id string, restoredStatus string) (*UserSubscription, error) {
 	if r.sub == nil || r.sub.ID != id {
 		return nil, ErrSubscriptionNotFound
 	}
@@ -113,9 +113,9 @@ func TestRestoreSubscription_ExpiredActiveRestoresAsExpired(t *testing.T) {
 	deletedAt := time.Now().Add(-time.Hour)
 	repo := &restoreUserSubRepoStub{
 		sub: &UserSubscription{
-			ID:        1,
-			UserID:    10,
-			GroupID:   20,
+			ID:        "1",
+			UserID:    "10",
+			GroupID:   "20",
 			Status:    SubscriptionStatusActive,
 			ExpiresAt: time.Now().Add(-time.Minute),
 			DeletedAt: &deletedAt,
@@ -124,7 +124,7 @@ func TestRestoreSubscription_ExpiredActiveRestoresAsExpired(t *testing.T) {
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	t.Cleanup(svc.Stop)
 
-	restored, err := svc.RestoreSubscription(context.Background(), 1)
+	restored, err := svc.RestoreSubscription(context.Background(), "1")
 	require.NoError(t, err)
 	require.Equal(t, 1, repo.restoreCalls)
 	require.Equal(t, SubscriptionStatusExpired, repo.restoredStatus)
@@ -135,9 +135,9 @@ func TestRestoreSubscription_ExpiredActiveRestoresAsExpired(t *testing.T) {
 func TestRestoreSubscription_NotRevokedReturnsConflict(t *testing.T) {
 	repo := &restoreUserSubRepoStub{
 		sub: &UserSubscription{
-			ID:        1,
-			UserID:    10,
-			GroupID:   20,
+			ID:        "1",
+			UserID:    "10",
+			GroupID:   "20",
 			Status:    SubscriptionStatusActive,
 			ExpiresAt: time.Now().Add(time.Hour),
 		},
@@ -145,7 +145,7 @@ func TestRestoreSubscription_NotRevokedReturnsConflict(t *testing.T) {
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	t.Cleanup(svc.Stop)
 
-	_, err := svc.RestoreSubscription(context.Background(), 1)
+	_, err := svc.RestoreSubscription(context.Background(), "1")
 	require.ErrorIs(t, err, ErrSubscriptionNotRevoked)
 	require.Zero(t, repo.restoreCalls)
 }
@@ -155,9 +155,9 @@ func TestRestoreSubscription_LiveSubscriptionConflict(t *testing.T) {
 	repo := &restoreUserSubRepoStub{
 		existsActive: true,
 		sub: &UserSubscription{
-			ID:        1,
-			UserID:    10,
-			GroupID:   20,
+			ID:        "1",
+			UserID:    "10",
+			GroupID:   "20",
 			Status:    SubscriptionStatusExpired,
 			ExpiresAt: time.Now().Add(-time.Hour),
 			DeletedAt: &deletedAt,
@@ -166,7 +166,7 @@ func TestRestoreSubscription_LiveSubscriptionConflict(t *testing.T) {
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	t.Cleanup(svc.Stop)
 
-	_, err := svc.RestoreSubscription(context.Background(), 1)
+	_, err := svc.RestoreSubscription(context.Background(), "1")
 	require.ErrorIs(t, err, ErrSubscriptionRestoreConflict)
 	require.Zero(t, repo.restoreCalls)
 }

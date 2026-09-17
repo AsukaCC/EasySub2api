@@ -19,7 +19,7 @@ type countingOpenAI403CounterCache struct {
 	increments int
 }
 
-func (s *countingOpenAI403CounterCache) IncrementOpenAI403Count(ctx context.Context, accountID int64, window int) (int64, error) {
+func (s *countingOpenAI403CounterCache) IncrementOpenAI403Count(ctx context.Context, accountID string, window int) (int64, error) {
 	s.increments++
 	return s.openAI403CounterCacheStub.IncrementOpenAI403Count(ctx, accountID, window)
 }
@@ -32,12 +32,12 @@ type openAI403TestHarness struct {
 	account *Account
 }
 
-func newOpenAI403TestHarness(t *testing.T, accountID int64, counts ...int64) *openAI403TestHarness {
+func newOpenAI403TestHarness(t *testing.T, accountID string, counts ...int64) *openAI403TestHarness {
 	t.Helper()
 	repo := &rateLimitAccountRepoStub{}
 	counter := &countingOpenAI403CounterCache{openAI403CounterCacheStub: openAI403CounterCacheStub{counts: counts}}
 	blocker := &runtimeBlockRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(repo, &config.Config{}, nil)
 	svc.SetOpenAI403CounterCache(counter)
 	svc.SetAccountRuntimeBlocker(blocker)
 	return &openAI403TestHarness{
@@ -80,7 +80,7 @@ func TestHandleUpstreamError_OpenAIHTML403DoesNotPenalizeAccount(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			h := newOpenAI403TestHarness(t, 501, 1)
+			h := newOpenAI403TestHarness(t, "501", 1)
 
 			shouldDisable := h.handle(tc.body)
 
@@ -93,7 +93,7 @@ func TestHandleUpstreamError_OpenAIHTML403DoesNotPenalizeAccount(t *testing.T) {
 // 一个持有 API Key 的调用方反复打无效子路径时，既有实现会在第
 // openAI403DisableThreshold 次把账号永久禁用。修复后连续多少次都不该升级。
 func TestHandleUpstreamError_OpenAIHTML403RepeatedNeverEscalates(t *testing.T) {
-	h := newOpenAI403TestHarness(t, 502, 1, 2, 3, 4, 5)
+	h := newOpenAI403TestHarness(t, "502", 1, 2, 3, 4, 5)
 
 	for i := 0; i < openAI403DisableThreshold+2; i++ {
 		require.False(t, h.handle(openAI403HTMLBody), "第 %d 次 HTML 403 仍不得判定账号应下线", i+1)
@@ -106,7 +106,7 @@ func TestHandleUpstreamError_OpenAIHTML403RepeatedNeverEscalates(t *testing.T) {
 // 缺了这组断言，上面的跳过逻辑一旦写宽就会把真实的封号 403 也放过去。
 func TestHandleUpstreamError_OpenAIStructured403StillPenalizes(t *testing.T) {
 	t.Run("first_hit_temp_unschedulable", func(t *testing.T) {
-		h := newOpenAI403TestHarness(t, 503, 1)
+		h := newOpenAI403TestHarness(t, "503", 1)
 
 		require.True(t, h.handle(`{"error":{"message":"Your account is not authorized"}}`))
 		require.Equal(t, 1, h.counter.increments)
@@ -117,7 +117,7 @@ func TestHandleUpstreamError_OpenAIStructured403StillPenalizes(t *testing.T) {
 	})
 
 	t.Run("threshold_disables", func(t *testing.T) {
-		h := newOpenAI403TestHarness(t, 504, int64(openAI403DisableThreshold))
+		h := newOpenAI403TestHarness(t, "504", int64(openAI403DisableThreshold))
 
 		require.True(t, h.handle(`{"error":{"message":"workspace forbidden by policy"}}`))
 		require.Equal(t, 1, h.repo.setErrorCalls)
@@ -126,7 +126,7 @@ func TestHandleUpstreamError_OpenAIStructured403StillPenalizes(t *testing.T) {
 
 	// 非 HTML 的非结构化响应（纯文本网关错误）不在本次放行范围内，维持原有处罚。
 	t.Run("plain_text_body_unchanged", func(t *testing.T) {
-		h := newOpenAI403TestHarness(t, 505, 1)
+		h := newOpenAI403TestHarness(t, "505", 1)
 
 		require.True(t, h.handle("Forbidden"))
 		require.Equal(t, 1, h.repo.tempCalls)
@@ -138,8 +138,8 @@ func TestHandleUpstreamError_HTML403OnOtherPlatformsUnchanged(t *testing.T) {
 	for _, platform := range []string{PlatformAnthropic, PlatformGemini} {
 		t.Run(platform, func(t *testing.T) {
 			repo := &rateLimitAccountRepoStub{}
-			svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
-			account := &Account{ID: 506, Platform: platform, Type: AccountTypeAPIKey}
+			svc := NewRateLimitService(repo, &config.Config{}, nil)
+			account := &Account{ID: "506", Platform: platform, Type: AccountTypeAPIKey}
 
 			shouldDisable := svc.HandleUpstreamError(
 				context.Background(), account, http.StatusForbidden, http.Header{}, []byte(openAI403HTMLBody),

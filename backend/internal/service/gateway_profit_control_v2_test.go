@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func gatewayProfitTestGroup(id int64, platform string) *Group {
+func gatewayProfitTestGroup(id string, platform string) *Group {
 	return &Group{
 		ID:                   id,
 		Name:                 "profit-" + platform,
@@ -33,7 +33,7 @@ func gatewayProfitTestContext(group *Group) context.Context {
 	return ctx
 }
 
-func gatewayProfitTestAccount(id int64, platform string, rate float64, groupID int64) Account {
+func gatewayProfitTestAccount(id string, platform string, rate float64, groupID string) Account {
 	return Account{
 		ID:             id,
 		Name:           "account",
@@ -45,7 +45,7 @@ func gatewayProfitTestAccount(id int64, platform string, rate float64, groupID i
 		Priority:       1,
 		RateMultiplier: &rate,
 		AccountGroups:  []AccountGroup{{AccountID: id, GroupID: groupID}},
-		GroupIDs:       []int64{groupID},
+		GroupIDs: []string{},
 	}
 }
 
@@ -58,7 +58,7 @@ func TestGatewayProfitControlInstallsForFivePlatformsOnlyOnTokenRequests(t *test
 		PlatformAntigravity,
 	} {
 		t.Run(platform, func(t *testing.T) {
-			group := gatewayProfitTestGroup(101, platform)
+			group := gatewayProfitTestGroup("101", platform)
 			groupID := group.ID
 			svc := &GatewayService{}
 
@@ -78,14 +78,14 @@ func TestGatewayProfitControlInstallsForFivePlatformsOnlyOnTokenRequests(t *test
 
 func TestGatewayProfitControlCompositeBillingUsesScheduledMemberConfig(t *testing.T) {
 	billingGroup := &Group{
-		ID:               201,
+		ID: "201",
 		Platform:         PlatformComposite,
 		Status:           StatusActive,
 		Hydrated:         true,
 		RateMultiplier:   0.4,
 		SubscriptionType: SubscriptionTypeStandard,
 	}
-	memberGroup := gatewayProfitTestGroup(202, PlatformAnthropic)
+	memberGroup := gatewayProfitTestGroup("202", PlatformAnthropic)
 	memberGroup.RateMultiplier = 99
 	memberGroup.ProfitMinMargin = 0.25
 
@@ -111,17 +111,17 @@ func TestGatewayProfitControlCompositeBillingUsesScheduledMemberConfig(t *testin
 
 func TestGatewayProfitControlGroupLoadFailureClearsForeignGate(t *testing.T) {
 	billingGroup := &Group{
-		ID:               211,
+		ID: "211",
 		Platform:         PlatformComposite,
 		Status:           StatusActive,
 		Hydrated:         true,
 		RateMultiplier:   0.4,
 		SubscriptionType: SubscriptionTypeStandard,
 	}
-	targetGroupID := int64(212)
+	targetGroupID := "212"
 	ctx := gatewayProfitTestContext(billingGroup)
 	ctx = context.WithValue(ctx, openAIProfitControlGateCtxKey{}, &openAIProfitControlGate{
-		groupID:   210,
+		groupID:   "210",
 		platform:  PlatformAnthropic,
 		threshold: 0.1,
 	})
@@ -140,7 +140,7 @@ func TestGatewayProfitControlGroupLoadFailureClearsForeignGate(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, gate, "加载新分组失败时必须清除其他分组遗留的门")
 
-	account := gatewayProfitTestAccount(213, PlatformAnthropic, 0.8, targetGroupID)
+	account := gatewayProfitTestAccount("213", PlatformAnthropic, 0.8, targetGroupID)
 	require.True(t, svc.isGatewayAccountProfitEligible(ctx, &account), "配置读取失败按既定语义 fail-open")
 }
 
@@ -148,23 +148,23 @@ type profitControlFailingGroupRepo struct {
 	GroupRepository
 }
 
-func (profitControlFailingGroupRepo) GetByIDLite(context.Context, int64) (*Group, error) {
+func (profitControlFailingGroupRepo) GetByIDLite(context.Context, string) (*Group, error) {
 	return nil, errors.New("group cache unavailable")
 }
 
 // 见 profitControlGroupRepo.GetByID：利润门必须走不带账号计数聚合的 lite 读取。
-func (profitControlFailingGroupRepo) GetByID(context.Context, int64) (*Group, error) {
+func (profitControlFailingGroupRepo) GetByID(context.Context, string) (*Group, error) {
 	panic("profit control gate must read groups via GetByIDLite (no account-count aggregation)")
 }
 
 func TestGatewayProfitControlLegacyMixedAndRoutedSelection(t *testing.T) {
 	t.Run("legacy single-platform selection", func(t *testing.T) {
-		group := gatewayProfitTestGroup(111, PlatformGrok)
-		cheap := gatewayProfitTestAccount(1, PlatformGrok, 0.2, group.ID)
-		expensive := gatewayProfitTestAccount(2, PlatformGrok, 0.8, group.ID)
+		group := gatewayProfitTestGroup("111", PlatformGrok)
+		cheap := gatewayProfitTestAccount("1", PlatformGrok, 0.2, group.ID)
+		expensive := gatewayProfitTestAccount("2", PlatformGrok, 0.8, group.ID)
 		repo := &mockAccountRepoForPlatform{
 			accounts:     []Account{expensive, cheap},
-			accountsByID: map[int64]*Account{cheap.ID: &cheap, expensive.ID: &expensive},
+			accountsByID: map[string]*Account{cheap.ID: &cheap, expensive.ID: &expensive},
 		}
 		svc := &GatewayService{
 			accountRepo: repo,
@@ -179,23 +179,23 @@ func TestGatewayProfitControlLegacyMixedAndRoutedSelection(t *testing.T) {
 		require.Equal(t, cheap.ID, selected.ID)
 
 		_, err = svc.SelectAccountForModelWithExclusions(
-			gatewayProfitTestContext(group), &group.ID, "", "", map[int64]struct{}{cheap.ID: {}},
+			gatewayProfitTestContext(group), &group.ID, "", "", map[string]struct{}{cheap.ID: {}},
 		)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrNoAvailableAccounts)
 	})
 
 	t.Run("mixed routing filters the routed account", func(t *testing.T) {
-		group := gatewayProfitTestGroup(112, PlatformAnthropic)
+		group := gatewayProfitTestGroup("112", PlatformAnthropic)
 		group.ModelRoutingEnabled = true
-		group.ModelRouting = map[string][]int64{"claude-test": {2, 1}}
-		cheap := gatewayProfitTestAccount(1, PlatformAntigravity, 0.2, group.ID)
+		group.ModelRouting = map[string][]string{"claude-test": {"2", "1"}}
+		cheap := gatewayProfitTestAccount("1", PlatformAntigravity, 0.2, group.ID)
 		cheap.Extra = map[string]any{"mixed_scheduling": true}
 		cheap.Credentials = map[string]any{"model_mapping": map[string]any{"claude-test": "claude-test"}}
-		expensive := gatewayProfitTestAccount(2, PlatformAnthropic, 0.8, group.ID)
+		expensive := gatewayProfitTestAccount("2", PlatformAnthropic, 0.8, group.ID)
 		repo := &mockAccountRepoForPlatform{
 			accounts:     []Account{expensive, cheap},
-			accountsByID: map[int64]*Account{cheap.ID: &cheap, expensive.ID: &expensive},
+			accountsByID: map[string]*Account{cheap.ID: &cheap, expensive.ID: &expensive},
 		}
 		svc := &GatewayService{
 			accountRepo: repo,
@@ -212,12 +212,12 @@ func TestGatewayProfitControlLegacyMixedAndRoutedSelection(t *testing.T) {
 }
 
 func TestGatewayProfitControlLoadAwareSelectionAndFailover(t *testing.T) {
-	group := gatewayProfitTestGroup(121, PlatformGrok)
-	cheap := gatewayProfitTestAccount(1, PlatformGrok, 0.2, group.ID)
-	expensive := gatewayProfitTestAccount(2, PlatformGrok, 0.8, group.ID)
+	group := gatewayProfitTestGroup("121", PlatformGrok)
+	cheap := gatewayProfitTestAccount("1", PlatformGrok, 0.2, group.ID)
+	expensive := gatewayProfitTestAccount("2", PlatformGrok, 0.8, group.ID)
 	repo := &mockAccountRepoForPlatform{
 		accounts:     []Account{expensive, cheap},
-		accountsByID: map[int64]*Account{cheap.ID: &cheap, expensive.ID: &expensive},
+		accountsByID: map[string]*Account{cheap.ID: &cheap, expensive.ID: &expensive},
 	}
 	cfg := &config.Config{RunMode: config.RunModeStandard}
 	cfg.Gateway.Scheduling.LoadBatchEnabled = true
@@ -229,7 +229,7 @@ func TestGatewayProfitControlLoadAwareSelectionAndFailover(t *testing.T) {
 	}
 
 	result, err := svc.SelectAccountWithLoadAwareness(
-		gatewayProfitTestContext(group), &group.ID, "", "", nil, "", 0,
+		gatewayProfitTestContext(group), &group.ID, "", "", nil, "", "",
 	)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -243,9 +243,9 @@ func TestGatewayProfitControlLoadAwareSelectionAndFailover(t *testing.T) {
 		&group.ID,
 		"",
 		"",
-		map[int64]struct{}{cheap.ID: {}},
+		map[string]struct{}{cheap.ID: {}},
 		"",
-		0,
+		"",
 	)
 	require.Nil(t, result)
 	require.Error(t, err)
@@ -253,15 +253,15 @@ func TestGatewayProfitControlLoadAwareSelectionAndFailover(t *testing.T) {
 }
 
 func TestGatewayProfitControlStickyVetoKeepsBindingUntilRateRecovers(t *testing.T) {
-	group := gatewayProfitTestGroup(131, PlatformAnthropic)
-	expensive := gatewayProfitTestAccount(1, PlatformAnthropic, 0.8, group.ID)
-	cheap := gatewayProfitTestAccount(2, PlatformAnthropic, 0.2, group.ID)
+	group := gatewayProfitTestGroup("131", PlatformAnthropic)
+	expensive := gatewayProfitTestAccount("1", PlatformAnthropic, 0.8, group.ID)
+	cheap := gatewayProfitTestAccount("2", PlatformAnthropic, 0.2, group.ID)
 	repo := &mockAccountRepoForPlatform{
 		accounts:     []Account{expensive, cheap},
-		accountsByID: map[int64]*Account{expensive.ID: &expensive, cheap.ID: &cheap},
+		accountsByID: map[string]*Account{expensive.ID: &expensive, cheap.ID: &cheap},
 	}
 	cache := &mockGatewayCacheForPlatform{
-		sessionBindings: map[string]int64{"sticky-profit": expensive.ID},
+		sessionBindings: map[string]string{"sticky-profit": expensive.ID},
 	}
 	svc := &GatewayService{
 		accountRepo: repo,
@@ -302,7 +302,7 @@ type gatewayProfitSnapshotCache struct {
 	err     error
 }
 
-func (c *gatewayProfitSnapshotCache) GetAccount(context.Context, int64) (*Account, error) {
+func (c *gatewayProfitSnapshotCache) GetAccount(context.Context, string) (*Account, error) {
 	return c.account, c.err
 }
 
@@ -312,12 +312,12 @@ type gatewayProfitAccountRepo struct {
 	err     error
 }
 
-func (r gatewayProfitAccountRepo) GetByID(context.Context, int64) (*Account, error) {
+func (r gatewayProfitAccountRepo) GetByID(context.Context, string) (*Account, error) {
 	return r.account, r.err
 }
 
 func TestGatewayProfitControlTerminalRefreshUsesReplacementObject(t *testing.T) {
-	selected := gatewayProfitTestAccount(141, PlatformGemini, 0.2, 1)
+	selected := gatewayProfitTestAccount("141", PlatformGemini, 0.2, "1")
 	replacement := selected
 	expensiveRate := 0.8
 	replacement.RateMultiplier = &expensiveRate
@@ -330,7 +330,7 @@ func TestGatewayProfitControlTerminalRefreshUsesReplacementObject(t *testing.T) 
 		nil,
 	)
 	ctx := context.WithValue(context.Background(), openAIProfitControlGateCtxKey{}, &openAIProfitControlGate{
-		groupID:   1,
+		groupID:   "1",
 		platform:  PlatformGemini,
 		threshold: 0.5,
 	})
@@ -343,7 +343,7 @@ func TestGatewayProfitControlTerminalRefreshUsesReplacementObject(t *testing.T) 
 }
 
 func TestGatewayProfitControlTerminalRefreshFallsBackFromCacheToDatabase(t *testing.T) {
-	selected := gatewayProfitTestAccount(145, PlatformAnthropic, 0.2, 1)
+	selected := gatewayProfitTestAccount("145", PlatformAnthropic, 0.2, "1")
 	replacement := selected
 	expensiveRate := 0.8
 	replacement.RateMultiplier = &expensiveRate
@@ -356,7 +356,7 @@ func TestGatewayProfitControlTerminalRefreshFallsBackFromCacheToDatabase(t *test
 		nil,
 	)
 	ctx := context.WithValue(context.Background(), openAIProfitControlGateCtxKey{}, &openAIProfitControlGate{
-		groupID:   1,
+		groupID:   "1",
 		platform:  PlatformAnthropic,
 		threshold: 0.5,
 	})
@@ -368,7 +368,7 @@ func TestGatewayProfitControlTerminalRefreshFallsBackFromCacheToDatabase(t *test
 }
 
 func TestGatewayProfitControlTerminalRefreshFailureFallsBackToSelectedObject(t *testing.T) {
-	selected := gatewayProfitTestAccount(151, PlatformAntigravity, 0.2, 1)
+	selected := gatewayProfitTestAccount("151", PlatformAntigravity, 0.2, "1")
 	snapshot := NewSchedulerSnapshotService(
 		&gatewayProfitSnapshotCache{err: errors.New("cache unavailable")},
 		nil,
@@ -377,7 +377,7 @@ func TestGatewayProfitControlTerminalRefreshFailureFallsBackToSelectedObject(t *
 		nil,
 	)
 	ctx := context.WithValue(context.Background(), openAIProfitControlGateCtxKey{}, &openAIProfitControlGate{
-		groupID:   1,
+		groupID:   "1",
 		platform:  PlatformAntigravity,
 		threshold: 0.5,
 	})
@@ -391,9 +391,9 @@ func TestGatewayProfitControlTerminalRefreshFailureFallsBackToSelectedObject(t *
 // 选号结果携带门：门安装在调度栈局部 ctx 上，handler 必须经
 // ContextWithSelectionProfitGate 重放后终检与准入后绑定才可见（评审修复回归）。
 func TestGatewayProfitControlSelectionCarriesGateToHandlerContext(t *testing.T) {
-	group := gatewayProfitTestGroup(1, PlatformAnthropic)
+	group := gatewayProfitTestGroup("1", PlatformAnthropic)
 	svc := &GatewayService{}
-	expensive := gatewayProfitTestAccount(161, PlatformAnthropic, 0.9, group.ID)
+	expensive := gatewayProfitTestAccount("161", PlatformAnthropic, 0.9, group.ID)
 
 	gateCtx := svc.withGatewayProfitControlGate(gatewayProfitTestContext(group), &group.ID)
 	selection, err := svc.newSelectionResult(gateCtx, &expensive, true, nil, nil)
@@ -420,9 +420,9 @@ func TestGatewayProfitControlSelectionCarriesGateToHandlerContext(t *testing.T) 
 // 生图意图不关门（H1/H2 回归锚点）：/v1/responses 混合请求即使带生图声明，
 // token 定价上下文照常装配，共享门照常安装并否决越线账号。
 func TestGatewayProfitControlImageIntentDoesNotDisableGate(t *testing.T) {
-	group := gatewayProfitTestGroup(2, PlatformAnthropic)
+	group := gatewayProfitTestGroup("2", PlatformAnthropic)
 	svc := &GatewayService{}
-	expensive := gatewayProfitTestAccount(162, PlatformAnthropic, 0.9, group.ID)
+	expensive := gatewayProfitTestAccount("162", PlatformAnthropic, 0.9, group.ID)
 
 	ctx := gatewayProfitTestContext(group)
 	ctx = WithOpenAIImageGenerationIntent(ctx)
@@ -433,12 +433,12 @@ func TestGatewayProfitControlImageIntentDoesNotDisableGate(t *testing.T) {
 
 // 无门时准入后绑定回退官方 eager 语义；门下读失败保守不写（评审 M-Bind 回归）。
 func TestGatewayProfitControlAfterAdmissionBindSemantics(t *testing.T) {
-	groupID := int64(3)
-	expensiveID := int64(171)
-	cheapID := int64(172)
+	groupID := "3"
+	expensiveID := "171"
+	cheapID := "172"
 
 	t.Run("eager without gate", func(t *testing.T) {
-		cache := &mockGatewayCacheForPlatform{sessionBindings: map[string]int64{"s": expensiveID}}
+		cache := &mockGatewayCacheForPlatform{sessionBindings: map[string]string{"s": expensiveID}}
 		svc := &GatewayService{cache: cache}
 		require.NoError(t, svc.BindStickySessionAfterProfitAdmission(context.Background(), &groupID, "s", cheapID))
 		require.Equal(t, cheapID, cache.sessionBindings["s"], "无门时保持既有 eager 绑定行为")
@@ -446,7 +446,7 @@ func TestGatewayProfitControlAfterAdmissionBindSemantics(t *testing.T) {
 
 	t.Run("gated read failure is conservative", func(t *testing.T) {
 		// mock 的 miss 返回非 sentinel 错误，等价于 Redis 读失败：门下保守不写。
-		cache := &mockGatewayCacheForPlatform{sessionBindings: map[string]int64{}}
+		cache := &mockGatewayCacheForPlatform{sessionBindings: map[string]string{}}
 		svc := &GatewayService{cache: cache}
 		gate := &openAIProfitControlGate{groupID: groupID, platform: PlatformAnthropic, threshold: 0.5}
 		gateCtx := context.WithValue(context.Background(), openAIProfitControlGateCtxKey{}, gate)
@@ -455,7 +455,7 @@ func TestGatewayProfitControlAfterAdmissionBindSemantics(t *testing.T) {
 	})
 
 	t.Run("gated sentinel miss binds", func(t *testing.T) {
-		cache := &sentinelMissGatewayCache{mockGatewayCacheForPlatform: &mockGatewayCacheForPlatform{sessionBindings: map[string]int64{}}}
+		cache := &sentinelMissGatewayCache{mockGatewayCacheForPlatform: &mockGatewayCacheForPlatform{sessionBindings: map[string]string{}}}
 		svc := &GatewayService{cache: cache}
 		gate := &openAIProfitControlGate{groupID: groupID, platform: PlatformAnthropic, threshold: 0.5}
 		gateCtx := context.WithValue(context.Background(), openAIProfitControlGateCtxKey{}, gate)
@@ -469,9 +469,9 @@ type sentinelMissGatewayCache struct {
 	*mockGatewayCacheForPlatform
 }
 
-func (c *sentinelMissGatewayCache) GetSessionAccountID(ctx context.Context, groupID int64, sessionHash string) (int64, error) {
+func (c *sentinelMissGatewayCache) GetSessionAccountID(ctx context.Context, groupID string, sessionHash string) (string, error) {
 	if id, ok := c.sessionBindings[sessionHash]; ok {
 		return id, nil
 	}
-	return 0, ErrStickySessionNotFound
+	return "", ErrStickySessionNotFound
 }

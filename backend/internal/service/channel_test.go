@@ -11,22 +11,22 @@ import (
 func TestGetModelPricing(t *testing.T) {
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Models: []string{"claude-sonnet-4"}, BillingMode: BillingModeToken, InputPrice: testPtrFloat64(3e-6)},
-			{ID: 3, Models: []string{"gpt-5.1"}, BillingMode: BillingModePerRequest},
+			{ID: "1", Models: []string{"claude-sonnet-4"}, BillingMode: BillingModeToken, InputPrice: testPtrFloat64(3e-6)},
+			{ID: "3", Models: []string{"gpt-5.1"}, BillingMode: BillingModePerRequest},
 		},
 	}
 
 	tests := []struct {
 		name    string
 		model   string
-		wantID  int64
+		wantID  string
 		wantNil bool
 	}{
-		{"exact match", "claude-sonnet-4", 1, false},
-		{"case insensitive", "Claude-Sonnet-4", 1, false},
-		{"not found", "gemini-3.1-pro", 0, true},
-		{"wildcard pattern not matched", "claude-opus-4-20250514", 0, true},
-		{"per_request model", "gpt-5.1", 3, false},
+		{"exact match", "claude-sonnet-4", "1", false},
+		{"case insensitive", "Claude-Sonnet-4", "1", false},
+		{"not found", "gemini-3.1-pro", "", true},
+		{"wildcard pattern not matched", "claude-opus-4-20250514", "", true},
+		{"per_request model", "gpt-5.1", "3", false},
 	}
 
 	for _, tt := range tests {
@@ -45,7 +45,7 @@ func TestGetModelPricing(t *testing.T) {
 func TestGetModelPricing_ReturnsCopy(t *testing.T) {
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Models: []string{"claude-sonnet-4"}, InputPrice: testPtrFloat64(3e-6)},
+			{ID: "1", Models: []string{"claude-sonnet-4"}, InputPrice: testPtrFloat64(3e-6)},
 		},
 	}
 
@@ -161,12 +161,12 @@ func TestGetTierByLabel_Empty(t *testing.T) {
 
 func TestChannelClone(t *testing.T) {
 	original := &Channel{
-		ID:       1,
+		ID: "1",
 		Name:     "test",
-		GroupIDs: []int64{10, 20},
+		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
 			{
-				ID:         100,
+				ID: "100",
 				Models:     []string{"model-a"},
 				InputPrice: testPtrFloat64(5e-6),
 			},
@@ -179,8 +179,8 @@ func TestChannelClone(t *testing.T) {
 	require.Equal(t, original.Name, cloned.Name)
 
 	// Modify clone slices — original should not change
-	cloned.GroupIDs[0] = 999
-	require.Equal(t, int64(10), original.GroupIDs[0])
+	cloned.GroupIDs[0] = "999"
+	require.Equal(t, "10", original.GroupIDs[0])
 
 	cloned.ModelPricing[0].Models[0] = "hacked"
 	require.Equal(t, "model-a", original.ModelPricing[0].Models[0])
@@ -295,20 +295,20 @@ func TestChannelModelPricingClone_EdgeCases(t *testing.T) {
 
 func TestChannelClone_EdgeCases(t *testing.T) {
 	t.Run("nil model mapping", func(t *testing.T) {
-		original := &Channel{ID: 1, ModelMapping: nil}
+		original := &Channel{ID: "1", ModelMapping: nil}
 		cloned := original.Clone()
 		require.Nil(t, cloned.ModelMapping)
 	})
 
 	t.Run("nil model pricing", func(t *testing.T) {
-		original := &Channel{ID: 1, ModelPricing: nil}
+		original := &Channel{ID: "1", ModelPricing: nil}
 		cloned := original.Clone()
 		require.Nil(t, cloned.ModelPricing)
 	})
 
 	t.Run("deep copy model mapping", func(t *testing.T) {
 		original := &Channel{
-			ID: 1,
+			ID: "1",
 			ModelMapping: map[string]map[string]string{
 				"openai": {"gpt-4": "gpt-4-turbo"},
 			},
@@ -483,8 +483,8 @@ func TestValidateIntervals_ImageModeStillRejectsBadMaxTokens(t *testing.T) {
 func TestSupportedModels_ExactKeysAndPricing(t *testing.T) {
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 10, Platform: "anthropic", Models: []string{"claude-sonnet-4-6"}, InputPrice: testPtrFloat64(3e-6)},
-			{ID: 11, Platform: "anthropic", Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(1.5e-5)},
+			{ID: "10", Platform: "anthropic", Models: []string{"claude-sonnet-4-6"}, InputPrice: testPtrFloat64(3e-6)},
+			{ID: "11", Platform: "anthropic", Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(1.5e-5)},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
@@ -499,16 +499,16 @@ func TestSupportedModels_ExactKeysAndPricing(t *testing.T) {
 	require.Equal(t, "anthropic", got[0].Platform)
 	require.Equal(t, "claude-opus-4-6", got[0].Name)
 	require.NotNil(t, got[0].Pricing)
-	require.Equal(t, int64(11), got[0].Pricing.ID)
+	require.Equal(t, "11", got[0].Pricing.ID)
 	require.Equal(t, "claude-sonnet-4-6", got[1].Name)
-	require.Equal(t, int64(10), got[1].Pricing.ID)
+	require.Equal(t, "10", got[1].Pricing.ID)
 }
 
 func TestSupportedModels_WildcardExpandedFromPricing(t *testing.T) {
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"claude-sonnet-4-6", "claude-sonnet-4-5"}},
-			{ID: 2, Platform: "anthropic", Models: []string{"claude-opus-4-6"}},
+			{ID: "1", Platform: "anthropic", Models: []string{"claude-sonnet-4-6", "claude-sonnet-4-5"}},
+			{ID: "2", Platform: "anthropic", Models: []string{"claude-opus-4-6"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
@@ -544,8 +544,8 @@ func TestSupportedModels_MissingPricingKeepsNilPricing(t *testing.T) {
 func TestSupportedModels_DedupAndSort(t *testing.T) {
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"claude-sonnet-4-6", "claude-sonnet-4-5"}},
-			{ID: 2, Platform: "openai", Models: []string{"gpt-4o"}},
+			{ID: "1", Platform: "anthropic", Models: []string{"claude-sonnet-4-6", "claude-sonnet-4-5"}},
+			{ID: "2", Platform: "openai", Models: []string{"gpt-4o"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
@@ -577,18 +577,18 @@ func TestSupportedModels_NilChannelAndEmpty(t *testing.T) {
 func TestGetModelPricingByPlatform(t *testing.T) {
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"claude-sonnet-4-6"}, InputPrice: testPtrFloat64(3e-6)},
-			{ID: 2, Platform: "openai", Models: []string{"claude-sonnet-4-6"}, InputPrice: testPtrFloat64(1e-6)},
+			{ID: "1", Platform: "anthropic", Models: []string{"claude-sonnet-4-6"}, InputPrice: testPtrFloat64(3e-6)},
+			{ID: "2", Platform: "openai", Models: []string{"claude-sonnet-4-6"}, InputPrice: testPtrFloat64(1e-6)},
 		},
 	}
 
 	ant := ch.GetModelPricingByPlatform("anthropic", "claude-sonnet-4-6")
 	require.NotNil(t, ant)
-	require.Equal(t, int64(1), ant.ID)
+	require.Equal(t, "1", ant.ID)
 
 	oa := ch.GetModelPricingByPlatform("openai", "claude-sonnet-4-6")
 	require.NotNil(t, oa)
-	require.Equal(t, int64(2), oa.ID)
+	require.Equal(t, "2", oa.ID)
 
 	require.Nil(t, ch.GetModelPricingByPlatform("gemini", "claude-sonnet-4-6"))
 }
@@ -597,7 +597,7 @@ func TestSupportedModels_WildcardOnlyPricingRowsSkipped(t *testing.T) {
 	// 定价中含通配符条目（pattern），不应被当作具体模型名展开。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"claude-sonnet-*", "claude-sonnet-4-6"}},
+			{ID: "1", Platform: "anthropic", Models: []string{"claude-sonnet-*", "claude-sonnet-4-6"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {"claude-sonnet-*": "claude-sonnet-4-6"},
@@ -616,7 +616,7 @@ func TestSupportedModels_WildcardPrefixMatchesNothing(t *testing.T) {
 	// 但其他平台的 pricing-only 模型仍会通过 Pass B 出现。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "openai", Models: []string{"gpt-4o"}},
+			{ID: "1", Platform: "openai", Models: []string{"gpt-4o"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {"gpt-foo-*": "gpt-foo-1"},
@@ -633,7 +633,7 @@ func TestSupportedModels_CrossPlatformPricingDoesNotBleed(t *testing.T) {
 	// openai 的 pricing-only 模型则正常通过 Pass B 暴露在 openai 平台下。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "openai", Models: []string{"claude-sonnet-4-6"}},
+			{ID: "1", Platform: "openai", Models: []string{"claude-sonnet-4-6"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {"claude-sonnet-*": "x"},
@@ -649,8 +649,8 @@ func TestSupportedModels_CaseInsensitiveDedup(t *testing.T) {
 	// 两行定价用不同大小写定义了同一模型，结果应去重为 1 条；首次出现的原始大小写保留。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "openai", Models: []string{"GPT-4o"}},
-			{ID: 2, Platform: "openai", Models: []string{"gpt-4o"}},
+			{ID: "1", Platform: "openai", Models: []string{"GPT-4o"}},
+			{ID: "2", Platform: "openai", Models: []string{"gpt-4o"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"openai": {"gpt-*": "x"},
@@ -666,7 +666,7 @@ func TestSupportedModels_EmptyPlatformMapping(t *testing.T) {
 	// 但 pricing 路仍会把该平台的定价模型补齐（关键修复：azcc 这种"只配定价不配映射"渠道）。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"claude-sonnet-4-6"}},
+			{ID: "1", Platform: "anthropic", Models: []string{"claude-sonnet-4-6"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {},
@@ -683,7 +683,7 @@ func TestSupportedModels_ExactKeyUsesPricedCaseWhenAvailable(t *testing.T) {
 	// mapping key uses uppercase, pricing uses lowercase — pricing's case should win.
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "openai", Models: []string{"gpt-4o"}},
+			{ID: "1", Platform: "openai", Models: []string{"gpt-4o"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"openai": {"GPT-4o": "gpt-4o"},
@@ -698,7 +698,7 @@ func TestSupportedModels_AsteriskOnlyMappingExpandsAllPriced(t *testing.T) {
 	// 映射 key 为单独的 "*"：前缀为空 → 命中该平台所有定价模型（透传场景）。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "openai", Models: []string{"gpt-4o", "gpt-4o-mini"}},
+			{ID: "1", Platform: "openai", Models: []string{"gpt-4o", "gpt-4o-mini"}},
 		},
 		ModelMapping: map[string]map[string]string{
 			"openai": {"*": "gpt-4o"},
@@ -715,17 +715,17 @@ func TestSupportedModels_PricingOnlyNoMapping(t *testing.T) {
 	// 这是修复前的核心 bug 场景（前端显示"未配置模型"）。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(1.5e-5)},
-			{ID: 2, Platform: "anthropic", Models: []string{"claude-haiku-4-5"}, InputPrice: testPtrFloat64(3e-7)},
+			{ID: "1", Platform: "anthropic", Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(1.5e-5)},
+			{ID: "2", Platform: "anthropic", Models: []string{"claude-haiku-4-5"}, InputPrice: testPtrFloat64(3e-7)},
 		},
 	}
 	got := ch.SupportedModels()
 	require.Len(t, got, 2)
 	require.Equal(t, "claude-haiku-4-5", got[0].Name)
 	require.NotNil(t, got[0].Pricing)
-	require.Equal(t, int64(2), got[0].Pricing.ID)
+	require.Equal(t, "2", got[0].Pricing.ID)
 	require.Equal(t, "claude-opus-4-6", got[1].Name)
-	require.Equal(t, int64(1), got[1].Pricing.ID)
+	require.Equal(t, "1", got[1].Pricing.ID)
 }
 
 func TestSupportedModels_ExactMappingUsesTargetPricing(t *testing.T) {
@@ -733,8 +733,8 @@ func TestSupportedModels_ExactMappingUsesTargetPricing(t *testing.T) {
 	// 而不是按 src 自查。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"req-model"}, InputPrice: testPtrFloat64(3e-6)},
-			{ID: 200, Platform: "anthropic", Models: []string{"served-model"}, InputPrice: testPtrFloat64(1.5e-5)},
+			{ID: "100", Platform: "anthropic", Models: []string{"req-model"}, InputPrice: testPtrFloat64(3e-6)},
+			{ID: "200", Platform: "anthropic", Models: []string{"served-model"}, InputPrice: testPtrFloat64(1.5e-5)},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
@@ -746,9 +746,9 @@ func TestSupportedModels_ExactMappingUsesTargetPricing(t *testing.T) {
 	require.Len(t, got, 2)
 	require.Equal(t, "req-model", got[0].Name)
 	require.NotNil(t, got[0].Pricing)
-	require.Equal(t, int64(200), got[0].Pricing.ID, "req-model 显示但定价是 served-model 的（mapping target）")
+	require.Equal(t, "200", got[0].Pricing.ID, "req-model 显示但定价是 served-model 的（mapping target）")
 	require.Equal(t, "served-model", got[1].Name)
-	require.Equal(t, int64(200), got[1].Pricing.ID)
+	require.Equal(t, "200", got[1].Pricing.ID)
 }
 
 func TestSupportedModels_ExactMappingTargetMissingFromPricing(t *testing.T) {
@@ -756,7 +756,7 @@ func TestSupportedModels_ExactMappingTargetMissingFromPricing(t *testing.T) {
 	// （等待 ListAvailable 阶段的全局 LiteLLM 回落填充）。
 	ch := &Channel{
 		ModelPricing: []ChannelModelPricing{
-			{ID: 1, Platform: "anthropic", Models: []string{"some-priced-model"}, InputPrice: testPtrFloat64(1.5e-5)},
+			{ID: "1", Platform: "anthropic", Models: []string{"some-priced-model"}, InputPrice: testPtrFloat64(1.5e-5)},
 		},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {

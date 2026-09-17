@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,8 +14,9 @@ import (
 )
 
 type userRepoStub struct {
+	WalletRepository
 	user                 *User
-	usersByID            map[int64]*User
+	usersByID            map[string]*User
 	getErr               error
 	createErr            error
 	deleteErr            error
@@ -26,7 +28,7 @@ type userRepoStub struct {
 	nextID               int64
 	created              []*User
 	updated              []*User
-	deletedIDs           []int64
+	deletedIDs           []string
 	usersByEmail         map[string]*User
 	getByEmailErr        error
 	getByEmailMisses     int
@@ -58,8 +60,8 @@ func (s *userRepoStub) Create(ctx context.Context, user *User) error {
 	if s.createErr != nil {
 		return s.createErr
 	}
-	if s.nextID != 0 && user.ID == 0 {
-		user.ID = s.nextID
+	if s.nextID != 0 && user.ID == "" {
+		user.ID = strconv.FormatInt(s.nextID, 10)
 	}
 	s.created = append(s.created, user)
 	if s.usersByEmail == nil {
@@ -81,7 +83,7 @@ func (s *userRepoStub) CreateWithEmailAliasGuard(ctx context.Context, user *User
 	return s.Create(ctx, user)
 }
 
-func (s *userRepoStub) GetByID(ctx context.Context, id int64) (*User, error) {
+func (s *userRepoStub) GetByID(ctx context.Context, id string) (*User, error) {
 	if s.getErr != nil {
 		return nil, s.getErr
 	}
@@ -130,20 +132,20 @@ func (s *userRepoStub) Update(ctx context.Context, user *User, fields UserUpdate
 	return nil
 }
 
-func (s *userRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *userRepoStub) Delete(ctx context.Context, id string) error {
 	s.deletedIDs = append(s.deletedIDs, id)
 	return s.deleteErr
 }
 
-func (s *userRepoStub) GetUserAvatar(ctx context.Context, userID int64) (*UserAvatar, error) {
+func (s *userRepoStub) GetUserAvatar(ctx context.Context, userID string) (*UserAvatar, error) {
 	panic("unexpected GetUserAvatar call")
 }
 
-func (s *userRepoStub) UpsertUserAvatar(ctx context.Context, userID int64, input UpsertUserAvatarInput) (*UserAvatar, error) {
+func (s *userRepoStub) UpsertUserAvatar(ctx context.Context, userID string, input UpsertUserAvatarInput) (*UserAvatar, error) {
 	panic("unexpected UpsertUserAvatar call")
 }
 
-func (s *userRepoStub) DeleteUserAvatar(ctx context.Context, userID int64) error {
+func (s *userRepoStub) DeleteUserAvatar(ctx context.Context, userID string) error {
 	panic("unexpected DeleteUserAvatar call")
 }
 
@@ -155,41 +157,41 @@ func (s *userRepoStub) ListWithFilters(ctx context.Context, params pagination.Pa
 	panic("unexpected ListWithFilters call")
 }
 
-func (s *userRepoStub) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []int64) (map[int64]*time.Time, error) {
+func (s *userRepoStub) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []string) (map[string]*time.Time, error) {
 	panic("unexpected GetLatestUsedAtByUserIDs call")
 }
 
-func (s *userRepoStub) GetLatestUsedAtByUserID(ctx context.Context, userID int64) (*time.Time, error) {
+func (s *userRepoStub) GetLatestUsedAtByUserID(ctx context.Context, userID string) (*time.Time, error) {
 	panic("unexpected GetLatestUsedAtByUserID call")
 }
 
-func (s *userRepoStub) UpdateUserLastActiveAt(ctx context.Context, userID int64, activeAt time.Time) error {
+func (s *userRepoStub) UpdateUserLastActiveAt(ctx context.Context, userID string, activeAt time.Time) error {
 	panic("unexpected UpdateUserLastActiveAt call")
 }
 
-func (s *userRepoStub) UpdateBalance(ctx context.Context, id int64, amount float64) error {
+func (s *userRepoStub) UpdateBalance(ctx context.Context, id string, amount float64) error {
 	panic("unexpected UpdateBalance call")
 }
 
-func (s *userRepoStub) DeductBalance(ctx context.Context, id int64, amount float64) error {
+func (s *userRepoStub) DeductBalance(ctx context.Context, id string, amount float64) error {
 	panic("unexpected DeductBalance call")
 }
 
-func (s *userRepoStub) AdjustBalance(ctx context.Context, id int64, delta float64) (BalanceChange, error) {
+func (s *userRepoStub) AdjustBalance(ctx context.Context, id string, delta float64) (BalanceChange, error) {
 	panic("unexpected AdjustBalance call")
 }
 
-func (s *userRepoStub) SetBalance(ctx context.Context, id int64, value float64) (BalanceChange, error) {
+func (s *userRepoStub) SetBalance(ctx context.Context, id string, value float64) (BalanceChange, error) {
 	panic("unexpected SetBalance call")
 }
 
-func (s *userRepoStub) UpdateConcurrency(ctx context.Context, id int64, amount int) error {
+func (s *userRepoStub) UpdateConcurrency(ctx context.Context, id string, amount int) error {
 	panic("unexpected UpdateConcurrency call")
 }
 
-func (s *userRepoStub) BatchSetConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
-func (s *userRepoStub) BatchAddConcurrency(context.Context, []int64, int) (int, error) { return 0, nil }
-func (s *userRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+func (s *userRepoStub) BatchSetConcurrency(context.Context, []string, int) (int, error) { return 0, nil }
+func (s *userRepoStub) BatchAddConcurrency(context.Context, []string, int) (int, error) { return 0, nil }
+func (s *userRepoStub) BatchUpdateLimits(context.Context, []string, *int, *int) (int, error) {
 	return 0, nil
 }
 
@@ -207,57 +209,57 @@ func (s *userRepoStub) ExistsByEmailAlias(ctx context.Context, email string) (bo
 	return s.aliasExists, nil
 }
 
-func (s *userRepoStub) RemoveGroupFromAllowedGroups(ctx context.Context, groupID int64) (int64, error) {
+func (s *userRepoStub) RemoveGroupFromAllowedGroups(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected RemoveGroupFromAllowedGroups call")
 }
 
-func (s *userRepoStub) RemoveGroupFromUserAllowedGroups(ctx context.Context, userID int64, groupID int64) error {
+func (s *userRepoStub) RemoveGroupFromUserAllowedGroups(ctx context.Context, userID string, groupID string) error {
 	panic("unexpected RemoveGroupFromUserAllowedGroups call")
 }
 
-func (s *userRepoStub) AddGroupToAllowedGroups(ctx context.Context, userID int64, groupID int64) error {
+func (s *userRepoStub) AddGroupToAllowedGroups(ctx context.Context, userID string, groupID string) error {
 	panic("unexpected AddGroupToAllowedGroups call")
 }
 
-func (s *userRepoStub) ListUserAuthIdentities(ctx context.Context, userID int64) ([]UserAuthIdentityRecord, error) {
+func (s *userRepoStub) ListUserAuthIdentities(ctx context.Context, userID string) ([]UserAuthIdentityRecord, error) {
 	panic("unexpected ListUserAuthIdentities call")
 }
 
-func (s *userRepoStub) UnbindUserAuthProvider(context.Context, int64, string) error {
+func (s *userRepoStub) UnbindUserAuthProvider(context.Context, string, string) error {
 	panic("unexpected UnbindUserAuthProvider call")
 }
 
-func (s *userRepoStub) UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error {
+func (s *userRepoStub) UpdateTotpSecret(ctx context.Context, userID string, encryptedSecret *string) error {
 	panic("unexpected UpdateTotpSecret call")
 }
 
-func (s *userRepoStub) EnableTotp(ctx context.Context, userID int64) error {
+func (s *userRepoStub) EnableTotp(ctx context.Context, userID string) error {
 	panic("unexpected EnableTotp call")
 }
 
-func (s *userRepoStub) DisableTotp(ctx context.Context, userID int64) error {
+func (s *userRepoStub) DisableTotp(ctx context.Context, userID string) error {
 	panic("unexpected DisableTotp call")
 }
 
-func (s *userRepoStub) GetByIDIncludeDeleted(ctx context.Context, id int64) (*User, error) {
+func (s *userRepoStub) GetByIDIncludeDeleted(ctx context.Context, id string) (*User, error) {
 	return s.GetByID(ctx, id)
 }
 
 type groupRepoStub struct {
-	affectedUserIDs []int64
+	affectedUserIDs []string
 	deleteErr       error
-	deleteCalls     []int64
+	deleteCalls     []string
 }
 
 func (s *groupRepoStub) Create(ctx context.Context, group *Group) error {
 	panic("unexpected Create call")
 }
 
-func (s *groupRepoStub) GetByID(ctx context.Context, id int64) (*Group, error) {
+func (s *groupRepoStub) GetByID(ctx context.Context, id string) (*Group, error) {
 	panic("unexpected GetByID call")
 }
 
-func (s *groupRepoStub) GetByIDLite(ctx context.Context, id int64) (*Group, error) {
+func (s *groupRepoStub) GetByIDLite(ctx context.Context, id string) (*Group, error) {
 	panic("unexpected GetByIDLite call")
 }
 
@@ -265,11 +267,11 @@ func (s *groupRepoStub) Update(ctx context.Context, group *Group) error {
 	panic("unexpected Update call")
 }
 
-func (s *groupRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *groupRepoStub) Delete(ctx context.Context, id string) error {
 	panic("unexpected Delete call")
 }
 
-func (s *groupRepoStub) DeleteCascade(ctx context.Context, id int64) ([]int64, error) {
+func (s *groupRepoStub) DeleteCascade(ctx context.Context, id string) ([]string, error) {
 	s.deleteCalls = append(s.deleteCalls, id)
 	return s.affectedUserIDs, s.deleteErr
 }
@@ -294,19 +296,19 @@ func (s *groupRepoStub) ExistsByName(ctx context.Context, name string) (bool, er
 	panic("unexpected ExistsByName call")
 }
 
-func (s *groupRepoStub) GetAccountCount(ctx context.Context, groupID int64) (int64, int64, error) {
+func (s *groupRepoStub) GetAccountCount(ctx context.Context, groupID string) (int64, int64, error) {
 	panic("unexpected GetAccountCount call")
 }
 
-func (s *groupRepoStub) DeleteAccountGroupsByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (s *groupRepoStub) DeleteAccountGroupsByGroupID(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected DeleteAccountGroupsByGroupID call")
 }
 
-func (s *groupRepoStub) BindAccountsToGroup(ctx context.Context, groupID int64, accountIDs []int64) error {
+func (s *groupRepoStub) BindAccountsToGroup(ctx context.Context, groupID string, accountIDs []string) error {
 	panic("unexpected BindAccountsToGroup call")
 }
 
-func (s *groupRepoStub) GetAccountIDsByGroupIDs(ctx context.Context, groupIDs []int64) ([]int64, error) {
+func (s *groupRepoStub) GetAccountIDsByGroupIDs(ctx context.Context, groupIDs []string) ([]string, error) {
 	panic("unexpected GetAccountIDsByGroupIDs call")
 }
 
@@ -318,10 +320,10 @@ type deleteGroupAPIKeyRepoStub struct {
 	apiKeyRepoStubForGroupUpdate
 	keys         []string
 	listErr      error
-	listGroupIDs []int64
+	listGroupIDs []string
 }
 
-func (s *deleteGroupAPIKeyRepoStub) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
+func (s *deleteGroupAPIKeyRepoStub) ListKeysByGroupID(ctx context.Context, groupID string) ([]string, error) {
 	s.listGroupIDs = append(s.listGroupIDs, groupID)
 	if s.listErr != nil {
 		return nil, s.listErr
@@ -333,18 +335,18 @@ type proxyRepoStub struct {
 	deleteErr    error
 	countErr     error
 	accountCount int64
-	deletedIDs   []int64
+	deletedIDs   []string
 }
 
 func (s *proxyRepoStub) Create(ctx context.Context, proxy *Proxy) error {
 	panic("unexpected Create call")
 }
 
-func (s *proxyRepoStub) GetByID(ctx context.Context, id int64) (*Proxy, error) {
+func (s *proxyRepoStub) GetByID(ctx context.Context, id string) (*Proxy, error) {
 	panic("unexpected GetByID call")
 }
 
-func (s *proxyRepoStub) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
+func (s *proxyRepoStub) ListByIDs(ctx context.Context, ids []string) ([]Proxy, error) {
 	panic("unexpected ListByIDs call")
 }
 
@@ -352,7 +354,7 @@ func (s *proxyRepoStub) Update(ctx context.Context, proxy *Proxy) error {
 	panic("unexpected Update call")
 }
 
-func (s *proxyRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *proxyRepoStub) Delete(ctx context.Context, id string) error {
 	s.deletedIDs = append(s.deletedIDs, id)
 	return s.deleteErr
 }
@@ -381,14 +383,14 @@ func (s *proxyRepoStub) ExistsByHostPortAuth(ctx context.Context, host string, p
 	panic("unexpected ExistsByHostPortAuth call")
 }
 
-func (s *proxyRepoStub) CountAccountsByProxyID(ctx context.Context, proxyID int64) (int64, error) {
+func (s *proxyRepoStub) CountAccountsByProxyID(ctx context.Context, proxyID string) (int64, error) {
 	if s.countErr != nil {
 		return 0, s.countErr
 	}
 	return s.accountCount, nil
 }
 
-func (s *proxyRepoStub) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
+func (s *proxyRepoStub) ListAccountSummariesByProxyID(ctx context.Context, proxyID string) ([]ProxyAccountSummary, error) {
 	panic("unexpected ListAccountSummariesByProxyID call")
 }
 func (s *proxyRepoStub) SweepExpiredProxies(_ context.Context, _ time.Time) (int64, error) {
@@ -405,10 +407,10 @@ func (s *proxyRepoStub) CountExpiringSoon(_ context.Context, _ time.Time) (int64
 }
 
 type redeemRepoStub struct {
-	deleteErrByID map[int64]error
-	deletedIDs    []int64
+	deleteErrByID map[string]error
+	deletedIDs    []string
 
-	batchUpdateIDs    []int64
+	batchUpdateIDs    []string
 	batchUpdateFields RedeemCodeBatchUpdateFields
 	batchUpdateResult int64
 	batchUpdateErr    error
@@ -423,7 +425,7 @@ func (s *redeemRepoStub) CreateBatch(ctx context.Context, codes []RedeemCode) er
 	panic("unexpected CreateBatch call")
 }
 
-func (s *redeemRepoStub) GetByID(ctx context.Context, id int64) (*RedeemCode, error) {
+func (s *redeemRepoStub) GetByID(ctx context.Context, id string) (*RedeemCode, error) {
 	panic("unexpected GetByID call")
 }
 
@@ -435,9 +437,9 @@ func (s *redeemRepoStub) Update(ctx context.Context, code *RedeemCode) error {
 	panic("unexpected Update call")
 }
 
-func (s *redeemRepoStub) BatchUpdate(ctx context.Context, ids []int64, fields RedeemCodeBatchUpdateFields) (int64, error) {
+func (s *redeemRepoStub) BatchUpdate(ctx context.Context, ids []string, fields RedeemCodeBatchUpdateFields) (int64, error) {
 	s.batchUpdateCalled = true
-	s.batchUpdateIDs = append([]int64(nil), ids...)
+	s.batchUpdateIDs = append([]string(nil), ids...)
 	s.batchUpdateFields = fields
 	if s.batchUpdateErr != nil {
 		return 0, s.batchUpdateErr
@@ -448,7 +450,7 @@ func (s *redeemRepoStub) BatchUpdate(ctx context.Context, ids []int64, fields Re
 	return int64(len(ids)), nil
 }
 
-func (s *redeemRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *redeemRepoStub) Delete(ctx context.Context, id string) error {
 	s.deletedIDs = append(s.deletedIDs, id)
 	if s.deleteErrByID != nil {
 		if err, ok := s.deleteErrByID[id]; ok {
@@ -458,7 +460,7 @@ func (s *redeemRepoStub) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (s *redeemRepoStub) Use(ctx context.Context, id, userID int64) error {
+func (s *redeemRepoStub) Use(ctx context.Context, id, userID string) error {
 	panic("unexpected Use call")
 }
 
@@ -470,21 +472,21 @@ func (s *redeemRepoStub) ListWithFilters(ctx context.Context, params pagination.
 	panic("unexpected ListWithFilters call")
 }
 
-func (s *redeemRepoStub) ListByUser(ctx context.Context, userID int64, limit int) ([]RedeemCode, error) {
+func (s *redeemRepoStub) ListByUser(ctx context.Context, userID string, limit int) ([]RedeemCode, error) {
 	panic("unexpected ListByUser call")
 }
 
-func (s *redeemRepoStub) ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]RedeemCode, *pagination.PaginationResult, error) {
+func (s *redeemRepoStub) ListByUserPaginated(ctx context.Context, userID string, params pagination.PaginationParams, codeType string) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected ListByUserPaginated call")
 }
 
-func (s *redeemRepoStub) SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error) {
+func (s *redeemRepoStub) SumPositiveBalanceByUser(ctx context.Context, userID string) (float64, error) {
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
 type subscriptionInvalidateCall struct {
-	userID  int64
-	groupID int64
+	userID  string
+	groupID string
 }
 
 type billingCacheStub struct {
@@ -495,65 +497,65 @@ func newBillingCacheStub(buffer int) *billingCacheStub {
 	return &billingCacheStub{invalidations: make(chan subscriptionInvalidateCall, buffer)}
 }
 
-func (s *billingCacheStub) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
+func (s *billingCacheStub) GetUserBalance(ctx context.Context, userID string) (float64, error) {
 	panic("unexpected GetUserBalance call")
 }
 
-func (s *billingCacheStub) SetUserBalance(ctx context.Context, userID int64, balance float64) error {
+func (s *billingCacheStub) SetUserBalance(ctx context.Context, userID string, balance float64) error {
 	panic("unexpected SetUserBalance call")
 }
 
-func (s *billingCacheStub) DeductUserBalance(ctx context.Context, userID int64, amount float64) error {
+func (s *billingCacheStub) DeductUserBalance(ctx context.Context, userID string, amount float64) error {
 	panic("unexpected DeductUserBalance call")
 }
 
-func (s *billingCacheStub) InvalidateUserBalance(ctx context.Context, userID int64) error {
+func (s *billingCacheStub) InvalidateUserBalance(ctx context.Context, userID string) error {
 	panic("unexpected InvalidateUserBalance call")
 }
 
-func (s *billingCacheStub) GetSubscriptionCache(ctx context.Context, userID, groupID int64) (*SubscriptionCacheData, error) {
+func (s *billingCacheStub) GetSubscriptionCache(ctx context.Context, userID, groupID string) (*SubscriptionCacheData, error) {
 	panic("unexpected GetSubscriptionCache call")
 }
 
-func (s *billingCacheStub) SetSubscriptionCache(ctx context.Context, userID, groupID int64, data *SubscriptionCacheData) error {
+func (s *billingCacheStub) SetSubscriptionCache(ctx context.Context, userID, groupID string, data *SubscriptionCacheData) error {
 	panic("unexpected SetSubscriptionCache call")
 }
 
-func (s *billingCacheStub) UpdateSubscriptionUsage(ctx context.Context, userID, groupID int64, cost float64) error {
+func (s *billingCacheStub) UpdateSubscriptionUsage(ctx context.Context, userID, groupID string, cost float64) error {
 	panic("unexpected UpdateSubscriptionUsage call")
 }
 
-func (s *billingCacheStub) InvalidateSubscriptionCache(ctx context.Context, userID, groupID int64) error {
+func (s *billingCacheStub) InvalidateSubscriptionCache(ctx context.Context, userID, groupID string) error {
 	s.invalidations <- subscriptionInvalidateCall{userID: userID, groupID: groupID}
 	return nil
 }
 
-func (s *billingCacheStub) GetAPIKeyRateLimit(ctx context.Context, keyID int64) (*APIKeyRateLimitCacheData, error) {
+func (s *billingCacheStub) GetAPIKeyRateLimit(ctx context.Context, keyID string) (*APIKeyRateLimitCacheData, error) {
 	panic("unexpected GetAPIKeyRateLimit call")
 }
-func (s *billingCacheStub) SetAPIKeyRateLimit(ctx context.Context, keyID int64, data *APIKeyRateLimitCacheData) error {
+func (s *billingCacheStub) SetAPIKeyRateLimit(ctx context.Context, keyID string, data *APIKeyRateLimitCacheData) error {
 	panic("unexpected SetAPIKeyRateLimit call")
 }
-func (s *billingCacheStub) UpdateAPIKeyRateLimitUsage(ctx context.Context, keyID int64, cost float64) error {
+func (s *billingCacheStub) UpdateAPIKeyRateLimitUsage(ctx context.Context, keyID string, cost float64) error {
 	panic("unexpected UpdateAPIKeyRateLimitUsage call")
 }
-func (s *billingCacheStub) InvalidateAPIKeyRateLimit(ctx context.Context, keyID int64) error {
+func (s *billingCacheStub) InvalidateAPIKeyRateLimit(ctx context.Context, keyID string) error {
 	panic("unexpected InvalidateAPIKeyRateLimit call")
 }
 
-func (s *billingCacheStub) GetUserPlatformQuotaCache(ctx context.Context, userID int64, platform string) (*UserPlatformQuotaCacheEntry, bool, error) {
+func (s *billingCacheStub) GetUserPlatformQuotaCache(ctx context.Context, userID string, platform string) (*UserPlatformQuotaCacheEntry, bool, error) {
 	panic("unexpected GetUserPlatformQuotaCache call")
 }
 
-func (s *billingCacheStub) SetUserPlatformQuotaCache(ctx context.Context, userID int64, platform string, entry *UserPlatformQuotaCacheEntry, ttl time.Duration) error {
+func (s *billingCacheStub) SetUserPlatformQuotaCache(ctx context.Context, userID string, platform string, entry *UserPlatformQuotaCacheEntry, ttl time.Duration) error {
 	panic("unexpected SetUserPlatformQuotaCache call")
 }
 
-func (s *billingCacheStub) DeleteUserPlatformQuotaCache(ctx context.Context, userID int64, platform string) error {
+func (s *billingCacheStub) DeleteUserPlatformQuotaCache(ctx context.Context, userID string, platform string) error {
 	panic("unexpected DeleteUserPlatformQuotaCache call")
 }
 
-func (s *billingCacheStub) IncrUserPlatformQuotaUsageCache(ctx context.Context, userID int64, platform string, cost float64, ttl time.Duration, markDirty bool) error {
+func (s *billingCacheStub) IncrUserPlatformQuotaUsageCache(ctx context.Context, userID string, platform string, cost float64, ttl time.Duration, markDirty bool) error {
 	panic("unexpected IncrUserPlatformQuotaUsageCache call")
 }
 
@@ -585,21 +587,21 @@ func waitForInvalidations(t *testing.T, ch <-chan subscriptionInvalidateCall, ex
 }
 
 func TestAdminService_DeleteUser_Success(t *testing.T) {
-	repo := &userRepoStub{user: &User{ID: 7, Role: RoleUser}}
+	repo := &userRepoStub{user: &User{ID: "7", Role: RoleUser}}
 	svc := &adminServiceImpl{userRepo: repo}
 
-	err := svc.DeleteUser(context.Background(), 7)
+	err := svc.DeleteUser(context.Background(), "7")
 	require.NoError(t, err)
-	require.Equal(t, []int64{7}, repo.deletedIDs)
+	require.Equal(t, []string{"7"}, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteUser_DeletesOwnedAPIKeys(t *testing.T) {
-	repo := &userRepoStub{user: &User{ID: 7, Role: RoleUser}}
+	repo := &userRepoStub{user: &User{ID: "7", Role: RoleUser}}
 	apiKeyRepo := &apiKeyRepoStub{
 		allowListByUserID: true,
 		listByUserIDKeys: []APIKey{
-			{ID: 11, UserID: 7, Key: "sk-user-1"},
-			{ID: 12, UserID: 7, Key: "sk-user-2"},
+			{ID: "11", UserID: "7", Key: "sk-user-1"},
+			{ID: "12", UserID: "7", Key: "sk-user-2"},
 		},
 	}
 	invalidator := &authCacheInvalidatorStub{}
@@ -609,29 +611,29 @@ func TestAdminService_DeleteUser_DeletesOwnedAPIKeys(t *testing.T) {
 		authCacheInvalidator: invalidator,
 	}
 
-	err := svc.DeleteUser(context.Background(), 7)
+	err := svc.DeleteUser(context.Background(), "7")
 	require.NoError(t, err)
-	require.Equal(t, []int64{7}, repo.deletedIDs)
-	require.Equal(t, []int64{7}, apiKeyRepo.listByUserIDCalls)
-	require.Equal(t, []int64{11, 12}, apiKeyRepo.deletedIDs)
+	require.Equal(t, []string{"7"}, repo.deletedIDs)
+	require.Equal(t, []string{"7"}, apiKeyRepo.listByUserIDCalls)
+	require.Equal(t, []string{"11", "12"}, apiKeyRepo.deletedIDs)
 	require.ElementsMatch(t, []string{"sk-user-1", "sk-user-2"}, invalidator.keys)
-	require.Equal(t, []int64{7}, invalidator.userIDs)
+	require.Equal(t, []string{"7"}, invalidator.userIDs)
 }
 
 func TestAdminService_DeleteUser_NotFound(t *testing.T) {
 	repo := &userRepoStub{getErr: ErrUserNotFound}
 	svc := &adminServiceImpl{userRepo: repo}
 
-	err := svc.DeleteUser(context.Background(), 404)
+	err := svc.DeleteUser(context.Background(), "404")
 	require.ErrorIs(t, err, ErrUserNotFound)
 	require.Empty(t, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteUser_AdminGuard(t *testing.T) {
-	repo := &userRepoStub{user: &User{ID: 1, Role: RoleAdmin}}
+	repo := &userRepoStub{user: &User{ID: "1", Role: RoleAdmin}}
 	svc := &adminServiceImpl{userRepo: repo}
 
-	err := svc.DeleteUser(context.Background(), 1)
+	err := svc.DeleteUser(context.Background(), "1")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "cannot delete admin user")
 	require.Empty(t, repo.deletedIDs)
@@ -640,32 +642,32 @@ func TestAdminService_DeleteUser_AdminGuard(t *testing.T) {
 func TestAdminService_DeleteUser_DeleteError(t *testing.T) {
 	deleteErr := errors.New("delete failed")
 	repo := &userRepoStub{
-		user:      &User{ID: 9, Role: RoleUser},
+		user:      &User{ID: "9", Role: RoleUser},
 		deleteErr: deleteErr,
 	}
 	svc := &adminServiceImpl{userRepo: repo}
 
-	err := svc.DeleteUser(context.Background(), 9)
+	err := svc.DeleteUser(context.Background(), "9")
 	require.ErrorIs(t, err, deleteErr)
-	require.Equal(t, []int64{9}, repo.deletedIDs)
+	require.Equal(t, []string{"9"}, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteGroup_Success_WithCacheInvalidation(t *testing.T) {
 	cache := newBillingCacheStub(2)
-	repo := &groupRepoStub{affectedUserIDs: []int64{11, 12}}
+	repo := &groupRepoStub{affectedUserIDs: []string{"11", "12"}}
 	svc := &adminServiceImpl{
 		groupRepo:           repo,
 		billingCacheService: &BillingCacheService{cache: cache},
 	}
 
-	err := svc.DeleteGroup(context.Background(), 5)
+	err := svc.DeleteGroup(context.Background(), "5")
 	require.NoError(t, err)
-	require.Equal(t, []int64{5}, repo.deleteCalls)
+	require.Equal(t, []string{"5"}, repo.deleteCalls)
 
 	calls := waitForInvalidations(t, cache.invalidations, 2)
 	require.ElementsMatch(t, []subscriptionInvalidateCall{
-		{userID: 11, groupID: 5},
-		{userID: 12, groupID: 5},
+		{userID: "11", groupID: "5"},
+		{userID: "12", groupID: "5"},
 	}, calls)
 }
 
@@ -679,10 +681,10 @@ func TestAdminService_DeleteGroup_InvalidatesAuthCacheForBoundKeys(t *testing.T)
 		authCacheInvalidator: invalidator,
 	}
 
-	err := svc.DeleteGroup(context.Background(), 5)
+	err := svc.DeleteGroup(context.Background(), "5")
 	require.NoError(t, err)
-	require.Equal(t, []int64{5}, repo.deleteCalls)
-	require.Equal(t, []int64{5}, apiKeyRepo.listGroupIDs)
+	require.Equal(t, []string{"5"}, repo.deleteCalls)
+	require.Equal(t, []string{"5"}, apiKeyRepo.listGroupIDs)
 	require.Equal(t, []string{"k1", "k2"}, invalidator.keys)
 }
 
@@ -690,7 +692,7 @@ func TestAdminService_DeleteGroup_NotFound(t *testing.T) {
 	repo := &groupRepoStub{deleteErr: ErrGroupNotFound}
 	svc := &adminServiceImpl{groupRepo: repo}
 
-	err := svc.DeleteGroup(context.Background(), 99)
+	err := svc.DeleteGroup(context.Background(), "99")
 	require.ErrorIs(t, err, ErrGroupNotFound)
 }
 
@@ -699,7 +701,7 @@ func TestAdminService_DeleteGroup_Error(t *testing.T) {
 	repo := &groupRepoStub{deleteErr: deleteErr}
 	svc := &adminServiceImpl{groupRepo: repo}
 
-	err := svc.DeleteGroup(context.Background(), 42)
+	err := svc.DeleteGroup(context.Background(), "42")
 	require.ErrorIs(t, err, deleteErr)
 }
 
@@ -707,25 +709,25 @@ func TestAdminService_DeleteProxy_Success(t *testing.T) {
 	repo := &proxyRepoStub{}
 	svc := &adminServiceImpl{proxyRepo: repo}
 
-	err := svc.DeleteProxy(context.Background(), 7)
+	err := svc.DeleteProxy(context.Background(), "7")
 	require.NoError(t, err)
-	require.Equal(t, []int64{7}, repo.deletedIDs)
+	require.Equal(t, []string{"7"}, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteProxy_Idempotent(t *testing.T) {
 	repo := &proxyRepoStub{}
 	svc := &adminServiceImpl{proxyRepo: repo}
 
-	err := svc.DeleteProxy(context.Background(), 404)
+	err := svc.DeleteProxy(context.Background(), "404")
 	require.NoError(t, err)
-	require.Equal(t, []int64{404}, repo.deletedIDs)
+	require.Equal(t, []string{"404"}, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteProxy_InUse(t *testing.T) {
 	repo := &proxyRepoStub{accountCount: 2}
 	svc := &adminServiceImpl{proxyRepo: repo}
 
-	err := svc.DeleteProxy(context.Background(), 77)
+	err := svc.DeleteProxy(context.Background(), "77")
 	require.ErrorIs(t, err, ErrProxyInUse)
 	require.Empty(t, repo.deletedIDs)
 }
@@ -735,7 +737,7 @@ func TestAdminService_DeleteProxy_Error(t *testing.T) {
 	repo := &proxyRepoStub{deleteErr: deleteErr}
 	svc := &adminServiceImpl{proxyRepo: repo}
 
-	err := svc.DeleteProxy(context.Background(), 33)
+	err := svc.DeleteProxy(context.Background(), "33")
 	require.ErrorIs(t, err, deleteErr)
 }
 
@@ -743,50 +745,50 @@ func TestAdminService_DeleteRedeemCode_Success(t *testing.T) {
 	repo := &redeemRepoStub{}
 	svc := &adminServiceImpl{redeemCodeRepo: repo}
 
-	err := svc.DeleteRedeemCode(context.Background(), 10)
+	err := svc.DeleteRedeemCode(context.Background(), "10")
 	require.NoError(t, err)
-	require.Equal(t, []int64{10}, repo.deletedIDs)
+	require.Equal(t, []string{"10"}, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteRedeemCode_Idempotent(t *testing.T) {
 	repo := &redeemRepoStub{}
 	svc := &adminServiceImpl{redeemCodeRepo: repo}
 
-	err := svc.DeleteRedeemCode(context.Background(), 999)
+	err := svc.DeleteRedeemCode(context.Background(), "999")
 	require.NoError(t, err)
-	require.Equal(t, []int64{999}, repo.deletedIDs)
+	require.Equal(t, []string{"999"}, repo.deletedIDs)
 }
 
 func TestAdminService_DeleteRedeemCode_Error(t *testing.T) {
 	deleteErr := errors.New("delete failed")
-	repo := &redeemRepoStub{deleteErrByID: map[int64]error{1: deleteErr}}
+	repo := &redeemRepoStub{deleteErrByID: map[string]error{"1": deleteErr}}
 	svc := &adminServiceImpl{redeemCodeRepo: repo}
 
-	err := svc.DeleteRedeemCode(context.Background(), 1)
+	err := svc.DeleteRedeemCode(context.Background(), "1")
 	require.ErrorIs(t, err, deleteErr)
-	require.Equal(t, []int64{1}, repo.deletedIDs)
+	require.Equal(t, []string{"1"}, repo.deletedIDs)
 }
 
 func TestAdminService_BatchDeleteRedeemCodes_Success(t *testing.T) {
 	repo := &redeemRepoStub{}
 	svc := &adminServiceImpl{redeemCodeRepo: repo}
 
-	deleted, err := svc.BatchDeleteRedeemCodes(context.Background(), []int64{1, 2, 3})
+	deleted, err := svc.BatchDeleteRedeemCodes(context.Background(), []string{"1", "2", "3"})
 	require.NoError(t, err)
 	require.Equal(t, int64(3), deleted)
-	require.Equal(t, []int64{1, 2, 3}, repo.deletedIDs)
+	require.Equal(t, []string{"1", "2", "3"}, repo.deletedIDs)
 }
 
 func TestAdminService_BatchDeleteRedeemCodes_PartialFailures(t *testing.T) {
 	repo := &redeemRepoStub{
-		deleteErrByID: map[int64]error{
-			2: errors.New("db error"),
+		deleteErrByID: map[string]error{
+			"2": errors.New("db error"),
 		},
 	}
 	svc := &adminServiceImpl{redeemCodeRepo: repo}
 
-	deleted, err := svc.BatchDeleteRedeemCodes(context.Background(), []int64{1, 2, 3})
+	deleted, err := svc.BatchDeleteRedeemCodes(context.Background(), []string{"1", "2", "3"})
 	require.NoError(t, err)
 	require.Equal(t, int64(2), deleted)
-	require.Equal(t, []int64{1, 2, 3}, repo.deletedIDs)
+	require.Equal(t, []string{"1", "2", "3"}, repo.deletedIDs)
 }

@@ -58,7 +58,7 @@ func (s *UserRepoAPIKeyGroupFilterSuite) mustCreateGroup(name string) *dbent.Gro
 	return g
 }
 
-func (s *UserRepoAPIKeyGroupFilterSuite) mustCreateAPIKey(userID int64, key, name string, groupID *int64) *dbent.APIKey {
+func (s *UserRepoAPIKeyGroupFilterSuite) mustCreateAPIKey(userID string, key, name string, groupID *string) *dbent.APIKey {
 	s.T().Helper()
 	create := s.client.APIKey.Create().
 		SetUserID(userID).
@@ -80,7 +80,7 @@ func (s *UserRepoAPIKeyGroupFilterSuite) ids(users []service.User) []int64 {
 	return out
 }
 
-func (s *UserRepoAPIKeyGroupFilterSuite) listByAPIKeyGroup(groupID int64) []service.User {
+func (s *UserRepoAPIKeyGroupFilterSuite) listByAPIKeyGroup(groupID string) []service.User {
 	s.T().Helper()
 	users, _, err := s.repo.ListWithFilters(
 		s.ctx,

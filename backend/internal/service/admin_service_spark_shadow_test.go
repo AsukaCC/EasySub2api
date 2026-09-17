@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -21,31 +22,31 @@ import (
 type sparkShadowRepoStub struct {
 	mockAccountRepoForGemini
 	nextID   int64
-	accounts map[int64]*Account
-	groupsOf map[int64][]int64 // accountID → []groupIDs
+	accounts map[string]*Account
+	groupsOf map[string][]string // accountID → []groupIDs
 }
 
 func newSparkShadowRepoStub() *sparkShadowRepoStub {
 	return &sparkShadowRepoStub{
 		nextID:   0,
-		accounts: make(map[int64]*Account),
-		groupsOf: make(map[int64][]int64),
+		accounts: make(map[string]*Account),
+		groupsOf: make(map[string][]string),
 		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: make(map[int64]*Account),
+			accountsByID: make(map[string]*Account),
 		},
 	}
 }
 
 func (s *sparkShadowRepoStub) Create(_ context.Context, account *Account) error {
 	s.nextID++
-	account.ID = s.nextID
+	account.ID = strconv.FormatInt(s.nextID, 10)
 	cp := *account
 	s.accounts[account.ID] = &cp
 	s.mockAccountRepoForGemini.accountsByID[account.ID] = &cp
 	return nil
 }
 
-func (s *sparkShadowRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
+func (s *sparkShadowRepoStub) GetByID(_ context.Context, id string) (*Account, error) {
 	acc, ok := s.accounts[id]
 	if !ok {
 		return nil, ErrAccountNotFound
@@ -53,7 +54,7 @@ func (s *sparkShadowRepoStub) GetByID(_ context.Context, id int64) (*Account, er
 	return acc, nil
 }
 
-func (s *sparkShadowRepoStub) ListShadowsByParent(_ context.Context, parentID int64) ([]*Account, error) {
+func (s *sparkShadowRepoStub) ListShadowsByParent(_ context.Context, parentID string) ([]*Account, error) {
 	var result []*Account
 	for _, acc := range s.accounts {
 		if acc.ParentAccountID != nil && *acc.ParentAccountID == parentID && acc.QuotaDimension == QuotaDimensionSpark {
@@ -64,12 +65,12 @@ func (s *sparkShadowRepoStub) ListShadowsByParent(_ context.Context, parentID in
 	return result, nil
 }
 
-func (s *sparkShadowRepoStub) BindGroups(_ context.Context, accountID int64, groupIDs []int64) error {
+func (s *sparkShadowRepoStub) BindGroups(_ context.Context, accountID string, groupIDs []string) error {
 	s.groupsOf[accountID] = append(s.groupsOf[accountID], groupIDs...)
 	return nil
 }
 
-func (s *sparkShadowRepoStub) ListSchedulableByGroupID(_ context.Context, groupID int64) ([]Account, error) {
+func (s *sparkShadowRepoStub) ListSchedulableByGroupID(_ context.Context, groupID string) ([]Account, error) {
 	var result []Account
 	for accID, groups := range s.groupsOf {
 		for _, gid := range groups {
@@ -88,7 +89,7 @@ func (s *sparkShadowRepoStub) ListSchedulableByGroupID(_ context.Context, groupI
 // 親の mockAccountRepoForGemini の nil 実装が継承されるため、ここでは省略可。
 
 // ── 追加 stub（AccountRepository に必要な残りのメソッド）──────────────────
-func (s *sparkShadowRepoStub) ExistsByID(_ context.Context, id int64) (bool, error) {
+func (s *sparkShadowRepoStub) ExistsByID(_ context.Context, id string) (bool, error) {
 	_, ok := s.accounts[id]
 	return ok, nil
 }
@@ -102,18 +103,18 @@ func (s *sparkShadowRepoStub) Update(_ context.Context, account *Account) error 
 	return nil
 }
 
-func (s *sparkShadowRepoStub) Delete(_ context.Context, id int64) error {
+func (s *sparkShadowRepoStub) Delete(_ context.Context, id string) error {
 	delete(s.accounts, id)
 	delete(s.mockAccountRepoForGemini.accountsByID, id)
 	return nil
 }
-func (s *sparkShadowRepoStub) BatchUpdateLastUsed(_ context.Context, _ map[int64]time.Time) error {
+func (s *sparkShadowRepoStub) BatchUpdateLastUsed(_ context.Context, _ map[string]time.Time) error {
 	return nil
 }
-func (s *sparkShadowRepoStub) ListByGroup(_ context.Context, _ int64) ([]Account, error) {
+func (s *sparkShadowRepoStub) ListByGroup(_ context.Context, _ string) ([]Account, error) {
 	return nil, nil
 }
-func (s *sparkShadowRepoStub) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, _ string) ([]Account, *pagination.PaginationResult, error) {
+func (s *sparkShadowRepoStub) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ string, _ string, _ string) ([]Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
 
@@ -126,7 +127,7 @@ func TestCreateShadow(t *testing.T) {
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	proxyID := int64(7)
+	proxyID := "7"
 	parent := &Account{
 		Name:     "p",
 		Platform: PlatformOpenAI,
@@ -208,14 +209,14 @@ func TestCreateShadow_BindGroups(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, parent))
 
-	const testGroupID = int64(42)
+	const testGroupID = "42"
 	shadow, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{
 		Name:     "p-spark",
-		GroupIDs: []int64{testGroupID},
+		GroupIDs: []string{testGroupID},
 	})
 	require.NoError(t, err)
 	require.NotNil(t, shadow)
-	require.Equal(t, []int64{testGroupID}, shadow.GroupIDs, "CreateShadow should backfill GroupIDs into the returned shadow")
+	require.Equal(t, []string{testGroupID}, shadow.GroupIDs, "CreateShadow should backfill GroupIDs into the returned shadow")
 
 	accounts, err := repo.ListSchedulableByGroupID(ctx, testGroupID)
 	require.NoError(t, err)
@@ -306,7 +307,7 @@ func TestCreateShadow_InheritsParentPriorityWhenOmitted(t *testing.T) {
 func TestPersistAccountCredentials_SkipsShadow(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
-	parentID := int64(1)
+	parentID := "1"
 	shadow := &Account{
 		Name: "shadow", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
 		Status: StatusActive, Credentials: map[string]any{},
@@ -352,7 +353,7 @@ func TestResolveCredentialAccount_RejectsParentShadow(t *testing.T) {
 func TestPersistOpenAI429PlanType_SkipsShadow(t *testing.T) {
 	ctx := context.Background()
 	body := []byte(`{"error":{"type":"usage_limit_reached","plan_type":"pro"}}`)
-	parentID := int64(1)
+	parentID := "1"
 
 	t.Run("shadow_skipped", func(t *testing.T) {
 		repo := newSparkShadowRepoStub()
@@ -363,7 +364,7 @@ func TestPersistOpenAI429PlanType_SkipsShadow(t *testing.T) {
 
 	t.Run("normal_account_writes", func(t *testing.T) {
 		repo := newSparkShadowRepoStub()
-		normal := &Account{ID: 9, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{}}
+		normal := &Account{ID: "9", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{}}
 		persistOpenAI429PlanType(ctx, repo, normal, body)
 		require.Equal(t, "pro", normal.Credentials["plan_type"], "普通账号应写入 plan_type(反向对照,证明 body 有效、写路径通)")
 	})
@@ -375,7 +376,7 @@ type updateExtraSpyRepo struct {
 	updateExtraCalled bool
 }
 
-func (r *updateExtraSpyRepo) UpdateExtra(_ context.Context, _ int64, _ map[string]any) error {
+func (r *updateExtraSpyRepo) UpdateExtra(_ context.Context, _ string, _ map[string]any) error {
 	r.updateExtraCalled = true
 	return nil
 }
@@ -385,7 +386,7 @@ func (r *updateExtraSpyRepo) UpdateExtra(_ context.Context, _ int64, _ map[strin
 func TestPersistOpenAICodexSnapshot_SkipsShadow(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("x-codex-primary-used-percent", "50")
-	parentID := int64(1)
+	parentID := "1"
 
 	t.Run("shadow_skipped", func(t *testing.T) {
 		spy := &updateExtraSpyRepo{sparkShadowRepoStub: newSparkShadowRepoStub()}
@@ -398,7 +399,7 @@ func TestPersistOpenAICodexSnapshot_SkipsShadow(t *testing.T) {
 	t.Run("normal_account_writes", func(t *testing.T) {
 		spy := &updateExtraSpyRepo{sparkShadowRepoStub: newSparkShadowRepoStub()}
 		s := &RateLimitService{accountRepo: spy}
-		normal := &Account{ID: 9, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+		normal := &Account{ID: "9", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 		s.persistOpenAICodexSnapshot(context.Background(), normal, headers)
 		require.True(t, spy.updateExtraCalled, "普通账号应写 codex_* 头快照(反向对照)")
 	})
@@ -443,8 +444,8 @@ func TestCreateShadow_DefaultGroupBinding(t *testing.T) {
 	repo := newSparkShadowRepoStub()
 	groupRepo := &sparkShadowGroupRepoStub{
 		groups: []Group{
-			{ID: 99, Name: PlatformOpenAI + "-default"},
-			{ID: 7, Name: "some-other-group"},
+			{ID: "99", Name: PlatformOpenAI + "-default"},
+			{ID: "7", Name: "some-other-group"},
 		},
 	}
 	svc := &adminServiceImpl{accountRepo: repo, groupRepo: groupRepo}
@@ -457,7 +458,7 @@ func TestCreateShadow_DefaultGroupBinding(t *testing.T) {
 
 	shadow, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "grp-shadow"})
 	require.NoError(t, err)
-	require.Equal(t, []int64{99}, repo.groupsOf[shadow.ID], "未指定分组应回落绑定 openai-default(id=99)")
+	require.Equal(t, []string{"99"}, repo.groupsOf[shadow.ID], "未指定分组应回落绑定 openai-default(id=99)")
 }
 
 // TestCreateShadow_InheritsParentGroups 验证外审 G1:未指定 group_ids 时
@@ -466,19 +467,19 @@ func TestCreateShadow_InheritsParentGroups(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
 	// groupRepo 故意提供 openai-default,以证明「继承母分组」优先于「回落 openai-default」。
-	groupRepo := &sparkShadowGroupRepoStub{groups: []Group{{ID: 99, Name: PlatformOpenAI + "-default"}}}
+	groupRepo := &sparkShadowGroupRepoStub{groups: []Group{{ID: "99", Name: PlatformOpenAI + "-default"}}}
 	svc := &adminServiceImpl{accountRepo: repo, groupRepo: groupRepo}
 
 	parent := &Account{
 		Name: "grp-parent", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
-		Status: StatusActive, GroupIDs: []int64{11, 22},
+		Status: StatusActive, GroupIDs: []string{"11", "22"},
 		Credentials: map[string]any{"chatgpt_account_id": "org-grp"},
 	}
 	require.NoError(t, repo.Create(ctx, parent))
 
 	shadow, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "grp-shadow"})
 	require.NoError(t, err)
-	require.Equal(t, []int64{11, 22}, repo.groupsOf[shadow.ID], "未指定分组应继承母账号分组,而非 openai-default")
+	require.Equal(t, []string{"11", "22"}, repo.groupsOf[shadow.ID], "未指定分组应继承母账号分组,而非 openai-default")
 }
 
 // TestCreateShadow_RejectsShadowAsParent 验证外审 G6:不允许把影子当母创建二级影子。
@@ -567,7 +568,7 @@ func TestBulkUpdateAccounts_RejectsCredentialWriteToShadow(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = svc.BulkUpdateAccounts(ctx, &BulkUpdateAccountsInput{
-		AccountIDs:  []int64{shadow.ID},
+		AccountIDs: []string{shadow.ID},
 		Credentials: map[string]any{"access_token": "leaked"},
 	})
 	require.Error(t, err, "批量给影子写凭据必须被拒")
@@ -618,7 +619,7 @@ func TestUpdateAccount_PropagatesProxyToShadow(t *testing.T) {
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	oldProxy := int64(7)
+	oldProxy := "7"
 	parent := &Account{
 		Name:        "proxy-parent",
 		Platform:    PlatformOpenAI,
@@ -634,7 +635,7 @@ func TestUpdateAccount_PropagatesProxyToShadow(t *testing.T) {
 	shadowID := shadow.ID
 
 	// Update parent's ProxyID.
-	newProxy := int64(42)
+	newProxy := "42"
 	_, err = svc.UpdateAccount(ctx, parent.ID, &UpdateAccountInput{ProxyID: &newProxy})
 	require.NoError(t, err)
 
@@ -696,7 +697,7 @@ func TestBulkUpdateAccounts_PropagatesProxyToShadow(t *testing.T) {
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	oldProxy := int64(7)
+	oldProxy := "7"
 	parent := &Account{
 		Name:        "bulk-parent",
 		Platform:    PlatformOpenAI,
@@ -712,9 +713,9 @@ func TestBulkUpdateAccounts_PropagatesProxyToShadow(t *testing.T) {
 	shadowID := shadow.ID
 
 	// Bulk update parent's ProxyID.
-	newProxy := int64(99)
+	newProxy := "99"
 	_, err = svc.BulkUpdateAccounts(ctx, &BulkUpdateAccountsInput{
-		AccountIDs: []int64{parent.ID},
+		AccountIDs: []string{parent.ID},
 		ProxyID:    &newProxy,
 	})
 	require.NoError(t, err)
@@ -739,7 +740,7 @@ func (s *raceCreateRepoStub) Create(ctx context.Context, account *Account) error
 		// 模拟另一并发请求已抢先建成影子:注入底层 map,本次 Create 撞唯一索引失败。
 		s.sparkShadowRepoStub.nextID++
 		phantom := *account
-		phantom.ID = s.sparkShadowRepoStub.nextID
+		phantom.ID = strconv.FormatInt(s.sparkShadowRepoStub.nextID, 10)
 		s.sparkShadowRepoStub.accounts[phantom.ID] = &phantom
 		return errors.New(`duplicate key value violates unique constraint "uq_accounts_spark_shadow_per_parent"`)
 	}
@@ -751,7 +752,7 @@ type bindFailRepoStub struct {
 	*sparkShadowRepoStub
 }
 
-func (s *bindFailRepoStub) BindGroups(_ context.Context, _ int64, _ []int64) error {
+func (s *bindFailRepoStub) BindGroups(_ context.Context, _ string, _ []string) error {
 	return errors.New("simulated bind failure")
 }
 
@@ -759,11 +760,11 @@ func (s *bindFailRepoStub) BindGroups(_ context.Context, _ int64, _ []int64) err
 // 使 validateGroupIDsExist 走批量存在性校验路径。
 type sparkShadowValidatingGroupRepoStub struct {
 	groupRepoStub
-	existing map[int64]bool
+	existing map[string]bool
 }
 
-func (s *sparkShadowValidatingGroupRepoStub) ExistsByIDs(_ context.Context, ids []int64) (map[int64]bool, error) {
-	out := make(map[int64]bool, len(ids))
+func (s *sparkShadowValidatingGroupRepoStub) ExistsByIDs(_ context.Context, ids []string) (map[string]bool, error) {
+	out := make(map[string]bool, len(ids))
 	for _, id := range ids {
 		out[id] = s.existing[id]
 	}
@@ -810,7 +811,7 @@ func TestCreateShadow_ConcurrentCreateReturns409(t *testing.T) {
 func TestCreateShadow_InvalidGroupRejectedNoOrphan(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
-	groupRepo := &sparkShadowValidatingGroupRepoStub{existing: map[int64]bool{7: true}}
+	groupRepo := &sparkShadowValidatingGroupRepoStub{existing: map[string]bool{"7": true}}
 	svc := &adminServiceImpl{accountRepo: repo, groupRepo: groupRepo}
 	parent := &Account{
 		Name: "p", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
@@ -818,7 +819,7 @@ func TestCreateShadow_InvalidGroupRejectedNoOrphan(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, parent))
 
-	_, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "s", GroupIDs: []int64{999}})
+	_, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "s", GroupIDs: []string{"999"}})
 	require.Error(t, err, "无效分组应在创建前被拒")
 
 	shadows, qerr := repo.ListShadowsByParent(ctx, parent.ID)
@@ -832,7 +833,7 @@ func TestCreateShadow_BindFailureRollsBackShadow(t *testing.T) {
 	ctx := context.Background()
 	base := newSparkShadowRepoStub()
 	repo := &bindFailRepoStub{sparkShadowRepoStub: base}
-	groupRepo := &sparkShadowValidatingGroupRepoStub{existing: map[int64]bool{7: true}}
+	groupRepo := &sparkShadowValidatingGroupRepoStub{existing: map[string]bool{"7": true}}
 	svc := &adminServiceImpl{accountRepo: repo, groupRepo: groupRepo}
 	parent := &Account{
 		Name: "p", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
@@ -840,7 +841,7 @@ func TestCreateShadow_BindFailureRollsBackShadow(t *testing.T) {
 	}
 	require.NoError(t, base.Create(ctx, parent))
 
-	_, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "s", GroupIDs: []int64{7}})
+	_, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "s", GroupIDs: []string{"7"}})
 	require.Error(t, err, "绑组失败应返回错误")
 
 	shadows, qerr := base.ListShadowsByParent(ctx, parent.ID)
@@ -878,7 +879,7 @@ func TestUpdateAccount_IgnoresProxyChangeOnShadow(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
-	parentProxy := int64(7)
+	parentProxy := "7"
 	parent := &Account{
 		Name: "p", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
 		Status: StatusActive, ProxyID: &parentProxy,
@@ -890,7 +891,7 @@ func TestUpdateAccount_IgnoresProxyChangeOnShadow(t *testing.T) {
 	require.NotNil(t, repo.accounts[shadow.ID].ProxyID)
 	require.Equal(t, parentProxy, *repo.accounts[shadow.ID].ProxyID, "前提:影子继承母 proxy=7")
 
-	newProxy := int64(42)
+	newProxy := "42"
 	_, err = svc.UpdateAccount(ctx, shadow.ID, &UpdateAccountInput{ProxyID: &newProxy})
 	require.NoError(t, err, "影子的非 proxy 字段更新仍应成功")
 	require.NotNil(t, repo.accounts[shadow.ID].ProxyID)
@@ -900,9 +901,9 @@ func TestUpdateAccount_IgnoresProxyChangeOnShadow(t *testing.T) {
 func TestUpdateAccount_ShadowAllowsModelMappingAndGroupUpdate(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
-	groupRepo := &sparkShadowValidatingGroupRepoStub{existing: map[int64]bool{7: true}}
+	groupRepo := &sparkShadowValidatingGroupRepoStub{existing: map[string]bool{"7": true}}
 	svc := &adminServiceImpl{accountRepo: repo, groupRepo: groupRepo}
-	parentID := int64(1)
+	parentID := "1"
 	parent := &Account{
 		ID:       parentID,
 		Name:     "p",
@@ -926,7 +927,7 @@ func TestUpdateAccount_ShadowAllowsModelMappingAndGroupUpdate(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, shadow))
 
-	groupIDs := []int64{7}
+	groupIDs := []string{"7"}
 	updated, err := svc.UpdateAccount(ctx, shadow.ID, &UpdateAccountInput{
 		Credentials: map[string]any{
 			"model_mapping": map[string]any{
@@ -937,7 +938,7 @@ func TestUpdateAccount_ShadowAllowsModelMappingAndGroupUpdate(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, []int64{7}, repo.groupsOf[shadow.ID])
+	require.Equal(t, []string{"7"}, repo.groupsOf[shadow.ID])
 	require.Equal(t, map[string]any{"gpt-5.3-codex-spark": "gpt-5.3-codex-spark"}, updated.Credentials["model_mapping"])
 	require.Empty(t, updated.GetOpenAIAccessToken(), "影子账号不可持有母账号 access_token")
 }
@@ -946,7 +947,7 @@ func TestUpdateAccount_ShadowEmptyCredentialsClearsModelMapping(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
-	parentID := int64(1)
+	parentID := "1"
 	shadow := &Account{
 		Name:            "s",
 		Platform:        PlatformOpenAI,
@@ -975,7 +976,7 @@ func TestUpdateAccount_ShadowRejectsAuthCredentials(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
-	parentID := int64(1)
+	parentID := "1"
 	shadow := &Account{
 		Name:            "s",
 		Platform:        PlatformOpenAI,
@@ -1002,7 +1003,7 @@ func TestBulkUpdateAccounts_RejectsProxyChangeOnShadow(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
 	svc := &adminServiceImpl{accountRepo: repo}
-	parentProxy := int64(7)
+	parentProxy := "7"
 	parent := &Account{
 		Name: "p", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
 		Status: StatusActive, ProxyID: &parentProxy,
@@ -1012,9 +1013,9 @@ func TestBulkUpdateAccounts_RejectsProxyChangeOnShadow(t *testing.T) {
 	shadow, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "s"})
 	require.NoError(t, err)
 
-	newProxy := int64(42)
+	newProxy := "42"
 	_, err = svc.BulkUpdateAccounts(ctx, &BulkUpdateAccountsInput{
-		AccountIDs: []int64{shadow.ID},
+		AccountIDs: []string{shadow.ID},
 		ProxyID:    &newProxy,
 	})
 	require.Error(t, err, "批量给影子改 proxy 必须被拒")
@@ -1027,7 +1028,7 @@ func TestBulkUpdateAccounts_RejectsProxyChangeOnShadow(t *testing.T) {
 // 早返不触碰任何依赖(svc 无 deps,若未守卫会 nil panic)。
 func TestForceOpenAIPrivacy_SkipsShadow(t *testing.T) {
 	svc := &adminServiceImpl{}
-	pid := int64(1)
-	shadow := &Account{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &pid}
+	pid := "1"
+	shadow := &Account{ID: "2", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &pid}
 	require.Equal(t, "", svc.ForceOpenAIPrivacy(context.Background(), shadow), "影子隐私设置应跳过")
 }

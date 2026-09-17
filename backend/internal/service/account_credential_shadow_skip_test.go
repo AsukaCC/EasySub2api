@@ -21,7 +21,7 @@ type shadowSkipTestRepo struct {
 	account *Account
 }
 
-func (r *shadowSkipTestRepo) GetByID(_ context.Context, id int64) (*Account, error) {
+func (r *shadowSkipTestRepo) GetByID(_ context.Context, id string) (*Account, error) {
 	if r.account == nil || r.account.ID != id {
 		return nil, ErrAccountNotFound
 	}
@@ -40,21 +40,21 @@ func newShadowTestGinCtx() *gin.Context {
 
 // TestOpenAITokenRefresherSkipsShadow 验证影子账号不被后台 token 刷新器处理。
 func TestOpenAITokenRefresherSkipsShadow(t *testing.T) {
-	pid := int64(100)
+	pid := "100"
 	r := NewOpenAITokenRefresher(nil, nil)
 	// 影子账号：ParentAccountID 非 nil → CanRefresh 应返回 false
-	require.False(t, r.CanRefresh(&Account{ID: 200, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &pid}))
+	require.False(t, r.CanRefresh(&Account{ID: "200", Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &pid}))
 	// 普通账号：有 refresh_token → CanRefresh 应返回 true
-	require.True(t, r.CanRefresh(&Account{ID: 100, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"refresh_token": "RT"}}))
+	require.True(t, r.CanRefresh(&Account{ID: "100", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"refresh_token": "RT"}}))
 }
 
 // --- 2. TestAccountConnection 影子凭据解析 ---
 
 // TestAccountTestServiceSkipsShadow 验证影子账号连接测试不再早拒,而是尝试解析母账号凭据。
 func TestAccountTestServiceSkipsShadow(t *testing.T) {
-	pid := int64(100)
+	pid := "100"
 	shadow := &Account{
-		ID:              200,
+		ID: "200",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		ParentAccountID: &pid,
@@ -63,7 +63,7 @@ func TestAccountTestServiceSkipsShadow(t *testing.T) {
 	svc := &AccountTestService{accountRepo: repo}
 	c := newShadowTestGinCtx()
 
-	err := svc.TestAccountConnection(c, 200, "", "", "")
+	err := svc.TestAccountConnection(c, "200", "", "", "")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "resolve spark shadow parent")
 }
@@ -74,9 +74,9 @@ func TestAccountTestServiceSkipsShadow(t *testing.T) {
 // 影子账号透传母账号凭据，但 Extra 通常为空，需给它一个 access_token 才能让
 // 现有的 token=="" 提前返回路径失效，从而真实验证 IsCredentialShadow 守卫。
 func TestEnsureOpenAIPrivacySkipsShadow(t *testing.T) {
-	pid := int64(100)
+	pid := "100"
 	shadow := &Account{
-		ID:              200,
+		ID: "200",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		ParentAccountID: &pid,

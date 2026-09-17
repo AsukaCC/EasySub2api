@@ -161,7 +161,7 @@ func TestForwardGrokResponsesClientToolNameConflictReturns400(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	upstream := &httpUpstreamRecorder{}
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
-	account := grokProtocolAPIKeyAccount(7101)
+	account := grokProtocolAPIKeyAccount("7101")
 
 	result, err := svc.forwardGrokResponses(context.Background(), c, account, body, "grok", false, time.Now())
 
@@ -182,11 +182,11 @@ func TestForwardGrokResponsesOAuthRestoresClientToolsNonStreaming(t *testing.T) 
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set("api_key", &APIKey{ID: 7102})
+	c.Set("api_key", &APIKey{ID: "7102"})
 
-	account := grokProtocolOAuthAccount(7102)
+	account := grokProtocolOAuthAccount("7102")
 	repo := &grokQuotaAccountRepo{mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
@@ -252,7 +252,7 @@ func TestForwardGrokResponsesAPIKeyRestoresClientToolsFromSSEForNonStreamingRequ
 		Body: io.NopCloser(strings.NewReader(grokProtocolUpstreamSSE())),
 	}}
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
-	account := grokProtocolAPIKeyAccount(7104)
+	account := grokProtocolAPIKeyAccount("7104")
 
 	result, err := svc.forwardGrokResponses(context.Background(), c, account, body, "grok", false, time.Now())
 
@@ -290,7 +290,7 @@ func TestForwardGrokResponsesAPIKeyRestoresClientToolsStreaming(t *testing.T) {
 		Body: io.NopCloser(strings.NewReader(grokProtocolUpstreamSSE())),
 	}}
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
-	account := grokProtocolAPIKeyAccount(7103)
+	account := grokProtocolAPIKeyAccount("7103")
 
 	result, err := svc.forwardGrokResponses(context.Background(), c, account, body, "grok", true, time.Now())
 
@@ -416,7 +416,7 @@ func grokClientToolProtocolRequest(stream bool) []byte {
 	}`, stream))
 }
 
-func grokProtocolOAuthAccount(id int64) *Account {
+func grokProtocolOAuthAccount(id string) *Account {
 	return &Account{
 		ID: id, Name: "grok-oauth-protocol", Platform: PlatformGrok, Type: AccountTypeOAuth,
 		Status: StatusActive, Schedulable: true, Concurrency: 1,
@@ -428,7 +428,7 @@ func grokProtocolOAuthAccount(id int64) *Account {
 	}
 }
 
-func grokProtocolAPIKeyAccount(id int64) *Account {
+func grokProtocolAPIKeyAccount(id string) *Account {
 	return &Account{
 		ID: id, Name: "grok-api-key-protocol", Platform: PlatformGrok, Type: AccountTypeAPIKey,
 		Status: StatusActive, Schedulable: true, Concurrency: 1,

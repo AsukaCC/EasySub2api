@@ -37,9 +37,9 @@ func TestResolveMessagesDispatchModel_CNProvidersNoDispatchMapping(t *testing.T)
 
 func TestFilterCNProviderBillingModelCandidates(t *testing.T) {
 	svc := &OpenAIGatewayService{} // resolver 为 nil → 无显式分组/渠道定价
-	apiKey := &APIKey{Group: &Group{ID: 1, Platform: PlatformKimi}}
+	apiKey := &APIKey{Group: &Group{ID: "1", Platform: PlatformKimi}}
 
-	cnAccount := &Account{ID: 1, Platform: PlatformKimi}
+	cnAccount := &Account{ID: "1", Platform: PlatformKimi}
 	filtered := svc.filterCNProviderBillingModelCandidates(context.Background(), cnAccount, apiKey,
 		[]string{"kimi-k2-0905-preview", "claude-sonnet-4-5", "moonshot-v1-8k"})
 	require.Equal(t, []string{"kimi-k2-0905-preview", "moonshot-v1-8k"}, filtered,
@@ -50,7 +50,7 @@ func TestFilterCNProviderBillingModelCandidates(t *testing.T) {
 	require.Empty(t, allClaude, "全 claude 候选应被清空（上层走零成本+告警落账）")
 
 	// 非 CN 账号完全不受影响。
-	openaiAccount := &Account{ID: 2, Platform: PlatformOpenAI}
+	openaiAccount := &Account{ID: "2", Platform: PlatformOpenAI}
 	passthrough := svc.filterCNProviderBillingModelCandidates(context.Background(), openaiAccount, apiKey,
 		[]string{"claude-sonnet-4-5", "gpt-5.4"})
 	require.Equal(t, []string{"claude-sonnet-4-5", "gpt-5.4"}, passthrough)
@@ -60,7 +60,7 @@ func TestFilterCNProviderBillingModelCandidates(t *testing.T) {
 
 func TestCalculateOpenAIRecordUsageCost_EmptyCandidatesIsPricingUnavailable(t *testing.T) {
 	svc := &OpenAIGatewayService{}
-	apiKey := &APIKey{Group: &Group{ID: 1, Platform: PlatformKimi}}
+	apiKey := &APIKey{Group: &Group{ID: "1", Platform: PlatformKimi}}
 
 	_, err := svc.calculateOpenAIRecordUsageCost(
 		context.Background(), nil, apiKey, nil,
@@ -105,8 +105,8 @@ func TestResponsesStreamingFromNativeAnthropic_ClientDisconnectDrainsUsage(t *te
 func TestHandle403_CNProviderHTMLBodySkipsAccountPenalty(t *testing.T) {
 	for _, platform := range []string{PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax} {
 		repo := &rateLimitAccountRepoStub{}
-		service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
-		account := &Account{ID: 401, Platform: platform, Type: AccountTypeAPIKey}
+		service := NewRateLimitService(repo, &config.Config{}, nil)
+		account := &Account{ID: "401", Platform: platform, Type: AccountTypeAPIKey}
 
 		shouldDisable := service.HandleUpstreamError(
 			context.Background(),
@@ -125,9 +125,9 @@ func TestHandle403_CNProviderHTMLBodySkipsAccountPenalty(t *testing.T) {
 func TestHandle403_CNProviderStructured403TempUnschedulableFirstHit(t *testing.T) {
 	repo := &rateLimitAccountRepoStub{}
 	counter := &openAI403CounterCacheStub{counts: []int64{1}}
-	service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	service := NewRateLimitService(repo, &config.Config{}, nil)
 	service.SetOpenAI403CounterCache(counter)
-	account := &Account{ID: 402, Platform: PlatformKimi, Type: AccountTypeAPIKey}
+	account := &Account{ID: "402", Platform: PlatformKimi, Type: AccountTypeAPIKey}
 
 	shouldDisable := service.HandleUpstreamError(
 		context.Background(),

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -338,9 +339,9 @@ func (r *poolHealthRefresher) startsSnapshot() []time.Time {
 	return append([]time.Time(nil), r.startTimes...)
 }
 
-func grokPoolAccount(id int64) Account {
+func grokPoolAccount(id string) Account {
 	return Account{
-		ID:       fmt.Sprintf("%d", id),
+		ID:       id,
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Status:   StatusActive,
@@ -385,8 +386,8 @@ func TestTokenRefreshService_RegistrationsAreCandidateEligibilitySource(t *testi
 
 func TestTokenRefreshService_ProcessRefreshPagesByStableCursor(t *testing.T) {
 	repo := &poolHealthAccountRepo{pages: map[string][]Account{
-		"":  {grokPoolAccount(1), grokPoolAccount(2)},
-		"2": {grokPoolAccount(3)},
+		"":  {grokPoolAccount("1"), grokPoolAccount("2")},
+		"2": {grokPoolAccount("3")},
 	}}
 	refresher := &poolHealthRefresher{}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
@@ -417,7 +418,7 @@ func TestTokenRefreshService_ProcessRefreshPagesByStableCursor(t *testing.T) {
 func TestTokenRefreshService_BoundsPerProviderConcurrency(t *testing.T) {
 	accounts := make([]Account, 0, 8)
 	for id := int64(1); id <= 8; id++ {
-		accounts = append(accounts, grokPoolAccount(id))
+		accounts = append(accounts, grokPoolAccount(strconv.FormatInt(id, 10)))
 	}
 	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{delay: 20 * time.Millisecond}
@@ -461,7 +462,7 @@ func TestTokenRefreshService_RetriesAcquireRateSlotPerAttempt(t *testing.T) {
 	refresher := &poolHealthRefresher{err: errors.New("temporary provider failure")}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{MaxRetries: 3})
 	gate := &countingRefreshAttemptGate{}
-	account := grokPoolAccount(44)
+	account := grokPoolAccount("44")
 
 	err := svc.refreshWithRetryWithRateGate(context.Background(), &account, refresher, nil, time.Hour, gate)
 
@@ -490,7 +491,7 @@ func TestTokenRefreshService_ProcessProviderAccountsLegacyNilReleaseGateIsSafe(t
 		rateGate: &rejectedRefreshAttemptGate{err: errRefreshSkipped},
 		poolGate: nil,
 	}
-	account := grokPoolAccount(45)
+	account := grokPoolAccount("45")
 
 	refreshed, skipped, failed := svc.processProviderAccounts(
 		context.Background(),
@@ -518,10 +519,10 @@ func TestTokenRefreshService_ProviderRateGateIsSharedAcrossRuns(t *testing.T) {
 
 func TestTokenRefreshService_ProviderConcurrencyGateIsSharedAcrossBackgroundAndConcurrentAdminReconciliation(t *testing.T) {
 	accounts := []Account{
-		grokPoolAccount(1),
-		grokPoolAccount(2),
-		grokPoolAccount(3),
-		grokPoolAccount(4),
+		grokPoolAccount("1"),
+		grokPoolAccount("2"),
+		grokPoolAccount("3"),
+		grokPoolAccount("4"),
 	}
 	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{delay: 80 * time.Millisecond}
@@ -604,7 +605,7 @@ func TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSSt
 	errorsCh := make(chan error, attemptCount)
 	var wg sync.WaitGroup
 	for i := 0; i < attemptCount; i++ {
-		account := grokPoolAccount(int64(i + 1))
+		account := grokPoolAccount(strconv.Itoa(i + 1))
 		state := &tokenRefreshProviderState{
 			service:      svc,
 			registration: registration,
@@ -668,9 +669,9 @@ func TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSSt
 
 func TestTokenRefreshService_ProductionPathRatesOnlyActualRefreshAfterSameAccountContention(t *testing.T) {
 	const interval = 200 * time.Millisecond
-	accountOne := grokPoolAccount(71)
+	accountOne := grokPoolAccount("71")
 	accountOne.Credentials["needs_refresh"] = true
-	accountTwo := grokPoolAccount(72)
+	accountTwo := grokPoolAccount("72")
 	accountTwo.Credentials["needs_refresh"] = true
 	firstSelection := snapshotOAuthRefreshAccount(&accountOne)
 	contendingSelection := snapshotOAuthRefreshAccount(&accountOne)
@@ -741,7 +742,7 @@ func TestTokenRefreshService_ProductionPathRatesOnlyActualRefreshAfterSameAccoun
 }
 
 func TestTokenRefreshService_ProviderTripBeforeRateAdmissionSkipsWithoutAccountMutation(t *testing.T) {
-	account := grokPoolAccount(73)
+	account := grokPoolAccount("73")
 	stored := snapshotOAuthRefreshAccount(&account)
 	repo := &breakerTripAccountRepo{productionPathRateRepo: &productionPathRateRepo{
 		accounts: map[string]*Account{account.ID: stored},
@@ -800,7 +801,7 @@ func TestTokenRefreshService_AttemptTimeoutStaysInsideDistributedLockLease(t *te
 func TestTokenRefreshService_SharedProviderFailureContainsCycleWithoutAccountMutation(t *testing.T) {
 	accounts := make([]Account, 0, 5)
 	for id := int64(1); id <= 5; id++ {
-		accounts = append(accounts, grokPoolAccount(id))
+		accounts = append(accounts, grokPoolAccount(strconv.FormatInt(id, 10)))
 	}
 	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{err: errors.New("invalid_client: provider configuration rejected")}
@@ -823,7 +824,7 @@ func TestTokenRefreshService_SharedProviderFailureContainsCycleWithoutAccountMut
 }
 
 func TestTokenRefreshService_SharedDBRereadFailureContainsCycleWithoutAccountMutation(t *testing.T) {
-	accounts := []Account{grokPoolAccount(1), grokPoolAccount(2), grokPoolAccount(3)}
+	accounts := []Account{grokPoolAccount("1"), grokPoolAccount("2"), grokPoolAccount("3")}
 	repo := &poolHealthAccountRepo{
 		pages:      map[string][]Account{"": accounts},
 		getByIDErr: errors.New("database unavailable"),
@@ -848,7 +849,7 @@ func TestTokenRefreshService_SharedDBRereadFailureContainsCycleWithoutAccountMut
 }
 
 func TestTokenRefreshService_GenericGrokForbiddenContainsCycleWithoutAccountMutation(t *testing.T) {
-	accounts := []Account{grokPoolAccount(1), grokPoolAccount(2), grokPoolAccount(3)}
+	accounts := []Account{grokPoolAccount("1"), grokPoolAccount("2"), grokPoolAccount("3")}
 	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{err: errors.New(`GROK_OAUTH_ENTITLEMENT_DENIED: token refresh failed: status 403, body: <html>request blocked</html>`)}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
@@ -870,7 +871,7 @@ func TestTokenRefreshService_GenericGrokForbiddenContainsCycleWithoutAccountMuta
 }
 
 func TestTokenRefreshService_ExplicitGrokEntitlementDenialIsPermanent(t *testing.T) {
-	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": {grokPoolAccount(1)}}}
+	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": {grokPoolAccount("1")}}}
 	refresher := &poolHealthRefresher{err: errors.New(`GROK_OAUTH_ENTITLEMENT_DENIED: token refresh failed: status 403, body: {"error":"subscription required"}`)}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
 		MaxRetries:            1,
@@ -890,7 +891,7 @@ func TestTokenRefreshService_ExplicitGrokEntitlementDenialIsPermanent(t *testing
 }
 
 func TestTokenRefreshService_AttemptTimeoutTripsRetryableProviderThreshold(t *testing.T) {
-	accounts := []Account{grokPoolAccount(1), grokPoolAccount(2), grokPoolAccount(3)}
+	accounts := []Account{grokPoolAccount("1"), grokPoolAccount("2"), grokPoolAccount("3")}
 	repo := &poolHealthAccountRepo{pages: map[string][]Account{"": accounts}}
 	refresher := &poolHealthRefresher{delay: time.Second}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{
@@ -923,7 +924,7 @@ func TestTokenRefreshService_ParentCancellationStopsRetryWithoutAccountMutation(
 		RetryBackoffSeconds:   1,
 		AttemptTimeoutSeconds: 1,
 	})
-	account := grokPoolAccount(42)
+	account := grokPoolAccount("42")
 
 	err := svc.refreshWithRetry(ctx, &account, refresher, nil, time.Hour)
 
@@ -941,7 +942,7 @@ func TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected(t *testing
 	}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{MaxRetries: 1})
 	svc.attemptTimeoutOverride = 10 * time.Millisecond
-	account := grokPoolAccount(43)
+	account := grokPoolAccount("43")
 
 	err := svc.refreshWithRetry(context.Background(), &account, refresher, nil, time.Hour)
 
@@ -959,7 +960,7 @@ func TestTokenRefreshService_NonRetryableGrokFailureInvalidatesTokenCache(t *tes
 	refresher := &poolHealthRefresher{err: errors.New("invalid_grant: revoked")}
 	svc := newPoolHealthService(repo, refresher, config.TokenRefreshConfig{MaxRetries: 1})
 	svc.cacheInvalidator = invalidator
-	account := grokPoolAccount(77)
+	account := grokPoolAccount("77")
 
 	err := svc.refreshWithRetry(context.Background(), &account, refresher, nil, time.Hour)
 

@@ -13,9 +13,9 @@ func TestOpenAISelectAccountForModelWithExclusions_ChannelMappedRestrictionRejec
 	t.Parallel()
 
 	channelSvc := newTestChannelService(makeStandardRepo(Channel{
-		ID:                 1,
+		ID: "1",
 		Status:             StatusActive,
-		GroupIDs:           []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels:     true,
 		BillingModelSource: BillingModelSourceChannelMapped,
 		ModelPricing: []ChannelModelPricing{
@@ -24,16 +24,16 @@ func TestOpenAISelectAccountForModelWithExclusions_ChannelMappedRestrictionRejec
 		ModelMapping: map[string]map[string]string{
 			PlatformOpenAI: {"gpt-4.1": "o3-mini"},
 		},
-	}, map[int64]string{10: PlatformOpenAI}))
+	}, map[string]string{"10": PlatformOpenAI}))
 
 	svc := &OpenAIGatewayService{
 		accountRepo: stubOpenAIAccountRepo{accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true},
+			{ID: "1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true},
 		}},
 		channelService: channelSvc,
 	}
 
-	groupID := int64(10)
+	groupID := "10"
 	_, err := svc.SelectAccountForModelWithExclusions(context.Background(), &groupID, "", "gpt-4.1", nil)
 	require.ErrorIs(t, err, ErrNoAvailableAccounts)
 	require.Contains(t, err.Error(), "channel pricing restriction")
@@ -43,20 +43,20 @@ func TestOpenAISelectAccountForModelWithExclusions_UpstreamRestrictionSkipsDisal
 	t.Parallel()
 
 	channelSvc := newTestChannelService(makeStandardRepo(Channel{
-		ID:                 1,
+		ID: "1",
 		Status:             StatusActive,
-		GroupIDs:           []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels:     true,
 		BillingModelSource: BillingModelSourceUpstream,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformOpenAI, Models: []string{"o3-mini"}},
 		},
-	}, map[int64]string{10: PlatformOpenAI}))
+	}, map[string]string{"10": PlatformOpenAI}))
 
 	svc := &OpenAIGatewayService{
 		accountRepo: stubOpenAIAccountRepo{accounts: []Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -66,7 +66,7 @@ func TestOpenAISelectAccountForModelWithExclusions_UpstreamRestrictionSkipsDisal
 				},
 			},
 			{
-				ID:          2,
+				ID: "2",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -79,11 +79,11 @@ func TestOpenAISelectAccountForModelWithExclusions_UpstreamRestrictionSkipsDisal
 		channelService: channelSvc,
 	}
 
-	groupID := int64(10)
+	groupID := "10"
 	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), &groupID, "", "gpt-4.1", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
-	require.Equal(t, int64(2), account.ID)
+	require.Equal(t, "2", account.ID)
 }
 
 func TestIsUpstreamModelRestrictedByChannel_CompactMappingMatchesForwardPath(t *testing.T) {
@@ -119,9 +119,9 @@ func TestIsUpstreamModelRestrictedByChannel_CompactMappingMatchesForwardPath(t *
 			t.Parallel()
 
 			channelSvc := newTestChannelService(makeStandardRepo(Channel{
-				ID:                 1,
+				ID: "1",
 				Status:             StatusActive,
-				GroupIDs:           []int64{10},
+				GroupIDs: []string{"10"},
 				RestrictModels:     true,
 				BillingModelSource: BillingModelSourceUpstream,
 				ModelPricing: []ChannelModelPricing{
@@ -130,9 +130,9 @@ func TestIsUpstreamModelRestrictedByChannel_CompactMappingMatchesForwardPath(t *
 				ModelMapping: map[string]map[string]string{
 					PlatformOpenAI: {"gpt-5.4": "gpt-5.4-channel"},
 				},
-			}, map[int64]string{10: PlatformOpenAI}))
+			}, map[string]string{"10": PlatformOpenAI}))
 			svc := &OpenAIGatewayService{channelService: channelSvc}
-			mapping := channelSvc.ResolveChannelMapping(context.Background(), 10, "gpt-5.4")
+			mapping := channelSvc.ResolveChannelMapping(context.Background(), "10", "gpt-5.4")
 			require.True(t, mapping.Mapped)
 			require.Equal(t, "gpt-5.4-channel", mapping.MappedModel)
 
@@ -142,10 +142,10 @@ func TestIsUpstreamModelRestrictedByChannel_CompactMappingMatchesForwardPath(t *
 				tt.useCompactModelMapping,
 			)
 			require.False(t, svc.isUpstreamModelRestrictedByChannel(
-				ctx, 10, account, "gpt-5.4", true,
+				ctx, "10", account, "gpt-5.4", true,
 			))
 			require.True(t, svc.isUpstreamModelRestrictedByChannel(
-				context.Background(), 10, account, "gpt-5.4", true,
+				context.Background(), "10", account, "gpt-5.4", true,
 			), "without the forward-model context the restriction check follows a different chain")
 		})
 	}
@@ -188,9 +188,9 @@ func TestIsUpstreamModelRestrictedByChannel_PassthroughMatchesForwardPath(t *tes
 			t.Parallel()
 
 			channelSvc := newTestChannelService(makeStandardRepo(Channel{
-				ID:                 1,
+				ID: "1",
 				Status:             StatusActive,
-				GroupIDs:           []int64{10},
+				GroupIDs: []string{"10"},
 				RestrictModels:     true,
 				BillingModelSource: BillingModelSourceUpstream,
 				ModelPricing: []ChannelModelPricing{
@@ -199,9 +199,9 @@ func TestIsUpstreamModelRestrictedByChannel_PassthroughMatchesForwardPath(t *tes
 				ModelMapping: map[string]map[string]string{
 					PlatformOpenAI: {"gpt-5.4": "gpt-5.4-channel"},
 				},
-			}, map[int64]string{10: PlatformOpenAI}))
+			}, map[string]string{"10": PlatformOpenAI}))
 			svc := &OpenAIGatewayService{channelService: channelSvc}
-			mapping := channelSvc.ResolveChannelMapping(context.Background(), 10, "gpt-5.4")
+			mapping := channelSvc.ResolveChannelMapping(context.Background(), "10", "gpt-5.4")
 			require.True(t, mapping.Mapped)
 			require.Equal(t, "gpt-5.4-channel", mapping.MappedModel)
 
@@ -211,7 +211,7 @@ func TestIsUpstreamModelRestrictedByChannel_PassthroughMatchesForwardPath(t *tes
 				tt.useCompactModelMapping,
 			)
 			require.False(t, svc.isUpstreamModelRestrictedByChannel(
-				ctx, 10, account, "gpt-5.4", true,
+				ctx, "10", account, "gpt-5.4", true,
 			))
 		})
 	}
@@ -245,9 +245,9 @@ func TestIsUpstreamModelRestrictedByChannel_PassthroughFlagWithRawChatFallbackMa
 			t.Parallel()
 
 			channelSvc := newTestChannelService(makeStandardRepo(Channel{
-				ID:                 1,
+				ID: "1",
 				Status:             StatusActive,
-				GroupIDs:           []int64{10},
+				GroupIDs: []string{"10"},
 				RestrictModels:     true,
 				BillingModelSource: BillingModelSourceUpstream,
 				ModelPricing: []ChannelModelPricing{
@@ -256,7 +256,7 @@ func TestIsUpstreamModelRestrictedByChannel_PassthroughFlagWithRawChatFallbackMa
 				ModelMapping: map[string]map[string]string{
 					PlatformOpenAI: {"gpt-5.4": "gpt-5.4-channel"},
 				},
-			}, map[int64]string{10: PlatformOpenAI}))
+			}, map[string]string{"10": PlatformOpenAI}))
 			svc := &OpenAIGatewayService{channelService: channelSvc}
 			ctx := WithOpenAIForwardModel(
 				context.Background(),
@@ -265,7 +265,7 @@ func TestIsUpstreamModelRestrictedByChannel_PassthroughFlagWithRawChatFallbackMa
 			)
 
 			require.False(t, svc.isUpstreamModelRestrictedByChannel(
-				ctx, 10, account, "gpt-5.4", true,
+				ctx, "10", account, "gpt-5.4", true,
 			))
 		})
 	}
@@ -286,9 +286,9 @@ func TestIsUpstreamModelRestrictedByChannel_ForwardModelContextMatchesNormalForw
 		},
 	}
 	channelSvc := newTestChannelService(makeStandardRepo(Channel{
-		ID:                 1,
+		ID: "1",
 		Status:             StatusActive,
-		GroupIDs:           []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels:     true,
 		BillingModelSource: BillingModelSourceUpstream,
 		ModelPricing: []ChannelModelPricing{
@@ -297,12 +297,12 @@ func TestIsUpstreamModelRestrictedByChannel_ForwardModelContextMatchesNormalForw
 		ModelMapping: map[string]map[string]string{
 			PlatformOpenAI: {"gpt-5.4": "gpt-5.4-channel"},
 		},
-	}, map[int64]string{10: PlatformOpenAI}))
+	}, map[string]string{"10": PlatformOpenAI}))
 	svc := &OpenAIGatewayService{channelService: channelSvc}
 	ctx := WithOpenAIForwardModel(context.Background(), "gpt-5.4-channel", false)
 
 	require.False(t, svc.isUpstreamModelRestrictedByChannel(
-		ctx, 10, account, "gpt-5.4", false,
+		ctx, "10", account, "gpt-5.4", false,
 	))
 }
 
@@ -310,23 +310,23 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyRestrictedUpstreamFalls
 	t.Parallel()
 
 	channelSvc := newTestChannelService(makeStandardRepo(Channel{
-		ID:                 1,
+		ID: "1",
 		Status:             StatusActive,
-		GroupIDs:           []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels:     true,
 		BillingModelSource: BillingModelSourceUpstream,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformOpenAI, Models: []string{"o3-mini"}},
 		},
-	}, map[int64]string{10: PlatformOpenAI}))
+	}, map[string]string{"10": PlatformOpenAI}))
 
 	cache := &stubGatewayCache{
-		sessionBindings: map[string]int64{"openai:sticky-session": 1},
+		sessionBindings: map[string]string{"openai:sticky-session": "1"},
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo: stubOpenAIAccountRepo{accounts: []Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -336,7 +336,7 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyRestrictedUpstreamFalls
 				},
 			},
 			{
-				ID:          2,
+				ID: "2",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -350,11 +350,11 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyRestrictedUpstreamFalls
 		cache:          cache,
 	}
 
-	groupID := int64(10)
+	groupID := "10"
 	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), &groupID, "sticky-session", "gpt-4.1", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
-	require.Equal(t, int64(2), account.ID)
+	require.Equal(t, "2", account.ID)
 	require.Equal(t, 1, cache.deletedSessions["openai:sticky-session"])
-	require.Equal(t, int64(2), cache.sessionBindings["openai:sticky-session"])
+	require.Equal(t, "2", cache.sessionBindings["openai:sticky-session"])
 }

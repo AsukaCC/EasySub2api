@@ -15,7 +15,7 @@ type updatingProxyRepoStub struct {
 	updateCalls int
 }
 
-func (s *updatingProxyRepoStub) GetByID(context.Context, int64) (*Proxy, error) {
+func (s *updatingProxyRepoStub) GetByID(context.Context, string) (*Proxy, error) {
 	copy := *s.proxy
 	return &copy, nil
 }
@@ -31,12 +31,12 @@ func TestBothProxyUpdateServicesUseRepositoryUpdateBoundary(t *testing.T) {
 	t.Run("ProxyService", func(t *testing.T) {
 		repo := &updatingProxyRepoStub{
 			proxyRepoStub: &proxyRepoStub{},
-			proxy:         &Proxy{ID: 9, Protocol: "http", Host: "old.example", Port: 8080, Status: StatusActive},
+			proxy:         &Proxy{ID: "9", Protocol: "http", Host: "old.example", Port: 8080, Status: StatusActive},
 		}
 		svc := NewProxyService(repo)
 		host := "new.example"
 
-		_, err := svc.Update(context.Background(), 9, UpdateProxyRequest{Host: &host})
+		_, err := svc.Update(context.Background(), "9", UpdateProxyRequest{Host: &host})
 
 		require.NoError(t, err)
 		require.Equal(t, 1, repo.updateCalls)
@@ -47,7 +47,7 @@ func TestBothProxyUpdateServicesUseRepositoryUpdateBoundary(t *testing.T) {
 		repo := &updatingProxyRepoStub{
 			proxyRepoStub: &proxyRepoStub{},
 			proxy: &Proxy{
-				ID:             9,
+				ID: "9",
 				Protocol:       "http",
 				Host:           "old.example",
 				Port:           8080,
@@ -59,7 +59,7 @@ func TestBothProxyUpdateServicesUseRepositoryUpdateBoundary(t *testing.T) {
 		svc := &adminServiceImpl{proxyRepo: repo}
 		warnDays := 7
 
-		_, err := svc.UpdateProxy(context.Background(), 9, &UpdateProxyInput{
+		_, err := svc.UpdateProxy(context.Background(), "9", &UpdateProxyInput{
 			Host:           "new.example",
 			FallbackMode:   FallbackModeNone,
 			ExpiryWarnDays: &warnDays,

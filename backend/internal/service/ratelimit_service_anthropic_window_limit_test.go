@@ -24,30 +24,30 @@ type anthropicWindowLimitRepo struct {
 	lastExtraUpdates        map[string]any
 }
 
-func (r *anthropicWindowLimitRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *anthropicWindowLimitRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	r.rateLimitCalls++
 	r.lastRateLimitReset = resetAt
 	return nil
 }
 
-func (r *anthropicWindowLimitRepo) SetTempUnschedulable(_ context.Context, _ int64, _ time.Time, _ string) error {
+func (r *anthropicWindowLimitRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, _ string) error {
 	r.tempUnschedCalls++
 	return nil
 }
 
-func (r *anthropicWindowLimitRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time, _ ...string) error {
+func (r *anthropicWindowLimitRepo) SetModelRateLimit(_ context.Context, _ string, scope string, resetAt time.Time, _ ...string) error {
 	r.modelRateLimitCalls++
 	r.lastModelRateLimitScope = scope
 	r.lastModelRateLimitReset = resetAt
 	return nil
 }
 
-func (r *anthropicWindowLimitRepo) UpdateSessionWindow(_ context.Context, _ int64, _, _ *time.Time, _ string) error {
+func (r *anthropicWindowLimitRepo) UpdateSessionWindow(_ context.Context, _ string, _, _ *time.Time, _ string) error {
 	r.sessionWindowCalls++
 	return nil
 }
 
-func (r *anthropicWindowLimitRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *anthropicWindowLimitRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	r.lastExtraUpdates = updates
 	return nil
 }
@@ -59,9 +59,9 @@ func TestHandleUpstreamError_AnthropicWindowLimitPreemptsTempUnschedRule(t *test
 	headers.Set("anthropic-ratelimit-unified-5h-reset", strconv.FormatInt(resetAt.Unix(), 10))
 
 	repo := &anthropicWindowLimitRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	svc := NewRateLimitService(repo, nil, nil)
 	account := &Account{
-		ID:       42,
+		ID: "42",
 		Type:     AccountTypeOAuth,
 		Platform: PlatformAnthropic,
 		Credentials: map[string]any{
@@ -119,9 +119,9 @@ func TestHandleUpstreamError_Anthropic7dOiOnlyMarksModelRateLimit(t *testing.T) 
 	headers := fable429Headers(reset5h, resetOI)
 
 	repo := &anthropicWindowLimitRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	svc := NewRateLimitService(repo, nil, nil)
 	account := &Account{
-		ID:       42,
+		ID: "42",
 		Type:     AccountTypeOAuth,
 		Platform: PlatformAnthropic,
 		Credentials: map[string]any{
@@ -170,8 +170,8 @@ func TestHandleUpstreamError_Anthropic5hWindowStillWinsOver7dOi(t *testing.T) {
 	headers.Set("anthropic-ratelimit-unified-5h-utilization", "1.0")
 
 	repo := &anthropicWindowLimitRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
-	account := &Account{ID: 42, Type: AccountTypeOAuth, Platform: PlatformAnthropic}
+	svc := NewRateLimitService(repo, nil, nil)
+	account := &Account{ID: "42", Type: AccountTypeOAuth, Platform: PlatformAnthropic}
 
 	svc.HandleUpstreamError(context.Background(), account, http.StatusTooManyRequests, headers, nil, "claude-fable-5")
 
@@ -191,8 +191,8 @@ func TestHandleUpstreamError_AnthropicAccountWindowStillWinsOver7dOi(t *testing.
 	headers.Set("anthropic-ratelimit-unified-7d-utilization", "1.02")
 
 	repo := &anthropicWindowLimitRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
-	account := &Account{ID: 42, Type: AccountTypeOAuth, Platform: PlatformAnthropic}
+	svc := NewRateLimitService(repo, nil, nil)
+	account := &Account{ID: "42", Type: AccountTypeOAuth, Platform: PlatformAnthropic}
 
 	svc.HandleUpstreamError(context.Background(), account, http.StatusTooManyRequests, headers, nil, "claude-fable-5")
 
@@ -217,8 +217,8 @@ func TestHandleUpstreamError_Anthropic429Without7dOiKeepsLegacyBehavior(t *testi
 	headers.Set("anthropic-ratelimit-unified-7d-utilization", "0.56")
 
 	repo := &anthropicWindowLimitRepo{}
-	svc := NewRateLimitService(repo, nil, nil, nil, nil)
-	account := &Account{ID: 42, Type: AccountTypeOAuth, Platform: PlatformAnthropic}
+	svc := NewRateLimitService(repo, nil, nil)
+	account := &Account{ID: "42", Type: AccountTypeOAuth, Platform: PlatformAnthropic}
 
 	svc.HandleUpstreamError(context.Background(), account, http.StatusTooManyRequests, headers, nil, "claude-fable-5")
 

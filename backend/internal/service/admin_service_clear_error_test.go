@@ -20,35 +20,35 @@ type accountRepoStubForClearAccountError struct {
 	clearTempUnschedCalls    int
 }
 
-func (r *accountRepoStubForClearAccountError) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *accountRepoStubForClearAccountError) GetByID(ctx context.Context, id string) (*Account, error) {
 	return r.account, nil
 }
 
-func (r *accountRepoStubForClearAccountError) ClearError(ctx context.Context, id int64) error {
+func (r *accountRepoStubForClearAccountError) ClearError(ctx context.Context, id string) error {
 	r.clearErrorCalls++
 	r.account.Status = StatusActive
 	r.account.ErrorMessage = ""
 	return nil
 }
 
-func (r *accountRepoStubForClearAccountError) ClearRateLimit(ctx context.Context, id int64) error {
+func (r *accountRepoStubForClearAccountError) ClearRateLimit(ctx context.Context, id string) error {
 	r.clearRateLimitCalls++
 	r.account.RateLimitedAt = nil
 	r.account.RateLimitResetAt = nil
 	return nil
 }
 
-func (r *accountRepoStubForClearAccountError) ClearAntigravityQuotaScopes(ctx context.Context, id int64) error {
+func (r *accountRepoStubForClearAccountError) ClearAntigravityQuotaScopes(ctx context.Context, id string) error {
 	r.clearAntigravityCalls++
 	return nil
 }
 
-func (r *accountRepoStubForClearAccountError) ClearModelRateLimits(ctx context.Context, id int64) error {
+func (r *accountRepoStubForClearAccountError) ClearModelRateLimits(ctx context.Context, id string) error {
 	r.clearModelRateLimitCalls++
 	return nil
 }
 
-func (r *accountRepoStubForClearAccountError) ClearTempUnschedulable(ctx context.Context, id int64) error {
+func (r *accountRepoStubForClearAccountError) ClearTempUnschedulable(ctx context.Context, id string) error {
 	r.clearTempUnschedCalls++
 	r.account.TempUnschedulableUntil = nil
 	r.account.TempUnschedulableReason = ""
@@ -60,7 +60,7 @@ func TestAdminService_ClearAccountError_AlsoClearsRecoverableRuntimeState(t *tes
 	resetAt := time.Now().Add(5 * time.Minute)
 	repo := &accountRepoStubForClearAccountError{
 		account: &Account{
-			ID:                      31,
+			ID: "31",
 			Platform:                PlatformOpenAI,
 			Type:                    AccountTypeOAuth,
 			Status:                  StatusError,
@@ -73,7 +73,7 @@ func TestAdminService_ClearAccountError_AlsoClearsRecoverableRuntimeState(t *tes
 	blocker := &runtimeBlockRecorder{}
 	svc := &adminServiceImpl{accountRepo: repo, runtimeBlocker: blocker}
 
-	updated, err := svc.ClearAccountError(context.Background(), 31)
+	updated, err := svc.ClearAccountError(context.Background(), "31")
 	require.NoError(t, err)
 	require.NotNil(t, updated)
 	require.Equal(t, 1, repo.clearErrorCalls)
@@ -84,5 +84,5 @@ func TestAdminService_ClearAccountError_AlsoClearsRecoverableRuntimeState(t *tes
 	require.Nil(t, updated.RateLimitResetAt)
 	require.Nil(t, updated.TempUnschedulableUntil)
 	require.Empty(t, updated.TempUnschedulableReason)
-	require.Equal(t, []int64{31}, blocker.clearedIDs)
+	require.Equal(t, []string{"31"}, blocker.clearedIDs)
 }

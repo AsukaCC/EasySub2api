@@ -140,7 +140,7 @@ func TestUserUsageListAdvancedFilters(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, int64(42), repo.listFilters.UserID)
+	require.Equal(t, "42", repo.listFilters.UserID)
 	require.Equal(t, "group-7", repo.listFilters.GroupID)
 	require.Equal(t, "gpt-5", repo.listFilters.Model)
 	require.Equal(t, usagestats.ModelSourceRequested, repo.listFilters.ModelFilterSource)

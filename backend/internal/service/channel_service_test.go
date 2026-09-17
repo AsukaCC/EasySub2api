@@ -21,23 +21,23 @@ import (
 
 type mockChannelRepository struct {
 	listAllFn                  func(ctx context.Context) ([]Channel, error)
-	getGroupPlatformsFn        func(ctx context.Context, groupIDs []int64) (map[int64]string, error)
+	getGroupPlatformsFn        func(ctx context.Context, groupIDs []string) (map[string]string, error)
 	createFn                   func(ctx context.Context, channel *Channel) error
-	getByIDFn                  func(ctx context.Context, id int64) (*Channel, error)
+	getByIDFn                  func(ctx context.Context, id string) (*Channel, error)
 	updateFn                   func(ctx context.Context, channel *Channel) error
-	deleteFn                   func(ctx context.Context, id int64) error
+	deleteFn                   func(ctx context.Context, id string) error
 	listFn                     func(ctx context.Context, params pagination.PaginationParams, status, search string) ([]Channel, *pagination.PaginationResult, error)
 	existsByNameFn             func(ctx context.Context, name string) (bool, error)
-	existsByNameExcludingFn    func(ctx context.Context, name string, excludeID int64) (bool, error)
-	getGroupIDsFn              func(ctx context.Context, channelID int64) ([]int64, error)
-	setGroupIDsFn              func(ctx context.Context, channelID int64, groupIDs []int64) error
-	getChannelIDByGroupIDFn    func(ctx context.Context, groupID int64) (int64, error)
-	getGroupsInOtherChannelsFn func(ctx context.Context, channelID int64, groupIDs []int64) ([]int64, error)
-	listModelPricingFn         func(ctx context.Context, channelID int64) ([]ChannelModelPricing, error)
+	existsByNameExcludingFn    func(ctx context.Context, name string, excludeID string) (bool, error)
+	getGroupIDsFn              func(ctx context.Context, channelID string) ([]string, error)
+	setGroupIDsFn              func(ctx context.Context, channelID string, groupIDs []string) error
+	getChannelIDByGroupIDFn    func(ctx context.Context, groupID string) (string, error)
+	getGroupsInOtherChannelsFn func(ctx context.Context, channelID string, groupIDs []string) ([]string, error)
+	listModelPricingFn         func(ctx context.Context, channelID string) ([]ChannelModelPricing, error)
 	createModelPricingFn       func(ctx context.Context, pricing *ChannelModelPricing) error
 	updateModelPricingFn       func(ctx context.Context, pricing *ChannelModelPricing) error
-	deleteModelPricingFn       func(ctx context.Context, id int64) error
-	replaceModelPricingFn      func(ctx context.Context, channelID int64, pricingList []ChannelModelPricing) error
+	deleteModelPricingFn       func(ctx context.Context, id string) error
+	replaceModelPricingFn      func(ctx context.Context, channelID string, pricingList []ChannelModelPricing) error
 }
 
 func (m *mockChannelRepository) Create(ctx context.Context, channel *Channel) error {
@@ -47,7 +47,7 @@ func (m *mockChannelRepository) Create(ctx context.Context, channel *Channel) er
 	return nil
 }
 
-func (m *mockChannelRepository) GetByID(ctx context.Context, id int64) (*Channel, error) {
+func (m *mockChannelRepository) GetByID(ctx context.Context, id string) (*Channel, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
@@ -61,7 +61,7 @@ func (m *mockChannelRepository) Update(ctx context.Context, channel *Channel) er
 	return nil
 }
 
-func (m *mockChannelRepository) Delete(ctx context.Context, id int64) error {
+func (m *mockChannelRepository) Delete(ctx context.Context, id string) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, id)
 	}
@@ -89,49 +89,49 @@ func (m *mockChannelRepository) ExistsByName(ctx context.Context, name string) (
 	return false, nil
 }
 
-func (m *mockChannelRepository) ExistsByNameExcluding(ctx context.Context, name string, excludeID int64) (bool, error) {
+func (m *mockChannelRepository) ExistsByNameExcluding(ctx context.Context, name string, excludeID string) (bool, error) {
 	if m.existsByNameExcludingFn != nil {
 		return m.existsByNameExcludingFn(ctx, name, excludeID)
 	}
 	return false, nil
 }
 
-func (m *mockChannelRepository) GetGroupIDs(ctx context.Context, channelID int64) ([]int64, error) {
+func (m *mockChannelRepository) GetGroupIDs(ctx context.Context, channelID string) ([]string, error) {
 	if m.getGroupIDsFn != nil {
 		return m.getGroupIDsFn(ctx, channelID)
 	}
 	return nil, nil
 }
 
-func (m *mockChannelRepository) SetGroupIDs(ctx context.Context, channelID int64, groupIDs []int64) error {
+func (m *mockChannelRepository) SetGroupIDs(ctx context.Context, channelID string, groupIDs []string) error {
 	if m.setGroupIDsFn != nil {
 		return m.setGroupIDsFn(ctx, channelID, groupIDs)
 	}
 	return nil
 }
 
-func (m *mockChannelRepository) GetChannelIDByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (m *mockChannelRepository) GetChannelIDByGroupID(ctx context.Context, groupID string) (string, error) {
 	if m.getChannelIDByGroupIDFn != nil {
 		return m.getChannelIDByGroupIDFn(ctx, groupID)
 	}
-	return 0, nil
+	return "", nil
 }
 
-func (m *mockChannelRepository) GetGroupsInOtherChannels(ctx context.Context, channelID int64, groupIDs []int64) ([]int64, error) {
+func (m *mockChannelRepository) GetGroupsInOtherChannels(ctx context.Context, channelID string, groupIDs []string) ([]string, error) {
 	if m.getGroupsInOtherChannelsFn != nil {
 		return m.getGroupsInOtherChannelsFn(ctx, channelID, groupIDs)
 	}
 	return nil, nil
 }
 
-func (m *mockChannelRepository) GetGroupPlatforms(ctx context.Context, groupIDs []int64) (map[int64]string, error) {
+func (m *mockChannelRepository) GetGroupPlatforms(ctx context.Context, groupIDs []string) (map[string]string, error) {
 	if m.getGroupPlatformsFn != nil {
 		return m.getGroupPlatformsFn(ctx, groupIDs)
 	}
 	return nil, nil
 }
 
-func (m *mockChannelRepository) ListModelPricing(ctx context.Context, channelID int64) ([]ChannelModelPricing, error) {
+func (m *mockChannelRepository) ListModelPricing(ctx context.Context, channelID string) ([]ChannelModelPricing, error) {
 	if m.listModelPricingFn != nil {
 		return m.listModelPricingFn(ctx, channelID)
 	}
@@ -152,14 +152,14 @@ func (m *mockChannelRepository) UpdateModelPricing(ctx context.Context, pricing 
 	return nil
 }
 
-func (m *mockChannelRepository) DeleteModelPricing(ctx context.Context, id int64) error {
+func (m *mockChannelRepository) DeleteModelPricing(ctx context.Context, id string) error {
 	if m.deleteModelPricingFn != nil {
 		return m.deleteModelPricingFn(ctx, id)
 	}
 	return nil
 }
 
-func (m *mockChannelRepository) ReplaceModelPricing(ctx context.Context, channelID int64, pricingList []ChannelModelPricing) error {
+func (m *mockChannelRepository) ReplaceModelPricing(ctx context.Context, channelID string, pricingList []ChannelModelPricing) error {
 	if m.replaceModelPricingFn != nil {
 		return m.replaceModelPricingFn(ctx, channelID, pricingList)
 	}
@@ -171,9 +171,9 @@ func (m *mockChannelRepository) ReplaceModelPricing(ctx context.Context, channel
 // ---------------------------------------------------------------------------
 
 type mockChannelAuthCacheInvalidator struct {
-	invalidatedGroupIDs []int64
+	invalidatedGroupIDs []string
 	invalidatedKeys     []string
-	invalidatedUserIDs  []int64
+	invalidatedUserIDs  []string
 }
 
 type mockChannelCachePubSub struct {
@@ -201,11 +201,11 @@ func (m *mockChannelAuthCacheInvalidator) InvalidateAuthCacheByKey(_ context.Con
 	m.invalidatedKeys = append(m.invalidatedKeys, key)
 }
 
-func (m *mockChannelAuthCacheInvalidator) InvalidateAuthCacheByUserID(_ context.Context, userID int64) {
+func (m *mockChannelAuthCacheInvalidator) InvalidateAuthCacheByUserID(_ context.Context, userID string) {
 	m.invalidatedUserIDs = append(m.invalidatedUserIDs, userID)
 }
 
-func (m *mockChannelAuthCacheInvalidator) InvalidateAuthCacheByGroupID(_ context.Context, groupID int64) {
+func (m *mockChannelAuthCacheInvalidator) InvalidateAuthCacheByGroupID(_ context.Context, groupID string) {
 	m.invalidatedGroupIDs = append(m.invalidatedGroupIDs, groupID)
 }
 
@@ -223,12 +223,12 @@ func newTestChannelServiceWithAuth(repo *mockChannelRepository, auth *mockChanne
 
 // makeStandardRepo returns a repo that serves one active channel with anthropic pricing
 // for group 1, with the given model pricing and model mapping.
-func makeStandardRepo(ch Channel, groupPlatforms map[int64]string) *mockChannelRepository {
+func makeStandardRepo(ch Channel, groupPlatforms map[string]string) *mockChannelRepository {
 	return &mockChannelRepository{
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			return []Channel{ch}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
 			return groupPlatforms, nil
 		},
 	}
@@ -647,51 +647,51 @@ func TestConflictsBetween(t *testing.T) {
 
 func TestGetChannelForGroup_Success(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Name:     "test-channel",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result, err := svc.GetChannelForGroup(context.Background(), 10)
+	result, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equal(t, int64(1), result.ID)
+	require.Equal(t, "1", result.ID)
 	require.Equal(t, "test-channel", result.Name)
 
 	// returned value should be a clone
 	result.Name = "mutated"
-	result2, err := svc.GetChannelForGroup(context.Background(), 10)
+	result2, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.NoError(t, err)
 	require.Equal(t, "test-channel", result2.Name)
 }
 
 func TestGetChannelForGroup_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusDisabled,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result, err := svc.GetChannelForGroup(context.Background(), 10)
+	result, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.NoError(t, err)
 	require.Nil(t, result)
 }
 
 func TestGetChannelForGroup_NoChannel(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result, err := svc.GetChannelForGroup(context.Background(), 999)
+	result, err := svc.GetChannelForGroup(context.Background(), "999")
 	require.NoError(t, err)
 	require.Nil(t, result)
 }
@@ -704,7 +704,7 @@ func TestGetChannelForGroup_CacheError(t *testing.T) {
 	}
 	svc := newTestChannelService(repo)
 
-	result, err := svc.GetChannelForGroup(context.Background(), 10)
+	result, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.Contains(t, err.Error(), "db connection failed")
@@ -714,248 +714,248 @@ func TestGetChannelForGroup_CacheError(t *testing.T) {
 
 func TestGetChannelModelPricing_ExactMatch(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 	require.InDelta(t, 15e-6, *result.InputPrice, 1e-12)
 }
 
 func TestGetChannelModelPricing_CaseInsensitive(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "Claude-Opus-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "Claude-Opus-4")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 }
 
 func TestGetChannelModelPricing_NormalizesDotsAndHyphens(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4.8"}, BillingMode: BillingModePerRequest, PerRequestPrice: testPtrFloat64(0.007)},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4.8"}, BillingMode: BillingModePerRequest, PerRequestPrice: testPtrFloat64(0.007)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4-8")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4-8")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 	require.Equal(t, BillingModePerRequest, result.BillingMode)
 	require.InDelta(t, 0.007, *result.PerRequestPrice, 1e-12)
 }
 
 func TestGetChannelModelPricing_WildcardMatch(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 200, Platform: "anthropic", Models: []string{"claude-*"}, InputPrice: testPtrFloat64(10e-6)},
+			{ID: "200", Platform: "anthropic", Models: []string{"claude-*"}, InputPrice: testPtrFloat64(10e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-sonnet-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-sonnet-4")
 	require.NotNil(t, result)
-	require.Equal(t, int64(200), result.ID)
+	require.Equal(t, "200", result.ID)
 }
 
 func TestGetChannelModelPricing_WildcardFirstMatch(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 200, Platform: "anthropic", Models: []string{"claude-*"}, InputPrice: testPtrFloat64(10e-6)},
-			{ID: 300, Platform: "anthropic", Models: []string{"claude-sonnet-*"}, InputPrice: testPtrFloat64(5e-6)},
+			{ID: "200", Platform: "anthropic", Models: []string{"claude-*"}, InputPrice: testPtrFloat64(10e-6)},
+			{ID: "300", Platform: "anthropic", Models: []string{"claude-sonnet-*"}, InputPrice: testPtrFloat64(5e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-sonnet-4-20250514")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-sonnet-4-20250514")
 	require.NotNil(t, result)
 	// "claude-*" is defined first, so it matches first regardless of prefix length
-	require.Equal(t, int64(200), result.ID)
+	require.Equal(t, "200", result.ID)
 	require.InDelta(t, 10e-6, *result.InputPrice, 1e-12)
 }
 
 func TestGetChannelModelPricing_NoMatch(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "gpt-5.1")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "gpt-5.1")
 	require.Nil(t, result)
 }
 
 func TestGetChannelModelPricing_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusDisabled,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.Nil(t, result)
 }
 
 func TestGetChannelModelPricing_PlatformFiltering(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10, 20},
+		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "openai", Models: []string{"gpt-5.1"}, InputPrice: testPtrFloat64(5e-6)},
-			{ID: 200, Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: "openai", Models: []string{"gpt-5.1"}, InputPrice: testPtrFloat64(5e-6)},
+			{ID: "200", Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic", 20: "openai"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic", "20": "openai"})
 	svc := newTestChannelService(repo)
 
 	// Group 10 (anthropic) should NOT see openai pricing
-	result := svc.GetChannelModelPricing(context.Background(), 10, "gpt-5.1")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "gpt-5.1")
 	require.Nil(t, result)
 
 	// Group 10 (anthropic) should see anthropic pricing
-	result = svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result = svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result)
-	require.Equal(t, int64(200), result.ID)
+	require.Equal(t, "200", result.ID)
 
 	// Group 20 (openai) should see openai pricing
-	result = svc.GetChannelModelPricing(context.Background(), 20, "gpt-5.1")
+	result = svc.GetChannelModelPricing(context.Background(), "20", "gpt-5.1")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 
 	// Group 20 (openai) should NOT see anthropic pricing
-	result = svc.GetChannelModelPricing(context.Background(), 20, "claude-opus-4")
+	result = svc.GetChannelModelPricing(context.Background(), "20", "claude-opus-4")
 	require.Nil(t, result)
 }
 
 func TestGetChannelModelPricing_ReturnsCopy(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result)
 
 	// Mutate the returned pricing's slice fields — original cache should not be affected
 	// (Clone copies slices independently, pointer fields are shared per design)
 	result.Models = append(result.Models, "hacked")
-	result.ID = 999
+	result.ID = "999"
 
 	// Original cache should not be affected (slice independence + struct copy)
-	result2 := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result2 := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result2)
 	require.Equal(t, 1, len(result2.Models))
-	require.Equal(t, int64(100), result2.ID)
+	require.Equal(t, "100", result2.ID)
 }
 
 // --- 4.3 ResolveChannelMapping ---
 
 func TestResolveChannelMapping_NoChannel(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
 	// Group 999 is not in any channel
-	result := svc.ResolveChannelMapping(context.Background(), 999, "claude-opus-4")
+	result := svc.ResolveChannelMapping(context.Background(), "999", "claude-opus-4")
 	require.Equal(t, "claude-opus-4", result.MappedModel)
 	require.False(t, result.Mapped)
-	require.Equal(t, int64(0), result.ChannelID)
+	require.Equal(t, "0", result.ChannelID)
 }
 
 func TestResolveChannelMapping_ExactMapping(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
 				"claude-sonnet-4": "claude-sonnet-4-20250514",
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-sonnet-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-sonnet-4")
 	require.True(t, result.Mapped)
 	require.Equal(t, "claude-sonnet-4-20250514", result.MappedModel)
-	require.Equal(t, int64(1), result.ChannelID)
+	require.Equal(t, "1", result.ChannelID)
 }
 
 func TestResolveChannelMapping_WildcardMapping(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
 				"*": "gpt-5.4",
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "any-model-name")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "any-model-name")
 	require.True(t, result.Mapped)
 	require.Equal(t, "gpt-5.4", result.MappedModel)
 }
 
 func TestResolveChannelMapping_WildcardFirstMatch(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
 				"claude-*":        "target2",
@@ -963,10 +963,10 @@ func TestResolveChannelMapping_WildcardFirstMatch(t *testing.T) {
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-sonnet-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-sonnet-4")
 	require.True(t, result.Mapped)
 	// map iteration order is non-deterministic, so the first-match depends on
 	// insertion order which Go maps don't guarantee; verify that one of the
@@ -976,186 +976,186 @@ func TestResolveChannelMapping_WildcardFirstMatch(t *testing.T) {
 
 func TestResolveChannelMapping_NoMapping(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
 				"claude-sonnet-4": "mapped",
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-opus-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-opus-4")
 	require.False(t, result.Mapped)
 	require.Equal(t, "claude-opus-4", result.MappedModel)
-	require.Equal(t, int64(1), result.ChannelID)
+	require.Equal(t, "1", result.ChannelID)
 }
 
 func TestResolveChannelMapping_DefaultBillingModelSource(t *testing.T) {
 	ch := Channel{
-		ID:                 1,
+		ID: "1",
 		Status:             StatusActive,
-		GroupIDs:           []int64{10},
+		GroupIDs: []string{"10"},
 		BillingModelSource: "", // empty
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-opus-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-opus-4")
 	require.Equal(t, BillingModelSourceChannelMapped, result.BillingModelSource)
 }
 
 func TestResolveChannelMapping_UpstreamBillingModelSource(t *testing.T) {
 	ch := Channel{
-		ID:                 1,
+		ID: "1",
 		Status:             StatusActive,
-		GroupIDs:           []int64{10},
+		GroupIDs: []string{"10"},
 		BillingModelSource: BillingModelSourceUpstream,
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-opus-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-opus-4")
 	require.Equal(t, BillingModelSourceUpstream, result.BillingModelSource)
 }
 
 func TestResolveChannelMapping_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusDisabled,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {
 				"claude-sonnet-4": "mapped",
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-sonnet-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-sonnet-4")
 	require.False(t, result.Mapped)
 	require.Equal(t, "claude-sonnet-4", result.MappedModel)
-	require.Equal(t, int64(0), result.ChannelID) // no channel
+	require.Equal(t, "0", result.ChannelID) // no channel
 }
 
 // --- 4.4 IsModelRestricted ---
 
 func TestIsModelRestricted_NoChannel(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
 	// Group 999 is not in any channel
-	restricted := svc.IsModelRestricted(context.Background(), 999, "claude-opus-4")
+	restricted := svc.IsModelRestricted(context.Background(), "999", "claude-opus-4")
 	require.False(t, restricted)
 }
 
 func TestIsModelRestricted_RestrictDisabled(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: false,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
 	// Even though model is not in pricing, RestrictModels=false
-	restricted := svc.IsModelRestricted(context.Background(), 10, "nonexistent-model")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "nonexistent-model")
 	require.False(t, restricted)
 }
 
 func TestIsModelRestricted_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusDisabled,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	restricted := svc.IsModelRestricted(context.Background(), 10, "any-model")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "any-model")
 	require.False(t, restricted)
 }
 
 func TestIsModelRestricted_ModelInPricing(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4", "claude-sonnet-4"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	restricted := svc.IsModelRestricted(context.Background(), 10, "claude-opus-4")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "claude-opus-4")
 	require.False(t, restricted)
 }
 
 func TestIsModelRestricted_ModelInWildcard(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-*"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	restricted := svc.IsModelRestricted(context.Background(), 10, "claude-sonnet-4")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "claude-sonnet-4")
 	require.False(t, restricted)
 }
 
 func TestIsModelRestricted_ModelNotFound(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	restricted := svc.IsModelRestricted(context.Background(), 10, "gpt-5.1")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "gpt-5.1")
 	require.True(t, restricted)
 }
 
 func TestIsModelRestricted_CaseInsensitive(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	restricted := svc.IsModelRestricted(context.Background(), 10, "Claude-Opus-4")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "Claude-Opus-4")
 	require.False(t, restricted)
 }
 
@@ -1179,9 +1179,9 @@ func TestResolveChannelMappingAndRestrict_NilGroupID(t *testing.T) {
 
 func TestResolveChannelMappingAndRestrict_WithMapping(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-sonnet-4"}},
@@ -1192,10 +1192,10 @@ func TestResolveChannelMappingAndRestrict_WithMapping(t *testing.T) {
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	gid := int64(10)
+	gid := "10"
 	mapping, restricted := svc.ResolveChannelMappingAndRestrict(context.Background(), &gid, "claude-sonnet-4")
 	require.False(t, restricted) // restricted 始终为 false，限制检查在调度阶段
 	require.True(t, mapping.Mapped)
@@ -1204,18 +1204,18 @@ func TestResolveChannelMappingAndRestrict_WithMapping(t *testing.T) {
 
 func TestResolveChannelMappingAndRestrict_NoMapping(t *testing.T) {
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-sonnet-4"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
-	gid := int64(10)
+	gid := "10"
 	mapping, restricted := svc.ResolveChannelMappingAndRestrict(context.Background(), &gid, "unknown-model")
 	require.False(t, restricted) // restricted 始终为 false，限制检查在调度阶段
 	require.False(t, mapping.Mapped)
@@ -1235,7 +1235,7 @@ func TestBuildCache_DBError(t *testing.T) {
 	svc := newTestChannelService(repo)
 
 	// First call should fail
-	_, err := svc.GetChannelForGroup(context.Background(), 10)
+	_, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "database down")
 	require.Equal(t, 1, callCount)
@@ -1248,7 +1248,7 @@ func TestBuildCache_DBError(t *testing.T) {
 	// returns the error. On next call within error-TTL, the cache has an empty but
 	// valid entry, so loadCache returns it (with empty maps). GetChannelForGroup
 	// will find nothing and return nil, nil.
-	result, err := svc.GetChannelForGroup(context.Background(), 10)
+	result, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.NoError(t, err)
 	require.Nil(t, result)
 	// Should NOT have hit DB again (error-TTL cache is active)
@@ -1257,111 +1257,111 @@ func TestBuildCache_DBError(t *testing.T) {
 
 func TestBuildCache_GroupPlatformError(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
 	repo := &mockChannelRepository{
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			return []Channel{ch}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
 			return nil, errors.New("group platforms failed")
 		},
 	}
 	svc := newTestChannelService(repo)
 
 	// Should fail-close: error propagated when group platforms cannot be loaded
-	result, err := svc.GetChannelForGroup(context.Background(), 10)
+	result, err := svc.GetChannelForGroup(context.Background(), "10")
 	require.Error(t, err)
 	require.Nil(t, result)
 
 	// Within error-TTL, second call should hit cache (empty) and return nil, nil
-	result2, err2 := svc.GetChannelForGroup(context.Background(), 10)
+	result2, err2 := svc.GetChannelForGroup(context.Background(), "10")
 	require.NoError(t, err2)
 	require.Nil(t, result2)
 }
 
 func TestBuildCache_MultipleGroupsSameChannel(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10, 20, 30},
+		GroupIDs: []string{"10", "20", "30"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{
-		10: "anthropic",
-		20: "anthropic",
-		30: "anthropic",
+	repo := makeStandardRepo(ch, map[string]string{
+		"10": "anthropic",
+		"20": "anthropic",
+		"30": "anthropic",
 	})
 	svc := newTestChannelService(repo)
 
-	for _, gid := range []int64{10, 20, 30} {
+	for _, gid := range []string{"10", "20", "30"} {
 		result := svc.GetChannelModelPricing(context.Background(), gid, "claude-opus-4")
 		require.NotNil(t, result, "group %d should have pricing", gid)
-		require.Equal(t, int64(100), result.ID)
+		require.Equal(t, "100", result.ID)
 	}
 }
 
 func TestBuildCache_PlatformFiltering(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10, 20},
+		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}},
-			{ID: 200, Platform: "openai", Models: []string{"gpt-5.1"}},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}},
+			{ID: "200", Platform: "openai", Models: []string{"gpt-5.1"}},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{
-		10: "anthropic",
-		20: "openai",
+	repo := makeStandardRepo(ch, map[string]string{
+		"10": "anthropic",
+		"20": "openai",
 	})
 	svc := newTestChannelService(repo)
 
 	// anthropic group sees only anthropic models
-	require.NotNil(t, svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4"))
-	require.Nil(t, svc.GetChannelModelPricing(context.Background(), 10, "gpt-5.1"))
+	require.NotNil(t, svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4"))
+	require.Nil(t, svc.GetChannelModelPricing(context.Background(), "10", "gpt-5.1"))
 
 	// openai group sees only openai models
-	require.NotNil(t, svc.GetChannelModelPricing(context.Background(), 20, "gpt-5.1"))
-	require.Nil(t, svc.GetChannelModelPricing(context.Background(), 20, "claude-opus-4"))
+	require.NotNil(t, svc.GetChannelModelPricing(context.Background(), "20", "gpt-5.1"))
+	require.Nil(t, svc.GetChannelModelPricing(context.Background(), "20", "claude-opus-4"))
 }
 
 func TestBuildCache_WildcardPreservesConfigOrder(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
 			// Configuration order: shortest prefix first
-			{ID: 100, Platform: "anthropic", Models: []string{"c-*"}, InputPrice: testPtrFloat64(1e-6)},
-			{ID: 200, Platform: "anthropic", Models: []string{"c-son-*"}, InputPrice: testPtrFloat64(2e-6)},
-			{ID: 300, Platform: "anthropic", Models: []string{"c-son-4-*"}, InputPrice: testPtrFloat64(3e-6)},
+			{ID: "100", Platform: "anthropic", Models: []string{"c-*"}, InputPrice: testPtrFloat64(1e-6)},
+			{ID: "200", Platform: "anthropic", Models: []string{"c-son-*"}, InputPrice: testPtrFloat64(2e-6)},
+			{ID: "300", Platform: "anthropic", Models: []string{"c-son-4-*"}, InputPrice: testPtrFloat64(3e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: "anthropic"})
+	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
 	svc := newTestChannelService(repo)
 
 	// "c-son-4-xxx" matches all three wildcards, but "c-*" (ID=100) is first in config
-	result := svc.GetChannelModelPricing(context.Background(), 10, "c-son-4-xxx")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "c-son-4-xxx")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 
 	// "c-son-yyy" matches "c-*" and "c-son-*", but "c-*" (ID=100) is first
-	result = svc.GetChannelModelPricing(context.Background(), 10, "c-son-yyy")
+	result = svc.GetChannelModelPricing(context.Background(), "10", "c-son-yyy")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 
 	// "c-other" only matches "c-*" (ID=100)
-	result = svc.GetChannelModelPricing(context.Background(), 10, "c-other")
+	result = svc.GetChannelModelPricing(context.Background(), "10", "c-other")
 	require.NotNil(t, result)
-	require.Equal(t, int64(100), result.ID)
+	require.Equal(t, "100", result.ID)
 }
 
 // --- 4.7 invalidateCache ---
@@ -1369,11 +1369,11 @@ func TestBuildCache_WildcardPreservesConfigOrder(t *testing.T) {
 func TestInvalidateCache(t *testing.T) {
 	callCount := 0
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
 	repo := &mockChannelRepository{
@@ -1381,19 +1381,19 @@ func TestInvalidateCache(t *testing.T) {
 			callCount++
 			return []Channel{ch}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
-			return map[int64]string{10: "anthropic"}, nil
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
+			return map[string]string{"10": "anthropic"}, nil
 		},
 	}
 	svc := newTestChannelService(repo)
 
 	// First load
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result)
 	require.Equal(t, 1, callCount)
 
 	// Second call should use cache
-	result = svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result = svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result)
 	require.Equal(t, 1, callCount) // no new DB call
 
@@ -1401,7 +1401,7 @@ func TestInvalidateCache(t *testing.T) {
 	svc.invalidateCache()
 
 	// Next call should rebuild from DB
-	result = svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	result = svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.NotNil(t, result)
 	require.Equal(t, 2, callCount) // rebuilt
 }
@@ -1417,29 +1417,29 @@ func TestInvalidateCachePublishesToOtherInstances(t *testing.T) {
 				model = "new-model"
 			}
 			return []Channel{{
-				ID:       1,
+				ID: "1",
 				Status:   StatusActive,
-				GroupIDs: []int64{10},
+				GroupIDs: []string{"10"},
 				ModelPricing: []ChannelModelPricing{{
-					ID:       100,
+					ID: "100",
 					Platform: PlatformAnthropic,
 					Models:   []string{model},
 				}},
 			}}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
-			return map[int64]string{10: PlatformAnthropic}, nil
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
+			return map[string]string{"10": PlatformAnthropic}, nil
 		},
 	}
 	subscriber := NewChannelService(subscriberRepo, nil, nil, nil, cachePubSub)
 
-	require.NotNil(t, subscriber.GetChannelModelPricing(context.Background(), 10, "old-model"))
-	require.Nil(t, subscriber.GetChannelModelPricing(context.Background(), 10, "new-model"))
+	require.NotNil(t, subscriber.GetChannelModelPricing(context.Background(), "10", "old-model"))
+	require.Nil(t, subscriber.GetChannelModelPricing(context.Background(), "10", "new-model"))
 
 	updated = true
 	publisher.invalidateCache()
 
-	require.NotNil(t, subscriber.GetChannelModelPricing(context.Background(), 10, "new-model"))
+	require.NotNil(t, subscriber.GetChannelModelPricing(context.Background(), "10", "new-model"))
 }
 
 // ===========================================================================
@@ -1449,19 +1449,19 @@ func TestInvalidateCachePublishesToOtherInstances(t *testing.T) {
 // --- 5.1 Create ---
 
 func TestCreate_Success(t *testing.T) {
-	createdID := int64(42)
+	createdID := "42"
 	repo := &mockChannelRepository{
 		existsByNameFn: func(_ context.Context, _ string) (bool, error) {
 			return false, nil
 		},
-		getGroupsInOtherChannelsFn: func(_ context.Context, _ int64, _ []int64) ([]int64, error) {
+		getGroupsInOtherChannelsFn: func(_ context.Context, _ string, _ []string) ([]string, error) {
 			return nil, nil
 		},
 		createFn: func(_ context.Context, ch *Channel) error {
 			ch.ID = createdID
 			return nil
 		},
-		getByIDFn: func(_ context.Context, id int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, id string) (*Channel, error) {
 			return &Channel{ID: id, Name: "new-channel", Status: StatusActive}, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
@@ -1472,7 +1472,7 @@ func TestCreate_Success(t *testing.T) {
 
 	result, err := svc.Create(context.Background(), &CreateChannelInput{
 		Name:     "new-channel",
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -1499,15 +1499,15 @@ func TestCreate_GroupConflict(t *testing.T) {
 		existsByNameFn: func(_ context.Context, _ string) (bool, error) {
 			return false, nil
 		},
-		getGroupsInOtherChannelsFn: func(_ context.Context, _ int64, _ []int64) ([]int64, error) {
-			return []int64{10}, nil // group 10 already in another channel
+		getGroupsInOtherChannelsFn: func(_ context.Context, _ string, _ []string) ([]string, error) {
+			return []string{"10"}, nil // group 10 already in another channel
 		},
 	}
 	svc := newTestChannelService(repo)
 
 	_, err := svc.Create(context.Background(), &CreateChannelInput{
 		Name:     "new-channel",
-		GroupIDs: []int64{10, 20},
+		GroupIDs: []string{"10", "20"},
 	})
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrGroupAlreadyInChannel)
@@ -1566,10 +1566,10 @@ func TestCreate_DefaultBillingModelSource(t *testing.T) {
 		},
 		createFn: func(_ context.Context, ch *Channel) error {
 			capturedChannel = ch
-			ch.ID = 1
+			ch.ID = "1"
 			return nil
 		},
-		getByIDFn: func(_ context.Context, id int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, id string) (*Channel, error) {
 			return capturedChannel, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
@@ -1590,11 +1590,11 @@ func TestCreate_DefaultBillingModelSource(t *testing.T) {
 func TestCreate_InvalidatesCache(t *testing.T) {
 	loadCount := 0
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: "anthropic", Models: []string{"claude-opus-4"}},
+			{ID: "100", Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		},
 	}
 	repo := &mockChannelRepository{
@@ -1602,24 +1602,24 @@ func TestCreate_InvalidatesCache(t *testing.T) {
 			loadCount++
 			return []Channel{ch}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
-			return map[int64]string{10: "anthropic"}, nil
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
+			return map[string]string{"10": "anthropic"}, nil
 		},
 		existsByNameFn: func(_ context.Context, _ string) (bool, error) {
 			return false, nil
 		},
 		createFn: func(_ context.Context, c *Channel) error {
-			c.ID = 2
+			c.ID = "2"
 			return nil
 		},
-		getByIDFn: func(_ context.Context, id int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, id string) (*Channel, error) {
 			return &Channel{ID: id, Name: "new", Status: StatusActive}, nil
 		},
 	}
 	svc := newTestChannelService(repo)
 
 	// Load cache
-	_ = svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	_ = svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.Equal(t, 1, loadCount)
 
 	// Create triggers cache invalidation
@@ -1627,7 +1627,7 @@ func TestCreate_InvalidatesCache(t *testing.T) {
 	require.NoError(t, err)
 
 	// Next cache access should rebuild
-	_ = svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4")
+	_ = svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4")
 	require.Equal(t, 2, loadCount)
 }
 
@@ -1635,18 +1635,18 @@ func TestCreate_InvalidatesCache(t *testing.T) {
 
 func TestUpdate_Success(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, id int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, id string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
 		updateFn: func(_ context.Context, _ *Channel) error {
 			return nil
 		},
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
 			return nil, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
@@ -1655,7 +1655,7 @@ func TestUpdate_Success(t *testing.T) {
 	}
 	svc := newTestChannelService(repo)
 
-	result, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	result, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		Name:        "updated-name",
 		Description: testPtrString("new desc"),
 	})
@@ -1665,13 +1665,13 @@ func TestUpdate_Success(t *testing.T) {
 
 func TestUpdate_NotFound(t *testing.T) {
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return nil, ErrChannelNotFound
 		},
 	}
 	svc := newTestChannelService(repo)
 
-	_, err := svc.Update(context.Background(), 999, &UpdateChannelInput{
+	_, err := svc.Update(context.Background(), "999", &UpdateChannelInput{
 		Name: "whatever",
 	})
 	require.Error(t, err)
@@ -1680,21 +1680,21 @@ func TestUpdate_NotFound(t *testing.T) {
 
 func TestUpdate_NameConflict(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
-		existsByNameExcludingFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+		existsByNameExcludingFn: func(_ context.Context, _ string, _ string) (bool, error) {
 			return true, nil // name conflicts with another channel
 		},
 	}
 	svc := newTestChannelService(repo)
 
-	_, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	_, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		Name: "conflicting-name",
 	})
 	require.Error(t, err)
@@ -1703,22 +1703,22 @@ func TestUpdate_NameConflict(t *testing.T) {
 
 func TestUpdate_GroupConflict(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
-		getGroupsInOtherChannelsFn: func(_ context.Context, _ int64, _ []int64) ([]int64, error) {
-			return []int64{20}, nil // group 20 in another channel
+		getGroupsInOtherChannelsFn: func(_ context.Context, _ string, _ []string) ([]string, error) {
+			return []string{"20"}, nil // group 20 in another channel
 		},
 	}
 	svc := newTestChannelService(repo)
 
-	newGroupIDs := []int64{10, 20}
-	_, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	newGroupIDs := []string{"10", "20"}
+	_, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		GroupIDs: &newGroupIDs,
 	})
 	require.Error(t, err)
@@ -1727,12 +1727,12 @@ func TestUpdate_GroupConflict(t *testing.T) {
 
 func TestUpdate_DuplicateModel(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
 	}
@@ -1742,7 +1742,7 @@ func TestUpdate_DuplicateModel(t *testing.T) {
 		{Platform: "anthropic", Models: []string{"claude-opus-4"}},
 		{Platform: "anthropic", Models: []string{"claude-opus-4"}},
 	}
-	_, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	_, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		ModelPricing: &dupPricing,
 	})
 	require.Error(t, err)
@@ -1751,12 +1751,12 @@ func TestUpdate_DuplicateModel(t *testing.T) {
 
 func TestUpdate_InvalidPricingIntervals(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
 	}
@@ -1772,7 +1772,7 @@ func TestUpdate_InvalidPricingIntervals(t *testing.T) {
 			},
 		},
 	}
-	_, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	_, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		ModelPricing: &invalidPricing,
 	})
 	require.Error(t, err)
@@ -1782,62 +1782,62 @@ func TestUpdate_InvalidPricingIntervals(t *testing.T) {
 
 func TestUpdate_InvalidatesChannelCache(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	loadCount := 0
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
 		updateFn: func(_ context.Context, _ *Channel) error {
 			return nil
 		},
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
-			return []int64{10, 20}, nil
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
+			return []string{"10", "20"}, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			loadCount++
 			return []Channel{*existing}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
 			return nil, nil
 		},
 	}
 	svc := newTestChannelService(repo)
 
 	// Load cache first
-	_, _ = svc.GetChannelForGroup(context.Background(), 10)
+	_, _ = svc.GetChannelForGroup(context.Background(), "10")
 	require.Equal(t, 1, loadCount)
 
-	result, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	result, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		Description: testPtrString("updated"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
 	// Channel cache should be invalidated (next access rebuilds)
-	_, _ = svc.GetChannelForGroup(context.Background(), 10)
+	_, _ = svc.GetChannelForGroup(context.Background(), "10")
 	require.Equal(t, 2, loadCount)
 }
 
 func TestUpdate_InvalidatesAuthCache(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
 	auth := &mockChannelAuthCacheInvalidator{}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
 		updateFn: func(_ context.Context, _ *Channel) error {
 			return nil
 		},
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
-			return []int64{10, 20}, nil
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
+			return []string{"10", "20"}, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			return nil, nil
@@ -1845,14 +1845,14 @@ func TestUpdate_InvalidatesAuthCache(t *testing.T) {
 	}
 	svc := newTestChannelServiceWithAuth(repo, auth)
 
-	result, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	result, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		Description: testPtrString("updated"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
 	// Auth cache should be invalidated for both groups
-	require.ElementsMatch(t, []int64{10, 20}, auth.invalidatedGroupIDs)
+	require.ElementsMatch(t, []string{"10", "20"}, auth.invalidatedGroupIDs)
 }
 
 // --- 5.3 Delete ---
@@ -1860,10 +1860,10 @@ func TestUpdate_InvalidatesAuthCache(t *testing.T) {
 func TestChannelDelete_Success(t *testing.T) {
 	deleted := false
 	repo := &mockChannelRepository{
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
 			return nil, nil
 		},
-		deleteFn: func(_ context.Context, _ int64) error {
+		deleteFn: func(_ context.Context, _ string) error {
 			deleted = true
 			return nil
 		},
@@ -1873,7 +1873,7 @@ func TestChannelDelete_Success(t *testing.T) {
 	}
 	svc := newTestChannelService(repo)
 
-	err := svc.Delete(context.Background(), 1)
+	err := svc.Delete(context.Background(), "1")
 	require.NoError(t, err)
 	require.True(t, deleted)
 }
@@ -1882,49 +1882,49 @@ func TestChannelDelete_InvalidatesCaches(t *testing.T) {
 	auth := &mockChannelAuthCacheInvalidator{}
 	loadCount := 0
 	repo := &mockChannelRepository{
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
-			return []int64{10, 20}, nil
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
+			return []string{"10", "20"}, nil
 		},
-		deleteFn: func(_ context.Context, _ int64) error {
+		deleteFn: func(_ context.Context, _ string) error {
 			return nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			loadCount++
-			return []Channel{{ID: 1, Status: StatusActive, GroupIDs: []int64{10, 20}}}, nil
+			return []Channel{{ID: "1", Status: StatusActive, GroupIDs: []string{"10", "20"}}}, nil
 		},
-		getGroupPlatformsFn: func(_ context.Context, _ []int64) (map[int64]string, error) {
+		getGroupPlatformsFn: func(_ context.Context, _ []string) (map[string]string, error) {
 			return nil, nil
 		},
 	}
 	svc := newTestChannelServiceWithAuth(repo, auth)
 
 	// Load cache first
-	_, _ = svc.GetChannelForGroup(context.Background(), 10)
+	_, _ = svc.GetChannelForGroup(context.Background(), "10")
 	require.Equal(t, 1, loadCount)
 
-	err := svc.Delete(context.Background(), 1)
+	err := svc.Delete(context.Background(), "1")
 	require.NoError(t, err)
 
 	// Auth cache invalidated for both groups
-	require.ElementsMatch(t, []int64{10, 20}, auth.invalidatedGroupIDs)
+	require.ElementsMatch(t, []string{"10", "20"}, auth.invalidatedGroupIDs)
 
 	// Channel cache invalidated
-	_, _ = svc.GetChannelForGroup(context.Background(), 10)
+	_, _ = svc.GetChannelForGroup(context.Background(), "10")
 	require.Equal(t, 2, loadCount)
 }
 
 func TestChannelDelete_NotFound(t *testing.T) {
 	repo := &mockChannelRepository{
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
 			return nil, nil
 		},
-		deleteFn: func(_ context.Context, _ int64) error {
+		deleteFn: func(_ context.Context, _ string) error {
 			return errors.New("record not found")
 		},
 	}
 	svc := newTestChannelService(repo)
 
-	err := svc.Delete(context.Background(), 999)
+	err := svc.Delete(context.Background(), "999")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
 }
@@ -1936,13 +1936,13 @@ func TestChannelDelete_NotFound(t *testing.T) {
 // --- 6.1 Create with empty GroupIDs ---
 
 func TestCreate_NoGroups(t *testing.T) {
-	createdID := int64(55)
+	createdID := "55"
 	getGroupsInOtherChannelsCalled := false
 	repo := &mockChannelRepository{
 		existsByNameFn: func(_ context.Context, _ string) (bool, error) {
 			return false, nil
 		},
-		getGroupsInOtherChannelsFn: func(_ context.Context, _ int64, _ []int64) ([]int64, error) {
+		getGroupsInOtherChannelsFn: func(_ context.Context, _ string, _ []string) ([]string, error) {
 			getGroupsInOtherChannelsCalled = true
 			return nil, nil
 		},
@@ -1950,7 +1950,7 @@ func TestCreate_NoGroups(t *testing.T) {
 			ch.ID = createdID
 			return nil
 		},
-		getByIDFn: func(_ context.Context, id int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, id string) (*Channel, error) {
 			return &Channel{ID: id, Name: "no-groups-channel", Status: StatusActive}, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
@@ -1961,7 +1961,7 @@ func TestCreate_NoGroups(t *testing.T) {
 
 	result, err := svc.Create(context.Background(), &CreateChannelInput{
 		Name:     "no-groups-channel",
-		GroupIDs: []int64{}, // empty slice
+		GroupIDs: []string{}, // empty slice
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -1974,20 +1974,20 @@ func TestCreate_NoGroups(t *testing.T) {
 
 func TestUpdate_StatusOnly(t *testing.T) {
 	existing := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "test-channel",
 		Status: StatusActive,
 	}
 	var capturedChannel *Channel
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, id int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, id string) (*Channel, error) {
 			return existing.Clone(), nil
 		},
 		updateFn: func(_ context.Context, ch *Channel) error {
 			capturedChannel = ch
 			return nil
 		},
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
 			return nil, nil
 		},
 		listAllFn: func(_ context.Context) ([]Channel, error) {
@@ -1996,7 +1996,7 @@ func TestUpdate_StatusOnly(t *testing.T) {
 	}
 	svc := newTestChannelService(repo)
 
-	result, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	result, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		Status: StatusDisabled,
 	})
 	require.NoError(t, err)
@@ -2013,10 +2013,10 @@ func TestUpdate_StatusOnly(t *testing.T) {
 func TestChannelDelete_GetGroupIDsError(t *testing.T) {
 	deleted := false
 	repo := &mockChannelRepository{
-		getGroupIDsFn: func(_ context.Context, _ int64) ([]int64, error) {
+		getGroupIDsFn: func(_ context.Context, _ string) ([]string, error) {
 			return nil, errors.New("group IDs lookup failed")
 		},
-		deleteFn: func(_ context.Context, _ int64) error {
+		deleteFn: func(_ context.Context, _ string) error {
 			deleted = true
 			return nil
 		},
@@ -2027,7 +2027,7 @@ func TestChannelDelete_GetGroupIDsError(t *testing.T) {
 	svc := newTestChannelService(repo)
 
 	// Delete should still succeed even though GetGroupIDs returned error (degradation path L588-591)
-	err := svc.Delete(context.Background(), 1)
+	err := svc.Delete(context.Background(), "1")
 	require.NoError(t, err)
 	require.True(t, deleted)
 }
@@ -2137,9 +2137,9 @@ func TestMatchingPlatforms(t *testing.T) {
 
 func TestCompositeChannelLookupUsesResolvedTargetPlatform(t *testing.T) {
 	channel := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{99},
+		GroupIDs: []string{"99"},
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformOpenAI, Models: []string{"gpt-*"}},
 			{Platform: PlatformAnthropic, Models: []string{"claude-*"}},
@@ -2153,21 +2153,21 @@ func TestCompositeChannelLookupUsesResolvedTargetPlatform(t *testing.T) {
 			},
 		},
 	}
-	cache := populateChannelCache([]Channel{channel}, map[int64]string{99: PlatformComposite})
+	cache := populateChannelCache([]Channel{channel}, map[string]string{"99": PlatformComposite})
 	svc := &ChannelService{}
 	svc.cache.Store(cache)
 
 	openAICtx := WithResolvedTargetPlatform(context.Background(), PlatformOpenAI)
-	require.NotNil(t, svc.GetChannelModelPricing(openAICtx, 99, "gpt-5"))
-	require.Nil(t, svc.GetChannelModelPricing(openAICtx, 99, "claude-sonnet-4-5"))
-	openAIResult := svc.ResolveChannelMapping(openAICtx, 99, "gpt-5")
+	require.NotNil(t, svc.GetChannelModelPricing(openAICtx, "99", "gpt-5"))
+	require.Nil(t, svc.GetChannelModelPricing(openAICtx, "99", "claude-sonnet-4-5"))
+	openAIResult := svc.ResolveChannelMapping(openAICtx, "99", "gpt-5")
 	require.True(t, openAIResult.Mapped)
 	require.Equal(t, "gpt-5-mini", openAIResult.MappedModel)
 
 	anthropicCtx := WithResolvedTargetPlatform(context.Background(), PlatformAnthropic)
-	require.NotNil(t, svc.GetChannelModelPricing(anthropicCtx, 99, "claude-sonnet-4-5"))
-	require.Nil(t, svc.GetChannelModelPricing(anthropicCtx, 99, "gpt-5"))
-	anthropicResult := svc.ResolveChannelMapping(anthropicCtx, 99, "claude-3-5-sonnet")
+	require.NotNil(t, svc.GetChannelModelPricing(anthropicCtx, "99", "claude-sonnet-4-5"))
+	require.Nil(t, svc.GetChannelModelPricing(anthropicCtx, "99", "gpt-5"))
+	anthropicResult := svc.ResolveChannelMapping(anthropicCtx, "99", "claude-3-5-sonnet")
 	require.True(t, anthropicResult.Mapped)
 	require.Equal(t, "claude-sonnet-4-5", anthropicResult.MappedModel)
 }
@@ -2180,17 +2180,17 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeCrossPlatformPricing(t *tes
 	// Channel has anthropic pricing for claude-opus-4-6.
 	// Group 10 is antigravity — should NOT see the anthropic pricing.
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: PlatformAnthropic, Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: PlatformAnthropic, Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4-6")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4-6")
 	require.Nil(t, result, "antigravity group should NOT see anthropic-platform pricing")
 }
 
@@ -2198,17 +2198,17 @@ func TestGetChannelModelPricing_AnthropicCannotSeeAntigravityPricing(t *testing.
 	// Channel has antigravity-platform pricing for claude-opus-4-6.
 	// Group 10 is anthropic — should NOT see antigravity pricing (no cross-platform leakage).
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 100, Platform: PlatformAntigravity, Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "100", Platform: PlatformAntigravity, Models: []string{"claude-opus-4-6"}, InputPrice: testPtrFloat64(15e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAnthropic})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAnthropic})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-opus-4-6")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-opus-4-6")
 	require.Nil(t, result, "anthropic group should NOT see antigravity-platform pricing")
 }
 
@@ -2220,19 +2220,19 @@ func TestResolveChannelMapping_AntigravityDoesNotSeeCrossPlatformMapping(t *test
 	// Channel has anthropic model mapping: claude-opus-4-5 → claude-opus-4-6.
 	// Group 10 is antigravity — should NOT apply the anthropic mapping.
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			PlatformAnthropic: {
 				"claude-opus-4-5": "claude-opus-4-6",
 			},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-opus-4-5")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-opus-4-5")
 	require.False(t, result.Mapped, "antigravity group should NOT apply anthropic mapping")
 	require.Equal(t, "claude-opus-4-5", result.MappedModel)
 }
@@ -2245,18 +2245,18 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeSameModelFromOtherPlatforms
 	// anthropic 和 gemini 都定义了同名模型 "shared-model"，价格不同。
 	// antigravity 分组不应看到任何一个（各平台严格独立）。
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 200, Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
-			{ID: 201, Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
+			{ID: "200", Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
+			{ID: "201", Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "shared-model")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "shared-model")
 	require.Nil(t, result, "antigravity group should NOT see anthropic/gemini-platform pricing")
 }
 
@@ -2264,17 +2264,17 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeGeminiOnlyPricing(t *testin
 	// 只有 gemini 平台定义了模型 "gemini-model"。
 	// antigravity 分组不应看到 gemini 的定价。
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 300, Platform: PlatformGemini, Models: []string{"gemini-model"}, InputPrice: testPtrFloat64(2e-6)},
+			{ID: "300", Platform: PlatformGemini, Models: []string{"gemini-model"}, InputPrice: testPtrFloat64(2e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "gemini-model")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "gemini-model")
 	require.Nil(t, result, "antigravity group should NOT see gemini-platform pricing")
 }
 
@@ -2282,18 +2282,18 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeWildcardFromOtherPlatforms(
 	// anthropic 和 gemini 都有 "shared-*" 通配符定价。
 	// antigravity 分组不应命中任何一个。
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 400, Platform: PlatformAnthropic, Models: []string{"shared-*"}, InputPrice: testPtrFloat64(10e-6)},
-			{ID: 401, Platform: PlatformGemini, Models: []string{"shared-*"}, InputPrice: testPtrFloat64(5e-6)},
+			{ID: "400", Platform: PlatformAnthropic, Models: []string{"shared-*"}, InputPrice: testPtrFloat64(10e-6)},
+			{ID: "401", Platform: PlatformGemini, Models: []string{"shared-*"}, InputPrice: testPtrFloat64(5e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	result := svc.GetChannelModelPricing(context.Background(), 10, "shared-model")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "shared-model")
 	require.Nil(t, result, "antigravity group should NOT see wildcard pricing from other platforms")
 }
 
@@ -2301,18 +2301,18 @@ func TestResolveChannelMapping_AntigravityDoesNotSeeMappingFromOtherPlatforms(t 
 	// anthropic 和 gemini 都定义了同名模型映射 "alias" → 不同目标。
 	// antigravity 分组不应命中任何一个。
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
 			PlatformAnthropic: {"alias": "anthropic-target"},
 			PlatformGemini:    {"alias": "gemini-target"},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	result := svc.ResolveChannelMapping(context.Background(), 10, "alias")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "alias")
 	require.False(t, result.Mapped, "antigravity group should NOT see mapping from other platforms")
 	require.Equal(t, "alias", result.MappedModel)
 }
@@ -2321,49 +2321,49 @@ func TestCheckRestricted_AntigravityDoesNotSeeModelsFromOtherPlatforms(t *testin
 	// anthropic 和 gemini 都定义了同名模型 "shared-model"。
 	// antigravity 分组启用了 RestrictModels，"shared-model" 应被限制（各平台独立）。
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
 		RestrictModels: true,
-		GroupIDs:       []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 500, Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
-			{ID: 501, Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
+			{ID: "500", Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
+			{ID: "501", Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
-	restricted := svc.IsModelRestricted(context.Background(), 10, "shared-model")
+	restricted := svc.IsModelRestricted(context.Background(), "10", "shared-model")
 	require.True(t, restricted, "shared-model from other platforms should be restricted for antigravity")
 
-	restricted = svc.IsModelRestricted(context.Background(), 10, "unknown-model")
+	restricted = svc.IsModelRestricted(context.Background(), "10", "unknown-model")
 	require.True(t, restricted, "unknown-model should be restricted for antigravity")
 }
 
 func TestGetChannelModelPricing_AntigravityOwnPricingWorks(t *testing.T) {
 	// antigravity 平台自己配置的定价应正常生效（覆盖 Claude 和 Gemini 模型）。
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10},
+		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 600, Platform: PlatformAntigravity, Models: []string{"claude-*"}, InputPrice: testPtrFloat64(15e-6)},
-			{ID: 601, Platform: PlatformAntigravity, Models: []string{"gemini-*"}, InputPrice: testPtrFloat64(2e-6)},
+			{ID: "600", Platform: PlatformAntigravity, Models: []string{"claude-*"}, InputPrice: testPtrFloat64(15e-6)},
+			{ID: "601", Platform: PlatformAntigravity, Models: []string{"gemini-*"}, InputPrice: testPtrFloat64(2e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity})
 	svc := newTestChannelService(repo)
 
 	// Claude 模型匹配 antigravity 定价
-	result := svc.GetChannelModelPricing(context.Background(), 10, "claude-sonnet-4")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "claude-sonnet-4")
 	require.NotNil(t, result)
-	require.Equal(t, int64(600), result.ID)
+	require.Equal(t, "600", result.ID)
 	require.InDelta(t, 15e-6, *result.InputPrice, 1e-12)
 
 	// Gemini 模型匹配 antigravity 定价
-	result = svc.GetChannelModelPricing(context.Background(), 10, "gemini-2.5-flash")
+	result = svc.GetChannelModelPricing(context.Background(), "10", "gemini-2.5-flash")
 	require.NotNil(t, result)
-	require.Equal(t, int64(601), result.ID)
+	require.Equal(t, "601", result.ID)
 	require.InDelta(t, 2e-6, *result.InputPrice, 1e-12)
 }
 
@@ -2371,27 +2371,27 @@ func TestGetChannelModelPricing_NonAntigravityUnaffected(t *testing.T) {
 	// 确保非 antigravity 平台的行为不受影响。
 	// anthropic 分组只能看到 anthropic 的定价，看不到 gemini 的。
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10, 20},
+		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
-			{ID: 600, Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
-			{ID: 601, Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
+			{ID: "600", Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
+			{ID: "601", Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAnthropic, 20: PlatformGemini})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAnthropic, "20": PlatformGemini})
 	svc := newTestChannelService(repo)
 
 	// anthropic 分组应该只看到 anthropic 的定价
-	result := svc.GetChannelModelPricing(context.Background(), 10, "shared-model")
+	result := svc.GetChannelModelPricing(context.Background(), "10", "shared-model")
 	require.NotNil(t, result)
-	require.Equal(t, int64(600), result.ID)
+	require.Equal(t, "600", result.ID)
 	require.InDelta(t, 10e-6, *result.InputPrice, 1e-12)
 
 	// gemini 分组应该只看到 gemini 的定价
-	result = svc.GetChannelModelPricing(context.Background(), 20, "shared-model")
+	result = svc.GetChannelModelPricing(context.Background(), "20", "shared-model")
 	require.NotNil(t, result)
-	require.Equal(t, int64(601), result.ID)
+	require.Equal(t, "601", result.ID)
 	require.InDelta(t, 5e-6, *result.InputPrice, 1e-12)
 }
 
@@ -2402,12 +2402,12 @@ func TestGetChannelModelPricing_NonAntigravityUnaffected(t *testing.T) {
 func TestToUsageFields_NoMapping(t *testing.T) {
 	r := ChannelMappingResult{
 		MappedModel:        "claude-opus-4",
-		ChannelID:          1,
+		ChannelID: "1",
 		Mapped:             false,
 		BillingModelSource: BillingModelSourceRequested,
 	}
 	fields := r.ToUsageFields("claude-opus-4", "claude-opus-4")
-	require.Equal(t, int64(1), fields.ChannelID)
+	require.Equal(t, "1", fields.ChannelID)
 	require.Equal(t, "claude-opus-4", fields.OriginalModel)
 	require.Equal(t, "claude-opus-4", fields.ChannelMappedModel)
 	require.Equal(t, BillingModelSourceRequested, fields.BillingModelSource)
@@ -2417,12 +2417,12 @@ func TestToUsageFields_NoMapping(t *testing.T) {
 func TestToUsageFields_WithChannelMapping(t *testing.T) {
 	r := ChannelMappingResult{
 		MappedModel:        "claude-sonnet-4-20250514",
-		ChannelID:          2,
+		ChannelID: "2",
 		Mapped:             true,
 		BillingModelSource: BillingModelSourceChannelMapped,
 	}
 	fields := r.ToUsageFields("claude-sonnet-4", "claude-sonnet-4-20250514")
-	require.Equal(t, int64(2), fields.ChannelID)
+	require.Equal(t, "2", fields.ChannelID)
 	require.Equal(t, "claude-sonnet-4", fields.OriginalModel)
 	require.Equal(t, "claude-sonnet-4-20250514", fields.ChannelMappedModel)
 	require.Equal(t, "claude-sonnet-4→claude-sonnet-4-20250514", fields.ModelMappingChain)
@@ -2431,7 +2431,7 @@ func TestToUsageFields_WithChannelMapping(t *testing.T) {
 func TestToUsageFields_WithUpstreamDifference(t *testing.T) {
 	r := ChannelMappingResult{
 		MappedModel:        "claude-sonnet-4",
-		ChannelID:          3,
+		ChannelID: "3",
 		Mapped:             true,
 		BillingModelSource: BillingModelSourceUpstream,
 	}
@@ -2586,28 +2586,28 @@ func TestValidateAccountStatsPricingRulesRejectsTimePricing(t *testing.T) {
 
 func TestResolveChannelMapping_AntigravityDoesNotSeeWildcardMappingFromOtherPlatforms(t *testing.T) {
 	ch := Channel{
-		ID:       1,
+		ID: "1",
 		Status:   StatusActive,
-		GroupIDs: []int64{10, 20},
+		GroupIDs: []string{"10", "20"},
 		ModelMapping: map[string]map[string]string{
 			PlatformAnthropic: {"claude-*": "claude-override"},
 			PlatformGemini:    {"gemini-*": "gemini-override"},
 		},
 	}
-	repo := makeStandardRepo(ch, map[int64]string{10: PlatformAntigravity, 20: PlatformAnthropic})
+	repo := makeStandardRepo(ch, map[string]string{"10": PlatformAntigravity, "20": PlatformAnthropic})
 	svc := newTestChannelService(repo)
 
 	// antigravity 分组不应看到 anthropic/gemini 的通配符映射
-	result := svc.ResolveChannelMapping(context.Background(), 10, "claude-opus-4")
+	result := svc.ResolveChannelMapping(context.Background(), "10", "claude-opus-4")
 	require.False(t, result.Mapped)
 	require.Equal(t, "claude-opus-4", result.MappedModel)
 
-	result = svc.ResolveChannelMapping(context.Background(), 10, "gemini-2.5-pro")
+	result = svc.ResolveChannelMapping(context.Background(), "10", "gemini-2.5-pro")
 	require.False(t, result.Mapped)
 	require.Equal(t, "gemini-2.5-pro", result.MappedModel)
 
 	// anthropic 分组应该能看到 anthropic 的通配符映射
-	result = svc.ResolveChannelMapping(context.Background(), 20, "claude-opus-4")
+	result = svc.ResolveChannelMapping(context.Background(), "20", "claude-opus-4")
 	require.True(t, result.Mapped)
 	require.Equal(t, "claude-override", result.MappedModel)
 }
@@ -2635,12 +2635,12 @@ func TestCreate_MappingConflict(t *testing.T) {
 
 func TestUpdate_MappingConflict(t *testing.T) {
 	existingChannel := &Channel{
-		ID:     1,
+		ID: "1",
 		Name:   "existing",
 		Status: StatusActive,
 	}
 	repo := &mockChannelRepository{
-		getByIDFn: func(_ context.Context, _ int64) (*Channel, error) {
+		getByIDFn: func(_ context.Context, _ string) (*Channel, error) {
 			return existingChannel, nil
 		},
 	}
@@ -2652,7 +2652,7 @@ func TestUpdate_MappingConflict(t *testing.T) {
 			"claude-opus-*": "target-b",
 		},
 	}
-	_, err := svc.Update(context.Background(), 1, &UpdateChannelInput{
+	_, err := svc.Update(context.Background(), "1", &UpdateChannelInput{
 		ModelMapping: conflictMapping,
 	})
 	require.Error(t, err)

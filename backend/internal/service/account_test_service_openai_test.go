@@ -28,11 +28,11 @@ type queuedHTTPUpstream struct {
 	tlsFlags  []bool
 }
 
-func (u *queuedHTTPUpstream) Do(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *queuedHTTPUpstream) Do(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	return nil, fmt.Errorf("unexpected Do call")
 }
 
-func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, _ string, _ int64, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, _ string, _ string, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	u.requests = append(u.requests, req)
 	u.tlsFlags = append(u.tlsFlags, profile != nil)
 	if len(u.responses) == 0 {
@@ -64,38 +64,38 @@ func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
 type openAIAccountTestRepo struct {
 	mockAccountRepoForGemini
 	updatedExtra       map[string]any
-	bulkUpdatedIDs     []int64
+	bulkUpdatedIDs     []string
 	bulkUpdatedPayload AccountBulkUpdate
-	rateLimitedID      int64
+	rateLimitedID      string
 	rateLimitedAt      *time.Time
-	clearedErrorID     int64
-	setErrorID         int64
+	clearedErrorID     string
+	setErrorID         string
 	setErrorMsg        string
 }
 
-func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
 	r.updatedExtra = updates
 	return nil
 }
 
-func (r *openAIAccountTestRepo) BulkUpdate(_ context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
-	r.bulkUpdatedIDs = append([]int64(nil), ids...)
+func (r *openAIAccountTestRepo) BulkUpdate(_ context.Context, ids []string, updates AccountBulkUpdate) (int64, error) {
+	r.bulkUpdatedIDs = append([]string(nil), ids...)
 	r.bulkUpdatedPayload = updates
 	return int64(len(ids)), nil
 }
 
-func (r *openAIAccountTestRepo) SetRateLimited(_ context.Context, id int64, resetAt time.Time) error {
+func (r *openAIAccountTestRepo) SetRateLimited(_ context.Context, id string, resetAt time.Time) error {
 	r.rateLimitedID = id
 	r.rateLimitedAt = &resetAt
 	return nil
 }
 
-func (r *openAIAccountTestRepo) ClearError(_ context.Context, id int64) error {
+func (r *openAIAccountTestRepo) ClearError(_ context.Context, id string) error {
 	r.clearedErrorID = id
 	return nil
 }
 
-func (r *openAIAccountTestRepo) SetError(_ context.Context, id int64, errorMsg string) error {
+func (r *openAIAccountTestRepo) SetError(_ context.Context, id string, errorMsg string) error {
 	r.setErrorID = id
 	r.setErrorMsg = errorMsg
 	return nil
@@ -120,7 +120,7 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:          89,
+		ID: "89",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -149,7 +149,7 @@ func TestAccountTestService_OpenAIOAuthTestNormalizesGPT56Alias(t *testing.T) {
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{httpUpstream: upstream}
 	account := &Account{
-		ID:          90,
+		ID: "90",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -174,7 +174,7 @@ func TestAccountTestService_OpenAIShadowUsesParentCredentialsAndShadowModel(t *t
 
 `))
 
-	parentID := int64(100)
+	parentID := "100"
 	parent := &Account{
 		ID:       parentID,
 		Platform: PlatformOpenAI,
@@ -186,7 +186,7 @@ func TestAccountTestService_OpenAIShadowUsesParentCredentialsAndShadowModel(t *t
 		},
 	}
 	shadow := &Account{
-		ID:              200,
+		ID: "200",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		Status:          StatusActive,
@@ -202,9 +202,9 @@ func TestAccountTestService_OpenAIShadowUsesParentCredentialsAndShadowModel(t *t
 
 	repo := &openAIAccountTestRepo{
 		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
+			accountsByID: map[string]*Account{
 				parentID: parent,
-				200:      shadow,
+				"200":    shadow,
 			},
 		},
 	}
@@ -235,7 +235,7 @@ func TestAccountTestService_OpenAIStreamEOFBeforeCompletedFails(t *testing.T) {
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{httpUpstream: upstream}
 	account := &Account{
-		ID:          90,
+		ID: "90",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
@@ -264,7 +264,7 @@ func TestAccountTestService_OpenAI429PersistsSnapshotAndRateLimitState(t *testin
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:          88,
+		ID: "88",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusError,
@@ -294,7 +294,7 @@ func TestAccountTestService_OpenAI429BodyOnlyPersistsRateLimitAndClearsStaleErro
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:           77,
+		ID: "77",
 		Platform:     PlatformOpenAI,
 		Type:         AccountTypeOAuth,
 		Status:       StatusError,
@@ -324,7 +324,7 @@ func TestAccountTestService_OpenAI429SyncsObservedPlanType(t *testing.T) {
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:          81,
+		ID: "81",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -334,7 +334,7 @@ func TestAccountTestService_OpenAI429SyncsObservedPlanType(t *testing.T) {
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
-	require.Equal(t, []int64{account.ID}, repo.bulkUpdatedIDs)
+	require.Equal(t, []string{account.ID}, repo.bulkUpdatedIDs)
 	require.Equal(t, "free", repo.bulkUpdatedPayload.Credentials["plan_type"])
 	require.Equal(t, "free", account.Credentials["plan_type"])
 	require.Equal(t, account.ID, repo.rateLimitedID)
@@ -351,7 +351,7 @@ func TestAccountTestService_OpenAI429ActiveAccountDoesNotClearError(t *testing.T
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:          78,
+		ID: "78",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -378,7 +378,7 @@ func TestAccountTestService_OpenAI429WithoutResetSignalDoesNotMutateRuntimeState
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:           79,
+		ID: "79",
 		Platform:     PlatformOpenAI,
 		Type:         AccountTypeOAuth,
 		Status:       StatusError,
@@ -407,7 +407,7 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
-		ID:          80,
+		ID: "80",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -436,7 +436,7 @@ func TestAccountTestService_OpenAIAPIKeyResponsesUsesCodexProbeHeaders(t *testin
 		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
 	}
 	account := &Account{
-		ID:          95,
+		ID: "95",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
@@ -477,7 +477,7 @@ func TestAccountTestService_OpenAIAPIKeyResponsesUnsupportedUsesChatCompletionsP
 		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
 	}
 	account := &Account{
-		ID:          91,
+		ID: "91",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
@@ -516,7 +516,7 @@ func TestAccountTestService_OpenAIChatCompletionsPathReturns4xx(t *testing.T) {
 		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
 	}
 	account := &Account{
-		ID:          92,
+		ID: "92",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
@@ -545,7 +545,7 @@ func TestAccountTestService_OpenAIChatCompletionsPathTimeout(t *testing.T) {
 		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
 	}
 	account := &Account{
-		ID:          93,
+		ID: "93",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
@@ -579,7 +579,7 @@ func TestAccountTestService_OpenAIChatCompletionsPathRejectsNonJSONStream(t *tes
 		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
 	}
 	account := &Account{
-		ID:          94,
+		ID: "94",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
