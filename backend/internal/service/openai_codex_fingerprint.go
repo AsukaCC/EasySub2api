@@ -32,7 +32,7 @@ func stageCodexFingerprintIDs(c *gin.Context, ids *codexFingerprintIDs) {
 }
 
 func stagedCodexFingerprintIDs(c *gin.Context, account *Account) *codexFingerprintIDs {
-	if c == nil || account == nil || account.Type != AccountTypeOAuth {
+	if c == nil || account == nil || !account.IsOpenAIOAuthLike() {
 		return nil
 	}
 	value, ok := c.Get(codexFingerprintIDsContextKey)
@@ -40,7 +40,7 @@ func stagedCodexFingerprintIDs(c *gin.Context, account *Account) *codexFingerpri
 		return nil
 	}
 	ids, ok := value.(*codexFingerprintIDs)
-	if !ok || ids == nil || ids.accountID != account.ID {
+	if !ok || ids == nil || ids.accountID != codexAccountIdentitySource(c, account).ID {
 		return nil
 	}
 	return ids
@@ -51,26 +51,6 @@ func stagedCodexFingerprintIDs(c *gin.Context, account *Account) *codexFingerpri
 // snapshot 的 OAuth 账号可读取，避免 stale context 跨账号 failover 泄漏。
 func applyStagedCodexFingerprintHeaders(c *gin.Context, account *Account, h http.Header) {
 	applyCodexFingerprintHeaders(h, stagedCodexFingerprintIDs(c, account))
-	applyCodexInstallationIDHeaderFallback(account, h)
-}
-
-// applyCodexInstallationIDHeaderFallback 在指纹收敛关闭（默认）时，为缺失
-// x-codex-installation-id 的 OAuth 出站请求补上账号级真实 device_id。
-//
-// 请求体侧的 applyCodexClientMetadata 已经用同一个 device_id 补 client_metadata.x-codex-installation-id，
-// 头侧却依赖客户端透传：非 Codex 客户端（Cursor / Claude Code 桥接 / opencode）不带该头时，
-// 上游会看到"自称 Codex、body 有安装标识、头却没有"的自相矛盾形态。头与体必须同源。
-// 未配置 device_id 时不臆造标识，保持原样。
-func applyCodexInstallationIDHeaderFallback(account *Account, h http.Header) {
-	if h == nil || account == nil || !account.IsOpenAIOAuth() {
-		return
-	}
-	if strings.TrimSpace(h.Get("x-codex-installation-id")) != "" {
-		return
-	}
-	if deviceID := account.GetOpenAIDeviceID(); deviceID != "" {
-		h.Set("x-codex-installation-id", deviceID)
-	}
 }
 
 func applyStagedCodexFingerprintClientMetadata(c *gin.Context, account *Account, reqBody map[string]any) bool {
@@ -161,7 +141,7 @@ func codexFingerprintSeed(extra map[string]any) (string, bool) {
 
 func prepareCodexFingerprintExtraForCreate(platform, accountType string, extra map[string]any) map[string]any {
 	prepared := stripCodexFingerprintSeed(extra)
-	if platform != PlatformOpenAI || accountType != AccountTypeOAuth || !codexFingerprintModeRequiresSeed(codexFingerprintModeFromExtra(prepared)) {
+	if platform != PlatformOpenAI || (accountType != AccountTypeOAuth && accountType != AccountTypeSetupToken) || !codexFingerprintModeRequiresSeed(codexFingerprintModeFromExtra(prepared)) {
 		return prepared
 	}
 	if prepared == nil {
@@ -173,7 +153,7 @@ func prepareCodexFingerprintExtraForCreate(platform, accountType string, extra m
 
 func prepareCodexFingerprintExtraForUpdate(account *Account, extra map[string]any) map[string]any {
 	prepared := stripCodexFingerprintSeed(extra)
-	if account == nil || account.Platform != PlatformOpenAI || account.Type != AccountTypeOAuth {
+	if account == nil || account.Platform != PlatformOpenAI || !account.IsOpenAIOAuthLike() {
 		return prepared
 	}
 	if seed, ok := codexFingerprintSeed(account.Extra); ok {
@@ -223,7 +203,7 @@ func ShouldEnsureCodexFingerprintSeedForExtraUpdates(updates map[string]any) boo
 // 的 A/B 实测。上游的配额判定策略不可观测，因此这里取兼容安全的一侧：
 // 不显式 opt-in 就保持 v0.1.175 之前的客户端身份（#5610）。
 func (a *Account) GetCodexFingerprintMode() codexFingerprintMode {
-	if a == nil || !a.IsOpenAIOAuth() {
+	if a == nil || !a.IsOpenAIOAuthLike() {
 		return codexFingerprintOff
 	}
 	return codexFingerprintModeFromExtra(a.Extra)
@@ -307,6 +287,9 @@ func resolveCodexFingerprintIDs(account *Account, clientSessionID string, mode c
 	if !ok {
 		return nil
 	}
+	if account.AntiDegradationEnabled() {
+		seed = codexAccountIdentityNamespace(account)
+	}
 
 	ids := &codexFingerprintIDs{
 		accountID:           account.ID,
@@ -315,6 +298,9 @@ func resolveCodexFingerprintIDs(account *Account, clientSessionID string, mode c
 	}
 
 	ids.installationID = resolveConvergedInstallationID(account, seed)
+	if account.AntiDegradationEnabled() {
+		ids.installationID = deriveStableUUIDv4("protected-installation:" + seed)
+	}
 	if ids.installationID == "" {
 		return nil
 	}

@@ -707,6 +707,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 				normalizedExtra[key] = v
 			}
 		}
+		normalizedExtra = PreserveAccountProtection(ctx, account, normalizedExtra)
 		normalizedExtra = prepareCodexFingerprintExtraForUpdate(account, normalizedExtra)
 		account.Extra = normalizedExtra
 		// 校验并预计算固定时间重置的下次重置时间

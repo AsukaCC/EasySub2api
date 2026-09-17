@@ -26,7 +26,7 @@ type CodexOutboundDiagnostics struct {
 	BuiltinDefaultVersion   string `json:"builtin_default_version"`
 	MinimumSupportedVersion string `json:"minimum_supported_version"`
 	PrereleaseAllowed       bool   `json:"prerelease_allowed"`
-	// 已配置但被门禁拒绝的版本（预发布 / 非法 / 低于门槛），供面板提示原因。
+	// Rejected versions are malformed or below the supported minimum.
 	RejectedManualOverrideVersion string `json:"rejected_manual_override_version,omitempty"`
 	RejectedSyncedVersion         string `json:"rejected_synced_version,omitempty"`
 
@@ -34,7 +34,7 @@ type CodexOutboundDiagnostics struct {
 	UserAgent                  string `json:"user_agent"`
 	Originator                 string `json:"originator"`
 	IdentityEnforcementEnabled bool   `json:"identity_enforcement_enabled"`
-	// ResponsesBetaHeader 为空表示 HTTP 推理面不发送 OpenAI-Beta（当前策略）。
+	// Identity-completion beta; bridge and WebSocket paths have separate policies.
 	ResponsesBetaHeader string `json:"responses_beta_header"`
 	LiveAlphaHeader     string `json:"live_alpha_header"`
 
@@ -58,7 +58,7 @@ func (s *SettingService) GetCodexOutboundDiagnostics(ctx context.Context) CodexO
 		MinimumSupportedVersion:    codexUpstreamMinVersion,
 		PrereleaseAllowed:          CodexPrereleaseVersionAllowed(),
 		IdentityEnforcementEnabled: codexIdentityEnforcement.Load(),
-		ResponsesBetaHeader:        "",
+		ResponsesBetaHeader:        "responses=experimental",
 		LiveAlphaHeader:            "quicksilver=v2",
 		AutoSyncEnabled:            true,
 		GeneratedAt:                time.Now(),

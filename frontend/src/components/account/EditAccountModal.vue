@@ -11,6 +11,7 @@
       @submit.prevent="handleSubmit"
       class="components-account-edit-account-modal__form"
     >
+      <AccountProtectionPanel :account="protectionAccount || account" @updated="handleProtectionUpdated" @busy="protectionBusy = $event" />
       <div>
         <label class="input-label">{{ t('common.name') }}</label>
         <input v-model="form.name" type="text" required class="input" data-tour="edit-account-form-name" />
@@ -2067,7 +2068,7 @@
             </p>
           </div>
           <div class="components-account-edit-account-modal__panel-46">
-            <Select v-model="codexFingerprintMode" data-testid="edit-codex-fingerprint-mode-select" :options="codexFingerprintModeOptions" />
+            <Select v-model="codexFingerprintMode" data-testid="edit-codex-fingerprint-mode-select" :options="codexFingerprintModeOptions" :disabled="protectionManaged" />
           </div>
         </div>
       </div>
@@ -2507,6 +2508,7 @@
             </div>
             <button
               type="button"
+              :disabled="protectionManaged"
               @click="tlsFingerprintEnabled = !tlsFingerprintEnabled"
               :class="[
                 'components-account-edit-account-modal__action-20',
@@ -2523,7 +2525,7 @@
           </div>
           <!-- Profile selector -->
           <div v-if="tlsFingerprintEnabled" class="components-account-edit-account-modal__panel-12">
-            <Select v-model="tlsFingerprintProfileId" :options="[
+            <Select v-model="tlsFingerprintProfileId" :disabled="protectionManaged" :options="[
               { value: null, label: t('admin.accounts.quotaControl.tlsFingerprint.defaultProfile') },
               ...(tlsFingerprintProfiles.length ? [{ value: 'random', label: t('admin.accounts.quotaControl.tlsFingerprint.randomProfile') }] : []),
               ...tlsFingerprintProfiles.map(p => ({ value: p.id, label: p.name }))
@@ -2697,6 +2699,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AccountProtectionPanel from './AccountProtectionPanel.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
@@ -2763,6 +2766,20 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const protectionAccount = ref<Account | null>(null)
+const protectionBusy = ref(false)
+const protectionManaged = computed(() => {
+  const account = protectionAccount.value || props.account
+  return account?.anti_degradation === true && account.protection_scope !== 'generic_v1'
+})
+function handleProtectionUpdated(account: Account) {
+  protectionAccount.value = account
+  const mode = account.extra?.codex_fingerprint_mode
+  codexFingerprintMode.value = ['off', 'device', 'session', 'full'].includes(String(mode)) ? mode as CodexFingerprintMode : 'off'
+  tlsFingerprintEnabled.value = account.extra?.enable_tls_fingerprint === true
+  tlsFingerprintProfileId.value = account.extra?.tls_fingerprint_profile_id as string || null
+  emit('updated', account)
+}
 const emit = defineEmits<{
   close: []
   updated: [account: Account]
@@ -3842,6 +3859,7 @@ watch(
       return
     }
     if (!wasShow || newAccount !== previousAccount) {
+      protectionAccount.value = newAccount
       syncFormFromAccount(newAccount)
       loadTLSProfiles()
     }
@@ -4256,6 +4274,7 @@ const submitUpdateAccount = async (accountID: string, updatePayload: Record<stri
 }
 
 const handleSubmit = async () => {
+  if (protectionBusy.value) return
   if (!props.account) return
   const accountID = props.account.id
 
@@ -4578,7 +4597,7 @@ const handleSubmit = async () => {
       updatePayload.credentials = newCredentials
 
       const newExtra: Record<string, unknown> = {
-        ...((props.account.extra as Record<string, unknown>) || {})
+        ...(((protectionAccount.value || props.account).extra as Record<string, unknown>) || {})
       }
       // Persist both states so a disabled account remains opted out when the
       // backend applies the default-enabled policy to missing values.
@@ -4596,7 +4615,7 @@ const handleSubmit = async () => {
 
     // For Anthropic OAuth/SetupToken accounts, handle quota control settings in extra
     if (props.account.platform === 'anthropic' && (props.account.type === 'oauth' || props.account.type === 'setup-token')) {
-      const currentExtra = (updatePayload.extra as Record<string, unknown>) || (props.account.extra as Record<string, unknown>) || {}
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) || ((protectionAccount.value || props.account).extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
 
       // Window cost limit settings
@@ -4686,7 +4705,7 @@ const handleSubmit = async () => {
 
     // For Anthropic API Key accounts, handle passthrough mode + web search emulation in extra
     if (props.account.platform === 'anthropic' && props.account.type === 'apikey') {
-      const currentExtra = (updatePayload.extra as Record<string, unknown>) || (props.account.extra as Record<string, unknown>) || {}
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) || ((protectionAccount.value || props.account).extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       if (anthropicPassthroughEnabled.value) {
         newExtra.anthropic_passthrough = true
@@ -4708,7 +4727,7 @@ const handleSubmit = async () => {
 
     // For OpenAI OAuth/SetupToken/API Key accounts, handle passthrough mode in extra
     if (props.account.platform === 'openai' && (props.account.type === 'oauth' || props.account.type === 'setup-token' || props.account.type === 'apikey')) {
-      const currentExtra = (props.account.extra as Record<string, unknown>) || {}
+      const currentExtra = ((protectionAccount.value || props.account).extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       const hadCodexCLIOnlyEnabled = currentExtra.codex_cli_only === true
       if (props.account.type === 'oauth' || props.account.type === 'setup-token') {
@@ -4826,7 +4845,7 @@ const handleSubmit = async () => {
     // dropping extra fields maintained by other account settings.
     {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
-        (props.account.extra as Record<string, unknown>) || {}
+        ((protectionAccount.value || props.account).extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       const headerName = upstreamRequestIdHeader.value.trim()
       if (headerName) {
@@ -4840,7 +4859,7 @@ const handleSubmit = async () => {
     // For apikey/bedrock accounts, handle quota_limit in extra
     if (props.account.type === 'apikey' || props.account.type === 'bedrock') {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
-        (props.account.extra as Record<string, unknown>) || {}
+        ((protectionAccount.value || props.account).extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       // 上游倍率自动探测对全部 API-key 平台开放（EasySub2api 上游即可应答），
       // Bedrock 凭证无静态 Key 不参与。

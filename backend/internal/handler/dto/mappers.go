@@ -253,6 +253,10 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		ollamaCloudUsage = state
 	}
 	out := &Account{
+		AntiDegradation:         a.AntiDegradationEnabled(),
+		ProtectionScope:         a.ProtectionScope(),
+		ProtectionMode:          a.ProtectionMode(),
+		ProtectionPolicyVersion: a.ProtectionPolicyVersion(),
 		ID:                      a.ID,
 		Name:                    a.Name,
 		Notes:                   a.Notes,

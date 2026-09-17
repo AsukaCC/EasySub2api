@@ -10767,6 +10767,7 @@ const codexOutboundDiagnosticsLines = computed<string[]>(() => {
       originator: diag.originator,
       userAgent: diag.user_agent,
     }),
+    t(`${prefix}.identityBeta`, { header: diag.responses_beta_header || "-" }),
     t(`${prefix}.connection`, {
       protocol: diag.protocol_mode,
       tls: diag.tls_fingerprint_enabled

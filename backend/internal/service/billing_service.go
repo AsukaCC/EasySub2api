@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"log"
 	"math"
 	"strings"
@@ -378,7 +379,8 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown:     true,
 	}
 
-	// OpenAI GPT-5.4（业务指定价格）
+	// Retired-family rates are retained only as historical/in-flight billing
+	// metadata. New requests and public catalogs reject these model families.
 	s.fallbackPrices["gpt-5.4"] = &ModelPricing{
 		InputPricePerToken:             2.5e-6,  // $2.5 per MTok
 		InputPricePerTokenPriority:     5e-6,    // $5 per MTok
@@ -744,6 +746,9 @@ func (s *BillingService) initFallbackPricing() {
 // getFallbackPricing 根据模型系列获取回退价格
 func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	modelLower := strings.ToLower(model)
+	if openai.IsRetiredModel(model) {
+		return s.fallbackPrices[historicalOpenAIBillingModel(model)]
+	}
 
 	// 按模型系列匹配
 	if strings.Contains(modelLower, "fable-5-1") || strings.Contains(modelLower, "fable-5.1") ||
@@ -1505,7 +1510,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 		}
 		return &cloned
 	}
-	normalized := normalizeKnownOpenAICodexModel(model)
+	normalized := historicalOpenAIBillingModel(model)
 	isGPT56 := isOpenAIGPT56Model(normalized)
 	needsCacheCreationPolicy := isGPT56 && !pricing.CacheCreationPriceExplicit && (pricing.CacheCreationPricePerToken <= 0 ||
 		(pricing.InputPricePerTokenPriority > 0 && pricing.CacheCreationPricePerTokenPriority <= 0))

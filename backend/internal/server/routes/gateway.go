@@ -536,6 +536,11 @@ func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver)
 		}
 
 		model := compositeRequestModelFromBody(c.GetHeader("Content-Type"), body)
+		if service.CheckActiveModel(model) != nil {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "code": "model_retired", "message": "Requested model has been retired"}})
+			return
+		}
 		if isComposite {
 			if model != "" {
 				decision, err := resolver.Resolve(c.Request.Context(), apiKey.Group.ID, model, compositeRouteEndpointForPath(c.Request.URL.Path))
@@ -568,9 +573,15 @@ func compositeGeminiTargetPlatformMiddleware(resolver *service.CompositeRouteRes
 		resolver = service.NewCompositeRouteResolver(nil)
 	}
 	return func(c *gin.Context) {
+		model := compositeGeminiModelFromParams(c)
+		if service.CheckActiveModel(model) != nil {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+			middleware.GoogleErrorWriter(c, http.StatusBadRequest, "Requested model has been retired")
+			c.Abort()
+			return
+		}
 		apiKey, ok := middleware.GetAPIKeyFromContext(c)
 		if ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite {
-			model := compositeGeminiModelFromParams(c)
 			if model != "" {
 				decision, err := resolver.Resolve(c.Request.Context(), apiKey.Group.ID, model, service.CompositeRouteEndpointGemini)
 				if err != nil {

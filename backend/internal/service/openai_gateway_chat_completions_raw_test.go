@@ -83,16 +83,16 @@ func TestBuildOpenAIResponsesURL_ProbeURL(t *testing.T) {
 func TestForwardAsRawChatCompletions_ForcesStreamUsageUpstreamAndPassesUsageDownstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}],"stream":true}`)
+	body := []byte(`{"model":"gpt-5.2","messages":[{"role":"user","content":"hello"}],"stream":true}`)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	upstreamBody := strings.Join([]string{
-		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.4","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
+		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
 		"",
-		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.4","choices":[],"usage":{"prompt_tokens":9,"completion_tokens":4,"total_tokens":13,"prompt_tokens_details":{"cached_tokens":3}}}`,
+		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.2","choices":[],"usage":{"prompt_tokens":9,"completion_tokens":4,"total_tokens":13,"prompt_tokens_details":{"cached_tokens":3}}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -187,8 +187,8 @@ func TestForwardAsChatCompletions_OpenAICompatibleRawUsageGuard(t *testing.T) {
 		{
 			name:             "Grok alias mapped to non-Grok remains unchanged",
 			model:            "grok-alias",
-			upstreamResponse: `{"id":"resp_mapped","object":"chat.completion","model":"gpt-5.4","choices":[{"index":0,"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}]}`,
-			modelMapping:     map[string]any{"grok-alias": "gpt-5.4"},
+			upstreamResponse: `{"id":"resp_mapped","object":"chat.completion","model":"gpt-5.2","choices":[{"index":0,"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}]}`,
+			modelMapping:     map[string]any{"grok-alias": "gpt-5.2"},
 			wantGuarded:      false,
 		},
 		{
@@ -199,8 +199,8 @@ func TestForwardAsChatCompletions_OpenAICompatibleRawUsageGuard(t *testing.T) {
 		},
 		{
 			name:             "non-Grok response without usage remains unchanged",
-			model:            "gpt-5.4",
-			upstreamResponse: `{"id":"resp_openai","object":"chat.completion","model":"gpt-5.4","choices":[{"index":0,"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}]}`,
+			model:            "gpt-5.2",
+			upstreamResponse: `{"id":"resp_openai","object":"chat.completion","model":"gpt-5.2","choices":[{"index":0,"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}]}`,
 			wantGuarded:      false,
 		},
 	}
@@ -467,9 +467,9 @@ func TestForwardAsRawChatCompletions_SilentRefusalTriggersFailover(t *testing.T)
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	upstreamBody := strings.Join([]string{
-		`data: {"id":"chatcmpl_silent","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"role":"assistant"}}]}`,
+		`data: {"id":"chatcmpl_silent","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"role":"assistant"}}]}`,
 		"",
-		`data: {"id":"chatcmpl_silent","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}]}`,
+		`data: {"id":"chatcmpl_silent","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}]}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -505,11 +505,11 @@ func TestForwardAsRawChatCompletions_SilentRefusalToolCallsExempt(t *testing.T) 
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	upstreamBody := strings.Join([]string{
-		`data: {"id":"chatcmpl_tool","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"role":"assistant"}}]}`,
+		`data: {"id":"chatcmpl_tool","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"role":"assistant"}}]}`,
 		"",
-		`data: {"id":"chatcmpl_tool","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"lookup","arguments":""}}]}}]}`,
+		`data: {"id":"chatcmpl_tool","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"lookup","arguments":""}}]}}]}`,
 		"",
-		`data: {"id":"chatcmpl_tool","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`,
+		`data: {"id":"chatcmpl_tool","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -540,11 +540,11 @@ func TestHandleChatStreamingResponse_SilentRefusalReasoningSummaryExempt(t *test
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
 	upstreamBody := strings.Join([]string{
-		`data: {"type":"response.created","response":{"id":"resp_reasoning","model":"gpt-5.5"}}`,
+		`data: {"type":"response.created","response":{"id":"resp_reasoning","model":"gpt-5.2"}}`,
 		"",
 		`data: {"type":"response.reasoning_summary_text.delta","delta":"thinking only"}`,
 		"",
-		`data: {"type":"response.completed","response":{"id":"resp_reasoning","model":"gpt-5.5","status":"completed"}}`,
+		`data: {"type":"response.completed","response":{"id":"resp_reasoning","model":"gpt-5.2","status":"completed"}}`,
 		"",
 	}, "\n")
 	resp := &http.Response{
@@ -558,9 +558,9 @@ func TestHandleChatStreamingResponse_SilentRefusalReasoningSummaryExempt(t *test
 		resp,
 		c,
 		rawChatCompletionsTestAccount(),
-		"gpt-5.5",
-		"gpt-5.5",
-		"gpt-5.5",
+		"gpt-5.2",
+		"gpt-5.2",
+		"gpt-5.2",
 		time.Now(),
 		openAISilentRefusalMinRequestBodyBytes,
 	)
@@ -580,11 +580,11 @@ func TestForwardAsRawChatCompletions_SilentRefusalNormalContentExempt(t *testing
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	upstreamBody := strings.Join([]string{
-		`data: {"id":"chatcmpl_ok","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"role":"assistant"}}]}`,
+		`data: {"id":"chatcmpl_ok","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"role":"assistant"}}]}`,
 		"",
-		`data: {"id":"chatcmpl_ok","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
+		`data: {"id":"chatcmpl_ok","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
 		"",
-		`data: {"id":"chatcmpl_ok","object":"chat.completion.chunk","model":"gpt-5.5","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}]}`,
+		`data: {"id":"chatcmpl_ok","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}]}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -610,7 +610,7 @@ func TestForwardAsRawChatCompletions_SilentRefusalNormalContentExempt(t *testing
 func TestForwardAsRawChatCompletions_ClientDisconnectDrainsUsage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}],"stream":true}`)
+	body := []byte(`{"model":"gpt-5.2","messages":[{"role":"user","content":"hello"}],"stream":true}`)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Writer = &openAIChatFailingWriter{ResponseWriter: c.Writer, failAfter: 0}
@@ -618,9 +618,9 @@ func TestForwardAsRawChatCompletions_ClientDisconnectDrainsUsage(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	upstreamBody := strings.Join([]string{
-		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.4","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
+		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.2","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
 		"",
-		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.4","choices":[],"usage":{"prompt_tokens":17,"completion_tokens":8,"total_tokens":25,"prompt_tokens_details":{"cached_tokens":6}}}`,
+		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.2","choices":[],"usage":{"prompt_tokens":17,"completion_tokens":8,"total_tokens":25,"prompt_tokens_details":{"cached_tokens":6}}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -650,7 +650,7 @@ func TestForwardAsRawChatCompletions_UpstreamRequestIgnoresClientCancel(t *testi
 	gin.SetMode(gin.TestMode)
 
 	reqCtx, cancel := context.WithCancel(context.Background())
-	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}],"stream":true}`)
+	body := []byte(`{"model":"gpt-5.2","messages":[{"role":"user","content":"hello"}],"stream":true}`)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body)).WithContext(reqCtx)
@@ -658,7 +658,7 @@ func TestForwardAsRawChatCompletions_UpstreamRequestIgnoresClientCancel(t *testi
 	cancel()
 
 	upstreamBody := strings.Join([]string{
-		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.4","choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`,
+		`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.2","choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -737,11 +737,11 @@ func TestIsOpenAIChatUsageOnlyStreamChunk(t *testing.T) {
 func TestEnsureOpenAIChatStreamUsage(t *testing.T) {
 	t.Parallel()
 
-	body, err := ensureOpenAIChatStreamUsage([]byte(`{"model":"gpt-5.4"}`))
+	body, err := ensureOpenAIChatStreamUsage([]byte(`{"model":"gpt-5.2"}`))
 	require.NoError(t, err)
 	require.True(t, gjson.GetBytes(body, "stream_options.include_usage").Bool())
 
-	body, err = ensureOpenAIChatStreamUsage([]byte(`{"model":"gpt-5.4","stream_options":{"include_usage":false}}`))
+	body, err = ensureOpenAIChatStreamUsage([]byte(`{"model":"gpt-5.2","stream_options":{"include_usage":false}}`))
 	require.NoError(t, err)
 	require.True(t, gjson.GetBytes(body, "stream_options.include_usage").Bool())
 }
@@ -760,7 +760,7 @@ func TestBufferRawChatCompletions_RejectsOversizedResponse(t *testing.T) {
 	svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig()}
 	svc.cfg.Gateway.UpstreamResponseReadMaxBytes = 3
 
-	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.2", "gpt-5.2", "gpt-5.2", nil, nil, time.Now())
 	require.ErrorIs(t, err, ErrUpstreamResponseBodyTooLarge)
 	require.Nil(t, result)
 	require.Equal(t, http.StatusBadGateway, rec.Code)
@@ -779,7 +779,7 @@ func rawChatCompletionsTestConfig() *config.Config {
 
 func rawChatCompletionsTestAccount() *Account {
 	return &Account{
-		ID: "101",
+		ID:          "101",
 		Name:        "raw-openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -792,7 +792,7 @@ func rawChatCompletionsTestAccount() *Account {
 }
 
 func largeRawChatCompletionsBody() []byte {
-	return []byte(`{"model":"gpt-5.5","messages":[{"role":"user","content":"` +
+	return []byte(`{"model":"gpt-5.2","messages":[{"role":"user","content":"` +
 		strings.Repeat("x", openAISilentRefusalMinRequestBodyBytes) +
 		`"}],"stream":true}`)
 }

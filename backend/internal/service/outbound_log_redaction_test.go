@@ -100,7 +100,7 @@ func TestGetCodexOutboundDiagnostics(t *testing.T) {
 		require.False(t, diag.ProxyDirectFallbackAllowed)
 	})
 
-	t.Run("prerelease_override_rejected_falls_back_to_sync", func(t *testing.T) {
+	t.Run("prerelease_override_accepted", func(t *testing.T) {
 		svc := NewSettingService(&codexVersionSettingRepoStub{values: map[string]string{
 			SettingKeyOpenAICodexClientVersion:       "0.154.0-alpha.3",
 			SettingKeyOpenAICodexClientVersionSynced: "0.153.4",
@@ -108,11 +108,11 @@ func TestGetCodexOutboundDiagnostics(t *testing.T) {
 		installResolver(t, svc)
 
 		diag := svc.GetCodexOutboundDiagnostics(context.Background())
-		require.Equal(t, CodexVersionSourceAutoSync, diag.VersionSource)
-		require.False(t, diag.ManualOverrideEnabled)
-		require.Equal(t, "0.154.0-alpha.3", diag.RejectedManualOverrideVersion)
-		require.Equal(t, "0.153.4", diag.EffectiveVersion)
-		require.False(t, diag.PrereleaseAllowed)
+		require.Equal(t, CodexVersionSourceManualOverride, diag.VersionSource)
+		require.True(t, diag.ManualOverrideEnabled)
+		require.Empty(t, diag.RejectedManualOverrideVersion)
+		require.Equal(t, "0.154.0-alpha.3", diag.EffectiveVersion)
+		require.True(t, diag.PrereleaseAllowed)
 	})
 
 	t.Run("builtin_default", func(t *testing.T) {

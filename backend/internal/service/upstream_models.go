@@ -11,6 +11,7 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/geminicli"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 )
 
 const upstreamModelsBodyLimit int64 = 8 << 20
@@ -550,7 +551,7 @@ func dedupeAndSortModelIDs(models []string) []string {
 	result := make([]string, 0, len(models))
 	for _, model := range models {
 		model = strings.TrimSpace(model)
-		if model == "" {
+		if model == "" || openai.IsRetiredModel(model) {
 			continue
 		}
 		if _, exists := seen[model]; exists {

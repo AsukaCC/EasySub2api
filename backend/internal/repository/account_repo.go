@@ -81,7 +81,7 @@ func codexFingerprintSeedValidSQL(extraExpr string) string {
 }
 
 func ensureCodexFingerprintSeedSQL(extraExpr string) string {
-	return "CASE WHEN platform = 'openai' AND type = 'oauth' THEN " +
+	return "CASE WHEN platform = 'openai' AND type IN ('oauth', 'setup-token') THEN " +
 		"jsonb_set(" + extraExpr + ", '{codex_fingerprint_seed}', " +
 		"CASE WHEN " + codexFingerprintSeedValidSQL("extra") +
 		" THEN to_jsonb(extra ->> 'codex_fingerprint_seed') ELSE to_jsonb(gen_random_uuid()::text) END, true) " +
@@ -136,6 +136,10 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 func createAccountRecord(ctx context.Context, client *dbent.Client, account *service.Account) error {
 	if account == nil {
 		return service.ErrAccountNilInput
+	}
+	service.PrepareNewAccountProtection(account)
+	if err := service.ValidateAccountProtectionConfiguration(account); err != nil {
+		return err
 	}
 
 	if err := prepareAccountSubscriptionTier(ctx, client, account); err != nil {
@@ -526,6 +530,10 @@ func (r *accountRepository) updateLockedAccount(
 		return nil, err
 	}
 	account.Extra = extra
+	if err := lockAccountProtection(ctx, client, account); err != nil {
+		return nil, err
+	}
+	extra = account.Extra
 	if err := prepareAccountSubscriptionTier(ctx, client, account); err != nil {
 		return nil, err
 	}
@@ -2729,7 +2737,7 @@ func (r *accountRepository) UpdateExtra(ctx context.Context, id string, updates 
 			client = tx.Client()
 		}
 	}
-	extraExpression := "COALESCE(extra, '{}'::jsonb) || $1::jsonb"
+	extraExpression := preserveProtectionExtraSQL("COALESCE(extra, '{}'::jsonb) || $1::jsonb")
 	if clearProbeSnapshot {
 		extraExpression = "(" + extraExpression + ") - 'upstream_billing_probe'"
 	}
@@ -3003,7 +3011,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []string, update
 		}
 	}
 	if updates.Concurrency != nil {
-		setClauses = append(setClauses, "concurrency = $"+itoa(idx))
+		setClauses = append(setClauses, "concurrency = CASE WHEN $"+itoa(idx)+" <= 0 AND extra #>> '{anti_degrade,enabled}' = 'true' THEN 16 ELSE $"+itoa(idx)+" END")
 		args = append(args, *updates.Concurrency)
 		idx++
 	}
@@ -3111,6 +3119,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []string, update
 		} else if snapshotIdentityChanged != "" {
 			extraExpression = "CASE WHEN " + snapshotIdentityChanged + " THEN (" + extraExpression + ") - 'ollama_cloud_usage_snapshot' ELSE " + extraExpression + " END"
 		}
+		extraExpression = preserveProtectionExtraSQL(extraExpression)
 		if updates.EnsureCodexFingerprintSeed {
 			extraExpression = ensureCodexFingerprintSeedSQL(extraExpression)
 		}

@@ -41,7 +41,7 @@ func FilterCodexModelIDsForGroup(modelIDs []string, group *Group) []string {
 	filtered := make([]string, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
 		modelID = strings.TrimSpace(modelID)
-		if modelID == "" || strings.Contains(modelID, "*") || isCodexDedicatedMediaModel(modelID) {
+		if modelID == "" || openai.IsRetiredModel(modelID) || strings.Contains(modelID, "*") || isCodexDedicatedMediaModel(modelID) {
 			continue
 		}
 		if strings.HasPrefix(modelID, codexAutoModelPrefix) {
@@ -167,7 +167,10 @@ func openAIConfiguredCodexModelIDs(accounts []Account) []string {
 		if account.Platform != PlatformOpenAI {
 			continue
 		}
-		for modelID := range account.GetModelMapping() {
+		for modelID, target := range account.GetModelMapping() {
+			if CheckActiveModel(modelID, target) != nil {
+				continue
+			}
 			modelID = strings.TrimSpace(modelID)
 			if modelID == "" || strings.Contains(modelID, "*") {
 				continue
@@ -203,7 +206,7 @@ func openAIConfiguredCodexModelIDsForGroup(accounts []Account, group *Group) []s
 				continue
 			}
 			mapped, matched := account.ResolveMappedModel(selectedModel)
-			if !matched || strings.TrimSpace(mapped) == "" {
+			if !matched || strings.TrimSpace(mapped) == "" || CheckActiveModel(selectedModel, mapped) != nil {
 				continue
 			}
 			if _, exists := seen[selectedModel]; !exists {
@@ -397,7 +400,7 @@ func reasoningLevels(values ...string) []configuredCodexReasoningLevel {
 
 func configuredCodexSupportsPriorityServiceTier(modelID string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
-	for _, family := range []string{"gpt-5.4", "gpt-5.5", "gpt-5.6"} {
+	for _, family := range []string{"gpt-5.6"} {
 		if normalized == family || strings.HasPrefix(normalized, family+"-") {
 			return true
 		}
@@ -672,7 +675,7 @@ func buildCodexModelsManifest(modelIDs []string, imageInput map[string]bool, met
 		if metadataModelID == "" {
 			metadataModelID = modelID
 		}
-		if isCodexDedicatedMediaModel(modelID) || isCodexDedicatedMediaModel(metadataModelID) {
+		if openai.IsRetiredModel(modelID) || openai.IsRetiredModel(metadataModelID) || isCodexDedicatedMediaModel(modelID) || isCodexDedicatedMediaModel(metadataModelID) {
 			continue
 		}
 		seen[modelID] = struct{}{}
@@ -902,6 +905,16 @@ func BuildDeepSeekCodexModelsManifest(modelIDs []string) ([]byte, error) {
 }
 
 func mergeConfiguredCodexModelsManifest(body []byte, configuredModels, selectedModels []string, filterBySelection bool) ([]byte, bool, error) {
+	activeBody, retiredChanged, retiredErr := openai.FilterRetiredManifest(body)
+	if retiredErr != nil {
+		return nil, false, retiredErr
+	}
+	if retiredChanged {
+		merged, _, err := mergeConfiguredCodexModelsManifest(activeBody, openai.FilterActiveModelIDs(configuredModels), openai.FilterActiveModelIDs(selectedModels), filterBySelection)
+		return merged, true, err
+	}
+	configuredModels = openai.FilterActiveModelIDs(configuredModels)
+	selectedModels = openai.FilterActiveModelIDs(selectedModels)
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return nil, false, err

@@ -24,8 +24,7 @@ var codexClientVersionPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+){1,3}(-[0-9
 // NormalizeCodexClientVersion 校验并归一化 Codex 客户端版本号，非法值返回空串。
 // 该值会被拼进出站 User-Agent 与 version 头，必须拒绝任意字节，避免管理员误填或
 // 自动同步拿到异常值时把不可控内容透给上游。
-// 本函数只做形态校验（稳定版与预发布均合法）；出站是否接受预发布由
-// AcceptCodexClientVersion 依据 gateway.codex_allow_prerelease_version 决定。
+// Stable and prerelease versions share the same validation.
 func NormalizeCodexClientVersion(version string) string {
 	version = strings.TrimSpace(version)
 	if version == "" || len(version) > codexClientVersionMaxLen || !codexClientVersionPattern.MatchString(version) {
@@ -39,66 +38,36 @@ func IsCodexPrereleaseVersion(version string) bool {
 	return strings.Contains(version, "-")
 }
 
-// codexPrereleaseVersionAllowed 是否允许预发布版本进入出站身份，
-// 由 gateway.codex_allow_prerelease_version 在服务构造时发布。零值即「生产模式：拒绝预发布」。
-var codexPrereleaseVersionAllowed atomic.Bool
+// Deprecated compatibility helpers: prerelease versions no longer require opt-in.
+func SetCodexPrereleaseVersionAllowed(bool) {}
+func CodexPrereleaseVersionAllowed() bool   { return true }
 
-// SetCodexPrereleaseVersionAllowed 发布预发布版本放行开关。
-func SetCodexPrereleaseVersionAllowed(allowed bool) {
-	codexPrereleaseVersionAllowed.Store(allowed)
-}
-
-// CodexPrereleaseVersionAllowed 返回当前是否允许预发布版本出站。
-func CodexPrereleaseVersionAllowed() bool {
-	return codexPrereleaseVersionAllowed.Load()
-}
-
-// AcceptCodexClientVersion 是出站版本的最终准入：形态合法，且（生产模式下）不是预发布版本。
-// 不满足时返回空串，调用方回退到下一优先级来源（同步值 → 编译期常量）。
-// 面板覆写、自动同步值与 UA 中的版本段都必须经过本函数，保证没有任何来源能绕过预发布门禁。
 func AcceptCodexClientVersion(version string) string {
 	version = NormalizeCodexClientVersion(version)
-	if version == "" {
-		return ""
-	}
-	if IsCodexPrereleaseVersion(version) && !CodexPrereleaseVersionAllowed() {
+	if version == "" || CompareVersions(version, codexUpstreamMinVersion) < 0 {
 		return ""
 	}
 	return version
 }
 
-// buildCodexCLIUserAgent 按版本号拼出规范 Codex CLI User-Agent。
+// buildCodexCLIUserAgent 按版本号拼出规范 Codex TUI User-Agent。
 // UA 形态只在 codexCLIUserAgentSuffix 一处定义，避免多处拼装漂移。
 func buildCodexCLIUserAgent(version string) string {
 	if version = NormalizeCodexClientVersion(version); version == "" {
 		return codexCLIUserAgent
 	}
-	return openai.CodexCLIOriginator + "/" + version + codexCLIUserAgentSuffix
+	return openai.CodexDefaultOriginator + "/" + version + codexCLIUserAgentSuffix
 }
 
-// codexOriginatorNormalization 控制已知上游降载身份是否归一为官方 CLI 身份。
-// 与整体身份强制收口分开，便于在上游容量分桶策略变化时单独回滚。
-var codexOriginatorNormalization = func() *atomic.Bool {
-	v := &atomic.Bool{}
-	v.Store(true)
-	return v
-}()
-
-// SetCodexOriginatorNormalizationEnabled 发布 Codex 降载身份归一化开关。
-func SetCodexOriginatorNormalizationEnabled(enabled bool) {
-	codexOriginatorNormalization.Store(enabled)
-}
-
-// CodexOriginatorNormalizationEnabled 返回当前降载身份归一化状态。
-func CodexOriginatorNormalizationEnabled() bool {
-	return codexOriginatorNormalization.Load()
-}
+// Deprecated: originator normalization is no longer applied.
+func SetCodexOriginatorNormalizationEnabled(bool) {}
+func CodexOriginatorNormalizationEnabled() bool   { return false }
 
 // codexIdentityEnforcement 控制 enforceCodexIdentityHeaders 是否强制统一出站身份，
 // 由 gateway.disable_codex_identity_enforcement 在服务构造时取反发布。
 // 默认开启：上游在容量紧张时按客户端身份分优先级降载，被降载的请求会拿到
 // HTTP 200 + 流内 server_is_overloaded，本次请求即失败；强制统一出口可确保没有
-// 请求带着第三方或陈旧身份出站。关闭后仍执行已知降载身份归一化与版本同步，
+// 请求带着第三方或陈旧身份出站。关闭后仍执行身份配对与版本同步，
 // 只保留其他官方客户端的真实身份。
 var codexIdentityEnforcement = func() *atomic.Bool {
 	v := &atomic.Bool{}
@@ -185,7 +154,7 @@ type codexOutboundIdentity struct {
 }
 
 // resolveCodexOutboundIdentity 由候选 User-Agent 推导自洽的出站身份。
-// candidateUA 为空时使用规范 User-Agent；推导不出官方身份时整体回退为规范 CLI 身份。
+// candidateUA 为空时使用规范 User-Agent；推导不出官方身份时整体回退为规范 TUI 身份。
 //
 // 候选 UA（面板 / 账号级的管理员显式配置）只贡献客户端名与 OS / 架构 / 终端指纹，
 // 其自带的版本段一律用当前生效版本重建：一条填写于某个历史版本的 UA 否则会把出站身份
@@ -200,11 +169,8 @@ func resolveCodexOutboundIdentity(candidateUA string) codexOutboundIdentity {
 	originator, pairedUA, ok := openai.PairCodexClientIdentity(ua)
 	if !ok {
 		if originator, pairedUA, ok = openai.PairCodexClientIdentity(canonical); !ok {
-			originator, pairedUA = openai.CodexCLIOriginator, codexCLIUserAgent
+			originator, pairedUA = openai.CodexDefaultOriginator, codexCLIUserAgent
 		}
-	}
-	if codexOriginatorNormalization.Load() {
-		originator, pairedUA = normalizeCodexOutboundIdentity(originator, pairedUA)
 	}
 	// 生效版本只有一个来源：规范身份（面板版本号 → 自动同步值 → 内置常量，见
 	// SettingService.GetOpenAICodexClientVersion）。UA 与 version 头由此同源派生。
@@ -216,7 +182,7 @@ func resolveCodexOutboundIdentity(candidateUA string) codexOutboundIdentity {
 }
 
 // codexClientVersionFromUA 取 UA 的版本段作为生效版本；
-// 非法、生产模式下为预发布、或低于上游门槛（低于则上游 404，issue #3901）时回退编译期常量。
+// 非法或低于上游门槛（低于则上游 404，issue #3901）时回退编译期常量。
 func codexClientVersionFromUA(ua string) string {
 	version := AcceptCodexClientVersion(openai.CodexUserAgentVersion(ua))
 	if version == "" || CompareVersions(version, codexUpstreamMinVersion) < 0 {
@@ -227,10 +193,6 @@ func codexClientVersionFromUA(ua string) string {
 
 // ensureCodexIdentityHeaders 补齐 OAuth（ChatGPT 内部接口）出站请求所需的 Codex 身份头。
 // 已有 User-Agent 与 version 保持不变，交给紧随其后的 enforceCodexIdentityHeaders 收口。
-//
-// 不再写入 OpenAI-Beta: responses=experimental：当前 Codex 客户端的 HTTP 推理面已不携带
-// 该实验协商头（透传路径对客户端带来的该 token 也做剥离），推理主路径从未发送且工作正常。
-// 探针 / 桥接 / 账号测试若单独发送，会让同一账号在上游呈现两种互相矛盾的头形态。
 func ensureCodexIdentityHeaders(h http.Header) {
 	if h == nil {
 		return
@@ -245,7 +207,7 @@ func ensureCodexIdentityHeaders(h http.Header) {
 	if strings.TrimSpace(h.Get("version")) == "" {
 		h.Set("version", identity.version)
 	}
-	stripOpenAILegacyResponsesBeta(h)
+	h.Set("OpenAI-Beta", "responses=experimental")
 }
 
 // applyOpenAICodexProbeHeaders 为合成探测请求补齐 Codex 身份和引擎指纹。
@@ -272,7 +234,7 @@ func enforceCodexIdentityHeaders(h http.Header) {
 // OS / 架构 / 终端指纹——版本段与 originator 都由规范身份重建，不允许出现自相矛盾或陈旧的身份。
 //
 // 强制统一被 gateway.disable_codex_identity_enforcement 关闭时，退回「按最终 User-Agent 配对
-// originator + 版本同步」的收口语义；已知降载身份仍由独立开关控制。
+// originator + 版本同步」的收口语义；不再执行 CLI 身份归一化。
 //
 // 仅对携带 originator 的请求生效：compat 桥接等非 ChatGPT 内部接口路径会显式删除 originator，
 // 不应被补回。需要从缺失身份头恢复的调用方应先调用 ensureCodexIdentityHeaders。
@@ -301,7 +263,10 @@ func finalizeCodexOAuthIdentityHeaders(h http.Header) {
 	if h == nil {
 		return
 	}
-	ensureCodexIdentityHeaders(h)
+	// Preserve intentionally absent bridge identity and transport-specific beta.
+	if strings.TrimSpace(h.Get("originator")) == "" {
+		return
+	}
 	enforceCodexIdentityHeadersWithUA(h, strings.TrimSpace(h.Get("user-agent")))
 }
 
@@ -313,9 +278,6 @@ func pairCodexIdentityHeaders(h http.Header) {
 		identity := resolveCodexOutboundIdentity("")
 		originator, pairedUA = identity.originator, identity.userAgent
 	}
-	if codexOriginatorNormalization.Load() {
-		originator, pairedUA = normalizeCodexOutboundIdentity(originator, pairedUA)
-	}
 	// Even in rollback mode, keep the version declaration synchronized with the
 	// canonical runtime version. A stale version is independently eligible for
 	// upstream identity validation and capacity shedding.
@@ -326,45 +288,4 @@ func pairCodexIdentityHeaders(h http.Header) {
 	h.Set("user-agent", pairedUA)
 	h.Set("originator", originator)
 	h.Set("version", version)
-}
-
-// normalizeCodexOutboundIdentity applies the load-shed workaround while keeping
-// the originator and User-Agent pairing invariant. A malformed TUI UA without a
-// version cannot be repaired by changing only its prefix, so fall back to the
-// canonical, fully-formed identity instead of emitting mismatched headers.
-func normalizeCodexOutboundIdentity(originator, userAgent string) (string, string) {
-	normalizedOriginator, normalizedUA, changed := openai.NormalizeCodexClientIdentityToCLI(originator, userAgent)
-	if !changed {
-		return originator, userAgent
-	}
-	if pairedOriginator, pairedUA, ok := openai.PairCodexClientIdentity(normalizedUA); ok &&
-		strings.EqualFold(pairedOriginator, normalizedOriginator) && pairedUA == normalizedUA {
-		return normalizedOriginator, normalizedUA
-	}
-	canonical := resolveCodexOutboundIdentityWithoutNormalization()
-	if openai.IsCodexLoadShedOriginator(canonical.originator) {
-		canonical.originator = openai.CodexCLIOriginator
-		canonical.userAgent = buildCodexCLIUserAgent(canonical.version)
-	}
-	return canonical.originator, canonical.userAgent
-}
-
-// resolveCodexOutboundIdentityWithoutNormalization is used only for malformed
-// identities discovered while normalizing a resolved identity. It avoids
-// recursively applying the normalizer to the same invalid value.
-func resolveCodexOutboundIdentityWithoutNormalization() codexOutboundIdentity {
-	canonical := codexCanonicalUserAgent()
-	originator, pairedUA, ok := openai.PairCodexClientIdentity(canonical)
-	if !ok {
-		return codexOutboundIdentity{
-			originator: openai.CodexCLIOriginator,
-			userAgent:  codexCLIUserAgent,
-			version:    codexCLIVersion,
-		}
-	}
-	version := codexClientVersionFromUA(canonical)
-	if rebuilt := openai.SetCodexUserAgentVersion(pairedUA, version); rebuilt != "" {
-		pairedUA = rebuilt
-	}
-	return codexOutboundIdentity{originator: originator, userAgent: pairedUA, version: version}
 }

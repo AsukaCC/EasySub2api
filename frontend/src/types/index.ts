@@ -1231,6 +1231,10 @@ export interface OllamaCloudUsageSettings {
 }
 
 export interface Account {
+  anti_degradation?: boolean
+  protection_scope?: string
+  protection_mode?: string
+  protection_policy_version?: number
   id: string
   name: string
   notes?: string | null

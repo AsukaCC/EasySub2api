@@ -86,7 +86,7 @@ func TestOpenAISelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedul
 	cache := &snapshotHydrationCache{
 		snapshot: []*Account{
 			{
-				ID: "1",
+				ID:          "1",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -102,7 +102,7 @@ func TestOpenAISelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedul
 		},
 		accounts: map[string]*Account{
 			"1": {
-				ID: "1",
+				ID:          "1",
 				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -165,7 +165,7 @@ func TestGatewaySelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedu
 	cache := &snapshotHydrationCache{
 		snapshot: []*Account{
 			{
-				ID: "9",
+				ID:          "9",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -176,7 +176,7 @@ func TestGatewaySelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedu
 		},
 		accounts: map[string]*Account{
 			"9": {
-				ID: "9",
+				ID:          "9",
 				Platform:    PlatformAnthropic,
 				Type:        AccountTypeAPIKey,
 				Status:      StatusActive,
@@ -214,7 +214,7 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 	cache := &snapshotHydrationCache{
 		snapshot: []*Account{
 			{
-				ID: "1",
+				ID:          "1",
 				Platform:    PlatformAntigravity,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -226,7 +226,6 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 				},
 				GroupIDs: []string{"22"},
 				Extra: map[string]any{
-					"mixed_scheduling": true,
 					modelRateLimitsKey: map[string]any{
 						antigravityGeminiModelRateLimitKey: map[string]any{
 							"rate_limit_reset_at": resetAt,
@@ -235,7 +234,7 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 				},
 			},
 			{
-				ID: "2",
+				ID:          "2",
 				Platform:    PlatformAntigravity,
 				Type:        AccountTypeOAuth,
 				Status:      StatusActive,
@@ -246,15 +245,16 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 					{AccountID: "2", GroupID: "22"},
 				},
 				GroupIDs: []string{"22"},
-				Extra: map[string]any{
-					"mixed_scheduling": true,
-				},
 			},
 		},
 		accounts: map[string]*Account{
 			"1": {ID: "1", Platform: PlatformAntigravity, Type: AccountTypeOAuth},
 			"2": {ID: "2", Platform: PlatformAntigravity, Type: AccountTypeOAuth},
 		},
+	}
+	for _, account := range cache.snapshot {
+		fresh := *account
+		cache.accounts[account.ID] = &fresh
 	}
 	groupID := "22"
 	svc := &GatewayService{
@@ -263,7 +263,7 @@ func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateL
 			groups: map[string]*Group{
 				groupID: {
 					ID:       groupID,
-					Platform: PlatformGemini,
+					Platform: PlatformAntigravity,
 					Status:   StatusActive,
 					Hydrated: true,
 				},

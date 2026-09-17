@@ -14,17 +14,7 @@ var codexModelMap = map[string]string{
 	"gpt-5.6-sol":          "gpt-5.6-sol",
 	"gpt-5.6-terra":        "gpt-5.6-terra",
 	"gpt-5.6-luna":         "gpt-5.6-luna",
-	"gpt-5.5":              "gpt-5.5",
-	"gpt-5.5-pro":          "gpt-5.5-pro",
 	"codex-auto-review":    "codex-auto-review",
-	"gpt-5.4":              "gpt-5.4",
-	"gpt-5.4-mini":         "gpt-5.4-mini",
-	"gpt-5.4-none":         "gpt-5.4",
-	"gpt-5.4-low":          "gpt-5.4",
-	"gpt-5.4-medium":       "gpt-5.4",
-	"gpt-5.4-high":         "gpt-5.4",
-	"gpt-5.4-xhigh":        "gpt-5.4",
-	"gpt-5.4-chat-latest":  "gpt-5.4",
 	"gpt-5.3":              "gpt-5.3-codex",
 	"gpt-5.3-none":         "gpt-5.3-codex",
 	"gpt-5.3-low":          "gpt-5.3-codex",
@@ -43,10 +33,10 @@ var codexModelMap = map[string]string{
 	"gpt-5.2-medium":       "gpt-5.2",
 	"gpt-5.2-high":         "gpt-5.2",
 	"gpt-5.2-xhigh":        "gpt-5.2",
-	"gpt-5":                "gpt-5.4",
-	"gpt-5-mini":           "gpt-5.4",
-	"gpt-5-nano":           "gpt-5.4",
-	"gpt-5.1":              "gpt-5.4",
+	"gpt-5":                "gpt-5",
+	"gpt-5-mini":           "gpt-5-mini",
+	"gpt-5-nano":           "gpt-5-nano",
+	"gpt-5.1":              "gpt-5.1",
 	"gpt-5.1-codex":        "gpt-5.3-codex",
 	"gpt-5.1-codex-max":    "gpt-5.3-codex",
 	"gpt-5.1-codex-mini":   "gpt-5.3-codex",
@@ -64,11 +54,6 @@ var codexVersionModelPrefixes = []struct {
 	{prefix: "gpt-5.6-luna", target: "gpt-5.6-luna"},
 	{prefix: "gpt-5.3-codex-spark", target: "gpt-5.3-codex-spark"},
 	{prefix: "gpt-5.3-codex", target: "gpt-5.3-codex"},
-	{prefix: "gpt-5.4-mini", target: "gpt-5.4-mini"},
-	{prefix: "gpt-5.4-nano", target: "gpt-5.4-nano"},
-	{prefix: "gpt-5.5-pro", target: "gpt-5.5-pro"},
-	{prefix: "gpt-5.5", target: "gpt-5.5"},
-	{prefix: "gpt-5.4", target: "gpt-5.4"},
 	{prefix: "gpt-5.2", target: "gpt-5.2"},
 }
 
@@ -120,7 +105,7 @@ const (
 	codexImageGenerationBridgeMarker = "<sub2api-codex-image-generation>"
 	codexImageGenerationBridgeText   = codexImageGenerationBridgeMarker + "\nWhen the user asks for raster image generation or editing, use the OpenAI Responses native `image_generation` tool attached to this request. The local Codex client may not expose an `image_gen` namespace, but that does not mean image generation is unavailable. Do not ask the user to switch to CLI fallback solely because `image_gen` is absent.\n</sub2api-codex-image-generation>"
 	codexSparkImageUnsupportedMarker = "<sub2api-codex-spark-image-unsupported>"
-	codexSparkImageUnsupportedText   = codexSparkImageUnsupportedMarker + "\nThe current model is gpt-5.3-codex-spark, which does not support image generation, image editing, image input, the `image_generation` tool, or Codex `image_gen`/`$imagegen` workflows. If the user asks for image generation or image editing, clearly explain this model limitation and ask them to switch to a non-Spark Codex model such as gpt-5.3-codex or gpt-5.4. Do not claim that the local environment merely lacks image_gen tooling, and do not suggest CLI fallback as the primary fix while the model remains Spark.\n</sub2api-codex-spark-image-unsupported>"
+	codexSparkImageUnsupportedText   = codexSparkImageUnsupportedMarker + "\nThe current model is gpt-5.3-codex-spark, which does not support image generation, image editing, image input, the `image_generation` tool, or Codex `image_gen`/`$imagegen` workflows. If the user asks for image generation or image editing, clearly explain this model limitation and ask them to switch to a non-Spark Codex model such as gpt-5.3-codex or gpt-5.6-sol. Do not claim that the local environment merely lacks image_gen tooling, and do not suggest CLI fallback as the primary fix while the model remains Spark.\n</sub2api-codex-spark-image-unsupported>"
 )
 
 var openAIChatGPTInternalUnsupportedFields = []string{
@@ -561,7 +546,7 @@ func stringifyCodexContentText(value any) string {
 func normalizeCodexModel(model string) string {
 	model = strings.TrimSpace(model)
 	if model == "" {
-		return "gpt-5.4"
+		return openai.DefaultTestModel
 	}
 	if mapped, ok := normalizeKnownCodexModel(model); ok {
 		return mapped
@@ -570,6 +555,9 @@ func normalizeCodexModel(model string) string {
 }
 
 func normalizeKnownCodexModel(model string) (string, bool) {
+	if openai.IsRetiredModel(model) {
+		return "", false
+	}
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return "", false
@@ -1103,6 +1091,9 @@ func SupportsVerbosity(model string) bool {
 }
 
 func getNormalizedCodexModel(modelID string) string {
+	if openai.IsRetiredModel(modelID) {
+		return ""
+	}
 	key := codexModelLookupKey(modelID)
 	if key == "" {
 		return ""

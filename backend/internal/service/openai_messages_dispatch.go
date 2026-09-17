@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	defaultOpenAIMessagesDispatchOpusMappedModel   = "gpt-5.4"
+	defaultOpenAIMessagesDispatchOpusMappedModel   = "gpt-5.6-sol"
 	defaultOpenAIMessagesDispatchSonnetMappedModel = "gpt-5.3-codex"
-	defaultOpenAIMessagesDispatchHaikuMappedModel  = "gpt-5.4-mini"
+	defaultOpenAIMessagesDispatchHaikuMappedModel  = "gpt-5.6-luna"
 )
 
 func normalizeOpenAIMessagesDispatchMappedModel(model string) string {

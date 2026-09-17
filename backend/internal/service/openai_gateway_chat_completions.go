@@ -71,6 +71,12 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	compatPromptCacheTenantIsolated bool,
 ) (*OpenAIForwardResult, error) {
 	beginUpstreamResponseModelObservation(c)
+	if err := checkActivePayloadModels(account, body); err != nil {
+		return nil, err
+	}
+	if err := CheckActiveModel(defaultMappedModel); err != nil {
+		return nil, err
+	}
 	ClearActualOpenAIUpstreamEndpoint(c)
 	rememberOpenCodeInboundBody(c, body)
 
@@ -250,6 +256,13 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		)
 	}
 	logger.L().Debug("openai chat_completions: model mapping applied", logFields...)
+	stageMode1Request(c, account, responsesBody)
+	if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+		return nil, err
+	}
+	if account.UsesOpenAICodexProtocol() {
+		setOpenAICompatMessagesBridgeContext(c, true)
+	}
 
 	if account.UsesOpenAICodexProtocol() {
 		var reqBody map[string]any
@@ -330,7 +343,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		apiKeyID := getAPIKeyIDFromContext(c)
 		sessionHeader := generateSessionUUID(promptCacheKey)
 		if !compatPromptCacheTenantIsolated {
-			sessionHeader = isolateOpenAISessionHeader(apiKeyID, promptCacheKey)
+			sessionHeader = isolateOpenAIUpstreamSessionID(apiKeyID, codexAccountIdentitySource(c, account), promptCacheKey)
 		}
 		upstreamReq.Header.Set("session_id", sessionHeader)
 	}
@@ -340,7 +353,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	if account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	resp, err := s.doProtectedOpenAIRequest(upstreamReq, proxyURL, account)
 	if err != nil {
 		return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 	}

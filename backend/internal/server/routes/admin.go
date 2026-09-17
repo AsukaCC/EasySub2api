@@ -382,6 +382,13 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	accounts := admin.Group("/accounts")
 	{
+		accounts.GET("/anti-degrade/strategies", h.Admin.Account.ProtectionStrategies)
+		accounts.POST("/anti-degrade/enable-batch", h.Admin.Account.EnableProtectionBatch)
+		accounts.GET("/:id/anti-degrade", h.Admin.Account.PreviewProtection)
+		accounts.POST("/:id/anti-degrade/apply", h.Admin.Account.ApplyProtection)
+		accounts.POST("/:id/anti-degrade/revert", h.Admin.Account.RevertProtection)
+		accounts.PUT("/:id/anti-degrade", h.Admin.Account.SetProtection)
+		accounts.PUT("/:id/anti-degrade/integrity", h.Admin.Account.SetProtectionIntegrity)
 		accounts.GET("", h.Admin.Account.List)
 		accounts.GET("/subscription-tiers", h.Admin.Account.ListSubscriptionTiers)
 		accounts.GET("/upstream-billing-probe/settings", h.Admin.Account.GetUpstreamBillingProbeSettings)

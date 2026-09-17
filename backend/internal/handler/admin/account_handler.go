@@ -2697,7 +2697,10 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 
 		// Return mapped models
 		var models []openai.Model
-		for requestedModel := range mapping {
+		for requestedModel, mappedModel := range mapping {
+			if service.CheckActiveModel(requestedModel, mappedModel) != nil {
+				continue
+			}
 			var found bool
 			for _, dm := range openai.DefaultModels {
 				if dm.ID == requestedModel {
@@ -2726,7 +2729,10 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 			return
 		}
 		models := make([]geminicli.Model, 0, len(mapping))
-		for requestedModel := range mapping {
+		for requestedModel, mappedModel := range mapping {
+			if service.CheckActiveModel(requestedModel, mappedModel) != nil {
+				continue
+			}
 			models = append(models, geminicli.Model{ID: requestedModel, Type: "model", DisplayName: requestedModel})
 		}
 		response.Success(c, models)
@@ -2766,7 +2772,10 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		}
 
 		requestedModels := make([]string, 0, len(mapping))
-		for requestedModel := range mapping {
+		for requestedModel, mappedModel := range mapping {
+			if service.CheckActiveModel(requestedModel, mappedModel) != nil {
+				continue
+			}
 			requestedModels = append(requestedModels, requestedModel)
 		}
 		sort.Strings(requestedModels)
@@ -2805,7 +2814,10 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 
 	// Return mapped models (keys of the mapping are the available model IDs)
 	var models []claude.Model
-	for requestedModel := range mapping {
+	for requestedModel, mappedModel := range mapping {
+		if service.CheckActiveModel(requestedModel, mappedModel) != nil {
+			continue
+		}
 		// Try to find display info from default models
 		var found bool
 		for _, dm := range claude.DefaultModels {

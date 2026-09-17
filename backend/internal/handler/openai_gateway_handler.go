@@ -71,6 +71,12 @@ func shouldReportOpenAIWSProxyAccountFailureForAccount(account *service.Account,
 }
 
 func isOpenAILocalPolicyRejection(err error) bool {
+	if errors.Is(err, service.ErrModelRetired) {
+		return true
+	}
+	if service.IsAccountProtectionError(err) {
+		return true
+	}
 	if err == nil {
 		return false
 	}
@@ -389,6 +395,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	if rejectRetiredGatewayModel(c, reqModel) {
+		return
+	}
 	bindRequestedReasoningEffort(c, body, reqModel)
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
@@ -730,6 +739,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					zap.Error(err),
 				)
 				submitResponsesUsage(result)
+				return
+			}
+			if errors.Is(err, service.ErrModelRetired) {
+				h.handleStreamingAwareErrorWithCode(c, http.StatusBadRequest, "invalid_request_error", "model_retired", "Requested model has been retired", streamStarted, false)
+				return
+			}
+			if service.IsAccountProtectionError(err) {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Account protection rejected the request", streamStarted)
 				return
 			}
 			if failoverClientGone(c) {
@@ -1074,6 +1091,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	if rejectRetiredGatewayModel(c, reqModel, h.anthropicErrorResponse) {
+		return
+	}
 	bindRequestedReasoningEffort(c, body, reqModel)
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
@@ -1312,6 +1332,14 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					zap.Error(err),
 				)
 			} else {
+				if errors.Is(err, service.ErrModelRetired) {
+					h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model has been retired")
+					return
+				}
+				if service.IsAccountProtectionError(err) {
+					h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Account protection rejected the request")
+					return
+				}
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
 					if failoverClientGone(c) {

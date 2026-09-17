@@ -554,6 +554,10 @@ func (h *ChannelHandler) Delete(c *gin.Context) {
 // GET /api/v1/admin/channels/model-pricing?model=claude-sonnet-4
 func (h *ChannelHandler) GetModelDefaultPricing(c *gin.Context) {
 	model := strings.TrimSpace(c.Query("model"))
+	if service.CheckActiveModel(model) != nil {
+		response.Success(c, gin.H{"found": false})
+		return
+	}
 	if model == "" {
 		response.ErrorFrom(c, infraerrors.BadRequest("MISSING_PARAMETER", "model parameter is required").
 			WithMetadata(map[string]string{"param": "model"}))

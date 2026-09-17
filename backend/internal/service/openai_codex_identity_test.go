@@ -14,7 +14,7 @@ func requireOpenAICodexProbeHeaders(t *testing.T, h http.Header) {
 	require.Equal(t, codexCLIUserAgent, h.Get("User-Agent"))
 	require.Equal(t, openai.CodexDefaultOriginator, h.Get("Originator"))
 	require.Equal(t, codexCLIVersion, h.Get("Version"))
-	require.Empty(t, h.Values("OpenAI-Beta"), "探针与推理主路径一致：不发送 responses=experimental")
+	require.Equal(t, "responses=experimental", h.Get("OpenAI-Beta"))
 	require.NotEmpty(t, h.Get("X-Codex-Window-ID"))
 }
 
@@ -31,7 +31,7 @@ func TestEnsureCodexIdentityHeaders(t *testing.T) {
 		require.Equal(t, openai.CodexDefaultOriginator, h.Get("originator"))
 		require.Equal(t, codexCLIUserAgent, h.Get("user-agent"))
 		require.Equal(t, codexCLIVersion, h.Get("version"))
-		require.Empty(t, h.Values("OpenAI-Beta"))
+		require.Equal(t, "responses=experimental", h.Get("OpenAI-Beta"))
 	})
 
 	t.Run("官方非 CLI 客户端身份同样被统一", func(t *testing.T) {
@@ -47,7 +47,7 @@ func TestEnsureCodexIdentityHeaders(t *testing.T) {
 		require.Equal(t, codexCLIUserAgent, h.Get("user-agent"))
 		require.Equal(t, codexCLIVersion, h.Get("version"))
 		// 独立的 beta 协商保留，legacy responses=experimental 不再补注。
-		require.Equal(t, []string{"assistants=v2"}, h.Values("OpenAI-Beta"))
+		require.Equal(t, "responses=experimental", h.Get("OpenAI-Beta"))
 	})
 }
 
@@ -175,8 +175,8 @@ func TestEnforceCodexIdentityHeadersWithAccountOverrideUA(t *testing.T) {
 
 		enforceCodexIdentityHeadersWithUA(h, "codex-tui/0.125.0 (Mac OS X 14.0; arm64) iTerm")
 
-		require.Equal(t, openai.CodexCLIOriginator, h.Get("originator"))
-		require.Equal(t, "codex_cli_rs/0.200.1 (Mac OS X 14.0; arm64) iTerm", h.Get("user-agent"))
+		require.Equal(t, openai.CodexDefaultOriginator, h.Get("originator"))
+		require.Equal(t, "codex-tui/0.200.1 (Mac OS X 14.0; arm64) iTerm", h.Get("user-agent"))
 		require.Equal(t, "0.200.1", h.Get("version"))
 	})
 }
@@ -260,8 +260,8 @@ func TestEnforceCodexIdentityHeaders_EnforcementDisabled(t *testing.T) {
 
 	enforceCodexIdentityHeaders(h)
 
-	require.Equal(t, openai.CodexCLIOriginator, h.Get("originator"))
-	require.Equal(t, "codex_cli_rs/"+codexCLIVersion+" (Mac OS X 14.0; arm64) iTerm", h.Get("user-agent"))
+	require.Equal(t, openai.CodexDefaultOriginator, h.Get("originator"))
+	require.Equal(t, "codex-tui/"+codexCLIVersion+" (Mac OS X 14.0; arm64) iTerm (codex-tui; "+codexCLIVersion+")", h.Get("user-agent"))
 	require.Equal(t, codexCLIVersion, h.Get("version"))
 }
 
@@ -281,7 +281,7 @@ func TestEnforceCodexIdentityHeaders_NormalizationDisabled(t *testing.T) {
 	enforceCodexIdentityHeaders(h)
 
 	require.Equal(t, "codex-tui", h.Get("originator"))
-	require.Equal(t, "codex-tui/"+codexCLIVersion+" (Mac OS X 14.0; arm64) iTerm (codex-tui; "+codexCLIVersion+")", h.Get("user-agent"))
+	require.Equal(t, codexCLIUserAgent, h.Get("user-agent"))
 	require.Equal(t, codexCLIVersion, h.Get("version"))
 }
 
@@ -342,7 +342,7 @@ func TestFinalizeCodexOAuthIdentityHeadersRestoresSanitizedIdentity(t *testing.T
 	require.Empty(t, h.Get("user-agent"))
 
 	finalizeCodexOAuthIdentityHeaders(h)
-	require.Equal(t, openai.CodexCLIOriginator, h.Get("originator"))
+	require.Equal(t, openai.CodexDefaultOriginator, h.Get("originator"))
 	require.Equal(t, codexCLIUserAgent, h.Get("user-agent"))
 	require.Equal(t, codexCLIVersion, h.Get("version"))
 }

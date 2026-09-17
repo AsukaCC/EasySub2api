@@ -87,6 +87,14 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 	body []byte,
 	defaultMappedModel string,
 ) error {
+	if err := checkActivePayloadModels(account, body); err != nil {
+		writeAnthropicCountTokensError(c, http.StatusBadRequest, "invalid_request_error", "Requested model has been retired")
+		return err
+	}
+	if err := CheckActiveModel(defaultMappedModel); err != nil {
+		writeAnthropicCountTokensError(c, http.StatusBadRequest, "invalid_request_error", "Requested model has been retired")
+		return err
+	}
 	if account == nil {
 		writeAnthropicCountTokensError(c, http.StatusServiceUnavailable, "api_error", "No available OpenAI accounts")
 		return fmt.Errorf("count_tokens: missing account")

@@ -315,7 +315,7 @@ func (m *mockGroupRepoForGateway) GetByIDLite(ctx context.Context, id string) (*
 
 func (m *mockGroupRepoForGateway) Create(ctx context.Context, group *Group) error { return nil }
 func (m *mockGroupRepoForGateway) Update(ctx context.Context, group *Group) error { return nil }
-func (m *mockGroupRepoForGateway) Delete(ctx context.Context, id string) error     { return nil }
+func (m *mockGroupRepoForGateway) Delete(ctx context.Context, id string) error    { return nil }
 func (m *mockGroupRepoForGateway) DeleteCascade(ctx context.Context, id string) ([]string, error) {
 	return nil, nil
 }
@@ -909,7 +909,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_NoModelSupport(t *test
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID: "1",
+				ID:          "1",
 				Platform:    PlatformAnthropic,
 				Priority:    1,
 				Status:      StatusActive,
@@ -971,7 +971,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_GeminiAPIKeyModelMappi
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID: "1",
+				ID:          "1",
 				Platform:    PlatformGemini,
 				Type:        AccountTypeAPIKey,
 				Priority:    1,
@@ -980,7 +980,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_GeminiAPIKeyModelMappi
 				Credentials: map[string]any{"model_mapping": map[string]any{"gemini-2.5-pro": "gemini-2.5-pro"}},
 			},
 			{
-				ID: "2",
+				ID:          "2",
 				Platform:    PlatformGemini,
 				Type:        AccountTypeAPIKey,
 				Priority:    2,
@@ -1051,7 +1051,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_StickyModelMismatchFal
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID: "1",
+				ID:          "1",
 				Platform:    PlatformAnthropic,
 				Priority:    1,
 				Status:      StatusActive,
@@ -2247,7 +2247,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.Equal(t, "1", result.Account.ID)
 	})
 
-	t.Run("Gemini负载排序-优先OAuth", func(t *testing.T) {
+	t.Run("Gemini负载排序-不隐式偏好OAuth", func(t *testing.T) {
 		groupID := "24"
 
 		repo := &mockAccountRepoForPlatform{
@@ -2296,7 +2296,18 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
-		require.Equal(t, "2", result.Account.ID)
+		require.Contains(t, []string{"1", "2"}, result.Account.ID)
+		if result.ReleaseFunc != nil {
+			result.ReleaseFunc()
+		}
+		concurrencyCache.loadMap["1"].LoadRate = 5
+		svc.concurrencyService = NewConcurrencyService(concurrencyCache)
+		result, err = svc.SelectAccountWithLoadAwareness(ctx, &groupID, "", "gemini-2.5-pro", nil, "", "")
+		require.NoError(t, err)
+		require.Equal(t, "1", result.Account.ID, "lower load wins regardless of OAuth/API-key type")
+		if result.ReleaseFunc != nil {
+			result.ReleaseFunc()
+		}
 	})
 
 	t.Run("模型路由-过滤路径覆盖", func(t *testing.T) {
@@ -2308,7 +2319,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 				{ID: "3", Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: false, Concurrency: 5},
 				{ID: "4", Platform: PlatformAntigravity, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5},
 				{
-					ID: "5",
+					ID:          "5",
 					Platform:    PlatformAnthropic,
 					Priority:    1,
 					Status:      StatusActive,
@@ -2323,7 +2334,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 					},
 				},
 				{
-					ID: "6",
+					ID:          "6",
 					Platform:    PlatformAnthropic,
 					Priority:    1,
 					Status:      StatusActive,

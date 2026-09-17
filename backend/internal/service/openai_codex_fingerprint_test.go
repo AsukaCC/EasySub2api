@@ -881,13 +881,13 @@ func TestBuildUpstreamRequestOpenAIPassthrough_AppliesStagedFingerprint(t *testi
 	req, err := svc.buildUpstreamRequestOpenAIPassthrough(context.Background(), c, account, body, "test-token")
 	require.NoError(t, err)
 
-	assert.Equal(t, ids.sessionID, req.Header.Get("session_id"), "session 模式下出站 session_id 应为账号级收敛值")
-	assert.Equal(t, ids.installationID, req.Header.Get("x-codex-installation-id"))
-	assert.Equal(t, ids.windowID, req.Header.Get("x-codex-window-id"))
-	assert.Equal(t, ids.threadID, req.Header.Get("x-client-request-id"))
+	assert.Equal(t, scopeCodexAccountIdentityValue(account, "", "session", ids.sessionID), req.Header.Get("session_id"), "session 模式下出站 session_id 应为账号级收敛值")
+	assert.Equal(t, scopeCodexAccountIdentityValue(account, "", "installation", ids.installationID), req.Header.Get("x-codex-installation-id"))
+	assert.Equal(t, scopeCodexAccountIdentityValue(account, "", "window", ids.windowID), req.Header.Get("x-codex-window-id"))
+	assert.Equal(t, scopeCodexAccountIdentityValue(account, "", "request", ids.threadID), req.Header.Get("x-client-request-id"))
 	turnMetadata := req.Header.Get("x-codex-turn-metadata")
 	require.NotEmpty(t, turnMetadata)
-	assert.Contains(t, turnMetadata, ids.sessionID, "turn-metadata JSON 中的 session_id 应被收敛")
+	assert.Contains(t, turnMetadata, scopeCodexAccountIdentityValue(account, "", "session", ids.sessionID), "turn-metadata JSON 中的 session_id 应被收敛")
 	assert.Contains(t, turnMetadata, `"sandbox":"seatbelt"`, "turn-metadata 未指定字段应原样保留")
 }
 

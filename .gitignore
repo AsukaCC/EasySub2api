@@ -140,7 +140,11 @@ docs/*
 !docs/ASYNC_IMAGE_TASKS.md
 !docs/README.md
 !docs/DEVELOPMENT.md
+!docs/ACCOUNT_PROTECTION.md
+!docs/MODEL_RETIREMENT.md
 !docs/RELEASE.md
+!docs/releases/
+!docs/releases/*.md
 !docs/MIGRATION_EASYSUB2API.md
 !docs/legal/
 !docs/legal/*.md

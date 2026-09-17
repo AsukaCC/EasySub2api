@@ -32,7 +32,7 @@ func (s *OpenAIGatewayService) buildOpenAIResponsesWSURL(account *Account) (stri
 	}
 	var targetURL string
 	switch account.Type {
-	case AccountTypeOAuth:
+	case AccountTypeOAuth, AccountTypeSetupToken:
 		targetURL = chatgptCodexURL
 	case AccountTypeAPIKey:
 		baseURL := account.GetOpenAIBaseURL()
@@ -79,6 +79,19 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	routingModel string,
 	routingServiceTier string,
 ) (http.Header, openAIWSSessionHeaderResolution, error) {
+	if err := CheckActiveAccountModel(account, routingModel); err != nil {
+		return nil, openAIWSSessionHeaderResolution{}, err
+	}
+	if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+		return nil, openAIWSSessionHeaderResolution{}, err
+	}
+	if stagedCodexFingerprintIDs(c, account) == nil {
+		var inbound http.Header
+		if c != nil && c.Request != nil {
+			inbound = c.Request.Header
+		}
+		stageCodexFingerprintIDs(c, resolveCodexFingerprintIDsFromRequest(codexAccountIdentitySource(c, account), inbound))
+	}
 	headers := make(http.Header)
 	if account == nil || !account.IsOpenAIAgentIdentity() {
 		headers.Set("authorization", "Bearer "+token)
@@ -114,12 +127,11 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	applyOpenAICodexBetaFeatures(c, account, headers)
 	// OAuth 账号：将 apiKeyID 混入 session 标识符，防止跨用户会话碰撞。
 	if account != nil && account.Type == AccountTypeOAuth {
-		apiKeyID := getAPIKeyIDFromContext(c)
 		if sessionResolution.SessionID != "" {
-			headers.Set("session_id", isolateOpenAISessionHeader(apiKeyID, sessionResolution.SessionID))
+			headers.Set("session_id", sessionResolution.SessionID)
 		}
 		if sessionResolution.ConversationID != "" {
-			headers.Set("conversation_id", isolateOpenAISessionHeader(apiKeyID, sessionResolution.ConversationID))
+			headers.Set("conversation_id", sessionResolution.ConversationID)
 		}
 	} else {
 		if sessionResolution.SessionID != "" {
@@ -139,6 +151,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 		headers.Set(openAIWSTurnMetadataHeader, metadata)
 	}
 	applyStagedCodexFingerprintHeaders(c, account, headers)
+	applyCodexAccountIdentityHeaders(headers, codexAccountIdentitySource(c, account), "")
 
 	if account != nil && account.Type == AccountTypeOAuth {
 		if err := resolveAndSetOpenAIChatGPTAccountHeaders(ctx, s.accountRepo, headers, account); err != nil {

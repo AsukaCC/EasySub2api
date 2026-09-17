@@ -851,12 +851,9 @@ type GatewayConfig struct {
 	// 取反义命名是为了让零值安全：该开关会发布为进程级快照，未经 viper 加载而手工构造的
 	// Config（测试、工具）其零值必须落在「强制统一开启」这一侧，否则会静默丢掉这层保护。
 	DisableCodexIdentityEnforcement bool `mapstructure:"disable_codex_identity_enforcement"`
-	// CodexAllowPrereleaseVersion: 允许 Codex 出站身份使用预发布版本号（如 0.154.0-alpha.3）。
-	// 默认关闭：生产出站只接受官方稳定版；面板手工填写或历史同步值若为预发布形态，
-	// 一律按非法版本回退到下一优先级来源。仅在需要跟随 alpha 通道联调时显式开启。
+	// Deprecated: retained for config compatibility; prereleases are always accepted.
 	CodexAllowPrereleaseVersion bool `mapstructure:"codex_allow_prerelease_version"`
-	// DisableCodexOriginatorNormalization: 兼容旧配置的回滚开关。设为 true 时关闭已知上游
-	// 降载 originator 到官方 CLI 身份的归一化，并连带关闭身份强制；默认 false。
+	// Deprecated: retained for config compatibility; no originator normalization is applied.
 	DisableCodexOriginatorNormalization bool `mapstructure:"disable_codex_originator_normalization"`
 	// CodexImageGenerationBridgeEnabled: 是否为 Codex `/v1/responses` 自动注入 image_generation 工具和桥接指令。
 	// 默认关闭，避免纯文本 Codex 请求被意外改写；显式携带 image_generation 工具的请求仍按分组能力转发。
@@ -1766,12 +1763,6 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Gateway.ForcedCodexInstructionsTemplate = string(content)
 	}
 
-	// 旧版仅提供 disable_codex_originator_normalization，并把它作为完整身份保护的回滚键。
-	// 保留该语义，避免升级后既有配置意外重新启用强制改写；新配置应优先使用两个独立开关。
-	if cfg.Gateway.DisableCodexOriginatorNormalization {
-		cfg.Gateway.DisableCodexIdentityEnforcement = true
-	}
-
 	// 兼容旧键 gateway.openai_ws.sticky_previous_response_ttl_seconds。
 	// 新键未配置（<=0）时回退旧键；新键优先。
 	if cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && cfg.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
@@ -2174,7 +2165,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.disable_codex_originator_normalization", false)
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
-	viper.SetDefault("gateway.openai_compact_model", "gpt-5.4")
+	viper.SetDefault("gateway.openai_compact_model", "gpt-5.6-sol")
 	viper.SetDefault("gateway.live.max_session_duration_seconds", 3600)
 	// OpenAI Responses WebSocket（默认开启；可通过 force_http 紧急回滚）
 	viper.SetDefault("gateway.openai_ws.enabled", true)

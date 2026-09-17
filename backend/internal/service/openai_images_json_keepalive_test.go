@@ -224,7 +224,8 @@ func TestOpenAIImagesJSONKeepalive_HeartbeatBeforeForwardStillFailsOver(t *testi
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Credentials: map[string]any{
-					"access_token": "token-123",
+					"access_token":       "token-123",
+					"chatgpt_account_id": "test-image-account",
 				},
 			}
 

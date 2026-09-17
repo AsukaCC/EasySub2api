@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -79,6 +80,7 @@ func newDefaultOpenAIWSClientDialer() openAIWSClientDialer {
 }
 
 type coderOpenAIWSClientDialer struct {
+	tlsRootCAs   *x509.CertPool
 	proxyMu      sync.Mutex
 	proxyClients map[string]*openAIWSProxyClientEntry
 	proxyHits    atomic.Int64
@@ -132,7 +134,13 @@ func (d *coderOpenAIWSClientDialer) Dial(
 			return true
 		},
 	}
-	if proxy := strings.TrimSpace(proxyURL); proxy != "" {
+	if cfg, ok := ctx.Value(openAIWSTLSContextKey{}).(openAIWSTLSConfig); ok && cfg.profile != nil {
+		client, err := d.fingerprintHTTPClient(cfg, targetURL, proxyURL)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		opts.HTTPClient = client
+	} else if proxy := strings.TrimSpace(proxyURL); proxy != "" {
 		proxyClient, err := d.proxyHTTPClient(proxy)
 		if err != nil {
 			return nil, 0, nil, err

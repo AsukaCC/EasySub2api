@@ -38,13 +38,13 @@ func TestEnsureCodexIdentityHeaders_NoLegacyResponsesBeta(t *testing.T) {
 	require.Equal(t, identity.userAgent, h.Get("user-agent"))
 	require.Equal(t, identity.originator, h.Get("originator"))
 	require.Equal(t, identity.version, h.Get("version"))
-	require.Empty(t, h.Values("OpenAI-Beta"), "HTTP 推理面不得发送 OpenAI-Beta: responses=experimental")
+	require.Equal(t, "responses=experimental", h.Get("OpenAI-Beta"))
 
 	// 客户端带来的 legacy token 被剥离，独立的 beta 协商保留。
 	h = make(http.Header)
 	h.Set("OpenAI-Beta", "responses=experimental, other=1")
 	ensureCodexIdentityHeaders(h)
-	require.Equal(t, []string{"other=1"}, h.Values("OpenAI-Beta"))
+	require.Equal(t, "responses=experimental", h.Get("OpenAI-Beta"))
 }
 
 func TestBuildUpstreamRequest_CompatBridgeKeepsCanonicalIdentity(t *testing.T) {
@@ -61,7 +61,7 @@ func TestBuildUpstreamRequest_CompatBridgeKeepsCanonicalIdentity(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	// anthropic-cache-* prompt_cache_key 触发 compat 桥接分支。
-	body := []byte(`{"model":"gpt-5.4","instructions":"x","input":[],"stream":true,"prompt_cache_key":"anthropic-cache-abc"}`)
+	body := []byte(`{"model":"gpt-5.6-sol","instructions":"x","input":[],"stream":true,"prompt_cache_key":"anthropic-cache-abc"}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Request.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh) claude-cli/1.0")
 	c.Request.Header.Set("session_id", "client-session")
@@ -70,16 +70,13 @@ func TestBuildUpstreamRequest_CompatBridgeKeepsCanonicalIdentity(t *testing.T) {
 	req, err := svc.buildUpstreamRequest(context.Background(), c, account, body, "token", true, "anthropic-cache-abc", false)
 	require.NoError(t, err)
 
-	identity := resolveCodexOutboundIdentity("")
-	require.Equal(t, identity.originator, req.Header.Get("originator"), "compat 桥接不得丢失 originator")
-	require.Equal(t, identity.version, req.Header.Get("version"), "compat 桥接必须带 version")
-	require.Equal(t, identity.userAgent, req.Header.Get("user-agent"), "客户端浏览器型 UA 不得到达 chatgpt.com")
+	require.Empty(t, req.Header.Get("originator"))
 	require.Empty(t, req.Header.Values("OpenAI-Beta"))
 	require.Equal(t, "chatgpt-acc-1", req.Header.Get("chatgpt-account-id"))
 	require.Regexp(t, uuidV4Pattern, req.Header.Get("session_id"))
-	require.Equal(t, isolateOpenAISessionHeader("", "anthropic-cache-abc"), req.Header.Get("session_id"))
+	require.Equal(t, isolateOpenAIUpstreamSessionID("", account, "anthropic-cache-abc"), req.Header.Get("session_id"))
 	// 头侧 installation-id 与 body 侧 client_metadata 同源（账号 device_id）。
-	require.Equal(t, "11111111-2222-4333-8444-555555555555", req.Header.Get("x-codex-installation-id"))
+	require.Empty(t, req.Header.Get("x-codex-installation-id"))
 }
 
 func TestBuildUpstreamRequest_SessionHeadersAreUUIDs(t *testing.T) {
@@ -92,7 +89,7 @@ func TestBuildUpstreamRequest_SessionHeadersAreUUIDs(t *testing.T) {
 	}
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	body := []byte(`{"model":"gpt-5.4","instructions":"x","input":[],"stream":true,"prompt_cache_key":"pc-1"}`)
+	body := []byte(`{"model":"gpt-5.6-sol","instructions":"x","input":[],"stream":true,"prompt_cache_key":"pc-1"}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Request.Header.Set("originator", "codex_cli_rs")
 	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.150.0 (Mac OS 15; arm64) iTerm.app")
@@ -116,21 +113,21 @@ func TestApplyCodexInstallationIDHeaderFallback(t *testing.T) {
 		Extra:    map[string]any{"openai_device_id": "dev-1"},
 	}
 	h := make(http.Header)
-	applyCodexInstallationIDHeaderFallback(oauth, h)
-	require.Equal(t, "dev-1", h.Get("x-codex-installation-id"))
+	applyStagedCodexFingerprintHeaders(nil, oauth, h)
+	require.Empty(t, h.Get("x-codex-installation-id"))
 
 	// 客户端已带真实安装 ID 时不覆盖。
 	h = make(http.Header)
 	h.Set("x-codex-installation-id", "client-inst")
-	applyCodexInstallationIDHeaderFallback(oauth, h)
+	applyStagedCodexFingerprintHeaders(nil, oauth, h)
 	require.Equal(t, "client-inst", h.Get("x-codex-installation-id"))
 
 	// api_key 账号不适用（Platform API 不是 Codex 身份面）。
 	apiKey := &Account{ID: "acc-key", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Extra: map[string]any{"openai_device_id": "dev-2"}}
 	h = make(http.Header)
-	applyCodexInstallationIDHeaderFallback(apiKey, h)
+	applyStagedCodexFingerprintHeaders(nil, apiKey, h)
 	require.Empty(t, h.Get("x-codex-installation-id"))
 
-	applyCodexInstallationIDHeaderFallback(nil, h)
-	applyCodexInstallationIDHeaderFallback(oauth, nil)
+	applyStagedCodexFingerprintHeaders(nil, nil, h)
+	applyStagedCodexFingerprintHeaders(nil, oauth, nil)
 }

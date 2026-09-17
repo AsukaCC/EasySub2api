@@ -41,7 +41,7 @@ const (
 	// codexCLIUserAgent 是编译期兜底 UA；运行时优先使用由后台版本号拼出的规范 UA。
 	// 版本段必须来自 codexCLIVersion：UA 与 version 头是同一个版本声明的两个出口，
 	// 各自硬编码会漂移成互相矛盾的身份。
-	codexCLIUserAgent = openai.CodexCLIOriginator + "/" + codexCLIVersion + codexCLIUserAgentSuffix
+	codexCLIUserAgent = openai.CodexDefaultOriginator + "/" + codexCLIVersion + codexCLIUserAgentSuffix
 	// codex_cli_only 拒绝时单个请求头日志长度上限（字符）
 	codexCLIOnlyHeaderValueMaxBytes = 256
 
@@ -586,7 +586,7 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	if cfg != nil {
 		// 旧配置键仍作为完整保护的回滚别名，即使调用方手工构造 Config
 		// 而未经过 config.load，也不能意外重新开启身份强制。
-		identityEnforcementDisabled := cfg.Gateway.DisableCodexIdentityEnforcement || cfg.Gateway.DisableCodexOriginatorNormalization
+		identityEnforcementDisabled := cfg.Gateway.DisableCodexIdentityEnforcement
 		SetCodexIdentityEnforcementEnabled(!identityEnforcementDisabled)
 		SetCodexOriginatorNormalizationEnabled(!cfg.Gateway.DisableCodexOriginatorNormalization)
 		SetCodexPrereleaseVersionAllowed(cfg.Gateway.CodexAllowPrereleaseVersion)

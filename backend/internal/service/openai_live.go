@@ -159,6 +159,9 @@ func ValidateLiveCallRequest(request *LiveCallRequest) error {
 	if sessionObject == nil {
 		return errors.New("session must be a JSON object")
 	}
+	if err := checkActivePayloadModels(nil, request.Session); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -320,6 +323,11 @@ func (s *OpenAIGatewayService) createUpstreamLiveCall(
 	request *LiveCallRequest,
 	attestation string,
 ) (*LiveCallCreated, error) {
+	if request != nil {
+		if err := checkActivePayloadModels(account, request.Session); err != nil {
+			return nil, err
+		}
+	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		logLiveCreateStageFailure(ctx, account.ID, "access_token", err)
@@ -588,6 +596,11 @@ func (s *OpenAIGatewayService) ProxyLiveSideband(
 			messageType, payload, readErr := downstream.Read(proxyCtx)
 			if readErr != nil {
 				errCh <- readErr
+				return
+			}
+			if err := checkActivePayloadModels(nil, payload); err != nil {
+				_ = downstream.Close(coderws.StatusPolicyViolation, "Requested model has been retired")
+				errCh <- err
 				return
 			}
 			if writeErr := upstream.WriteFrame(proxyCtx, messageType, payload); writeErr != nil {

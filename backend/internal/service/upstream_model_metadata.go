@@ -418,7 +418,7 @@ func extractUpstreamModelCatalog(body []byte, grok bool) ([]string, map[string]U
 			continue
 		}
 		modelID := strings.TrimSpace(selectID(capability.upstreamModelEntry))
-		if modelID == "" {
+		if modelID == "" || CheckActiveModel(modelID) != nil {
 			continue
 		}
 		models = append(models, modelID)
