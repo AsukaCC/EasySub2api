@@ -766,6 +766,7 @@ func checkPricesNotNegative(p ChannelModelPricing) error {
 		{"cache_write_1h_price", p.CacheWrite1hPrice},
 		{"cache_read_price", p.CacheReadPrice},
 		{"image_input_price", p.ImageInputPrice},
+		{"image_cache_read_price", p.ImageCacheReadPrice},
 		{"image_output_price", p.ImageOutputPrice},
 		{"per_request_price", p.PerRequestPrice},
 	}

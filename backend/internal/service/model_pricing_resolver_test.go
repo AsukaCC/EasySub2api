@@ -160,6 +160,44 @@ func TestGPT56ExplicitZeroCacheWritePriceIsPreserved(t *testing.T) {
 	})
 }
 
+func TestChannelImageCacheReadPriceOverrideAndFallback(t *testing.T) {
+	cacheReadPrice := 1.25e-6
+	imageCacheReadPrice := 2e-6
+
+	t.Run("explicit channel price", func(t *testing.T) {
+		pricing := &ModelPricing{CacheReadPricePerToken: cacheReadPrice, ImageCacheReadPricePerToken: 9e-6}
+		applyChannelImageCacheReadPrice(&ChannelModelPricing{ImageCacheReadPrice: &imageCacheReadPrice}, pricing)
+		require.InDelta(t, imageCacheReadPrice, pricing.ImageCacheReadPricePerToken, 1e-12)
+
+		cost := (&BillingService{}).computeTokenBreakdown(pricing, UsageTokens{
+			CacheReadTokens:      20,
+			ImageCacheReadTokens: 8,
+		}, 1, "", false)
+		require.InDelta(t, 12*cacheReadPrice+8*imageCacheReadPrice, cost.CacheReadCost, 1e-12)
+	})
+
+	t.Run("missing channel price falls back to ordinary cache read", func(t *testing.T) {
+		pricing := &ModelPricing{CacheReadPricePerToken: cacheReadPrice, ImageCacheReadPricePerToken: 9e-6}
+		applyChannelImageCacheReadPrice(&ChannelModelPricing{}, pricing)
+		require.Zero(t, pricing.ImageCacheReadPricePerToken)
+
+		cost := (&BillingService{}).computeTokenBreakdown(pricing, UsageTokens{
+			CacheReadTokens:      20,
+			ImageCacheReadTokens: 8,
+		}, 1, "", false)
+		require.InDelta(t, 20*cacheReadPrice, cost.CacheReadCost, 1e-12)
+	})
+
+	t.Run("interval pricing uses channel-level image cache price", func(t *testing.T) {
+		pricing := intervalToModelPricing(
+			&PricingInterval{CacheReadPrice: &cacheReadPrice},
+			false,
+			&ChannelModelPricing{ImageCacheReadPrice: &imageCacheReadPrice},
+		)
+		require.InDelta(t, imageCacheReadPrice, pricing.ImageCacheReadPricePerToken, 1e-12)
+	})
+}
+
 func TestGetRequestTierPrice(t *testing.T) {
 	bs := newTestBillingServiceForResolver()
 	r := NewModelPricingResolver(&ChannelService{}, bs)
@@ -219,10 +257,10 @@ func newResolverWithChannel(t *testing.T, pricing []ChannelModelPricing) *ModelP
 	repo := &mockChannelRepository{
 		listAllFn: func(_ context.Context) ([]Channel, error) {
 			return []Channel{{
-				ID: "1",
+				ID:           "1",
 				Name:         "test-channel",
 				Status:       StatusActive,
-				GroupIDs: []string{},
+				GroupIDs:     []string{groupID},
 				ModelPricing: pricing,
 			}}, nil
 		},

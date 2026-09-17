@@ -1130,6 +1130,7 @@ func (s *BillingService) GetModelPricingWithChannel(model string, channelPricing
 		pricing.MaxReasoningEffortMultiplier = channelPricing.MaxReasoningEffortMultiplier
 	}
 	applyChannelImageInputPrice(channelPricing, pricing)
+	applyChannelImageCacheReadPrice(channelPricing, pricing)
 	return pricing, nil
 }
 
