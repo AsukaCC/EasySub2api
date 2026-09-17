@@ -173,16 +173,16 @@ export async function checkProxyQuality(id: string): Promise<ProxyQualityCheckRe
 export async function getStats(id: string): Promise<{
   total_accounts: number
   active_accounts: number
-  total_requests: number
-  success_rate: number
-  average_latency: number
+  total_requests: number | null
+  success_rate: number | null
+  average_latency: number | null
 }> {
   const { data } = await apiClient.get<{
     total_accounts: number
     active_accounts: number
-    total_requests: number
-    success_rate: number
-    average_latency: number
+    total_requests: number | null
+    success_rate: number | null
+    average_latency: number | null
   }>(`/admin/proxies/${id}/stats`)
   return data
 }

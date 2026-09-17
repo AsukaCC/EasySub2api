@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -376,19 +377,12 @@ func (h *RedeemHandler) Expire(c *gin.Context) {
 // GetStats handles getting redeem code statistics
 // GET /api/v1/admin/redeem-codes/stats
 func (h *RedeemHandler) GetStats(c *gin.Context) {
-	// Return mock data for now
-	response.Success(c, gin.H{
-		"total_codes":             0,
-		"active_codes":            0,
-		"used_codes":              0,
-		"expired_codes":           0,
-		"total_value_distributed": 0.0,
-		"by_type": gin.H{
-			"balance":     0,
-			"concurrency": 0,
-			"trial":       0,
-		},
-	})
+	stats, err := h.adminService.GetRedeemStats(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, stats)
 }
 
 // Export handles exporting redeem codes to CSV
@@ -403,13 +397,6 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 		search = search[:100]
 	}
 
-	// Get all codes without pagination (use large page size)
-	codes, _, err := h.adminService.ListRedeemCodes(c.Request.Context(), 1, 10000, codeType, status, search, sortBy, sortOrder)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
 	// Create CSV buffer
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
@@ -420,38 +407,63 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 		return
 	}
 
-	// Write data rows
-	for _, code := range codes {
-		usedBy := ""
-		if code.UsedBy != nil {
-			usedBy = fmt.Sprintf("%v", *code.UsedBy)
-		}
-		usedByEmail := ""
-		if code.User != nil {
-			usedByEmail = code.User.Email
-		}
-		usedAt := ""
-		if code.UsedAt != nil {
-			usedAt = code.UsedAt.Format("2006-01-02 15:04:05")
-		}
-		expiresAt := ""
-		if code.ExpiresAt != nil {
-			expiresAt = code.ExpiresAt.Format("2006-01-02 15:04:05")
-		}
-		if err := writer.Write([]string{
-			fmt.Sprintf("%v", code.ID),
-			code.Code,
-			code.Type,
-			fmt.Sprintf("%.2f", code.Value),
-			code.Status,
-			usedBy,
-			usedByEmail,
-			usedAt,
-			expiresAt,
-			code.CreatedAt.Format("2006-01-02 15:04:05"),
-		}); err != nil {
-			response.InternalError(c, "Failed to export redeem codes: "+err.Error())
+	// Keep the response uncommitted until every page has been read successfully.
+	const pageSize = 1000
+	var expectedTotal int64
+	seen := make(map[string]struct{})
+	for page := 1; ; page++ {
+		codes, total, err := h.adminService.ListRedeemCodes(c.Request.Context(), page, pageSize, codeType, status, search, sortBy, sortOrder)
+		if err != nil {
+			response.ErrorFrom(c, err)
 			return
+		}
+		if page == 1 {
+			expectedTotal = total
+		}
+		if total != expectedTotal || (len(codes) == 0 && int64(len(seen)) < expectedTotal) {
+			response.Error(c, http.StatusConflict, "Redeem codes changed during export; please retry")
+			return
+		}
+		for _, code := range codes {
+			if _, exists := seen[code.ID]; exists {
+				response.Error(c, http.StatusConflict, "Redeem codes changed during export; please retry")
+				return
+			}
+			seen[code.ID] = struct{}{}
+			usedBy := ""
+			if code.UsedBy != nil {
+				usedBy = fmt.Sprintf("%v", *code.UsedBy)
+			}
+			usedByEmail := ""
+			if code.User != nil {
+				usedByEmail = code.User.Email
+			}
+			usedAt := ""
+			if code.UsedAt != nil {
+				usedAt = code.UsedAt.Format("2006-01-02 15:04:05")
+			}
+			expiresAt := ""
+			if code.ExpiresAt != nil {
+				expiresAt = code.ExpiresAt.Format("2006-01-02 15:04:05")
+			}
+			if err := writer.Write([]string{
+				fmt.Sprintf("%v", code.ID),
+				code.Code,
+				code.Type,
+				fmt.Sprintf("%.2f", code.Value),
+				code.Status,
+				usedBy,
+				usedByEmail,
+				usedAt,
+				expiresAt,
+				code.CreatedAt.Format("2006-01-02 15:04:05"),
+			}); err != nil {
+				response.InternalError(c, "Failed to export redeem codes: "+err.Error())
+				return
+			}
+		}
+		if int64(len(seen)) >= expectedTotal {
+			break
 		}
 	}
 
