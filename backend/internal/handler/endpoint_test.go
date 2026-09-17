@@ -177,7 +177,54 @@ func TestGetUpstreamEndpointPrefersRuntimeOverride(t *testing.T) {
 	require.Equal(t, EndpointAntigravityGenerateContent, GetUpstreamEndpoint(c, service.PlatformAntigravity))
 
 	setActualUpstreamEndpoint(c, "")
-	require.Equal(t, EndpointMessages, GetUpstreamEndpoint(c, service.PlatformAntigravity))
+	require.Equal(t, EndpointChatCompletions, GetUpstreamEndpoint(c, service.PlatformAntigravity))
+}
+
+func TestPrepareAntigravityCompatForwardIsolatesAccountTypesAcrossRoutes(t *testing.T) {
+	routes := []struct {
+		name     string
+		path     string
+		inbound  string
+		fallback string
+	}{
+		{name: "messages", path: EndpointMessages, inbound: EndpointMessages, fallback: EndpointMessages},
+		{name: "chat_completions", path: EndpointChatCompletions, inbound: EndpointChatCompletions, fallback: EndpointChatCompletions},
+		{name: "responses", path: EndpointResponses, inbound: EndpointResponses, fallback: EndpointResponses},
+		{name: "gemini", path: "/v1beta/models/gemini-2.5-pro:generateContent", inbound: EndpointGeminiModels, fallback: EndpointGeminiModels},
+	}
+	accountTypes := []struct {
+		name        string
+		accountType string
+		wantCompat  bool
+	}{
+		{name: "oauth", accountType: service.AccountTypeOAuth, wantCompat: true},
+		{name: "api_key", accountType: service.AccountTypeAPIKey, wantCompat: false},
+		{name: "upstream", accountType: service.AccountTypeUpstream, wantCompat: false},
+		{name: "setup_token", accountType: service.AccountTypeSetupToken, wantCompat: false},
+	}
+
+	for _, route := range routes {
+		t.Run(route.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPost, route.path, nil)
+			c.Set(ctxKeyInboundEndpoint, route.inbound)
+			setActualUpstreamEndpoint(c, "/stale-oauth-endpoint")
+
+			for _, accountCase := range accountTypes {
+				t.Run(accountCase.name, func(t *testing.T) {
+					account := &service.Account{Platform: service.PlatformAntigravity, Type: accountCase.accountType}
+					require.Equal(t, accountCase.wantCompat, prepareAntigravityCompatForward(c, account))
+
+					wantEndpoint := route.fallback
+					if accountCase.wantCompat {
+						wantEndpoint = EndpointAntigravityGenerateContent
+					}
+					require.Equal(t, wantEndpoint, GetUpstreamEndpoint(c, service.PlatformAntigravity))
+				})
+			}
+		})
+	}
 }
 
 func TestResolveOpenAIUpstreamEndpointPrefersForwardResult(t *testing.T) {

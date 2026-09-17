@@ -214,6 +214,19 @@ func shouldUseAntigravityCompat(account *service.Account) bool {
 	return account != nil && account.Platform == service.PlatformAntigravity && account.Type == service.AccountTypeOAuth
 }
 
+// prepareAntigravityCompatForward resets the per-attempt endpoint override and
+// enables the native Gemini compatibility route only for Antigravity OAuth
+// accounts. Every failover attempt must call this helper so API key, upstream,
+// and setup-token accounts cannot inherit an OAuth endpoint from a prior try.
+func prepareAntigravityCompatForward(c *gin.Context, account *service.Account) bool {
+	setActualUpstreamEndpoint(c, "")
+	if !shouldUseAntigravityCompat(account) {
+		return false
+	}
+	setActualUpstreamEndpoint(c, EndpointAntigravityGenerateContent)
+	return true
+}
+
 // responsesSubpathSuffix extracts the part after "/responses" in a raw
 // request path, e.g. "/openai/v1/responses/compact" → "/compact".
 // Returns "" when there is no meaningful suffix.

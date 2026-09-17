@@ -563,7 +563,11 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 		// 记录 Forward 前已写入字节数，Forward 后若增加则说明 SSE 内容已发，禁止 failover
 		writerSizeBeforeForward := c.Writer.Size()
-		result, err = h.gatewayService.Forward(requestCtx, c, account, attemptParsedReq)
+		if prepareAntigravityCompatForward(c, account) {
+			result, err = h.antigravityGatewayService.Forward(requestCtx, c, account, attemptParsedReq.Body.Bytes(), hasBoundSession)
+		} else {
+			result, err = h.gatewayService.Forward(requestCtx, c, account, attemptParsedReq)
+		}
 
 		// 兜底释放串行锁（正常情况已通过回调提前释放）
 		if queueRelease != nil {
