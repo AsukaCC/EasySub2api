@@ -439,6 +439,57 @@ func TestOpenAIGatewayServiceRecordUsage_UsesUserSpecificGroupRate(t *testing.T)
 	require.Equal(t, 1, userRepo.deductCalls)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_RateMultiplierOverrideWinsAfterSelectionPlan(t *testing.T) {
+	groupID := "group-live-snapshot"
+	override := 0.25
+	usage := OpenAIUsage{InputTokens: 1000, OutputTokens: 200}
+
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{}, nil)
+	selectedGroup := &Group{
+		ID:             groupID,
+		Platform:       PlatformOpenAI,
+		Status:         StatusActive,
+		Hydrated:       true,
+		RateMultiplier: 0.9,
+	}
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_live_multiplier_snapshot",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      "id-live-key",
+			GroupID: i64p(groupID),
+			Group:   selectedGroup,
+		},
+		User:    &User{ID: "id-live-user"},
+		Account: &Account{ID: "id-live-account"},
+		Selection: &AccountSelectionResult{
+			BillingGroup: selectedGroup,
+			RatePlan: &UserRatePlan{
+				EffectiveBaseMultiplier: 0.9,
+				EffectiveMultiplier:     0.6,
+				NonDynamicMultiplier:    0.7,
+				DynamicCandidates:       []DynamicRateCandidate{{}},
+			},
+		},
+		RateMultiplierOverride: &override,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.InDelta(t, override, usageRepo.lastLog.RateMultiplier, 1e-12)
+
+	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, override)
+	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
+	require.InDelta(t, expected.ActualCost, userRepo.lastAmount, 1e-12)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *testing.T) {
 	groupID := "group-14"
 	groupRate := 1.0
