@@ -577,16 +577,20 @@ export default {
           'Disabled by default. Enable to allow responses_websockets_v2 capability (still gated by global and account-type switches).',
         wsMode: 'WS mode',
         wsModeDesc:
-          'Only applies to the current OpenAI account type; account WS modes, including http_bridge, take effect only when the global gateway.openai_ws.mode_router_v2_enabled=true.',
+          'Applies only to the current OpenAI account type. Off disables WebSocket routing. Other modes use the selected transport when gateway.openai_ws.mode_router_v2_enabled=true; otherwise the gateway keeps legacy context-pool behavior.',
         wsModeOff: 'Off (off)',
         wsModeCtxPool: 'Context Pool (ctx_pool)',
         wsModePassthrough: 'Passthrough (passthrough)',
         wsModeHttpBridge: 'HTTP Bridge (http_bridge)',
         wsModeShared: 'Shared (shared)',
         wsModeDedicated: 'Dedicated (dedicated)',
+        wsModeOffHint: 'WebSocket routing is disabled for this account type.',
         wsModeConcurrencyHint:
-          'When WS mode is enabled, account concurrency becomes the WS connection pool limit for this account.',
-        wsModePassthroughHint: 'Passthrough mode does not use the WS connection pool.',
+          'Account concurrency limits requests in flight; the context-pool connection limit is controlled by the gateway pool settings.',
+        wsModePassthroughHint:
+          'Each client session uses its own upstream WebSocket connection and does not enter the shared context pool.',
+        wsModeHttpBridgeHint:
+          'Client WebSocket requests are converted to upstream HTTP/SSE responses and relayed back over the client connection.',
         oauthResponsesWebsocketsV2: 'OAuth WebSocket Mode',
         oauthResponsesWebsocketsV2Desc:
           'Only applies to OpenAI OAuth. This account can use OpenAI WebSocket Mode only when enabled.',

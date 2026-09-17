@@ -48,3 +48,9 @@ func TestApplyOpenAIWSRetryPayloadStrategy_AttemptSixKeepsSemanticFields(t *test
 	require.Contains(t, payload, "parallel_tool_calls")
 	require.Contains(t, payload, "text")
 }
+
+func TestShouldForceNewOpenAIWSConn(t *testing.T) {
+	require.False(t, shouldForceNewOpenAIWSConn(1, false))
+	require.True(t, shouldForceNewOpenAIWSConn(1, true), "store-disabled policy should still force a fresh connection")
+	require.True(t, shouldForceNewOpenAIWSConn(2, false), "every retry must avoid reusing pooled connection state")
+}
