@@ -44,11 +44,12 @@ func TestCodexDirectImagesRouting(t *testing.T) {
 			require.NotEmpty(t, upstream.lastReq.Header.Get("User-Agent"))
 			require.Equal(t, model, gjson.GetBytes(upstream.lastBody, "model").String())
 			require.Equal(t, "  原样保留 prompt  ", gjson.GetBytes(upstream.lastBody, "prompt").String())
-			require.True(t, gjson.GetBytes(upstream.lastBody, "extra.preserve").Bool())
+			require.False(t, gjson.GetBytes(upstream.lastBody, "extra").Exists())
 			for _, key := range []string{"tools", "reasoning", "instructions", "response_format", "stream"} {
 				require.False(t, gjson.GetBytes(upstream.lastBody, key).Exists(), key)
 			}
 			require.Equal(t, "data:image/png;base64,aGVsbG8=", gjson.GetBytes(rec.Body.Bytes(), "data.0.url").String())
+			require.Equal(t, model, gjson.GetBytes(rec.Body.Bytes(), "data.0.model").String())
 		})
 	}
 }
@@ -81,23 +82,33 @@ func TestCodexDirectImagesMappingBeforeRouting(t *testing.T) {
 	}
 }
 
-func TestCodexDirectImagesHTTPErrorDoesNotFallback(t *testing.T) {
-	for _, status := range []int{400, 401, 403, 429, 500, 502, 503} {
+func TestCodexDirectImagesHTTPErrorFallbacksOnlyWhenEndpointUnavailable(t *testing.T) {
+	for _, status := range []int{400, 401, 403, 429, 500, 502, 503, 404, 405} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			calls := 0
 			upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 				calls++
-				require.Equal(t, "/backend-api/codex/images/generations", req.URL.Path)
-				return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"type":"server_error","message":"image request rejected"}}`))}, nil
+				if calls == 1 {
+					require.Equal(t, "/backend-api/codex/images/generations", req.URL.Path)
+					return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"type":"server_error","message":"image request rejected"}}`))}, nil
+				}
+				require.Contains(t, req.URL.Path, "/backend-api/codex/responses")
+				return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"text/event-stream"}}, Body: io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\",\"response\":{\"output\":[{\"type\":\"image_generation_call\",\"result\":\"aGVsbG8=\"}]}}\n\n"))}, nil
 			}}
 			body := []byte(`{"model":"gpt-image-2.5-sunburst","prompt":"draw"}`)
 			c, _ := newOpenAIImagesTestContext(t, body)
 			svc := newOpenAIImagesTestService(upstream)
 			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 			require.NoError(t, err)
-			_, err = svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
-			require.Error(t, err)
-			require.Equal(t, 1, calls)
+			result, err := svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
+			if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				require.Equal(t, 2, calls)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, 1, calls)
+			}
 		})
 	}
 }
@@ -111,6 +122,24 @@ func TestCodexDirectImagesStreamRejectsPlainJSON(t *testing.T) {
 	result, err := svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
 	require.Error(t, err, "未收到 SSE 完成事件，不能把未转发的 JSON 当作成功")
 	require.Nil(t, result)
+}
+
+func TestCodexDirectImagesInvalidJSONFailsOver(t *testing.T) {
+	body := []byte(`{"model":"gpt-image-2","prompt":"draw"}`)
+	c, rec := newOpenAIImagesTestContext(t, body)
+	svc := newOpenAIImagesTestService(&httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": {"text/html"}},
+		Body:       io.NopCloser(strings.NewReader("<html>temporary upstream failure</html>")),
+	}})
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+	result, err := svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
+	var failover *UpstreamFailoverError
+	require.ErrorAs(t, err, &failover)
+	require.Equal(t, http.StatusBadGateway, failover.StatusCode)
+	require.Nil(t, result)
+	require.Empty(t, rec.Body.String())
 }
 
 func TestCodexDirectImagesMultipleOutputs(t *testing.T) {
@@ -144,11 +173,15 @@ func TestCodexDirectImagesStreaming(t *testing.T) {
 		{"duplicate", "complete,complete", 1, false, false},
 		{"disconnect", "partial,complete", 1, false, true},
 		{"truncated", "partial", 0, true, false},
+		{"partial_requested_multiple", "complete", 1, false, false},
 		{"error", "error", 0, true, false},
 		{"partial_success", "complete,error", 1, true, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			body := []byte(`{"model":"gpt-image-2","prompt":"edit","images":[{"image_url":"data:image/png;base64,AA=="}],"stream":true,"response_format":"url"}`)
+			if test.name == "partial_requested_multiple" {
+				body = []byte(`{"model":"gpt-image-2","prompt":"edit","n":2,"images":[{"image_url":"data:image/png;base64,AA=="}],"stream":true,"response_format":"url"}`)
+			}
 			c, rec := newOpenAIImagesTestContext(t, body)
 			c.Request.URL.Path = "/v1/images/edits"
 			if test.disconnect {

@@ -180,64 +180,73 @@ func TestOpenAIImagesJSONKeepaliveWriter_NilGuards(t *testing.T) {
 // 可重试上游错误必须仍转换为 UpstreamFailoverError（而非裸错误吞掉换号）。
 func TestOpenAIImagesJSONKeepalive_HeartbeatBeforeForwardStillFailsOver(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","response_format":"b64_json"}`)
+	for _, model := range []string{"gpt-image-1", "gpt-image-2"} {
+		t.Run(model, func(t *testing.T) {
+			body := []byte(`{"model":"` + model + `","prompt":"draw a cat","response_format":"b64_json"}`)
 
-	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	c.Request = req
+			req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = req
 
-	svc := &OpenAIGatewayService{
-		httpUpstream: &httpUpstreamRecorder{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Header: http.Header{
-					"Content-Type": []string{"text/event-stream"},
-					"X-Request-Id": []string{"req_img_heartbeat_failover"},
+			svc := &OpenAIGatewayService{
+				httpUpstream: &httpUpstreamRecorder{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Header: http.Header{
+							"Content-Type": []string{"text/event-stream"},
+							"X-Request-Id": []string{"req_img_heartbeat_failover"},
+						},
+						Body: io.NopCloser(strings.NewReader(
+							"data: {\"type\":\"response.created\",\"response\":{\"created_at\":1710000021}}\n\n" +
+								"data: {\"type\":\"error\",\"error\":{\"type\":\"server_error\",\"code\":\"server_error\",\"message\":\"The image service is temporarily unavailable.\"}}\n\n",
+						)),
+					},
 				},
-				Body: io.NopCloser(strings.NewReader(
-					"data: {\"type\":\"response.created\",\"response\":{\"created_at\":1710000021}}\n\n" +
-						"data: {\"type\":\"error\",\"error\":{\"type\":\"server_error\",\"code\":\"server_error\",\"message\":\"The image service is temporarily unavailable.\"}}\n\n",
-				)),
-			},
-		},
+			}
+			if model == "gpt-image-2" {
+				resp := svc.httpUpstream.(*httpUpstreamRecorder).resp
+				resp.Header.Set("Content-Type", "application/json")
+				resp.Body = io.NopCloser(strings.NewReader(`{"error":{"type":"server_error","code":"server_error","message":"The image service is temporarily unavailable."}}`))
+			}
+			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+			require.NoError(t, err)
+
+			// 模拟上一轮 failover 已发生：心跳已提交 200 并写出空白字节。
+			stop := StartOpenAIImagesJSONKeepalive(c, 5*time.Millisecond)
+			defer stop()
+			waitForOpenAIImagesJSONKeepalive(t, c)
+
+			account := &Account{
+				ID:       "account-22",
+				Name:     "openai-oauth-heartbeat-failover",
+				Platform: PlatformOpenAI,
+				Type:     AccountTypeOAuth,
+				Credentials: map[string]any{
+					"access_token": "token-123",
+				},
+			}
+
+			result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+
+			require.Nil(t, result)
+			var failoverErr *UpstreamFailoverError
+			require.ErrorAs(t, err, &failoverErr)
+			require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+			require.Contains(t, string(failoverErr.ResponseBody), "temporarily unavailable")
+			require.Empty(t, strings.TrimSpace(rec.Body.String()), "only heartbeat whitespace may reach the client")
+
+			rawEvents, ok := c.Get(OpsUpstreamErrorsKey)
+			require.True(t, ok)
+			events, ok := rawEvents.([]*OpsUpstreamErrorEvent)
+			require.True(t, ok)
+			require.Len(t, events, 1)
+			require.Equal(t, "failover", events[0].Kind)
+			require.Equal(t, account.ID, events[0].AccountID)
+			require.Equal(t, http.StatusBadGateway, events[0].UpstreamStatusCode)
+		})
 	}
-	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
-	require.NoError(t, err)
-
-	// 模拟上一轮 failover 已发生：心跳已提交 200 并写出空白字节。
-	stop := StartOpenAIImagesJSONKeepalive(c, 5*time.Millisecond)
-	defer stop()
-	waitForOpenAIImagesJSONKeepalive(t, c)
-
-	account := &Account{
-		ID:       "account-22",
-		Name:     "openai-oauth-heartbeat-failover",
-		Platform: PlatformOpenAI,
-		Type:     AccountTypeOAuth,
-		Credentials: map[string]any{
-			"access_token": "token-123",
-		},
-	}
-
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
-
-	require.Nil(t, result)
-	var failoverErr *UpstreamFailoverError
-	require.ErrorAs(t, err, &failoverErr)
-	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
-	require.Contains(t, string(failoverErr.ResponseBody), "temporarily unavailable")
-	require.Empty(t, strings.TrimSpace(rec.Body.String()), "only heartbeat whitespace may reach the client")
-
-	rawEvents, ok := c.Get(OpsUpstreamErrorsKey)
-	require.True(t, ok)
-	events, ok := rawEvents.([]*OpsUpstreamErrorEvent)
-	require.True(t, ok)
-	require.Len(t, events, 1)
-	require.Equal(t, "failover", events[0].Kind)
-	require.Equal(t, account.ID, events[0].AccountID)
-	require.Equal(t, http.StatusBadGateway, events[0].UpstreamStatusCode)
 }
 
 func waitForOpenAIImagesJSONKeepalive(t *testing.T, c *gin.Context) {

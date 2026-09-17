@@ -1233,12 +1233,17 @@ func (a *Account) IsOpenAIOAuth() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeOAuth
 }
 
-// UsesOpenAICodexProtocol reports credentials that require the ChatGPT/Codex
-// request contract. API-key and other Responses-native accounts must keep the
-// client payload unchanged instead of receiving synthesized Codex fields.
+// IsOpenAIOAuthLike reports OpenAI credentials that use the ChatGPT/Codex
+// inference protocol. Setup tokens share that forwarding contract but do not
+// participate in the refreshable OAuth credential lifecycle.
+func (a *Account) IsOpenAIOAuthLike() bool {
+	return a != nil && a.IsOpenAI() && (a.Type == AccountTypeOAuth || a.Type == AccountTypeSetupToken)
+}
+
+// UsesOpenAICodexProtocol preserves legacy OAuth routing while adding OpenAI
+// setup-token credentials to the same ChatGPT/Codex request contract.
 func (a *Account) UsesOpenAICodexProtocol() bool {
-	return a != nil && (a.Type == AccountTypeOAuth ||
-		(a.IsOpenAI() && a.Type == AccountTypeSetupToken))
+	return a != nil && (a.Type == AccountTypeOAuth || a.IsOpenAIOAuthLike())
 }
 
 func (a *Account) IsOpenAIChatGPTSubscription() bool {
@@ -1606,14 +1611,14 @@ func (a *Account) GetOpenAIUserAgent() string {
 }
 
 func (a *Account) GetChatGPTAccountID() string {
-	if !a.IsOpenAIOAuth() {
+	if !a.IsOpenAIOAuthLike() {
 		return ""
 	}
 	return a.GetCredential("chatgpt_account_id")
 }
 
 func (a *Account) IsChatGPTAccountFedRAMP() bool {
-	if !a.IsOpenAIOAuth() || a.Credentials == nil {
+	if !a.IsOpenAIOAuthLike() || a.Credentials == nil {
 		return false
 	}
 	v, ok := a.Credentials["chatgpt_account_is_fedramp"]

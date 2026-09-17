@@ -440,7 +440,7 @@ func normalizeOpenAICompactRequestBody(body []byte) ([]byte, bool, error) {
 }
 
 func normalizeOpenAICodexCompactReasoningEffortForAccount(c *gin.Context, account *Account, body []byte) ([]byte, bool, error) {
-	if account == nil || !account.IsOpenAIOAuth() || !isOpenAIResponsesCompactPath(c) {
+	if account == nil || !account.IsOpenAIOAuthLike() || !isOpenAIResponsesCompactPath(c) {
 		return body, false, nil
 	}
 
