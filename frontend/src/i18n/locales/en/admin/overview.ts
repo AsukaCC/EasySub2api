@@ -489,6 +489,13 @@ export default {
         windowNote: 'Each level rule uses its own rolling spend window.'
       },
       createUser: 'Create User',
+      bulkDelete: {
+        action: 'Delete selected ({count})',
+        title: 'Permanently delete selected users',
+        confirm: 'Permanently delete the {count} selected users and their related data? This action cannot be undone. Administrator accounts will be rejected and remain selected.',
+        success: 'Permanently deleted {count} users',
+        failed: 'Failed to delete {count} users. They remain selected for retry.'
+      },
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',

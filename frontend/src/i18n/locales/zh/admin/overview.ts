@@ -489,6 +489,13 @@ export default {
         windowNote: '等级规则按各自统计周期计算。'
       },
       createUser: '创建用户',
+      bulkDelete: {
+        action: '批量彻底删除（{count}）',
+        title: '彻底删除已选用户',
+        confirm: '确定彻底删除已选的 {count} 个用户及其关联数据吗？此操作无法撤销。管理员账号会被拒绝并保留选中状态。',
+        success: '已彻底删除 {count} 个用户',
+        failed: '{count} 个用户删除失败，已保留选中，可重试。'
+      },
       bulkLimits: {
         action: '批量设置限制（{count}）',
         title: '批量设置用户限制',

@@ -302,6 +302,34 @@ export async function deleteUser(id: string): Promise<DeleteUserResponse> {
   return data
 }
 
+export interface BulkDeleteUsersResult {
+  succeededIds: string[]
+  failures: Array<{ id: string; error: unknown }>
+}
+
+/**
+ * Reuse the permanent single-user deletion path while limiting expensive
+ * cascading deletes to three concurrent requests.
+ */
+export async function bulkDelete(userIds: string[]): Promise<BulkDeleteUsersResult> {
+  const uniqueIds = [...new Set(userIds)]
+  const result: BulkDeleteUsersResult = { succeededIds: [], failures: [] }
+
+  for (let offset = 0; offset < uniqueIds.length; offset += 3) {
+    const batch = uniqueIds.slice(offset, offset + 3)
+    const responses = await Promise.allSettled(batch.map((id) => deleteUser(id)))
+    responses.forEach((response, index) => {
+      if (response.status === 'fulfilled') {
+        result.succeededIds.push(batch[index])
+      } else {
+        result.failures.push({ id: batch[index], error: response.reason })
+      }
+    })
+  }
+
+  return result
+}
+
 export async function restoreArchivedUser(id: string): Promise<AdminUser> {
   const { data } = await apiClient.post<AdminUser>(`/admin/users/${id}/restore`)
   return data
@@ -576,6 +604,7 @@ export const usersAPI = {
   create,
   update,
   delete: deleteUser,
+  bulkDelete,
   restoreArchivedUser,
   updateBalance,
   updateConcurrency,
