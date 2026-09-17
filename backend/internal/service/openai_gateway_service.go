@@ -584,12 +584,7 @@ func NewOpenAIGatewayServiceWithUserLevel(
 	// enforceCodexIdentityHeaders 是 HTTP / 透传 / WS / 探针 等出站路径共用的纯函数收口点，
 	// 拿不到配置，故在此发布进程级开关快照。配置取反义，零值即「强制统一出口开启」。
 	if cfg != nil {
-		// 旧配置键仍作为完整保护的回滚别名，即使调用方手工构造 Config
-		// 而未经过 config.load，也不能意外重新开启身份强制。
-		identityEnforcementDisabled := cfg.Gateway.DisableCodexIdentityEnforcement
-		SetCodexIdentityEnforcementEnabled(!identityEnforcementDisabled)
-		SetCodexOriginatorNormalizationEnabled(!cfg.Gateway.DisableCodexOriginatorNormalization)
-		SetCodexPrereleaseVersionAllowed(cfg.Gateway.CodexAllowPrereleaseVersion)
+		SetCodexIdentityEnforcementEnabled(!cfg.Gateway.DisableCodexIdentityEnforcement)
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo:         accountRepo,
