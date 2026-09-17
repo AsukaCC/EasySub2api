@@ -1242,31 +1242,59 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 		value.Get("input_tokens_details.image_tokens"),
 		value.Get("prompt_tokens_details.image_tokens"),
 	)
+	_, imageCacheReadTokens, _ := openAICachedTokenDetailsFromUsage(value)
+	imageCacheReadTokens = min(max(imageCacheReadTokens, 0), max(imageInputTokens, 0), max(cacheReadTokens, 0))
 	return OpenAIUsage{
 		InputTokens:              int(inputTokens),
 		ImageInputTokens:         imageInputTokens,
 		OutputTokens:             int(outputTokens),
 		CacheCreationInputTokens: cacheCreationTokens,
 		CacheReadInputTokens:     cacheReadTokens,
+		ImageCacheReadTokens:     imageCacheReadTokens,
 		ImageOutputTokens:        int(imageOutputTokens),
 	}, true
 }
 
 func openAICacheReadTokensFromUsage(value gjson.Result) int {
-	for _, nested := range []gjson.Result{
+	for _, explicit := range []gjson.Result{
 		value.Get("input_tokens_details.cached_tokens"),
 		value.Get("prompt_tokens_details.cached_tokens"),
-	} {
-		if nested.Exists() {
-			return max(int(nested.Int()), 0)
-		}
-	}
-
-	return firstPositiveGJSONInt(
 		value.Get("cache_read_input_tokens"),
 		value.Get("cache_read_tokens"),
 		value.Get("cached_tokens"),
-	)
+	} {
+		if explicit.Exists() {
+			return max(int(explicit.Int()), 0)
+		}
+	}
+
+	total, _, ok := openAICachedTokenDetailsFromUsage(value)
+	if !ok {
+		return 0
+	}
+	return total
+}
+
+func openAICachedTokenDetailsFromUsage(value gjson.Result) (total, image int, ok bool) {
+	for _, details := range []gjson.Result{
+		value.Get("input_tokens_details.cached_tokens_details"),
+		value.Get("prompt_tokens_details.cached_tokens_details"),
+	} {
+		if !details.IsObject() {
+			continue
+		}
+		textTokens, hasText := boundedJSONNonNegativeInt(details.Get("text_tokens"))
+		imageTokens, hasImage := boundedJSONNonNegativeInt(details.Get("image_tokens"))
+		if !hasText && !hasImage {
+			continue
+		}
+		maxInt := int(^uint(0) >> 1)
+		if textTokens > maxInt-imageTokens {
+			return 0, 0, false
+		}
+		return textTokens + imageTokens, imageTokens, true
+	}
+	return 0, 0, false
 }
 
 func openAICacheCreationTokensFromUsage(value gjson.Result) int {
