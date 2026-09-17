@@ -192,7 +192,7 @@ try {
         $temporaryNotes = Join-Path ([IO.Path]::GetTempPath()) "easysub2api-$Version-release-notes.md"
         try {
             [IO.File]::WriteAllText($temporaryNotes, "$notes`n", [Text.UTF8Encoding]::new($false))
-            Invoke-Checked -Command git -Arguments @('tag', '-a', $releaseTag, '-F', $temporaryNotes, $headCommit) | Out-Null
+            Invoke-Checked -Command git -Arguments @('tag', '--cleanup=verbatim', '-a', $releaseTag, '-F', $temporaryNotes, $headCommit) | Out-Null
         }
         finally {
             Remove-Item -LiteralPath $temporaryNotes -Force -ErrorAction SilentlyContinue
