@@ -379,6 +379,13 @@ func (s *SubscriptionService) withSubscriptionUpdateTx(ctx context.Context, fn f
 	return nil
 }
 
+func (s *SubscriptionService) entClientForContext(ctx context.Context) *dbent.Client {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return tx.Client()
+	}
+	return s.entClient
+}
+
 func renewedSubscriptionTerm(existingSub *UserSubscription, notes string, startsAt, expiresAt time.Time) *UserSubscription {
 	renewed := *existingSub
 	// 日窗口按日历日对齐（0 点刷新）；周/月窗口按订阅期限对齐（锚点为新周期起点）。
@@ -621,6 +628,13 @@ func (s *SubscriptionService) RevokeSubscription(ctx context.Context, subscripti
 }
 
 func (s *SubscriptionService) refreshPendingActivationExpectation(ctx context.Context, userID, groupID string) error {
+	if s == nil || s.groupRepo == nil {
+		return nil
+	}
+	client := s.entClientForContext(ctx)
+	if client == nil {
+		return nil
+	}
 	grp, err := s.groupRepo.GetByID(ctx, groupID)
 	if err != nil || grp == nil {
 		return err
@@ -629,11 +643,11 @@ func (s *SubscriptionService) refreshPendingActivationExpectation(ctx context.Co
 	if platform == "" {
 		return nil
 	}
-	blockers, err := currentPlatformSubscriptions(ctx, s.entClient, userID, platform, time.Now().UTC(), false)
+	blockers, err := currentPlatformSubscriptions(ctx, client, userID, platform, time.Now().UTC(), false)
 	if err != nil {
 		return err
 	}
-	update := s.entClient.PendingSubscription.Update().Where(
+	update := client.PendingSubscription.Update().Where(
 		pendingsubscription.UserIDEQ(userID),
 		pendingsubscription.PlatformEQ(platform),
 		pendingsubscription.StatusEQ(PendingSubscriptionStatusPending),
@@ -662,28 +676,31 @@ func (s *SubscriptionService) RestoreSubscription(ctx context.Context, subscript
 	if sub.DeletedAt == nil {
 		return nil, ErrSubscriptionNotRevoked
 	}
-	grp, groupErr := s.groupRepo.GetByID(ctx, sub.GroupID)
-	if groupErr != nil || grp == nil {
-		return nil, ErrSubscriptionRestoreConflict
-	}
-	platform := strings.ToLower(strings.TrimSpace(grp.Platform))
-	blockers, blockErr := currentPlatformSubscriptions(ctx, s.entClient, sub.UserID, platform, time.Now().UTC(), false)
-	if blockErr != nil {
-		return nil, blockErr
-	}
-	if len(blockers) > 0 {
-		return nil, ErrSubscriptionRestoreConflict
-	}
-	pendingExists, pendingErr := s.entClient.PendingSubscription.Query().Where(
-		pendingsubscription.UserIDEQ(sub.UserID),
-		pendingsubscription.PlatformEQ(platform),
-		pendingsubscription.StatusEQ(PendingSubscriptionStatusPending),
-	).Exist(ctx)
-	if pendingErr != nil {
-		return nil, pendingErr
-	}
-	if pendingExists {
-		return nil, ErrSubscriptionRestoreConflict
+	client := s.entClientForContext(ctx)
+	if client != nil && s.groupRepo != nil {
+		grp, groupErr := s.groupRepo.GetByID(ctx, sub.GroupID)
+		if groupErr != nil || grp == nil {
+			return nil, ErrSubscriptionRestoreConflict
+		}
+		platform := strings.ToLower(strings.TrimSpace(grp.Platform))
+		blockers, blockErr := currentPlatformSubscriptions(ctx, client, sub.UserID, platform, time.Now().UTC(), false)
+		if blockErr != nil {
+			return nil, blockErr
+		}
+		if len(blockers) > 0 {
+			return nil, ErrSubscriptionRestoreConflict
+		}
+		pendingExists, pendingErr := client.PendingSubscription.Query().Where(
+			pendingsubscription.UserIDEQ(sub.UserID),
+			pendingsubscription.PlatformEQ(platform),
+			pendingsubscription.StatusEQ(PendingSubscriptionStatusPending),
+		).Exist(ctx)
+		if pendingErr != nil {
+			return nil, pendingErr
+		}
+		if pendingExists {
+			return nil, ErrSubscriptionRestoreConflict
+		}
 	}
 
 	exists, err := s.userSubRepo.ExistsActiveByUserIDAndGroupID(ctx, sub.UserID, sub.GroupID)
