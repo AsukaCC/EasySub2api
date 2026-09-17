@@ -253,6 +253,17 @@
             </button>
 
             <button
+              v-if="selectedCount > 0"
+              class="views-admin-users-view__action-3 btn btn-danger"
+              data-test="bulk-delete-users"
+              :disabled="bulkDeleting"
+              @click="openBulkDeleteDialog"
+            >
+              <Icon name="trash" size="md" class="views-admin-users-view__icon-5" />
+              {{ t('admin.users.bulkDelete.action', { count: selectedCount }) }}
+            </button>
+
+            <button
               class="views-admin-users-view__action-3 btn btn-secondary"
               data-test="open-archived-users"
               @click="showArchivedUsersModal = true"
@@ -749,6 +760,15 @@
     </Teleport>
 
     <ConfirmDialog :show="showDeleteDialog" :title="t('admin.users.deleteUser')" :message="t('admin.users.deleteConfirm', { email: deletingUser?.email })" :danger="true" @confirm="confirmDelete" @cancel="showDeleteDialog = false" />
+    <ConfirmDialog
+      :show="bulkDeleteIds.length > 0"
+      :title="t('admin.users.bulkDelete.title')"
+      :message="t('admin.users.bulkDelete.confirm', { count: bulkDeleteIds.length })"
+      :confirm-text="t('common.delete')"
+      danger
+      @confirm="confirmBulkDelete"
+      @cancel="bulkDeleteIds = []"
+    />
     <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="loadUsers" />
     <UserEditModal :show="showEditModal" :user="editingUser" @close="closeEditModal" @success="loadUsers" />
     <BulkEditUserModal
@@ -1283,7 +1303,8 @@ const {
   selectedIds,
   selectedCount,
   setSelectedIds,
-  clear: clearSelection
+  clear: clearSelection,
+  removeMany: removeSelectedIds
 } = useTableSelection<AdminUser>({
   rows: users,
   getId: (user) => user.id
@@ -1311,6 +1332,8 @@ const showEditModal = ref(false)
 const showBulkEditModal = ref(false)
 const showArchivedUsersModal = ref(false)
 const showDeleteDialog = ref(false)
+const bulkDeleteIds = ref<string[]>([])
+const bulkDeleting = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
@@ -1762,7 +1785,9 @@ const handleDelete = (user: AdminUser) => {
 const confirmDelete = async () => {
   if (!deletingUser.value) return
   try {
-    await adminAPI.users.delete(deletingUser.value.id)
+    const deletedUserId = deletingUser.value.id
+    await adminAPI.users.delete(deletedUserId)
+    removeSelectedIds([deletedUserId])
     appStore.showSuccess(t('admin.users.userDeleted'))
     showDeleteDialog.value = false
     deletingUser.value = null
@@ -1770,6 +1795,43 @@ const confirmDelete = async () => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.users.failedToDelete'))
     console.error('Error deleting user:', error)
+  }
+}
+
+const openBulkDeleteDialog = () => {
+  if (bulkDeleting.value || selectedIds.value.length === 0) return
+  bulkDeleteIds.value = [...selectedIds.value]
+}
+
+const confirmBulkDelete = async () => {
+  if (bulkDeleting.value || bulkDeleteIds.value.length === 0) return
+
+  const ids = [...bulkDeleteIds.value]
+  bulkDeleteIds.value = []
+  bulkDeleting.value = true
+  try {
+    const result = await adminAPI.users.bulkDelete(ids)
+    removeSelectedIds(result.succeededIds)
+
+    if (result.succeededIds.length > 0) {
+      appStore.showSuccess(t('admin.users.bulkDelete.success', {
+        count: result.succeededIds.length
+      }))
+      pagination.page = 1
+    }
+    if (result.failures.length > 0) {
+      appStore.showError(t('admin.users.bulkDelete.failed', {
+        count: result.failures.length
+      }))
+    }
+    await loadUsers()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || error.message || t('admin.users.bulkDelete.failed', {
+      count: ids.length
+    }))
+    console.error('Error deleting selected users:', error)
+  } finally {
+    bulkDeleting.value = false
   }
 }
 

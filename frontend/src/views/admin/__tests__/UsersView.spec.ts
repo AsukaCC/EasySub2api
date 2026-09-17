@@ -9,13 +9,19 @@ const {
   getAllGroups,
   getBatchUsersUsage,
   listEnabledDefinitions,
-  getBatchUserAttributes
+  getBatchUserAttributes,
+  bulkDeleteUsers,
+  showError,
+  showSuccess
 } = vi.hoisted(() => ({
   listUsers: vi.fn(),
   getAllGroups: vi.fn(),
   getBatchUsersUsage: vi.fn(),
   listEnabledDefinitions: vi.fn(),
-  getBatchUserAttributes: vi.fn()
+  getBatchUserAttributes: vi.fn(),
+  bulkDeleteUsers: vi.fn(),
+  showError: vi.fn(),
+  showSuccess: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -23,7 +29,8 @@ vi.mock('@/api/admin', () => ({
     users: {
       list: listUsers,
       toggleStatus: vi.fn(),
-      delete: vi.fn()
+      delete: vi.fn(),
+      bulkDelete: bulkDeleteUsers
     },
     groups: {
       getAll: getAllGroups
@@ -40,8 +47,8 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn()
+    showError,
+    showSuccess
   })
 }))
 
@@ -56,7 +63,7 @@ vi.mock('vue-i18n', async () => {
 })
 
 const createAdminUser = (overrides: Partial<AdminUser> = {}): AdminUser => ({
-  id: 42,
+  id: 'user-42',
   username: 'scoped-user',
   email: 'scoped@example.com',
   role: 'user',
@@ -119,6 +126,20 @@ const BulkEditUserModalStub = {
   `
 }
 
+const ConfirmDialogStub = {
+  name: 'ConfirmDialog',
+  props: ['show', 'title', 'message', 'confirmText', 'danger'],
+  emits: ['confirm', 'cancel'],
+  template: `
+    <div v-if="show" data-test="confirm-dialog">
+      <span data-test="confirm-dialog-title">{{ title }}</span>
+      <span data-test="confirm-dialog-message">{{ message }}</span>
+      <button data-test="confirm-dialog-confirm" @click="$emit('confirm')">confirm</button>
+      <button data-test="confirm-dialog-cancel" @click="$emit('cancel')">cancel</button>
+    </div>
+  `
+}
+
 describe('admin UsersView', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -129,6 +150,9 @@ describe('admin UsersView', () => {
     getBatchUsersUsage.mockReset()
     listEnabledDefinitions.mockReset()
     getBatchUserAttributes.mockReset()
+    bulkDeleteUsers.mockReset()
+    showError.mockReset()
+    showSuccess.mockReset()
 
     listUsers.mockResolvedValue({
       items: [createAdminUser()],
@@ -141,6 +165,7 @@ describe('admin UsersView', () => {
     getBatchUsersUsage.mockResolvedValue({ stats: {} })
     listEnabledDefinitions.mockResolvedValue([])
     getBatchUserAttributes.mockResolvedValue({ values: {} })
+    bulkDeleteUsers.mockResolvedValue({ succeededIds: [], failures: [] })
   })
 
   afterEach(() => {
@@ -157,7 +182,7 @@ describe('admin UsersView', () => {
           },
           DataTable: DataTableStub,
           Pagination: true,
-          ConfirmDialog: true,
+          ConfirmDialog: ConfirmDialogStub,
           EmptyState: true,
           GroupBadge: true,
           Select: true,
@@ -199,7 +224,7 @@ describe('admin UsersView', () => {
     )
   })
 
-  it('clears usage current-page sort when switching to last_used_at server sort', async () => {
+  it('switches from usage server sort to last_used_at server sort', async () => {
     vi.useFakeTimers()
     localStorage.setItem('user-column-settings-version', '3')
     localStorage.setItem(
@@ -217,8 +242,8 @@ describe('admin UsersView', () => {
 
     listUsers.mockResolvedValue({
       items: [
-        createAdminUser({ id: 1, email: 'last-used-first@example.com' }),
-        createAdminUser({ id: 2, email: 'usage-first@example.com' })
+        createAdminUser({ id: 'user-1', email: 'last-used-first@example.com' }),
+        createAdminUser({ id: 'user-2', email: 'usage-first@example.com' })
       ],
       total: 2,
       page: 1,
@@ -227,8 +252,8 @@ describe('admin UsersView', () => {
     })
     getBatchUsersUsage.mockResolvedValue({
       stats: {
-        1: { user_id: 1, today_actual_cost: 1, total_actual_cost: 1, by_platform: [] },
-        2: { user_id: 2, today_actual_cost: 9, total_actual_cost: 9, by_platform: [] }
+        'user-1': { user_id: 'user-1', today_actual_cost: 1, total_actual_cost: 1, by_platform: [] },
+        'user-2': { user_id: 'user-2', today_actual_cost: 9, total_actual_cost: 9, by_platform: [] }
       }
     })
 
@@ -241,7 +266,7 @@ describe('admin UsersView', () => {
           },
           DataTable: DataTableStub,
           Pagination: true,
-          ConfirmDialog: true,
+          ConfirmDialog: ConfirmDialogStub,
           EmptyState: true,
           GroupBadge: true,
           Select: true,
@@ -273,8 +298,17 @@ describe('admin UsersView', () => {
     await wrapper.get('[data-test="usage-sort-usage-today"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-test="row-order"]').text()).toBe('usage-first@example.com,last-used-first@example.com')
+    expect(wrapper.get('[data-test="row-order"]').text()).toBe('last-used-first@example.com,usage-first@example.com')
     expect(localStorage.getItem('admin-users-usage-sort')).toContain('"key":"usage"')
+    expect(listUsers).toHaveBeenLastCalledWith(
+      1,
+      20,
+      expect.objectContaining({
+        sort_by: 'usage_today',
+        sort_order: 'desc'
+      }),
+      expect.any(Object)
+    )
 
     await wrapper.get('[data-test="sort-last-used"]').trigger('click')
     await flushPromises()
@@ -297,10 +331,10 @@ describe('admin UsersView', () => {
     listUsers.mockImplementation(async (page: number) => {
       const user = page === 2
         ? createAdminUser({
-            id: 43,
+            id: 'user-43',
             email: refreshed ? 'refreshed-page-two@example.com' : 'page-two@example.com'
           })
-        : createAdminUser({ id: 42, email: 'page-one@example.com' })
+        : createAdminUser({ id: 'user-42', email: 'page-one@example.com' })
       return {
         items: [user],
         total: 2,
@@ -319,7 +353,7 @@ describe('admin UsersView', () => {
           },
           DataTable: DataTableStub,
           Pagination: PaginationStub,
-          ConfirmDialog: true,
+          ConfirmDialog: ConfirmDialogStub,
           EmptyState: true,
           GroupBadge: true,
           Select: true,
@@ -343,19 +377,19 @@ describe('admin UsersView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(false)
-    await wrapper.get('[data-test="select-42"]').trigger('click')
-    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('42')
+    await wrapper.get('[data-test="select-user-42"]').trigger('click')
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('user-42')
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(true)
 
     await wrapper.get('[data-test="next-page"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('42')
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('user-42')
 
-    await wrapper.get('[data-test="select-43"]').trigger('click')
-    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('42,43')
+    await wrapper.get('[data-test="select-user-43"]').trigger('click')
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('user-42,user-43')
 
     await wrapper.get('[data-test="bulk-edit-limits"]').trigger('click')
-    expect(wrapper.get('[data-test="bulk-modal-ids"]').text()).toBe('42,43')
+    expect(wrapper.get('[data-test="bulk-modal-ids"]').text()).toBe('user-42,user-43')
 
     const callsBeforeSuccess = listUsers.mock.calls.length
     refreshed = true
@@ -365,6 +399,77 @@ describe('admin UsersView', () => {
     expect(listUsers.mock.calls.length).toBeGreaterThan(callsBeforeSuccess)
     expect(wrapper.get('[data-test="row-order"]').text()).toBe('refreshed-page-two@example.com')
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(false)
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
+  })
+
+  it('keeps failed user deletions selected and retries only those string IDs', async () => {
+    listUsers.mockResolvedValue({
+      items: [
+        createAdminUser({ id: 'user-delete', email: 'delete@example.com' }),
+        createAdminUser({ id: 'user-admin', email: 'admin@example.com', role: 'admin' })
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+    bulkDeleteUsers.mockResolvedValueOnce({
+      succeededIds: ['user-delete'],
+      failures: [{ id: 'user-admin', error: new Error('cannot delete admin user') }]
+    }).mockResolvedValueOnce({
+      succeededIds: ['user-admin'],
+      failures: []
+    })
+
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: ConfirmDialogStub,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          BulkEditUserModal: BulkEditUserModalStub,
+          ArchivedUsersModal: true,
+          UserPlatformQuotaModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-test="select-user-delete"]').trigger('click')
+    await wrapper.get('[data-test="select-user-admin"]').trigger('click')
+    await wrapper.get('[data-test="bulk-delete-users"]').trigger('click')
+    expect(wrapper.get('[data-test="confirm-dialog-title"]').text()).toBe('admin.users.bulkDelete.title')
+    await wrapper.get('[data-test="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(bulkDeleteUsers).toHaveBeenNthCalledWith(1, ['user-delete', 'user-admin'])
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('user-admin')
+    expect(showSuccess).toHaveBeenCalledWith('admin.users.bulkDelete.success')
+    expect(showError).toHaveBeenCalledWith('admin.users.bulkDelete.failed')
+
+    await wrapper.get('[data-test="bulk-delete-users"]').trigger('click')
+    await wrapper.get('[data-test="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(bulkDeleteUsers).toHaveBeenNthCalledWith(2, ['user-admin'])
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
   })
 })

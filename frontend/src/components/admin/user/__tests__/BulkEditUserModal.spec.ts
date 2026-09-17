@@ -38,7 +38,7 @@ vi.mock('vue-i18n', () => ({
 const mountModal = () => mount(BulkEditUserModal, {
   props: {
     show: true,
-    selectedIds: [4, 7]
+    selectedIds: ['user-4', 'user-7']
   },
   global: {
     stubs: {
@@ -86,7 +86,9 @@ describe('BulkEditUserModal', () => {
 
   it('disables submission when more than 500 users are selected', async () => {
     const wrapper = mountModal()
-    await wrapper.setProps({ selectedIds: Array.from({ length: 501 }, (_, index) => index + 1) })
+    await wrapper.setProps({
+      selectedIds: Array.from({ length: 501 }, (_, index) => `user-${index + 1}`)
+    })
     await wrapper.get('[data-test="enable-concurrency"]').trigger('click')
     await wrapper.get('[data-test="concurrency-input"]').setValue('5')
 
@@ -105,7 +107,7 @@ describe('BulkEditUserModal', () => {
     await flushPromises()
 
     expect(batchUpdateLimits).toHaveBeenCalledWith({
-      user_ids: [4, 7],
+      user_ids: ['user-4', 'user-7'],
       all: false,
       rpm_limit: 0
     })
@@ -125,7 +127,7 @@ describe('BulkEditUserModal', () => {
     await flushPromises()
 
     expect(batchUpdateLimits).toHaveBeenCalledWith({
-      user_ids: [4, 7],
+      user_ids: ['user-4', 'user-7'],
       all: false,
       concurrency: 9
     })
