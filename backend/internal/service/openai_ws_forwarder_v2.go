@@ -142,7 +142,8 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	}
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
 	forceNewConnByPolicy := shouldForceNewConnOnStoreDisabled(storeDisabledConnMode, lastFailureReason)
-	forceNewConn := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
+	forceNewConnByStorePolicy := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
+	forceNewConn := shouldForceNewOpenAIWSConn(attempt, forceNewConnByStorePolicy)
 	wsHeaders, sessionResolution, buildHdrErr := s.buildOpenAIWSHeaders(
 		ctx,
 		c,
@@ -841,6 +842,10 @@ readLoop:
 	result.ImageCount = imageCounter.Count()
 	result.ImageOutputSizes = imageCounter.Sizes()
 	return result, nil
+}
+
+func shouldForceNewOpenAIWSConn(attempt int, forceNewConnByStorePolicy bool) bool {
+	return attempt > 1 || forceNewConnByStorePolicy
 }
 
 // ProxyResponsesWebSocketFromClient 处理客户端入站 WebSocket（OpenAI Responses WS Mode）并转发到上游。
