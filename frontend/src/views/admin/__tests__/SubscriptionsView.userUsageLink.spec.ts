@@ -4,9 +4,10 @@ import { defineComponent } from 'vue'
 
 import SubscriptionsView from '../SubscriptionsView.vue'
 
-const { listSubscriptions, assignSubscription, getAllGroups, listUsers, searchUsageUsers, showError } = vi.hoisted(() => ({
+const { listSubscriptions, assignSubscription, bulkAssignSubscription, getAllGroups, listUsers, searchUsageUsers, showError } = vi.hoisted(() => ({
   listSubscriptions: vi.fn(),
   assignSubscription: vi.fn(),
+  bulkAssignSubscription: vi.fn(),
   showError: vi.fn(),
   getAllGroups: vi.fn(),
   listUsers: vi.fn(),
@@ -15,7 +16,12 @@ const { listSubscriptions, assignSubscription, getAllGroups, listUsers, searchUs
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
-    subscriptions: { list: listSubscriptions, assign: assignSubscription, listPending: vi.fn(async () => []) },
+    subscriptions: {
+      list: listSubscriptions,
+      assign: assignSubscription,
+      bulkAssign: bulkAssignSubscription,
+      listPending: vi.fn(async () => []),
+    },
     groups: { getAll: getAllGroups },
     users: { list: listUsers },
     usage: { searchUsers: searchUsageUsers }
@@ -83,6 +89,15 @@ describe('admin subscription users', () => {
       pages: 1
     })
     assignSubscription.mockResolvedValue({})
+    bulkAssignSubscription.mockResolvedValue({
+      success_count: 2,
+      created_count: 2,
+      reused_count: 0,
+      failed_count: 0,
+      subscriptions: [],
+      errors: [],
+      statuses: { 'user-1': 'created', 'user-2': 'created' },
+    })
     getAllGroups.mockResolvedValue([])
     listUsers.mockResolvedValue({
       items: [{ id: 42, email: 'reader@example.com' }],
@@ -184,6 +199,49 @@ describe('admin subscription users', () => {
       expect(assignSubscription).toHaveBeenCalledWith({
         user_id: 84, group_id: 3, validity_days: 30
       })
+    } finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('assigns the same subscription group to multiple selected users', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    listUsers
+      .mockResolvedValueOnce({ items: [{ id: 'user-1', email: 'first@example.com' }], total: 1, pages: 1 })
+      .mockResolvedValueOnce({ items: [{ id: 'user-2', email: 'second@example.com' }], total: 1, pages: 1 })
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      await wrapper.findAll('button')
+        .find(button => button.text() === 'admin.subscriptions.assignSubscription')!
+        .trigger('click')
+      const form = wrapper.get('#assign-subscription-form')
+      await form.get('input[type="checkbox"]').setValue(true)
+      form.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'group-3')
+
+      const search = wrapper.get('[data-assign-user-search] input')
+      await search.trigger('focus')
+      await search.setValue('first')
+      await vi.advanceTimersByTimeAsync(300)
+      await flushPromises()
+      await wrapper.get('[data-assign-user-search] button').trigger('click')
+
+      await search.trigger('focus')
+      await search.setValue('second')
+      await vi.advanceTimersByTimeAsync(300)
+      await flushPromises()
+      await wrapper.get('[data-assign-user-search] button').trigger('click')
+
+      await form.trigger('submit')
+      await flushPromises()
+
+      expect(bulkAssignSubscription).toHaveBeenCalledWith({
+        user_ids: ['user-1', 'user-2'],
+        group_id: 'group-3',
+        validity_days: 30,
+      })
+      expect(assignSubscription).not.toHaveBeenCalled()
     } finally {
       wrapper.unmount()
       vi.useRealTimers()

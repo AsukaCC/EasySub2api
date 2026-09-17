@@ -95,6 +95,16 @@
           <div class="views-admin-subscriptions-view__panel-8">
             <div v-if="selectedCount > 0" class="subscription-bulk-actions">
               <span class="subscription-bulk-actions__count">{{ t('admin.subscriptions.selectedCount', { count: selectedCount }) }}</span>
+              <button
+                v-for="action in bulkActions"
+                :key="action"
+                type="button"
+                :class="action === 'revoke' ? 'btn btn-danger btn-sm' : 'btn btn-secondary btn-sm'"
+                :disabled="loading || bulkTargets[action].length === 0"
+                @click="openBulkAction(action)"
+              >
+                {{ t('admin.subscriptions.bulk.' + action) }} ({{ bulkTargets[action].length }})
+              </button>
               <button type="button" class="btn btn-secondary btn-sm" @click="showIssueCardsModal = true">
                 <Icon name="plus" size="sm" />
                 {{ t('admin.subscriptions.issueResetCards') }}
@@ -102,6 +112,9 @@
               <button type="button" class="btn btn-secondary btn-sm" @click="openBulkResetWeekly">
                 <Icon name="refresh" size="sm" />
                 {{ t('admin.subscriptions.resetWeekly') }}
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" @click="clearSelection">
+                {{ t('admin.subscriptions.bulk.clearSelection') }}
               </button>
             </div>
             <button
@@ -459,6 +472,15 @@
       </template>
     </TablePageLayout>
 
+    <BulkSubscriptionActionDialog
+      v-if="bulkAction !== null"
+      :show="true"
+      :action="bulkAction"
+      :subscriptions="bulkSubscriptions"
+      @close="bulkAction = null"
+      @completed="handleBulkCompleted"
+    />
+
     <section v-if="pendingSubscriptions.length > 0" class="admin-pending-list card">
       <div class="admin-pending-list__header">
         <div>
@@ -490,6 +512,8 @@
       :show="showAssignModal"
       :title="t('admin.subscriptions.assignSubscription')"
       width="normal"
+      :show-close-button="!submitting"
+      :close-on-escape="!submitting"
       @close="closeAssignModal"
     >
       <form
@@ -497,12 +521,18 @@
         @submit.prevent="handleAssignSubscription"
         class="views-admin-subscriptions-view__form"
       >
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input v-model="batchAssignEnabled" type="checkbox" :disabled="submitting" @change="resetAssignUsers" />
+          {{ t('admin.subscriptions.batchAssign.enable') }}
+        </label>
+        <p v-if="batchAssignEnabled" class="input-hint">{{ t('admin.subscriptions.batchAssign.hint') }}</p>
         <div>
           <label class="input-label">{{ t('admin.subscriptions.form.user') }}</label>
           <div class="views-admin-subscriptions-view__panel-9" data-assign-user-search>
             <input
               v-model="userSearchKeyword"
               type="text"
+              :disabled="submitting || (batchAssignEnabled && assignUsers.length >= 100)"
               class="views-admin-subscriptions-view__field-2 input"
               :placeholder="t('admin.usage.searchUserPlaceholder')"
               @input="debounceSearchUsers"
@@ -537,19 +567,39 @@
                 v-for="user in userSearchResults"
                 :key="user.id"
                 type="button"
+                :disabled="submitting || (batchAssignEnabled && assignUsers.some(selected => selected.id === user.id))"
                 @click="selectUser(user)"
-                class="views-admin-subscriptions-view__action-2"
+                class="views-admin-subscriptions-view__action-2 disabled:opacity-50"
               >
                 <span class="views-admin-subscriptions-view__text">{{ user.email }}</span>
                 <span class="views-admin-subscriptions-view__text-2">#{{ user.id }}</span>
               </button>
             </div>
           </div>
+          <div v-if="batchAssignEnabled && assignUsers.length > 0" class="mt-2 space-y-2">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              {{ t('admin.subscriptions.batchAssign.selected', { count: assignUsers.length }) }}
+            </p>
+            <ul class="max-h-40 space-y-1 overflow-y-auto">
+              <li v-for="user in assignUsers" :key="user.id" class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1 text-sm dark:bg-dark-700">
+                <span class="truncate">{{ user.email }} <span class="text-gray-500">#{{ user.id }}</span></span>
+                <button
+                  type="button"
+                  :disabled="submitting"
+                  :aria-label="t('admin.subscriptions.batchAssign.removeUser', { email: user.email })"
+                  @click="assignUsers = assignUsers.filter(selected => selected.id !== user.id)"
+                >
+                  <Icon name="x" size="sm" />
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
         <div>
           <label class="input-label">{{ t('admin.subscriptions.form.group') }}</label>
           <Select
             v-model="assignForm.group_id"
+            :disabled="submitting"
             :options="subscriptionGroupOptions"
             :placeholder="t('admin.subscriptions.selectGroup')"
           >
@@ -578,19 +628,26 @@
         </div>
         <div>
           <label class="input-label">{{ t('admin.subscriptions.form.validityDays') }}</label>
-          <input v-model.number="assignForm.validity_days" type="number" min="1" class="input" />
+          <input v-model.number="assignForm.validity_days" type="number" min="1" max="36500" step="1" :disabled="submitting" class="input" />
           <p class="input-hint">{{ t('admin.subscriptions.validityHint') }}</p>
+        </div>
+        <div v-if="batchAssignResult" class="space-y-2 text-sm" role="status">
+          <p>{{ t('admin.subscriptions.batchAssign.result', { success: batchAssignResult.success_count, failed: batchAssignResult.failed_count }) }}</p>
+          <ul v-if="batchAssignResult.errors.length" class="max-h-40 space-y-1 overflow-y-auto text-red-600 dark:text-red-400">
+            <li v-for="(error, index) in batchAssignResult.errors" :key="index">{{ error }}</li>
+          </ul>
+          <p v-if="batchAssignResult.failed_count > 0" class="input-hint">{{ t('admin.subscriptions.batchAssign.retryHint') }}</p>
         </div>
       </form>
       <template #footer>
         <div class="views-admin-subscriptions-view__panel-22">
-          <button @click="closeAssignModal" type="button" class="btn btn-secondary">
-            {{ t('common.cancel') }}
+          <button @click="closeAssignModal" type="button" :disabled="submitting" class="btn btn-secondary">
+            {{ batchAssignResult ? t('common.close') : t('common.cancel') }}
           </button>
           <button :aria-busy="submitting"
             type="submit"
             form="assign-subscription-form"
-            :disabled="submitting"
+            :disabled="submitting || (batchAssignEnabled && assignUsers.length === 0)"
             class="btn btn-primary"
           >
             <LoadingButtonContent :loading="submitting" :loading-text="t('admin.subscriptions.assigning')">
@@ -866,7 +923,13 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { ResetCardIssueResult, WeeklyResetResult } from '@/api/admin/subscriptions'
+import type {
+  BulkAssignSubscriptionResult,
+  ResetCardIssueResult,
+  SubscriptionBulkAction,
+  SubscriptionBulkActionResult,
+  WeeklyResetResult,
+} from '@/api/admin/subscriptions'
 import type { PendingSubscription, UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
@@ -883,6 +946,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+import BulkSubscriptionActionDialog from '@/components/admin/subscription/BulkSubscriptionActionDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
   getRemainingDurationParts,
@@ -909,7 +973,7 @@ function formatPointRange(used: number, limit: number | null): string {
 const appStore = useAppStore()
 
 interface GroupOption {
-  value: number
+  value: string
   label: string
   description: string | null
   platform: GroupPlatform
@@ -1053,13 +1117,44 @@ const {
   selectedCount,
   setSelectedIds,
   clear: clearSelection,
+  removeMany: removeSelectedIds,
 } = useTableSelection<UserSubscription>({
   rows: subscriptions,
   getId: (subscription) => subscription.id,
 })
 
 const handleSelectedKeysUpdate = (keys: Array<string | number>) => {
-  setSelectedIds(keys.filter((key): key is string => typeof key === 'string'))
+  const visibleIds = new Set(subscriptions.value.map(subscription => subscription.id))
+  setSelectedIds(keys.filter((key): key is string => typeof key === 'string' && visibleIds.has(key)))
+}
+
+const bulkActions: SubscriptionBulkAction[] = ['extend', 'reset_quota', 'revoke', 'restore']
+const bulkAction = ref<SubscriptionBulkAction | null>(null)
+const bulkSubscriptions = ref<UserSubscription[]>([])
+const bulkTargets = computed(() => {
+  const selected = subscriptions.value.filter(subscription => selectedIds.value.includes(subscription.id))
+  return {
+    extend: selected.filter(subscription => ['active', 'expired'].includes(subscription.status)),
+    reset_quota: selected.filter(subscription => subscription.status === 'active'),
+    revoke: selected.filter(subscription => subscription.status === 'active'),
+    restore: selected.filter(subscription => subscription.status === 'revoked'),
+  }
+})
+
+const openBulkAction = (action: SubscriptionBulkAction) => {
+  if (loading.value || bulkTargets.value[action].length === 0) return
+  bulkSubscriptions.value = [...bulkTargets.value[action]]
+  bulkAction.value = action
+}
+
+const handleBulkCompleted = async (result: SubscriptionBulkActionResult) => {
+  removeSelectedIds(result.results.filter(item => item.success).map(item => item.subscription_id))
+  if (result.failed_count > 0) {
+    appStore.showError(t('admin.subscriptions.bulk.result', { success: result.success_count, failed: result.failed_count }))
+  } else {
+    appStore.showSuccess(t('admin.subscriptions.bulk.result', { success: result.success_count, failed: result.failed_count }))
+  }
+  await Promise.all([loadSubscriptions(), loadPendingSubscriptions()])
 }
 
 // Toolbar user filter (fuzzy search -> select user_id)
@@ -1105,6 +1200,9 @@ const showRestoreDialog = ref(false)
 const showResetQuotaConfirm = ref(false)
 const showIssueCardsModal = ref(false)
 const submitting = ref(false)
+const batchAssignEnabled = ref(false)
+const assignUsers = ref<SimpleUser[]>([])
+const batchAssignResult = ref<BulkAssignSubscriptionResult | null>(null)
 const issuingCards = ref(false)
 const resettingSubscription = ref<UserSubscription | null>(null)
 const resettingQuota = ref(false)
@@ -1188,6 +1286,7 @@ const subscriptionGroupOptions = computed(() =>
 )
 
 const applyFilters = () => {
+  clearSelection()
   pagination.page = 1
   loadSubscriptions()
   loadPendingSubscriptions()
@@ -1220,6 +1319,8 @@ const loadSubscriptions = async () => {
     )
     if (signal.aborted || abortController !== requestController) return
     subscriptions.value = response.items
+    const visibleIds = new Set(response.items.map(subscription => subscription.id))
+    setSelectedIds(selectedIds.value.filter(id => visibleIds.has(id)))
     pagination.total = response.total
     pagination.pages = response.pages
   } catch (error: any) {
@@ -1347,6 +1448,16 @@ const searchUsers = async () => {
 }
 
 const selectUser = (user: SimpleUser) => {
+  if (submitting.value) return
+  if (batchAssignEnabled.value) {
+    if (assignUsers.value.length < 100 && !assignUsers.value.some(selected => selected.id === user.id)) {
+      assignUsers.value = [...assignUsers.value, user]
+    }
+    userSearchKeyword.value = ''
+    userSearchResults.value = []
+    showUserDropdown.value = false
+    return
+  }
   selectedUser.value = user
   userSearchKeyword.value = user.email
   showUserDropdown.value = false
@@ -1360,19 +1471,28 @@ const clearUserSelection = () => {
   assignForm.user_id = null
 }
 
+const resetAssignUsers = () => {
+  clearUserSelection()
+  assignUsers.value = []
+  batchAssignResult.value = null
+}
+
 const handlePageChange = (page: number) => {
+  clearSelection()
   pagination.page = page
   loadSubscriptions()
   loadPendingSubscriptions()
 }
 
 const handlePageSizeChange = (pageSize: number) => {
+  clearSelection()
   pagination.page_size = pageSize
   pagination.page = 1
   loadSubscriptions()
 }
 
 const handleSort = (key: string, order: 'asc' | 'desc') => {
+  clearSelection()
   sortState.sort_by = key
   sortState.sort_order = order
   pagination.page = 1
@@ -1380,7 +1500,11 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 }
 
 const closeAssignModal = () => {
+  if (submitting.value) return
   showAssignModal.value = false
+  batchAssignEnabled.value = false
+  assignUsers.value = []
+  batchAssignResult.value = null
   assignForm.user_id = null
   assignForm.group_id = null
   assignForm.validity_days = 30
@@ -1392,7 +1516,8 @@ const closeAssignModal = () => {
 }
 
 const handleAssignSubscription = async () => {
-  if (!assignForm.user_id) {
+  if (submitting.value) return
+  if (batchAssignEnabled.value ? assignUsers.value.length === 0 : !assignForm.user_id) {
     appStore.showError(t('admin.subscriptions.pleaseSelectUser'))
     return
   }
@@ -1400,24 +1525,48 @@ const handleAssignSubscription = async () => {
     appStore.showError(t('admin.subscriptions.pleaseSelectGroup'))
     return
   }
-  if (!assignForm.validity_days || assignForm.validity_days < 1) {
+  if (!Number.isInteger(assignForm.validity_days) || assignForm.validity_days < 1 || assignForm.validity_days > 36500) {
     appStore.showError(t('admin.subscriptions.validityDaysRequired'))
     return
   }
 
   submitting.value = true
   try {
+    if (batchAssignEnabled.value) {
+      batchAssignResult.value = await adminAPI.subscriptions.bulkAssign({
+        user_ids: assignUsers.value.map(user => user.id),
+        group_id: assignForm.group_id,
+        validity_days: assignForm.validity_days,
+      })
+      const result = batchAssignResult.value
+      const successfulUserIDs = new Set(
+        Object.entries(result.statuses ?? {})
+          .filter(([, status]) => status !== 'failed')
+          .map(([userID]) => userID)
+      )
+      if (successfulUserIDs.size === 0) {
+        result.subscriptions.forEach(subscription => successfulUserIDs.add(subscription.user_id))
+      }
+      assignUsers.value = assignUsers.value.filter(user => !successfulUserIDs.has(user.id))
+      if (result.failed_count > 0) {
+        appStore.showError(t('admin.subscriptions.batchAssign.result', { success: result.success_count, failed: result.failed_count }))
+      } else {
+        appStore.showSuccess(t('admin.subscriptions.batchAssign.result', { success: result.success_count, failed: result.failed_count }))
+      }
+      await Promise.all([loadSubscriptions(), loadPendingSubscriptions()])
+      return
+    }
     const grant = await adminAPI.subscriptions.assign({
-      user_id: assignForm.user_id,
-      group_id: assignForm.group_id,
+      user_id: assignForm.user_id!,
+      group_id: assignForm.group_id!,
       validity_days: assignForm.validity_days
     })
     appStore.showSuccess(grant.activation_status === 'pending'
       ? t('admin.subscriptions.subscriptionQueued')
       : t('admin.subscriptions.subscriptionAssigned'))
+    submitting.value = false
     closeAssignModal()
-    loadSubscriptions()
-    loadPendingSubscriptions()
+    await Promise.all([loadSubscriptions(), loadPendingSubscriptions()])
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAssign'))
     console.error('Error assigning subscription:', error)
