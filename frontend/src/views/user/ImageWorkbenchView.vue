@@ -312,11 +312,12 @@
         </label>
         <label>
           <span>{{ t('imageWorkbench.model') }}</span>
-          <select v-model="selectedModel" :disabled="models.length === 0">
-            <option value="">{{ models.length ? t('imageWorkbench.model') : t('imageWorkbench.noModels') }}</option>
+          <select v-model="selectedModel" :disabled="loadingModels || models.length === 0">
+            <option value="">{{ loadingModels ? t('imageWorkbench.loading') : modelsError ? t('imageWorkbench.modelsLoadFailed') : models.length ? t('imageWorkbench.model') : t('imageWorkbench.noModels') }}</option>
             <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name || model.id }}</option>
           </select>
         </label>
+        <p v-if="modelsError" role="alert">{{ modelsError }}</p>
         <button class="primary-button" type="button" @click="saveConnection">{{ t('common.save') }}</button>
       </div>
       <div v-else-if="settingsTab === 'preferences'" class="settings-form">
@@ -448,6 +449,9 @@ const prompt = ref('')
 const promptInput = ref<HTMLTextAreaElement | null>(null)
 const referenceFile = ref<File | null>(null)
 const models = ref<ImageModel[]>([])
+const loadingModels = ref(false)
+const modelsError = ref('')
+let modelsRequestId = 0
 const history = ref<ImageHistoryItem[]>([])
 const errorMessage = ref('')
 const previewItem = ref<ImageHistoryItem | null>(null)
@@ -467,12 +471,11 @@ const params = reactive({
 })
 
 const adapter = computed<ImagePlatformAdapter>(() => imagePlatformAdapters.find((item) => item.id === activePlatform.value) || imagePlatformAdapters[0])
-const eligibleKeys = computed(() => eligibleImageKeys(credentials.value.keys, adapter.value))
+const eligibleKeys = computed(() => eligibleImageKeys(credentials.value.keys, adapter.value, credentials.value.groups))
 const selectedKeyId = computed({
   get: () => selectedByPlatform[activePlatform.value].keyId,
   set: (value: string) => {
     selectedByPlatform[activePlatform.value].keyId = value
-    void refreshModels()
   },
 })
 const selectedModel = computed({
@@ -675,19 +678,27 @@ async function saveImageResults(
 }
 
 async function refreshModels() {
+  const requestId = ++modelsRequestId
+  const platform = activePlatform.value
   const key = selectedKey.value?.key
+  const current = selectedByPlatform[platform].model
+  models.value = []
+  modelsError.value = ''
+  selectedByPlatform[platform].model = ''
+  loadingModels.value = Boolean(key)
   if (!key) {
-    models.value = []
-    selectedByPlatform[activePlatform.value].model = ''
     return
   }
   try {
-    models.value = await listImageModels(key, adapter.value)
-    const current = selectedByPlatform[activePlatform.value].model
-    if (!models.value.some((model) => model.id === current)) selectedByPlatform[activePlatform.value].model = models.value[0]?.id || ''
-  } catch {
-    models.value = []
-    errorMessage.value = t('imageWorkbench.noModels')
+    const result = await listImageModels(key, adapter.value)
+    if (requestId !== modelsRequestId) return
+    models.value = result
+    selectedByPlatform[platform].model = result.some((model) => model.id === current) ? current : result[0]?.id || ''
+  } catch (error) {
+    if (requestId !== modelsRequestId) return
+    modelsError.value = error instanceof Error ? error.message : t('imageWorkbench.modelsLoadFailed')
+  } finally {
+    if (requestId === modelsRequestId) loadingModels.value = false
   }
 }
 
@@ -1143,12 +1154,11 @@ function onKeydown(event: KeyboardEvent) {
 
 watch(eligibleKeys, (keys) => {
   if (!keys.some((key) => key.id === selectedKeyId.value)) selectedByPlatform[activePlatform.value].keyId = keys[0]?.id || ''
-  void refreshModels()
 }, { immediate: true })
+watch([selectedKey, activePlatform], () => { void refreshModels() })
 watch(activePlatform, () => {
   errorMessage.value = ''
   persistConnection()
-  void refreshModels()
 })
 watch(settingsOpen, (open) => {
   if (!open) persistConnection()
@@ -1211,6 +1221,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  modelsRequestId += 1
   window.removeEventListener('keydown', onKeydown)
   for (const timer of pollTimers.values()) window.clearTimeout(timer)
   pollTimers.clear()
