@@ -161,6 +161,9 @@ func RegisterUserRoutes(
 
 		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
+		if settingService != nil {
+			subscriptions.Use(userFeatureGate(settingService.IsSubscriptionUserAvailable))
+		}
 		{
 			subscriptions.GET("", h.Subscription.List)
 			subscriptions.GET("/active", h.Subscription.GetActive)

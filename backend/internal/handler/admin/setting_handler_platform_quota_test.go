@@ -93,6 +93,18 @@ func TestDiffSettings_DetectsCompactHomeChange(t *testing.T) {
 	require.Contains(t, changed, service.SettingKeyCompactHomeEnabled)
 }
 
+func TestDiffSettings_DetectsSiteBillingModeChange(t *testing.T) {
+	changed := diffSettings(
+		&service.SystemSettings{SiteBillingMode: service.SiteBillingModeRechargeAndSubscription},
+		&service.SystemSettings{SiteBillingMode: service.SiteBillingModeRechargeOnly},
+		nil,
+		nil,
+		UpdateSettingsRequest{},
+	)
+
+	require.Contains(t, changed, "site_billing_mode")
+}
+
 func TestEqualNullableFloat(t *testing.T) {
 	five := 5.0
 	five2 := 5.0

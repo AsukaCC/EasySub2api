@@ -98,6 +98,9 @@ func TestParsePaymentConfig(t *testing.T) {
 		if cfg.Enabled {
 			t.Fatal("expected Enabled=false by default")
 		}
+		if !cfg.SubscriptionEnabled {
+			t.Fatal("expected subscriptions to remain enabled by default")
+		}
 		if cfg.MinAmount != 1 {
 			t.Fatalf("expected MinAmount=1, got %v", cfg.MinAmount)
 		}
@@ -118,6 +121,14 @@ func TestParsePaymentConfig(t *testing.T) {
 		}
 		if cfg.AlipayMobilePrecreateDeepLink {
 			t.Fatal("expected AlipayMobilePrecreateDeepLink=false by default")
+		}
+	})
+
+	t.Run("explicit false disables subscriptions", func(t *testing.T) {
+		t.Parallel()
+		cfg := svc.parsePaymentConfig(map[string]string{SettingKeySubscriptionEnabled: "false"})
+		if cfg.SubscriptionEnabled {
+			t.Fatal("expected SubscriptionEnabled=false")
 		}
 	})
 

@@ -22,6 +22,22 @@ describe('resolveSiteBillingMode', () => {
     expect(resolveSiteBillingMode({ subscription_enabled: false, payment_balance_disabled: true })).toBe('recharge_only')
   })
 
+  it('prefers the explicit unified field over compatibility switches', () => {
+    expect(resolveSiteBillingMode({
+      site_billing_mode: 'subscription_only',
+      subscription_enabled: false,
+      payment_balance_disabled: false,
+    })).toBe('subscription_only')
+  })
+
+  it('falls back to the safe combined mode for an invalid unified value', () => {
+    expect(resolveSiteBillingMode({
+      site_billing_mode: 'disabled',
+      subscription_enabled: false,
+      payment_balance_disabled: true,
+    })).toBe('recharge_and_subscription')
+  })
+
   it('round-trips every mode through billingModeToSettings', () => {
     for (const mode of SITE_BILLING_MODES) {
       expect(resolveSiteBillingMode(billingModeToSettings(mode))).toBe(mode)

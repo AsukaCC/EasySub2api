@@ -58,6 +58,7 @@ const (
 // PaymentConfig holds the payment system configuration.
 type PaymentConfig struct {
 	Enabled                   bool                `json:"enabled"`
+	SubscriptionEnabled       bool                `json:"subscription_enabled"`
 	MinAmount                 float64             `json:"min_amount"`
 	MaxAmount                 float64             `json:"max_amount"`
 	DailyLimit                float64             `json:"daily_limit"`
@@ -296,7 +297,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingRechargeBonusTiers, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingRefundFeeRate, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingKeySubscriptionEnabled, SettingBalanceRechargeMult, SettingRechargeBonusTiers, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingRefundFeeRate, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -317,13 +318,14 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 
 func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *PaymentConfig {
 	cfg := &PaymentConfig{
-		Enabled:          vals[SettingPaymentEnabled] == "true",
-		MinAmount:        pcParseFloat(vals[SettingMinRechargeAmount], 1),
-		MaxAmount:        pcParseFloat(vals[SettingMaxRechargeAmount], 0),
-		DailyLimit:       pcParseFloat(vals[SettingDailyRechargeLimit], 0),
-		OrderTimeoutMin:  pcParseInt(vals[SettingOrderTimeoutMinutes], defaultOrderTimeoutMin),
-		MaxPendingOrders: pcParseInt(vals[SettingMaxPendingOrders], defaultMaxPendingOrders),
-		BalanceDisabled:  vals[SettingBalancePayDisabled] == "true",
+		Enabled:             vals[SettingPaymentEnabled] == "true",
+		SubscriptionEnabled: !isFalseSettingValue(vals[SettingKeySubscriptionEnabled]),
+		MinAmount:           pcParseFloat(vals[SettingMinRechargeAmount], 1),
+		MaxAmount:           pcParseFloat(vals[SettingMaxRechargeAmount], 0),
+		DailyLimit:          pcParseFloat(vals[SettingDailyRechargeLimit], 0),
+		OrderTimeoutMin:     pcParseInt(vals[SettingOrderTimeoutMinutes], defaultOrderTimeoutMin),
+		MaxPendingOrders:    pcParseInt(vals[SettingMaxPendingOrders], defaultMaxPendingOrders),
+		BalanceDisabled:     vals[SettingBalancePayDisabled] == "true",
 		// The legacy multiplier remains in the API contract, but points now have
 		// a permanent 1:1 relationship with the CNY recharge principal.
 		BalanceRechargeMultiplier: defaultBalanceRechargeMultiplier,

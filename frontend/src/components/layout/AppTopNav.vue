@@ -70,6 +70,7 @@ import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import {
@@ -112,10 +113,21 @@ const siteLogo = computed(() =>
 
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
+const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagUsageGuide = makeSidebarFlag(FeatureFlags.usageGuide)
 const flagImageWorkbench = makeSidebarFlag(FeatureFlags.imageWorkbench)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
+const purchaseNavLabel = computed(() => {
+  switch (resolveSiteBillingMode(appStore.cachedPublicSettings)) {
+    case 'recharge_only':
+      return t('nav.recharge')
+    case 'subscription_only':
+      return t('nav.subscribe')
+    default:
+      return t('nav.buySubscription')
+  }
+})
 const supportSummary = ref({ total: 0, unread: 0, featureEnabled: false, loaded: false })
 const flagSupportTickets = () =>
   appStore.cachedPublicSettings?.support_tickets_enabled === true ||
@@ -161,12 +173,12 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/usage-guide', label: t('nav.usageGuide'), icon: 'document', hideInSimpleMode: true, featureFlag: flagUsageGuide },
     {
       path: '/purchase',
-      label: t('nav.buySubscription'),
+      label: purchaseNavLabel.value,
       icon: 'dollar',
       hideInSimpleMode: true,
       featureFlag: flagPayment
     },
-    { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: 'creditCard', hideInSimpleMode: true },
+    { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: 'creditCard', hideInSimpleMode: true, featureFlag: flagSubscription },
     {
       path: '/orders',
       label: t('nav.myOrders'),

@@ -44,11 +44,6 @@ func (h *PaymentHandler) GetPaymentConfig(c *gin.Context) {
 // GetPlans returns subscription plans available for sale.
 // GET /api/v1/payment/plans
 func (h *PaymentHandler) GetPlans(c *gin.Context) {
-	plans, err := h.configService.ListPlansForSale(c.Request.Context())
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
 	// Enrich plans with group platform for frontend color coding
 	type planWithPlatform struct {
 		ID                    string   `json:"id"`
@@ -83,6 +78,20 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		SortOrder             int      `json:"sort_order"`
 		StockEnabled          bool     `json:"stock_enabled"`
 		StockAvailable        *int     `json:"stock_available"`
+	}
+	cfg, err := h.configService.GetPaymentConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if !cfg.SubscriptionEnabled {
+		response.Success(c, []planWithPlatform{})
+		return
+	}
+	plans, err := h.configService.ListPlansForSale(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
 	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
 	result := make([]planWithPlatform, 0, len(plans))
@@ -145,8 +154,12 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		}
 	}
 
-	// Fetch plans with group info
-	plans, _ := h.configService.ListPlansForSale(ctx)
+	// Fetch plans with group info only when subscriptions are available. The
+	// order service independently enforces the same setting for direct calls.
+	var plans []*dbent.SubscriptionPlan
+	if cfg.SubscriptionEnabled {
+		plans, _ = h.configService.ListPlansForSale(ctx)
+	}
 	wallet, err := h.paymentService.GetWalletSummary(ctx, subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -161,6 +174,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		GlobalMax:                     limitsResp.GlobalMax,
 		Plans:                         planList,
 		BalanceDisabled:               cfg.BalanceDisabled,
+		SubscriptionEnabled:           cfg.SubscriptionEnabled,
 		BalanceRechargeMultiplier:     cfg.BalanceRechargeMultiplier,
 		RechargeBonusTiers:            cfg.RechargeBonusTiers,
 		SubscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
@@ -180,6 +194,7 @@ type checkoutInfoResponse struct {
 	GlobalMax                     float64                         `json:"global_max"`
 	Plans                         []checkoutPlan                  `json:"plans"`
 	BalanceDisabled               bool                            `json:"balance_disabled"`
+	SubscriptionEnabled           bool                            `json:"subscription_enabled"`
 	BalanceRechargeMultiplier     float64                         `json:"balance_recharge_multiplier"`
 	RechargeBonusTiers            []service.RechargeBonusTier     `json:"recharge_bonus_tiers"`
 	SubscriptionUSDToCNYRate      float64                         `json:"subscription_usd_to_cny_rate"`

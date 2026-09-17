@@ -24,11 +24,18 @@ export const SITE_BILLING_MODE_I18N_KEYS: Record<SiteBillingMode, string> = {
 }
 
 export interface BillingModeSettings {
+  site_billing_mode?: string
   subscription_enabled?: boolean
   payment_balance_disabled?: boolean
 }
 
 export function resolveSiteBillingMode(settings: BillingModeSettings | null | undefined): SiteBillingMode {
+  const explicitMode = settings?.site_billing_mode?.trim()
+  if (explicitMode) {
+    return SITE_BILLING_MODES.includes(explicitMode as SiteBillingMode)
+      ? explicitMode as SiteBillingMode
+      : 'recharge_and_subscription'
+  }
   const subscriptionEnabled = resolveFeatureFlag(
     { subscription_enabled: settings?.subscription_enabled } as Partial<PublicSettings>,
     FeatureFlags.subscription,
@@ -41,10 +48,10 @@ export function resolveSiteBillingMode(settings: BillingModeSettings | null | un
 export function billingModeToSettings(mode: SiteBillingMode): Required<BillingModeSettings> {
   switch (mode) {
     case 'recharge_only':
-      return { subscription_enabled: false, payment_balance_disabled: false }
+      return { site_billing_mode: mode, subscription_enabled: false, payment_balance_disabled: false }
     case 'subscription_only':
-      return { subscription_enabled: true, payment_balance_disabled: true }
+      return { site_billing_mode: mode, subscription_enabled: true, payment_balance_disabled: true }
     default:
-      return { subscription_enabled: true, payment_balance_disabled: false }
+      return { site_billing_mode: 'recharge_and_subscription', subscription_enabled: true, payment_balance_disabled: false }
   }
 }

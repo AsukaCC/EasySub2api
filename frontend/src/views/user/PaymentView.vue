@@ -33,8 +33,11 @@
         </template>
         <!-- Tab content (select phase) -->
         <template v-else>
+          <div v-if="tabs.length === 0" class="card py-16 text-center">
+            <p class="text-gray-500 dark:text-gray-400">{{ t('payment.billingUnavailable') }}</p>
+          </div>
           <!-- Top-up Tab -->
-          <template v-if="activeTab === 'recharge'">
+          <template v-else-if="activeTab === 'recharge'">
             <div class="wallet-summary card">
               <div class="wallet-summary__header">
                 <div>
@@ -378,6 +381,7 @@ import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
+import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -664,7 +668,7 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  plans: [], balance_disabled: false, subscription_enabled: true, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
   wallet: { balance: 0, available_balance: 0, recharge_balance: 0, bonus_balance: 0, overdraft_amount: 0, frozen_balance: 0, frozen_recharge_balance: 0, frozen_bonus_balance: 0, total_balance: 0, next_expiring_bonus_amount: 0 },
 })
 
@@ -672,15 +676,27 @@ const renderedHelpText = computed(() => DOMPurify.sanitize(
   marked.parse(checkout.value.help_text || '', { async: false, gfm: true, breaks: false }),
 ))
 
+const subscriptionEnabled = computed(() => {
+  if (checkout.value.subscription_enabled === false) return false
+  return resolveSiteBillingMode(appStore.cachedPublicSettings) !== 'recharge_only'
+})
+
 const tabs = computed(() => {
   const result: { key: 'recharge' | 'subscription'; label: string }[] = []
   if (props.checkoutMode !== 'subscription' && !checkout.value.balance_disabled) {
     result.push({ key: 'recharge', label: t('payment.tabTopUp') })
   }
-  if (props.checkoutMode !== 'recharge') {
+  if (props.checkoutMode !== 'recharge' && subscriptionEnabled.value) {
     result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
   }
   return result
+})
+
+watch(tabs, (available) => {
+  if (available.some((tab) => tab.key === activeTab.value)) return
+  const leavingSubscription = activeTab.value === 'subscription'
+  activeTab.value = available[0]?.key ?? 'recharge'
+  if (leavingSubscription) selectedPlan.value = null
 })
 
 const visibleMethods = computed(() => Object.fromEntries(
@@ -1358,10 +1374,12 @@ onMounted(async () => {
   try {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
-    await Promise.allSettled([
-      subscriptionStore.fetchActiveSubscriptions(),
-      subscriptionStore.fetchPendingSubscriptions(),
-    ])
+    if (subscriptionEnabled.value) {
+      await Promise.allSettled([
+        subscriptionStore.fetchActiveSubscriptions(),
+        subscriptionStore.fetchPendingSubscriptions(),
+      ])
+    }
     if (enabledMethods.value.length) {
       const order: readonly string[] = METHOD_ORDER
       const sorted = [...enabledMethods.value].sort((a, b) => {
@@ -1397,11 +1415,11 @@ onMounted(async () => {
       }
     }
     await resumeWechatPaymentFromQuery()
-    if (checkout.value.balance_disabled && props.checkoutMode !== 'recharge') {
+    if (checkout.value.balance_disabled && subscriptionEnabled.value && props.checkoutMode !== 'recharge') {
       activeTab.value = 'subscription'
     }
     // Handle renewal navigation: ?tab=subscription&group=123 or ?plan_id=456
-    if (props.checkoutMode === 'subscription' || route.query.tab === 'subscription') {
+    if (subscriptionEnabled.value && (props.checkoutMode === 'subscription' || route.query.tab === 'subscription')) {
       activeTab.value = 'subscription'
       if (route.query.group) {
         openRenewalForGroup(String(route.query.group))

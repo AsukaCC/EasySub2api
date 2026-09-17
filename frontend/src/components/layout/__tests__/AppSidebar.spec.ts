@@ -65,11 +65,19 @@ describe('AppSidebar mobile visibility', () => {
     expect(styleSource).toContain(
       'inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) auto 0 0;',
     )
-    expect(styleSource).toContain('z-index: 45;')
+    expect(styleSource).toContain('z-index: var(--z-sidebar);')
     expect(componentSource).toContain(
       'inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) 0 0;',
     )
-    expect(componentSource).toContain('z-index: 40;')
+    expect(componentSource).toContain('z-index: var(--z-sidebar);')
+  })
+})
+
+describe('AppSidebar site billing navigation', () => {
+  it('uses the unified mode for the purchase label and subscription visibility', () => {
+    expect(componentSource).toContain('resolveSiteBillingMode(appStore.cachedPublicSettings)')
+    expect(componentSource).toContain('const purchaseNavLabel = computed')
+    expect(componentSource).toContain('featureFlag: flagSubscription')
   })
 })
 

@@ -57,6 +57,17 @@ func (s *SettingService) IsPaymentUserAvailable(ctx context.Context) bool {
 	return s.isUserFeatureAvailable(ctx, SettingPaymentEnabled, SettingPaymentUserVisible, false)
 }
 
+// IsSubscriptionUserAvailable gates the user-facing subscription management
+// APIs. The setting is opt-out for compatibility with deployments created
+// before the three-state site billing mode existed.
+func (s *SettingService) IsSubscriptionUserAvailable(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return true
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySubscriptionEnabled)
+	return err != nil || !isFalseSettingValue(value)
+}
+
 func (s *SettingService) IsAffiliateUserAvailable(ctx context.Context) bool {
 	return s.isUserFeatureAvailable(ctx, SettingKeyAffiliateEnabled, SettingKeyAffiliateUserVisible, false)
 }

@@ -20,7 +20,14 @@ func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, 
 }
 
 func (s *settingPublicRepoStub) GetValue(ctx context.Context, key string) (string, error) {
-	panic("unexpected GetValue call")
+	if s.err != nil {
+		return "", s.err
+	}
+	value, ok := s.values[key]
+	if !ok {
+		return "", ErrSettingNotFound
+	}
+	return value, nil
 }
 
 func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) error {
@@ -261,6 +268,26 @@ func TestSettingService_GetPublicSettings_SubscriptionEnabledOnlyExplicitFalseDi
 			settings, err := svc.GetPublicSettings(context.Background())
 			require.NoError(t, err)
 			require.Equal(t, tc.want, settings.SubscriptionEnabled)
+		})
+	}
+}
+
+func TestSettingService_IsSubscriptionUserAvailableUsesOptOutDefault(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		values map[string]string
+		want   bool
+	}{
+		{name: "missing defaults enabled", values: map[string]string{}, want: true},
+		{name: "true stays enabled", values: map[string]string{SettingKeySubscriptionEnabled: "true"}, want: true},
+		{name: "false disables", values: map[string]string{SettingKeySubscriptionEnabled: "false"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			svc := NewSettingService(&settingPublicRepoStub{values: tc.values}, &config.Config{})
+			require.Equal(t, tc.want, svc.IsSubscriptionUserAvailable(context.Background()))
 		})
 	}
 }

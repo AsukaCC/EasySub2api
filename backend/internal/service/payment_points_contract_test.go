@@ -10,6 +10,7 @@ import (
 
 	dbent "github.com/AsukaCC/EasySub2api/ent"
 	"github.com/AsukaCC/EasySub2api/internal/payment"
+	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,6 +53,18 @@ func TestValidateOrderInputRejectsUnknownOrderType(t *testing.T) {
 		Amount:    10,
 	}, &PaymentConfig{})
 	require.ErrorContains(t, err, "order type must be balance or subscription")
+}
+
+func TestValidateOrderInputRejectsSubscriptionWhenSiteIsRechargeOnly(t *testing.T) {
+	t.Parallel()
+
+	_, err := (&PaymentService{}).validateOrderInput(context.Background(), CreateOrderRequest{
+		OrderType:  payment.OrderTypeSubscription,
+		PlanID:     "plan-1",
+		UseBalance: true,
+	}, &PaymentConfig{SubscriptionEnabled: false})
+
+	require.Equal(t, "SUBSCRIPTION_PAYMENT_DISABLED", infraerrors.Reason(err))
 }
 
 func (unavailableSubscriptionGroupRepo) GetByID(context.Context, string) (*Group, error) {
