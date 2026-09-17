@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/tlsfingerprint"
@@ -22,6 +23,30 @@ type openCodeSyncTransport struct {
 	request *http.Request
 	body    []byte
 	status  int
+}
+
+type openCodeRecoveryRepo struct {
+	mockAccountRepoForGemini
+	extraUpdates      map[string]any
+	tempUnschedCalls  int
+	setErrorCalls     int
+	tempUnschedReason string
+}
+
+func (r *openCodeRecoveryRepo) UpdateExtra(_ context.Context, _ string, updates map[string]any) error {
+	r.extraUpdates = updates
+	return nil
+}
+
+func (r *openCodeRecoveryRepo) SetTempUnschedulable(_ context.Context, _ string, _ time.Time, reason string) error {
+	r.tempUnschedCalls++
+	r.tempUnschedReason = reason
+	return nil
+}
+
+func (r *openCodeRecoveryRepo) SetError(_ context.Context, _ string, _ string) error {
+	r.setErrorCalls++
+	return nil
 }
 
 func (u *openCodeSyncTransport) Do(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
@@ -50,35 +75,81 @@ func (u *openCodeSyncTransport) DoWithTLS(req *http.Request, proxy, id string, c
 
 func TestOpenCodeThreeProtocolRoutingAndMapping(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, inbound := range []string{"responses", "chat", "messages"} {
-		for _, tc := range []struct{ model, path string }{{"gpt-fixture", "/zen/go/v1/responses"}, {"minimax-fixture", "/zen/go/v1/messages"}, {"glm-fixture", "/zen/go/v1/chat/completions"}} {
-			t.Run(inbound+"/"+tc.model, func(t *testing.T) {
-				transport := &openCodeSyncTransport{}
-				svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: transport}
-				account := &Account{ID: "fixture-account", Platform: PlatformOpenCodeGo, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "fixture-key", "account_mode": "go", "model_mapping": map[string]any{"alias": tc.model}}}
-				body := []byte(`{"model":"alias","stream":true,"prompt_cache_key":"fixture-session","input":"hi","messages":[{"role":"user","content":"hi"}],"max_tokens":100}`)
-				recorder := httptest.NewRecorder()
-				c, _ := gin.CreateTestContext(recorder)
-				c.Request = httptest.NewRequest(http.MethodPost, "/v1/"+inbound, bytes.NewReader(body))
-				var result *OpenAIForwardResult
-				var err error
-				switch inbound {
-				case "responses":
-					result, err = svc.Forward(context.Background(), c, account, body)
-				case "chat":
-					result, err = svc.ForwardAsChatCompletions(context.Background(), c, account, body, "", "")
-				case "messages":
-					result, err = svc.ForwardAsAnthropic(context.Background(), c, account, body, "", "")
-				}
-				require.NoError(t, err)
-				require.NotNil(t, result)
-				require.NotNil(t, transport.request)
-				require.Equal(t, tc.path, transport.request.URL.Path)
-				require.Equal(t, tc.model, gjson.GetBytes(transport.body, "model").String())
-				require.Equal(t, "fixture-session", transport.request.Header.Get(openCodeSessionHeader))
-				require.Contains(t, recorder.Body.String(), "OK")
-			})
+	for _, mode := range []struct {
+		name             string
+		accountMode      string
+		pathPrefix       string
+		anthropicModelID string
+	}{
+		{name: "GO", accountMode: AccountModeGo, pathPrefix: "/zen/go/v1", anthropicModelID: "minimax-fixture"},
+		{name: "Zen", accountMode: AccountModeZen, pathPrefix: "/zen/v1", anthropicModelID: "claude-fixture"},
+	} {
+		for _, inbound := range []string{"responses", "chat", "messages"} {
+			for _, tc := range []struct{ model, path string }{
+				{"gpt-fixture", mode.pathPrefix + "/responses"},
+				{mode.anthropicModelID, mode.pathPrefix + "/messages"},
+				{"glm-fixture", mode.pathPrefix + "/chat/completions"},
+			} {
+				t.Run(mode.name+"/"+inbound+"/"+tc.model, func(t *testing.T) {
+					transport := &openCodeSyncTransport{}
+					svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: transport}
+					account := &Account{ID: "fixture-account", Platform: PlatformOpenCodeGo, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "fixture-key", "account_mode": mode.accountMode, "model_mapping": map[string]any{"alias": tc.model}}}
+					body := []byte(`{"model":"alias","stream":true,"prompt_cache_key":"fixture-session","input":"hi","messages":[{"role":"user","content":"hi"}],"max_tokens":100}`)
+					recorder := httptest.NewRecorder()
+					c, _ := gin.CreateTestContext(recorder)
+					c.Request = httptest.NewRequest(http.MethodPost, "/v1/"+inbound, bytes.NewReader(body))
+					var result *OpenAIForwardResult
+					var err error
+					switch inbound {
+					case "responses":
+						result, err = svc.Forward(context.Background(), c, account, body)
+					case "chat":
+						result, err = svc.ForwardAsChatCompletions(context.Background(), c, account, body, "", "")
+					case "messages":
+						result, err = svc.ForwardAsAnthropic(context.Background(), c, account, body, "", "")
+					}
+					require.NoError(t, err)
+					require.NotNil(t, result)
+					require.NotNil(t, transport.request)
+					require.Equal(t, tc.path, transport.request.URL.Path)
+					require.Equal(t, tc.model, gjson.GetBytes(transport.body, "model").String())
+					require.Equal(t, "fixture-session", transport.request.Header.Get(openCodeSessionHeader))
+					require.Contains(t, recorder.Body.String(), "OK")
+				})
+			}
 		}
+	}
+}
+
+func TestOpenCodePaymentRequiredUsesRecoverableCooldown(t *testing.T) {
+	for _, mode := range []string{AccountModeZen, AccountModeGo} {
+		t.Run(mode, func(t *testing.T) {
+			repo := &openCodeRecoveryRepo{}
+			svc := NewRateLimitService(repo, &config.Config{}, nil)
+			account := &Account{
+				ID:       "fixture-" + mode,
+				Platform: PlatformOpenCodeGo,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"api_key":      "fixture-key",
+					"account_mode": mode,
+				},
+			}
+
+			shouldDisable := svc.HandleUpstreamError(
+				context.Background(),
+				account,
+				http.StatusPaymentRequired,
+				http.Header{},
+				[]byte(`{"error":{"message":"insufficient balance"}}`),
+			)
+
+			require.True(t, shouldDisable)
+			require.Equal(t, 1, repo.tempUnschedCalls)
+			require.Zero(t, repo.setErrorCalls, "recoverable payment failures must not permanently mark credentials invalid")
+			require.Contains(t, repo.tempUnschedReason, cnBalanceLowReasonPrefix)
+			require.Equal(t, true, repo.extraUpdates[cnExtraKey(PlatformOpenCodeGo, cnBalanceExtraSuffixLow)])
+		})
 	}
 }
 
