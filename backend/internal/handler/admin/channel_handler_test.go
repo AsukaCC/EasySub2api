@@ -320,15 +320,17 @@ func TestPricingRequestToService_Defaults(t *testing.T) {
 func TestPricingRequestToService_WithAllFields(t *testing.T) {
 	reqs := []channelModelPricingRequest{
 		{
-			Platform:         "openai",
-			Models:           []string{"gpt-4", "gpt-4o"},
-			BillingMode:      "per_request",
-			InputPrice:       float64Ptr(0.01),
-			OutputPrice:      float64Ptr(0.03),
-			CacheWritePrice:  float64Ptr(0.005),
-			CacheReadPrice:   float64Ptr(0.002),
-			ImageOutputPrice: float64Ptr(0.04),
-			PerRequestPrice:  float64Ptr(0.5),
+			Platform:            "openai",
+			Models:              []string{"gpt-4", "gpt-4o"},
+			BillingMode:         "per_request",
+			InputPrice:          float64Ptr(0.01),
+			OutputPrice:         float64Ptr(0.03),
+			CacheWritePrice:     float64Ptr(0.005),
+			CacheReadPrice:      float64Ptr(0.002),
+			ImageInputPrice:     float64Ptr(0.006),
+			ImageCacheReadPrice: float64Ptr(0.0015),
+			ImageOutputPrice:    float64Ptr(0.04),
+			PerRequestPrice:     float64Ptr(0.5),
 		},
 	}
 
@@ -342,6 +344,8 @@ func TestPricingRequestToService_WithAllFields(t *testing.T) {
 	require.Equal(t, float64Ptr(0.03), r.OutputPrice)
 	require.Equal(t, float64Ptr(0.005), r.CacheWritePrice)
 	require.Equal(t, float64Ptr(0.002), r.CacheReadPrice)
+	require.Equal(t, float64Ptr(0.006), r.ImageInputPrice)
+	require.Equal(t, float64Ptr(0.0015), r.ImageCacheReadPrice)
 	require.Equal(t, float64Ptr(0.04), r.ImageOutputPrice)
 	require.Equal(t, float64Ptr(0.5), r.PerRequestPrice)
 }
@@ -417,6 +421,8 @@ func TestPricingRequestToService_NilPriceFields(t *testing.T) {
 	require.Nil(t, r.OutputPrice)
 	require.Nil(t, r.CacheWritePrice)
 	require.Nil(t, r.CacheReadPrice)
+	require.Nil(t, r.ImageInputPrice)
+	require.Nil(t, r.ImageCacheReadPrice)
 	require.Nil(t, r.ImageOutputPrice)
 	require.Nil(t, r.PerRequestPrice)
 }
@@ -462,6 +468,12 @@ func TestPricingToResponse_TimePricing(t *testing.T) {
 func TestPricingToResponse_TimePricingNil(t *testing.T) {
 	got := pricingToResponse(&service.ChannelModelPricing{})
 	require.Nil(t, got.TimePricing)
+}
+
+func TestPricingToResponse_ImageCacheReadPrice(t *testing.T) {
+	price := 2e-6
+	got := pricingToResponse(&service.ChannelModelPricing{ImageCacheReadPrice: &price})
+	require.Equal(t, &price, got.ImageCacheReadPrice)
 }
 
 // ---------------------------------------------------------------------------

@@ -632,6 +632,7 @@ export default {
       cacheWrite1hPrice: 'Cache Write (1h)',
       cacheReadPrice: 'Cache Read',
       imageInputPrice: 'Image Input',
+      imageCacheReadPrice: 'Image Cache Read',
       imageOutputPrice: 'Image Output',
       perRequestPrice: 'Per Request',
       intervals: 'Tiered Pricing',

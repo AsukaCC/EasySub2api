@@ -647,7 +647,7 @@ func TestConflictsBetween(t *testing.T) {
 
 func TestGetChannelForGroup_Success(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Name:     "test-channel",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
@@ -670,7 +670,7 @@ func TestGetChannelForGroup_Success(t *testing.T) {
 
 func TestGetChannelForGroup_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusDisabled,
 		GroupIDs: []string{"10"},
 	}
@@ -684,7 +684,7 @@ func TestGetChannelForGroup_InactiveChannel(t *testing.T) {
 
 func TestGetChannelForGroup_NoChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 	}
@@ -714,7 +714,7 @@ func TestGetChannelForGroup_CacheError(t *testing.T) {
 
 func TestGetChannelModelPricing_ExactMatch(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -732,7 +732,7 @@ func TestGetChannelModelPricing_ExactMatch(t *testing.T) {
 
 func TestGetChannelModelPricing_CaseInsensitive(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -749,7 +749,7 @@ func TestGetChannelModelPricing_CaseInsensitive(t *testing.T) {
 
 func TestGetChannelModelPricing_NormalizesDotsAndHyphens(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -768,7 +768,7 @@ func TestGetChannelModelPricing_NormalizesDotsAndHyphens(t *testing.T) {
 
 func TestGetChannelModelPricing_WildcardMatch(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -785,7 +785,7 @@ func TestGetChannelModelPricing_WildcardMatch(t *testing.T) {
 
 func TestGetChannelModelPricing_WildcardFirstMatch(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -805,7 +805,7 @@ func TestGetChannelModelPricing_WildcardFirstMatch(t *testing.T) {
 
 func TestGetChannelModelPricing_NoMatch(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -821,7 +821,7 @@ func TestGetChannelModelPricing_NoMatch(t *testing.T) {
 
 func TestGetChannelModelPricing_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusDisabled,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -837,7 +837,7 @@ func TestGetChannelModelPricing_InactiveChannel(t *testing.T) {
 
 func TestGetChannelModelPricing_PlatformFiltering(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
@@ -869,7 +869,7 @@ func TestGetChannelModelPricing_PlatformFiltering(t *testing.T) {
 
 func TestGetChannelModelPricing_ReturnsCopy(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -898,7 +898,7 @@ func TestGetChannelModelPricing_ReturnsCopy(t *testing.T) {
 
 func TestResolveChannelMapping_NoChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 	}
@@ -914,7 +914,7 @@ func TestResolveChannelMapping_NoChannel(t *testing.T) {
 
 func TestResolveChannelMapping_ExactMapping(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -934,7 +934,7 @@ func TestResolveChannelMapping_ExactMapping(t *testing.T) {
 
 func TestResolveChannelMapping_WildcardMapping(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -953,7 +953,7 @@ func TestResolveChannelMapping_WildcardMapping(t *testing.T) {
 
 func TestResolveChannelMapping_WildcardFirstMatch(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -976,7 +976,7 @@ func TestResolveChannelMapping_WildcardFirstMatch(t *testing.T) {
 
 func TestResolveChannelMapping_NoMapping(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -996,9 +996,9 @@ func TestResolveChannelMapping_NoMapping(t *testing.T) {
 
 func TestResolveChannelMapping_DefaultBillingModelSource(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:                 "1",
 		Status:             StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:           []string{"10"},
 		BillingModelSource: "", // empty
 	}
 	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
@@ -1010,9 +1010,9 @@ func TestResolveChannelMapping_DefaultBillingModelSource(t *testing.T) {
 
 func TestResolveChannelMapping_UpstreamBillingModelSource(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:                 "1",
 		Status:             StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:           []string{"10"},
 		BillingModelSource: BillingModelSourceUpstream,
 	}
 	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
@@ -1024,7 +1024,7 @@ func TestResolveChannelMapping_UpstreamBillingModelSource(t *testing.T) {
 
 func TestResolveChannelMapping_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusDisabled,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -1046,9 +1046,9 @@ func TestResolveChannelMapping_InactiveChannel(t *testing.T) {
 
 func TestIsModelRestricted_NoChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 	}
 	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
@@ -1061,9 +1061,9 @@ func TestIsModelRestricted_NoChannel(t *testing.T) {
 
 func TestIsModelRestricted_RestrictDisabled(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: false,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4"}},
@@ -1079,9 +1079,9 @@ func TestIsModelRestricted_RestrictDisabled(t *testing.T) {
 
 func TestIsModelRestricted_InactiveChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusDisabled,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 	}
 	repo := makeStandardRepo(ch, map[string]string{"10": "anthropic"})
@@ -1093,9 +1093,9 @@ func TestIsModelRestricted_InactiveChannel(t *testing.T) {
 
 func TestIsModelRestricted_ModelInPricing(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4", "claude-sonnet-4"}},
@@ -1110,9 +1110,9 @@ func TestIsModelRestricted_ModelInPricing(t *testing.T) {
 
 func TestIsModelRestricted_ModelInWildcard(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-*"}},
@@ -1127,9 +1127,9 @@ func TestIsModelRestricted_ModelInWildcard(t *testing.T) {
 
 func TestIsModelRestricted_ModelNotFound(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4"}},
@@ -1144,9 +1144,9 @@ func TestIsModelRestricted_ModelNotFound(t *testing.T) {
 
 func TestIsModelRestricted_CaseInsensitive(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-opus-4"}},
@@ -1179,9 +1179,9 @@ func TestResolveChannelMappingAndRestrict_NilGroupID(t *testing.T) {
 
 func TestResolveChannelMappingAndRestrict_WithMapping(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-sonnet-4"}},
@@ -1204,9 +1204,9 @@ func TestResolveChannelMappingAndRestrict_WithMapping(t *testing.T) {
 
 func TestResolveChannelMappingAndRestrict_NoMapping(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-sonnet-4"}},
@@ -1257,7 +1257,7 @@ func TestBuildCache_DBError(t *testing.T) {
 
 func TestBuildCache_GroupPlatformError(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -1287,7 +1287,7 @@ func TestBuildCache_GroupPlatformError(t *testing.T) {
 
 func TestBuildCache_MultipleGroupsSameChannel(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10", "20", "30"},
 		ModelPricing: []ChannelModelPricing{
@@ -1310,7 +1310,7 @@ func TestBuildCache_MultipleGroupsSameChannel(t *testing.T) {
 
 func TestBuildCache_PlatformFiltering(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
@@ -1335,7 +1335,7 @@ func TestBuildCache_PlatformFiltering(t *testing.T) {
 
 func TestBuildCache_WildcardPreservesConfigOrder(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -1369,7 +1369,7 @@ func TestBuildCache_WildcardPreservesConfigOrder(t *testing.T) {
 func TestInvalidateCache(t *testing.T) {
 	callCount := 0
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -1417,11 +1417,11 @@ func TestInvalidateCachePublishesToOtherInstances(t *testing.T) {
 				model = "new-model"
 			}
 			return []Channel{{
-				ID: "1",
+				ID:       "1",
 				Status:   StatusActive,
 				GroupIDs: []string{"10"},
 				ModelPricing: []ChannelModelPricing{{
-					ID: "100",
+					ID:       "100",
 					Platform: PlatformAnthropic,
 					Models:   []string{model},
 				}},
@@ -1590,7 +1590,7 @@ func TestCreate_DefaultBillingModelSource(t *testing.T) {
 func TestCreate_InvalidatesCache(t *testing.T) {
 	loadCount := 0
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -1635,7 +1635,7 @@ func TestCreate_InvalidatesCache(t *testing.T) {
 
 func TestUpdate_Success(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1680,7 +1680,7 @@ func TestUpdate_NotFound(t *testing.T) {
 
 func TestUpdate_NameConflict(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1703,7 +1703,7 @@ func TestUpdate_NameConflict(t *testing.T) {
 
 func TestUpdate_GroupConflict(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1727,7 +1727,7 @@ func TestUpdate_GroupConflict(t *testing.T) {
 
 func TestUpdate_DuplicateModel(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1751,7 +1751,7 @@ func TestUpdate_DuplicateModel(t *testing.T) {
 
 func TestUpdate_InvalidPricingIntervals(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1782,7 +1782,7 @@ func TestUpdate_InvalidPricingIntervals(t *testing.T) {
 
 func TestUpdate_InvalidatesChannelCache(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1824,7 +1824,7 @@ func TestUpdate_InvalidatesChannelCache(t *testing.T) {
 
 func TestUpdate_InvalidatesAuthCache(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "original",
 		Status: StatusActive,
 	}
@@ -1974,7 +1974,7 @@ func TestCreate_NoGroups(t *testing.T) {
 
 func TestUpdate_StatusOnly(t *testing.T) {
 	existing := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "test-channel",
 		Status: StatusActive,
 	}
@@ -2137,7 +2137,7 @@ func TestMatchingPlatforms(t *testing.T) {
 
 func TestCompositeChannelLookupUsesResolvedTargetPlatform(t *testing.T) {
 	channel := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"99"},
 		ModelPricing: []ChannelModelPricing{
@@ -2180,7 +2180,7 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeCrossPlatformPricing(t *tes
 	// Channel has anthropic pricing for claude-opus-4-6.
 	// Group 10 is antigravity — should NOT see the anthropic pricing.
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -2198,7 +2198,7 @@ func TestGetChannelModelPricing_AnthropicCannotSeeAntigravityPricing(t *testing.
 	// Channel has antigravity-platform pricing for claude-opus-4-6.
 	// Group 10 is anthropic — should NOT see antigravity pricing (no cross-platform leakage).
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -2220,7 +2220,7 @@ func TestResolveChannelMapping_AntigravityDoesNotSeeCrossPlatformMapping(t *test
 	// Channel has anthropic model mapping: claude-opus-4-5 → claude-opus-4-6.
 	// Group 10 is antigravity — should NOT apply the anthropic mapping.
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -2245,7 +2245,7 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeSameModelFromOtherPlatforms
 	// anthropic 和 gemini 都定义了同名模型 "shared-model"，价格不同。
 	// antigravity 分组不应看到任何一个（各平台严格独立）。
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -2264,7 +2264,7 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeGeminiOnlyPricing(t *testin
 	// 只有 gemini 平台定义了模型 "gemini-model"。
 	// antigravity 分组不应看到 gemini 的定价。
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -2282,7 +2282,7 @@ func TestGetChannelModelPricing_AntigravityDoesNotSeeWildcardFromOtherPlatforms(
 	// anthropic 和 gemini 都有 "shared-*" 通配符定价。
 	// antigravity 分组不应命中任何一个。
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -2301,7 +2301,7 @@ func TestResolveChannelMapping_AntigravityDoesNotSeeMappingFromOtherPlatforms(t 
 	// anthropic 和 gemini 都定义了同名模型映射 "alias" → 不同目标。
 	// antigravity 分组不应命中任何一个。
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelMapping: map[string]map[string]string{
@@ -2321,10 +2321,10 @@ func TestCheckRestricted_AntigravityDoesNotSeeModelsFromOtherPlatforms(t *testin
 	// anthropic 和 gemini 都定义了同名模型 "shared-model"。
 	// antigravity 分组启用了 RestrictModels，"shared-model" 应被限制（各平台独立）。
 	ch := Channel{
-		ID: "1",
+		ID:             "1",
 		Status:         StatusActive,
 		RestrictModels: true,
-		GroupIDs: []string{"10"},
+		GroupIDs:       []string{"10"},
 		ModelPricing: []ChannelModelPricing{
 			{ID: "500", Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(10e-6)},
 			{ID: "501", Platform: PlatformGemini, Models: []string{"shared-model"}, InputPrice: testPtrFloat64(5e-6)},
@@ -2343,7 +2343,7 @@ func TestCheckRestricted_AntigravityDoesNotSeeModelsFromOtherPlatforms(t *testin
 func TestGetChannelModelPricing_AntigravityOwnPricingWorks(t *testing.T) {
 	// antigravity 平台自己配置的定价应正常生效（覆盖 Claude 和 Gemini 模型）。
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
@@ -2371,7 +2371,7 @@ func TestGetChannelModelPricing_NonAntigravityUnaffected(t *testing.T) {
 	// 确保非 antigravity 平台的行为不受影响。
 	// anthropic 分组只能看到 anthropic 的定价，看不到 gemini 的。
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
@@ -2402,7 +2402,7 @@ func TestGetChannelModelPricing_NonAntigravityUnaffected(t *testing.T) {
 func TestToUsageFields_NoMapping(t *testing.T) {
 	r := ChannelMappingResult{
 		MappedModel:        "claude-opus-4",
-		ChannelID: "1",
+		ChannelID:          "1",
 		Mapped:             false,
 		BillingModelSource: BillingModelSourceRequested,
 	}
@@ -2417,7 +2417,7 @@ func TestToUsageFields_NoMapping(t *testing.T) {
 func TestToUsageFields_WithChannelMapping(t *testing.T) {
 	r := ChannelMappingResult{
 		MappedModel:        "claude-sonnet-4-20250514",
-		ChannelID: "2",
+		ChannelID:          "2",
 		Mapped:             true,
 		BillingModelSource: BillingModelSourceChannelMapped,
 	}
@@ -2431,7 +2431,7 @@ func TestToUsageFields_WithChannelMapping(t *testing.T) {
 func TestToUsageFields_WithUpstreamDifference(t *testing.T) {
 	r := ChannelMappingResult{
 		MappedModel:        "claude-sonnet-4",
-		ChannelID: "3",
+		ChannelID:          "3",
 		Mapped:             true,
 		BillingModelSource: BillingModelSourceUpstream,
 	}
@@ -2494,6 +2494,15 @@ func TestValidatePricingBillingMode(t *testing.T) {
 			}},
 			wantErr: true,
 			errMsg:  "input_price must be >= 0",
+		},
+		{
+			name: "negative image_cache_read_price - invalid",
+			pricing: []ChannelModelPricing{{
+				BillingMode:         BillingModeToken,
+				ImageCacheReadPrice: testPtrFloat64(-0.01),
+			}},
+			wantErr: true,
+			errMsg:  "image_cache_read_price must be >= 0",
 		},
 		{
 			name: "interval with no price fields - invalid",
@@ -2586,7 +2595,7 @@ func TestValidateAccountStatsPricingRulesRejectsTimePricing(t *testing.T) {
 
 func TestResolveChannelMapping_AntigravityDoesNotSeeWildcardMappingFromOtherPlatforms(t *testing.T) {
 	ch := Channel{
-		ID: "1",
+		ID:       "1",
 		Status:   StatusActive,
 		GroupIDs: []string{"10", "20"},
 		ModelMapping: map[string]map[string]string{
@@ -2635,7 +2644,7 @@ func TestCreate_MappingConflict(t *testing.T) {
 
 func TestUpdate_MappingConflict(t *testing.T) {
 	existingChannel := &Channel{
-		ID: "1",
+		ID:     "1",
 		Name:   "existing",
 		Status: StatusActive,
 	}

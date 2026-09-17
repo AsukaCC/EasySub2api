@@ -76,6 +76,7 @@ type userSupportedModelPricing struct {
 	CacheWrite1hPrice            *float64                 `json:"cache_write_1h_price"`
 	CacheReadPrice               *float64                 `json:"cache_read_price"`
 	ImageInputPrice              *float64                 `json:"image_input_price"`
+	ImageCacheReadPrice          *float64                 `json:"image_cache_read_price"`
 	ImageOutputPrice             *float64                 `json:"image_output_price"`
 	PerRequestPrice              *float64                 `json:"per_request_price"`
 	MaxReasoningEffortMultiplier *float64                 `json:"max_reasoning_effort_multiplier,omitempty"`
@@ -321,6 +322,7 @@ func toUserPricing(p *service.ChannelModelPricing) *userSupportedModelPricing {
 		CacheWrite1hPrice:            p.CacheWrite1hPrice,
 		CacheReadPrice:               p.CacheReadPrice,
 		ImageInputPrice:              p.ImageInputPrice,
+		ImageCacheReadPrice:          p.ImageCacheReadPrice,
 		ImageOutputPrice:             p.ImageOutputPrice,
 		PerRequestPrice:              p.PerRequestPrice,
 		MaxReasoningEffortMultiplier: p.MaxReasoningEffortMultiplier,

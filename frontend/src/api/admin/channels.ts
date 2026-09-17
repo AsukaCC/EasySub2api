@@ -45,6 +45,7 @@ export interface ChannelModelPricing {
   cache_read_price: number | null
   max_reasoning_effort_multiplier?: number | null
   image_input_price: number | null
+  image_cache_read_price?: number | null
   image_output_price: number | null
   per_request_price: number | null
   intervals: PricingInterval[]
@@ -172,6 +173,7 @@ export interface ModelDefaultPricing {
   cache_write_1h_price?: number | null
   cache_read_price?: number
   image_input_price?: number
+  image_cache_read_price?: number
   image_output_price?: number
 }
 

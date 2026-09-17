@@ -138,6 +138,11 @@
                 type="number" step="any" min="0" class="components-admin-channel-pricing-entry-card__field input" :placeholder="t('admin.channels.form.pricePlaceholder')" />
             </div>
             <div>
+              <label class="components-admin-channel-pricing-entry-card__label-3">{{ t('admin.channels.form.imageCacheReadPrice') }}</label>
+              <input :value="entry.image_cache_read_price" @input="emitField('image_cache_read_price', ($event.target as HTMLInputElement).value)"
+                type="number" step="any" min="0" class="components-admin-channel-pricing-entry-card__field input" :placeholder="t('admin.channels.form.pricePlaceholder')" />
+            </div>
+            <div>
               <label class="components-admin-channel-pricing-entry-card__label-3">{{ t('admin.channels.form.imageTokenPrice') }}</label>
               <input :value="entry.image_output_price" @input="emitField('image_output_price', ($event.target as HTMLInputElement).value)"
                 type="number" step="any" min="0" class="components-admin-channel-pricing-entry-card__field input" :placeholder="t('admin.channels.form.pricePlaceholder')" />
@@ -375,6 +380,7 @@ async function onModelsUpdate(newModels: string[]) {
         cache_write_1h_price: perTokenToMTok(result.cache_write_1h_price ?? null),
         cache_read_price: perTokenToMTok(result.cache_read_price ?? null),
         image_input_price: perTokenToMTok(result.image_input_price ?? null),
+        image_cache_read_price: perTokenToMTok(result.image_cache_read_price ?? null),
         image_output_price: perTokenToMTok(result.image_output_price ?? null),
       })
     }

@@ -17,6 +17,7 @@ function createEntry(billingMode: PricingFormEntry['billing_mode'] = 'token'): P
     cache_write_price: null,
     cache_read_price: null,
     image_input_price: null,
+    image_cache_read_price: null,
     image_output_price: null,
     per_request_price: null,
     intervals: [],
@@ -28,7 +29,15 @@ function createEntry(billingMode: PricingFormEntry['billing_mode'] = 'token'): P
 }
 
 describe('PricingEntryCard time pricing visibility', () => {
-  it('is hidden by default', () => {
+	it('renders the image cache read price field', () => {
+		const wrapper = shallowMount(PricingEntryCard, {
+			props: { entry: createEntry() },
+		})
+
+		expect(wrapper.text()).toContain('admin.channels.form.imageCacheReadPrice')
+	})
+
+	it('is hidden by default', () => {
     const wrapper = shallowMount(PricingEntryCard, {
       props: { entry: createEntry() },
     })

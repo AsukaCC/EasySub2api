@@ -65,6 +65,7 @@ type channelModelPricingRequest struct {
 	CacheWrite1hPrice            *float64                   `json:"cache_write_1h_price" binding:"omitempty,min=0"`
 	CacheReadPrice               *float64                   `json:"cache_read_price" binding:"omitempty,min=0"`
 	ImageInputPrice              *float64                   `json:"image_input_price" binding:"omitempty,min=0"`
+	ImageCacheReadPrice          *float64                   `json:"image_cache_read_price" binding:"omitempty,min=0"`
 	ImageOutputPrice             *float64                   `json:"image_output_price" binding:"omitempty,min=0"`
 	PerRequestPrice              *float64                   `json:"per_request_price" binding:"omitempty,min=0"`
 	MaxReasoningEffortMultiplier *float64                   `json:"max_reasoning_effort_multiplier" binding:"omitempty,gt=0"`
@@ -132,6 +133,7 @@ type channelModelPricingResponse struct {
 	CacheWrite1hPrice            *float64                    `json:"cache_write_1h_price"`
 	CacheReadPrice               *float64                    `json:"cache_read_price"`
 	ImageInputPrice              *float64                    `json:"image_input_price"`
+	ImageCacheReadPrice          *float64                    `json:"image_cache_read_price"`
 	ImageOutputPrice             *float64                    `json:"image_output_price"`
 	PerRequestPrice              *float64                    `json:"per_request_price"`
 	MaxReasoningEffortMultiplier *float64                    `json:"max_reasoning_effort_multiplier,omitempty"`
@@ -255,6 +257,7 @@ func pricingToResponse(p *service.ChannelModelPricing) channelModelPricingRespon
 		CacheWrite1hPrice:            p.CacheWrite1hPrice,
 		CacheReadPrice:               p.CacheReadPrice,
 		ImageInputPrice:              p.ImageInputPrice,
+		ImageCacheReadPrice:          p.ImageCacheReadPrice,
 		ImageOutputPrice:             p.ImageOutputPrice,
 		PerRequestPrice:              p.PerRequestPrice,
 		MaxReasoningEffortMultiplier: p.MaxReasoningEffortMultiplier,
@@ -327,6 +330,7 @@ func pricingRequestToService(reqs []channelModelPricingRequest) []service.Channe
 			CacheWrite1hPrice:            r.CacheWrite1hPrice,
 			CacheReadPrice:               r.CacheReadPrice,
 			ImageInputPrice:              r.ImageInputPrice,
+			ImageCacheReadPrice:          r.ImageCacheReadPrice,
 			ImageOutputPrice:             r.ImageOutputPrice,
 			PerRequestPrice:              r.PerRequestPrice,
 			MaxReasoningEffortMultiplier: r.MaxReasoningEffortMultiplier,
@@ -573,14 +577,15 @@ func (h *ChannelHandler) GetModelDefaultPricing(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{
-		"found":                true,
-		"input_price":          pricing.InputPricePerToken,
-		"output_price":         pricing.OutputPricePerToken,
-		"cache_write_price":    cacheWritePrice,
-		"cache_write_1h_price": cacheWrite1hPrice,
-		"cache_read_price":     pricing.CacheReadPricePerToken,
-		"image_input_price":    pricing.ImageInputPricePerToken,
-		"image_output_price":   pricing.ImageOutputPricePerToken,
+		"found":                  true,
+		"input_price":            pricing.InputPricePerToken,
+		"output_price":           pricing.OutputPricePerToken,
+		"cache_write_price":      cacheWritePrice,
+		"cache_write_1h_price":   cacheWrite1hPrice,
+		"cache_read_price":       pricing.CacheReadPricePerToken,
+		"image_input_price":      pricing.ImageInputPricePerToken,
+		"image_cache_read_price": pricing.ImageCacheReadPricePerToken,
+		"image_output_price":     pricing.ImageOutputPricePerToken,
 	})
 }
 

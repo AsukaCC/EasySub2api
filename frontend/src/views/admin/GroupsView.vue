@@ -4132,6 +4132,7 @@ const emptyGroupPricing = (): PricingFormEntry => ({
   cache_write_1h_price: null,
   cache_read_price: null,
   image_input_price: null,
+  image_cache_read_price: null,
   image_output_price: null,
   per_request_price: null,
   intervals: [],
@@ -4153,6 +4154,7 @@ const groupPricingFromAPI = (
     cache_write_1h_price: perTokenToMTok(entry.cache_write_1h_price),
     cache_read_price: perTokenToMTok(entry.cache_read_price),
     image_input_price: perTokenToMTok(entry.image_input_price),
+    image_cache_read_price: perTokenToMTok(entry.image_cache_read_price),
     image_output_price: perTokenToMTok(entry.image_output_price),
     per_request_price: entry.per_request_price,
     intervals: apiIntervalsToForm(entry.intervals || []),
@@ -4175,6 +4177,7 @@ const groupPricingToAPI = (
       cache_write_1h_price: mTokToPerToken(entry.cache_write_1h_price),
       cache_read_price: mTokToPerToken(entry.cache_read_price),
       image_input_price: mTokToPerToken(entry.image_input_price),
+      image_cache_read_price: mTokToPerToken(entry.image_cache_read_price),
       image_output_price: mTokToPerToken(entry.image_output_price),
       per_request_price: toNullableNumber(entry.per_request_price),
       intervals:
