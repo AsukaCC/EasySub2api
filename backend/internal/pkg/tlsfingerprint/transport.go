@@ -57,7 +57,6 @@ func ConfigureTransport(t *http.Transport, profile *Profile, proxyURL *url.URL, 
 	t.ForceAttemptHTTP2 = false
 	t.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
 	t.Proxy = nil // CONNECT is performed by the dialer, including HTTPS proxies.
-	t.DialTLS = nil
 	t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}
 	t.DialContext = func(context.Context, string, string) (net.Conn, error) {
 		return nil, fmt.Errorf("TLS fingerprint transport requires HTTPS or WSS")
@@ -125,9 +124,10 @@ func openTunnel(ctx context.Context, network, addr string, proxyURL *url.URL, op
 	proxyAddr := proxyURL.Host
 	if proxyURL.Port() == "" {
 		port := "1080"
-		if proxyURL.Scheme == "http" {
+		switch proxyURL.Scheme {
+		case "http":
 			port = "80"
-		} else if proxyURL.Scheme == "https" {
+		case "https":
 			port = "443"
 		}
 		proxyAddr = net.JoinHostPort(proxyURL.Hostname(), port)

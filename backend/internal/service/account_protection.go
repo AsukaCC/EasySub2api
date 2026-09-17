@@ -91,7 +91,7 @@ func configureAccountProtection(a *Account) {
 		cap = AntiDegradeConcurrencyCap
 	}
 	prev := map[string]any{"concurrency": a.Concurrency}
-	if (isOpenAIOAuthLike(a) || isAnthropicOAuthLike(a)) && !a.IsShadow() && !(a.Extra["proxy_mode"] == "random") {
+	if (isOpenAIOAuthLike(a) || isAnthropicOAuthLike(a)) && !a.IsShadow() && a.Extra["proxy_mode"] != "random" {
 		prev = snapshotAntiDegradeConfig(a)
 		fingerprint, tlsProfile, _ := antiDegradeModeSettings(DefaultAntiDegradeMode)
 		if isOpenAIOAuthLike(a) {

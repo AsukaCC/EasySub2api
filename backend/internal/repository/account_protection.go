@@ -14,7 +14,7 @@ func lockAccountProtection(ctx context.Context, client *dbent.Client, account *s
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err
@@ -51,7 +51,7 @@ func (r *accountRepository) EnsureCodexIdentitySeed(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	client := tx.Client()
 	_, err = client.ExecContext(ctx, "UPDATE accounts SET extra = "+ensureCodexFingerprintSeedSQL("COALESCE(extra, '{}'::jsonb)")+", updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL AND NOT COALESCE(("+codexFingerprintSeedValidSQL("extra")+"), false)", id)
 	if err != nil {
