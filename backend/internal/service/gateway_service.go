@@ -1499,7 +1499,10 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *string
 		mapping := acc.GetModelMapping()
 		if len(mapping) > 0 {
 			hasAnyMapping = true
-			for model := range mapping {
+			for model, target := range mapping {
+				if CheckActiveModel(model, target) != nil {
+					continue
+				}
 				modelSet[model] = struct{}{}
 			}
 		}

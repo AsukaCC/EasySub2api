@@ -561,7 +561,7 @@ func TestLoadDefaultOpenAICompactModel(t *testing.T) {
 
 	cfg, err := Load()
 	require.NoError(t, err)
-	require.Equal(t, "gpt-5.4", cfg.Gateway.OpenAICompactModel)
+	require.Equal(t, "gpt-5.6-sol", cfg.Gateway.OpenAICompactModel)
 }
 
 func TestLoadOpenAICompactModelFromEnv(t *testing.T) {
@@ -967,8 +967,8 @@ func TestLoadDefaultDashboardCacheConfig(t *testing.T) {
 	if !cfg.Dashboard.Enabled {
 		t.Fatalf("Dashboard.Enabled = false, want true")
 	}
-	if cfg.Dashboard.KeyPrefix != "sub2api:" {
-		t.Fatalf("Dashboard.KeyPrefix = %q, want %q", cfg.Dashboard.KeyPrefix, "sub2api:")
+	if cfg.Dashboard.KeyPrefix != "easysub2api:" {
+		t.Fatalf("Dashboard.KeyPrefix = %q, want %q", cfg.Dashboard.KeyPrefix, "easysub2api:")
 	}
 	if cfg.Dashboard.StatsFreshTTLSeconds != 15 {
 		t.Fatalf("Dashboard.StatsFreshTTLSeconds = %d, want 15", cfg.Dashboard.StatsFreshTTLSeconds)
@@ -978,6 +978,18 @@ func TestLoadDefaultDashboardCacheConfig(t *testing.T) {
 	}
 	if cfg.Dashboard.StatsRefreshTimeoutSeconds != 30 {
 		t.Fatalf("Dashboard.StatsRefreshTimeoutSeconds = %d, want 30", cfg.Dashboard.StatsRefreshTimeoutSeconds)
+	}
+}
+
+func TestLoadDashboardCacheKeyPrefixOverride(t *testing.T) {
+	for _, prefix := range []string{"sub2api:", "tenant:"} {
+		t.Run(prefix, func(t *testing.T) {
+			resetViperWithJWTSecret(t)
+			t.Setenv("DASHBOARD_CACHE_KEY_PREFIX", prefix)
+			cfg, err := Load()
+			require.NoError(t, err)
+			require.Equal(t, prefix, cfg.Dashboard.KeyPrefix)
+		})
 	}
 }
 

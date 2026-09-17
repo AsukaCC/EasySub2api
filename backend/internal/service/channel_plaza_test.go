@@ -20,6 +20,28 @@ func newPlazaChannelService(channels []Channel, groups []Group, pricing *Pricing
 	return svc
 }
 
+func TestRetiredModelsHiddenFromPlazaPricing(t *testing.T) {
+	channels := []Channel{plazaPricedChannel("channel", "test", []string{"group"}, PlatformOpenAI,
+		"gpt-5.4", "gpt-5.5-pro", "openai/gpt5.4nano", "gpt-5.6-sol")}
+	groups := []Group{{ID: "group", Name: "test", Platform: PlatformOpenAI, RateMultiplier: 1}}
+	svc := newPlazaChannelService(channels, groups, nil)
+	visible, err := svc.ListPlazaGroups(context.Background())
+	require.NoError(t, err)
+	require.Len(t, visible, 1)
+	require.Len(t, visible[0].Models, 1)
+	require.Equal(t, "gpt-5.6-sol", visible[0].Models[0].Name)
+	require.Len(t, channels[0].ModelPricing[0].Models, 4, "stored pricing definitions are not rewritten")
+}
+
+func TestRetiredChannelAliasesAreNotAdvertised(t *testing.T) {
+	channel := plazaPricedChannel("channel", "test", []string{"group"}, PlatformOpenAI, "old-alias", "gpt-5.5", "gpt-5.6-sol")
+	channel.ModelMapping = map[string]map[string]string{PlatformOpenAI: {"old-alias": "gpt-5.5-pro"}}
+	models := channel.SupportedModels()
+	require.Len(t, models, 1)
+	require.Equal(t, "gpt-5.6-sol", models[0].Name)
+	require.Equal(t, "gpt-5.5-pro", channel.ModelMapping[PlatformOpenAI]["old-alias"])
+}
+
 func plazaPricedChannel(id string, name string, groupIDs []string, platform string, models ...string) Channel {
 	return Channel{
 		ID:       id,

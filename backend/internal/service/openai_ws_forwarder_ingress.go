@@ -191,6 +191,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	parseClientPayload := func(turn int, raw []byte) (openAIWSClientPayload, error) {
+		if err := checkActivePayloadModels(account, raw); err != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
+		}
+		if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+			return openAIWSClientPayload{}, err
+		}
 		trimmed := bytes.TrimSpace(raw)
 		if len(trimmed) == 0 {
 			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "empty websocket request payload", nil)
@@ -326,6 +332,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 		}
 		upstreamModel := normalizeOpenAIModelForUpstream(account, account.GetMappedModel(requestModel))
+		if err := CheckActiveModel(originalModel, requestModel, upstreamModel); err != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
+		}
 		if modelMissing || upstreamModel != originalModel {
 			next, setErr := applyPayloadMutation(normalized, "model", upstreamModel)
 			if setErr != nil {
@@ -404,6 +413,14 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		normalized = policyApplied
 		ingressSessionOriginalModel = originalModel
 
+		if err := checkAccountRequestIntegrity(c, account, raw, normalized); err != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "request integrity check failed", err)
+		}
+		projected, projectionErr := protectOpenAIWSIdentity(c, account, normalized)
+		if projectionErr != nil {
+			return openAIWSClientPayload{}, projectionErr
+		}
+		normalized = projected
 		return openAIWSClientPayload{
 			payloadRaw:               normalized,
 			rawForHash:               trimmed,

@@ -127,6 +127,9 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 			}
 			for j := range supported {
 				m := supported[j]
+				if CheckActiveModel(m.Name) != nil {
+					continue
+				}
 				if pg.Platform == PlatformComposite {
 					if !isConcreteRequestPlatform(m.Platform) {
 						continue

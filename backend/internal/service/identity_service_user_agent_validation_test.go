@@ -119,9 +119,9 @@ func TestGetOrCreateFingerprintRejectsSentinelVersionOnUpgrade(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	require.Equal(t, "claude-cli/2.1.22 (external, cli)", fp.UserAgent,
+	require.Equal(t, defaultFingerprint.UserAgent, fp.UserAgent,
 		"真实指纹不得被哨兵版本覆盖")
-	require.Zero(t, cache.setCalls, "被拒的 UA 不应触发任何写入")
+	require.Equal(t, 1, cache.setCalls, "version floor is persisted even when the incoming sentinel is rejected")
 }
 
 // 合法的真实版本升级必须照常生效，校验不能把正常升级一起挡掉。
@@ -176,7 +176,8 @@ func TestGetOrCreateFingerprintHealsPoisonedCacheUsingValidClientUA(t *testing.T
 	fp, err := svc.GetOrCreateFingerprint(context.Background(), "account-1", headersWithUA(realUA))
 
 	require.NoError(t, err)
-	require.Equal(t, realUA, fp.UserAgent,
+	expectedUA, _ := floorClaudeCLIUserAgentVersion(realUA)
+	require.Equal(t, expectedUA, fp.UserAgent,
 		"真实客户端必须能从被毒化的指纹手中夺回账号身份")
 	require.Equal(t, 1, cache.setCalls)
 	require.NotContains(t, cache.lastSet.UserAgent, "999.0.0")

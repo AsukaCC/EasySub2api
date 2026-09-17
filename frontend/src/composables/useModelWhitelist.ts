@@ -11,10 +11,6 @@ const openaiModels = [
   'gpt-6', 'gpt-6-astra',
   // GPT-5.6 系列
   'gpt-5.6', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
-  // GPT-5.5 系列
-  'gpt-5.5',
-  // GPT-5.4 系列
-  'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-2026-03-05',
   // GPT-5.3 / Codex 系列
   'gpt-5.3-codex-spark', 'codex-auto-review',
   'gpt-4o-audio-preview', 'gpt-4o-realtime-preview',
@@ -297,11 +293,6 @@ const openaiPresetMappings = [
   { label: 'GPT-5.6 Sol', from: 'gpt-5.6-sol', to: 'gpt-5.6-sol', color: 'composables-use-model-whitelist__state-10' },
   { label: 'GPT-5.6 Terra', from: 'gpt-5.6-terra', to: 'gpt-5.6-terra', color: 'composables-use-model-whitelist__state-11' },
   { label: 'GPT-5.6 Luna', from: 'gpt-5.6-luna', to: 'gpt-5.6-luna', color: 'composables-use-model-whitelist__state-12' },
-  { label: 'GPT-5.5', from: 'gpt-5.5', to: 'gpt-5.5', color: 'composables-use-model-whitelist__state-7' },
-  { label: 'GPT-5.4', from: 'gpt-5.4', to: 'gpt-5.4', color: 'composables-use-model-whitelist__state' },
-  { label: 'Haiku→5.4', from: 'claude-haiku-4-5-20251001', to: 'gpt-5.4', color: 'composables-use-model-whitelist__state-6' },
-  { label: 'Opus→5.4', from: 'claude-opus-4-6', to: 'gpt-5.4', color: 'composables-use-model-whitelist__state-4' },
-  { label: 'Sonnet→5.4', from: 'claude-sonnet-4-6', to: 'gpt-5.4', color: 'composables-use-model-whitelist__state-3' }
 ]
 
 const geminiPresetMappings = [

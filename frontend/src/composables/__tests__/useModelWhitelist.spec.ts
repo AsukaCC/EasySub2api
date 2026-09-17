@@ -8,12 +8,10 @@ import {
 } from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
-  it('openai 模型列表包含 GPT-5.4 官方快照', () => {
+  it('openai 模型列表移除 GPT-5.4/5.5 全家族', () => {
     const models = getModelsByPlatform('openai')
 
-    expect(models).toContain('gpt-5.4')
-    expect(models).toContain('gpt-5.4-mini')
-    expect(models).toContain('gpt-5.4-2026-03-05')
+    expect(models.some(model => /^gpt-5\.[45](?:$|[-.])/.test(model))).toBe(false)
     expect(models).toContain('codex-auto-review')
     expect(models).toContain('gpt-5.6')
   })

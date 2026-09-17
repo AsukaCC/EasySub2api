@@ -288,8 +288,7 @@ func (s *SettingService) GetOpenAICodexClientVersion(ctx context.Context) string
 			})
 			return fallback, nil
 		}
-		// AcceptCodexClientVersion 同时承担形态校验与预发布门禁：生产模式下
-		// 面板误填或历史同步值中的 -alpha 版本按非法处理，回退下一来源。
+		// Stable and prerelease versions share format and minimum-version checks.
 		version := AcceptCodexClientVersion(values[SettingKeyOpenAICodexClientVersion])
 		if version == "" {
 			version = AcceptCodexClientVersion(values[SettingKeyOpenAICodexClientVersionSynced])

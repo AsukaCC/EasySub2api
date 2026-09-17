@@ -647,13 +647,14 @@ export default {
         openaiCodexVersionAutoSyncHint: '每 6 小时从官方仓库获取最新稳定版客户端版本号，无需为了跟版本而升级本服务。关闭后仅使用上方手填版本或内置版本。',
         openaiCodexVersionSyncedValue: '当前同步到：{version}',
         codexOutboundDiagnostics: {
+          identityBeta: '身份补齐 Beta（按请求路径）：{header}',
           title: 'Codex 出站诊断（只读）',
           effectiveVersion: '生效版本：{version}（来源：{source}）',
           versionChain: '手工覆写：{manual} · 自动同步：{synced} · 内置默认：{builtin} · 最低支持：{minimum}',
           identity: '身份：originator={originator} · User-Agent={userAgent}',
           connection: '连接：协议={protocol} · TLS 指纹：{tls} · 代理失败回退直连：{directFallback}',
-          rejectedManual: '手工覆写「{version}」未生效：预发布或非法版本在未开启 gateway.codex_allow_prerelease_version 时会被拒绝。',
-          rejectedSynced: '同步值「{version}」未生效：预发布或非法版本回退到下一来源。',
+          rejectedManual: '手工覆写「{version}」未生效：版本格式无效或低于最低支持版本。',
+          rejectedSynced: '同步值「{version}」未生效：格式无效或低于最低支持版本回退到下一来源。',
           source: {
             manual_override: '手工覆写',
             auto_sync: '自动同步',

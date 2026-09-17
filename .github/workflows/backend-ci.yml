@@ -47,6 +47,13 @@ jobs:
           go test -tags=unit ./internal/service ./internal/handler/admin
           -run 'TestOpenAISetupToken|TestAdminStats|TestRedeemExport|TestForwardAsAnthropic_|TestForwardAsChatCompletions_|TestResolveAndSetOpenAIChatGPTAccountHeaders|TestMergeOpenAIUsage|Test.*(ForwardImages|OpenAIImage|CodexDirectImages)'
           -count=1 -timeout=10m
+      - name: Account protection and retired model regression tests
+        working-directory: backend
+        run: >-
+          go test -tags=unit ./internal/pkg/openai ./internal/pkg/tlsfingerprint
+          ./internal/service ./internal/handler ./internal/handler/admin ./internal/server/routes
+          -run 'Test(Retired|Protection|LocalTLS|StickyEscape|GatewayPlatformIsolation)'
+          -count=1 -timeout=10m
 
   frontend:
     runs-on: ubuntu-latest
@@ -74,6 +81,17 @@ jobs:
       - name: Frontend auth and API regression tests
         working-directory: frontend
         run: pnpm run test:ci
+      - name: Frontend protection and billing regression tests
+        working-directory: frontend
+        run: >-
+          pnpm exec vitest run
+          src/components/account/__tests__/AccountProtectionPanel.spec.ts
+          src/i18n/__tests__/compileMessages.spec.ts
+          src/components/keys/__tests__/UseKeyModal.spec.ts
+          src/views/user/__tests__/UsageView.spec.ts
+          src/utils/__tests__/siteBillingMode.spec.ts
+          src/utils/__tests__/ccswitchImport.spec.ts
+          src/composables/__tests__/useModelWhitelist.spec.ts
 
   golangci-lint:
     runs-on: ubuntu-latest

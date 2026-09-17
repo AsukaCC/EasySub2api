@@ -17,6 +17,9 @@
             @create="showCreate = true"
           >
             <template #after>
+              <button v-if="selIds.length" type="button" class="btn btn-secondary" :disabled="protectionBatchBusy" @click="enableSelectedProtection">
+                <Icon name="shield" size="sm" />{{ t('admin.accounts.protection.batch') }}
+              </button>
               <!-- Auto Refresh Dropdown -->
               <div class="views-admin-accounts-view__panel-2" ref="autoRefreshDropdownRef">
                 <button
@@ -299,6 +302,7 @@
             <AccountCapacityCell :account="row" />
           </template>
           <template #cell-status="{ row }">
+            <AccountProtectionPanel :account="row" compact @updated="handleAccountUpdated" />
             <div class="views-admin-accounts-view__panel-18">
               <AccountStatusIndicator :account="row" @show-temp-unsched="handleShowTempUnsched" />
             </div>
@@ -523,6 +527,8 @@ import AccountStatsModal from '@/components/admin/account/AccountStatsModal.vue'
 import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
+import AccountProtectionPanel from '@/components/account/AccountProtectionPanel.vue'
+import { accountProtection } from '@/api/admin/accountProtection'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
@@ -544,6 +550,19 @@ import type { Account, AccountPlatform, AccountSchedulerGroupScore, AccountType,
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const protectionBatchBusy = ref(false)
+async function enableSelectedProtection() {
+  if (protectionBatchBusy.value) return
+  protectionBatchBusy.value = true
+  try {
+    const result = await accountProtection.batch(selIds.value)
+    const message = t('admin.accounts.protection.batchResult', { success: result.success_ids.length, failed: Object.keys(result.failures).length })
+    if (Object.keys(result.failures).length) appStore.showWarning(message)
+    else appStore.showSuccess(message)
+    reload()
+  } catch (e) { appStore.showError((e as Error).message) }
+  finally { protectionBatchBusy.value = false }
+}
 const authStore = useAuthStore()
 
 const proxies = ref<AccountProxy[]>([])

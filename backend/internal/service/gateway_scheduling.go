@@ -32,6 +32,9 @@ func (s *GatewayService) SelectAccountForModel(ctx context.Context, groupID *str
 
 // SelectAccountForModelWithExclusions selects an account supporting the requested model while excluding specified accounts.
 func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *string, sessionHash string, requestedModel string, excludedIDs map[string]struct{}) (*Account, error) {
+	if err := CheckActiveRequestModel(ctx, requestedModel); err != nil {
+		return nil, err
+	}
 	// 优先检查 context 中的强制平台。
 	var platform string
 	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
@@ -87,6 +90,9 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 // metadataUserID: 用于客户端亲和调度，从中提取客户端 ID
 // easysub2apiUserID: 系统用户 ID，用于二维亲和调度
 func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *string, sessionHash string, requestedModel string, excludedIDs map[string]struct{}, metadataUserID string, easysub2apiUserID string) (*AccountSelectionResult, error) {
+	if err := CheckActiveRequestModel(ctx, requestedModel); err != nil {
+		return nil, err
+	}
 	groupIDs := apiKeyGroupIDsFromContext(ctx, groupID)
 	billingUserID := strings.TrimSpace(easysub2apiUserID)
 	if billingUserID == "" {
@@ -220,7 +226,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 				return nil, err
 			}
 
-			result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+			result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Mode1EffectiveConcurrency())
 			if err == nil && result.Acquired {
 				// 获取槽位后检查会话限制（使用 sessionHash 作为会话标识符）
 				if !s.checkAndRegisterSession(ctx, account, sessionHash) {
@@ -242,7 +248,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 				if waitingCount < cfg.StickySessionMaxWaiting {
 					return s.newSelectionResult(ctx, account, false, nil, &AccountWaitPlan{
 						AccountID:      account.ID,
-						MaxConcurrency: account.Concurrency,
+						MaxConcurrency: account.Mode1EffectiveConcurrency(),
 						Timeout:        cfg.StickySessionWaitTimeout,
 						MaxWaiting:     cfg.StickySessionMaxWaiting,
 					})
@@ -250,7 +256,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 			}
 			return s.newSelectionResult(ctx, account, false, nil, &AccountWaitPlan{
 				AccountID:      account.ID,
-				MaxConcurrency: account.Concurrency,
+				MaxConcurrency: account.Mode1EffectiveConcurrency(),
 				Timeout:        cfg.FallbackWaitTimeout,
 				MaxWaiting:     cfg.FallbackMaxWaiting,
 			})
@@ -526,7 +532,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 
 				// 4. 尝试获取槽位
 				for _, item := range routingAvailable {
-					result, err := s.tryAcquireAccountSlot(ctx, item.account.ID, item.account.Concurrency)
+					result, err := s.tryAcquireAccountSlot(ctx, item.account.ID, item.account.Mode1EffectiveConcurrency())
 					if err == nil && result.Acquired {
 						// 会话数量限制检查
 						if !s.checkAndRegisterSession(ctx, item.account, sessionHash) {
@@ -554,7 +560,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 					}
 					return s.newSelectionResult(ctx, item.account, false, nil, &AccountWaitPlan{
 						AccountID:      item.account.ID,
-						MaxConcurrency: item.account.Concurrency,
+						MaxConcurrency: item.account.Mode1EffectiveConcurrency(),
 						Timeout:        cfg.StickySessionWaitTimeout,
 						MaxWaiting:     cfg.StickySessionMaxWaiting,
 					})
@@ -612,7 +618,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 				)
 
 				if !clearSticky && platformOK && profitOK && modelSupported && channelOK && modelSchedulable && quotaOK && windowCostOK && rpmOK && schedulable {
-					result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
+					result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Mode1EffectiveConcurrency())
 					if err == nil && result.Acquired {
 						// 会话数量限制检查
 						if !s.checkAndRegisterSession(ctx, account, sessionHash) {
@@ -653,7 +659,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 							)
 							return s.newSelectionResult(ctx, account, false, nil, &AccountWaitPlan{
 								AccountID:      accountID,
-								MaxConcurrency: account.Concurrency,
+								MaxConcurrency: account.Mode1EffectiveConcurrency(),
 								Timeout:        cfg.StickySessionWaitTimeout,
 								MaxWaiting:     cfg.StickySessionMaxWaiting,
 							})
@@ -797,7 +803,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 				break
 			}
 
-			result, err := s.tryAcquireAccountSlot(ctx, selected.account.ID, selected.account.Concurrency)
+			result, err := s.tryAcquireAccountSlot(ctx, selected.account.ID, selected.account.Mode1EffectiveConcurrency())
 			if err == nil && result.Acquired {
 				// 会话数量限制检查
 				if !s.checkAndRegisterSession(ctx, selected.account, sessionHash) {
@@ -831,7 +837,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 		}
 		return s.newSelectionResult(ctx, acc, false, nil, &AccountWaitPlan{
 			AccountID:      acc.ID,
-			MaxConcurrency: acc.Concurrency,
+			MaxConcurrency: acc.Mode1EffectiveConcurrency(),
 			Timeout:        cfg.FallbackWaitTimeout,
 			MaxWaiting:     cfg.FallbackMaxWaiting,
 		})
@@ -844,7 +850,7 @@ func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates
 	sortAccountsByPriorityAndLastUsed(ordered, preferOAuth)
 
 	for _, acc := range ordered {
-		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Concurrency)
+		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Mode1EffectiveConcurrency())
 		if err == nil && result.Acquired {
 			// 会话数量限制检查
 			if !s.checkAndRegisterSession(ctx, acc, sessionHash) {
@@ -2349,6 +2355,9 @@ func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Contex
 
 // isModelSupportedByAccount 根据账户平台检查模型支持。
 func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedModel string) bool {
+	if CheckActiveAccountModel(account, requestedModel) != nil {
+		return false
+	}
 	if account.IsBedrock() {
 		_, ok := ResolveBedrockModelID(account, requestedModel)
 		return ok

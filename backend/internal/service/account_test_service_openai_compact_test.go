@@ -56,7 +56,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactOAuthSuccessPersi
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/1/test", bytes.NewReader(nil))
 
-	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.6-sol", "", AccountTestModeCompact)
 	require.NoError(t, err)
 
 	// 原生 v2：探测普通 /responses 线，不再打已下线的 /responses/compact。
@@ -69,7 +69,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactOAuthSuccessPersi
 	require.Equal(t, codexCLIUserAgent, upstream.lastReq.Header.Get("User-Agent"))
 	require.Equal(t, "chatgpt-acc", upstream.lastReq.Header.Get("chatgpt-account-id"))
 	require.Equal(t, "true", upstream.lastReq.Header.Get("x-openai-fedramp"))
-	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.Equal(t, "gpt-5.6-sol", gjson.GetBytes(upstream.lastBody, "model").String())
 	require.True(t, gjson.GetBytes(upstream.lastBody, "stream").Bool())
 	require.False(t, gjson.GetBytes(upstream.lastBody, "store").Bool())
 	inputItems := gjson.GetBytes(upstream.lastBody, "input").Array()
@@ -117,7 +117,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactOAuth404MarksUnsu
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/2/test", bytes.NewReader(nil))
 
-	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.6-sol", "", AccountTestModeCompact)
 	require.Error(t, err)
 
 	updates := <-updateCalls
@@ -143,7 +143,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactAPIKeyUsesNativeR
 			"base_url": "https://example.com/v1",
 			// post-#5641：compact_model_mapping 仅作用于 legacy /responses/compact，
 			// 原生 v2 探测不应用它。
-			"compact_model_mapping": map[string]any{"gpt-5.4": "gpt-5.4-openai-compact"},
+			"compact_model_mapping": map[string]any{"gpt-5.6-sol": "gpt-5.6-sol-openai-compact"},
 		},
 	}
 	repo := &snapshotUpdateAccountRepo{
@@ -165,13 +165,13 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactAPIKeyUsesNativeR
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/3/test", bytes.NewReader(nil))
 
-	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.6-sol", "", AccountTestModeCompact)
 	require.NoError(t, err)
 
 	require.Equal(t, "https://example.com/v1/responses", upstream.lastReq.URL.String())
 	requireOpenAICodexProbeHeaders(t, upstream.lastReq.Header)
 	require.Contains(t, upstream.lastReq.Header.Get("x-codex-beta-features"), "remote_compaction_v2")
-	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String(),
+	require.Equal(t, "gpt-5.6-sol", gjson.GetBytes(upstream.lastBody, "model").String(),
 		"原生 v2 探测不应用 compact_model_mapping")
 	updates := <-updateCalls
 	require.Equal(t, true, updates["openai_compact_supported"])
@@ -212,7 +212,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactAPIKeyDefaultBase
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/4/test", bytes.NewReader(nil))
 
-	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.6-sol", "", AccountTestModeCompact)
 	require.NoError(t, err)
 	require.Equal(t, "https://api.openai.com/v1/responses", upstream.lastReq.URL.String())
 	<-updateCalls
@@ -257,7 +257,7 @@ func TestAccountTestService_TestAccountConnection_OpenAICompact2xxWithoutItemMar
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/5/test", bytes.NewReader(nil))
 
-	err := svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact)
+	err := svc.TestAccountConnection(c, account.ID, "gpt-5.6-sol", "", AccountTestModeCompact)
 	require.Error(t, err)
 
 	updates := <-updateCalls
@@ -304,15 +304,15 @@ func TestAccountTestService_TestAccountConnection_OpenAICompactProbeIdentityMatc
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/6/test", bytes.NewReader(nil))
 
-	require.NoError(t, svc.TestAccountConnection(c, account.ID, "gpt-5.4", "", AccountTestModeCompact))
+	require.NoError(t, svc.TestAccountConnection(c, account.ID, "gpt-5.6-sol", "", AccountTestModeCompact))
 
 	// 显式 session 收敛模式：出站身份 = 账号级收敛值
 	seed, ok := codexFingerprintSeed(account.Extra)
 	require.True(t, ok)
-	converged := resolveConvergedSessionID(seed)
+	converged := scopeCodexAccountIdentityValue(&account, "", "session", resolveConvergedSessionID(seed))
 	require.Equal(t, converged, upstream.lastReq.Header.Get("session-id"))
 	require.Equal(t, converged, upstream.lastReq.Header.Get("session_id"))
-	require.Equal(t, resolveConvergedInstallationID(&account, seed), upstream.lastReq.Header.Get("x-codex-installation-id"),
+	require.Equal(t, scopeCodexAccountIdentityValue(&account, "", "installation", resolveConvergedInstallationID(&account, seed)), upstream.lastReq.Header.Get("x-codex-installation-id"),
 		"真实 Codex 每个请求必带 installation-id，探测不得缺失")
 	require.NotContains(t, upstream.lastReq.Header.Get("session-id"), "probe_compact",
 		"探测标识不得是可被上游一眼识别的字面量")

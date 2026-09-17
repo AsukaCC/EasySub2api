@@ -1,6 +1,9 @@
 package service
 
-import "strings"
+import (
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
+	"strings"
+)
 
 func lastOpenAIModelSegment(model string) string {
 	model = strings.TrimSpace(model)
@@ -50,6 +53,9 @@ func canonicalizeOpenAIModelAliasSpelling(model string) string {
 }
 
 func normalizeKnownOpenAICodexModel(model string) string {
+	if openai.IsRetiredModel(model) {
+		return ""
+	}
 	normalized := canonicalizeOpenAIModelAliasSpelling(model)
 	if normalized == "" {
 		return ""
@@ -81,16 +87,6 @@ func normalizeKnownOpenAICodexModel(model string) string {
 			return "gpt-5.6-sol"
 		}
 		return ""
-	case strings.Contains(normalized, "gpt-5.5-pro"):
-		return "gpt-5.5-pro"
-	case strings.Contains(normalized, "gpt-5.5"):
-		return "gpt-5.5"
-	case strings.Contains(normalized, "gpt-5.4-mini"):
-		return "gpt-5.4-mini"
-	case strings.Contains(normalized, "gpt-5.4-nano"):
-		return "gpt-5.4-nano"
-	case strings.Contains(normalized, "gpt-5.4"):
-		return "gpt-5.4"
 	case strings.Contains(normalized, "gpt-5.2"):
 		return "gpt-5.2"
 	case strings.Contains(normalized, "gpt-5.3-codex-spark"):
@@ -101,8 +97,6 @@ func normalizeKnownOpenAICodexModel(model string) string {
 		return "gpt-5.3-codex"
 	case strings.Contains(normalized, "codex"):
 		return "gpt-5.3-codex"
-	case strings.Contains(normalized, "gpt-5"):
-		return "gpt-5.4"
 	default:
 		return ""
 	}

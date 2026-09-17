@@ -562,6 +562,12 @@ func (c *Channel) SupportedModels() []SupportedModel {
 	}
 
 	add := func(platform, displayName string, pricing *ChannelModelPricing) {
+		if CheckActiveModel(displayName) != nil {
+			return
+		}
+		if target, matched := resolveRequestedModelInMapping(c.ModelMapping[platform], displayName); matched && CheckActiveModel(target) != nil {
+			return
+		}
 		key := dedupKey{platform: platform, name: strings.ToLower(displayName)}
 		if _, ok := seen[key]; ok {
 			return

@@ -85,6 +85,7 @@ type openAIWSAcquireRequest struct {
 }
 
 type openAIWSHandshakeCompatibilityKey struct {
+	tlsProfile          string
 	betaFeatures        string
 	codexInstallationID string
 	sessionIDHyphen     string
@@ -2155,7 +2156,11 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 			return nil, err
 		}
 	}
-	conn, status, handshakeHeaders, err := p.clientDialer.Dial(ctx, req.WSURL, headers, req.ProxyURL)
+	profile, profileErr := protectedTLSProfile(req.Account, p.cfg != nil && p.cfg.Gateway.TLSFingerprint.Enabled)
+	if profileErr != nil {
+		return nil, profileErr
+	}
+	conn, status, handshakeHeaders, err := p.clientDialer.Dial(withOpenAIWSTLSProfile(ctx, req.Account.ID, profile), req.WSURL, headers, req.ProxyURL)
 	if err != nil {
 		var handshakeErr *openAIWSHandshakeError
 		var responseBody []byte
@@ -2421,6 +2426,11 @@ func normalizeOpenAIWSBetaFeatures(headers http.Header) string {
 func normalizeOpenAIWSHandshakeCompatibility(account *Account, headers http.Header) openAIWSHandshakeCompatibilityKey {
 	key := openAIWSHandshakeCompatibilityKey{
 		betaFeatures: normalizeOpenAIWSBetaFeatures(headers),
+	}
+	if profile, err := resolveMode1TLSProfile(account); err != nil {
+		key.tlsProfile = "invalid"
+	} else {
+		key.tlsProfile = profile.CacheKey()
 	}
 	mode := activeCodexFingerprintMode(account)
 	if mode == codexFingerprintOff {

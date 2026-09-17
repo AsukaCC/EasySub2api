@@ -21,6 +21,7 @@ import (
 
 // 预编译正则表达式（避免每次调用重新编译）
 var (
+	claudeCLIUAVersionPrefixRegex = regexp.MustCompile(`(?i)^(claude-cli)/\d+\.\d+\.\d+`)
 	// 匹配 User-Agent 版本号: xxx/x.y.z
 	userAgentVersionRegex = regexp.MustCompile(`/(\d+)\.(\d+)\.(\d+)`)
 
@@ -165,6 +166,10 @@ func (s *IdentityService) GetOrCreateFingerprint(ctx context.Context, accountID 
 			logger.LegacyPrintf("service.identity", "Updated fingerprint for account %v: %s (merge update)", accountID, clientUA)
 		}
 
+		if floored, changed := floorClaudeCLIUserAgentVersion(cached.UserAgent); changed {
+			cached.UserAgent = floored
+			needWrite = true
+		}
 		if !needWrite && time.Since(time.Unix(cached.UpdatedAt, 0)) > 24*time.Hour {
 			// 距上次写入超过24小时，续期TTL
 			needWrite = true
@@ -208,7 +213,7 @@ func (s *IdentityService) createFingerprintFromHeaders(headers http.Header) *Fin
 	// 获取User-Agent：只接受形态合法且版本合理的值，否则回退默认指纹。
 	// 首次创建同样是持久化写入，必须与升级路径共用同一套校验。
 	if ua := strings.TrimSpace(headers.Get("User-Agent")); isAcceptableFingerprintUserAgent(ua) {
-		fp.UserAgent = ua
+		fp.UserAgent, _ = floorClaudeCLIUserAgentVersion(ua)
 	} else {
 		fp.UserAgent = defaultFingerprint.UserAgent
 	}

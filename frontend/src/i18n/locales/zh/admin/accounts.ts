@@ -1,5 +1,6 @@
 export default {
     accounts: {
+      protection: {"title":"账号保护","strategy":"保护策略","preview":"预览","integrity":"请求完整性","off":"关闭","observe":"仅观察","enforce":"严格拦截","diagnostics":"诊断策略","configuredTLS":"配置 TLS","effectiveTLS":"生效传输","observation":"握手观测","observed":"已观测","unverified":"未观测","concurrency":"并发上限","disableConfirm":"关闭保护并还原已保存的身份与传输配置？当前并发设置保持不变。","applyConfirm":"确认应用所选账号保护配置？","batch":"批量开启保护","batchResult":"已开启：{success}；失败：{failed}","modes":{"legacy":"初代兼容","mode1":"兼容架构 v3","mode2":"完整收敛","minimal_compat":"设备兼容","session_standard":"会话兼容","tls_node24":"Node.js 24 对照","low_concurrency":"低并发","generic":"通用并发保护","disabled":"已关闭"}},
       opencode: { mode: '账号模式', protocol: '上游协议', adaptive: '按模型自动选择', rules: '模型协议规则', defaults: '恢复默认', pattern: '模型匹配规则', addRule: '添加规则', monthly: '每月' },
       title: '账号管理',
       description: '管理 AI 平台账号和 Cookie',

@@ -1,5 +1,6 @@
 export default {
     accounts: {
+      protection: {"title":"Account protection","strategy":"Strategy","preview":"Preview","integrity":"Request integrity","off":"Off","observe":"Observe","enforce":"Enforce","diagnostics":"Diagnostic strategies","configuredTLS":"Configured TLS","effectiveTLS":"Effective transport","observation":"Handshake observation","observed":"Observed","unverified":"Not observed","concurrency":"Concurrency ceiling","disableConfirm":"Disable protection and restore the saved identity and transport settings? Current concurrency edits will be retained.","applyConfirm":"Apply the selected account protection settings?","batch":"Enable protection","batchResult":"Enabled: {success}; failed: {failed}","modes":{"legacy":"Legacy compatibility","mode1":"Compatibility v3","mode2":"Full convergence","minimal_compat":"Device compatibility","session_standard":"Session compatibility","tls_node24":"Node.js 24 comparison","low_concurrency":"Low concurrency","generic":"Concurrency protection","disabled":"Disabled"}},
       opencode: { mode: 'Account mode', protocol: 'Upstream protocol', adaptive: 'Automatic by model', rules: 'Model protocol rules', defaults: 'Restore defaults', pattern: 'Model pattern', addRule: 'Add rule', monthly: 'Monthly' },
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',

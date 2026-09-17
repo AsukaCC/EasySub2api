@@ -14,13 +14,13 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_UsesWSPassthroughSnapsh
 	ctx := context.Background()
 	groupID := "10105"
 	account := &Account{
-		ID: "35001",
+		ID:          "35001",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		GroupIDs: []string{},
+		GroupIDs:    []string{groupID},
 		Extra: map[string]any{
 			"openai_oauth_responses_websockets_v2_mode": OpenAIWSIngressModePassthrough,
 		},
@@ -52,7 +52,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_UsesWSPassthroughSnapsh
 		&groupID,
 		"",
 		"session_hash_ws_passthrough",
-		"gpt-5.1",
+		"gpt-5.6-sol",
 		nil,
 		OpenAIUpstreamTransportResponsesWebsocketV2,
 		false,
@@ -62,4 +62,14 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_UsesWSPassthroughSnapsh
 	require.NotNil(t, selection.Account)
 	require.Equal(t, account.ID, selection.Account.ID)
 	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
+	if selection.ReleaseFunc != nil {
+		selection.ReleaseFunc()
+	}
+	for _, memberships := range [][]string{nil, {"another-group"}} {
+		account.GroupIDs = memberships
+		svc.accountRepo = schedulerTestOpenAIAccountRepo{accounts: []Account{*account}}
+		selection, _, err = svc.SelectAccountWithScheduler(ctx, &groupID, "", "invalid-membership", "gpt-5.6-sol", nil, OpenAIUpstreamTransportResponsesWebsocketV2, false)
+		require.ErrorIs(t, err, ErrNoAvailableAccounts)
+		require.Nil(t, selection)
+	}
 }

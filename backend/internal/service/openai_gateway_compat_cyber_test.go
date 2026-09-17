@@ -32,10 +32,10 @@ func compatCyberOAuthAccount() *Account {
 // compatCyberUpstreamSSE 构造上游 responses SSE：response.created 后 response.failed(cyber_policy)。
 func compatCyberUpstreamSSE() string {
 	return strings.Join([]string{
-		`data: {"type":"response.created","response":{"id":"resp_cyber","model":"gpt-5.5","status":"in_progress","output":[]}}`,
+		`data: {"type":"response.created","response":{"id":"resp_cyber","model":"gpt-5.2","status":"in_progress","output":[]}}`,
 		"",
 		`event: response.failed`,
-		`data: {"type":"response.failed","response":{"id":"resp_cyber","object":"response","model":"gpt-5.5","status":"failed","output":[],"error":{"code":"cyber_policy","message":"flagged for cyber policy"}}}`,
+		`data: {"type":"response.failed","response":{"id":"resp_cyber","object":"response","model":"gpt-5.2","status":"failed","output":[],"error":{"code":"cyber_policy","message":"flagged for cyber policy"}}}`,
 		"",
 	}, "\n")
 }
@@ -54,13 +54,13 @@ func TestForwardAsChatCompletions_BufferedCyberPolicyNoFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	body := []byte(`{"model":"gpt-5.5","messages":[{"role":"user","content":"hi"}],"stream":false}`)
+	body := []byte(`{"model":"gpt-5.2","messages":[{"role":"user","content":"hi"}],"stream":false}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	svc := &OpenAIGatewayService{httpUpstream: compatCyberUpstreamRecorder()}
 
-	result, err := svc.ForwardAsChatCompletions(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.5")
+	result, err := svc.ForwardAsChatCompletions(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.2")
 	require.Error(t, err)
 	require.Nil(t, result, "cyber must drop result so handler writes tokens=0 free row, not RecordUsage")
 	var failoverErr *UpstreamFailoverError
@@ -77,13 +77,13 @@ func TestForwardAsChatCompletions_StreamCyberPolicyDropsResult(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	body := []byte(`{"model":"gpt-5.5","messages":[{"role":"user","content":"hi"}],"stream":true}`)
+	body := []byte(`{"model":"gpt-5.2","messages":[{"role":"user","content":"hi"}],"stream":true}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	svc := &OpenAIGatewayService{httpUpstream: compatCyberUpstreamRecorder()}
 
-	result, err := svc.ForwardAsChatCompletions(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.5")
+	result, err := svc.ForwardAsChatCompletions(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.2")
 	require.Error(t, err)
 	require.Nil(t, result, "cyber must drop result so handler does not bill via RecordUsage")
 	var failoverErr *UpstreamFailoverError
@@ -97,13 +97,13 @@ func TestForwardAsAnthropic_BufferedCyberPolicyNoFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	body := []byte(`{"model":"gpt-5.5","max_tokens":1024,"messages":[{"role":"user","content":"hi"}],"stream":false}`)
+	body := []byte(`{"model":"gpt-5.2","max_tokens":1024,"messages":[{"role":"user","content":"hi"}],"stream":false}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	svc := &OpenAIGatewayService{httpUpstream: compatCyberUpstreamRecorder()}
 
-	result, err := svc.ForwardAsAnthropic(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.5")
+	result, err := svc.ForwardAsAnthropic(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.2")
 	require.Error(t, err)
 	require.Nil(t, result, "cyber must drop result so handler writes tokens=0 free row")
 	var failoverErr *UpstreamFailoverError
@@ -120,13 +120,13 @@ func TestForwardAsAnthropic_StreamCyberPolicyNoFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	body := []byte(`{"model":"gpt-5.5","max_tokens":1024,"messages":[{"role":"user","content":"hi"}],"stream":true}`)
+	body := []byte(`{"model":"gpt-5.2","max_tokens":1024,"messages":[{"role":"user","content":"hi"}],"stream":true}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	svc := &OpenAIGatewayService{httpUpstream: compatCyberUpstreamRecorder()}
 
-	result, err := svc.ForwardAsAnthropic(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.5")
+	result, err := svc.ForwardAsAnthropic(context.Background(), c, compatCyberOAuthAccount(), body, "", "gpt-5.2")
 	require.Error(t, err)
 	require.Nil(t, result, "cyber must drop result so handler does not bill via RecordUsage")
 	var failoverErr *UpstreamFailoverError

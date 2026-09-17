@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { useAppStore } from '@/stores/app'
+import type { PublicSettings } from '@/types'
 
 import UsageView from '../UsageView.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
@@ -88,9 +90,14 @@ vi.mock('@/api', () => ({
   },
 }))
 
-vi.mock('@/stores/app', () => ({
-  useAppStore: () => ({ showError, showWarning, showSuccess, showInfo }),
-}))
+vi.mock('@/stores/app', async () => {
+  const { reactive } = await vi.importActual<typeof import('vue')>('vue')
+  const state = reactive({
+    showError, showWarning, showSuccess, showInfo,
+    cachedPublicSettings: null as Partial<PublicSettings> | null,
+  })
+  return { useAppStore: () => state }
+})
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -104,6 +111,8 @@ vi.mock('vue-i18n', async () => {
 
 const simpleStub = { template: '<div><slot /></div>' }
 const chartStub = { template: '<div />' }
+const appStoreState = useAppStore() as unknown as { cachedPublicSettings: Partial<PublicSettings> | null }
+enableAutoUnmount(afterEach)
 
 const usageLog = {
   id: 1,
@@ -156,50 +165,51 @@ function mountUsageView() {
   })
 }
 
-describe('user UsageView', () => {
-  beforeEach(() => {
-    query.mockReset()
-    getStats.mockReset()
-    getDashboardModels.mockReset()
-    getDashboardSnapshotV2.mockReset()
-    list.mockReset()
-    getAvailable.mockReset()
-    showError.mockReset()
-    showWarning.mockReset()
-    showSuccess.mockReset()
-    showInfo.mockReset()
+beforeEach(() => {
+  appStoreState.cachedPublicSettings = null
+  query.mockReset()
+  getStats.mockReset()
+  getDashboardModels.mockReset()
+  getDashboardSnapshotV2.mockReset()
+  list.mockReset()
+  getAvailable.mockReset()
+  showError.mockReset()
+  showWarning.mockReset()
+  showSuccess.mockReset()
+  showInfo.mockReset()
 
-    query.mockResolvedValue({ items: [usageLog], total: 1, pages: 1 })
-    getStats.mockResolvedValue({
-      total_requests: 1,
-      total_input_tokens: 10,
-      total_output_tokens: 20,
-      total_cache_tokens: 0,
-      total_tokens: 30,
-      total_cost: 0.1,
-      total_actual_cost: 0.08,
-      average_duration_ms: 12,
-      endpoints: [],
-      upstream_endpoints: [],
-      endpoint_paths: [],
-    })
-    getDashboardModels.mockResolvedValue({
-      models: [{ model: 'gpt-5.4', requests: 1, input_tokens: 10, output_tokens: 20, cache_creation_tokens: 0, cache_read_tokens: 0, total_tokens: 30, cost: 0.1, actual_cost: 0.08 }],
-      start_date: '2026-03-08',
-      end_date: '2026-03-08',
-    })
-    getDashboardSnapshotV2.mockResolvedValue({
-      generated_at: '2026-03-08T00:00:00Z',
-      start_date: '2026-03-08',
-      end_date: '2026-03-08',
-      granularity: 'hour',
-      trend: [],
-      groups: [],
-    })
-    list.mockResolvedValue({ items: [{ id: 1, name: 'demo-key' }] })
-    getAvailable.mockResolvedValue([{ id: 1, name: 'default' }])
+  query.mockResolvedValue({ items: [usageLog], total: 1, pages: 1 })
+  getStats.mockResolvedValue({
+    total_requests: 1,
+    total_input_tokens: 10,
+    total_output_tokens: 20,
+    total_cache_tokens: 0,
+    total_tokens: 30,
+    total_cost: 0.1,
+    total_actual_cost: 0.08,
+    average_duration_ms: 12,
+    endpoints: [],
+    upstream_endpoints: [],
+    endpoint_paths: [],
   })
+  getDashboardModels.mockResolvedValue({
+    models: [{ model: 'gpt-5.4', requests: 1, input_tokens: 10, output_tokens: 20, cache_creation_tokens: 0, cache_read_tokens: 0, total_tokens: 30, cost: 0.1, actual_cost: 0.08 }],
+    start_date: '2026-03-08',
+    end_date: '2026-03-08',
+  })
+  getDashboardSnapshotV2.mockResolvedValue({
+    generated_at: '2026-03-08T00:00:00Z',
+    start_date: '2026-03-08',
+    end_date: '2026-03-08',
+    granularity: 'hour',
+    trend: [],
+    groups: [],
+  })
+  list.mockResolvedValue({ items: [{ id: 1, name: 'demo-key' }] })
+  getAvailable.mockResolvedValue([{ id: 1, name: 'default' }])
+})
 
+describe('user UsageView', () => {
   it('loads logs, stats, model stats, and snapshot on first render', async () => {
     mountUsageView()
     await flushPromises()
@@ -382,10 +392,6 @@ describe('user UsageView', () => {
 })
 
 describe('UsageView subscription feature flag', () => {
-  afterEach(() => {
-    appStoreState.cachedPublicSettings = { allow_user_view_error_requests: true }
-  })
-
   function billingTypeSelect(wrapper: ReturnType<typeof mountUsageView>) {
     return wrapper.findAllComponents(Select).find((select) =>
       select.props('options').some((option: SelectOption) => option.label === 'Subscription')
@@ -410,5 +416,75 @@ describe('UsageView subscription feature flag', () => {
     expect(billingTypeSelect(wrapper)).toBeUndefined()
     expect(wrapper.text()).not.toContain('Billing type')
     wrapper.unmount()
+  })
+
+  it.each([
+    { mode: 'recharge_only', legacyFlag: true, visible: false },
+    { mode: 'subscription_only', legacyFlag: false, visible: true },
+    { mode: 'recharge_and_subscription', legacyFlag: false, visible: true },
+  ] as const)('honors the unified $mode billing mode', async ({ mode, legacyFlag, visible }) => {
+    appStoreState.cachedPublicSettings = { site_billing_mode: mode, subscription_enabled: legacyFlag }
+    const wrapper = mountUsageView()
+    await flushPromises()
+
+    expect(billingTypeSelect(wrapper) !== undefined).toBe(visible)
+  })
+
+  it.each([0, 1])('clears hidden billing type %s without dropping other history filters', async (billingType) => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+    const select = billingTypeSelect(wrapper)!
+    select.vm.$emit('update:modelValue', billingType)
+    const modelSelect = wrapper.findAllComponents(Select).find((entry) =>
+      entry.props('options').some((option: SelectOption) => option.label === 'All models')
+    )!
+    modelSelect.vm.$emit('update:modelValue', 'gpt-5.4')
+    select.vm.$emit('change', billingType)
+    await flushPromises()
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ billing_type: billingType, model: 'gpt-5.4' }),
+      expect.anything(),
+    )
+
+    appStoreState.cachedPublicSettings = { subscription_enabled: false }
+    await flushPromises()
+
+    expect(billingTypeSelect(wrapper)).toBeUndefined()
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ billing_type: null, model: 'gpt-5.4', page: 1 }),
+      expect.anything(),
+    )
+    expect(getStats).toHaveBeenLastCalledWith(expect.objectContaining({ billing_type: null, model: 'gpt-5.4' }))
+    expect(getDashboardModels).toHaveBeenLastCalledWith(expect.objectContaining({ billing_type: null }))
+    expect(getDashboardSnapshotV2).toHaveBeenLastCalledWith(expect.objectContaining({ billing_type: null }))
+
+    appStoreState.cachedPublicSettings = { subscription_enabled: true }
+    await flushPromises()
+    expect(billingTypeSelect(wrapper)!.props('modelValue')).toBeNull()
+  })
+
+  it('exports all historical billing types after the control is disabled', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+    billingTypeSelect(wrapper)!.vm.$emit('update:modelValue', 1)
+    appStoreState.cachedPublicSettings = { subscription_enabled: false }
+    await flushPromises()
+    query.mockClear()
+
+    const originalCreateObjectURL = window.URL.createObjectURL
+    const originalRevokeObjectURL = window.URL.revokeObjectURL
+    window.URL.createObjectURL = vi.fn(() => 'blob:unfiltered-history')
+    window.URL.revokeObjectURL = vi.fn()
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      await (wrapper.vm as any).exportToCSV()
+      expect(query).toHaveBeenCalledWith(expect.objectContaining({ billing_type: null }))
+      expect(clickSpy).toHaveBeenCalled()
+      expect(showSuccess).toHaveBeenCalled()
+    } finally {
+      window.URL.createObjectURL = originalCreateObjectURL
+      window.URL.revokeObjectURL = originalRevokeObjectURL
+      clickSpy.mockRestore()
+    }
   })
 })

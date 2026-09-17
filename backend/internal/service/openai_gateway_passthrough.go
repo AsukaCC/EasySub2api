@@ -169,7 +169,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 			if c != nil && c.Request != nil {
 				clientHeaders = c.Request.Header
 			}
-			fpIDs := resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
+			fpIDs := resolveCodexFingerprintIDsFromRequest(codexAccountIdentitySource(c, account), clientHeaders)
 			if fpIDs != nil {
 				fpBody, fpChanged, fpErr := applyCodexFingerprintClientMetadataRaw(body, fpIDs)
 				if fpErr != nil {
@@ -313,7 +313,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		}
 
 		upstreamStart := time.Now()
-		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+		resp, err = s.doProtectedOpenAIRequest(upstreamReq, proxyURL, account)
 		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 		if err != nil {
 			// Transport-level failure (proxy/DNS/TCP/TLS — no HTTP response). Convert to
@@ -465,6 +465,27 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	body []byte,
 	token string,
 ) (*http.Request, error) {
+	if err := checkActivePayloadModels(account, body); err != nil {
+		return nil, err
+	}
+	isBridgeRequest := isOpenAICompatMessagesBridgeContext(c) || isOpenAICompatMessagesBridgeBody(body)
+	rawPromptCacheKey := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String())
+	if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+		return nil, err
+	}
+	if err := validateMode1StagedRequest(c, account, body); err != nil {
+		return nil, err
+	}
+	converged, convergenceErr := prepareCodexHTTPIdentityBody(c, account, body)
+	if convergenceErr != nil {
+		return nil, convergenceErr
+	}
+	body = converged
+	projected, _, projectionErr := applyCodexAccountIdentityClientMetadataRaw(body, codexAccountIdentitySource(c, account), "")
+	if projectionErr != nil {
+		return nil, projectionErr
+	}
+	body = projected
 	targetURL := openaiPlatformAPIURL
 	switch account.Type {
 	case AccountTypeOAuth:
@@ -528,16 +549,13 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 
 	// OAuth 透传到 ChatGPT internal API 时补齐必要头。
 	if account.UsesOpenAICodexProtocol() {
-		// Current Codex OAuth HTTP no longer negotiates the legacy Responses
-		// experiment. Passthrough may receive it from an older client, so remove
-		// only that token while preserving any independent beta negotiation.
-		stripOpenAILegacyResponsesBeta(req.Header)
-		promptCacheKey := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String())
+		// Passthrough completes the legacy HTTP identity, unlike WebSocket negotiation.
+		ensureCodexIdentityHeaders(req.Header)
+		promptCacheKey := rawPromptCacheKey
 		req.Host = "chatgpt.com"
 		if err := resolveAndSetOpenAIChatGPTAccountHeaders(ctx, s.accountRepo, req.Header, account); err != nil {
 			return nil, fmt.Errorf("resolve chatgpt account headers: %w", err)
 		}
-		apiKeyID := getAPIKeyIDFromContext(c)
 		// 先保存客户端原始值，再做 compact 补充，避免后续统一隔离时读到已处理的值。
 		clientSessionID := strings.TrimSpace(req.Header.Get("session_id"))
 		clientConversationID := strings.TrimSpace(req.Header.Get("conversation_id"))
@@ -563,10 +581,10 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 			clientConversationID = promptCacheKey
 		}
 		if clientSessionID != "" {
-			req.Header.Set("session_id", isolateOpenAISessionHeader(apiKeyID, clientSessionID))
+			req.Header.Set("session_id", clientSessionID)
 		}
 		if clientConversationID != "" {
-			req.Header.Set("conversation_id", isolateOpenAISessionHeader(apiKeyID, clientConversationID))
+			req.Header.Set("conversation_id", clientConversationID)
 		}
 	} else if isOpenAIResponsesCompactPath(c) {
 		// 透传白名单会放行客户端的 Accept: text/event-stream；compact 上游是
@@ -587,6 +605,18 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	// 与请求体 client_metadata 共享同一份 IDs（与非透传路径相同的相对位置：
 	// 会话隔离之后、终态身份收口之前）。
 	applyStagedCodexFingerprintHeaders(c, account, req.Header)
+	applyCodexAccountIdentityHeaders(req.Header, codexAccountIdentitySource(c, account), "")
+	if account.UsesOpenAICodexProtocol() && !account.IsOpenAIOAuthLike() {
+		for _, name := range []string{"session_id", "conversation_id"} {
+			if raw := req.Header.Get(name); raw != "" {
+				req.Header.Set(name, isolateOpenAISessionHeader(getAPIKeyIDFromContext(c), raw))
+			}
+		}
+	}
+	if isBridgeRequest {
+		req.Header.Del("originator")
+		req.Header.Del("OpenAI-Beta")
+	}
 	// 终态收口：透传路径的 OAuth 与非透传完全一致，同样强制统一出站身份
 	// （User-Agent / originator / version 同源自洽），客户端自报身份不会到达上游。
 	if account.UsesOpenAICodexProtocol() {

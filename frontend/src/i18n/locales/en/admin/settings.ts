@@ -653,13 +653,14 @@ export default {
         openaiCodexVersionAutoSyncHint: 'Fetches the latest stable client version from the official repository every 6 hours, so you never need to upgrade this service just to keep the version current. When disabled, only the version above or the built-in default is used.',
         openaiCodexVersionSyncedValue: 'Currently synced: {version}',
         codexOutboundDiagnostics: {
+          identityBeta: 'Identity-completion Beta (path-dependent): {header}',
           title: 'Codex outbound diagnostics (read-only)',
           effectiveVersion: 'Effective version: {version} (source: {source})',
           versionChain: 'Manual override: {manual} · Auto-synced: {synced} · Built-in default: {builtin} · Minimum supported: {minimum}',
           identity: 'Identity: originator={originator} · User-Agent={userAgent}',
           connection: 'Connection: protocol={protocol} · TLS fingerprint: {tls} · Direct fallback on proxy error: {directFallback}',
-          rejectedManual: 'Manual override "{version}" is ignored: pre-release or invalid versions are rejected unless gateway.codex_allow_prerelease_version is enabled.',
-          rejectedSynced: 'Synced value "{version}" is ignored: pre-release or invalid versions fall back to the next source.',
+          rejectedManual: 'Manual override "{version}" is ignored: the version is invalid or below the supported minimum.',
+          rejectedSynced: 'Synced value "{version}" is ignored: invalid or below-minimum versions fall back to the next source.',
           source: {
             manual_override: 'manual override',
             auto_sync: 'auto-sync',

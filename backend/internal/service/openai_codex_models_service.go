@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"io"
 	"net"
 	"net/http"
@@ -354,10 +355,11 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 	if useAPIKeyUpstream {
 		return s.fetchCachedAPIKeyCodexModelsManifest(ctx, request, ifNoneMatch)
 	}
-	manifest, fetchErr := s.fetchCodexModelsManifestUpstream(ctx, request, ifNoneMatch)
+	// A pre-retirement client ETag must not keep a withdrawn model cached.
+	manifest, fetchErr := s.fetchCodexModelsManifestUpstream(ctx, request, "")
 	if !credAccount.IsOpenAIAgentIdentity() || !isAgentIdentityTaskInvalidCodexModelsError(fetchErr) {
 		s.handleCodexModelsManifestAccountAuthError(ctx, account, credAccount, fetchErr)
-		return manifest, fetchErr
+		return codexModelsManifestForClient(manifest, ifNoneMatch), fetchErr
 	}
 	expectedTaskID := strings.TrimSpace(credAccount.GetCredential("task_id"))
 	if recoverErr := s.recoverAgentIdentityTask(ctx, credAccount, expectedTaskID); recoverErr != nil {
@@ -376,7 +378,8 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 	}
 	setOpenAIChatGPTAccountHeaders(request.headers, credAccount)
 	finalizeCodexOAuthIdentityHeaders(request.headers)
-	return s.fetchCodexModelsManifestUpstream(ctx, request, ifNoneMatch)
+	manifest, fetchErr = s.fetchCodexModelsManifestUpstream(ctx, request, "")
+	return codexModelsManifestForClient(manifest, ifNoneMatch), fetchErr
 }
 
 func isAgentIdentityTaskInvalidCodexModelsError(err error) bool {
@@ -562,12 +565,19 @@ func (s *OpenAIGatewayService) fetchCodexModelsManifestUpstream(ctx context.Cont
 			}
 		}
 	}
+	body, retiredChanged, retiredErr := openai.FilterRetiredManifest(body)
+	if retiredErr != nil {
+		return nil, retiredErr
+	}
 	etag := resp.Header.Get("ETag")
 	manifest := &CodexModelsManifest{
 		Body:                         body,
 		ETag:                         etag,
 		upstreamSourceBody:           append([]byte(nil), upstreamBody...),
 		convertedFromOpenAIModelList: convertedFromOpenAIModelList,
+	}
+	if retiredChanged {
+		manifest.ETag = codexModelsManifestBodyETag(body)
 	}
 	if request.useAPIKeyUpstream {
 		manifest.upstreamETag = etag

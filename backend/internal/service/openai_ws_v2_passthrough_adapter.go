@@ -702,6 +702,13 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if err := validateOpenAIWSBearerToken(account, token); err != nil {
 		return err
 	}
+	integrityOriginalFirst := append([]byte(nil), firstClientMessage...)
+	if err := checkActivePayloadModels(account, firstClientMessage); err != nil {
+		return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
+	}
+	if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+		return err
+	}
 	if account.IsOpenAIOAuth() && isOpenAIResponsesLiteWebSocketPayload(firstClientMessage) {
 		liteFirstMessage, _, liteErr := normalizeOpenAIResponsesLiteToolsPayload(firstClientMessage)
 		if liteErr != nil {
@@ -858,6 +865,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	}
 
 	agentTaskRecoveryTried := false
+	tlsProfile, tlsErr := protectedTLSProfile(account, s.cfg != nil && s.cfg.Gateway.TLSFingerprint.Enabled)
+	if tlsErr != nil {
+		return tlsErr
+	}
 	var upstreamConn openAIWSClientConn
 	statusCode := 0
 	var handshakeHeaders http.Header
@@ -867,7 +878,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			return fmt.Errorf("refresh ws authentication headers: %w", err)
 		}
 		dialCtx, cancelDial := context.WithTimeout(ctx, s.openAIWSDialTimeout())
-		upstreamConn, statusCode, handshakeHeaders, err = dialer.Dial(dialCtx, wsURL, headers, proxyURL)
+		upstreamConn, statusCode, handshakeHeaders, err = dialer.Dial(withOpenAIWSTLSProfile(dialCtx, account.ID, tlsProfile), wsURL, headers, proxyURL)
 		cancelDial()
 		if err == nil {
 			break
@@ -971,6 +982,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
 				return payload, nil, nil
 			}
+			if err := checkActivePayloadModels(account, payload); err != nil {
+				return nil, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
+			}
 			eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
 			isResponseCreate := eventType == "response.create"
 			responseCreateAt := time.Time{}
@@ -1063,6 +1077,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if isResponseCreate && model != "" && model != strings.TrimSpace(gjson.GetBytes(payload, "model").String()) {
 				payload = s.ReplaceModelInBody(payload, model)
 			}
+			if err := CheckActiveAccountModel(account, model); err != nil {
+				return nil, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
+			}
 			out, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(ctx, account, model, payload)
 			// 多轮 passthrough usage：仅在成功（non-block / non-err）
 			// 的 response.create 帧上更新 usageMeta，使用
@@ -1079,6 +1096,14 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			//     覆盖（Store(nil)），因为 OpenAI 上游对该帧实际不传
 			//     service_tier 时按 default 处理，billing 应如实反映。
 			if policyErr == nil && blocked == nil && isResponseCreate {
+				if err := checkAccountRequestIntegrity(c, account, originalResponseCreate, out); err != nil {
+					return nil, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "request integrity check failed", err)
+				}
+				projected, projectionErr := protectOpenAIWSIdentity(c, account, out)
+				if projectionErr != nil {
+					return nil, nil, projectionErr
+				}
+				out = projected
 				usageMeta.captureInboundReasoningAndCompaction(originalResponseCreate, requestModelForThisFrame, model)
 				usageMeta.updateFromResponseCreate(out, model, requestModelForThisFrame)
 				responseCreateAtCopy := responseCreateAt
@@ -1102,6 +1127,13 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		},
 	}
 	upstreamFirstMessageSent := false
+	if err := checkAccountRequestIntegrity(c, account, integrityOriginalFirst, firstClientMessage); err != nil {
+		return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "request integrity check failed", err)
+	}
+	firstClientMessage, err = protectOpenAIWSIdentity(c, account, firstClientMessage, true)
+	if err != nil {
+		return err
+	}
 	firstWriteCtx, cancelFirstWrite := context.WithTimeout(ctx, s.openAIWSWriteTimeout())
 	firstWriteErr := relayUpstreamFrameConn.WriteFrame(firstWriteCtx, coderws.MessageText, firstClientMessage)
 	cancelFirstWrite()
@@ -1119,6 +1151,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			msgType, payload, readErr := conn.ReadFrame(readCtx)
 			if readErr != nil {
 				return msgType, payload, readErr
+			}
+			if err := checkActivePayloadModels(account, payload); err != nil {
+				return msgType, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
 			}
 			if (msgType == coderws.MessageText || msgType == coderws.MessageBinary) && strings.TrimSpace(gjson.GetBytes(payload, "type").String()) == "response.create" {
 				return msgType, payload, nil

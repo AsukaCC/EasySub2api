@@ -35,6 +35,12 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	beginUpstreamResponseModelObservation(c)
+	if err := checkActivePayloadModels(account, body); err != nil {
+		return nil, err
+	}
+	if err := CheckActiveModel(defaultMappedModel); err != nil {
+		return nil, err
+	}
 	ClearActualOpenAIUpstreamEndpoint(c)
 	rememberOpenCodeInboundBody(c, body)
 	if account.IsOpenCodeGo() {
@@ -194,6 +200,10 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	if err != nil {
 		return nil, fmt.Errorf("marshal responses request: %w", err)
 	}
+	stageMode1Request(c, account, responsesBody)
+	if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+		return nil, err
+	}
 
 	if account.UsesOpenAICodexProtocol() && account.Platform != PlatformGrok {
 		var reqBody map[string]any
@@ -329,7 +339,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	if account.UsesOpenAICodexProtocol() && account.Platform != PlatformGrok {
 		// Messages 兼容桥即使 body 未带 todo-guard/prompt_cache_key 标记（如映射到非
 		// gpt-5/codex 模型），也必须让 buildUpstreamRequest 走 bridge 分支，以保留
-		// 既有 body/session/conversation 行为。身份头在 post-build 阶段统一恢复。
+		// 既有 body/session/conversation 行为，不恢复 originator。
 		setOpenAICompatMessagesBridgeContext(c, true)
 	}
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
@@ -344,26 +354,18 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, fmt.Errorf("build upstream request: %w", err)
 	}
 
-	// Override session_id with a deterministic UUID derived from the isolated
-	// session key, ensuring different API keys produce different upstream sessions.
+	// OAuth sessions follow the upstream credential namespace; API-key accounts
+	// retain their existing downstream tenant isolation.
 	if account.Platform != PlatformGrok && promptCacheKey != "" {
-		isolatedSessionID := isolateOpenAISessionHeader(apiKeyID, promptCacheKey)
+		isolatedSessionID := isolateOpenAIUpstreamSessionID(apiKeyID, codexAccountIdentitySource(c, account), promptCacheKey)
 		upstreamReq.Header.Set("session_id", isolatedSessionID)
 		if upstreamReq.Header.Get("conversation_id") != "" {
 			upstreamReq.Header.Set("conversation_id", isolatedSessionID)
 		}
 	}
 	if account.UsesOpenAICodexProtocol() && account.Platform != PlatformGrok {
-		// buildUpstreamRequest 的 bridge 分支已写入规范 originator 并收口身份；此处再做一次
-		// 补齐 + 收口作为兜底，确保发送前 originator / version / User-Agent 齐全，避免
-		// ChatGPT Codex 上游因缺失身份头返回 404（issue #3901）。
-		ensureCodexIdentityHeaders(upstreamReq.Header)
-		enforceCodexIdentityHeaders(upstreamReq.Header)
-		logger.L().Debug("openai messages: upstream identity restored",
-			zap.String("account_id", account.ID),
-			zap.String("upstream_model", upstreamModel),
-			zap.Bool("compat_identity_restored", true),
-		)
+		upstreamReq.Header.Del("originator")
+		upstreamReq.Header.Del("OpenAI-Beta")
 	}
 	if account.UsesOpenAICodexProtocol() && promptCacheKey != "" && strings.TrimSpace(c.GetHeader("conversation_id")) == "" {
 		upstreamReq.Header.Del("conversation_id")
@@ -393,7 +395,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 				return nil, fmt.Errorf("build grok retry request: %w", err)
 			}
 		}
-		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+		resp, err = s.doProtectedOpenAIRequest(upstreamReq, proxyURL, account)
 		if err != nil {
 			return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 		}

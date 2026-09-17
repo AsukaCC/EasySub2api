@@ -1575,6 +1575,9 @@ func (s *PricingService) ListModelNamesByProvider(provider string) []string {
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	names := make([]string, 0)
 	for name, p := range s.pricingData {
+		if openai.IsRetiredModel(name) {
+			continue
+		}
 		if strings.ToLower(p.LiteLLMProvider) == provider {
 			names = append(names, name)
 		}

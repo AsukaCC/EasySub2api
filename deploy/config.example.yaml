@@ -271,22 +271,10 @@ gateway:
   #
   # 注意：开启后会影响所有客户端的行为（不仅限于 VS Code / Codex CLI），请谨慎开启。
   force_codex_cli: false
-  # Stop rewriting load-shed Codex originators to the official CLI identity.
-  # 关闭「把落在上游降载桶的 Codex originator 改写为官方 CLI 身份（codex_cli_rs）」。
-  #
-  # 上游 /backend-api/codex 按 originator 分桶调度容量：命中降载桶的请求即使 HTTP 200，
-  # 也会立刻推 server_is_overloaded 错误事件，网关据此判定瞬时上游故障并冷却账号，
-  # 对外表现为 Codex 账号频繁过载不可用。归一化只替换身份段，保留版本/OS/架构/终端指纹，
-  # 改写后 originator 与 User-Agent 首段仍然配套。
-  #
-  # 默认 false（即归一化与身份强制均开启）；旧版将 true 作为完整身份保护回滚，
-  # 仅当上游调整分桶或需要回滚时才置 true。新配置可用下方独立开关。
-  disable_codex_originator_normalization: false
+  # Legacy originator-normalization and prerelease-gate keys are ignored.
   # Stop enforcing one canonical Codex identity for every OAuth request.
   # 关闭后仍会配对 originator 与最终 User-Agent，并同步 version；默认 false。
   disable_codex_identity_enforcement: false
-  # Allow prerelease Codex client versions in outbound identity (default false).
-  codex_allow_prerelease_version: false
   # Enable Codex image-generation bridge injection for /openai/v1/responses.
   # 是否为 Codex /responses 请求自动注入 image_generation 工具与桥接指令。
   #
@@ -324,11 +312,11 @@ gateway:
   # OpenAI 透传模式是否放行客户端超时头（如 x-stainless-timeout）
   # 默认 false：过滤超时头，降低上游提前断流风险。
   openai_passthrough_allow_timeout_headers: false
-  # Model used for OpenAI /responses/compact upstream requests (default: gpt-5.4).
-  # OpenAI /responses/compact 上游模型（默认 gpt-5.4）。
+  # Model used for OpenAI /responses/compact upstream requests (default: gpt-5.6-sol).
+  # OpenAI /responses/compact 上游模型（默认 gpt-5.6-sol）。
   # Use this to avoid compact failures when newer models are not yet supported by the compact endpoint.
   # 当 compact 端点暂未支持更新模型时，可通过这里降级规避失败。
-  openai_compact_model: "gpt-5.4"
+  openai_compact_model: "gpt-5.6-sol"
   # ChatGPT Frameless Live 单会话硬上限（秒）。
   live:
     max_session_duration_seconds: 3600

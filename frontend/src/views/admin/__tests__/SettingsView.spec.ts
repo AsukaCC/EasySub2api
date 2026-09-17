@@ -588,22 +588,22 @@ function mountView(section = "platform") {
   });
 }
 
-async function openPaymentTab(wrapper: ReturnType<typeof mountView>) {
+async function openPaymentTab(_wrapper: ReturnType<typeof mountView>) {
   routeHarness.current!.meta.settingsSection = "payment";
   await flushPromises();
 }
 
-async function openSecurityTab(wrapper: ReturnType<typeof mountView>) {
+async function openSecurityTab(_wrapper: ReturnType<typeof mountView>) {
   routeHarness.current!.meta.settingsSection = "access";
   await flushPromises();
 }
 
-async function openGatewayTab(wrapper: ReturnType<typeof mountView>) {
+async function openGatewayTab(_wrapper: ReturnType<typeof mountView>) {
   routeHarness.current!.meta.settingsSection = "gateway";
   await flushPromises();
 }
 
-async function openUsersTab(wrapper: ReturnType<typeof mountView>) {
+async function openUsersTab(_wrapper: ReturnType<typeof mountView>) {
   routeHarness.current!.meta.settingsSection = "access";
   await flushPromises();
 }

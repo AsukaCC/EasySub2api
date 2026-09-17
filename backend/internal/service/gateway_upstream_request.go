@@ -19,6 +19,15 @@ import (
 )
 
 func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, reqStream bool, mimicClaudeCode bool) (*http.Request, []byte, error) {
+	if err := checkActivePayloadModels(account, body); err != nil {
+		return nil, body, err
+	}
+	if err := CheckActiveModel(modelID); err != nil {
+		return nil, body, err
+	}
+	if err := ValidateAccountProtectionConfiguration(account); err != nil {
+		return nil, body, err
+	}
 	body = stripDeferredToolCacheControl(body)
 	if account.Platform == PlatformAnthropic && account.Type == AccountTypeServiceAccount {
 		req, err := s.buildUpstreamRequestAnthropicVertex(ctx, c, account, body, token, modelID, reqStream)

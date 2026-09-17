@@ -115,7 +115,7 @@
               <label class="input-label">{{ t('usage.compactionFilter') }}</label>
               <Select v-model="filters.native_compaction_v2" :options="compactionOptions" @change="applyFilters" />
             </div>
-            <div class="views-user-usage-view__panel-13">
+            <div v-if="subscriptionEnabled" class="views-user-usage-view__panel-13">
               <label class="input-label">{{ t('admin.usage.billingType') }}</label>
               <Select v-model="filters.billing_type" :options="billingTypeOptions" @change="applyFilters" />
             </div>
@@ -240,6 +240,7 @@ import { formatReasoningEffort } from '@/utils/format'
 import { getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode } from '@/utils/billingMode'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
+import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import type {
   ApiKey,
   EndpointStat,
@@ -357,6 +358,7 @@ const endpointDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionSource = ref<EndpointSource>('inbound')
 const activeTab = ref<'usage' | 'errors'>('usage')
 const errorViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_user_view_error_requests ?? false)
+const subscriptionEnabled = computed(() => resolveSiteBillingMode(appStore.cachedPublicSettings) !== 'recharge_only')
 
 const filters = ref<UsageQueryParams>({
   start_date: startDate.value,
@@ -392,7 +394,7 @@ const compactionOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('usage.allCompactionTypes') },
   { value: true, label: t('usage.compactionOnly') },
 ])
-// 订阅功能关闭后只剩余额计费，「计费类型」筛选（余额/订阅）失去意义，整块隐藏。
+// Hiding the control must not hide historical subscription usage.
 const billingTypeOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('admin.usage.allBillingTypes') },
   { value: 0, label: t('admin.usage.billingTypeBalance') },
@@ -428,6 +430,7 @@ const normalizedFilters = computed<UsageQueryParams>(() => {
   const legacyStream = requestType ? requestTypeToLegacyStream(requestType) : filters.value.stream
   return {
     ...filters.value,
+    billing_type: subscriptionEnabled.value ? filters.value.billing_type : null,
     start_date: startDate.value,
     end_date: endDate.value,
     stream: legacyStream === null ? undefined : legacyStream,
@@ -902,6 +905,13 @@ onMounted(() => {
 onUnmounted(() => {
   abortController?.abort()
   document.removeEventListener('click', handleColumnClickOutside)
+})
+
+watch(subscriptionEnabled, (enabled) => {
+  if (!enabled && filters.value.billing_type != null) {
+    filters.value.billing_type = null
+    applyFilters()
+  }
 })
 
 watch(endpointDistributionSource, () => {
