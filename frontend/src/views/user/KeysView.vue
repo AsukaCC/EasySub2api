@@ -30,14 +30,28 @@
             />
           </div>
           <div class="keys-toolbar__actions">
-          <button
-            @click="loadApiKeys"
-            :disabled="loading"
-            class="btn btn-secondary"
-            :title="t('common.refresh')"
-          >
-            <Icon name="refresh" size="md" :class="loading ? 'views-user-keys-view__icon-7' : ''" />
-          </button>
+            <div v-if="selectedCount > 0" class="keys-toolbar__selection">
+              <span>{{ t('keys.bulkEdit.selectedCount', { count: selectedCount }) }}</span>
+              <button
+                class="btn btn-primary btn-sm"
+                :disabled="loading"
+                data-test="bulk-edit-keys"
+                @click="showBulkEditModal = true"
+              >
+                {{ t('keys.bulkEdit.title') }}
+              </button>
+              <button class="btn btn-secondary btn-sm" @click="clearSelection">
+                {{ t('keys.bulkEdit.clearSelection') }}
+              </button>
+            </div>
+            <button
+              @click="loadApiKeys"
+              :disabled="loading"
+              class="btn btn-secondary"
+              :title="t('common.refresh')"
+            >
+              <Icon name="refresh" size="md" :class="loading ? 'views-user-keys-view__icon-7' : ''" />
+            </button>
           <div class="keys-toolbar__columns" ref="columnDropdownRef">
             <button
               @click="showColumnDropdown = !showColumnDropdown"
@@ -83,9 +97,14 @@
           :columns="columns"
           :data="apiKeys"
           :loading="loading"
+          selectable
+          row-key="id"
+          :selected-keys="selectedIds"
+          :selection-label="selectionLabel"
           :server-side-sort="true"
           default-sort-key="created_at"
           default-sort-order="desc"
+          @update:selected-keys="handleSelectionChange"
           @sort="handleSort"
         >
           <template #cell-id="{ value }">
@@ -901,6 +920,14 @@
       </template>
     </BaseDialog>
 
+    <BulkEditKeysModal
+      :show="showBulkEditModal"
+      :selected-keys="selectedApiKeys"
+      :groups="groups"
+      @close="showBulkEditModal = false"
+      @updated="handleBulkUpdated"
+    />
+
     <!-- Delete Confirmation Dialog -->
     <ConfirmDialog
       :show="showDeleteDialog"
@@ -953,30 +980,32 @@
 <script setup lang="ts">
 import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 
-	import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-	import { useI18n } from 'vue-i18n'
-	import { useAppStore } from '@/stores/app'
-	import { useOnboardingStore } from '@/stores/onboarding'
-	import { useClipboard } from '@/composables/useClipboard'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useAppStore } from '@/stores/app'
+import { useOnboardingStore } from '@/stores/onboarding'
+import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { useTableSelection } from '@/composables/useTableSelection'
 
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
-	import DataTable from '@/components/common/DataTable.vue'
-	import Pagination from '@/components/common/Pagination.vue'
-	import BaseDialog from '@/components/common/BaseDialog.vue'
-	import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-	import EmptyState from '@/components/common/EmptyState.vue'
-	import Select from '@/components/common/Select.vue'
-	import SearchInput from '@/components/common/SearchInput.vue'
-	import Icon from '@/components/icons/Icon.vue'
-	import UseKeyModal from '@/components/keys/UseKeyModal.vue'
-	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
-	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
-	import GroupBadge from '@/components/common/GroupBadge.vue'
-	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
+import BulkEditKeysModal from '@/components/keys/BulkEditKeysModal.vue'
+import DataTable from '@/components/common/DataTable.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import Select from '@/components/common/Select.vue'
+import SearchInput from '@/components/common/SearchInput.vue'
+import Icon from '@/components/icons/Icon.vue'
+import UseKeyModal from '@/components/keys/UseKeyModal.vue'
+import EndpointPopover from '@/components/keys/EndpointPopover.vue'
+import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+import GroupBadge from '@/components/common/GroupBadge.vue'
+import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime, formatPointAmount, formatPoints } from '@/utils/format'
@@ -1109,6 +1138,32 @@ const columns = computed<Column[]>(() =>
 )
 
 const apiKeys = ref<ApiKey[]>([])
+const showBulkEditModal = ref(false)
+const {
+  selectedIds,
+  selectedCount,
+  setSelectedIds,
+  clear: clearSelection,
+  removeMany: removeSelectedIds
+} = useTableSelection<ApiKey>({ rows: apiKeys, getId: (key) => key.id })
+const selectedApiKeys = computed(() =>
+  apiKeys.value.filter((key) => selectedIds.value.includes(key.id))
+)
+const selectionLabel = (key: ApiKey) => t('keys.bulkEdit.selectKey', { name: key.name })
+
+const handleSelectionChange = (ids: Array<string | number>) => {
+  const visibleIds = new Set(apiKeys.value.map((key) => key.id))
+  const selectedVisibleIds = ids.filter(
+    (id): id is string => typeof id === 'string' && visibleIds.has(id)
+  )
+  setSelectedIds([...new Set(selectedVisibleIds)])
+}
+
+const handleBulkUpdated = (succeededIds: string[]) => {
+  removeSelectedIds(succeededIds)
+  void loadApiKeys()
+}
+
 const groups = ref<Group[]>([])
 const loading = ref(true)
 const submitting = ref(false)
@@ -1219,6 +1274,7 @@ const statusFilterOptions = computed(() => [
 ])
 
 const onFilterChange = () => {
+  clearSelection()
   pagination.value.page = 1
   loadApiKeys()
 }
@@ -1296,6 +1352,7 @@ const loadApiKeys = async () => {
       ...key,
       group_ids: key.group_id ? [key.group_id] : (key.group_ids?.[0] ? [key.group_ids[0]] : [])
     }))
+    handleSelectionChange(selectedIds.value)
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
@@ -1359,17 +1416,20 @@ const closeUseKeyModal = () => {
 }
 
 const handlePageChange = (page: number) => {
+  clearSelection()
   pagination.value.page = page
   loadApiKeys()
 }
 
 const handlePageSizeChange = (pageSize: number) => {
+  clearSelection()
   pagination.value.page_size = pageSize
   pagination.value.page = 1
   loadApiKeys()
 }
 
 const handleSort = (key: string, order: 'asc' | 'desc') => {
+  clearSelection()
   sortState.value.sort_by = key
   sortState.value.sort_order = order
   pagination.value.page = 1
@@ -1739,9 +1799,19 @@ onUnmounted(() => {
 .keys-toolbar__actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
   margin-left: auto;
+}
+
+.keys-toolbar__selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
 }
 
 .keys-toolbar__columns {
