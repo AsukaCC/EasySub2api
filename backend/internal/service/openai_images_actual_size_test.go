@@ -40,29 +40,41 @@ func TestDetectOpenAIImageResultSize(t *testing.T) {
 }
 
 func TestOpenAIGatewayServiceForwardImages_OAuthUsesDecodedOutputDimensions(t *testing.T) {
-	run := runOpenAIOAuthImageActualSizeTest(t, false)
+	for _, direct := range []bool{false, true} {
+		t.Run(fmt.Sprintf("direct=%t", direct), func(t *testing.T) {
+			run := runOpenAIOAuthImageActualSizeTest(t, false, direct)
 
-	require.Equal(t, "3840x2160", gjson.GetBytes(run.upstream.lastBody, "tools.0.size").String())
-	require.Equal(t, "low", gjson.GetBytes(run.upstream.lastBody, "tools.0.quality").String())
-	require.Equal(t, "1672x941", gjson.Get(run.recorder.Body.String(), "size").String())
-	require.Equal(t, "auto", gjson.Get(run.recorder.Body.String(), "quality").String())
-	require.Equal(t, []string{"1672x941"}, run.result.ImageOutputSizes)
+			prefix := "tools.0."
+			if direct {
+				prefix = ""
+			}
+			require.Equal(t, "3840x2160", gjson.GetBytes(run.upstream.lastBody, prefix+"size").String())
+			require.Equal(t, "low", gjson.GetBytes(run.upstream.lastBody, prefix+"quality").String())
+			require.Equal(t, "1672x941", gjson.Get(run.recorder.Body.String(), "size").String())
+			require.Equal(t, "auto", gjson.Get(run.recorder.Body.String(), "quality").String())
+			require.Equal(t, []string{"1672x941"}, run.result.ImageOutputSizes)
 
-	ApplyOpenAIImageBillingResolution(run.result)
-	require.Equal(t, ImageBillingSize2K, run.result.ImageSize)
-	require.Equal(t, "1672x941", run.result.ImageOutputSize)
-	require.Equal(t, ImageSizeSourceOutput, run.result.ImageSizeSource)
+			ApplyOpenAIImageBillingResolution(run.result)
+			require.Equal(t, ImageBillingSize2K, run.result.ImageSize)
+			require.Equal(t, "1672x941", run.result.ImageOutputSize)
+			require.Equal(t, ImageSizeSourceOutput, run.result.ImageSizeSource)
+		})
+	}
 }
 
 func TestOpenAIGatewayServiceForwardImages_OAuthStreamingUsesDecodedOutputDimensions(t *testing.T) {
-	run := runOpenAIOAuthImageActualSizeTest(t, true)
+	for _, direct := range []bool{false, true} {
+		t.Run(fmt.Sprintf("direct=%t", direct), func(t *testing.T) {
+			run := runOpenAIOAuthImageActualSizeTest(t, true, direct)
 
-	events := parseOpenAIImageTestSSEEvents(run.recorder.Body.String())
-	completed, ok := findOpenAIImageTestSSEEvent(events, "image_generation.completed")
-	require.True(t, ok)
-	require.Equal(t, "1672x941", gjson.Get(completed.Data, "size").String())
-	require.Equal(t, "auto", gjson.Get(completed.Data, "quality").String())
-	require.Equal(t, []string{"1672x941"}, run.result.ImageOutputSizes)
+			events := parseOpenAIImageTestSSEEvents(run.recorder.Body.String())
+			completed, ok := findOpenAIImageTestSSEEvent(events, "image_generation.completed")
+			require.True(t, ok)
+			require.Equal(t, "1672x941", gjson.Get(completed.Data, "size").String())
+			require.Equal(t, "auto", gjson.Get(completed.Data, "quality").String())
+			require.Equal(t, []string{"1672x941"}, run.result.ImageOutputSizes)
+		})
+	}
 }
 
 type openAIOAuthImageActualSizeTestRun struct {
@@ -71,10 +83,14 @@ type openAIOAuthImageActualSizeTestRun struct {
 	upstream *httpUpstreamRecorder
 }
 
-func runOpenAIOAuthImageActualSizeTest(t *testing.T, stream bool) openAIOAuthImageActualSizeTestRun {
+func runOpenAIOAuthImageActualSizeTest(t *testing.T, stream, direct bool) openAIOAuthImageActualSizeTestRun {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	body := []byte(fmt.Sprintf(`{"model":"gpt-image-2","prompt":"draw a test chart","size":"3840x2160","quality":"low","output_format":"png","stream":%t}`, stream))
+	model := "gpt-image-1"
+	if direct {
+		model = "gpt-image-2"
+	}
+	body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw a test chart","size":"3840x2160","quality":"low","output_format":"png","stream":%t}`, model, stream))
 	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -97,6 +113,15 @@ func runOpenAIOAuthImageActualSizeTest(t *testing.T, stream bool) openAIOAuthIma
 		},
 		Body: io.NopCloser(strings.NewReader(upstreamBody)),
 	}}
+	if direct {
+		if stream {
+			upstreamBody = fmt.Sprintf("data: {\"type\":\"image_generation.completed\",\"b64_json\":%q,\"size\":\"auto\",\"quality\":\"auto\"}\n\n", encoded)
+		} else {
+			upstreamBody = fmt.Sprintf(`{"data":[{"b64_json":%q}],"size":"auto","quality":"auto"}`, encoded)
+			upstream.resp.Header.Set("Content-Type", "application/json")
+		}
+		upstream.resp.Body = io.NopCloser(strings.NewReader(upstreamBody))
+	}
 	svc := &OpenAIGatewayService{httpUpstream: upstream}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
