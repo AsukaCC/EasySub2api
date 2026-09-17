@@ -93,7 +93,7 @@ type openAIAccountRepoStub struct {
 	updateCalled int32
 }
 
-func (r *openAIAccountRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *openAIAccountRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	atomic.AddInt32(&r.getCalled, 1)
 	if r.getErr != nil {
 		return nil, r.getErr
@@ -137,7 +137,7 @@ func (s *openAIOAuthServiceStub) BuildAccountCredentials(info *OpenAITokenInfo) 
 func TestOpenAITokenProvider_CacheHit(t *testing.T) {
 	cache := newOpenAITokenCacheStub()
 	account := &Account{
-		ID:       100,
+		ID: "100",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -161,7 +161,7 @@ func TestOpenAITokenProvider_CacheMiss_FromCredentials(t *testing.T) {
 	// Token expires in far future, no refresh needed
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       101,
+		ID: "101",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -195,7 +195,7 @@ func TestOpenAITokenProvider_TokenRefresh(t *testing.T) {
 	// Token expires soon (within refresh skew)
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       102,
+		ID: "102",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -326,7 +326,7 @@ func TestOpenAITokenProvider_LockRaceCondition(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       103,
+		ID: "103",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -368,7 +368,7 @@ func TestOpenAITokenProvider_NilAccount(t *testing.T) {
 func TestOpenAITokenProvider_WrongPlatform(t *testing.T) {
 	provider := NewOpenAITokenProvider(nil, nil, nil)
 	account := &Account{
-		ID:       104,
+		ID: "104",
 		Platform: PlatformGemini,
 		Type:     AccountTypeOAuth,
 	}
@@ -382,7 +382,7 @@ func TestOpenAITokenProvider_WrongPlatform(t *testing.T) {
 func TestOpenAITokenProvider_WrongAccountType(t *testing.T) {
 	provider := NewOpenAITokenProvider(nil, nil, nil)
 	account := &Account{
-		ID:       105,
+		ID: "105",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 	}
@@ -397,7 +397,7 @@ func TestOpenAITokenProvider_NilCache(t *testing.T) {
 	// Token doesn't need refresh
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       106,
+		ID: "106",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -420,7 +420,7 @@ func TestOpenAITokenProvider_CacheGetError(t *testing.T) {
 	// Token doesn't need refresh
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       107,
+		ID: "107",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -444,7 +444,7 @@ func TestOpenAITokenProvider_CacheSetError(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       108,
+		ID: "108",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -465,7 +465,7 @@ func TestOpenAITokenProvider_MissingAccessToken(t *testing.T) {
 	cache := newOpenAITokenCacheStub()
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       109,
+		ID: "109",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -492,7 +492,7 @@ func TestOpenAITokenProvider_RefreshError(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       110,
+		ID: "110",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -522,7 +522,7 @@ func TestOpenAITokenProvider_OAuthServiceNotConfigured(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       111,
+		ID: "111",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -568,7 +568,7 @@ func TestOpenAITokenProvider_TTLCalculation(t *testing.T) {
 			cache := newOpenAITokenCacheStub()
 			expiresAt := time.Now().Add(tt.expiresIn).Format(time.RFC3339)
 			account := &Account{
-				ID:       200,
+				ID: "200",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 				Credentials: map[string]any{
@@ -603,7 +603,7 @@ func TestOpenAITokenProvider_DoubleCheckAfterLock(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       112,
+		ID: "112",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -647,7 +647,7 @@ func TestOpenAITokenProvider_Real_LockFailedWait(t *testing.T) {
 	// Token expires soon (within refresh skew) to trigger lock attempt
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       200,
+		ID: "200",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -680,7 +680,7 @@ func TestOpenAITokenProvider_Real_CacheHitAfterWait(t *testing.T) {
 	// Token expires soon
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       201,
+		ID: "201",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -710,7 +710,7 @@ func TestOpenAITokenProvider_Real_ExpiredWithoutRefreshToken(t *testing.T) {
 
 	// Token with nil expires_at (no expiry set) - should use credentials
 	account := &Account{
-		ID:       202,
+		ID: "202",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -732,7 +732,7 @@ func TestOpenAITokenProvider_Real_WhitespaceToken(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       203,
+		ID: "203",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -754,7 +754,7 @@ func TestOpenAITokenProvider_Real_LockError(t *testing.T) {
 	// Token expires soon (within refresh skew)
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       204,
+		ID: "204",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -774,7 +774,7 @@ func TestOpenAITokenProvider_Real_WhitespaceCredentialToken(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       205,
+		ID: "205",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -795,7 +795,7 @@ func TestOpenAITokenProvider_Real_NilCredentials(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 	account := &Account{
-		ID:       206,
+		ID: "206",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -817,7 +817,7 @@ func TestOpenAITokenProvider_Real_LockRace_PollingHitsCache(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       207,
+		ID: "207",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -847,7 +847,7 @@ func TestOpenAITokenProvider_Real_LockRace_ContextCanceled(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       208,
+		ID: "208",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -875,7 +875,7 @@ func TestOpenAITokenProvider_RuntimeMetrics_LockWaitHitAndSnapshot(t *testing.T)
 
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       209,
+		ID: "209",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -912,7 +912,7 @@ func TestOpenAITokenProvider_RuntimeMetrics_LockAcquireFailure(t *testing.T) {
 
 	expiresAt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	account := &Account{
-		ID:       210,
+		ID: "210",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -937,7 +937,7 @@ func TestOpenAITokenProvider_NoRefreshTokenExpired_DisablesAccount(t *testing.T)
 
 	expiresAt := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 	account := &Account{
-		ID:       2881,
+		ID: "2881",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{

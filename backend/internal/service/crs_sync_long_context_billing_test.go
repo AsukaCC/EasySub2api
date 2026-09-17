@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
@@ -33,8 +34,8 @@ func newCRSLongContextAccountRepo(existing ...*Account) *crsLongContextAccountRe
 		}
 		crsID, _ := account.Extra["crs_account_id"].(string)
 		repo.accounts[crsID] = account
-		if account.ID > repo.nextID {
-			repo.nextID = account.ID
+		if accountID, err := strconv.ParseInt(account.ID, 10, 64); err == nil && accountID > repo.nextID {
+			repo.nextID = accountID
 		}
 	}
 	return repo
@@ -42,7 +43,7 @@ func newCRSLongContextAccountRepo(existing ...*Account) *crsLongContextAccountRe
 
 func (r *crsLongContextAccountRepo) Create(_ context.Context, account *Account) error {
 	r.nextID++
-	account.ID = r.nextID
+	account.ID = strconv.FormatInt(r.nextID, 10)
 	crsID, _ := account.Extra["crs_account_id"].(string)
 	r.accounts[crsID] = account
 	return nil
@@ -58,7 +59,7 @@ func (r *crsLongContextAccountRepo) GetByCRSAccountID(_ context.Context, crsID s
 	return r.accounts[crsID], nil
 }
 
-func (r *crsLongContextAccountRepo) ListShadowsByParent(_ context.Context, _ int64) ([]*Account, error) {
+func (r *crsLongContextAccountRepo) ListShadowsByParent(_ context.Context, _ string) ([]*Account, error) {
 	return nil, nil
 }
 
@@ -106,7 +107,7 @@ func TestCRSSyncOpenAILongContextBilling(t *testing.T) {
 				if tt.collection == "openaiResponsesAccounts" {
 					accountType = AccountTypeAPIKey
 				}
-				existing = &Account{ID: 41, Platform: PlatformOpenAI, Type: accountType, Extra: existingExtra}
+				existing = &Account{ID: "41", Platform: PlatformOpenAI, Type: accountType, Extra: existingExtra}
 			}
 			repo := newCRSLongContextAccountRepo(existing)
 			result := runCRSOpenAILongContextSync(t, repo, crsOpenAILongContextSource{
@@ -158,7 +159,7 @@ func runCRSOpenAILongContextSync(t *testing.T, repo AccountRepository, source cr
 
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
-	service := NewCRSSyncService(repo, nil, nil, nil, nil, cfg)
+	service := NewCRSSyncService(repo, nil, nil, nil, cfg)
 	result, err := service.SyncFromCRS(context.Background(), SyncFromCRSInput{
 		BaseURL:  server.URL,
 		Username: "admin",

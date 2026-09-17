@@ -10,7 +10,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/service"
 )
 
-func (s *UserRepoSuite) mustInsertUsageLog(userID int64, createdAt time.Time) {
+func (s *UserRepoSuite) mustInsertUsageLog(userID string, createdAt time.Time) {
 	s.T().Helper()
 
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "usage-log-account"})

@@ -13,11 +13,11 @@ import (
 func TestAdminProxyPartialUpdatePreservesOmittedSettings(t *testing.T) {
 	for _, input := range []*UpdateProxyInput{{Status: "inactive"}, {Name: "renamed"}, {Host: "new.example"}} {
 		expiry := time.Now().Add(24 * time.Hour)
-		backup := int64(10)
-		original := &Proxy{ID: 9, Name: "original", Host: "old.example", Status: StatusActive, ExpiresAt: &expiry, FallbackMode: FallbackModeProxy, BackupProxyID: &backup, ExpiryWarnDays: 7}
+		backup := "10"
+		original := &Proxy{ID: "9", Name: "original", Host: "old.example", Status: StatusActive, ExpiresAt: &expiry, FallbackMode: FallbackModeProxy, BackupProxyID: &backup, ExpiryWarnDays: 7}
 		repo := &updatingProxyRepoStub{proxyRepoStub: &proxyRepoStub{}, proxy: original}
 		svc := &adminServiceImpl{proxyRepo: repo}
-		got, err := svc.UpdateProxy(context.Background(), 9, input)
+		got, err := svc.UpdateProxy(context.Background(), "9", input)
 		require.NoError(t, err)
 		require.Equal(t, original.ExpiresAt, got.ExpiresAt)
 		require.Equal(t, original.FallbackMode, got.FallbackMode)
@@ -29,11 +29,11 @@ func TestAdminProxyPartialUpdatePreservesOmittedSettings(t *testing.T) {
 
 func TestAdminProxyPartialUpdateClearsAndSetsSettings(t *testing.T) {
 	expiry := time.Now().Add(time.Hour)
-	backup := int64(10)
+	backup := "10"
 	zero := 0
-	repo := &updatingProxyRepoStub{proxyRepoStub: &proxyRepoStub{}, proxy: &Proxy{ID: 9, ExpiresAt: &expiry, FallbackMode: FallbackModeProxy, BackupProxyID: &backup, ExpiryWarnDays: 7}}
+	repo := &updatingProxyRepoStub{proxyRepoStub: &proxyRepoStub{}, proxy: &Proxy{ID: "9", ExpiresAt: &expiry, FallbackMode: FallbackModeProxy, BackupProxyID: &backup, ExpiryWarnDays: 7}}
 	svc := &adminServiceImpl{proxyRepo: repo}
-	got, err := svc.UpdateProxy(context.Background(), 9, &UpdateProxyInput{
+	got, err := svc.UpdateProxy(context.Background(), "9", &UpdateProxyInput{
 		ClearExpiresAt: true, FallbackMode: FallbackModeNone, ClearBackupID: true, ExpiryWarnDays: &zero,
 	})
 	require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestAdminProxyPartialUpdateClearsAndSetsSettings(t *testing.T) {
 	require.Equal(t, FallbackModeNone, got.FallbackMode)
 	require.Zero(t, got.ExpiryWarnDays)
 	days := 3
-	got, err = svc.UpdateProxy(context.Background(), 9, &UpdateProxyInput{
+	got, err = svc.UpdateProxy(context.Background(), "9", &UpdateProxyInput{
 		ExpiresAt: &expiry, FallbackMode: FallbackModeProxy, BackupProxyID: &backup, ExpiryWarnDays: &days,
 	})
 	require.NoError(t, err)
@@ -53,8 +53,8 @@ func TestAdminProxyPartialUpdateClearsAndSetsSettings(t *testing.T) {
 }
 
 func TestAdminProxyPartialUpdateValidatesMergedFallback(t *testing.T) {
-	backup := int64(10)
-	self := int64(9)
+	backup := "10"
+	self := "9"
 	negative := -1
 	for _, tc := range []struct {
 		name      string
@@ -67,9 +67,9 @@ func TestAdminProxyPartialUpdateValidatesMergedFallback(t *testing.T) {
 		{name: "negative warning", input: UpdateProxyInput{ExpiryWarnDays: &negative}, wantError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := &updatingProxyRepoStub{proxyRepoStub: &proxyRepoStub{}, proxy: &Proxy{ID: 9, FallbackMode: FallbackModeProxy, BackupProxyID: &backup}}
+			repo := &updatingProxyRepoStub{proxyRepoStub: &proxyRepoStub{}, proxy: &Proxy{ID: "9", FallbackMode: FallbackModeProxy, BackupProxyID: &backup}}
 			svc := &adminServiceImpl{proxyRepo: repo}
-			_, err := svc.UpdateProxy(context.Background(), 9, &tc.input)
+			_, err := svc.UpdateProxy(context.Background(), "9", &tc.input)
 			if tc.wantError {
 				require.Error(t, err)
 				require.Zero(t, repo.updateCalls)

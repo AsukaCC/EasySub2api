@@ -20,12 +20,12 @@ type updateFieldsAPIKeyRepoStub struct {
 }
 
 // IncrementQuotaUsed 模拟计费热路径上的原子递增：只动 quota_used。
-func (s *updateFieldsAPIKeyRepoStub) IncrementQuotaUsed(_ context.Context, _ int64, amount float64) (float64, error) {
+func (s *updateFieldsAPIKeyRepoStub) IncrementQuotaUsed(_ context.Context, _ string, amount float64) (float64, error) {
 	s.key.QuotaUsed += amount
 	return s.key.QuotaUsed, nil
 }
 
-func (s *updateFieldsAPIKeyRepoStub) GetByID(context.Context, int64) (*APIKey, error) {
+func (s *updateFieldsAPIKeyRepoStub) GetByID(context.Context, string) (*APIKey, error) {
 	clone := *s.key
 	return &clone, nil
 }
@@ -76,8 +76,8 @@ func TestAPIKeyUpdate_OnlyDeclaresRequestedColumns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, repo := newUpdateFieldsAPIKeyService(&APIKey{
-				ID:        1,
-				UserID:    7,
+				ID: "1",
+				UserID: "7",
 				Key:       "sk-test",
 				Name:      "before",
 				Status:    StatusActive,
@@ -86,7 +86,7 @@ func TestAPIKeyUpdate_OnlyDeclaresRequestedColumns(t *testing.T) {
 				Usage5h:   12,
 			})
 
-			_, err := svc.Update(context.Background(), 1, 7, tt.req)
+			_, err := svc.Update(context.Background(), "1", "7", tt.req)
 			require.NoError(t, err)
 			require.Equal(t, []APIKeyUpdateFields{tt.want}, repo.updateFields)
 		})
@@ -97,10 +97,10 @@ func TestAPIKeyUpdate_OnlyDeclaresRequestedColumns(t *testing.T) {
 func TestAPIKeyUpdate_DeclaresUsageColumnsOnExplicitReset(t *testing.T) {
 	reset := true
 	svc, repo := newUpdateFieldsAPIKeyService(&APIKey{
-		ID: 1, UserID: 7, Key: "sk-test", Status: StatusActive, Quota: 100, QuotaUsed: 30, Usage5h: 12,
+		ID: "1", UserID: "7", Key: "sk-test", Status: StatusActive, Quota: 100, QuotaUsed: 30, Usage5h: 12,
 	})
 
-	_, err := svc.Update(context.Background(), 1, 7, UpdateAPIKeyRequest{
+	_, err := svc.Update(context.Background(), "1", "7", UpdateAPIKeyRequest{
 		ResetQuota:          &reset,
 		ResetRateLimitUsage: &reset,
 	})
@@ -112,10 +112,10 @@ func TestAPIKeyUpdate_DeclaresUsageColumnsOnExplicitReset(t *testing.T) {
 func TestAPIKeyUpdate_DeclaresStatusWhenReactivated(t *testing.T) {
 	quota := 500.0
 	svc, repo := newUpdateFieldsAPIKeyService(&APIKey{
-		ID: 1, UserID: 7, Key: "sk-test", Status: StatusAPIKeyQuotaExhausted, Quota: 100, QuotaUsed: 100,
+		ID: "1", UserID: "7", Key: "sk-test", Status: StatusAPIKeyQuotaExhausted, Quota: 100, QuotaUsed: 100,
 	})
 
-	_, err := svc.Update(context.Background(), 1, 7, UpdateAPIKeyRequest{Quota: &quota})
+	_, err := svc.Update(context.Background(), "1", "7", UpdateAPIKeyRequest{Quota: &quota})
 	require.NoError(t, err)
 	require.Equal(t, []APIKeyUpdateFields{{Quota: true, Status: true}}, repo.updateFields)
 }
@@ -124,10 +124,10 @@ func TestAPIKeyUpdate_DeclaresStatusWhenReactivated(t *testing.T) {
 // 否则会把刚原子递增的 quota_used 按快照覆盖掉。
 func TestUpdateQuotaUsed_ExhaustedMarkOnlyDeclaresStatus(t *testing.T) {
 	repo := &updateFieldsAPIKeyRepoStub{key: &APIKey{
-		ID: 1, UserID: 7, Key: "sk-test", Status: StatusActive, Quota: 10, QuotaUsed: 10,
+		ID: "1", UserID: "7", Key: "sk-test", Status: StatusActive, Quota: 10, QuotaUsed: 10,
 	}}
 	svc := &APIKeyService{apiKeyRepo: repo}
 
-	require.NoError(t, svc.UpdateQuotaUsed(context.Background(), 1, 5))
+	require.NoError(t, svc.UpdateQuotaUsed(context.Background(), "1", 5))
 	require.Equal(t, []APIKeyUpdateFields{{Status: true}}, repo.updateFields)
 }

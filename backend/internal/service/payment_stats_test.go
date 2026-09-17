@@ -17,9 +17,9 @@ func TestComputeBasicStatsGroupsAmountsByCurrency(t *testing.T) {
 	yesterday := todayStart.Add(-time.Hour)
 	today := todayStart.Add(time.Hour)
 	orders := []*dbent.PaymentOrder{
-		paymentStatsTestOrder(1, "alice@example.com", "CNY", 10, &today),
-		paymentStatsTestOrder(2, "bob@example.com", "USD", 10, &today),
-		paymentStatsTestOrder(1, "alice@example.com", "CNY", 5, &yesterday),
+		paymentStatsTestOrder("1", "alice@example.com", "CNY", 10, &today),
+		paymentStatsTestOrder("2", "bob@example.com", "USD", 10, &today),
+		paymentStatsTestOrder("1", "alice@example.com", "CNY", 5, &yesterday),
 	}
 
 	stats := &DashboardStats{}
@@ -38,10 +38,10 @@ func TestPaymentDashboardBreakdownsGroupAmountsAndRankingsByCurrency(t *testing.
 	firstDay := time.Date(2026, time.July, 24, 12, 0, 0, 0, time.UTC)
 	secondDay := firstDay.AddDate(0, 0, 1)
 	orders := []*dbent.PaymentOrder{
-		paymentStatsTestOrder(1, "alice@example.com", "CNY", 5.555, &firstDay),
-		paymentStatsTestOrder(2, "bob@example.com", "CNY", 10, &firstDay),
-		paymentStatsTestOrder(1, "alice@example.com", "USD", 20, &secondDay),
-		paymentStatsTestOrder(2, "bob@example.com", "USD", 10, &secondDay),
+		paymentStatsTestOrder("1", "alice@example.com", "CNY", 5.555, &firstDay),
+		paymentStatsTestOrder("2", "bob@example.com", "CNY", 10, &firstDay),
+		paymentStatsTestOrder("1", "alice@example.com", "USD", 20, &secondDay),
+		paymentStatsTestOrder("2", "bob@example.com", "USD", 10, &secondDay),
 	}
 	orders[0].PaymentType = "stripe"
 	orders[1].PaymentType = "stripe"
@@ -63,17 +63,17 @@ func TestPaymentDashboardBreakdownsGroupAmountsAndRankingsByCurrency(t *testing.
 	users := buildTopUsers(orders)
 	require.Equal(t, TopUsersByCurrency{
 		"CNY": {
-			{UserID: 2, Email: "bob@example.com", Amount: 10},
-			{UserID: 1, Email: "alice@example.com", Amount: 5.56},
+			{UserID: "2", Email: "bob@example.com", Amount: 10},
+			{UserID: "1", Email: "alice@example.com", Amount: 5.56},
 		},
 		"USD": {
-			{UserID: 1, Email: "alice@example.com", Amount: 20},
-			{UserID: 2, Email: "bob@example.com", Amount: 10},
+			{UserID: "1", Email: "alice@example.com", Amount: 20},
+			{UserID: "2", Email: "bob@example.com", Amount: 10},
 		},
 	}, users)
 }
 
-func paymentStatsTestOrder(userID int64, email, currency string, amount float64, paidAt *time.Time) *dbent.PaymentOrder {
+func paymentStatsTestOrder(userID string, email, currency string, amount float64, paidAt *time.Time) *dbent.PaymentOrder {
 	return &dbent.PaymentOrder{
 		UserID:           userID,
 		UserEmail:        email,

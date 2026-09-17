@@ -36,11 +36,11 @@ func (r *errSettingRepo) Get(_ context.Context, _ string) (*Setting, error) {
 type overloadAccountRepoStub struct {
 	mockAccountRepoForGemini
 	overloadCalls   int
-	lastOverloadID  int64
+	lastOverloadID  string
 	lastOverloadEnd time.Time
 }
 
-func (r *overloadAccountRepoStub) SetOverloaded(_ context.Context, id int64, until time.Time) error {
+func (r *overloadAccountRepoStub) SetOverloaded(_ context.Context, id string, until time.Time) error {
 	r.overloadCalls++
 	r.lastOverloadID = id
 	r.lastOverloadEnd = until
@@ -195,15 +195,15 @@ func TestHandle529_EnabledFromDB_PausesAccount(t *testing.T) {
 	settingRepo.data[SettingKeyOverloadCooldownSettings] = string(data)
 
 	settingSvc := NewSettingService(settingRepo, &config.Config{})
-	svc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(accountRepo, &config.Config{}, nil)
 	svc.SetSettingService(settingSvc)
 
-	account := &Account{ID: 42, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	account := &Account{ID: "42", Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 	before := time.Now()
 	svc.handle529(context.Background(), account)
 
 	require.Equal(t, 1, accountRepo.overloadCalls)
-	require.Equal(t, int64(42), accountRepo.lastOverloadID)
+	require.Equal(t, "42", accountRepo.lastOverloadID)
 	require.WithinDuration(t, before.Add(15*time.Minute), accountRepo.lastOverloadEnd, 2*time.Second)
 }
 
@@ -214,10 +214,10 @@ func TestHandle529_DisabledFromDB_SkipsAccount(t *testing.T) {
 	settingRepo.data[SettingKeyOverloadCooldownSettings] = string(data)
 
 	settingSvc := NewSettingService(settingRepo, &config.Config{})
-	svc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(accountRepo, &config.Config{}, nil)
 	svc.SetSettingService(settingSvc)
 
-	account := &Account{ID: 42, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	account := &Account{ID: "42", Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 	svc.handle529(context.Background(), account)
 
 	require.Equal(t, 0, accountRepo.overloadCalls, "should NOT pause when disabled")
@@ -227,10 +227,10 @@ func TestHandle529_NilSettingService_FallsBackToConfig(t *testing.T) {
 	accountRepo := &overloadAccountRepoStub{}
 	cfg := &config.Config{}
 	cfg.RateLimit.OverloadCooldownMinutes = 20
-	svc := NewRateLimitService(accountRepo, nil, cfg, nil, nil)
+	svc := NewRateLimitService(accountRepo, cfg, nil)
 	// NOT calling SetSettingService — remains nil
 
-	account := &Account{ID: 77, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	account := &Account{ID: "77", Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 	before := time.Now()
 	svc.handle529(context.Background(), account)
 
@@ -240,9 +240,9 @@ func TestHandle529_NilSettingService_FallsBackToConfig(t *testing.T) {
 
 func TestHandle529_NilSettingService_ZeroConfig_DefaultsTen(t *testing.T) {
 	accountRepo := &overloadAccountRepoStub{}
-	svc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(accountRepo, &config.Config{}, nil)
 
-	account := &Account{ID: 88, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	account := &Account{ID: "88", Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 	before := time.Now()
 	svc.handle529(context.Background(), account)
 
@@ -258,10 +258,10 @@ func TestHandle529_DBReadError_FallsBackToConfig(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.RateLimit.OverloadCooldownMinutes = 7
 	settingSvc := NewSettingService(errRepo, cfg)
-	svc := NewRateLimitService(accountRepo, nil, cfg, nil, nil)
+	svc := NewRateLimitService(accountRepo, cfg, nil)
 	svc.SetSettingService(settingSvc)
 
-	account := &Account{ID: 99, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	account := &Account{ID: "99", Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 	before := time.Now()
 	svc.handle529(context.Background(), account)
 

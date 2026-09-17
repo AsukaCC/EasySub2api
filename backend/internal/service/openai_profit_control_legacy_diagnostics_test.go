@@ -19,7 +19,7 @@ func legacyProfitDiagnosticService(accounts []Account) *OpenAIGatewayService {
 	}
 }
 
-func legacyProfitDiagnosticAccount(id int64) *Account {
+func legacyProfitDiagnosticAccount(id string) *Account {
 	now := time.Now()
 	a := upstreamCostTestAccount(id, UpstreamBillingProbeStatusOK, 0.9, now.Add(-time.Minute), 30*time.Minute)
 	a.Status = StatusActive
@@ -33,7 +33,7 @@ func TestSelectAccountWithScheduler_LegacyProfitDiagnostics(t *testing.T) {
 	ctx := profitControlTestCtx(profitControlTestGroup(groupID, 0.5, 0))
 
 	t.Run("threshold reports deterministic pool count", func(t *testing.T) {
-		account := legacyProfitDiagnosticAccount(53131)
+		account := legacyProfitDiagnosticAccount("53131")
 		profitControlTestAccountWithRate(account, 0.9)
 		svc := legacyProfitDiagnosticService([]Account{*account})
 
@@ -44,7 +44,7 @@ func TestSelectAccountWithScheduler_LegacyProfitDiagnostics(t *testing.T) {
 	})
 
 	t.Run("missing account rate reports invalid rate", func(t *testing.T) {
-		account := upstreamCostTestOAuthAccount(53132)
+		account := upstreamCostTestOAuthAccount("53132")
 		account.Status = StatusActive
 		account.Schedulable = true
 		account.Concurrency = 1
@@ -57,7 +57,7 @@ func TestSelectAccountWithScheduler_LegacyProfitDiagnostics(t *testing.T) {
 	})
 
 	t.Run("model support gate does not report profit reasons", func(t *testing.T) {
-		account := legacyProfitDiagnosticAccount(53133)
+		account := legacyProfitDiagnosticAccount("53133")
 		profitControlTestAccountWithRate(account, 0.9)
 		account.Credentials = map[string]any{"model_mapping": map[string]any{"other-model": "other-model"}}
 		svc := legacyProfitDiagnosticService([]Account{*account})
@@ -71,7 +71,7 @@ func TestSelectAccountWithScheduler_LegacyProfitDiagnostics(t *testing.T) {
 	})
 
 	t.Run("compact preserves compact sentinel", func(t *testing.T) {
-		account := legacyProfitDiagnosticAccount(53134)
+		account := legacyProfitDiagnosticAccount("53134")
 		account.Extra = map[string]any{"openai_compact_supported": false}
 		profitControlTestAccountWithRate(account, 0.4)
 		svc := legacyProfitDiagnosticService([]Account{*account})

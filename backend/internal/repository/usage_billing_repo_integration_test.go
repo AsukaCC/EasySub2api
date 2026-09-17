@@ -110,7 +110,7 @@ func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.
 		RequestID:        requestID,
 		APIKeyID:         apiKey.ID,
 		UserID:           user.ID,
-		AccountID:        0,
+		AccountID: "0",
 		SubscriptionID:   &subscription.ID,
 		SubscriptionCost: 2.5,
 	}
@@ -223,7 +223,7 @@ func TestUsageBillingRepositoryApply_EnqueuesSchedulerOutboxOnQuotaCrossing(t *t
 		return apiKey.ID, account.ID
 	}
 
-	outboxCountFor := func(t *testing.T, accountID int64) int {
+	outboxCountFor := func(t *testing.T, accountID string) int {
 		t.Helper()
 		var count int
 		require.NoError(t, integrationDB.QueryRowContext(ctx,

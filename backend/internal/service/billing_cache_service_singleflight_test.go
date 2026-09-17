@@ -18,68 +18,68 @@ type billingCacheMissStub struct {
 	setBalanceCalls atomic.Int64
 }
 
-func (s *billingCacheMissStub) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
+func (s *billingCacheMissStub) GetUserBalance(ctx context.Context, userID string) (float64, error) {
 	return 0, errors.New("cache miss")
 }
 
-func (s *billingCacheMissStub) SetUserBalance(ctx context.Context, userID int64, balance float64) error {
+func (s *billingCacheMissStub) SetUserBalance(ctx context.Context, userID string, balance float64) error {
 	s.setBalanceCalls.Add(1)
 	return nil
 }
 
-func (s *billingCacheMissStub) DeductUserBalance(ctx context.Context, userID int64, amount float64) error {
+func (s *billingCacheMissStub) DeductUserBalance(ctx context.Context, userID string, amount float64) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) InvalidateUserBalance(ctx context.Context, userID int64) error {
+func (s *billingCacheMissStub) InvalidateUserBalance(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) GetSubscriptionCache(ctx context.Context, userID, groupID int64) (*SubscriptionCacheData, error) {
+func (s *billingCacheMissStub) GetSubscriptionCache(ctx context.Context, userID, groupID string) (*SubscriptionCacheData, error) {
 	return nil, errors.New("cache miss")
 }
 
-func (s *billingCacheMissStub) SetSubscriptionCache(ctx context.Context, userID, groupID int64, data *SubscriptionCacheData) error {
+func (s *billingCacheMissStub) SetSubscriptionCache(ctx context.Context, userID, groupID string, data *SubscriptionCacheData) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) UpdateSubscriptionUsage(ctx context.Context, userID, groupID int64, cost float64) error {
+func (s *billingCacheMissStub) UpdateSubscriptionUsage(ctx context.Context, userID, groupID string, cost float64) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) InvalidateSubscriptionCache(ctx context.Context, userID, groupID int64) error {
+func (s *billingCacheMissStub) InvalidateSubscriptionCache(ctx context.Context, userID, groupID string) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) GetAPIKeyRateLimit(ctx context.Context, keyID int64) (*APIKeyRateLimitCacheData, error) {
+func (s *billingCacheMissStub) GetAPIKeyRateLimit(ctx context.Context, keyID string) (*APIKeyRateLimitCacheData, error) {
 	return nil, errors.New("cache miss")
 }
 
-func (s *billingCacheMissStub) SetAPIKeyRateLimit(ctx context.Context, keyID int64, data *APIKeyRateLimitCacheData) error {
+func (s *billingCacheMissStub) SetAPIKeyRateLimit(ctx context.Context, keyID string, data *APIKeyRateLimitCacheData) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) UpdateAPIKeyRateLimitUsage(ctx context.Context, keyID int64, cost float64) error {
+func (s *billingCacheMissStub) UpdateAPIKeyRateLimitUsage(ctx context.Context, keyID string, cost float64) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) InvalidateAPIKeyRateLimit(ctx context.Context, keyID int64) error {
+func (s *billingCacheMissStub) InvalidateAPIKeyRateLimit(ctx context.Context, keyID string) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) GetUserPlatformQuotaCache(ctx context.Context, userID int64, platform string) (*UserPlatformQuotaCacheEntry, bool, error) {
+func (s *billingCacheMissStub) GetUserPlatformQuotaCache(ctx context.Context, userID string, platform string) (*UserPlatformQuotaCacheEntry, bool, error) {
 	return nil, false, nil
 }
 
-func (s *billingCacheMissStub) SetUserPlatformQuotaCache(ctx context.Context, userID int64, platform string, entry *UserPlatformQuotaCacheEntry, ttl time.Duration) error {
+func (s *billingCacheMissStub) SetUserPlatformQuotaCache(ctx context.Context, userID string, platform string, entry *UserPlatformQuotaCacheEntry, ttl time.Duration) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) DeleteUserPlatformQuotaCache(ctx context.Context, userID int64, platform string) error {
+func (s *billingCacheMissStub) DeleteUserPlatformQuotaCache(ctx context.Context, userID string, platform string) error {
 	return nil
 }
 
-func (s *billingCacheMissStub) IncrUserPlatformQuotaUsageCache(ctx context.Context, userID int64, platform string, cost float64, ttl time.Duration, markDirty bool) error {
+func (s *billingCacheMissStub) IncrUserPlatformQuotaUsageCache(ctx context.Context, userID string, platform string, cost float64, ttl time.Duration, markDirty bool) error {
 	return nil
 }
 
@@ -97,12 +97,13 @@ func (s *billingCacheMissStub) BatchGetUserPlatformQuotaCache(ctx context.Contex
 
 type balanceLoadUserRepoStub struct {
 	mockUserRepo
+	WalletRepository
 	calls   atomic.Int64
 	delay   time.Duration
 	balance float64
 }
 
-func (s *balanceLoadUserRepoStub) GetByID(ctx context.Context, id int64) (*User, error) {
+func (s *balanceLoadUserRepoStub) GetByID(ctx context.Context, id string) (*User, error) {
 	s.calls.Add(1)
 	if s.delay > 0 {
 		select {
@@ -114,11 +115,11 @@ func (s *balanceLoadUserRepoStub) GetByID(ctx context.Context, id int64) (*User,
 	return &User{ID: id, Balance: s.balance}, nil
 }
 
-func (s *balanceLoadUserRepoStub) ListUserAuthIdentities(context.Context, int64) ([]UserAuthIdentityRecord, error) {
+func (s *balanceLoadUserRepoStub) ListUserAuthIdentities(context.Context, string) ([]UserAuthIdentityRecord, error) {
 	return nil, nil
 }
 
-func (s *balanceLoadUserRepoStub) UnbindUserAuthProvider(context.Context, int64, string) error {
+func (s *balanceLoadUserRepoStub) UnbindUserAuthProvider(context.Context, string, string) error {
 	return nil
 }
 
@@ -142,7 +143,7 @@ func TestBillingCacheServiceGetUserBalance_Singleflight(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			bal, err := svc.GetUserBalance(context.Background(), 99)
+			bal, err := svc.GetUserBalance(context.Background(), "99")
 			errCh <- err
 			balCh <- bal
 		}()

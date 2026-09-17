@@ -16,6 +16,13 @@ func mustParseAnthropicDigestRequest(t *testing.T, body string) *ParsedRequest {
 	return parsed
 }
 
+func splitChain(chain string) []string {
+	if chain == "" {
+		return nil
+	}
+	return strings.Split(chain, "-")
+}
+
 func TestBuildAnthropicDigestChain_NilRequest(t *testing.T) {
 	result := BuildAnthropicDigestChain(nil)
 	if result != "" {

@@ -46,9 +46,9 @@ func TestListSchedulableAccountLoadsUsesSingleProjectionQuery(t *testing.T) {
 	loads, err := repo.ListSchedulableAccountLoads(context.Background())
 	require.NoError(t, err)
 	require.Len(t, loads, 2)
-	require.Equal(t, int64(11), loads[0].ID)
+	require.Equal(t, "11", loads[0].ID)
 	require.Equal(t, 3, loads[0].MaxConcurrency)
-	require.Equal(t, int64(12), loads[1].ID)
+	require.Equal(t, "12", loads[1].ID)
 	require.Equal(t, 7, loads[1].MaxConcurrency)
 	require.NoError(t, mock.ExpectationsWereMet(), "projection path must execute exactly one query")
 

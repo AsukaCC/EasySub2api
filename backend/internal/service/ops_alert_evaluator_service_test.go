@@ -68,10 +68,10 @@ func TestCountAccountsByCondition(t *testing.T) {
 	t.Run("测试限流账号统计: acc.IsRateLimited", func(t *testing.T) {
 		t.Parallel()
 
-		accounts := map[int64]*AccountAvailability{
-			1: {IsRateLimited: true},
-			2: {IsRateLimited: false},
-			3: {IsRateLimited: true},
+		accounts := map[string]*AccountAvailability{
+			"1": {IsRateLimited: true},
+			"2": {IsRateLimited: false},
+			"3": {IsRateLimited: true},
 		}
 
 		got := countAccountsByCondition(accounts, func(acc *AccountAvailability) bool {
@@ -84,10 +84,10 @@ func TestCountAccountsByCondition(t *testing.T) {
 		t.Parallel()
 
 		until := time.Now().UTC().Add(5 * time.Minute)
-		accounts := map[int64]*AccountAvailability{
-			1: {HasError: true},
-			2: {HasError: true, TempUnschedulableUntil: &until},
-			3: {HasError: false},
+		accounts := map[string]*AccountAvailability{
+			"1": {HasError: true},
+			"2": {HasError: true, TempUnschedulableUntil: &until},
+			"3": {HasError: false},
 		}
 
 		got := countAccountsByCondition(accounts, func(acc *AccountAvailability) bool {
@@ -99,7 +99,7 @@ func TestCountAccountsByCondition(t *testing.T) {
 	t.Run("边界情况: 空 map 应返回 0", func(t *testing.T) {
 		t.Parallel()
 
-		got := countAccountsByCondition(map[int64]*AccountAvailability{}, func(acc *AccountAvailability) bool {
+		got := countAccountsByCondition(map[string]*AccountAvailability{}, func(acc *AccountAvailability) bool {
 			return acc.IsRateLimited
 		})
 		require.Equal(t, int64(0), got)
@@ -118,20 +118,20 @@ func TestComputeRuleMetric_AccountTempUnscheduledCount(t *testing.T) {
 	pastUntil := now.Add(-1 * time.Minute)
 
 	availability := &OpsAccountAvailability{
-		Accounts: map[int64]*AccountAvailability{
+		Accounts: map[string]*AccountAvailability{
 			// currently temp-unscheduled (window active)
-			1: {TempUnschedulableUntil: &futureUntil},
-			2: {TempUnschedulableUntil: &futureUntil},
+			"1": {TempUnschedulableUntil: &futureUntil},
+			"2": {TempUnschedulableUntil: &futureUntil},
 			// temp-unsched window already expired → should NOT count
-			3: {TempUnschedulableUntil: &pastUntil},
+			"3": {TempUnschedulableUntil: &pastUntil},
 			// never temp-unscheduled
-			4: {HasError: true},
-			5: {IsRateLimited: true},
+			"4": {HasError: true},
+			"5": {IsRateLimited: true},
 		},
 	}
 
 	opsService := &OpsService{
-		getAccountAvailability: func(_ context.Context, _ string, _ *int64) (*OpsAccountAvailability, error) {
+		getAccountAvailability: func(_ context.Context, _ string, _ *string) (*OpsAccountAvailability, error) {
 			return availability, nil
 		},
 	}
@@ -151,7 +151,7 @@ func TestComputeRuleMetric_AccountTempUnscheduledCount(t *testing.T) {
 func TestComputeRuleMetricNewIndicators(t *testing.T) {
 	t.Parallel()
 
-	groupID := int64(101)
+	groupID := "101"
 	platform := "openai"
 
 	availability := &OpsAccountAvailability{
@@ -160,17 +160,17 @@ func TestComputeRuleMetricNewIndicators(t *testing.T) {
 			TotalAccounts:  10,
 			AvailableCount: 8,
 		},
-		Accounts: map[int64]*AccountAvailability{
-			1: {IsRateLimited: true},
-			2: {IsRateLimited: true},
-			3: {HasError: true},
-			4: {HasError: true, TempUnschedulableUntil: timePtr(time.Now().UTC().Add(2 * time.Minute))},
-			5: {HasError: false, IsRateLimited: false},
+		Accounts: map[string]*AccountAvailability{
+			"1": {IsRateLimited: true},
+			"2": {IsRateLimited: true},
+			"3": {HasError: true},
+			"4": {HasError: true, TempUnschedulableUntil: timePtr(time.Now().UTC().Add(2 * time.Minute))},
+			"5": {HasError: false, IsRateLimited: false},
 		},
 	}
 
 	opsService := &OpsService{
-		getAccountAvailability: func(_ context.Context, _ string, _ *int64) (*OpsAccountAvailability, error) {
+		getAccountAvailability: func(_ context.Context, _ string, _ *string) (*OpsAccountAvailability, error) {
 			return availability, nil
 		},
 	}
@@ -187,7 +187,7 @@ func TestComputeRuleMetricNewIndicators(t *testing.T) {
 	tests := []struct {
 		name       string
 		metricType string
-		groupID    *int64
+		groupID    *string
 		wantValue  float64
 		wantOK     bool
 	}{

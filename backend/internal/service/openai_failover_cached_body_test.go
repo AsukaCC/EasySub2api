@@ -91,8 +91,8 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 			}}
 			svc := &OpenAIGatewayService{httpUpstream: upstream}
 
-			firstAccount := openAIFailoverCachedBodyTestAccount(1, "account-a", tt.firstMapping)
-			secondAccount := openAIFailoverCachedBodyTestAccount(2, "account-b", tt.secondMapping)
+			firstAccount := openAIFailoverCachedBodyTestAccount("1", "account-a", tt.firstMapping)
+			secondAccount := openAIFailoverCachedBodyTestAccount("2", "account-b", tt.secondMapping)
 
 			_, err := svc.Forward(context.Background(), c, firstAccount, body)
 			require.Error(t, err)
@@ -144,13 +144,13 @@ func TestGetOpenAIRequestBodyMap_IgnoresLegacyContextCache(t *testing.T) {
 	require.Equal(t, false, got["stream"])
 }
 
-func openAIFailoverCachedBodyTestAccount(id int64, name string, mapping map[string]any) *Account {
+func openAIFailoverCachedBodyTestAccount(id string, name string, mapping map[string]any) *Account {
 	credentials := map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-account"}
 	if mapping != nil {
 		credentials["model_mapping"] = mapping
 	}
 	return &Account{
-		ID:             fmt.Sprintf("account-%d", id),
+		ID:             fmt.Sprintf("account-%s", id),
 		Name:           name,
 		Platform:       PlatformOpenAI,
 		Type:           AccountTypeOAuth,

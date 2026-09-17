@@ -158,7 +158,7 @@ var nonWebSearchToolBody = []byte(`{"tools":[{"type":"text_editor"}],"messages":
 // newAnthropicAPIKeyAccount creates a test Account with the given web search emulation mode.
 func newAnthropicAPIKeyAccount(mode string) *Account {
 	return &Account{
-		ID:       1,
+		ID: "1",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeAPIKey,
 		Extra:    map[string]any{featureKeyWebSearchEmulation: mode},
@@ -191,12 +191,12 @@ func newSettingServiceForWebSearchTest(enabled bool) *SettingService {
 }
 
 // newChannelServiceWithCache creates a ChannelService with a pre-built cache containing the channel.
-func newChannelServiceWithCache(groupID int64, ch *Channel) *ChannelService {
+func newChannelServiceWithCache(groupID string, ch *Channel) *ChannelService {
 	svc := &ChannelService{}
 	cache := &channelCache{
-		channelByGroupID: map[int64]*Channel{groupID: ch},
-		byID:             map[int64]*Channel{ch.ID: ch},
-		groupPlatform:    map[int64]string{},
+		channelByGroupID: map[string]*Channel{groupID: ch},
+		byID:             map[string]*Channel{ch.ID: ch},
+		groupPlatform:    map[string]string{},
 		loadedAt:         time.Now(),
 	}
 	svc.cache.Store(cache)
@@ -301,17 +301,17 @@ func TestShouldEmulateWebSearch_DefaultMode_ChannelEnabled(t *testing.T) {
 
 	settingSvc := newSettingServiceForWebSearchTest(true)
 	ch := &Channel{
-		ID:     10,
+		ID: "10",
 		Status: StatusActive,
 		FeaturesConfig: map[string]any{
 			featureKeyWebSearchEmulation: map[string]any{PlatformAnthropic: true},
 		},
 	}
-	channelSvc := newChannelServiceWithCache(42, ch)
+	channelSvc := newChannelServiceWithCache("42", ch)
 	svc := &GatewayService{settingService: settingSvc, channelService: channelSvc}
 
 	account := newAnthropicAPIKeyAccount(WebSearchModeDefault)
-	groupID := int64(42)
+	groupID := "42"
 	require.True(t, svc.shouldEmulateWebSearch(context.Background(), account, &groupID, webSearchToolBody))
 }
 
@@ -328,17 +328,17 @@ func TestShouldEmulateWebSearch_DefaultMode_ChannelDisabled(t *testing.T) {
 
 	settingSvc := newSettingServiceForWebSearchTest(true)
 	ch := &Channel{
-		ID:     10,
+		ID: "10",
 		Status: StatusActive,
 		FeaturesConfig: map[string]any{
 			featureKeyWebSearchEmulation: map[string]any{PlatformAnthropic: false},
 		},
 	}
-	channelSvc := newChannelServiceWithCache(42, ch)
+	channelSvc := newChannelServiceWithCache("42", ch)
 	svc := &GatewayService{settingService: settingSvc, channelService: channelSvc}
 
 	account := newAnthropicAPIKeyAccount(WebSearchModeDefault)
-	groupID := int64(42)
+	groupID := "42"
 	require.False(t, svc.shouldEmulateWebSearch(context.Background(), account, &groupID, webSearchToolBody))
 }
 
@@ -374,7 +374,7 @@ func TestShouldEmulateWebSearch_DefaultMode_NilChannelService(t *testing.T) {
 	settingSvc := newSettingServiceForWebSearchTest(true)
 	svc := &GatewayService{settingService: settingSvc, channelService: nil}
 	account := newAnthropicAPIKeyAccount(WebSearchModeDefault)
-	groupID := int64(42)
+	groupID := "42"
 	// nil channelService + default mode → returns false
 	require.False(t, svc.shouldEmulateWebSearch(context.Background(), account, &groupID, webSearchToolBody))
 }

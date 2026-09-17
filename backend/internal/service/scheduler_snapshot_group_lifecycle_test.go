@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -55,7 +56,7 @@ func newGroupLifecycleTestCache(buckets ...SchedulerBucket) *groupLifecycleTestC
 	return &groupLifecycleTestCache{retirementRaceCache: newRetirementRaceCache(buckets...)}
 }
 
-func (c *groupLifecycleTestCache) TryAcquireGroupLifecycleLease(ctx context.Context, groupID int64, ttl time.Duration) (SchedulerGroupLifecycleLease, bool, error) {
+func (c *groupLifecycleTestCache) TryAcquireGroupLifecycleLease(ctx context.Context, groupID string, ttl time.Duration) (SchedulerGroupLifecycleLease, bool, error) {
 	c.stateMu.Lock()
 	defer c.stateMu.Unlock()
 	c.acquireCalls++
@@ -218,7 +219,7 @@ type groupLifecycleTestGroupRepo struct {
 	afterGet func()
 }
 
-func (r *groupLifecycleTestGroupRepo) GetByIDLite(context.Context, int64) (*Group, error) {
+func (r *groupLifecycleTestGroupRepo) GetByIDLite(context.Context, string) (*Group, error) {
 	r.mu.Lock()
 	r.calls++
 	if r.err != nil {
@@ -293,14 +294,14 @@ func (r *groupLifecycleTestAccountRepo) load(ctx context.Context, platform strin
 	if err != nil {
 		return nil, err
 	}
-	return []Account{{ID: 9001, Platform: platform, Status: StatusActive, Schedulable: true}}, nil
+	return []Account{{ID: "9001", Platform: platform, Status: StatusActive, Schedulable: true}}, nil
 }
 
-func (r *groupLifecycleTestAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, _ int64, platform string) ([]Account, error) {
+func (r *groupLifecycleTestAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, _ string, platform string) ([]Account, error) {
 	return r.load(ctx, platform)
 }
 
-func (r *groupLifecycleTestAccountRepo) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, _ int64, platforms []string) ([]Account, error) {
+func (r *groupLifecycleTestAccountRepo) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, _ string, platforms []string) ([]Account, error) {
 	platform := "mixed"
 	if len(platforms) > 0 {
 		platform = platforms[0]
@@ -324,7 +325,7 @@ func newGroupLifecycleTestService(cache SchedulerCache, accounts AccountReposito
 	return NewSchedulerSnapshotService(cache, nil, accounts, groups, &config.Config{RunMode: runMode})
 }
 
-func expectedGroupLifecycleBuckets(groupID int64) []SchedulerBucket {
+func expectedGroupLifecycleBuckets(groupID string) []SchedulerBucket {
 	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok}
 	buckets := make([]SchedulerBucket, 0, 12)
 	for _, platform := range platforms {
@@ -347,7 +348,7 @@ func bucketStrings(buckets []SchedulerBucket) map[string]struct{} {
 	return out
 }
 
-func requireLifecycleSeen(t *testing.T, seen map[batchSeenKey]struct{}, groupID int64) {
+func requireLifecycleSeen(t *testing.T, seen map[batchSeenKey]struct{}, groupID string) {
 	t.Helper()
 	_, ok := seen[batchSeenKey{groupID: groupID, lifecycle: true}]
 	require.True(t, ok)
@@ -357,7 +358,7 @@ func requireLifecycleSeen(t *testing.T, seen map[batchSeenKey]struct{}, groupID 
 	}
 }
 
-func requireLifecycleNotSeen(t *testing.T, seen map[batchSeenKey]struct{}, groupID int64) {
+func requireLifecycleNotSeen(t *testing.T, seen map[batchSeenKey]struct{}, groupID string) {
 	t.Helper()
 	_, ok := seen[batchSeenKey{groupID: groupID, lifecycle: true}]
 	require.False(t, ok)
@@ -373,22 +374,22 @@ func TestSchedulerGroupLifecycleInactiveAndMissingRetireAllHistoricalBucketsWith
 		group *Group
 		err   error
 	}{
-		{name: "inactive", group: &Group{ID: 81, Status: StatusDisabled, Hydrated: true}},
+		{name: "inactive", group: &Group{ID: "81", Status: StatusDisabled, Hydrated: true}},
 		{name: "missing", err: ErrGroupNotFound},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			const groupID int64 = 81
+			const groupID string = "81"
 			current := expectedGroupLifecycleBuckets(groupID)
 			historical := SchedulerBucket{GroupID: groupID, Platform: "legacy", Mode: "obsolete"}
-			other := SchedulerBucket{GroupID: groupID + 1, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
-			groupZero := SchedulerBucket{GroupID: 0, Platform: PlatformOpenAI, Mode: SchedulerModeForced}
+			other := SchedulerBucket{GroupID: "82", Platform: PlatformOpenAI, Mode: SchedulerModeForced}
+			groupZero := SchedulerBucket{GroupID: "0", Platform: PlatformOpenAI, Mode: SchedulerModeForced}
 			cache := newGroupLifecycleTestCache(current[0], historical, other, groupZero)
 			groups := &groupLifecycleTestGroupRepo{group: tc.group, err: tc.err}
 			accounts := &groupLifecycleTestAccountRepo{}
 			svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 			seen := make(map[batchSeenKey]struct{})
 
-			require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), seen))
+			require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), seen))
 
 			expected := bucketStrings(append(current, historical))
 			got := bucketStrings(cache.retiredBuckets())
@@ -410,7 +411,7 @@ func TestSchedulerGroupLifecycleInactiveAndMissingRetireAllHistoricalBucketsWith
 }
 
 func TestSchedulerPrepareGroupLifecycleUsesKnownHistoricalBucketsWithoutListingRegistry(t *testing.T) {
-	const groupID int64 = 811
+	const groupID string = "811"
 	historical := SchedulerBucket{GroupID: groupID, Platform: "legacy", Mode: "obsolete"}
 	cache := newGroupLifecycleTestCache()
 	cache.listErr = errors.New("registry must not be listed")
@@ -429,7 +430,7 @@ func TestSchedulerPrepareGroupLifecycleUsesKnownHistoricalBucketsWithoutListingR
 }
 
 func TestSchedulerGroupLifecycleActiveReopensAndRebuildsAllCurrentBuckets(t *testing.T) {
-	const groupID int64 = 82
+	const groupID string = "82"
 	current := expectedGroupLifecycleBuckets(groupID)
 	historical := SchedulerBucket{GroupID: groupID, Platform: "legacy", Mode: "obsolete"}
 	cache := newGroupLifecycleTestCache(historical)
@@ -446,7 +447,7 @@ func TestSchedulerGroupLifecycleActiveReopensAndRebuildsAllCurrentBuckets(t *tes
 	svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 	seen := make(map[batchSeenKey]struct{})
 
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), seen))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), seen))
 
 	require.Equal(t, bucketStrings(current), bucketStrings(cache.reopens))
 	require.Empty(t, cache.retiredBuckets())
@@ -486,16 +487,16 @@ func TestSchedulerGroupLifecycleActiveReopensAndRebuildsAllCurrentBuckets(t *tes
 }
 
 func TestSchedulerGroupLifecycleInactiveThenActiveAuthoritativelyReopens(t *testing.T) {
-	const groupID int64 = 83
+	const groupID string = "83"
 	cache := newGroupLifecycleTestCache()
 	groups := &groupLifecycleTestGroupRepo{group: &Group{ID: groupID, Status: StatusDisabled, Hydrated: true}}
 	accounts := &groupLifecycleTestAccountRepo{}
 	svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), make(map[batchSeenKey]struct{})))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), make(map[batchSeenKey]struct{})))
 	require.Zero(t, accounts.callCount())
 	groups.set(&Group{ID: groupID, Status: StatusActive, Hydrated: true}, nil)
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), make(map[batchSeenKey]struct{})))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), make(map[batchSeenKey]struct{})))
 
 	require.Len(t, cache.tokens(), 12)
 	require.Equal(t, 7, accounts.callCount())
@@ -506,7 +507,7 @@ func TestSchedulerGroupLifecycleInactiveThenActiveAuthoritativelyReopens(t *test
 }
 
 func TestSchedulerGroupLifecycleLaterInactiveFencesLongActiveRebuild(t *testing.T) {
-	const groupID int64 = 84
+	const groupID string = "84"
 	cache := newGroupLifecycleTestCache()
 	groups := &groupLifecycleTestGroupRepo{group: &Group{ID: groupID, Status: StatusActive, Hydrated: true}}
 	started := make(chan struct{})
@@ -518,7 +519,7 @@ func TestSchedulerGroupLifecycleLaterInactiveFencesLongActiveRebuild(t *testing.
 	activeResult := make(chan error, 1)
 
 	go func() {
-		activeResult <- svc.handleGroupEvent(context.Background(), ptrInt64(groupID), activeSeen)
+		activeResult <- svc.handleGroupEvent(context.Background(), ptrString(groupID), activeSeen)
 	}()
 	select {
 	case <-started:
@@ -527,7 +528,7 @@ func TestSchedulerGroupLifecycleLaterInactiveFencesLongActiveRebuild(t *testing.
 	}
 
 	groups.set(&Group{ID: groupID, Status: StatusDisabled, Hydrated: true}, nil)
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), inactiveSeen))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), inactiveSeen))
 	close(release)
 	err := <-activeResult
 	require.ErrorIs(t, err, ErrSchedulerBucketRetired)
@@ -536,22 +537,22 @@ func TestSchedulerGroupLifecycleLaterInactiveFencesLongActiveRebuild(t *testing.
 }
 
 func TestSchedulerGroupLifecycleEpochPreventsABA(t *testing.T) {
-	const groupID int64 = 85
+	const groupID string = "85"
 	cache := newGroupLifecycleTestCache()
 	groups := &groupLifecycleTestGroupRepo{group: &Group{ID: groupID, Status: StatusDisabled, Hydrated: true}}
 	accounts := &groupLifecycleTestAccountRepo{}
 	svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), make(map[batchSeenKey]struct{})))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), make(map[batchSeenKey]struct{})))
 	groups.set(&Group{ID: groupID, Status: StatusActive, Hydrated: true}, nil)
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), make(map[batchSeenKey]struct{})))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), make(map[batchSeenKey]struct{})))
 	firstActiveTokens := cache.tokens()
 	require.Len(t, firstActiveTokens, 12)
 
 	groups.set(&Group{ID: groupID, Status: StatusDisabled, Hydrated: true}, nil)
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), make(map[batchSeenKey]struct{})))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), make(map[batchSeenKey]struct{})))
 	groups.set(&Group{ID: groupID, Status: StatusActive, Hydrated: true}, nil)
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), make(map[batchSeenKey]struct{})))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), make(map[batchSeenKey]struct{})))
 	allTokens := cache.tokens()
 	require.Len(t, allTokens, 24)
 	require.Greater(t, allTokens[12].Epoch, firstActiveTokens[0].Epoch)
@@ -559,7 +560,7 @@ func TestSchedulerGroupLifecycleEpochPreventsABA(t *testing.T) {
 }
 
 func TestSchedulerGroupLifecycleSeenIsIndependentAndDeduplicatesGroupEvents(t *testing.T) {
-	const groupID int64 = 86
+	const groupID string = "86"
 	cache := newGroupLifecycleTestCache()
 	groups := &groupLifecycleTestGroupRepo{group: &Group{ID: groupID, Status: StatusActive, Hydrated: true}}
 	accounts := &groupLifecycleTestAccountRepo{}
@@ -569,11 +570,11 @@ func TestSchedulerGroupLifecycleSeenIsIndependentAndDeduplicatesGroupEvents(t *t
 		seen[batchSeenKey{groupID: groupID, platform: platform}] = struct{}{}
 	}
 
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), seen))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), seen))
 	require.Equal(t, 1, groups.callCount())
 	require.Equal(t, 7, accounts.callCount())
 	requireLifecycleSeen(t, seen, groupID)
-	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrInt64(groupID), seen))
+	require.NoError(t, svc.handleGroupEvent(context.Background(), ptrString(groupID), seen))
 	require.Equal(t, 1, groups.callCount())
 	require.Equal(t, 7, accounts.callCount())
 }
@@ -676,7 +677,7 @@ func TestSchedulerGroupLifecycleFailuresDoNotMarkSeen(t *testing.T) {
 
 	for index, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			groupID := int64(870 + index)
+			groupID := strconv.Itoa(870 + index)
 			cache := newGroupLifecycleTestCache()
 			groups := &groupLifecycleTestGroupRepo{group: &Group{ID: groupID, Status: StatusActive, Hydrated: true}}
 			accounts := &groupLifecycleTestAccountRepo{}
@@ -684,7 +685,7 @@ func TestSchedulerGroupLifecycleFailuresDoNotMarkSeen(t *testing.T) {
 			svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 			seen := make(map[batchSeenKey]struct{})
 
-			err := svc.handleGroupEvent(context.Background(), ptrInt64(groupID), seen)
+			err := svc.handleGroupEvent(context.Background(), ptrString(groupID), seen)
 			tc.check(t, err)
 			requireLifecycleNotSeen(t, seen, groupID)
 			if tc.name == "release lost" || tc.name == "release error" {
@@ -706,7 +707,7 @@ func TestSchedulerGroupLifecycleFailuresDoNotMarkSeen(t *testing.T) {
 }
 
 func TestSchedulerGroupLifecycleOperationAndReleaseErrorsPreserveBothCauses(t *testing.T) {
-	const groupID int64 = 880
+	const groupID string = "880"
 	operationErr := errors.New("group query failed")
 	cache := newGroupLifecycleTestCache()
 	cache.leaseReleaseErr = ErrSchedulerGroupLifecycleLeaseLost
@@ -715,7 +716,7 @@ func TestSchedulerGroupLifecycleOperationAndReleaseErrorsPreserveBothCauses(t *t
 	svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 	seen := make(map[batchSeenKey]struct{})
 
-	err := svc.handleGroupEvent(context.Background(), ptrInt64(groupID), seen)
+	err := svc.handleGroupEvent(context.Background(), ptrString(groupID), seen)
 	require.ErrorIs(t, err, operationErr)
 	require.ErrorIs(t, err, ErrSchedulerGroupLifecycleLeaseLost)
 	requireLifecycleNotSeen(t, seen, groupID)
@@ -727,18 +728,18 @@ func TestSchedulerGroupLifecycleUntrustedGroupStateFailsClosed(t *testing.T) {
 		name  string
 		group *Group
 	}{
-		{name: "not hydrated", group: &Group{ID: 88, Status: StatusActive}},
-		{name: "mismatched id", group: &Group{ID: 89, Status: StatusActive, Hydrated: true}},
+		{name: "not hydrated", group: &Group{ID: "88", Status: StatusActive}},
+		{name: "mismatched id", group: &Group{ID: "89", Status: StatusActive, Hydrated: true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			const eventGroupID int64 = 88
+			const eventGroupID string = "88"
 			cache := newGroupLifecycleTestCache()
 			groups := &groupLifecycleTestGroupRepo{group: tc.group}
 			accounts := &groupLifecycleTestAccountRepo{}
 			svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 			seen := make(map[batchSeenKey]struct{})
 
-			err := svc.handleGroupEvent(context.Background(), ptrInt64(eventGroupID), seen)
+			err := svc.handleGroupEvent(context.Background(), ptrString(eventGroupID), seen)
 			require.Error(t, err)
 			require.Empty(t, cache.retiredBuckets())
 			require.Empty(t, cache.tokens())
@@ -753,7 +754,7 @@ func TestSchedulerGroupLifecycleUntrustedGroupStateFailsClosed(t *testing.T) {
 }
 
 func TestSchedulerGroupLifecycleCanceledAfterFreshQueryUsesIndependentReleaseContext(t *testing.T) {
-	const groupID int64 = 89
+	const groupID string = "89"
 	ctx, cancel := context.WithCancel(context.Background())
 	cache := newGroupLifecycleTestCache()
 	groups := &groupLifecycleTestGroupRepo{
@@ -764,7 +765,7 @@ func TestSchedulerGroupLifecycleCanceledAfterFreshQueryUsesIndependentReleaseCon
 	svc := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 	seen := make(map[batchSeenKey]struct{})
 
-	err := svc.handleGroupEvent(ctx, ptrInt64(groupID), seen)
+	err := svc.handleGroupEvent(ctx, ptrString(groupID), seen)
 	require.ErrorIs(t, err, context.Canceled)
 	requireLifecycleNotSeen(t, seen, groupID)
 	require.Empty(t, cache.tokens())
@@ -778,14 +779,14 @@ func TestSchedulerGroupLifecycleCanceledAfterFreshQueryUsesIndependentReleaseCon
 
 func TestSchedulerGroupLifecycleGroupZeroAndSimpleModeAreNoOps(t *testing.T) {
 	cache := newGroupLifecycleTestCache()
-	groups := &groupLifecycleTestGroupRepo{group: &Group{ID: 88, Status: StatusActive, Hydrated: true}}
+	groups := &groupLifecycleTestGroupRepo{group: &Group{ID: "88", Status: StatusActive, Hydrated: true}}
 	accounts := &groupLifecycleTestAccountRepo{}
 	standard := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeStandard)
 	simple := newGroupLifecycleTestService(cache, accounts, groups, config.RunModeSimple)
 
 	require.NoError(t, standard.handleGroupEvent(context.Background(), nil, make(map[batchSeenKey]struct{})))
-	require.NoError(t, standard.handleGroupEvent(context.Background(), ptrInt64(0), make(map[batchSeenKey]struct{})))
-	require.NoError(t, simple.handleGroupEvent(context.Background(), ptrInt64(88), make(map[batchSeenKey]struct{})))
+	require.NoError(t, standard.handleGroupEvent(context.Background(), ptrString("0"), make(map[batchSeenKey]struct{})))
+	require.NoError(t, simple.handleGroupEvent(context.Background(), ptrString("88"), make(map[batchSeenKey]struct{})))
 
 	acquires, releases, listCalls := cache.lifecycleCounts()
 	require.Zero(t, acquires)

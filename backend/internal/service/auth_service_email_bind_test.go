@@ -167,7 +167,7 @@ func TestAuthServiceBindEmailIdentity_UpdatesEmailAndAppliesFirstBindDefaults(t 
 
 	require.Len(t, assigner.calls, 1)
 	require.Equal(t, user.ID, assigner.calls[0].UserID)
-	require.Equal(t, int64(11), assigner.calls[0].GroupID)
+	require.Equal(t, "11", assigner.calls[0].GroupID)
 	require.Equal(t, 30, assigner.calls[0].ValidityDays)
 	require.Equal(t, 1, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))
 }
@@ -450,7 +450,7 @@ func TestAuthServiceBindEmailIdentity_RevokesExistingAccessAndRefreshTokens(t *t
 	}
 	refreshTokenCache := newEmailBindRefreshTokenCacheStub()
 	userRepo := newEmailBindUserRepoStub(&service.User{
-		ID:           41,
+		ID:           "41",
 		Email:        "legacy-user" + service.OIDCConnectSyntheticEmailDomain,
 		Username:     "legacy-user",
 		PasswordHash: "old-hash",
@@ -470,7 +470,7 @@ func TestAuthServiceBindEmailIdentity_RevokesExistingAccessAndRefreshTokens(t *t
 	svc := service.NewAuthService(nil, userRepo, nil, refreshTokenCache, cfg, nil, emailService, nil, nil, nil, nil, nil, nil)
 
 	oldTokenPair, err := svc.GenerateTokenPair(ctx, &service.User{
-		ID:           41,
+		ID:           "41",
 		Email:        "legacy-user" + service.OIDCConnectSyntheticEmailDomain,
 		Role:         service.RoleUser,
 		Status:       service.StatusActive,
@@ -478,11 +478,11 @@ func TestAuthServiceBindEmailIdentity_RevokesExistingAccessAndRefreshTokens(t *t
 	}, "")
 	require.NoError(t, err)
 
-	updatedUser, err := svc.BindEmailIdentity(ctx, 41, "new@example.com", "123456", "new-password")
+	updatedUser, err := svc.BindEmailIdentity(ctx, "41", "new@example.com", "123456", "new-password")
 	require.NoError(t, err)
 	require.NotNil(t, updatedUser)
 
-	storedUser, err := userRepo.GetByID(ctx, 41)
+	storedUser, err := userRepo.GetByID(ctx, "41")
 	require.NoError(t, err)
 	require.Equal(t, "new@example.com", storedUser.Email)
 	require.True(t, svc.CheckPassword("new-password", storedUser.PasswordHash))
@@ -724,25 +724,25 @@ func (s *emailBindCacheStub) SetPasswordResetEmailCooldown(context.Context, stri
 	return nil
 }
 
-func (s *emailBindCacheStub) GetNotifyCodeUserRate(context.Context, int64) (int64, error) {
+func (s *emailBindCacheStub) GetNotifyCodeUserRate(context.Context, string) (int64, error) {
 	return 0, nil
 }
 
-func (s *emailBindCacheStub) IncrNotifyCodeUserRate(context.Context, int64, time.Duration) (int64, error) {
+func (s *emailBindCacheStub) IncrNotifyCodeUserRate(context.Context, string, time.Duration) (int64, error) {
 	return 0, nil
 }
 
 type emailBindRefreshTokenCacheStub struct {
 	mu       sync.Mutex
 	tokens   map[string]*service.RefreshTokenData
-	userSets map[int64]map[string]struct{}
+	userSets map[string]map[string]struct{}
 	families map[string]map[string]struct{}
 }
 
 func newEmailBindRefreshTokenCacheStub() *emailBindRefreshTokenCacheStub {
 	return &emailBindRefreshTokenCacheStub{
 		tokens:   make(map[string]*service.RefreshTokenData),
-		userSets: make(map[int64]map[string]struct{}),
+		userSets: make(map[string]map[string]struct{}),
 		families: make(map[string]map[string]struct{}),
 	}
 }
@@ -779,7 +779,7 @@ func (s *emailBindRefreshTokenCacheStub) DeleteRefreshToken(_ context.Context, t
 	return nil
 }
 
-func (s *emailBindRefreshTokenCacheStub) DeleteUserRefreshTokens(_ context.Context, userID int64) error {
+func (s *emailBindRefreshTokenCacheStub) DeleteUserRefreshTokens(_ context.Context, userID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for tokenHash := range s.userSets[userID] {
@@ -805,7 +805,7 @@ func (s *emailBindRefreshTokenCacheStub) DeleteTokenFamily(_ context.Context, fa
 	return nil
 }
 
-func (s *emailBindRefreshTokenCacheStub) AddToUserTokenSet(_ context.Context, userID int64, tokenHash string, _ time.Duration) error {
+func (s *emailBindRefreshTokenCacheStub) AddToUserTokenSet(_ context.Context, userID string, tokenHash string, _ time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.userSets[userID] == nil {
@@ -825,7 +825,7 @@ func (s *emailBindRefreshTokenCacheStub) AddToFamilyTokenSet(_ context.Context, 
 	return nil
 }
 
-func (s *emailBindRefreshTokenCacheStub) GetUserTokenHashes(_ context.Context, userID int64) ([]string, error) {
+func (s *emailBindRefreshTokenCacheStub) GetUserTokenHashes(_ context.Context, userID string) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tokenSet := s.userSets[userID]
@@ -855,15 +855,16 @@ func (s *emailBindRefreshTokenCacheStub) IsTokenInFamily(_ context.Context, fami
 }
 
 type emailBindUserRepoStub struct {
+	service.WalletRepository
 	mu           sync.Mutex
-	usersByID    map[int64]*service.User
+	usersByID    map[string]*service.User
 	usersByEmail map[string]*service.User
 }
 
 func newEmailBindUserRepoStub(user *service.User) *emailBindUserRepoStub {
 	cloned := cloneEmailBindUser(user)
 	return &emailBindUserRepoStub{
-		usersByID: map[int64]*service.User{
+		usersByID: map[string]*service.User{
 			cloned.ID: cloned,
 		},
 		usersByEmail: map[string]*service.User{
@@ -878,7 +879,7 @@ func (s *emailBindUserRepoStub) CreateWithEmailAliasGuard(ctx context.Context, u
 	return s.Create(ctx, user)
 }
 
-func (s *emailBindUserRepoStub) GetByID(_ context.Context, id int64) (*service.User, error) {
+func (s *emailBindUserRepoStub) GetByID(_ context.Context, id string) (*service.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	user, ok := s.usersByID[id]
@@ -916,17 +917,17 @@ func (s *emailBindUserRepoStub) Update(_ context.Context, user *service.User, _ 
 	return nil
 }
 
-func (s *emailBindUserRepoStub) Delete(context.Context, int64) error { return nil }
+func (s *emailBindUserRepoStub) Delete(context.Context, string) error { return nil }
 
-func (s *emailBindUserRepoStub) GetUserAvatar(context.Context, int64) (*service.UserAvatar, error) {
+func (s *emailBindUserRepoStub) GetUserAvatar(context.Context, string) (*service.UserAvatar, error) {
 	return nil, nil
 }
 
-func (s *emailBindUserRepoStub) UpsertUserAvatar(context.Context, int64, service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
+func (s *emailBindUserRepoStub) UpsertUserAvatar(context.Context, string, service.UpsertUserAvatarInput) (*service.UserAvatar, error) {
 	panic("unexpected UpsertUserAvatar call")
 }
 
-func (s *emailBindUserRepoStub) DeleteUserAvatar(context.Context, int64) error {
+func (s *emailBindUserRepoStub) DeleteUserAvatar(context.Context, string) error {
 	panic("unexpected DeleteUserAvatar call")
 }
 
@@ -938,21 +939,21 @@ func (s *emailBindUserRepoStub) ListWithFilters(context.Context, pagination.Pagi
 	panic("unexpected ListWithFilters call")
 }
 
-func (s *emailBindUserRepoStub) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
-	return map[int64]*time.Time{}, nil
+func (s *emailBindUserRepoStub) GetLatestUsedAtByUserIDs(context.Context, []string) (map[string]*time.Time, error) {
+	return map[string]*time.Time{}, nil
 }
 
-func (s *emailBindUserRepoStub) GetLatestUsedAtByUserID(context.Context, int64) (*time.Time, error) {
+func (s *emailBindUserRepoStub) GetLatestUsedAtByUserID(context.Context, string) (*time.Time, error) {
 	return nil, nil
 }
 
-func (s *emailBindUserRepoStub) UpdateUserLastActiveAt(context.Context, int64, time.Time) error {
+func (s *emailBindUserRepoStub) UpdateUserLastActiveAt(context.Context, string, time.Time) error {
 	return nil
 }
 
-func (s *emailBindUserRepoStub) UpdateBalance(context.Context, int64, float64) error { return nil }
-func (s *emailBindUserRepoStub) DeductBalance(context.Context, int64, float64) error { return nil }
-func (s *emailBindUserRepoStub) UpdateConcurrency(context.Context, int64, int) error { return nil }
+func (s *emailBindUserRepoStub) UpdateBalance(context.Context, string, float64) error { return nil }
+func (s *emailBindUserRepoStub) DeductBalance(context.Context, string, float64) error { return nil }
+func (s *emailBindUserRepoStub) UpdateConcurrency(context.Context, string, int) error { return nil }
 
 func (s *emailBindUserRepoStub) ExistsByEmail(_ context.Context, email string) (bool, error) {
 	s.mu.Lock()
@@ -961,11 +962,11 @@ func (s *emailBindUserRepoStub) ExistsByEmail(_ context.Context, email string) (
 	return ok, nil
 }
 
-func (s *emailBindUserRepoStub) AdjustBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
+func (s *emailBindUserRepoStub) AdjustBalance(ctx context.Context, id string, delta float64) (service.BalanceChange, error) {
 	panic("unexpected AdjustBalance call")
 }
 
-func (s *emailBindUserRepoStub) SetBalance(ctx context.Context, id int64, value float64) (service.BalanceChange, error) {
+func (s *emailBindUserRepoStub) SetBalance(ctx context.Context, id string, value float64) (service.BalanceChange, error) {
 	panic("unexpected SetBalance call")
 }
 
@@ -981,40 +982,40 @@ func (s *emailBindUserRepoStub) ExistsByEmailAlias(_ context.Context, email stri
 	return false, nil
 }
 
-func (s *emailBindUserRepoStub) BatchSetConcurrency(context.Context, []int64, int) (int, error) {
+func (s *emailBindUserRepoStub) BatchSetConcurrency(context.Context, []string, int) (int, error) {
 	return 0, nil
 }
-func (s *emailBindUserRepoStub) BatchAddConcurrency(context.Context, []int64, int) (int, error) {
+func (s *emailBindUserRepoStub) BatchAddConcurrency(context.Context, []string, int) (int, error) {
 	return 0, nil
 }
-func (s *emailBindUserRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
-	return 0, nil
-}
-
-func (s *emailBindUserRepoStub) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
+func (s *emailBindUserRepoStub) BatchUpdateLimits(context.Context, []string, *int, *int) (int, error) {
 	return 0, nil
 }
 
-func (s *emailBindUserRepoStub) AddGroupToAllowedGroups(context.Context, int64, int64) error {
+func (s *emailBindUserRepoStub) RemoveGroupFromAllowedGroups(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
+func (s *emailBindUserRepoStub) AddGroupToAllowedGroups(context.Context, string, string) error {
 	return nil
 }
 
-func (s *emailBindUserRepoStub) RemoveGroupFromUserAllowedGroups(context.Context, int64, int64) error {
+func (s *emailBindUserRepoStub) RemoveGroupFromUserAllowedGroups(context.Context, string, string) error {
 	return nil
 }
 
-func (s *emailBindUserRepoStub) ListUserAuthIdentities(context.Context, int64) ([]service.UserAuthIdentityRecord, error) {
+func (s *emailBindUserRepoStub) ListUserAuthIdentities(context.Context, string) ([]service.UserAuthIdentityRecord, error) {
 	return nil, nil
 }
 
-func (s *emailBindUserRepoStub) UnbindUserAuthProvider(context.Context, int64, string) error {
+func (s *emailBindUserRepoStub) UnbindUserAuthProvider(context.Context, string, string) error {
 	return nil
 }
 
-func (s *emailBindUserRepoStub) UpdateTotpSecret(context.Context, int64, *string) error { return nil }
-func (s *emailBindUserRepoStub) EnableTotp(context.Context, int64) error                { return nil }
-func (s *emailBindUserRepoStub) DisableTotp(context.Context, int64) error               { return nil }
-func (s *emailBindUserRepoStub) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.User, error) {
+func (s *emailBindUserRepoStub) UpdateTotpSecret(context.Context, string, *string) error { return nil }
+func (s *emailBindUserRepoStub) EnableTotp(context.Context, string) error                { return nil }
+func (s *emailBindUserRepoStub) DisableTotp(context.Context, string) error               { return nil }
+func (s *emailBindUserRepoStub) GetByIDIncludeDeleted(ctx context.Context, id string) (*service.User, error) {
 	return s.GetByID(ctx, id)
 }
 

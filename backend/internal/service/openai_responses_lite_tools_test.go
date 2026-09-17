@@ -274,7 +274,7 @@ func TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth(t *tes
 			}}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 			account := &Account{
-				ID: 501, Name: "responses-lite", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
+				ID: "501", Name: "responses-lite", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
 				Concurrency: 1, Status: StatusActive, Schedulable: true, RateMultiplier: f64p(1),
 				Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-account"},
 				Extra:       map[string]any{"openai_passthrough": passthrough},

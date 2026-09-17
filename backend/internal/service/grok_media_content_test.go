@@ -24,7 +24,7 @@ type grokMediaContentUpstreamStub struct {
 	responses []*http.Response
 }
 
-func (s *grokMediaContentUpstreamStub) Do(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (s *grokMediaContentUpstreamStub) Do(req *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	s.request = req
 	s.requests = append(s.requests, req)
 	if len(s.responses) > 0 {
@@ -35,13 +35,13 @@ func (s *grokMediaContentUpstreamStub) Do(req *http.Request, _ string, _ int64, 
 	return s.response, nil
 }
 
-func (s *grokMediaContentUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+func (s *grokMediaContentUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID string, accountConcurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
 	return s.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
 func grokMediaContentTestAccount() *Account {
 	return &Account{
-		ID:       9,
+		ID: "9",
 		Platform: PlatformGrok,
 		Type:     AccountTypeAPIKey,
 		Credentials: map[string]any{

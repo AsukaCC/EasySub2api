@@ -25,7 +25,7 @@ func (c *schedulerCancellationCache) CaptureBucketWriteToken(ctx context.Context
 	return SchedulerBucketWriteToken{}, ctx.Err()
 }
 
-func (c *schedulerCancellationCache) GetAccount(ctx context.Context, _ int64) (*Account, error) {
+func (c *schedulerCancellationCache) GetAccount(ctx context.Context, _ string) (*Account, error) {
 	c.cancel()
 	return nil, ctx.Err()
 }
@@ -41,7 +41,7 @@ func (r *schedulerCancellationAccountRepo) ListSchedulableUngroupedByPlatform(ct
 	return nil, ctx.Err()
 }
 
-func (r *schedulerCancellationAccountRepo) GetByID(ctx context.Context, _ int64) (*Account, error) {
+func (r *schedulerCancellationAccountRepo) GetByID(ctx context.Context, _ string) (*Account, error) {
 	r.getByIDCalls++
 	return nil, ctx.Err()
 }
@@ -71,7 +71,7 @@ func TestSchedulerSnapshotGetAccountStopsAfterRequestCancellation(t *testing.T) 
 	repo := &schedulerCancellationAccountRepo{}
 	svc := NewSchedulerSnapshotService(cache, nil, repo, nil, nil)
 
-	account, err := svc.GetAccount(ctx, 42)
+	account, err := svc.GetAccount(ctx, "42")
 
 	require.ErrorIs(t, err, context.Canceled)
 	require.Nil(t, account)

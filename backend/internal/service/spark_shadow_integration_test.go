@@ -31,11 +31,11 @@ import (
 //   - parentHealthyForShadow（spark_routing.go）
 func TestSparkShadowIntegration(t *testing.T) {
 	ctx := context.Background()
-	pid := int64(100)
+	pid := "100"
 
 	// 共享母账号：Credentials 为 map（引用型），可原地轮换而无需重建 stub。
 	parent := &Account{
-		ID:          100,
+		ID:          "100",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -46,7 +46,7 @@ func TestSparkShadowIntegration(t *testing.T) {
 	}
 	// 影子账号：不持凭据（与生产语义一致），QuotaDimensionSpark 标记 spark 维度。
 	shadow := &Account{
-		ID:              200,
+		ID:              "200",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		ParentAccountID: &pid,
@@ -67,7 +67,7 @@ func TestSparkShadowIntegration(t *testing.T) {
 		// 影子无凭据，resolveCredentialAccount 必须透传到母账号。
 		got, err := resolveCredentialAccount(ctx, repo, shadow)
 		require.NoError(t, err)
-		require.Equal(t, int64(100), got.ID, "解析结果应为母账号")
+		require.Equal(t, "100", got.ID, "解析结果应为母账号")
 		require.Equal(t, "T1", got.GetOpenAIAccessToken(),
 			"初始应读到 T1")
 	})
@@ -101,7 +101,7 @@ func TestSparkShadowIntegration(t *testing.T) {
 	t.Run("normal_account_returns_its_own_token", func(t *testing.T) {
 		// 对照组：普通账号（非影子）直接返回自身凭据，不经 resolveCredentialAccount。
 		ordinary := &Account{
-			ID:          300,
+			ID:          "300",
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeOAuth,
 			Status:      StatusActive,
@@ -128,15 +128,15 @@ func TestSparkShadowIntegration(t *testing.T) {
 		normalModel := "gpt-5.3-codex"
 		sparkCreds := map[string]any{"model_mapping": defaultSparkShadowModelMapping()}
 
-		pid := int64(1)
-		sparkShadow := &Account{ID: 2, ParentAccountID: &pid, Platform: PlatformOpenAI, Credentials: sparkCreds}
+		pid := "1"
+		sparkShadow := &Account{ID: "2", ParentAccountID: &pid, Platform: PlatformOpenAI, Credentials: sparkCreds}
 		require.True(t, sparkShadow.IsModelSupported(sparkModel), "影子配 spark → 接 spark")
 		require.False(t, sparkShadow.IsModelSupported(normalModel), "影子（仅 spark mapping）→ 拒非 spark")
 
-		normalWithSpark := &Account{ID: 3, Platform: PlatformOpenAI, Credentials: sparkCreds}
+		normalWithSpark := &Account{ID: "3", Platform: PlatformOpenAI, Credentials: sparkCreds}
 		require.True(t, normalWithSpark.IsModelSupported(sparkModel), "普通账号配 spark → 接 spark（不再按类型排除）")
 
-		normalNoSpark := &Account{ID: 4, Platform: PlatformOpenAI,
+		normalNoSpark := &Account{ID: "4", Platform: PlatformOpenAI,
 			Credentials: map[string]any{"model_mapping": map[string]any{normalModel: normalModel}}}
 		require.False(t, normalNoSpark.IsModelSupported(sparkModel), "普通账号未配 spark → 拒 spark（按配置）")
 	})
@@ -150,7 +150,7 @@ func TestSparkShadowIntegration(t *testing.T) {
 		parent.Status = StatusActive
 		parent.Schedulable = true
 
-		lookup := func(id int64) *Account {
+		lookup := func(id string) *Account {
 			if id == parent.ID {
 				return parent
 			}
@@ -182,7 +182,7 @@ func TestSparkShadowIntegration(t *testing.T) {
 
 		// 对照组：非影子账号 parentHealthyForShadow 始终 true，不调用 lookup
 		parent.Schedulable = true
-		lookupNotCalled := func(_ int64) *Account {
+		lookupNotCalled := func(_ string) *Account {
 			t.Error("非影子账号不应调用 lookup")
 			return nil
 		}

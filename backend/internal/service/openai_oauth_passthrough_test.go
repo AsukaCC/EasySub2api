@@ -1971,7 +1971,7 @@ func TestOpenAIGatewayService_CodexFingerprintHTTPTransformedHeaderBodyParityAnd
 		httpUpstream:  upstream,
 		toolCorrector: NewCodexToolCorrector(),
 	}
-	account := newTestOAuthAccount(4401, map[string]any{codexFingerprintModeExtraKey: "session"})
+	account := newTestOAuthAccount("4401", map[string]any{codexFingerprintModeExtraKey: "session"})
 	account.Name = "oauth-transformed"
 	account.Status = StatusActive
 	account.Schedulable = true
@@ -2030,7 +2030,7 @@ func TestOpenAIGatewayService_CodexFingerprintHTTPRawPassthroughHeaderBodyParity
 		cfg:          &config.Config{},
 		httpUpstream: upstream,
 	}
-	account := newTestOAuthAccount(4402, map[string]any{
+	account := newTestOAuthAccount("4402", map[string]any{
 		codexFingerprintModeExtraKey: "session",
 		"openai_oauth_passthrough":   true,
 	})
@@ -2091,7 +2091,7 @@ func TestOpenAIGatewayService_CodexFingerprintCompactDoesNotRewriteBodyCacheKeyO
 		httpUpstream:  upstream,
 		toolCorrector: NewCodexToolCorrector(),
 	}
-	account := newTestOAuthAccount(4403, map[string]any{codexFingerprintModeExtraKey: "session"})
+	account := newTestOAuthAccount("4403", map[string]any{codexFingerprintModeExtraKey: "session"})
 	account.Name = "oauth-compact"
 	account.Status = StatusActive
 	account.Schedulable = true
@@ -2135,7 +2135,7 @@ func TestOpenAIGatewayService_CodexFingerprintMessagesBridgeDoesNotInjectBodyPro
 		httpUpstream:  upstream,
 		toolCorrector: NewCodexToolCorrector(),
 	}
-	account := newTestOAuthAccount(4404, map[string]any{codexFingerprintModeExtraKey: "session"})
+	account := newTestOAuthAccount("4404", map[string]any{codexFingerprintModeExtraKey: "session"})
 	account.Name = "oauth-messages-bridge"
 	account.Status = StatusActive
 	account.Schedulable = true

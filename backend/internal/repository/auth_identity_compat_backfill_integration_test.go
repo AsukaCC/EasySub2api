@@ -48,7 +48,7 @@ ALTER TABLE users
 	_, err = tx.ExecContext(ctx, string(migration108aSQL))
 	require.NoError(t, err)
 
-	var userID int64
+	var userID string
 	require.NoError(t, tx.QueryRowContext(ctx, `
 INSERT INTO users (email, password_hash, role, status, balance, concurrency)
 VALUES ('oidc-demo-subject@oidc-connect.invalid', 'hash', 'user', 'active', 0, 1)

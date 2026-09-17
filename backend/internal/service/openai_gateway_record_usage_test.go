@@ -132,8 +132,8 @@ func TestRecordCyberPolicyUsageLog_SkipsWhenIncomplete(t *testing.T) {
 	svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
 
 	acct := &Account{ID: "id-3"}
-	svc.RecordCyberPolicyUsageLog(context.Background(), CyberPolicyUsageInput{Account: acct, Model: "gpt-5"})                              // APIKey nil
-	svc.RecordCyberPolicyUsageLog(context.Background(), CyberPolicyUsageInput{APIKey: &APIKey{ID: "id-2"}, Account: acct, Model: "gpt-5"})      // User nil
+	svc.RecordCyberPolicyUsageLog(context.Background(), CyberPolicyUsageInput{Account: acct, Model: "gpt-5"})                                        // APIKey nil
+	svc.RecordCyberPolicyUsageLog(context.Background(), CyberPolicyUsageInput{APIKey: &APIKey{ID: "id-2"}, Account: acct, Model: "gpt-5"})           // User nil
 	svc.RecordCyberPolicyUsageLog(context.Background(), CyberPolicyUsageInput{APIKey: &APIKey{ID: "id-2", User: &User{ID: "id-1"}}, Model: "gpt-5"}) // Account nil
 	svc.RecordCyberPolicyUsageLog(context.Background(), CyberPolicyUsageInput{APIKey: &APIKey{ID: "id-2", User: &User{ID: "id-1"}}, Account: acct})  // Model 空
 	require.Equal(t, 0, usageRepo.calls, "APIKey/User/Account 缺失或 Model 空时跳过，不记不扣费")
@@ -257,10 +257,10 @@ func newOpenAIRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo U
 	return svc
 }
 
-func openAIRecordUsageAPIKeyWithGroup(svc *OpenAIGatewayService, id int64, groupLongContext bool) *APIKey {
+func openAIRecordUsageAPIKeyWithGroup(svc *OpenAIGatewayService, id string, groupLongContext bool) *APIKey {
 	svc.resolver = NewModelPricingResolver(nil, svc.billingService)
 	return &APIKey{
-		ID: fmt.Sprintf("api-key-%d", id),
+		ID: fmt.Sprintf("api-key-%s", id),
 		Group: &Group{
 			ID:                        "id-1",
 			LongContextPricingEnabled: groupLongContext,
@@ -1165,7 +1165,7 @@ func TestOpenAIGatewayServiceRecordUsage_Gpt54LongContextBillingDisabledByDefaul
 			Model:    "gpt-5.4-2026-03-05",
 			Duration: time.Second,
 		},
-		APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, 1014, true),
+		APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, "1014", true),
 		User:    &User{ID: "id-2014"},
 		Account: &Account{ID: "id-3014", Platform: PlatformOpenAI},
 	})
@@ -1199,7 +1199,7 @@ func TestOpenAIGatewayServiceRecordUsage_Gpt54LongContextBillingEnabledPerAccoun
 			Model:    "gpt-5.4-2026-03-05",
 			Duration: time.Second,
 		},
-		APIKey: openAIRecordUsageAPIKeyWithGroup(svc, 1015, true),
+		APIKey: openAIRecordUsageAPIKeyWithGroup(svc, "1015", true),
 		User:   &User{ID: "id-2015"},
 		Account: &Account{
 			ID:       "id-3015",
@@ -1230,7 +1230,7 @@ func TestOpenAIGatewayServiceRecordUsage_GroupAndAccountLongContextMustBothAllow
 		svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
 		err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 			Result:  &OpenAIForwardResult{RequestID: "resp_and_off", Usage: tokens, Model: "gpt-5.4-2026-03-05", Duration: time.Second},
-			APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, 1020, true),
+			APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, "1020", true),
 			User:    &User{ID: "id-2020"},
 			Account: &Account{ID: "id-3020", Platform: PlatformOpenAI},
 		})
@@ -1245,7 +1245,7 @@ func TestOpenAIGatewayServiceRecordUsage_GroupAndAccountLongContextMustBothAllow
 		svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
 		err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 			Result: &OpenAIForwardResult{RequestID: "resp_and_group_off", Usage: tokens, Model: "gpt-5.4-2026-03-05", Duration: time.Second},
-			APIKey: openAIRecordUsageAPIKeyWithGroup(svc, 1021, false),
+			APIKey: openAIRecordUsageAPIKeyWithGroup(svc, "1021", false),
 			User:   &User{ID: "id-2021"},
 			Account: &Account{
 				ID: "id-3021", Platform: PlatformOpenAI,
@@ -1262,7 +1262,7 @@ func TestOpenAIGatewayServiceRecordUsage_GroupAndAccountLongContextMustBothAllow
 		svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
 		err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 			Result: &OpenAIForwardResult{RequestID: "resp_and_on", Usage: tokens, Model: "gpt-5.4-2026-03-05", Duration: time.Second},
-			APIKey: openAIRecordUsageAPIKeyWithGroup(svc, 1022, true),
+			APIKey: openAIRecordUsageAPIKeyWithGroup(svc, "1022", true),
 			User:   &User{ID: "id-2022"},
 			Account: &Account{
 				ID: "id-3022", Platform: PlatformOpenAI,
@@ -1283,8 +1283,8 @@ func TestOpenAIGatewayServiceRecordUsage_GrokLongContextFollowsGroupToggleOnly(t
 	baseInput := 250000 * 2e-6
 	baseOutput := 1000 * 6e-6
 
-	grokAccount := func(id int64) *Account {
-		return &Account{ID: fmt.Sprintf("account-%d", id), Platform: PlatformGrok, Type: AccountTypeOAuth}
+	grokAccount := func(id string) *Account {
+		return &Account{ID: fmt.Sprintf("account-%s", id), Platform: PlatformGrok, Type: AccountTypeOAuth}
 	}
 
 	t.Run("group on applies the official ladder", func(t *testing.T) {
@@ -1297,9 +1297,9 @@ func TestOpenAIGatewayServiceRecordUsage_GrokLongContextFollowsGroupToggleOnly(t
 				Model:     "grok-4.5",
 				Duration:  time.Second,
 			},
-			APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, 1030, true),
+			APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, "1030", true),
 			User:    &User{ID: "id-2030"},
-			Account: grokAccount(3030),
+			Account: grokAccount("3030"),
 		})
 		require.NoError(t, err)
 		require.True(t, usageRepo.lastLog.LongContextBillingApplied)
@@ -1317,9 +1317,9 @@ func TestOpenAIGatewayServiceRecordUsage_GrokLongContextFollowsGroupToggleOnly(t
 				Model:     "grok-4.5",
 				Duration:  time.Second,
 			},
-			APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, 1031, false),
+			APIKey:  openAIRecordUsageAPIKeyWithGroup(svc, "1031", false),
 			User:    &User{ID: "id-2031"},
-			Account: grokAccount(3031),
+			Account: grokAccount("3031"),
 		})
 		require.NoError(t, err)
 		require.False(t, usageRepo.lastLog.LongContextBillingApplied)
@@ -1362,7 +1362,7 @@ func TestOpenAIGatewayServiceRecordUsage_SparkShadowUsesCurrentParentBillingSett
 					Model:     "gpt-5.4-2026-03-05",
 					Duration:  time.Second,
 				},
-				APIKey: openAIRecordUsageAPIKeyWithGroup(svc, 1016, true),
+				APIKey: openAIRecordUsageAPIKeyWithGroup(svc, "1016", true),
 				User:   &User{ID: "id-2016"},
 				Account: &Account{
 					ID:              "id-3016",

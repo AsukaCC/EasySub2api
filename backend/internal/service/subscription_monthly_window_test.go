@@ -24,13 +24,13 @@ type monthlyResetUserSubRepo struct {
 	resetAt     time.Time
 }
 
-func (r *monthlyResetUserSubRepo) ResetMonthlyUsage(_ context.Context, _ int64, _ *time.Time, resetAt time.Time) error {
+func (r *monthlyResetUserSubRepo) ResetMonthlyUsage(_ context.Context, _ string, _ *time.Time, resetAt time.Time) error {
 	r.resetCalled = true
 	r.resetAt = resetAt
 	return nil
 }
 
-func (r *activateWindowUserSubRepo) ActivateWindows(_ context.Context, _ int64, dailyStart, periodicStart time.Time) error {
+func (r *activateWindowUserSubRepo) ActivateWindows(_ context.Context, _ string, dailyStart, periodicStart time.Time) error {
 	r.dailyStart = dailyStart
 	r.periodicStart = periodicStart
 	return nil
@@ -43,7 +43,7 @@ func TestDelayedFirstUseAnchorsMonthlyWindowAtActivation(t *testing.T) {
 	activatedAt := time.Date(2026, 7, 10, 23, 30, 0, 0, time.UTC)
 	svc.now = func() time.Time { return activatedAt }
 	sub := &UserSubscription{
-		ID:        1,
+		ID: "1",
 		StartsAt:  startsAt,
 		ExpiresAt: startsAt.Add(45 * 24 * time.Hour),
 	}
@@ -79,7 +79,7 @@ func TestCheckAndResetWindowsDoesNotResetExactThirtyDayLegacyMonthlyWindow(t *te
 	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 	svc.now = func() time.Time { return now }
 	sub := &UserSubscription{
-		ID:                 1,
+		ID: "1",
 		StartsAt:           startsAt,
 		ExpiresAt:          startsAt.Add(30 * 24 * time.Hour),
 		MonthlyWindowStart: &windowStart,
@@ -102,7 +102,7 @@ func TestCheckAndResetWindowsResetsPartialFinalMonthlySubscriptions(t *testing.T
 			svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, nil)
 			svc.now = func() time.Time { return now }
 			sub := &UserSubscription{
-				ID:                 2,
+				ID: "2",
 				StartsAt:           startsAt,
 				ExpiresAt:          startsAt.Add(time.Duration(durationDays) * 24 * time.Hour),
 				MonthlyWindowStart: &legacyWindowStart,

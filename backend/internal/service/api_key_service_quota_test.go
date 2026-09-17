@@ -18,7 +18,7 @@ type quotaStateRepoStub struct {
 	stateErr   error
 }
 
-func (s *quotaStateRepoStub) IncrementQuotaUsedAndGetState(ctx context.Context, id int64, amount float64) (*APIKeyQuotaUsageState, error) {
+func (s *quotaStateRepoStub) IncrementQuotaUsedAndGetState(ctx context.Context, id string, amount float64) (*APIKeyQuotaUsageState, error) {
 	s.stateCalls++
 	if s.stateErr != nil {
 		return nil, s.stateErr
@@ -34,15 +34,15 @@ type quotaStateCacheStub struct {
 	deleteAuthKeys []string
 }
 
-func (s *quotaStateCacheStub) GetCreateAttemptCount(context.Context, int64) (int, error) {
+func (s *quotaStateCacheStub) GetCreateAttemptCount(context.Context, string) (int, error) {
 	return 0, nil
 }
 
-func (s *quotaStateCacheStub) IncrementCreateAttemptCount(context.Context, int64) error {
+func (s *quotaStateCacheStub) IncrementCreateAttemptCount(context.Context, string) error {
 	return nil
 }
 
-func (s *quotaStateCacheStub) DeleteCreateAttemptCount(context.Context, int64) error {
+func (s *quotaStateCacheStub) DeleteCreateAttemptCount(context.Context, string) error {
 	return nil
 }
 
@@ -82,11 +82,11 @@ type quotaBaseAPIKeyRepoStub struct {
 func (s *quotaBaseAPIKeyRepoStub) Create(context.Context, *APIKey) error {
 	panic("unexpected Create call")
 }
-func (s *quotaBaseAPIKeyRepoStub) GetByID(context.Context, int64) (*APIKey, error) {
+func (s *quotaBaseAPIKeyRepoStub) GetByID(context.Context, string) (*APIKey, error) {
 	s.getByIDCalls++
 	return nil, nil
 }
-func (s *quotaBaseAPIKeyRepoStub) GetKeyAndOwnerID(context.Context, int64) (string, int64, error) {
+func (s *quotaBaseAPIKeyRepoStub) GetKeyAndOwnerID(context.Context, string) (string, string, error) {
 	panic("unexpected GetKeyAndOwnerID call")
 }
 func (s *quotaBaseAPIKeyRepoStub) GetByKey(context.Context, string) (*APIKey, error) {
@@ -98,58 +98,58 @@ func (s *quotaBaseAPIKeyRepoStub) GetByKeyForAuth(context.Context, string) (*API
 func (s *quotaBaseAPIKeyRepoStub) Update(context.Context, *APIKey, APIKeyUpdateFields) error {
 	panic("unexpected Update call")
 }
-func (s *quotaBaseAPIKeyRepoStub) Delete(context.Context, int64) error {
+func (s *quotaBaseAPIKeyRepoStub) Delete(context.Context, string) error {
 	panic("unexpected Delete call")
 }
-func (s *quotaBaseAPIKeyRepoStub) DeleteWithAudit(context.Context, int64) error {
+func (s *quotaBaseAPIKeyRepoStub) DeleteWithAudit(context.Context, string) error {
 	panic("unexpected DeleteWithAudit call")
 }
-func (s *quotaBaseAPIKeyRepoStub) ListByUserID(context.Context, int64, pagination.PaginationParams, APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+func (s *quotaBaseAPIKeyRepoStub) ListByUserID(context.Context, string, pagination.PaginationParams, APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
 	panic("unexpected ListByUserID call")
 }
-func (s *quotaBaseAPIKeyRepoStub) VerifyOwnership(context.Context, int64, []int64) ([]int64, error) {
+func (s *quotaBaseAPIKeyRepoStub) VerifyOwnership(context.Context, string, []string) ([]string, error) {
 	panic("unexpected VerifyOwnership call")
 }
-func (s *quotaBaseAPIKeyRepoStub) CountByUserID(context.Context, int64) (int64, error) {
+func (s *quotaBaseAPIKeyRepoStub) CountByUserID(context.Context, string) (int64, error) {
 	panic("unexpected CountByUserID call")
 }
 func (s *quotaBaseAPIKeyRepoStub) ExistsByKey(context.Context, string) (bool, error) {
 	panic("unexpected ExistsByKey call")
 }
-func (s *quotaBaseAPIKeyRepoStub) ListByGroupID(context.Context, int64, pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
+func (s *quotaBaseAPIKeyRepoStub) ListByGroupID(context.Context, string, pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
 	panic("unexpected ListByGroupID call")
 }
-func (s *quotaBaseAPIKeyRepoStub) SearchAPIKeys(context.Context, int64, string, int) ([]APIKey, error) {
+func (s *quotaBaseAPIKeyRepoStub) SearchAPIKeys(context.Context, string, string, int) ([]APIKey, error) {
 	panic("unexpected SearchAPIKeys call")
 }
-func (s *quotaBaseAPIKeyRepoStub) ClearGroupIDByGroupID(context.Context, int64) (int64, error) {
+func (s *quotaBaseAPIKeyRepoStub) ClearGroupIDByGroupID(context.Context, string) (int64, error) {
 	panic("unexpected ClearGroupIDByGroupID call")
 }
-func (s *quotaBaseAPIKeyRepoStub) UpdateGroupIDByUserAndGroup(context.Context, int64, int64, int64) (int64, error) {
+func (s *quotaBaseAPIKeyRepoStub) UpdateGroupIDByUserAndGroup(context.Context, string, string, string) (int64, error) {
 	panic("unexpected UpdateGroupIDByUserAndGroup call")
 }
-func (s *quotaBaseAPIKeyRepoStub) CountByGroupID(context.Context, int64) (int64, error) {
+func (s *quotaBaseAPIKeyRepoStub) CountByGroupID(context.Context, string) (int64, error) {
 	panic("unexpected CountByGroupID call")
 }
-func (s *quotaBaseAPIKeyRepoStub) ListKeysByUserID(context.Context, int64) ([]string, error) {
+func (s *quotaBaseAPIKeyRepoStub) ListKeysByUserID(context.Context, string) ([]string, error) {
 	panic("unexpected ListKeysByUserID call")
 }
-func (s *quotaBaseAPIKeyRepoStub) ListKeysByGroupID(context.Context, int64) ([]string, error) {
+func (s *quotaBaseAPIKeyRepoStub) ListKeysByGroupID(context.Context, string) ([]string, error) {
 	panic("unexpected ListKeysByGroupID call")
 }
-func (s *quotaBaseAPIKeyRepoStub) IncrementQuotaUsed(context.Context, int64, float64) (float64, error) {
+func (s *quotaBaseAPIKeyRepoStub) IncrementQuotaUsed(context.Context, string, float64) (float64, error) {
 	panic("unexpected IncrementQuotaUsed call")
 }
-func (s *quotaBaseAPIKeyRepoStub) UpdateLastUsed(context.Context, int64, time.Time) error {
+func (s *quotaBaseAPIKeyRepoStub) UpdateLastUsed(context.Context, string, time.Time) error {
 	panic("unexpected UpdateLastUsed call")
 }
-func (s *quotaBaseAPIKeyRepoStub) IncrementRateLimitUsage(context.Context, int64, float64) error {
+func (s *quotaBaseAPIKeyRepoStub) IncrementRateLimitUsage(context.Context, string, float64) error {
 	panic("unexpected IncrementRateLimitUsage call")
 }
-func (s *quotaBaseAPIKeyRepoStub) ResetRateLimitWindows(context.Context, int64) error {
+func (s *quotaBaseAPIKeyRepoStub) ResetRateLimitWindows(context.Context, string) error {
 	panic("unexpected ResetRateLimitWindows call")
 }
-func (s *quotaBaseAPIKeyRepoStub) GetRateLimitData(context.Context, int64) (*APIKeyRateLimitData, error) {
+func (s *quotaBaseAPIKeyRepoStub) GetRateLimitData(context.Context, string) (*APIKeyRateLimitData, error) {
 	panic("unexpected GetRateLimitData call")
 }
 
@@ -168,7 +168,7 @@ func TestAPIKeyService_UpdateQuotaUsed_UsesAtomicStatePath(t *testing.T) {
 		cache:      cache,
 	}
 
-	err := svc.UpdateQuotaUsed(context.Background(), 101, 2)
+	err := svc.UpdateQuotaUsed(context.Background(), "101", 2)
 	require.NoError(t, err)
 	require.Equal(t, 1, repo.stateCalls)
 	require.Equal(t, 0, repo.getByIDCalls, "fast path should not re-read API key by id")
@@ -178,8 +178,8 @@ func TestAPIKeyService_UpdateQuotaUsed_UsesAtomicStatePath(t *testing.T) {
 func TestAPIKeyService_Update_ReactivatesQuotaExhaustedWhenQuotaUnlimited(t *testing.T) {
 	repo := &apiKeyRepoStub{
 		apiKey: &APIKey{
-			ID:        10,
-			UserID:    7,
+			ID: "10",
+			UserID: "7",
 			Key:       "sk-test-unlimited",
 			Status:    StatusAPIKeyQuotaExhausted,
 			Quota:     10,
@@ -189,7 +189,7 @@ func TestAPIKeyService_Update_ReactivatesQuotaExhaustedWhenQuotaUnlimited(t *tes
 	svc := &APIKeyService{apiKeyRepo: repo}
 	quota := 0.0
 
-	updated, err := svc.Update(context.Background(), 10, 7, UpdateAPIKeyRequest{Quota: &quota})
+	updated, err := svc.Update(context.Background(), "10", "7", UpdateAPIKeyRequest{Quota: &quota})
 
 	require.NoError(t, err)
 	require.Equal(t, StatusActive, updated.Status)

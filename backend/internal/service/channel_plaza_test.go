@@ -20,7 +20,7 @@ func newPlazaChannelService(channels []Channel, groups []Group, pricing *Pricing
 	return svc
 }
 
-func plazaPricedChannel(id int64, name string, groupIDs []int64, platform string, models ...string) Channel {
+func plazaPricedChannel(id string, name string, groupIDs []string, platform string, models ...string) Channel {
 	return Channel{
 		ID:       id,
 		Name:     name,
@@ -39,18 +39,18 @@ func plazaPricedChannel(id int64, name string, groupIDs []int64, platform string
 func TestListPlazaGroups_GroupCentricAggregation(t *testing.T) {
 	// 两个渠道挂同一分组:模型并入同一 PlazaGroup;无模型的分组不返回。
 	channels := []Channel{
-		plazaPricedChannel(1, "chA", []int64{10}, "anthropic", "claude-sonnet"),
-		plazaPricedChannel(2, "chB", []int64{10}, "anthropic", "claude-opus"),
+		plazaPricedChannel("1", "chA", []string{"10"}, "anthropic", "claude-sonnet"),
+		plazaPricedChannel("2", "chB", []string{"10"}, "anthropic", "claude-opus"),
 	}
 	groups := []Group{
-		{ID: 10, Name: "g-main", Description: "desc", Platform: "anthropic", RateMultiplier: 1},
-		{ID: 20, Name: "g-empty", Platform: "anthropic", RateMultiplier: 0.5},
+		{ID: "10", Name: "g-main", Description: "desc", Platform: "anthropic", RateMultiplier: 1},
+		{ID: "20", Name: "g-empty", Platform: "anthropic", RateMultiplier: 0.5},
 	}
 	svc := newPlazaChannelService(channels, groups, nil)
 	out, err := svc.ListPlazaGroups(context.Background())
 	require.NoError(t, err)
 	require.Len(t, out, 1, "无模型的分组不应返回")
-	require.Equal(t, int64(10), out[0].ID)
+	require.Equal(t, "10", out[0].ID)
 	require.Equal(t, "desc", out[0].Description)
 	require.Len(t, out[0].Models, 2)
 	// 组内模型按名称排序
@@ -61,14 +61,14 @@ func TestListPlazaGroups_GroupCentricAggregation(t *testing.T) {
 func TestListPlazaGroups_DedupFirstWinsWithPricingUpgrade(t *testing.T) {
 	// 同名模型:先见者胜;仅当已存条目无定价而新条目有定价时升级替换。
 	unpriced := Channel{
-		ID: 1, Name: "alpha", Status: StatusActive, GroupIDs: []int64{10},
+		ID: "1", Name: "alpha", Status: StatusActive, GroupIDs: []string{"10"},
 		// mapping-only → SupportedModels 产出无定价条目
 		ModelMapping: map[string]map[string]string{
 			"anthropic": {"claude-sonnet": "claude-sonnet"},
 		},
 	}
-	priced := plazaPricedChannel(2, "beta", []int64{10}, "anthropic", "claude-sonnet")
-	groups := []Group{{ID: 10, Name: "g", Platform: "anthropic", RateMultiplier: 1}}
+	priced := plazaPricedChannel("2", "beta", []string{"10"}, "anthropic", "claude-sonnet")
+	groups := []Group{{ID: "10", Name: "g", Platform: "anthropic", RateMultiplier: 1}}
 
 	// alpha(无价)按名称序先于 beta(有价):先见者无价,应被有价条目升级。
 	svc := newPlazaChannelService([]Channel{priced, unpriced}, groups, nil)
@@ -83,15 +83,15 @@ func TestListPlazaGroups_DedupFirstWinsWithPricingUpgrade(t *testing.T) {
 func TestListPlazaGroups_PlatformIsolation(t *testing.T) {
 	// 渠道同时有 anthropic/openai 定价,anthropic 分组只应看到 anthropic 模型。
 	ch := Channel{
-		ID: 1, Name: "multi", Status: StatusActive, GroupIDs: []int64{10, 20},
+		ID: "1", Name: "multi", Status: StatusActive, GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
 			{Platform: "anthropic", Models: []string{"claude-sonnet"}, InputPrice: testPtrFloat64(3e-6)},
 			{Platform: "openai", Models: []string{"gpt-5"}, InputPrice: testPtrFloat64(2e-6)},
 		},
 	}
 	groups := []Group{
-		{ID: 10, Name: "g-claude", Platform: "anthropic", RateMultiplier: 1},
-		{ID: 20, Name: "g-gpt", Platform: "openai", RateMultiplier: 1},
+		{ID: "10", Name: "g-claude", Platform: "anthropic", RateMultiplier: 1},
+		{ID: "20", Name: "g-gpt", Platform: "openai", RateMultiplier: 1},
 	}
 	svc := newPlazaChannelService([]Channel{ch}, groups, nil)
 	out, err := svc.ListPlazaGroups(context.Background())
@@ -111,7 +111,7 @@ func TestListPlazaGroups_CompositeIncludesConfiguredConcretePlatforms(t *testing
 	anthropicPrice := 3e-6
 	openAIPrice := 2e-6
 	ch := Channel{
-		ID: 1, Name: "multi", Status: StatusActive, GroupIDs: []int64{10},
+		ID: "1", Name: "multi", Status: StatusActive, GroupIDs: []string{"10"},
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformAnthropic, Models: []string{"shared-model"}, InputPrice: &anthropicPrice},
 			{Platform: PlatformOpenAI, Models: []string{"shared-model"}, InputPrice: &openAIPrice},
@@ -120,7 +120,7 @@ func TestListPlazaGroups_CompositeIncludesConfiguredConcretePlatforms(t *testing
 			{Platform: "unknown-platform", Models: []string{"unknown-platform"}},
 		},
 	}
-	groups := []Group{{ID: 10, Name: "composite", Platform: PlatformComposite, RateMultiplier: 1}}
+	groups := []Group{{ID: "10", Name: "composite", Platform: PlatformComposite, RateMultiplier: 1}}
 
 	out, err := newPlazaChannelService([]Channel{ch}, groups, nil).ListPlazaGroups(context.Background())
 
@@ -135,15 +135,15 @@ func TestListPlazaGroups_CompositeIncludesConfiguredConcretePlatforms(t *testing
 
 func TestListPlazaGroups_CompositeAndOrdinaryGroupsDoNotLeakPlatforms(t *testing.T) {
 	ch := Channel{
-		ID: 1, Name: "multi", Status: StatusActive, GroupIDs: []int64{10, 20},
+		ID: "1", Name: "multi", Status: StatusActive, GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformAnthropic, Models: []string{"claude-sonnet"}, InputPrice: testPtrFloat64(3e-6)},
 			{Platform: PlatformOpenAI, Models: []string{"gpt-5"}, InputPrice: testPtrFloat64(2e-6)},
 		},
 	}
 	groups := []Group{
-		{ID: 10, Name: "anthropic-only", Platform: PlatformAnthropic, RateMultiplier: 1},
-		{ID: 20, Name: "composite", Platform: PlatformComposite, RateMultiplier: 1},
+		{ID: "10", Name: "anthropic-only", Platform: PlatformAnthropic, RateMultiplier: 1},
+		{ID: "20", Name: "composite", Platform: PlatformComposite, RateMultiplier: 1},
 	}
 
 	out, err := newPlazaChannelService([]Channel{ch}, groups, nil).ListPlazaGroups(context.Background())
@@ -170,9 +170,9 @@ func TestListPlazaGroups_CompositeAndOrdinaryGroupsDoNotLeakPlatforms(t *testing
 }
 
 func TestListPlazaGroups_InactiveChannelSkipped(t *testing.T) {
-	inactive := plazaPricedChannel(1, "off", []int64{10}, "anthropic", "claude-sonnet")
+	inactive := plazaPricedChannel("1", "off", []string{"10"}, "anthropic", "claude-sonnet")
 	inactive.Status = "inactive"
-	groups := []Group{{ID: 10, Name: "g", Platform: "anthropic", RateMultiplier: 1}}
+	groups := []Group{{ID: "10", Name: "g", Platform: "anthropic", RateMultiplier: 1}}
 	svc := newPlazaChannelService([]Channel{inactive}, groups, nil)
 	out, err := svc.ListPlazaGroups(context.Background())
 	require.NoError(t, err)
@@ -181,12 +181,12 @@ func TestListPlazaGroups_InactiveChannelSkipped(t *testing.T) {
 
 func TestListPlazaGroups_SortedByRateMultiplierAsc(t *testing.T) {
 	channels := []Channel{
-		plazaPricedChannel(1, "ch", []int64{10, 20, 30}, "anthropic", "claude-sonnet"),
+		plazaPricedChannel("1", "ch", []string{"10", "20", "30"}, "anthropic", "claude-sonnet"),
 	}
 	groups := []Group{
-		{ID: 10, Name: "b-standard", Platform: "anthropic", RateMultiplier: 1},
-		{ID: 20, Name: "a-standard", Platform: "anthropic", RateMultiplier: 1},
-		{ID: 30, Name: "cheap", Platform: "anthropic", RateMultiplier: 0.5},
+		{ID: "10", Name: "b-standard", Platform: "anthropic", RateMultiplier: 1},
+		{ID: "20", Name: "a-standard", Platform: "anthropic", RateMultiplier: 1},
+		{ID: "30", Name: "cheap", Platform: "anthropic", RateMultiplier: 0.5},
 	}
 	svc := newPlazaChannelService(channels, groups, nil)
 	out, err := svc.ListPlazaGroups(context.Background())
@@ -210,9 +210,9 @@ func TestListPlazaGroups_OfficialPricingFill(t *testing.T) {
 		"token-absent": {Mode: "image_generation", TokenPricingAbsent: true, OutputCostPerImage: 0.04},
 	})
 	channels := []Channel{
-		plazaPricedChannel(1, "ch", []int64{10}, "anthropic", "claude-sonnet", "unknown-model", "token-absent"),
+		plazaPricedChannel("1", "ch", []string{"10"}, "anthropic", "claude-sonnet", "unknown-model", "token-absent"),
 	}
-	groups := []Group{{ID: 10, Name: "g", Platform: "anthropic", RateMultiplier: 1}}
+	groups := []Group{{ID: "10", Name: "g", Platform: "anthropic", RateMultiplier: 1}}
 	svc := newPlazaChannelService(channels, groups, pricingSvc)
 	out, err := svc.ListPlazaGroups(context.Background())
 	require.NoError(t, err)
@@ -242,7 +242,7 @@ func TestListPlazaGroups_GroupImagePriceOverridesChannelPricing(t *testing.T) {
 	tier4K := 0.3
 	imgPrice := 0.02
 	channels := []Channel{{
-		ID: 1, Name: "img-ch", Status: StatusActive, GroupIDs: []int64{10, 20},
+		ID: "1", Name: "img-ch", Status: StatusActive, GroupIDs: []string{"10", "20"},
 		ModelPricing: []ChannelModelPricing{{
 			Platform:        "openai",
 			Models:          []string{"gpt-image-2"},
@@ -252,9 +252,9 @@ func TestListPlazaGroups_GroupImagePriceOverridesChannelPricing(t *testing.T) {
 		}},
 	}}
 	groups := []Group{
-		{ID: 10, Name: "g-media", Platform: "openai", RateMultiplier: 1,
+		{ID: "10", Name: "g-media", Platform: "openai", RateMultiplier: 1,
 			ImagePrice1K: &imgPrice, ImageRateIndependent: true, ImageRateMultiplier: 1},
-		{ID: 20, Name: "g-plain", Platform: "openai", RateMultiplier: 0.1},
+		{ID: "20", Name: "g-plain", Platform: "openai", RateMultiplier: 0.1},
 	}
 	svc := newPlazaChannelService(channels, groups, nil)
 	out, err := svc.ListPlazaGroups(context.Background())
@@ -296,8 +296,8 @@ func TestListPlazaGroups_GroupImagePriceOverridesChannelPricing(t *testing.T) {
 func TestListPlazaGroups_GroupImagePriceIgnoredForNonImageModes(t *testing.T) {
 	// token 模式定价不受分组图片价影响。
 	imgPrice := 0.02
-	channels := []Channel{plazaPricedChannel(1, "ch", []int64{10}, "openai", "gpt-5")}
-	groups := []Group{{ID: 10, Name: "g", Platform: "openai", RateMultiplier: 1, ImagePrice1K: &imgPrice}}
+	channels := []Channel{plazaPricedChannel("1", "ch", []string{"10"}, "openai", "gpt-5")}
+	groups := []Group{{ID: "10", Name: "g", Platform: "openai", RateMultiplier: 1, ImagePrice1K: &imgPrice}}
 	svc := newPlazaChannelService(channels, groups, nil)
 	out, err := svc.ListPlazaGroups(context.Background())
 	require.NoError(t, err)

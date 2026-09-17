@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -138,7 +137,7 @@ func TestPrepDeductBalanceRequiresForceWhenBalanceIsInsufficient(t *testing.T) {
 			svc := &PaymentService{userRepo: &mockUserRepo{getByIDUser: &User{Balance: tc.balance}}}
 
 			result := svc.prepDeduct(context.Background(), &dbent.PaymentOrder{
-				UserID:    1,
+				UserID: "1",
 				OrderType: payment.OrderTypeBalance,
 			}, plan, tc.force)
 
@@ -186,7 +185,7 @@ func TestExecuteRefundUsesActualAvailableBalanceDeduction(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-	repo := &mockUserRepo{deductAvailableBalanceFn: func(_ context.Context, id int64, amount float64) (float64, error) {
+	repo := &mockUserRepo{deductAvailableBalanceFn: func(_ context.Context, id string, amount float64) (float64, error) {
 		require.Equal(t, user.ID, id)
 		require.Equal(t, 100.0, amount)
 		return 25, nil
@@ -202,7 +201,7 @@ func TestExecuteRefundUsesActualAvailableBalanceDeduction(t *testing.T) {
 	require.Equal(t, 25.0, plan.BalanceToDeduct)
 	require.Equal(t, 25.0, result.BalanceDeducted)
 	audit, err := client.PaymentAuditLog.Query().
-		Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
+		Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
 		Only(ctx)
 	require.NoError(t, err)
 	require.Contains(t, audit.Detail, `"balanceDeducted":25`)
@@ -232,7 +231,7 @@ func TestGwRefundRejectsAlipayMerchantIdentitySnapshotMismatch(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-	instID := strconv.FormatInt(inst.ID, 10)
+	instID := inst.ID
 	order, err := client.PaymentOrder.Create().
 		SetUserID(user.ID).
 		SetUserEmail(user.Email).
@@ -332,7 +331,7 @@ func TestFinishRefundPendingMarksOrderPendingAndRollsBackDeduction(t *testing.T)
 
 	var rolledBack float64
 	userRepo := &mockUserRepo{}
-	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+	userRepo.updateBalanceFn = func(ctx context.Context, id string, amount float64) error {
 		require.Equal(t, user.ID, id)
 		rolledBack += amount
 		return nil
@@ -369,12 +368,12 @@ func TestFinishRefundPendingMarksOrderPendingAndRollsBackDeduction(t *testing.T)
 	require.Nil(t, reloaded.RefundAt)
 
 	pendingAudits, err := client.PaymentAuditLog.Query().
-		Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_PENDING")).
+		Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_PENDING")).
 		Count(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, pendingAudits)
 	successAudits, err := client.PaymentAuditLog.Query().
-		Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
+		Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
 		Count(ctx)
 	require.NoError(t, err)
 	require.Zero(t, successAudits)
@@ -436,12 +435,12 @@ func TestFinishRefundSuccessStatusesFinalize(t *testing.T) {
 			require.NotNil(t, reloaded.RefundAt)
 
 			successAudits, err := client.PaymentAuditLog.Query().
-				Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
+				Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
 				Count(ctx)
 			require.NoError(t, err)
 			require.Equal(t, 1, successAudits)
 			pendingAudits, err := client.PaymentAuditLog.Query().
-				Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_PENDING")).
+				Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_PENDING")).
 				Count(ctx)
 			require.NoError(t, err)
 			require.Zero(t, pendingAudits)
@@ -471,7 +470,7 @@ func TestQueryAndFinalizeRefundFinalizesProviderStatuses(t *testing.T) {
 			svc := &PaymentService{
 				entClient:    client,
 				loadBalancer: &captureLoadBalancer{},
-				userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id int64, amount float64) (float64, error) {
+				userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id string, amount float64) (float64, error) {
 					deducted += tc.available
 					return tc.available, nil
 				}},
@@ -489,7 +488,7 @@ func TestQueryAndFinalizeRefundFinalizesProviderStatuses(t *testing.T) {
 			if tc.status == payment.ProviderStatusSuccess {
 				require.Equal(t, tc.wantDeduct, result.BalanceDeducted)
 				audit, err := client.PaymentAuditLog.Query().
-					Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
+					Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
 					Only(ctx)
 				require.NoError(t, err)
 				require.Contains(t, audit.Detail, fmt.Sprintf(`"balanceDeducted":%v`, tc.wantDeduct))
@@ -510,7 +509,7 @@ func TestFinalizePendingRefundSuccessRejectsStaleCallerBeforeSecondDeduction(t *
 	deductions := 0
 	svc := &PaymentService{
 		entClient: client,
-		userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id int64, amount float64) (float64, error) {
+		userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id string, amount float64) (float64, error) {
 			require.NotNil(t, dbent.TxFromContext(ctx))
 			deductions++
 			return amount, nil
@@ -528,7 +527,7 @@ func TestFinalizePendingRefundSuccessRejectsStaleCallerBeforeSecondDeduction(t *
 	require.Equal(t, 1, deductions)
 
 	successAudits, err := client.PaymentAuditLog.Query().
-		Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
+		Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
 		Count(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, successAudits)
@@ -543,7 +542,7 @@ func TestFinalizePendingRefundSuccessRollsBackPostDeductionFailure(t *testing.T)
 
 	svc := &PaymentService{
 		entClient: client,
-		userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id int64, amount float64) (float64, error) {
+		userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id string, amount float64) (float64, error) {
 			tx := dbent.TxFromContext(ctx)
 			require.NotNil(t, tx)
 			if _, updateErr := tx.Client().User.UpdateOneID(id).AddBalance(-amount).Save(ctx); updateErr != nil {
@@ -564,7 +563,7 @@ func TestFinalizePendingRefundSuccessRollsBackPostDeductionFailure(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusRefundPending, reloaded.Status)
 	successAudits, err := client.PaymentAuditLog.Query().
-		Where(paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
+		Where(paymentauditlog.OrderIDEQ(order.ID), paymentauditlog.ActionEQ("REFUND_SUCCESS")).
 		Count(ctx)
 	require.NoError(t, err)
 	require.Zero(t, successAudits)
@@ -623,12 +622,12 @@ func createPendingRefundOrderForTest(t *testing.T, ctx context.Context, client *
 		SetPaidAt(time.Now()).
 		SetClientIP("127.0.0.1").
 		SetSrcHost("api.example.com").
-		SetProviderInstanceID(strconv.FormatInt(inst.ID, 10)).
+		SetProviderInstanceID(inst.ID).
 		Save(ctx)
 	require.NoError(t, err)
 
 	_, err = client.PaymentAuditLog.Create().
-		SetOrderID(strconv.FormatInt(order.ID, 10)).
+		SetOrderID(order.ID).
 		SetAction("REFUND_PENDING").
 		SetOperator("admin").
 		SetDetail(`{"refundID":"rf_test","deductionRollbackOK":true}`).

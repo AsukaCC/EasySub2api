@@ -30,7 +30,7 @@ func bindPassthroughRule(c *gin.Context, platform string, keywords []string, res
 		code := responseCode
 		rules = append(rules, &cachedPassthroughRule{
 			ErrorPassthroughRule: &model.ErrorPassthroughRule{
-				ID:              int64(i + 1),
+				ID:              fmt.Sprintf("%d", i+1),
 				Enabled:         true,
 				Platforms:       []string{platform},
 				MatchMode:       model.MatchModeAny,
@@ -146,7 +146,7 @@ func TestForwardAsChatCompletions_ResponseFailed_NoRule_Still502(t *testing.T) {
 // 此类规则依赖语义状态码推断才能在协议转换路径命中（response.failed 无真实 HTTP 状态码）。
 func bindStatusCodePassthroughRule(c *gin.Context, platform string, statusCode int, keyword string, responseCode int) {
 	rule := &model.ErrorPassthroughRule{
-		ID:              1,
+		ID: "1",
 		Name:            "status-code-rule",
 		Enabled:         true,
 		Priority:        1,

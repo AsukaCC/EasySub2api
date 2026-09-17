@@ -84,9 +84,9 @@ func (r *upstreamCostCountingAccountRepo) calls() int {
 	return r.getCalls
 }
 
-func upstreamCostTestAccount(id int64, status string, rate float64, receivedAt time.Time, interval time.Duration) *Account {
+func upstreamCostTestAccount(id string, status string, rate float64, receivedAt time.Time, interval time.Duration) *Account {
 	return &Account{
-		ID:       fmt.Sprintf("account-%d", id),
+		ID:       fmt.Sprintf("account-%s", id),
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Extra: map[string]any{
@@ -107,8 +107,8 @@ func upstreamCostTestAccount(id int64, status string, rate float64, receivedAt t
 	}
 }
 
-func upstreamCostTestOAuthAccount(id int64) *Account {
-	return &Account{ID: fmt.Sprintf("account-%d", id), Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+func upstreamCostTestOAuthAccount(id string) *Account {
+	return &Account{ID: fmt.Sprintf("account-%s", id), Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 }
 
 func TestAdvancedCostSchedulerUsesTopKOverflowWhenPreferredAccountIsKnownFull(t *testing.T) {
@@ -116,8 +116,8 @@ func TestAdvancedCostSchedulerUsesTopKOverflowWhenPreferredAccountIsKnownFull(t 
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	for _, account := range []*Account{cheap, expensive} {
 		account.Status = StatusActive
 		account.Schedulable = true
@@ -262,9 +262,9 @@ func TestAdvancedCostSchedulerKeepsCompactSupportedOverflowAheadOfUnknown(t *tes
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	preferred := upstreamCostTestAccount(11, UpstreamBillingProbeStatusOK, 0.01, now.Add(-time.Minute), 30*time.Minute)
-	overflow := upstreamCostTestAccount(12, UpstreamBillingProbeStatusOK, 0.1, now.Add(-time.Minute), 30*time.Minute)
-	unknown := upstreamCostTestAccount(13, UpstreamBillingProbeStatusOK, 0.001, now.Add(-time.Minute), 30*time.Minute)
+	preferred := upstreamCostTestAccount("11", UpstreamBillingProbeStatusOK, 0.01, now.Add(-time.Minute), 30*time.Minute)
+	overflow := upstreamCostTestAccount("12", UpstreamBillingProbeStatusOK, 0.1, now.Add(-time.Minute), 30*time.Minute)
+	unknown := upstreamCostTestAccount("13", UpstreamBillingProbeStatusOK, 0.001, now.Add(-time.Minute), 30*time.Minute)
 	preferred.Extra["openai_compact_supported"] = true
 	overflow.Extra["openai_compact_supported"] = true
 	for _, account := range []*Account{preferred, overflow, unknown} {
@@ -360,7 +360,7 @@ func TestAdvancedSchedulerReacquiresOnceWhenDBConcurrencyChanges(t *testing.T) {
 
 func TestAdvancedSchedulerKnownFullPoolsDoNotRecheckDB(t *testing.T) {
 	for _, size := range []int{100, 15_000} {
-			t.Run(strconv.Itoa(size), func(t *testing.T) {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
 			accounts := make(map[string]*Account, size)
 			selectionOrder := make([]openAIAccountCandidateScore, 0, size)
 			for i := 1; i <= size; i++ {
@@ -391,7 +391,7 @@ func TestAdvancedSchedulerKnownFullPoolsDoNotRecheckDB(t *testing.T) {
 
 func TestOpenAIFreshUpstreamBillingRateRecomputesPeakAtSelectionTime(t *testing.T) {
 	receivedAt := time.Date(2026, 7, 13, 17, 30, 0, 0, time.UTC)
-	account := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.4, receivedAt, time.Hour)
+	account := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.4, receivedAt, time.Hour)
 	snapshot, ok := account.Extra[UpstreamBillingProbeExtraKey].(map[string]any)
 	require.True(t, ok)
 	snapshot["data"] = map[string]any{
@@ -418,7 +418,7 @@ func TestOpenAIFreshUpstreamBillingRateRecomputesPeakAtSelectionTime(t *testing.
 func TestOpenAIUpstreamCostFactorsSparseProbeIsNeutral(t *testing.T) {
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	accounts := make([]*Account, 0, 10)
-	accounts = append(accounts, upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 1, now.Add(-time.Minute), 30*time.Minute))
+	accounts = append(accounts, upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 1, now.Add(-time.Minute), 30*time.Minute))
 	for id := int64(2); id <= 10; id++ {
 		accounts = append(accounts, &Account{
 			ID:       fmt.Sprintf("account-%d", id),
@@ -443,8 +443,8 @@ func TestOpenAIUpstreamCostFactorsSparseProbeIsNeutral(t *testing.T) {
 func TestOpenAIUpstreamCostFactorsCoverageShrinksSparseSignal(t *testing.T) {
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	accounts := []*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
 	}
 	for id := int64(3); id <= 10; id++ {
 		accounts = append(accounts, &Account{ID: fmt.Sprintf("account-%d", id), Platform: PlatformOpenAI, Type: AccountTypeAPIKey})
@@ -460,9 +460,9 @@ func TestOpenAIUpstreamCostFactorsCoverageShrinksSparseSignal(t *testing.T) {
 func TestOpenAIUpstreamCostFactorsUseMedianAgainstOutlier(t *testing.T) {
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	accounts := []*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.1, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.2, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 100, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.1, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.2, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("3", UpstreamBillingProbeStatusOK, 100, now.Add(-time.Minute), 30*time.Minute),
 	}
 
 	factors := openAIUpstreamCostFactors(accounts, now, defaultOpenAIOAuthSchedulingRateMultiplier)
@@ -474,20 +474,20 @@ func TestOpenAIUpstreamCostFactorsUseMedianAgainstOutlier(t *testing.T) {
 func TestOpenAILegacyUpstreamRateOrderRequiresComparableRates(t *testing.T) {
 	now := time.Now()
 	oneKnown := newOpenAILegacyUpstreamRateOrder([]*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
 		{ID: "account-2", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	require.False(t, oneKnown.enabled)
 
 	allEqual := newOpenAILegacyUpstreamRateOrder([]*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute),
 	}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	require.False(t, allEqual.enabled)
 
 	distinct := newOpenAILegacyUpstreamRateOrder([]*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
 		{ID: "account-3", Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	require.True(t, distinct.enabled)
@@ -502,13 +502,13 @@ func TestOpenAILegacyUpstreamRateOrderRequiresComparableRates(t *testing.T) {
 // 使用同一道平台门控。
 func TestOpenAILegacyUpstreamRateOrderIgnoresNonOpenAIPlatforms(t *testing.T) {
 	now := time.Now()
-	nonOpenAI := func(id int64, platform string, rate float64) *Account {
+	nonOpenAI := func(id string, platform string, rate float64) *Account {
 		account := upstreamCostTestAccount(id, UpstreamBillingProbeStatusOK, rate, now.Add(-time.Minute), 30*time.Minute)
 		account.Platform = platform
 		return account
 	}
-	grokCheap := nonOpenAI(1, PlatformGrok, 0.01)
-	anthropicExpensive := nonOpenAI(2, PlatformAnthropic, 0.9)
+	grokCheap := nonOpenAI("1", PlatformGrok, 0.01)
+	anthropicExpensive := nonOpenAI("2", PlatformAnthropic, 0.9)
 
 	order := newOpenAILegacyUpstreamRateOrder([]*Account{grokCheap, anthropicExpensive, nil}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
 	require.False(t, order.enabled)
@@ -520,8 +520,8 @@ func TestOpenAILegacyUpstreamRateOrderIgnoresNonOpenAIPlatforms(t *testing.T) {
 	require.Equal(t, openAIUpstreamCostNeutralFactor, factors[anthropicExpensive.ID])
 
 	// 混合候选集里，非 OpenAI 账号既不进 rates 也不影响 OpenAI 账号之间的排序。
-	openAICheap := upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
-	openAIExpensive := upstreamCostTestAccount(4, UpstreamBillingProbeStatusOK, 0.12, now.Add(-time.Minute), 30*time.Minute)
+	openAICheap := upstreamCostTestAccount("3", UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
+	openAIExpensive := upstreamCostTestAccount("4", UpstreamBillingProbeStatusOK, 0.12, now.Add(-time.Minute), 30*time.Minute)
 	mixed := newOpenAILegacyUpstreamRateOrder(
 		[]*Account{grokCheap, openAICheap, anthropicExpensive, openAIExpensive},
 		now, defaultOpenAIOAuthSchedulingRateMultiplier,
@@ -537,9 +537,9 @@ func TestOpenAILegacyUpstreamRateOrderIgnoresNonOpenAIPlatforms(t *testing.T) {
 
 func TestOpenAISchedulingRatePlacesOAuthAtConfiguredReference(t *testing.T) {
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
-	oauth := upstreamCostTestOAuthAccount(2)
-	expensive := upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 0.12, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
+	oauth := upstreamCostTestOAuthAccount("2")
+	expensive := upstreamCostTestAccount("3", UpstreamBillingProbeStatusOK, 0.12, now.Add(-time.Minute), 30*time.Minute)
 
 	order := newOpenAILegacyUpstreamRateOrder([]*Account{cheap, oauth, expensive}, now, 0.05)
 	require.True(t, order.enabled)
@@ -556,9 +556,9 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityUsesConfiguredOAuthReference(t
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
-	oauth := upstreamCostTestOAuthAccount(2)
-	expensive := upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 0.12, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
+	oauth := upstreamCostTestOAuthAccount("2")
+	expensive := upstreamCostTestAccount("3", UpstreamBillingProbeStatusOK, 0.12, now.Add(-time.Minute), 30*time.Minute)
 	for _, account := range []*Account{cheap, oauth, expensive} {
 		account.Status = StatusActive
 		account.Schedulable = true
@@ -594,8 +594,8 @@ func TestOpenAIModelsSelectionIgnoresTokenCostSignal(t *testing.T) {
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	cheap := upstreamCostTestAccount(51, UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
-	expensive := upstreamCostTestAccount(52, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("51", UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("52", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	for _, account := range []*Account{cheap, expensive} {
 		account.Status = StatusActive
 		account.Schedulable = true
@@ -620,9 +620,9 @@ func TestOpenAIModelsSelectionIgnoresTokenCostSignal(t *testing.T) {
 
 func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedScheduler(t *testing.T) {
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
 	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 10
-	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
 	accounts := []Account{*cheap, *expensive}
 	groupID := "group-1"
@@ -632,7 +632,7 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedSched
 		enabled   bool
 		loadBatch bool
 		loadErr   error
-		wantID string
+		wantID    string
 	}{
 		{name: "switch off keeps priority first", loadBatch: true, wantID: "account-2"},
 		{name: "load batch", enabled: true, loadBatch: true, wantID: "account-1"},
@@ -677,9 +677,9 @@ func TestOpenAIGatewayServiceAdvancedSchedulerIgnoresLegacyLowRateSwitch(t *test
 	resetOpenAIAdvancedSchedulerSettingCacheForTest()
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
 	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 10
-	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
 	settings := &openAIAdvancedSchedulerSettingRepoStub{values: map[string]string{
 		openAIAdvancedSchedulerSettingKey:              "true",
@@ -710,11 +710,11 @@ func TestOpenAIGatewayServiceLegacyLowRatePrioritySkipsCooledDownAccount(t *test
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 
 	now := time.Now()
-	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
+	cheap := upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
 	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 10
 	cooldownUntil := now.Add(time.Minute)
 	cheap.TempUnschedulableUntil = &cooldownUntil
-	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
+	expensive := upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
 	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
 	settings := &openAIAdvancedSchedulerSettingRepoStub{values: map[string]string{
 		openAIAdvancedSchedulerSettingKey:              "false",
@@ -749,12 +749,12 @@ func TestOpenAIFreshUpstreamBillingRateUsesFreshCachedSuccessOnly(t *testing.T) 
 		account *Account
 		wantOK  bool
 	}{
-		{name: "fresh", account: upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute), wantOK: true},
-		{name: "zero rate", account: upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0, now.Add(-time.Minute), 30*time.Minute), wantOK: true},
-		{name: "transient failure with fresh cache", account: upstreamCostTestAccount(3, UpstreamBillingProbeStatusFailed, 0.3, now.Add(-time.Minute), 30*time.Minute), wantOK: true},
-		{name: "stale", account: upstreamCostTestAccount(4, UpstreamBillingProbeStatusOK, 0.3, now.Add(-61*time.Minute), 30*time.Minute)},
-		{name: "future", account: upstreamCostTestAccount(5, UpstreamBillingProbeStatusOK, 0.3, now.Add(time.Minute), 30*time.Minute)},
-		{name: "unsupported", account: upstreamCostTestAccount(6, UpstreamBillingProbeStatusUnsupported, 0.3, now.Add(-time.Minute), 30*time.Minute)},
+		{name: "fresh", account: upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute), wantOK: true},
+		{name: "zero rate", account: upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0, now.Add(-time.Minute), 30*time.Minute), wantOK: true},
+		{name: "transient failure with fresh cache", account: upstreamCostTestAccount("3", UpstreamBillingProbeStatusFailed, 0.3, now.Add(-time.Minute), 30*time.Minute), wantOK: true},
+		{name: "stale", account: upstreamCostTestAccount("4", UpstreamBillingProbeStatusOK, 0.3, now.Add(-61*time.Minute), 30*time.Minute)},
+		{name: "future", account: upstreamCostTestAccount("5", UpstreamBillingProbeStatusOK, 0.3, now.Add(time.Minute), 30*time.Minute)},
+		{name: "unsupported", account: upstreamCostTestAccount("6", UpstreamBillingProbeStatusUnsupported, 0.3, now.Add(-time.Minute), 30*time.Minute)},
 	}
 
 	for _, tt := range tests {
@@ -797,9 +797,9 @@ func TestBuildOpenAIAccountLoadPlanUsesCostOnlyForTokenScope(t *testing.T) {
 
 	now := time.Now()
 	accounts := []*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestOAuthAccount(2),
-		upstreamCostTestAccount(3, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestOAuthAccount("2"),
+		upstreamCostTestAccount("3", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
 	}
 	cfg := &config.Config{}
 	cfg.Gateway.OpenAIWS.LBTopK = 1
@@ -848,8 +848,8 @@ func TestBuildOpenAIAccountSchedulerScoreSnapshotUpstreamCostIsExactNoOpWithoutS
 func TestBuildOpenAIAccountSchedulerScoreSnapshotUsesUpstreamCostSignal(t *testing.T) {
 	now := time.Now()
 	accounts := []*Account{
-		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
-		upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("1", UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
+		upstreamCostTestAccount("2", UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute),
 	}
 	weights := GatewayOpenAIWSSchedulerScoreWeightsView{UpstreamCost: 1.5}
 	scores := buildOpenAIAccountSchedulerScoreSnapshot(accounts, nil, weights, false, defaultOpenAIOAuthSchedulingRateMultiplier)

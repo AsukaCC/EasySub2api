@@ -1243,9 +1243,9 @@ func TestUpstreamBillingProbeScheduledRechecksAfterWaitingForSlot(t *testing.T) 
 }
 
 func TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow(t *testing.T) {
-	account := func(id int64) *Account {
+	account := func(id string) *Account {
 		return &Account{
-			ID:          fmt.Sprintf("%d", id),
+			ID:          id,
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -1254,7 +1254,7 @@ func TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow(t
 			Extra:       map[string]any{UpstreamBillingProbeEnabledExtraKey: true},
 		}
 	}
-	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{"41": account(41)}}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[string]*Account{"41": account("41")}}
 	settingsRepo := &upstreamBillingProbeSettingRepo{values: map[string]string{
 		SettingKeyUpstreamBillingProbeSettings: `{"enabled":true,"interval_minutes":30}`,
 	}}
@@ -1268,7 +1268,7 @@ func TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow(t
 	require.Equal(t, first.instanceID, cache.heldBy(upstreamBillingProbeLeaderLockKeyAt(time.Now())))
 
 	repo.mu.Lock()
-	repo.accounts["42"] = account(42)
+	repo.accounts["42"] = account("42")
 	repo.mu.Unlock()
 	staggered := newUpstreamBillingProbeTestService(repo, upstream, settingsRepo)
 	staggered.SetLeaderLock(cache, nil)

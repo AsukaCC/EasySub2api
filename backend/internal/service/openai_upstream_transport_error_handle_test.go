@@ -17,16 +17,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type tempUnschedCall struct {
+	accountID string
+	until     time.Time
+	reason    string
+}
+
 // openaiTransportAccountRepoStub records SetTempUnschedulable calls. It embeds the
 // (nil) AccountRepository interface so any other method call would panic — the
-// helper under test must only touch SetTempUnschedulable. tempUnschedCall is shared
-// with antigravity_internal500_penalty_test.go (same package).
+// helper under test must only touch SetTempUnschedulable.
 type openaiTransportAccountRepoStub struct {
 	AccountRepository
 	tempUnschedCalls []tempUnschedCall
 }
 
-func (r *openaiTransportAccountRepoStub) SetTempUnschedulable(_ context.Context, id int64, until time.Time, reason string) error {
+func (r *openaiTransportAccountRepoStub) SetTempUnschedulable(_ context.Context, id string, until time.Time, reason string) error {
 	r.tempUnschedCalls = append(r.tempUnschedCalls, tempUnschedCall{accountID: id, until: until, reason: reason})
 	return nil
 }
@@ -44,12 +49,12 @@ type failingOpenAIHTTPUpstream struct {
 	calls int
 }
 
-func (u *failingOpenAIHTTPUpstream) Do(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *failingOpenAIHTTPUpstream) Do(_ *http.Request, _ string, _ string, _ int) (*http.Response, error) {
 	u.calls++
 	return nil, u.err
 }
 
-func (u *failingOpenAIHTTPUpstream) DoWithTLS(_ *http.Request, _ string, _ int64, _ int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *failingOpenAIHTTPUpstream) DoWithTLS(_ *http.Request, _ string, _ string, _ int, _ *tlsfingerprint.Profile) (*http.Response, error) {
 	u.calls++
 	return nil, u.err
 }
@@ -60,7 +65,7 @@ func (u *failingOpenAIHTTPUpstream) DoWithTLS(_ *http.Request, _ string, _ int64
 func TestHandleOpenAIUpstreamTransportError_PersistentEvictsAndFailsOver(t *testing.T) {
 	repo := &openaiTransportAccountRepoStub{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 4627, Name: "proxy-expired", Platform: PlatformOpenAI}
+	account := &Account{ID: "4627", Name: "proxy-expired", Platform: PlatformOpenAI}
 	c, rec := newOpenAITransportErrTestContext()
 
 	before := time.Now()
@@ -75,7 +80,7 @@ func TestHandleOpenAIUpstreamTransportError_PersistentEvictsAndFailsOver(t *test
 
 	// Persistent → account temporarily unscheduled for ~10min, reason carries cause.
 	require.Len(t, repo.tempUnschedCalls, 1)
-	require.Equal(t, int64(4627), repo.tempUnschedCalls[0].accountID)
+	require.Equal(t, "4627", repo.tempUnschedCalls[0].accountID)
 	require.Contains(t, repo.tempUnschedCalls[0].reason, "authentication failed")
 	require.True(t, repo.tempUnschedCalls[0].until.After(before.Add(openAITransportErrorTempUnschedDuration-time.Second)))
 	require.True(t, repo.tempUnschedCalls[0].until.Before(after.Add(openAITransportErrorTempUnschedDuration+time.Second)))
@@ -91,7 +96,7 @@ func TestHandleOpenAIUpstreamTransportError_PersistentEvictsAndFailsOver(t *test
 func TestHandleOpenAIUpstreamTransportError_TransientFailsOverWithoutEviction(t *testing.T) {
 	repo := &openaiTransportAccountRepoStub{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 99, Name: "flaky", Platform: PlatformOpenAI}
+	account := &Account{ID: "99", Name: "flaky", Platform: PlatformOpenAI}
 	c, rec := newOpenAITransportErrTestContext()
 
 	err := svc.handleOpenAIUpstreamTransportError(context.Background(), c, account,
@@ -112,7 +117,7 @@ func TestHandleOpenAIUpstreamTransportError_TransientFailsOverWithoutEviction(t 
 func TestHandleOpenAIUpstreamTransportError_ContextCanceled_NoFailoverNoEviction(t *testing.T) {
 	repo := &openaiTransportAccountRepoStub{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 77, Name: "healthy", Platform: PlatformOpenAI}
+	account := &Account{ID: "77", Name: "healthy", Platform: PlatformOpenAI}
 	c, rec := newOpenAITransportErrTestContext()
 
 	err := svc.handleOpenAIUpstreamTransportError(context.Background(), c, account,
@@ -135,7 +140,7 @@ func TestHandleOpenAIUpstreamTransportError_ContextCanceled_NoFailoverNoEviction
 func TestHandleOpenAIUpstreamTransportError_WrappedContextCanceled_NoFailover(t *testing.T) {
 	repo := &openaiTransportAccountRepoStub{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 78, Name: "healthy2", Platform: PlatformOpenAI}
+	account := &Account{ID: "78", Name: "healthy2", Platform: PlatformOpenAI}
 	c, _ := newOpenAITransportErrTestContext()
 
 	wrapped := fmt.Errorf("http request failed: %w", context.Canceled)
@@ -154,7 +159,7 @@ func TestHandleOpenAIUpstreamTransportError_WrappedContextCanceled_NoFailover(t 
 func TestTempUnscheduleOpenAITransportError_NilAccountRepo_InMemoryBlockOnly(t *testing.T) {
 	// nil accountRepo → no DB write.
 	svc := &OpenAIGatewayService{accountRepo: nil}
-	account := &Account{ID: 55, Name: "no-db", Platform: PlatformOpenAI}
+	account := &Account{ID: "55", Name: "no-db", Platform: PlatformOpenAI}
 
 	svc.tempUnscheduleOpenAITransportError(context.Background(), account, "proxy refused")
 
@@ -167,7 +172,7 @@ func TestTempUnscheduleOpenAITransportError_NilAccountRepo_InMemoryBlockOnly(t *
 func TestHandleOpenAIUpstreamTransportError_DeadlineExceeded_StillFailsOver(t *testing.T) {
 	repo := &openaiTransportAccountRepoStub{}
 	svc := &OpenAIGatewayService{accountRepo: repo}
-	account := &Account{ID: 79, Name: "slow", Platform: PlatformOpenAI}
+	account := &Account{ID: "79", Name: "slow", Platform: PlatformOpenAI}
 	c, _ := newOpenAITransportErrTestContext()
 
 	err := svc.handleOpenAIUpstreamTransportError(context.Background(), c, account,
@@ -192,7 +197,7 @@ func TestForwardAsRawChatCompletions_TransportErrorFailsOver(t *testing.T) {
 		},
 	}
 	account := &Account{
-		ID:          81,
+		ID: "81",
 		Name:        "oc-20053",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
@@ -218,11 +223,11 @@ func TestHandleOpenAIUpstreamTransportError_RecordsOllamaActivityOnly(t *testing
 		deferredService: deferred,
 	}
 	ollama := &Account{
-		ID: 501, Name: "ollama-cloud", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		ID: "501", Name: "ollama-cloud", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "k-ollama", "base_url": "https://ollama.com"},
 	}
 	other := &Account{
-		ID: 502, Name: "openai-official", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		ID: "502", Name: "openai-official", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "k-openai", "base_url": "https://api.openai.com"},
 	}
 	c, _ := newOpenAITransportErrTestContext()
@@ -243,7 +248,7 @@ func TestHandleOpenAIUpstreamTransportError_ContextCanceledSkipsOllamaActivity(t
 		deferredService: deferred,
 	}
 	ollama := &Account{
-		ID: 503, Name: "ollama-canceled", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		ID: "503", Name: "ollama-canceled", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "k-ollama", "base_url": "https://ollama.com"},
 	}
 	c, _ := newOpenAITransportErrTestContext()
@@ -259,11 +264,11 @@ func TestHandleOpenAIAccountUpstreamError_RecordsOllamaActivityOnly(t *testing.T
 	deferred := NewDeferredService(nil, nil, time.Second)
 	svc := &OpenAIGatewayService{deferredService: deferred}
 	ollama := &Account{
-		ID: 504, Name: "ollama-429", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		ID: "504", Name: "ollama-429", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "k-ollama", "base_url": "https://ollama.com"},
 	}
 	other := &Account{
-		ID: 505, Name: "openai-429", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		ID: "505", Name: "openai-429", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "k-openai", "base_url": "https://api.openai.com"},
 	}
 

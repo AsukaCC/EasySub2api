@@ -35,8 +35,8 @@ func (s *ProxyExpirySuite) mkProxy(name, mode string, expiresAt *time.Time, back
 	return p.ID
 }
 
-func (s *ProxyExpirySuite) mkAccountWithProxy(proxyID int64) int64 {
-	var id int64
+func (s *ProxyExpirySuite) mkAccountWithProxy(proxyID string) int64 {
+	var id string
 	err := scanSingleRow(s.ctx, s.tx, `
 		INSERT INTO accounts (name, platform, type, credentials, extra, status, proxy_id, created_at, updated_at)
 		VALUES ($1,'claude','api','{}','{}','active',$2,NOW(),NOW()) RETURNING id`,
@@ -45,7 +45,7 @@ func (s *ProxyExpirySuite) mkAccountWithProxy(proxyID int64) int64 {
 	return id
 }
 
-func (s *ProxyExpirySuite) accountProxyID(id int64) *int64 {
+func (s *ProxyExpirySuite) accountProxyID(id string) *int64 {
 	var pid *int64
 	err := scanSingleRow(s.ctx, s.tx, `SELECT proxy_id FROM accounts WHERE id=$1`, []any{id}, &pid)
 	s.Require().NoError(err)

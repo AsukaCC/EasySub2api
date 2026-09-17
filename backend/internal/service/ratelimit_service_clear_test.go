@@ -29,7 +29,7 @@ type rateLimitClearRepoStub struct {
 	clearTempUnschedulableErr error
 }
 
-func (r *rateLimitClearRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (r *rateLimitClearRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	r.getByIDCalls++
 	if r.getByIDErr != nil {
 		return nil, r.getByIDErr
@@ -37,33 +37,33 @@ func (r *rateLimitClearRepoStub) GetByID(ctx context.Context, id int64) (*Accoun
 	return r.getByIDAccount, nil
 }
 
-func (r *rateLimitClearRepoStub) ClearError(ctx context.Context, id int64) error {
+func (r *rateLimitClearRepoStub) ClearError(ctx context.Context, id string) error {
 	r.clearErrorCalls++
 	return r.clearErrorErr
 }
 
-func (r *rateLimitClearRepoStub) ClearRateLimit(ctx context.Context, id int64) error {
+func (r *rateLimitClearRepoStub) ClearRateLimit(ctx context.Context, id string) error {
 	r.clearRateLimitCalls++
 	return r.clearRateLimitErr
 }
 
-func (r *rateLimitClearRepoStub) ClearAntigravityQuotaScopes(ctx context.Context, id int64) error {
+func (r *rateLimitClearRepoStub) ClearAntigravityQuotaScopes(ctx context.Context, id string) error {
 	r.clearAntigravityCalls++
 	return r.clearAntigravityErr
 }
 
-func (r *rateLimitClearRepoStub) ClearModelRateLimits(ctx context.Context, id int64) error {
+func (r *rateLimitClearRepoStub) ClearModelRateLimits(ctx context.Context, id string) error {
 	r.clearModelRateLimitCalls++
 	return r.clearModelRateLimitErr
 }
 
-func (r *rateLimitClearRepoStub) ClearTempUnschedulable(ctx context.Context, id int64) error {
+func (r *rateLimitClearRepoStub) ClearTempUnschedulable(ctx context.Context, id string) error {
 	r.clearTempUnschedCalls++
 	return r.clearTempUnschedulableErr
 }
 
 type tempUnschedCacheRecorder struct {
-	deletedIDs []int64
+	deletedIDs []string
 	deleteErr  error
 }
 
@@ -72,15 +72,15 @@ type recoverTokenInvalidatorStub struct {
 	err      error
 }
 
-func (c *tempUnschedCacheRecorder) SetTempUnsched(ctx context.Context, accountID int64, state *TempUnschedState) error {
+func (c *tempUnschedCacheRecorder) SetTempUnsched(ctx context.Context, accountID string, state *TempUnschedState) error {
 	return nil
 }
 
-func (c *tempUnschedCacheRecorder) GetTempUnsched(ctx context.Context, accountID int64) (*TempUnschedState, error) {
+func (c *tempUnschedCacheRecorder) GetTempUnsched(ctx context.Context, accountID string) (*TempUnschedState, error) {
 	return nil, nil
 }
 
-func (c *tempUnschedCacheRecorder) DeleteTempUnsched(ctx context.Context, accountID int64) error {
+func (c *tempUnschedCacheRecorder) DeleteTempUnsched(ctx context.Context, accountID string) error {
 	c.deletedIDs = append(c.deletedIDs, accountID)
 	return c.deleteErr
 }
@@ -93,9 +93,9 @@ func (s *recoverTokenInvalidatorStub) InvalidateToken(ctx context.Context, accou
 func TestRateLimitService_ClearRateLimit_AlsoClearsTempUnschedulable(t *testing.T) {
 	repo := &rateLimitClearRepoStub{}
 	cache := &tempUnschedCacheRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	err := svc.ClearRateLimit(context.Background(), 42)
+	err := svc.ClearRateLimit(context.Background(), "42")
 	require.NoError(t, err)
 
 	require.Equal(t, 1, repo.clearRateLimitCalls)
@@ -110,9 +110,9 @@ func TestRateLimitService_ClearRateLimit_ClearTempUnschedulableFailed(t *testing
 		clearTempUnschedulableErr: errors.New("clear temp unsched failed"),
 	}
 	cache := &tempUnschedCacheRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	err := svc.ClearRateLimit(context.Background(), 7)
+	err := svc.ClearRateLimit(context.Background(), "7")
 	require.Error(t, err)
 
 	require.Equal(t, 1, repo.clearTempUnschedCalls)
@@ -124,9 +124,9 @@ func TestRateLimitService_ClearRateLimit_ClearRateLimitFailed(t *testing.T) {
 		clearRateLimitErr: errors.New("clear rate limit failed"),
 	}
 	cache := &tempUnschedCacheRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	err := svc.ClearRateLimit(context.Background(), 11)
+	err := svc.ClearRateLimit(context.Background(), "11")
 	require.Error(t, err)
 
 	require.Equal(t, 1, repo.clearRateLimitCalls)
@@ -141,9 +141,9 @@ func TestRateLimitService_ClearRateLimit_ClearAntigravityFailed(t *testing.T) {
 		clearAntigravityErr: errors.New("clear antigravity failed"),
 	}
 	cache := &tempUnschedCacheRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	err := svc.ClearRateLimit(context.Background(), 12)
+	err := svc.ClearRateLimit(context.Background(), "12")
 	require.Error(t, err)
 
 	require.Equal(t, 1, repo.clearRateLimitCalls)
@@ -158,9 +158,9 @@ func TestRateLimitService_ClearRateLimit_ClearModelRateLimitsFailed(t *testing.T
 		clearModelRateLimitErr: errors.New("clear model rate limits failed"),
 	}
 	cache := &tempUnschedCacheRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	err := svc.ClearRateLimit(context.Background(), 13)
+	err := svc.ClearRateLimit(context.Background(), "13")
 	require.Error(t, err)
 
 	require.Equal(t, 1, repo.clearRateLimitCalls)
@@ -175,9 +175,9 @@ func TestRateLimitService_ClearRateLimit_CacheDeleteFailedShouldNotFail(t *testi
 	cache := &tempUnschedCacheRecorder{
 		deleteErr: errors.New("cache delete failed"),
 	}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	err := svc.ClearRateLimit(context.Background(), 14)
+	err := svc.ClearRateLimit(context.Background(), "14")
 	require.NoError(t, err)
 
 	require.Equal(t, 1, repo.clearRateLimitCalls)
@@ -189,9 +189,9 @@ func TestRateLimitService_ClearRateLimit_CacheDeleteFailedShouldNotFail(t *testi
 
 func TestRateLimitService_ClearRateLimit_WithoutTempUnschedCache(t *testing.T) {
 	repo := &rateLimitClearRepoStub{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(repo, &config.Config{}, nil)
 
-	err := svc.ClearRateLimit(context.Background(), 15)
+	err := svc.ClearRateLimit(context.Background(), "15")
 	require.NoError(t, err)
 
 	require.Equal(t, 1, repo.clearRateLimitCalls)
@@ -204,7 +204,7 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearsErrorAndRateLi
 	now := time.Now()
 	repo := &rateLimitClearRepoStub{
 		getByIDAccount: &Account{
-			ID:                     42,
+			ID: "42",
 			Status:                 StatusError,
 			RateLimitedAt:          &now,
 			TempUnschedulableUntil: &now,
@@ -220,10 +220,10 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearsErrorAndRateLi
 	}
 	cache := &tempUnschedCacheRecorder{}
 	blocker := &runtimeBlockRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 	svc.SetAccountRuntimeBlocker(blocker)
 
-	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 42)
+	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), "42")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.ClearedError)
@@ -242,16 +242,16 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearsErrorAndRateLi
 func TestRateLimitService_RecoverAccountAfterSuccessfulTest_NoRecoverableStateIsNoop(t *testing.T) {
 	repo := &rateLimitClearRepoStub{
 		getByIDAccount: &Account{
-			ID:          7,
+			ID: "7",
 			Status:      StatusActive,
 			Schedulable: true,
 			Extra:       map[string]any{},
 		},
 	}
 	cache := &tempUnschedCacheRecorder{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+	svc := NewRateLimitService(repo, &config.Config{}, cache)
 
-	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 7)
+	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), "7")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.False(t, result.ClearedError)
@@ -269,14 +269,14 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_NoRecoverableStateIs
 func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearErrorFailed(t *testing.T) {
 	repo := &rateLimitClearRepoStub{
 		getByIDAccount: &Account{
-			ID:     9,
+			ID: "9",
 			Status: StatusError,
 		},
 		clearErrorErr: errors.New("clear error failed"),
 	}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(repo, &config.Config{}, nil)
 
-	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 9)
+	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), "9")
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.Equal(t, 1, repo.getByIDCalls)
@@ -287,16 +287,16 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearErrorFailed(t *
 func TestRateLimitService_RecoverAccountState_InvalidatesOAuthTokenOnErrorRecovery(t *testing.T) {
 	repo := &rateLimitClearRepoStub{
 		getByIDAccount: &Account{
-			ID:     21,
+			ID: "21",
 			Type:   AccountTypeOAuth,
 			Status: StatusError,
 		},
 	}
 	invalidator := &recoverTokenInvalidatorStub{}
-	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	svc := NewRateLimitService(repo, &config.Config{}, nil)
 	svc.SetTokenCacheInvalidator(invalidator)
 
-	result, err := svc.RecoverAccountState(context.Background(), 21, AccountRecoveryOptions{
+	result, err := svc.RecoverAccountState(context.Background(), "21", AccountRecoveryOptions{
 		InvalidateToken: true,
 	})
 	require.NoError(t, err)
@@ -305,5 +305,5 @@ func TestRateLimitService_RecoverAccountState_InvalidatesOAuthTokenOnErrorRecove
 	require.False(t, result.ClearedRateLimit)
 	require.Equal(t, 1, repo.clearErrorCalls)
 	require.Len(t, invalidator.accounts, 1)
-	require.Equal(t, int64(21), invalidator.accounts[0].ID)
+	require.Equal(t, "21", invalidator.accounts[0].ID)
 }

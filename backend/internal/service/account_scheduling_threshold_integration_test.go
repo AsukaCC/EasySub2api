@@ -26,7 +26,7 @@ func (r *thresholdSelectionAccountRepoStub) ListSchedulableByPlatform(_ context.
 	return filtered, nil
 }
 
-func (r *thresholdSelectionAccountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, _ int64, platform string) ([]Account, error) {
+func (r *thresholdSelectionAccountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, _ string, platform string) ([]Account, error) {
 	return r.ListSchedulableByPlatform(ctx, platform)
 }
 
@@ -44,7 +44,7 @@ func TestGatewayService_ListSchedulableAccounts_DoesNotFilterUnsupportedThreshol
 	accountRepo := &thresholdSelectionAccountRepoStub{
 		accounts: []Account{
 			{
-				ID:          3101,
+				ID: "3101",
 				Platform:    PlatformKiro,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -57,7 +57,7 @@ func TestGatewayService_ListSchedulableAccounts_DoesNotFilterUnsupportedThreshol
 				},
 			},
 			{
-				ID:          3102,
+				ID: "3102",
 				Platform:    PlatformKiro,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -69,7 +69,7 @@ func TestGatewayService_ListSchedulableAccounts_DoesNotFilterUnsupportedThreshol
 		},
 	}
 
-	rateLimitService := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+	rateLimitService := NewRateLimitService(accountRepo, &config.Config{}, nil)
 	rateLimitService.SetSettingService(NewSettingService(settingsRepo, &config.Config{}))
 	svc := &GatewayService{
 		accountRepo:      accountRepo,
@@ -82,8 +82,8 @@ func TestGatewayService_ListSchedulableAccounts_DoesNotFilterUnsupportedThreshol
 	require.NoError(t, err)
 	require.False(t, useMixed)
 	require.Len(t, accounts, 2)
-	require.Equal(t, int64(3101), accounts[0].ID)
-	require.Equal(t, int64(3102), accounts[1].ID)
+	require.Equal(t, "3101", accounts[0].ID)
+	require.Equal(t, "3102", accounts[1].ID)
 	require.Equal(t, 0, accountRepo.tempCalls)
 }
 
@@ -97,7 +97,7 @@ func TestOpenAIGatewayService_ListSchedulableAccounts_FiltersThresholdBlockedAcc
 	accountRepo := &thresholdSelectionAccountRepoStub{
 		accounts: []Account{
 			{
-				ID:          4101,
+				ID: "4101",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -107,7 +107,7 @@ func TestOpenAIGatewayService_ListSchedulableAccounts_FiltersThresholdBlockedAcc
 				},
 			},
 			{
-				ID:          4102,
+				ID: "4102",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -119,7 +119,7 @@ func TestOpenAIGatewayService_ListSchedulableAccounts_FiltersThresholdBlockedAcc
 		},
 	}
 
-	rateLimitService := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+	rateLimitService := NewRateLimitService(accountRepo, &config.Config{}, nil)
 	rateLimitService.SetSettingService(NewSettingService(settingsRepo, &config.Config{}))
 	svc := &OpenAIGatewayService{
 		accountRepo:      accountRepo,
@@ -131,6 +131,6 @@ func TestOpenAIGatewayService_ListSchedulableAccounts_FiltersThresholdBlockedAcc
 
 	require.NoError(t, err)
 	require.Len(t, accounts, 1)
-	require.Equal(t, int64(4102), accounts[0].ID)
+	require.Equal(t, "4102", accounts[0].ID)
 	require.Equal(t, 1, accountRepo.tempCalls)
 }

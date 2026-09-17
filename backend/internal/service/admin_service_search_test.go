@@ -25,11 +25,11 @@ type accountRepoStubForAdminList struct {
 	listWithFiltersErr      error
 }
 
-func (s *accountRepoStubForAdminList) ListAllWithFilters(context.Context, string, string, string, string, int64, string) ([]Account, error) {
+func (s *accountRepoStubForAdminList) ListAllWithFilters(context.Context, string, string, string, string, string, string, string) ([]Account, error) {
 	return nil, nil
 }
 
-func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStubForAdminList) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID string, privacyMode string, expiryStatus string) ([]Account, *pagination.PaginationResult, error) {
 	s.listWithFiltersCalls++
 	s.listWithFiltersParams = params
 	s.listWithFiltersPlatform = platform
@@ -158,26 +158,26 @@ func (s *redeemRepoStubForAdminList) ListWithFilters(_ context.Context, params p
 	return s.listWithFiltersCodes, result, nil
 }
 
-func (s *redeemRepoStubForAdminList) ListByUserPaginated(_ context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]RedeemCode, *pagination.PaginationResult, error) {
+func (s *redeemRepoStubForAdminList) ListByUserPaginated(_ context.Context, userID string, params pagination.PaginationParams, codeType string) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected ListByUserPaginated call")
 }
 
-func (s *redeemRepoStubForAdminList) SumPositiveBalanceByUser(_ context.Context, userID int64) (float64, error) {
+func (s *redeemRepoStubForAdminList) SumPositiveBalanceByUser(_ context.Context, userID string) (float64, error) {
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
 func TestAdminService_ListAccounts_WithSearch(t *testing.T) {
 	t.Run("search 参数正常传递到 repository 层", func(t *testing.T) {
 		repo := &accountRepoStubForAdminList{
-			listWithFiltersAccounts: []Account{{ID: 1, Name: "acc"}},
+			listWithFiltersAccounts: []Account{{ID: "1", Name: "acc"}},
 			listWithFiltersResult:   &pagination.PaginationResult{Total: 10},
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformGemini, AccountTypeOAuth, StatusActive, "acc", 0, "", "name", "ASC")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformGemini, AccountTypeOAuth, StatusActive, "acc", "", "", "", "name", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(10), total)
-		require.Equal(t, []Account{{ID: 1, Name: "acc"}}, accounts)
+		require.Equal(t, []Account{{ID: "1", Name: "acc"}}, accounts)
 
 		require.Equal(t, 1, repo.listWithFiltersCalls)
 		require.Equal(t, pagination.PaginationParams{Page: 1, PageSize: 20, SortBy: "name", SortOrder: "ASC"}, repo.listWithFiltersParams)
@@ -191,15 +191,15 @@ func TestAdminService_ListAccounts_WithSearch(t *testing.T) {
 func TestAdminService_ListAccounts_WithPrivacyMode(t *testing.T) {
 	t.Run("privacy_mode 参数正常传递到 repository 层", func(t *testing.T) {
 		repo := &accountRepoStubForAdminList{
-			listWithFiltersAccounts: []Account{{ID: 2, Name: "acc2"}},
+			listWithFiltersAccounts: []Account{{ID: "2", Name: "acc2"}},
 			listWithFiltersResult:   &pagination.PaginationResult{Total: 1},
 		}
 		svc := &adminServiceImpl{accountRepo: repo}
 
-		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc2", 0, PrivacyModeCFBlocked, "", "")
+		accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, StatusActive, "acc2", "", PrivacyModeCFBlocked, "", "", "")
 		require.NoError(t, err)
 		require.Equal(t, int64(1), total)
-		require.Equal(t, []Account{{ID: 2, Name: "acc2"}}, accounts)
+		require.Equal(t, []Account{{ID: "2", Name: "acc2"}}, accounts)
 		require.Equal(t, PrivacyModeCFBlocked, repo.listWithFiltersPrivacy)
 	})
 }
@@ -207,7 +207,7 @@ func TestAdminService_ListAccounts_WithPrivacyMode(t *testing.T) {
 func TestAdminService_ListProxies_WithSearch(t *testing.T) {
 	t.Run("search 参数正常传递到 repository 层", func(t *testing.T) {
 		repo := &proxyRepoStubForAdminList{
-			listWithFiltersProxies: []Proxy{{ID: 2, Name: "p1"}},
+			listWithFiltersProxies: []Proxy{{ID: "2", Name: "p1"}},
 			listWithFiltersResult:  &pagination.PaginationResult{Total: 7},
 		}
 		svc := &adminServiceImpl{proxyRepo: repo}
@@ -215,7 +215,7 @@ func TestAdminService_ListProxies_WithSearch(t *testing.T) {
 		proxies, total, err := svc.ListProxies(context.Background(), 3, 50, "http", StatusActive, "p1", "name", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(7), total)
-		require.Equal(t, []Proxy{{ID: 2, Name: "p1"}}, proxies)
+		require.Equal(t, []Proxy{{ID: "2", Name: "p1"}}, proxies)
 
 		require.Equal(t, 1, repo.listWithFiltersCalls)
 		require.Equal(t, pagination.PaginationParams{Page: 3, PageSize: 50, SortBy: "name", SortOrder: "ASC"}, repo.listWithFiltersParams)
@@ -228,7 +228,7 @@ func TestAdminService_ListProxies_WithSearch(t *testing.T) {
 func TestAdminService_ListProxiesWithAccountCount_WithSearch(t *testing.T) {
 	t.Run("search 参数正常传递到 repository 层", func(t *testing.T) {
 		repo := &proxyRepoStubForAdminList{
-			listWithFiltersAndAccountCountProxies: []ProxyWithAccountCount{{Proxy: Proxy{ID: 3, Name: "p2"}, AccountCount: 5}},
+			listWithFiltersAndAccountCountProxies: []ProxyWithAccountCount{{Proxy: Proxy{ID: "3", Name: "p2"}, AccountCount: 5}},
 			listWithFiltersAndAccountCountResult:  &pagination.PaginationResult{Total: 9},
 		}
 		svc := &adminServiceImpl{proxyRepo: repo}
@@ -236,7 +236,7 @@ func TestAdminService_ListProxiesWithAccountCount_WithSearch(t *testing.T) {
 		proxies, total, err := svc.ListProxiesWithAccountCount(context.Background(), 2, 10, "socks5", StatusDisabled, "p2", "account_count", "DESC")
 		require.NoError(t, err)
 		require.Equal(t, int64(9), total)
-		require.Equal(t, []ProxyWithAccountCount{{Proxy: Proxy{ID: 3, Name: "p2"}, AccountCount: 5}}, proxies)
+		require.Equal(t, []ProxyWithAccountCount{{Proxy: Proxy{ID: "3", Name: "p2"}, AccountCount: 5}}, proxies)
 
 		require.Equal(t, 1, repo.listWithFiltersAndAccountCountCalls)
 		require.Equal(t, pagination.PaginationParams{Page: 2, PageSize: 10, SortBy: "account_count", SortOrder: "DESC"}, repo.listWithFiltersAndAccountCountParams)
@@ -249,7 +249,7 @@ func TestAdminService_ListProxiesWithAccountCount_WithSearch(t *testing.T) {
 func TestAdminService_ListRedeemCodes_WithSearch(t *testing.T) {
 	t.Run("search 参数正常传递到 repository 层", func(t *testing.T) {
 		repo := &redeemRepoStubForAdminList{
-			listWithFiltersCodes:  []RedeemCode{{ID: 4, Code: "ABC"}},
+			listWithFiltersCodes:  []RedeemCode{{ID: "4", Code: "ABC"}},
 			listWithFiltersResult: &pagination.PaginationResult{Total: 3},
 		}
 		svc := &adminServiceImpl{redeemCodeRepo: repo}
@@ -257,7 +257,7 @@ func TestAdminService_ListRedeemCodes_WithSearch(t *testing.T) {
 		codes, total, err := svc.ListRedeemCodes(context.Background(), 1, 20, RedeemTypeBalance, StatusUnused, "ABC", "value", "ASC")
 		require.NoError(t, err)
 		require.Equal(t, int64(3), total)
-		require.Equal(t, []RedeemCode{{ID: 4, Code: "ABC"}}, codes)
+		require.Equal(t, []RedeemCode{{ID: "4", Code: "ABC"}}, codes)
 
 		require.Equal(t, 1, repo.listWithFiltersCalls)
 		require.Equal(t, pagination.PaginationParams{Page: 1, PageSize: 20, SortBy: "value", SortOrder: "ASC"}, repo.listWithFiltersParams)

@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -86,7 +87,7 @@ func (m *mockErrorPassthroughRepo) List(ctx context.Context) ([]*model.ErrorPass
 	return m.rules, nil
 }
 
-func (m *mockErrorPassthroughRepo) GetByID(ctx context.Context, id int64) (*model.ErrorPassthroughRule, error) {
+func (m *mockErrorPassthroughRepo) GetByID(ctx context.Context, id string) (*model.ErrorPassthroughRule, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
@@ -102,7 +103,7 @@ func (m *mockErrorPassthroughRepo) Create(ctx context.Context, rule *model.Error
 	if m.createErr != nil {
 		return nil, m.createErr
 	}
-	rule.ID = int64(len(m.rules) + 1)
+	rule.ID = strconv.Itoa(len(m.rules) + 1)
 	m.rules = append(m.rules, rule)
 	return rule, nil
 }
@@ -120,7 +121,7 @@ func (m *mockErrorPassthroughRepo) Update(ctx context.Context, rule *model.Error
 	return rule, nil
 }
 
-func (m *mockErrorPassthroughRepo) Delete(ctx context.Context, id int64) error {
+func (m *mockErrorPassthroughRepo) Delete(ctx context.Context, id string) error {
 	if m.deleteErr != nil {
 		return m.deleteErr
 	}
@@ -441,7 +442,7 @@ func TestMatchRule_Priority(t *testing.T) {
 	// 测试规则按优先级排序，优先级小的先匹配
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:         1,
+			ID: "1",
 			Name:       "Low Priority",
 			Enabled:    true,
 			Priority:   10,
@@ -449,7 +450,7 @@ func TestMatchRule_Priority(t *testing.T) {
 			MatchMode:  model.MatchModeAny,
 		},
 		{
-			ID:         2,
+			ID: "2",
 			Name:       "High Priority",
 			Enabled:    true,
 			Priority:   1,
@@ -462,14 +463,14 @@ func TestMatchRule_Priority(t *testing.T) {
 	matched := svc.MatchRule("anthropic", 422, []byte("error"))
 
 	require.NotNil(t, matched)
-	assert.Equal(t, int64(2), matched.ID, "应该匹配优先级更高(数值更小)的规则")
+	assert.Equal(t, "2", matched.ID, "应该匹配优先级更高(数值更小)的规则")
 	assert.Equal(t, "High Priority", matched.Name)
 }
 
 func TestMatchRule_DisabledRule(t *testing.T) {
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:         1,
+			ID: "1",
 			Name:       "Disabled Rule",
 			Enabled:    false,
 			Priority:   1,
@@ -477,7 +478,7 @@ func TestMatchRule_DisabledRule(t *testing.T) {
 			MatchMode:  model.MatchModeAny,
 		},
 		{
-			ID:         2,
+			ID: "2",
 			Name:       "Enabled Rule",
 			Enabled:    true,
 			Priority:   10,
@@ -490,13 +491,13 @@ func TestMatchRule_DisabledRule(t *testing.T) {
 	matched := svc.MatchRule("anthropic", 422, []byte("error"))
 
 	require.NotNil(t, matched)
-	assert.Equal(t, int64(2), matched.ID, "应该跳过禁用的规则")
+	assert.Equal(t, "2", matched.ID, "应该跳过禁用的规则")
 }
 
 func TestMatchRule_PlatformFilter(t *testing.T) {
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:         1,
+			ID: "1",
 			Name:       "Anthropic Only",
 			Enabled:    true,
 			Priority:   1,
@@ -505,7 +506,7 @@ func TestMatchRule_PlatformFilter(t *testing.T) {
 			MatchMode:  model.MatchModeAny,
 		},
 		{
-			ID:         2,
+			ID: "2",
 			Name:       "OpenAI Only",
 			Enabled:    true,
 			Priority:   2,
@@ -514,7 +515,7 @@ func TestMatchRule_PlatformFilter(t *testing.T) {
 			MatchMode:  model.MatchModeAny,
 		},
 		{
-			ID:         3,
+			ID: "3",
 			Name:       "All Platforms",
 			Enabled:    true,
 			Priority:   3,
@@ -529,32 +530,32 @@ func TestMatchRule_PlatformFilter(t *testing.T) {
 	t.Run("Anthropic 请求匹配 Anthropic 规则", func(t *testing.T) {
 		matched := svc.MatchRule("anthropic", 422, []byte("error"))
 		require.NotNil(t, matched)
-		assert.Equal(t, int64(1), matched.ID)
+		assert.Equal(t, "1", matched.ID)
 	})
 
 	t.Run("OpenAI 请求匹配 OpenAI 规则", func(t *testing.T) {
 		matched := svc.MatchRule("openai", 422, []byte("error"))
 		require.NotNil(t, matched)
-		assert.Equal(t, int64(2), matched.ID)
+		assert.Equal(t, "2", matched.ID)
 	})
 
 	t.Run("Gemini 请求匹配全平台规则", func(t *testing.T) {
 		matched := svc.MatchRule("gemini", 422, []byte("error"))
 		require.NotNil(t, matched)
-		assert.Equal(t, int64(3), matched.ID)
+		assert.Equal(t, "3", matched.ID)
 	})
 
 	t.Run("Antigravity 请求匹配全平台规则", func(t *testing.T) {
 		matched := svc.MatchRule("antigravity", 422, []byte("error"))
 		require.NotNil(t, matched)
-		assert.Equal(t, int64(3), matched.ID)
+		assert.Equal(t, "3", matched.ID)
 	})
 }
 
 func TestMatchRule_NoMatch(t *testing.T) {
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:         1,
+			ID: "1",
 			Name:       "Rule for 422",
 			Enabled:    true,
 			Priority:   1,
@@ -579,7 +580,7 @@ func TestMatchRule_EmptyRules(t *testing.T) {
 func TestMatchRule_CaseInsensitiveKeyword(t *testing.T) {
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:        1,
+			ID: "1",
 			Name:      "Context Limit",
 			Enabled:   true,
 			Priority:  1,
@@ -622,7 +623,7 @@ func TestMatchRule_RealWorldScenario_ContextLimitPassthrough(t *testing.T) {
 	// 场景：上游返回 422 + "context limit has been reached"，需要透传给客户端
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:              1,
+			ID: "1",
 			Name:            "Context Limit Passthrough",
 			Enabled:         true,
 			Priority:        1,
@@ -681,7 +682,7 @@ func TestMatchRule_RealWorldScenario_CustomErrorMessage(t *testing.T) {
 	responseCode := 503
 	rules := []*model.ErrorPassthroughRule{
 		{
-			ID:              1,
+			ID: "1",
 			Name:            "Hide Internal Errors",
 			Enabled:         true,
 			Priority:        1,
@@ -864,14 +865,14 @@ func TestErrorPassthroughRule_Validate(t *testing.T) {
 func TestCreate_ForceRefreshCacheAfterWrite(t *testing.T) {
 	ctx := context.Background()
 
-	staleRule := newPassthroughRuleForWritePathTest(99, "service temporarily unavailable after multiple", "旧缓存消息")
+	staleRule := newPassthroughRuleForWritePathTest("99", "service temporarily unavailable after multiple", "旧缓存消息")
 	repo := &mockErrorPassthroughRepo{rules: []*model.ErrorPassthroughRule{}}
 	cache := newMockErrorPassthroughCache([]*model.ErrorPassthroughRule{staleRule}, true)
 
 	svc := &ErrorPassthroughService{repo: repo, cache: cache}
 	svc.setLocalCache([]*model.ErrorPassthroughRule{staleRule})
 
-	newRule := newPassthroughRuleForWritePathTest(0, "service temporarily unavailable after multiple", "上游请求失败")
+	newRule := newPassthroughRuleForWritePathTest("0", "service temporarily unavailable after multiple", "上游请求失败")
 	created, err := svc.Create(ctx, newRule)
 	require.NoError(t, err)
 	require.NotNil(t, created)
@@ -893,14 +894,14 @@ func TestCreate_ForceRefreshCacheAfterWrite(t *testing.T) {
 func TestUpdate_ForceRefreshCacheAfterWrite(t *testing.T) {
 	ctx := context.Background()
 
-	originalRule := newPassthroughRuleForWritePathTest(1, "old keyword", "旧消息")
+	originalRule := newPassthroughRuleForWritePathTest("1", "old keyword", "旧消息")
 	repo := &mockErrorPassthroughRepo{rules: []*model.ErrorPassthroughRule{originalRule}}
 	cache := newMockErrorPassthroughCache([]*model.ErrorPassthroughRule{originalRule}, true)
 
 	svc := &ErrorPassthroughService{repo: repo, cache: cache}
 	svc.setLocalCache([]*model.ErrorPassthroughRule{originalRule})
 
-	updatedRule := newPassthroughRuleForWritePathTest(1, "new keyword", "新消息")
+	updatedRule := newPassthroughRuleForWritePathTest("1", "new keyword", "新消息")
 	_, err := svc.Update(ctx, updatedRule)
 	require.NoError(t, err)
 
@@ -924,14 +925,14 @@ func TestUpdate_ForceRefreshCacheAfterWrite(t *testing.T) {
 func TestDelete_ForceRefreshCacheAfterWrite(t *testing.T) {
 	ctx := context.Background()
 
-	rule := newPassthroughRuleForWritePathTest(1, "to be deleted", "删除前消息")
+	rule := newPassthroughRuleForWritePathTest("1", "to be deleted", "删除前消息")
 	repo := &mockErrorPassthroughRepo{rules: []*model.ErrorPassthroughRule{rule}}
 	cache := newMockErrorPassthroughCache([]*model.ErrorPassthroughRule{rule}, true)
 
 	svc := &ErrorPassthroughService{repo: repo, cache: cache}
 	svc.setLocalCache([]*model.ErrorPassthroughRule{rule})
 
-	err := svc.Delete(ctx, 1)
+	err := svc.Delete(ctx, "1")
 	require.NoError(t, err)
 
 	body := []byte(`{"message":"to be deleted"}`)
@@ -945,8 +946,8 @@ func TestDelete_ForceRefreshCacheAfterWrite(t *testing.T) {
 }
 
 func TestNewService_StartupReloadFromDBToHealStaleCache(t *testing.T) {
-	staleRule := newPassthroughRuleForWritePathTest(99, "stale keyword", "旧缓存消息")
-	latestRule := newPassthroughRuleForWritePathTest(1, "fresh keyword", "最新消息")
+	staleRule := newPassthroughRuleForWritePathTest("99", "stale keyword", "旧缓存消息")
+	latestRule := newPassthroughRuleForWritePathTest("1", "fresh keyword", "最新消息")
 
 	repo := &mockErrorPassthroughRepo{rules: []*model.ErrorPassthroughRule{latestRule}}
 	cache := newMockErrorPassthroughCache([]*model.ErrorPassthroughRule{staleRule}, true)
@@ -955,7 +956,7 @@ func TestNewService_StartupReloadFromDBToHealStaleCache(t *testing.T) {
 
 	matchedFresh := svc.MatchRule("anthropic", 503, []byte(`{"message":"fresh keyword"}`))
 	require.NotNil(t, matchedFresh)
-	assert.Equal(t, int64(1), matchedFresh.ID)
+	assert.Equal(t, "1", matchedFresh.ID)
 
 	matchedStale := svc.MatchRule("anthropic", 503, []byte(`{"message":"stale keyword"}`))
 	assert.Nil(t, matchedStale, "启动后应以 DB 最新规则覆盖旧缓存")
@@ -967,7 +968,7 @@ func TestNewService_StartupReloadFromDBToHealStaleCache(t *testing.T) {
 func TestUpdate_RefreshFailureShouldNotKeepStaleEnabledRule(t *testing.T) {
 	ctx := context.Background()
 
-	staleRule := newPassthroughRuleForWritePathTest(1, "service temporarily unavailable after multiple", "旧缓存消息")
+	staleRule := newPassthroughRuleForWritePathTest("1", "service temporarily unavailable after multiple", "旧缓存消息")
 	repo := &mockErrorPassthroughRepo{
 		rules:   []*model.ErrorPassthroughRule{staleRule},
 		listErr: errors.New("db list failed"),
@@ -991,7 +992,7 @@ func TestUpdate_RefreshFailureShouldNotKeepStaleEnabledRule(t *testing.T) {
 	svc.localCacheMu.RUnlock()
 }
 
-func newPassthroughRuleForWritePathTest(id int64, keyword, customMsg string) *model.ErrorPassthroughRule {
+func newPassthroughRuleForWritePathTest(id string, keyword, customMsg string) *model.ErrorPassthroughRule {
 	responseCode := 503
 	rule := &model.ErrorPassthroughRule{
 		ID:              id,

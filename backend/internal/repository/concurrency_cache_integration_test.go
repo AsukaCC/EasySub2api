@@ -39,9 +39,9 @@ func (s *ConcurrencyCacheSuite) SetupTest() {
 }
 
 type apiKeyConcurrencyCacheForTest interface {
-	TrackAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
-	ReleaseAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
-	GetAPIKeyConcurrencyBatch(ctx context.Context, apiKeyIDs []int64) (map[int64]int, error)
+	TrackAPIKeySlot(ctx context.Context, apiKeyID string, requestID string) error
+	ReleaseAPIKeySlot(ctx context.Context, apiKeyID string, requestID string) error
+	GetAPIKeyConcurrencyBatch(ctx context.Context, apiKeyIDs []string) (map[string]int, error)
 }
 
 func (s *ConcurrencyCacheSuite) apiKeyConcurrencyCache() apiKeyConcurrencyCacheForTest {
@@ -327,7 +327,7 @@ func (s *ConcurrencyCacheSuite) TestAPIKeySlot_TrackReleaseAndBatchCount() {
 
 	counts, err := cache.GetAPIKeyConcurrencyBatch(s.ctx, []int64{apiKeyID, emptyAPIKeyID})
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), map[int64]int{apiKeyID: 2, emptyAPIKeyID: 0}, counts)
+	require.Equal(s.T(), map[string]int{apiKeyID: 2, emptyAPIKeyID: 0}, counts)
 
 	ttl, err := s.rdb.TTL(s.ctx, slotKey).Result()
 	require.NoError(s.T(), err, "TTL")

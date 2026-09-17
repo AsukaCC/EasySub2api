@@ -13,31 +13,31 @@ import (
 func TestSelectAccountForModelWithExclusions_UsesFallbackGroupForChannelRestriction(t *testing.T) {
 	t.Parallel()
 
-	groupID := int64(10)
-	fallbackID := int64(11)
+	groupID := "10"
+	fallbackID := "11"
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{fallbackID},
+		GroupIDs: []string{},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformAnthropic, Models: []string{"claude-sonnet-4-6"}},
 		},
 	}
-	channelSvc := newTestChannelService(makeStandardRepo(ch, map[int64]string{
+	channelSvc := newTestChannelService(makeStandardRepo(ch, map[string]string{
 		fallbackID: PlatformAnthropic,
 	}))
 	accountRepo := &mockAccountRepoForPlatform{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
+			{ID: "1", Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range accountRepo.accounts {
 		accountRepo.accountsByID[accountRepo.accounts[i].ID] = &accountRepo.accounts[i]
 	}
 	groupRepo := &mockGroupRepoForGateway{
-		groups: map[int64]*Group{
+		groups: map[string]*Group{
 			groupID: {
 				ID:              groupID,
 				Platform:        PlatformAnthropic,
@@ -66,37 +66,37 @@ func TestSelectAccountForModelWithExclusions_UsesFallbackGroupForChannelRestrict
 	account, err := svc.SelectAccountForModelWithExclusions(ctx, &groupID, "", "claude-sonnet-4-6", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
-	require.Equal(t, int64(1), account.ID)
+	require.Equal(t, "1", account.ID)
 }
 
 func TestSelectAccountWithLoadAwareness_UsesFallbackGroupForChannelRestriction(t *testing.T) {
 	t.Parallel()
 
-	groupID := int64(10)
-	fallbackID := int64(11)
+	groupID := "10"
+	fallbackID := "11"
 	ch := Channel{
-		ID:             1,
+		ID: "1",
 		Status:         StatusActive,
-		GroupIDs:       []int64{fallbackID},
+		GroupIDs: []string{},
 		RestrictModels: true,
 		ModelPricing: []ChannelModelPricing{
 			{Platform: PlatformAnthropic, Models: []string{"claude-sonnet-4-6"}},
 		},
 	}
-	channelSvc := newTestChannelService(makeStandardRepo(ch, map[int64]string{
+	channelSvc := newTestChannelService(makeStandardRepo(ch, map[string]string{
 		fallbackID: PlatformAnthropic,
 	}))
 	accountRepo := &mockAccountRepoForPlatform{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
+			{ID: "1", Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range accountRepo.accounts {
 		accountRepo.accountsByID[accountRepo.accounts[i].ID] = &accountRepo.accounts[i]
 	}
 	groupRepo := &mockGroupRepoForGateway{
-		groups: map[int64]*Group{
+		groups: map[string]*Group{
 			groupID: {
 				ID:              groupID,
 				Platform:        PlatformAnthropic,
@@ -122,9 +122,9 @@ func TestSelectAccountWithLoadAwareness_UsesFallbackGroupForChannelRestriction(t
 	}
 
 	ctx := context.WithValue(context.Background(), ctxkey.Group, groupRepo.groups[groupID])
-	result, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, "", "claude-sonnet-4-6", nil, "", 0)
+	result, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, "", "claude-sonnet-4-6", nil, "", "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.NotNil(t, result.Account)
-	require.Equal(t, int64(1), result.Account.ID)
+	require.Equal(t, "1", result.Account.ID)
 }

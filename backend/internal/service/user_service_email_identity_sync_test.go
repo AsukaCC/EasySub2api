@@ -12,7 +12,7 @@ import (
 func TestUpdateProfile_DoesNotReturnPartialSuccessFromEmailIdentityResync(t *testing.T) {
 	repo := &emailSyncRepoStub{
 		user: &User{
-			ID:          19,
+			ID:          "19",
 			Email:       "profile-before@example.com",
 			Username:    "tester",
 			Concurrency: 2,
@@ -22,7 +22,7 @@ func TestUpdateProfile_DoesNotReturnPartialSuccessFromEmailIdentityResync(t *tes
 	svc := NewUserService(repo, nil, nil, nil)
 
 	newEmail := "profile-after@example.com"
-	updated, err := svc.UpdateProfile(context.Background(), 19, UpdateProfileRequest{
+	updated, err := svc.UpdateProfile(context.Background(), "19", UpdateProfileRequest{
 		Email: &newEmail,
 	})
 	require.NoError(t, err)

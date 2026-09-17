@@ -17,41 +17,41 @@ import (
 
 func TestMatchAccountStatsRule_BothEmpty_NoMatch(t *testing.T) {
 	rule := &AccountStatsPricingRule{}
-	require.False(t, matchAccountStatsRule(rule, 1, 10))
+	require.False(t, matchAccountStatsRule(rule, "1", "10"))
 }
 
 func TestMatchAccountStatsRule_AccountIDMatch(t *testing.T) {
-	rule := &AccountStatsPricingRule{AccountIDs: []int64{1, 2, 3}}
-	require.True(t, matchAccountStatsRule(rule, 2, 999))
+	rule := &AccountStatsPricingRule{AccountIDs: []string{"1", "2", "3"}}
+	require.True(t, matchAccountStatsRule(rule, "2", "999"))
 }
 
 func TestMatchAccountStatsRule_GroupIDMatch(t *testing.T) {
-	rule := &AccountStatsPricingRule{GroupIDs: []int64{10, 20}}
-	require.True(t, matchAccountStatsRule(rule, 999, 20))
+	rule := &AccountStatsPricingRule{GroupIDs: []string{"10", "20"}}
+	require.True(t, matchAccountStatsRule(rule, "999", "20"))
 }
 
 func TestMatchAccountStatsRule_BothConfigured_AccountMatch(t *testing.T) {
 	rule := &AccountStatsPricingRule{
-		AccountIDs: []int64{1, 2},
-		GroupIDs:   []int64{10, 20},
+		AccountIDs: []string{"1", "2"},
+		GroupIDs: []string{"10", "20"},
 	}
-	require.True(t, matchAccountStatsRule(rule, 2, 999))
+	require.True(t, matchAccountStatsRule(rule, "2", "999"))
 }
 
 func TestMatchAccountStatsRule_BothConfigured_GroupMatch(t *testing.T) {
 	rule := &AccountStatsPricingRule{
-		AccountIDs: []int64{1, 2},
-		GroupIDs:   []int64{10, 20},
+		AccountIDs: []string{"1", "2"},
+		GroupIDs: []string{"10", "20"},
 	}
-	require.True(t, matchAccountStatsRule(rule, 999, 10))
+	require.True(t, matchAccountStatsRule(rule, "999", "10"))
 }
 
 func TestMatchAccountStatsRule_BothConfigured_NeitherMatch(t *testing.T) {
 	rule := &AccountStatsPricingRule{
-		AccountIDs: []int64{1, 2},
-		GroupIDs:   []int64{10, 20},
+		AccountIDs: []string{"1", "2"},
+		GroupIDs: []string{"10", "20"},
 	}
-	require.False(t, matchAccountStatsRule(rule, 999, 999))
+	require.False(t, matchAccountStatsRule(rule, "999", "999"))
 }
 
 // ---------------------------------------------------------------------------
@@ -60,20 +60,20 @@ func TestMatchAccountStatsRule_BothConfigured_NeitherMatch(t *testing.T) {
 
 func TestFindPricingForModel(t *testing.T) {
 	exactPricing := ChannelModelPricing{
-		ID:     1,
+		ID: "1",
 		Models: []string{"claude-opus-4"},
 	}
 	wildcardPricing := ChannelModelPricing{
-		ID:     2,
+		ID: "2",
 		Models: []string{"claude-*"},
 	}
 	platformPricing := ChannelModelPricing{
-		ID:       3,
+		ID: "3",
 		Platform: "openai",
 		Models:   []string{"gpt-4o"},
 	}
 	emptyPlatformPricing := ChannelModelPricing{
-		ID:     4,
+		ID: "4",
 		Models: []string{"gemini-2.5-pro"},
 	}
 
@@ -82,7 +82,7 @@ func TestFindPricingForModel(t *testing.T) {
 		list     []ChannelModelPricing
 		platform string
 		model    string
-		wantID   int64
+		wantID   string
 		wantNil  bool
 	}{
 		{
@@ -90,28 +90,28 @@ func TestFindPricingForModel(t *testing.T) {
 			list:     []ChannelModelPricing{exactPricing},
 			platform: "anthropic",
 			model:    "claude-opus-4",
-			wantID:   1,
+			wantID:   "1",
 		},
 		{
 			name:     "exact match case insensitive",
-			list:     []ChannelModelPricing{{ID: 5, Models: []string{"Claude-Opus-4"}}},
+			list:     []ChannelModelPricing{{ID: "5", Models: []string{"Claude-Opus-4"}}},
 			platform: "",
 			model:    "claude-opus-4",
-			wantID:   5,
+			wantID:   "5",
 		},
 		{
 			name:     "wildcard match",
 			list:     []ChannelModelPricing{wildcardPricing},
 			platform: "anthropic",
 			model:    "claude-opus-4",
-			wantID:   2,
+			wantID:   "2",
 		},
 		{
 			name:     "exact match takes priority over wildcard",
 			list:     []ChannelModelPricing{wildcardPricing, exactPricing},
 			platform: "anthropic",
 			model:    "claude-opus-4",
-			wantID:   1,
+			wantID:   "1",
 		},
 		{
 			name:     "platform mismatch skipped",
@@ -125,14 +125,14 @@ func TestFindPricingForModel(t *testing.T) {
 			list:     []ChannelModelPricing{emptyPlatformPricing},
 			platform: "gemini",
 			model:    "gemini-2.5-pro",
-			wantID:   4,
+			wantID:   "4",
 		},
 		{
 			name:     "empty platform in query matches any pricing platform",
 			list:     []ChannelModelPricing{platformPricing},
 			platform: "",
 			model:    "gpt-4o",
-			wantID:   3,
+			wantID:   "3",
 		},
 		{
 			name:     "no match at all",
@@ -150,22 +150,22 @@ func TestFindPricingForModel(t *testing.T) {
 		{
 			name: "wildcard matches by config order (first match wins)",
 			list: []ChannelModelPricing{
-				{ID: 10, Models: []string{"claude-*"}},
-				{ID: 11, Models: []string{"claude-opus-*"}},
+				{ID: "10", Models: []string{"claude-*"}},
+				{ID: "11", Models: []string{"claude-opus-*"}},
 			},
 			platform: "",
 			model:    "claude-opus-4",
-			wantID:   10, // config order: "claude-*" is first and matches, so it wins
+			wantID:   "10", // config order: "claude-*" is first and matches, so it wins
 		},
 		{
 			name: "shorter wildcard used when longer does not match",
 			list: []ChannelModelPricing{
-				{ID: 10, Models: []string{"claude-*"}},
-				{ID: 11, Models: []string{"claude-opus-*"}},
+				{ID: "10", Models: []string{"claude-*"}},
+				{ID: "11", Models: []string{"claude-opus-*"}},
 			},
 			platform: "",
 			model:    "claude-sonnet-4",
-			wantID:   10, // only "claude-*" matches
+			wantID:   "10", // only "claude-*" matches
 		},
 	}
 
@@ -349,21 +349,21 @@ func TestTryCustomRules_FirstMatchWins(t *testing.T) {
 	channel := &Channel{
 		AccountStatsPricingRules: []AccountStatsPricingRule{
 			{
-				GroupIDs: []int64{1},
+				GroupIDs: []string{"1"},
 				Pricing: []ChannelModelPricing{
-					{ID: 100, Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.01), OutputPrice: testPtrFloat64(0.02)},
+					{ID: "100", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.01), OutputPrice: testPtrFloat64(0.02)},
 				},
 			},
 			{
-				GroupIDs: []int64{1},
+				GroupIDs: []string{"1"},
 				Pricing: []ChannelModelPricing{
-					{ID: 200, Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.99), OutputPrice: testPtrFloat64(0.99)},
+					{ID: "200", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.99), OutputPrice: testPtrFloat64(0.99)},
 				},
 			},
 		},
 	}
 	tokens := UsageTokens{InputTokens: 100, OutputTokens: 50}
-	result := tryCustomRules(channel, 999, 1, "", "claude-opus-4", tokens, 1)
+	result := tryCustomRules(channel, "999", "1", "", "claude-opus-4", tokens, 1)
 	require.NotNil(t, result)
 	// 应使用第一条规则的价格：100*0.01 + 50*0.02 = 2.0
 	require.InDelta(t, 2.0, *result, 1e-12)
@@ -373,21 +373,21 @@ func TestTryCustomRules_SkipsNonMatchingRules(t *testing.T) {
 	channel := &Channel{
 		AccountStatsPricingRules: []AccountStatsPricingRule{
 			{
-				AccountIDs: []int64{888}, // 不匹配
+				AccountIDs: []string{"888"}, // 不匹配
 				Pricing: []ChannelModelPricing{
-					{ID: 100, Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.99)},
+					{ID: "100", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.99)},
 				},
 			},
 			{
-				GroupIDs: []int64{1}, // 匹配
+				GroupIDs: []string{"1"}, // 匹配
 				Pricing: []ChannelModelPricing{
-					{ID: 200, Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.05)},
+					{ID: "200", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.05)},
 				},
 			},
 		},
 	}
 	tokens := UsageTokens{InputTokens: 100}
-	result := tryCustomRules(channel, 999, 1, "", "claude-opus-4", tokens, 1)
+	result := tryCustomRules(channel, "999", "1", "", "claude-opus-4", tokens, 1)
 	require.NotNil(t, result)
 	// 跳过规则1（账号不匹配），使用规则2：100*0.05 = 5.0
 	require.InDelta(t, 5.0, *result, 1e-12)
@@ -397,15 +397,15 @@ func TestTryCustomRules_NoMatch_ReturnsNil(t *testing.T) {
 	channel := &Channel{
 		AccountStatsPricingRules: []AccountStatsPricingRule{
 			{
-				AccountIDs: []int64{888},
+				AccountIDs: []string{"888"},
 				Pricing: []ChannelModelPricing{
-					{ID: 100, Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.01)},
+					{ID: "100", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.01)},
 				},
 			},
 		},
 	}
 	tokens := UsageTokens{InputTokens: 100}
-	result := tryCustomRules(channel, 999, 2, "", "claude-opus-4", tokens, 1)
+	result := tryCustomRules(channel, "999", "2", "", "claude-opus-4", tokens, 1)
 	require.Nil(t, result) // 账号和分组都不匹配
 }
 
@@ -413,21 +413,21 @@ func TestTryCustomRules_RuleMatchesButModelNot_ContinuesToNext(t *testing.T) {
 	channel := &Channel{
 		AccountStatsPricingRules: []AccountStatsPricingRule{
 			{
-				GroupIDs: []int64{1},
+				GroupIDs: []string{"1"},
 				Pricing: []ChannelModelPricing{
-					{ID: 100, Models: []string{"gpt-4o"}, InputPrice: testPtrFloat64(0.01)}, // 模型不匹配
+					{ID: "100", Models: []string{"gpt-4o"}, InputPrice: testPtrFloat64(0.01)}, // 模型不匹配
 				},
 			},
 			{
-				GroupIDs: []int64{1},
+				GroupIDs: []string{"1"},
 				Pricing: []ChannelModelPricing{
-					{ID: 200, Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.05)}, // 模型匹配
+					{ID: "200", Models: []string{"claude-opus-4"}, InputPrice: testPtrFloat64(0.05)}, // 模型匹配
 				},
 			},
 		},
 	}
 	tokens := UsageTokens{InputTokens: 100}
-	result := tryCustomRules(channel, 999, 1, "", "claude-opus-4", tokens, 1)
+	result := tryCustomRules(channel, "999", "1", "", "claude-opus-4", tokens, 1)
 	require.NotNil(t, result)
 	require.InDelta(t, 5.0, *result, 1e-12) // 使用规则2
 }
@@ -629,7 +629,7 @@ func TestResolveAccountStatsCost_NilChannelService(t *testing.T) {
 		context.Background(),
 		nil, // channelService is nil
 		newTestBillingServiceWithPrices(map[string]*ModelPricing{}),
-		1, 1, "claude-sonnet-4",
+		"1", "1", "claude-sonnet-4",
 		UsageTokens{InputTokens: 100}, 1, 0.5, "",
 	)
 	require.Nil(t, result)
@@ -637,15 +637,15 @@ func TestResolveAccountStatsCost_NilChannelService(t *testing.T) {
 
 func TestResolveAccountStatsCost_EmptyUpstreamModel(t *testing.T) {
 	cs := newTestChannelServiceForStats(t, &Channel{
-		ID:     1,
+		ID: "1",
 		Status: StatusActive,
-	}, 1, "")
+	}, "1", "")
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs,
 		newTestBillingServiceWithPrices(map[string]*ModelPricing{}),
-		1, 1, "", // empty upstream model
+		"1", "1", "", // empty upstream model
 		UsageTokens{InputTokens: 100}, 1, 0.5, "",
 	)
 	require.Nil(t, result)
@@ -654,15 +654,15 @@ func TestResolveAccountStatsCost_EmptyUpstreamModel(t *testing.T) {
 func TestResolveAccountStatsCost_GetChannelForGroupReturnsNil(t *testing.T) {
 	// Group 99 is NOT in the cache, so GetChannelForGroup returns nil
 	cs := newTestChannelServiceForStats(t, &Channel{
-		ID:     1,
+		ID: "1",
 		Status: StatusActive,
-	}, 1, "")
+	}, "1", "")
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs,
 		newTestBillingServiceWithPrices(map[string]*ModelPricing{}),
-		1, 99, "claude-sonnet-4", // groupID 99 has no channel
+		"1", "99", "claude-sonnet-4", // groupID 99 has no channel
 		UsageTokens{InputTokens: 100}, 1, 0.5, "",
 	)
 	require.Nil(t, result)
@@ -670,14 +670,14 @@ func TestResolveAccountStatsCost_GetChannelForGroupReturnsNil(t *testing.T) {
 
 func TestResolveAccountStatsCost_HitsCustomRule(t *testing.T) {
 	channel := &Channel{
-		ID:     1,
+		ID: "1",
 		Status: StatusActive,
 		AccountStatsPricingRules: []AccountStatsPricingRule{
 			{
-				GroupIDs: []int64{10},
+				GroupIDs: []string{"10"},
 				Pricing: []ChannelModelPricing{
 					{
-						ID:          100,
+						ID: "100",
 						Models:      []string{"claude-sonnet-4"},
 						InputPrice:  testPtrFloat64(0.01),
 						OutputPrice: testPtrFloat64(0.02),
@@ -686,14 +686,14 @@ func TestResolveAccountStatsCost_HitsCustomRule(t *testing.T) {
 			},
 		},
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	tokens := UsageTokens{InputTokens: 100, OutputTokens: 50}
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, nil, // billingService not needed when custom rule hits
-		1, 10, "claude-sonnet-4",
+		"1", "10", "claude-sonnet-4",
 		tokens, 1, 999.0, "priority", // 自定义账号价格不叠加服务层级倍率
 	)
 	require.NotNil(t, result)
@@ -703,19 +703,19 @@ func TestResolveAccountStatsCost_HitsCustomRule(t *testing.T) {
 
 func TestResolveAccountStatsCost_ApplyPricingToAccountStats_UsesTotalCost(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: true,
 		// No custom rules
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	tokens := UsageTokens{InputTokens: 100, OutputTokens: 50}
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, nil,
-		1, 10, "claude-sonnet-4",
+		"1", "10", "claude-sonnet-4",
 		tokens, 1, 0.75, "priority", // 已完成用户计费，不再重复应用服务层级倍率
 	)
 	require.NotNil(t, result)
@@ -724,16 +724,16 @@ func TestResolveAccountStatsCost_ApplyPricingToAccountStats_UsesTotalCost(t *tes
 
 func TestResolveAccountStatsCost_ApplyPricingToAccountStats_ZeroTotalCost_ReturnsNil(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: true,
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, nil,
-		1, 10, "claude-sonnet-4",
+		"1", "10", "claude-sonnet-4",
 		UsageTokens{}, 1, 0.0, "", // totalCost = 0
 	)
 	require.Nil(t, result)
@@ -741,12 +741,12 @@ func TestResolveAccountStatsCost_ApplyPricingToAccountStats_ZeroTotalCost_Return
 
 func TestResolveAccountStatsCost_FallsBackToLiteLLM(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: false, // not enabled
 		// No custom rules
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	bs := newTestBillingServiceWithPrices(map[string]*ModelPricing{
 		"claude-sonnet-4": {
@@ -760,7 +760,7 @@ func TestResolveAccountStatsCost_FallsBackToLiteLLM(t *testing.T) {
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, bs,
-		1, 10, "claude-sonnet-4",
+		"1", "10", "claude-sonnet-4",
 		tokens, 1, 999.0, "", // totalCost ignored
 	)
 	require.NotNil(t, result)
@@ -770,17 +770,17 @@ func TestResolveAccountStatsCost_FallsBackToLiteLLM(t *testing.T) {
 
 func TestResolveAccountStatsCost_Gemini36FlashTierUsesFallbackPricing(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: false,
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "antigravity")
+	cs := newTestChannelServiceForStats(t, channel, "10", "antigravity")
 	bs := NewBillingService(&config.Config{}, nil)
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, bs,
-		1, 10, "gemini-3.6-flash-low",
+		"1", "10", "gemini-3.6-flash-low",
 		UsageTokens{InputTokens: 1_000_000, OutputTokens: 1_000_000, CacheReadTokens: 1_000_000}, 1, 0, "",
 	)
 	require.NotNil(t, result)
@@ -789,12 +789,12 @@ func TestResolveAccountStatsCost_Gemini36FlashTierUsesFallbackPricing(t *testing
 
 func TestResolveAccountStatsCost_AllMiss_ReturnsNil(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: false,
 		// No custom rules
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	// BillingService with no pricing for the model
 	bs := newTestBillingServiceWithPrices(map[string]*ModelPricing{})
@@ -804,7 +804,7 @@ func TestResolveAccountStatsCost_AllMiss_ReturnsNil(t *testing.T) {
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, bs,
-		1, 10, "totally-unknown-model",
+		"1", "10", "totally-unknown-model",
 		tokens, 1, 0.0, "",
 	)
 	require.Nil(t, result)
@@ -812,16 +812,16 @@ func TestResolveAccountStatsCost_AllMiss_ReturnsNil(t *testing.T) {
 
 func TestResolveAccountStatsCost_NilBillingService_SkipsLiteLLM(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: false,
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, nil, // billingService is nil
-		1, 10, "claude-sonnet-4",
+		"1", "10", "claude-sonnet-4",
 		UsageTokens{InputTokens: 100}, 1, 0.0, "",
 	)
 	require.Nil(t, result)
@@ -831,15 +831,15 @@ func TestResolveAccountStatsCost_CustomRulePriorityOverApplyPricing(t *testing.T
 	// Both custom rule and ApplyPricingToAccountStats are configured;
 	// custom rule should take precedence.
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: true,
 		AccountStatsPricingRules: []AccountStatsPricingRule{
 			{
-				GroupIDs: []int64{10},
+				GroupIDs: []string{"10"},
 				Pricing: []ChannelModelPricing{
 					{
-						ID:         100,
+						ID: "100",
 						Models:     []string{"claude-sonnet-4"},
 						InputPrice: testPtrFloat64(0.05),
 					},
@@ -847,14 +847,14 @@ func TestResolveAccountStatsCost_CustomRulePriorityOverApplyPricing(t *testing.T
 			},
 		},
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "anthropic")
+	cs := newTestChannelServiceForStats(t, channel, "10", "anthropic")
 
 	tokens := UsageTokens{InputTokens: 100}
 
 	result := resolveAccountStatsCost(
 		context.Background(),
 		cs, nil,
-		1, 10, "claude-sonnet-4",
+		"1", "10", "claude-sonnet-4",
 		tokens, 1, 99.0, "", // totalCost = 99.0 (would be used if ApplyPricing wins)
 	)
 	require.NotNil(t, result)
@@ -864,11 +864,11 @@ func TestResolveAccountStatsCost_CustomRulePriorityOverApplyPricing(t *testing.T
 
 func TestApplyAccountStatsCost_UsesUsageLogServiceTier(t *testing.T) {
 	channel := &Channel{
-		ID:                         1,
+		ID: "1",
 		Status:                     StatusActive,
 		ApplyPricingToAccountStats: false,
 	}
-	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	cs := newTestChannelServiceForStats(t, channel, "10", "openai")
 	bs := newTestBillingServiceWithPrices(map[string]*ModelPricing{
 		"gpt-5.6-sol": {
 			InputPricePerToken:          0.001,
@@ -882,7 +882,7 @@ func TestApplyAccountStatsCost_UsesUsageLogServiceTier(t *testing.T) {
 
 	applyAccountStatsCost(
 		context.Background(), usageLog, cs, bs,
-		1, 10, "gpt-5.6-sol", "gpt-5.6-sol",
+		"1", "10", "gpt-5.6-sol", "gpt-5.6-sol",
 		UsageTokens{InputTokens: 100, OutputTokens: 50}, 999,
 	)
 
@@ -896,7 +896,7 @@ func TestApplyAccountStatsCost_UsesUsageLogServiceTier(t *testing.T) {
 
 // newTestChannelServiceForStats creates a ChannelService with a single channel
 // mapped to the given groupID, suitable for resolveAccountStatsCost tests.
-func newTestChannelServiceForStats(t *testing.T, channel *Channel, groupID int64, platform string) *ChannelService {
+func newTestChannelServiceForStats(t *testing.T, channel *Channel, groupID string, platform string) *ChannelService {
 	t.Helper()
 	cache := newEmptyChannelCache()
 	cache.channelByGroupID[groupID] = channel

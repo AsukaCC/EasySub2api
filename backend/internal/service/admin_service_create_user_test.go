@@ -23,13 +23,13 @@ func TestAdminService_CreateUser_Success(t *testing.T) {
 		Notes:         "note",
 		Balance:       &balance,
 		Concurrency:   7,
-		AllowedGroups: []int64{3, 5},
+		AllowedGroups: []string{"3", "5"},
 	}
 
 	user, err := svc.CreateUser(context.Background(), input)
 	require.NoError(t, err)
 	require.NotNil(t, user)
-	require.Equal(t, int64(10), user.ID)
+	require.Equal(t, "10", user.ID)
 	require.Equal(t, input.Email, user.Email)
 	require.Equal(t, input.Username, user.Username)
 	require.Equal(t, input.Notes, user.Notes)
@@ -142,7 +142,7 @@ func TestAdminService_CreateUser_AssignsDefaultSubscriptions(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, assigner.calls, 1)
-	require.Equal(t, int64(21), assigner.calls[0].UserID)
-	require.Equal(t, int64(5), assigner.calls[0].GroupID)
+	require.Equal(t, "21", assigner.calls[0].UserID)
+	require.Equal(t, "5", assigner.calls[0].GroupID)
 	require.Equal(t, 30, assigner.calls[0].ValidityDays)
 }

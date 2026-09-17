@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
@@ -133,7 +132,7 @@ func TestCanonicalizeReturnURLRejectsNonCanonicalPath(t *testing.T) {
 func TestBuildPaymentReturnURL(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("https://example.com/payment/result?from=checkout#fragment", 42, "sub2_42", "resume-token")
+	got, err := buildPaymentReturnURL("https://example.com/payment/result?from=checkout#fragment", "42", "sub2_42", "resume-token")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -149,7 +148,7 @@ func TestBuildPaymentReturnURL(t *testing.T) {
 	if query.Get("from") != "checkout" {
 		t.Fatalf("expected original query to be preserved, got %q", query.Get("from"))
 	}
-	if query.Get("order_id") != strconv.FormatInt(42, 10) {
+	if query.Get("order_id") != "42" {
 		t.Fatalf("order_id = %q", query.Get("order_id"))
 	}
 	if query.Get("out_trade_no") != "sub2_42" {
@@ -166,7 +165,7 @@ func TestBuildPaymentReturnURL(t *testing.T) {
 func TestBuildPaymentReturnURLWithoutResumeTokenStillIncludesOutTradeNo(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("https://example.com/payment/result", 42, "sub2_42", "")
+	got, err := buildPaymentReturnURL("https://example.com/payment/result", "42", "sub2_42", "")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -190,7 +189,7 @@ func TestBuildPaymentReturnURLWithoutResumeTokenStillIncludesOutTradeNo(t *testi
 func TestBuildPaymentReturnURLEmptyBase(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("", 42, "sub2_42", "resume-token")
+	got, err := buildPaymentReturnURL("", "42", "sub2_42", "resume-token")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -204,8 +203,8 @@ func TestPaymentResumeTokenRoundTrip(t *testing.T) {
 
 	svc := NewPaymentResumeService([]byte("0123456789abcdef0123456789abcdef"))
 	token, err := svc.CreateToken(ResumeTokenClaims{
-		OrderID:            42,
-		UserID:             7,
+		OrderID:            "42",
+		UserID: "7",
 		ProviderInstanceID: "19",
 		ProviderKey:        "easypay",
 		PaymentType:        "wxpay",
@@ -220,7 +219,7 @@ func TestPaymentResumeTokenRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseToken returned error: %v", err)
 	}
-	if claims.OrderID != 42 || claims.UserID != 7 {
+	if claims.OrderID != "42" || claims.UserID != "7" {
 		t.Fatalf("claims mismatch: %+v", claims)
 	}
 	if claims.ProviderInstanceID != "19" || claims.ProviderKey != "easypay" || claims.PaymentType != "wxpay" {
@@ -235,7 +234,7 @@ func TestCreateTokenRejectsMissingSigningKey(t *testing.T) {
 	t.Parallel()
 
 	svc := NewPaymentResumeService(nil)
-	_, err := svc.CreateToken(ResumeTokenClaims{OrderID: 42})
+	_, err := svc.CreateToken(ResumeTokenClaims{OrderID: "42"})
 	if err == nil {
 		t.Fatal("CreateToken should reject missing signing key")
 	}
@@ -244,7 +243,7 @@ func TestCreateTokenRejectsMissingSigningKey(t *testing.T) {
 func TestParseTokenRejectsFallbackSignedTokenWhenSigningKeyMissing(t *testing.T) {
 	t.Parallel()
 
-	token := mustCreateFallbackSignedToken(t, ResumeTokenClaims{OrderID: 42, UserID: 7})
+	token := mustCreateFallbackSignedToken(t, ResumeTokenClaims{OrderID: "42", UserID: "7"})
 	svc := NewPaymentResumeService(nil)
 	_, err := svc.ParseToken(token)
 	if err == nil {
@@ -257,8 +256,8 @@ func TestParseTokenRejectsExpiredToken(t *testing.T) {
 
 	svc := NewPaymentResumeService([]byte("0123456789abcdef0123456789abcdef"))
 	token, err := svc.CreateToken(ResumeTokenClaims{
-		OrderID:   42,
-		UserID:    7,
+		OrderID:   "42",
+		UserID: "7",
 		IssuedAt:  time.Now().Add(-25 * time.Hour).Unix(),
 		ExpiresAt: time.Now().Add(-1 * time.Hour).Unix(),
 	})
@@ -281,7 +280,7 @@ func TestWeChatPaymentResumeTokenRoundTrip(t *testing.T) {
 		PaymentType: payment.TypeWxpay,
 		Amount:      "12.50",
 		OrderType:   payment.OrderTypeSubscription,
-		PlanID:      7,
+		PlanID:      "7",
 		RedirectTo:  "/purchase?from=wechat",
 		Scope:       "snsapi_base",
 		IssuedAt:    1234567890,
@@ -297,7 +296,7 @@ func TestWeChatPaymentResumeTokenRoundTrip(t *testing.T) {
 	if claims.OpenID != "openid-123" || claims.PaymentType != payment.TypeWxpay {
 		t.Fatalf("claims mismatch: %+v", claims)
 	}
-	if claims.Amount != "12.50" || claims.OrderType != payment.OrderTypeSubscription || claims.PlanID != 7 {
+	if claims.Amount != "12.50" || claims.OrderType != payment.OrderTypeSubscription || claims.PlanID != "7" {
 		t.Fatalf("claims payment context mismatch: %+v", claims)
 	}
 	if claims.RedirectTo != "/purchase?from=wechat" || claims.Scope != "snsapi_base" {
@@ -799,7 +798,7 @@ type captureLoadBalancer struct {
 	lastPaymentType string
 }
 
-func (c *captureLoadBalancer) GetInstanceConfig(context.Context, int64) (map[string]string, error) {
+func (c *captureLoadBalancer) GetInstanceConfig(context.Context, string) (map[string]string, error) {
 	return map[string]string{}, nil
 }
 

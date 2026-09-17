@@ -19,19 +19,19 @@ import (
 
 type authRepoStub struct {
 	getByKeyForAuth   func(ctx context.Context, key string) (*APIKey, error)
-	listKeysByUserID  func(ctx context.Context, userID int64) ([]string, error)
-	listKeysByGroupID func(ctx context.Context, groupID int64) ([]string, error)
+	listKeysByUserID  func(ctx context.Context, userID string) ([]string, error)
+	listKeysByGroupID func(ctx context.Context, groupID string) ([]string, error)
 }
 
 func (s *authRepoStub) Create(ctx context.Context, key *APIKey) error {
 	panic("unexpected Create call")
 }
 
-func (s *authRepoStub) GetByID(ctx context.Context, id int64) (*APIKey, error) {
+func (s *authRepoStub) GetByID(ctx context.Context, id string) (*APIKey, error) {
 	panic("unexpected GetByID call")
 }
 
-func (s *authRepoStub) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
+func (s *authRepoStub) GetKeyAndOwnerID(ctx context.Context, id string) (string, string, error) {
 	panic("unexpected GetKeyAndOwnerID call")
 }
 
@@ -50,23 +50,23 @@ func (s *authRepoStub) Update(ctx context.Context, key *APIKey, _ APIKeyUpdateFi
 	panic("unexpected Update call")
 }
 
-func (s *authRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *authRepoStub) Delete(ctx context.Context, id string) error {
 	panic("unexpected Delete call")
 }
 
-func (s *authRepoStub) DeleteWithAudit(ctx context.Context, id int64) error {
+func (s *authRepoStub) DeleteWithAudit(ctx context.Context, id string) error {
 	panic("unexpected DeleteWithAudit call")
 }
 
-func (s *authRepoStub) ListByUserID(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+func (s *authRepoStub) ListByUserID(ctx context.Context, userID string, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
 	panic("unexpected ListByUserID call")
 }
 
-func (s *authRepoStub) VerifyOwnership(ctx context.Context, userID int64, apiKeyIDs []int64) ([]int64, error) {
+func (s *authRepoStub) VerifyOwnership(ctx context.Context, userID string, apiKeyIDs []string) ([]string, error) {
 	panic("unexpected VerifyOwnership call")
 }
 
-func (s *authRepoStub) CountByUserID(ctx context.Context, userID int64) (int64, error) {
+func (s *authRepoStub) CountByUserID(ctx context.Context, userID string) (int64, error) {
 	panic("unexpected CountByUserID call")
 }
 
@@ -74,53 +74,53 @@ func (s *authRepoStub) ExistsByKey(ctx context.Context, key string) (bool, error
 	panic("unexpected ExistsByKey call")
 }
 
-func (s *authRepoStub) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
+func (s *authRepoStub) ListByGroupID(ctx context.Context, groupID string, params pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
 	panic("unexpected ListByGroupID call")
 }
 
-func (s *authRepoStub) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]APIKey, error) {
+func (s *authRepoStub) SearchAPIKeys(ctx context.Context, userID string, keyword string, limit int) ([]APIKey, error) {
 	panic("unexpected SearchAPIKeys call")
 }
 
-func (s *authRepoStub) ClearGroupIDByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (s *authRepoStub) ClearGroupIDByGroupID(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected ClearGroupIDByGroupID call")
 }
-func (s *authRepoStub) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (int64, error) {
+func (s *authRepoStub) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID string) (int64, error) {
 	panic("unexpected UpdateGroupIDByUserAndGroup call")
 }
 
-func (s *authRepoStub) CountByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (s *authRepoStub) CountByGroupID(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected CountByGroupID call")
 }
 
-func (s *authRepoStub) ListKeysByUserID(ctx context.Context, userID int64) ([]string, error) {
+func (s *authRepoStub) ListKeysByUserID(ctx context.Context, userID string) ([]string, error) {
 	if s.listKeysByUserID == nil {
 		panic("unexpected ListKeysByUserID call")
 	}
 	return s.listKeysByUserID(ctx, userID)
 }
 
-func (s *authRepoStub) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
+func (s *authRepoStub) ListKeysByGroupID(ctx context.Context, groupID string) ([]string, error) {
 	if s.listKeysByGroupID == nil {
 		panic("unexpected ListKeysByGroupID call")
 	}
 	return s.listKeysByGroupID(ctx, groupID)
 }
 
-func (s *authRepoStub) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error) {
+func (s *authRepoStub) IncrementQuotaUsed(ctx context.Context, id string, amount float64) (float64, error) {
 	panic("unexpected IncrementQuotaUsed call")
 }
 
-func (s *authRepoStub) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
+func (s *authRepoStub) UpdateLastUsed(ctx context.Context, id string, usedAt time.Time) error {
 	panic("unexpected UpdateLastUsed call")
 }
-func (s *authRepoStub) IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error {
+func (s *authRepoStub) IncrementRateLimitUsage(ctx context.Context, id string, cost float64) error {
 	panic("unexpected IncrementRateLimitUsage call")
 }
-func (s *authRepoStub) ResetRateLimitWindows(ctx context.Context, id int64) error {
+func (s *authRepoStub) ResetRateLimitWindows(ctx context.Context, id string) error {
 	panic("unexpected ResetRateLimitWindows call")
 }
-func (s *authRepoStub) GetRateLimitData(ctx context.Context, id int64) (*APIKeyRateLimitData, error) {
+func (s *authRepoStub) GetRateLimitData(ctx context.Context, id string) (*APIKeyRateLimitData, error) {
 	panic("unexpected GetRateLimitData call")
 }
 
@@ -130,15 +130,15 @@ type authCacheStub struct {
 	deleteAuthKeys []string
 }
 
-func (s *authCacheStub) GetCreateAttemptCount(ctx context.Context, userID int64) (int, error) {
+func (s *authCacheStub) GetCreateAttemptCount(ctx context.Context, userID string) (int, error) {
 	return 0, nil
 }
 
-func (s *authCacheStub) IncrementCreateAttemptCount(ctx context.Context, userID int64) error {
+func (s *authCacheStub) IncrementCreateAttemptCount(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (s *authCacheStub) DeleteCreateAttemptCount(ctx context.Context, userID int64) error {
+func (s *authCacheStub) DeleteCreateAttemptCount(ctx context.Context, userID string) error {
 	return nil
 }
 
@@ -190,16 +190,16 @@ func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
 	}
 	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
 
-	groupID := int64(9)
+	groupID := "9"
 	cacheEntry := &APIKeyAuthCacheEntry{
 		Snapshot: &APIKeyAuthSnapshot{
 			Version:  apiKeyAuthSnapshotVersion,
-			APIKeyID: 1,
-			UserID:   2,
+			APIKeyID: "1",
+			UserID: "2",
 			GroupID:  &groupID,
 			Status:   StatusActive,
 			User: APIKeyAuthUserSnapshot{
-				ID:          2,
+				ID: "2",
 				Status:      StatusActive,
 				Role:        RoleUser,
 				Balance:     10,
@@ -213,8 +213,8 @@ func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
 				SubscriptionType:    SubscriptionTypeStandard,
 				RateMultiplier:      1,
 				ModelRoutingEnabled: true,
-				ModelRouting: map[string][]int64{
-					"claude-opus-*": {1, 2},
+				ModelRouting: map[string][]string{
+					"claude-opus-*": {"1", "2"},
 				},
 			},
 		},
@@ -225,25 +225,25 @@ func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
 
 	apiKey, err := svc.GetByKey(context.Background(), "k1")
 	require.NoError(t, err)
-	require.Equal(t, int64(1), apiKey.ID)
-	require.Equal(t, int64(2), apiKey.User.ID)
+	require.Equal(t, "1", apiKey.ID)
+	require.Equal(t, "2", apiKey.User.ID)
 	require.Equal(t, groupID, apiKey.Group.ID)
 	require.True(t, apiKey.Group.ModelRoutingEnabled)
-	require.Equal(t, map[string][]int64{"claude-opus-*": {1, 2}}, apiKey.Group.ModelRouting)
+	require.Equal(t, map[string][]string{"claude-opus-*": {"1", "2"}}, apiKey.Group.ModelRouting)
 }
 
 func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t *testing.T) {
 	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
-	groupID := int64(9)
+	groupID := "9"
 	apiKey := &APIKey{
-		ID:      1,
-		UserID:  2,
+		ID: "1",
+		UserID: "2",
 		GroupID: &groupID,
 		Key:     "k-roundtrip",
 		Name:    "Audit Key",
 		Status:  StatusActive,
 		User: &User{
-			ID:          2,
+			ID: "2",
 			Status:      StatusActive,
 			Role:        RoleUser,
 			Balance:     10,
@@ -280,15 +280,15 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t 
 
 func TestAPIKeyService_SnapshotRoundTrip_PreservesReasoningEffortPolicy(t *testing.T) {
 	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
-	groupID := int64(9)
+	groupID := "9"
 	apiKey := &APIKey{
-		ID:      1,
-		UserID:  2,
+		ID: "1",
+		UserID: "2",
 		GroupID: &groupID,
 		Key:     "k-reasoning-policy",
 		Status:  StatusActive,
 		User: &User{
-			ID:          2,
+			ID: "2",
 			Status:      StatusActive,
 			Role:        RoleUser,
 			Balance:     10,
@@ -324,14 +324,14 @@ func TestAPIKeyService_GetByKey_IgnoresLegacyAuthCacheSnapshotWithoutMessagesDis
 	repo := &authRepoStub{
 		getByKeyForAuth: func(ctx context.Context, key string) (*APIKey, error) {
 			atomic.AddInt32(&repoCalls, 1)
-			groupID := int64(9)
+			groupID := "9"
 			return &APIKey{
-				ID:      1,
-				UserID:  2,
+				ID: "1",
+				UserID: "2",
 				GroupID: &groupID,
 				Status:  StatusActive,
 				User: &User{
-					ID:          2,
+					ID: "2",
 					Status:      StatusActive,
 					Role:        RoleUser,
 					Balance:     10,
@@ -361,16 +361,16 @@ func TestAPIKeyService_GetByKey_IgnoresLegacyAuthCacheSnapshotWithoutMessagesDis
 	}
 	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
 
-	groupID := int64(9)
+	groupID := "9"
 	cache.getAuthCache = func(ctx context.Context, key string) (*APIKeyAuthCacheEntry, error) {
 		return &APIKeyAuthCacheEntry{
 			Snapshot: &APIKeyAuthSnapshot{
-				APIKeyID: 1,
-				UserID:   2,
+				APIKeyID: "1",
+				UserID: "2",
 				GroupID:  &groupID,
 				Status:   StatusActive,
 				User: APIKeyAuthUserSnapshot{
-					ID:          2,
+					ID: "2",
 					Status:      StatusActive,
 					Role:        RoleUser,
 					Balance:     10,
@@ -424,11 +424,11 @@ func TestAPIKeyService_GetByKey_CacheMissStoresL2(t *testing.T) {
 	repo := &authRepoStub{
 		getByKeyForAuth: func(ctx context.Context, key string) (*APIKey, error) {
 			return &APIKey{
-				ID:     5,
-				UserID: 7,
+				ID: "5",
+				UserID: "7",
 				Status: StatusActive,
 				User: &User{
-					ID:          7,
+					ID: "7",
 					Status:      StatusActive,
 					Role:        RoleUser,
 					Balance:     12,
@@ -450,7 +450,7 @@ func TestAPIKeyService_GetByKey_CacheMissStoresL2(t *testing.T) {
 
 	apiKey, err := svc.GetByKey(context.Background(), "k2")
 	require.NoError(t, err)
-	require.Equal(t, int64(5), apiKey.ID)
+	require.Equal(t, "5", apiKey.ID)
 	require.Len(t, cache.setAuthKeys, 1)
 }
 
@@ -461,11 +461,11 @@ func TestAPIKeyService_GetByKey_UsesL1Cache(t *testing.T) {
 		getByKeyForAuth: func(ctx context.Context, key string) (*APIKey, error) {
 			atomic.AddInt32(&calls, 1)
 			return &APIKey{
-				ID:     21,
-				UserID: 3,
+				ID: "21",
+				UserID: "3",
 				Status: StatusActive,
 				User: &User{
-					ID:          3,
+					ID: "3",
 					Status:      StatusActive,
 					Role:        RoleUser,
 					Balance:     5,
@@ -497,7 +497,7 @@ func TestAPIKeyService_GetByKey_UsesL1Cache(t *testing.T) {
 func TestAPIKeyService_InvalidateAuthCacheByUserID(t *testing.T) {
 	cache := &authCacheStub{}
 	repo := &authRepoStub{
-		listKeysByUserID: func(ctx context.Context, userID int64) ([]string, error) {
+		listKeysByUserID: func(ctx context.Context, userID string) ([]string, error) {
 			return []string{"k1", "k2"}, nil
 		},
 	}
@@ -509,14 +509,14 @@ func TestAPIKeyService_InvalidateAuthCacheByUserID(t *testing.T) {
 	}
 	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
 
-	svc.InvalidateAuthCacheByUserID(context.Background(), 7)
+	svc.InvalidateAuthCacheByUserID(context.Background(), "7")
 	require.Len(t, cache.deleteAuthKeys, 2)
 }
 
 func TestAPIKeyService_InvalidateAuthCacheByGroupID(t *testing.T) {
 	cache := &authCacheStub{}
 	repo := &authRepoStub{
-		listKeysByGroupID: func(ctx context.Context, groupID int64) ([]string, error) {
+		listKeysByGroupID: func(ctx context.Context, groupID string) ([]string, error) {
 			return []string{"k1", "k2"}, nil
 		},
 	}
@@ -527,14 +527,14 @@ func TestAPIKeyService_InvalidateAuthCacheByGroupID(t *testing.T) {
 	}
 	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, cfg)
 
-	svc.InvalidateAuthCacheByGroupID(context.Background(), 9)
+	svc.InvalidateAuthCacheByGroupID(context.Background(), "9")
 	require.Len(t, cache.deleteAuthKeys, 2)
 }
 
 func TestAPIKeyService_InvalidateAuthCacheByKey(t *testing.T) {
 	cache := &authCacheStub{}
 	repo := &authRepoStub{
-		listKeysByUserID: func(ctx context.Context, userID int64) ([]string, error) {
+		listKeysByUserID: func(ctx context.Context, userID string) ([]string, error) {
 			return nil, nil
 		},
 	}
@@ -650,11 +650,11 @@ func TestAPIKeyService_GetByKey_SingleflightCollapses(t *testing.T) {
 			atomic.AddInt32(&calls, 1)
 			time.Sleep(50 * time.Millisecond)
 			return &APIKey{
-				ID:     11,
-				UserID: 2,
+				ID: "11",
+				UserID: "2",
 				Status: StatusActive,
 				User: &User{
-					ID:          2,
+					ID: "2",
 					Status:      StatusActive,
 					Role:        RoleUser,
 					Balance:     1,

@@ -15,7 +15,7 @@ func TestPropagateAccountProxyToShadows(t *testing.T) {
 	ctx := context.Background()
 	repo := newSparkShadowRepoStub()
 
-	oldProxy := int64(11)
+	oldProxy := "11"
 	mother := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, ProxyID: &oldProxy}
 	require.NoError(t, repo.Create(ctx, mother))
 	parentID := mother.ID
@@ -29,7 +29,7 @@ func TestPropagateAccountProxyToShadows(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, shadow))
 
-	newProxy := int64(22)
+	newProxy := "22"
 	require.NoError(t, propagateAccountProxyToShadows(ctx, repo, parentID, &newProxy))
 
 	got, err := repo.GetByID(ctx, shadow.ID)

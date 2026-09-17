@@ -27,7 +27,7 @@ func TestMigration225BackfillsOnlyEnabledOpenAIOAuthMissingOrMalformedSeeds(t *t
 	migrationSQL, err := dbmigrations.FS.ReadFile("225_backfill_codex_fingerprint_seed.sql")
 	require.NoError(t, err)
 
-	var missingID, blankID, malformedID, validID, offID, apiKeyID int64
+	var missingID, blankID, malformedID, validID, offID, apiKeyID string
 	require.NoError(t, tx.QueryRowContext(ctx, `
 INSERT INTO accounts (name, platform, type, extra)
 VALUES ('migration-225-missing', 'openai', 'oauth', '{"codex_fingerprint_mode":"session"}'::jsonb)
@@ -104,7 +104,7 @@ func TestBulkUpdateGeneratesDistinctStableCodexFingerprintSeedsPerEligibleRow(t 
 
 	ids := make([]int64, 0, len(fixtures))
 	for _, f := range fixtures {
-		var id int64
+		var id string
 		require.NoError(t, integrationDB.QueryRowContext(ctx, `
 INSERT INTO accounts (name, platform, type, extra)
 VALUES ($1, 'openai', $2, $3::jsonb)
@@ -128,7 +128,7 @@ RETURNING id
 	require.NoError(t, err)
 	require.Equal(t, int64(len(ids)), rows)
 
-	readSeed := func(id int64) string {
+	readSeed := func(id string) string {
 		t.Helper()
 		var seed string
 		require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COALESCE(extra->>'codex_fingerprint_seed', '') FROM accounts WHERE id = $1`, id).Scan(&seed))

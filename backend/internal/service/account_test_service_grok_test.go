@@ -29,9 +29,9 @@ type grokAccountTestRateLimitRepo struct {
 }
 
 func TestObserveGrokTestResponseClassifiesBodyOnlyQuotaErrors(t *testing.T) {
-	account := &Account{ID: 1901, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "1901", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}}
 	svc := &AccountTestService{accountRepo: repo}
 
@@ -49,9 +49,9 @@ func TestObserveGrokTestResponseClassifiesBodyOnlyQuotaErrors(t *testing.T) {
 }
 
 func TestObserveGrokTestResponseDoesNotQuarantineContentPolicy(t *testing.T) {
-	account := &Account{ID: 1902, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "1902", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}}
 	svc := &AccountTestService{accountRepo: repo}
 	resp := &http.Response{
@@ -65,9 +65,9 @@ func TestObserveGrokTestResponseDoesNotQuarantineContentPolicy(t *testing.T) {
 }
 
 func TestObserveGrokTestResponseKeepsEntitlement403Cooldown(t *testing.T) {
-	account := &Account{ID: 1903, Platform: PlatformGrok, Type: AccountTypeOAuth}
+	account := &Account{ID: "1903", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}}
 	svc := &AccountTestService{accountRepo: repo}
 	resp := &http.Response{
@@ -82,7 +82,7 @@ func TestObserveGrokTestResponseKeepsEntitlement403Cooldown(t *testing.T) {
 	require.Greater(t, repo.lastTempUnschedUntil, before.Add(29*time.Minute))
 }
 
-func (r *grokAccountTestRateLimitRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
+func (r *grokAccountTestRateLimitRepo) SetRateLimited(_ context.Context, _ string, resetAt time.Time) error {
 	r.rateLimitedCalls++
 	r.resetAt = resetAt
 	return nil
@@ -92,7 +92,7 @@ func TestAccountTestService_TestAccountConnection_GrokUsesXAIResponses(t *testin
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID:          13,
+		ID: "13",
 		Name:        "grok-oauth",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -109,7 +109,7 @@ func TestAccountTestService_TestAccountConnection_GrokUsesXAIResponses(t *testin
 		},
 	}
 	repo := &mockAccountRepoForGemini{
-		accountsByID: map[int64]*Account{account.ID: account},
+		accountsByID: map[string]*Account{account.ID: account},
 	}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
@@ -150,7 +150,7 @@ func TestAccountTestService_TestAccountConnection_GrokDefaultsEmptyModelTo45(t *
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID:          16,
+		ID: "16",
 		Name:        "grok-oauth-default-model",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -163,7 +163,7 @@ func TestAccountTestService_TestAccountConnection_GrokDefaultsEmptyModelTo45(t *
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
@@ -192,7 +192,7 @@ func TestAccountTestService_Grok429PersistsRateLimitReset(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID:          14,
+		ID: "14",
 		Name:        "grok-oauth-limited",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -205,7 +205,7 @@ func TestAccountTestService_Grok429PersistsRateLimitReset(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	baseRepo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	baseRepo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	repo := &grokAccountTestRateLimitRepo{mockAccountRepoForGemini: baseRepo}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusTooManyRequests,
@@ -231,7 +231,7 @@ func TestAccountTestService_Grok429PersistsRateLimitReset(t *testing.T) {
 func TestAccountTestService_Grok429WithoutQuotaHeadersUsesFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 15, Name: "grok-oauth-limited-no-headers", Platform: PlatformGrok,
+		ID: "15", Name: "grok-oauth-limited-no-headers", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -239,7 +239,7 @@ func TestAccountTestService_Grok429WithoutQuotaHeadersUsesFallback(t *testing.T)
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	baseRepo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	baseRepo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	repo := &grokAccountTestRateLimitRepo{mockAccountRepoForGemini: baseRepo}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusTooManyRequests,
@@ -263,7 +263,7 @@ func TestAccountTestService_Grok429WithoutQuotaHeadersUsesFallback(t *testing.T)
 func TestAccountTestService_GrokImageModelUsesImagesGenerations(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 17, Name: "grok-oauth-image", Platform: PlatformGrok,
+		ID: "17", Name: "grok-oauth-image", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -272,7 +272,7 @@ func TestAccountTestService_GrokImageModelUsesImagesGenerations(t *testing.T) {
 			"base_url":      "https://cli-chat-proxy.grok.com/v1",
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -304,7 +304,7 @@ func TestAccountTestService_GrokImageModelUsesImagesGenerations(t *testing.T) {
 func TestAccountTestService_GrokWebSearchModeUsesResponsesWebSearchTool(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 18, Name: "grok-oauth-search", Platform: PlatformGrok,
+		ID: "18", Name: "grok-oauth-search", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -312,7 +312,7 @@ func TestAccountTestService_GrokWebSearchModeUsesResponsesWebSearchTool(t *testi
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Body: io.NopCloser(strings.NewReader(
@@ -343,7 +343,7 @@ func TestAccountTestService_GrokWebSearchModeUsesResponsesWebSearchTool(t *testi
 func TestAccountTestService_GrokTTSIncludesLanguage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 19, Name: "grok-oauth-tts", Platform: PlatformGrok,
+		ID: "19", Name: "grok-oauth-tts", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -351,7 +351,7 @@ func TestAccountTestService_GrokTTSIncludesLanguage(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"audio/mpeg"}},
@@ -381,7 +381,7 @@ func TestAccountTestService_GrokTTSIncludesLanguage(t *testing.T) {
 func TestAccountTestService_GrokImageEditUsesUploadedImage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 24, Name: "grok-oauth-image-edit", Platform: PlatformGrok,
+		ID: "24", Name: "grok-oauth-image-edit", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -389,7 +389,7 @@ func TestAccountTestService_GrokImageEditUsesUploadedImage(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -425,7 +425,7 @@ func TestAccountTestService_GrokImageEditUsesUploadedImage(t *testing.T) {
 func TestAccountTestService_GrokImageEditRejectsTinySource(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 25, Name: "grok-oauth-image-tiny", Platform: PlatformGrok,
+		ID: "25", Name: "grok-oauth-image-tiny", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -433,7 +433,7 @@ func TestAccountTestService_GrokImageEditRejectsTinySource(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	svc := &AccountTestService{
 		accountRepo:       repo,
 		grokTokenProvider: NewGrokTokenProvider(repo, nil),
@@ -468,7 +468,7 @@ func minimalAccountTestPNGDataURL(w, h int) string {
 func TestAccountTestService_GrokExplicitImageModeDefaultsModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 20, Name: "grok-oauth-image-mode", Platform: PlatformGrok,
+		ID: "20", Name: "grok-oauth-image-mode", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -476,7 +476,7 @@ func TestAccountTestService_GrokExplicitImageModeDefaultsModel(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -505,7 +505,7 @@ func TestAccountTestService_GrokExplicitImageModeDefaultsModel(t *testing.T) {
 func TestAccountTestService_GrokVideoUpstreamErrorIsNotMaskedAsSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 21, Name: "grok-oauth-video-err", Platform: PlatformGrok,
+		ID: "21", Name: "grok-oauth-video-err", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -513,7 +513,7 @@ func TestAccountTestService_GrokVideoUpstreamErrorIsNotMaskedAsSuccess(t *testin
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusBadRequest,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
@@ -578,7 +578,7 @@ func (d *grokRealtimeTestDialer) Dial(_ context.Context, wsURL string, headers h
 func TestAccountTestService_GrokRealtimeModeDialsWS(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 22, Name: "grok-oauth-realtime", Platform: PlatformGrok,
+		ID: "22", Name: "grok-oauth-realtime", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -586,7 +586,7 @@ func TestAccountTestService_GrokRealtimeModeDialsWS(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	dialer := &grokRealtimeTestDialer{
 		conn: &grokRealtimeTestConn{msg: []byte(`{"type":"session.created","session":{"id":"sess_1"}}`)},
 	}
@@ -614,7 +614,7 @@ func TestAccountTestService_GrokRealtimeModeDialsWS(t *testing.T) {
 func TestAccountTestService_GrokRealtimeModeDialFailure(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	account := &Account{
-		ID: 23, Name: "grok-oauth-realtime-fail", Platform: PlatformGrok,
+		ID: "23", Name: "grok-oauth-realtime-fail", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
 			"access_token":  "grok-access-token",
@@ -622,7 +622,7 @@ func TestAccountTestService_GrokRealtimeModeDialFailure(t *testing.T) {
 			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
+	repo := &mockAccountRepoForGemini{accountsByID: map[string]*Account{account.ID: account}}
 	dialer := &grokRealtimeTestDialer{
 		status: 401,
 		err:    &openAIWSHandshakeError{Body: []byte(`{"error":"unauthorized"}`), Err: errors.New("websocket handshake failed")},

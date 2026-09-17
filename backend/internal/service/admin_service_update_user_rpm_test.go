@@ -29,7 +29,7 @@ func (s *rpmUserRepoStub) Update(_ context.Context, user *User, _ UserUpdateFiel
 }
 
 func TestAdminService_UpdateUser_InvalidatesAuthCacheOnRPMLimitChange(t *testing.T) {
-	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", RPMLimit: 10}}
+	base := &userRepoStub{user: &User{ID: "42", Email: "u@example.com", RPMLimit: 10}}
 	repo := &rpmUserRepoStub{userRepoStub: base}
 	invalidator := &authCacheInvalidatorStub{}
 	svc := &adminServiceImpl{
@@ -39,17 +39,17 @@ func TestAdminService_UpdateUser_InvalidatesAuthCacheOnRPMLimitChange(t *testing
 	}
 
 	newRPM := 60
-	updated, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{
+	updated, err := svc.UpdateUser(context.Background(), "42", &UpdateUserInput{
 		RPMLimit: &newRPM,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, updated)
 	require.Equal(t, 60, updated.RPMLimit)
-	require.Equal(t, []int64{42}, invalidator.userIDs, "仅修改 RPMLimit 也应失效 API Key 认证缓存")
+	require.Equal(t, []string{"42"}, invalidator.userIDs, "仅修改 RPMLimit 也应失效 API Key 认证缓存")
 }
 
 func TestAdminService_UpdateUser_NoInvalidateWhenRPMLimitUnchanged(t *testing.T) {
-	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", RPMLimit: 10, Username: "old"}}
+	base := &userRepoStub{user: &User{ID: "42", Email: "u@example.com", RPMLimit: 10, Username: "old"}}
 	repo := &rpmUserRepoStub{userRepoStub: base}
 	invalidator := &authCacheInvalidatorStub{}
 	svc := &adminServiceImpl{
@@ -60,7 +60,7 @@ func TestAdminService_UpdateUser_NoInvalidateWhenRPMLimitUnchanged(t *testing.T)
 
 	newName := "new"
 	sameRPM := 10
-	_, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{
+	_, err := svc.UpdateUser(context.Background(), "42", &UpdateUserInput{
 		Username: &newName,
 		RPMLimit: &sameRPM,
 	})

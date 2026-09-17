@@ -18,15 +18,15 @@ type cleanupWorkerUserMsgQueueCache struct {
 
 var _ UserMsgQueueCache = (*cleanupWorkerUserMsgQueueCache)(nil)
 
-func (c *cleanupWorkerUserMsgQueueCache) AcquireLock(context.Context, int64, string, int) (bool, error) {
+func (c *cleanupWorkerUserMsgQueueCache) AcquireLock(context.Context, string, string, int) (bool, error) {
 	return true, nil
 }
 
-func (c *cleanupWorkerUserMsgQueueCache) ReleaseLock(context.Context, int64, string) (bool, error) {
+func (c *cleanupWorkerUserMsgQueueCache) ReleaseLock(context.Context, string, string) (bool, error) {
 	return true, nil
 }
 
-func (c *cleanupWorkerUserMsgQueueCache) GetLastCompletedMs(context.Context, int64) (int64, error) {
+func (c *cleanupWorkerUserMsgQueueCache) GetLastCompletedMs(context.Context, string) (int64, error) {
 	return 0, nil
 }
 

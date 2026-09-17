@@ -392,7 +392,7 @@ func TestTokenRefreshService_ReconcileGrokOAuthDefaultsToDryRunAndSanitizedPlan(
 
 func TestGrokTokenRefresher_NeedsRefreshWhenAccessTokenMissingDespiteFarFutureExpiry(t *testing.T) {
 	refresher := NewGrokTokenRefresher(nil)
-	account := grokPoolAccount(99)
+	account := grokPoolAccount("99")
 	delete(account.Credentials, "access_token")
 	account.Credentials["expires_at"] = time.Now().UTC().Add(12 * time.Hour).Format(time.RFC3339)
 

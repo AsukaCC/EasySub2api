@@ -86,24 +86,24 @@ func TestCalculateCostUnified_PerRequestMode(t *testing.T) {
 	// Set up a ChannelService with a per-request pricing channel
 	cs := newTestChannelServiceWithCache(t, &channelCache{
 		pricingByGroupModel: map[channelModelKey]*ChannelModelPricing{
-			{groupID: 1, model: "claude-sonnet-4"}: {
+			{groupID: "1", model: "claude-sonnet-4"}: {
 				BillingMode:     BillingModePerRequest,
 				PerRequestPrice: testPtrFloat64(0.05),
 			},
 		},
-		channelByGroupID: map[int64]*Channel{
-			1: {ID: 1, Status: StatusActive},
+		channelByGroupID: map[string]*Channel{
+			"1": {ID: "1", Status: StatusActive},
 		},
-		groupPlatform:           map[int64]string{1: ""},
+		groupPlatform:           map[string]string{"1": ""},
 		wildcardByGroupPlatform: map[channelGroupPlatformKey][]*wildcardPricingEntry{},
 		mappingByGroupModel:     map[channelModelKey]string{},
 		wildcardMappingByGP:     map[channelGroupPlatformKey][]*wildcardMappingEntry{},
-		byID:                    map[int64]*Channel{},
+		byID:                    map[string]*Channel{},
 	})
 
 	bs := newTestBillingService()
 	resolver := NewModelPricingResolver(cs, bs)
-	groupID := int64(1)
+	groupID := "1"
 
 	input := CostInput{
 		Ctx:            context.Background(),
@@ -128,19 +128,19 @@ func TestCalculateCostUnified_PerRequestMode(t *testing.T) {
 func TestCalculateCostUnified_ImageMode(t *testing.T) {
 	cs := newTestChannelServiceWithCache(t, &channelCache{
 		pricingByGroupModel: map[channelModelKey]*ChannelModelPricing{
-			{groupID: 2, model: "gemini-image"}: {
+			{groupID: "2", model: "gemini-image"}: {
 				BillingMode:     BillingModeImage,
 				PerRequestPrice: testPtrFloat64(0.10),
 			},
 		},
-		channelByGroupID: map[int64]*Channel{
-			2: {ID: 2, Status: StatusActive},
+		channelByGroupID: map[string]*Channel{
+			"2": {ID: "2", Status: StatusActive},
 		},
-		groupPlatform:           map[int64]string{2: ""},
+		groupPlatform:           map[string]string{"2": ""},
 		wildcardByGroupPlatform: map[channelGroupPlatformKey][]*wildcardPricingEntry{},
 		mappingByGroupModel:     map[channelModelKey]string{},
 		wildcardMappingByGP:     map[channelGroupPlatformKey][]*wildcardMappingEntry{},
-		byID:                    map[int64]*Channel{},
+		byID:                    map[string]*Channel{},
 	})
 
 	bs := &BillingService{
@@ -148,7 +148,7 @@ func TestCalculateCostUnified_ImageMode(t *testing.T) {
 		fallbackPrices: map[string]*ModelPricing{},
 	}
 	resolver := NewModelPricingResolver(cs, bs)
-	groupID := int64(2)
+	groupID := "2"
 
 	input := CostInput{
 		Ctx:            context.Background(),

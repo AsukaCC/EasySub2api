@@ -71,20 +71,20 @@ func TestListSchedulableAccountLoadsMatchesListSchedulable(t *testing.T) {
 	require.NoError(t, err)
 
 	accountIDs := make([]int64, 0, len(accounts))
-	wantByID := make(map[int64]int, len(accounts))
+	wantByID := make(map[string]int, len(accounts))
 	for i := range accounts {
 		accountIDs = append(accountIDs, accounts[i].ID)
 		wantByID[accounts[i].ID] = accounts[i].EffectiveLoadFactor()
 	}
 
 	loadIDs := make([]int64, 0, len(loads))
-	byID := make(map[int64]int, len(loads))
+	byID := make(map[string]int, len(loads))
 	for _, load := range loads {
 		loadIDs = append(loadIDs, load.ID)
 		byID[load.ID] = load.MaxConcurrency
 	}
 	require.Equal(t, accountIDs, loadIDs)
-	targetIDs := map[int64]struct{}{
+	targetIDs := map[string]struct{}{
 		positiveLoad.ID: {}, concurrencyFallback.ID: {}, zeroFallback.ID: {},
 	}
 	targetOrder := make([]int64, 0, len(targetIDs))

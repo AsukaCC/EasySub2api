@@ -27,7 +27,7 @@ type stubMonitorUsageSource struct {
 	lastCtx context.Context
 }
 
-func (s *stubMonitorUsageSource) GetUsage(ctx context.Context, accountID int64, force ...bool) (*UsageInfo, error) {
+func (s *stubMonitorUsageSource) GetUsage(ctx context.Context, accountID string, force ...bool) (*UsageInfo, error) {
 	s.mu.Lock()
 	s.calls++
 	s.lastCtx = ctx
@@ -50,7 +50,7 @@ type stubMonitorCNQuotaSource struct {
 	calls  int
 }
 
-func (s *stubMonitorCNQuotaSource) QueryUsage(ctx context.Context, accountID int64) (*CNProviderQuotaProbeResult, error) {
+func (s *stubMonitorCNQuotaSource) QueryUsage(ctx context.Context, accountID string) (*CNProviderQuotaProbeResult, error) {
 	s.calls++
 	return s.result, s.err
 }
@@ -61,18 +61,18 @@ type stubMonitorCNBalanceSource struct {
 	calls  int
 }
 
-func (s *stubMonitorCNBalanceSource) QueryBalance(ctx context.Context, accountID int64) (*CNProviderBalanceResult, error) {
+func (s *stubMonitorCNBalanceSource) QueryBalance(ctx context.Context, accountID string) (*CNProviderBalanceResult, error) {
 	s.calls++
 	return s.result, s.err
 }
 
 type stubMonitorAccountSource struct {
-	accounts map[int64]*Account
+	accounts map[string]*Account
 	err      error
 	calls    int
 }
 
-func (s *stubMonitorAccountSource) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (s *stubMonitorAccountSource) GetByID(ctx context.Context, id string) (*Account, error) {
 	s.calls++
 	if s.err != nil {
 		return nil, s.err
@@ -85,13 +85,13 @@ func newQuotaFetcherTestSetup(t *testing.T) (*ChannelMonitorQuotaFetcher, *stubM
 	usage := &stubMonitorUsageSource{}
 	cnQuota := &stubMonitorCNQuotaSource{}
 	cnBalance := &stubMonitorCNBalanceSource{}
-	accounts := &stubMonitorAccountSource{accounts: make(map[int64]*Account)}
+	accounts := &stubMonitorAccountSource{accounts: make(map[string]*Account)}
 	fetcher := &ChannelMonitorQuotaFetcher{
 		usage:     usage,
 		cnQuota:   cnQuota,
 		cnBalance: cnBalance,
 		accounts:  accounts,
-		cache:     make(map[int64]monitorQuotaCacheEntry),
+		cache:     make(map[string]monitorQuotaCacheEntry),
 	}
 	return fetcher, usage, cnQuota, cnBalance, accounts
 }
@@ -100,7 +100,7 @@ func newQuotaFetcherTestSetup(t *testing.T) (*ChannelMonitorQuotaFetcher, *stubM
 
 func TestQuotaFetcher_OverseasAccountUsesUsageService(t *testing.T) {
 	fetcher, usage, _, cnQuota, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[7] = &Account{ID: 7, Platform: domain.PlatformAnthropic}
+	accounts.accounts["7"] = &Account{ID: "7", Platform: domain.PlatformAnthropic}
 	resets := time.Now().Add(2 * time.Hour).UTC()
 	usage.usage = &UsageInfo{
 		FiveHour:         &UsageProgress{Utilization: 42.5, UsedRequests: 17, LimitRequests: 40, ResetsAt: &resets},
@@ -108,7 +108,7 @@ func TestQuotaFetcher_OverseasAccountUsesUsageService(t *testing.T) {
 		SubscriptionTier: "PRO",
 	}
 
-	snapshot := fetcher.Fetch(context.Background(), 7)
+	snapshot := fetcher.Fetch(context.Background(), "7")
 
 	require.True(t, snapshot.Success)
 	require.Equal(t, "usage", snapshot.Source)
@@ -132,8 +132,8 @@ func TestQuotaFetcher_OverseasAccountUsesUsageService(t *testing.T) {
 
 func TestQuotaFetcher_CodingPlanAccountUsesCNQuota(t *testing.T) {
 	fetcher, _, cnQuota, cnBalance, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[9] = &Account{
-		ID:          9,
+	accounts.accounts["9"] = &Account{
+		ID: "9",
 		Platform:    domain.PlatformKimi,
 		Credentials: map[string]any{"account_mode": AccountModeCoding},
 	}
@@ -147,7 +147,7 @@ func TestQuotaFetcher_CodingPlanAccountUsesCNQuota(t *testing.T) {
 		},
 	}
 
-	snapshot := fetcher.Fetch(context.Background(), 9)
+	snapshot := fetcher.Fetch(context.Background(), "9")
 
 	require.True(t, snapshot.Success)
 	require.Equal(t, "cn_quota", snapshot.Source)
@@ -161,8 +161,8 @@ func TestQuotaFetcher_CodingPlanAccountUsesCNQuota(t *testing.T) {
 
 func TestQuotaFetcher_PayGAccountUsesCNBalance(t *testing.T) {
 	fetcher, _, _, cnBalance, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[11] = &Account{
-		ID:          11,
+	accounts.accounts["11"] = &Account{
+		ID: "11",
 		Platform:    domain.PlatformDeepseek,
 		Credentials: map[string]any{"account_mode": AccountModePayG},
 	}
@@ -176,7 +176,7 @@ func TestQuotaFetcher_PayGAccountUsesCNBalance(t *testing.T) {
 		},
 	}
 
-	snapshot := fetcher.Fetch(context.Background(), 11)
+	snapshot := fetcher.Fetch(context.Background(), "11")
 
 	require.True(t, snapshot.Success)
 	require.Equal(t, "cn_balance", snapshot.Source)
@@ -194,7 +194,7 @@ func TestQuotaFetcher_AccountMissingYieldsLinkedAccountSnapshot(t *testing.T) {
 	fetcher, usage, _, _, accounts := newQuotaFetcherTestSetup(t)
 	accounts.err = errors.New("not found")
 
-	snapshot := fetcher.Fetch(context.Background(), 404)
+	snapshot := fetcher.Fetch(context.Background(), "404")
 
 	require.False(t, snapshot.Success)
 	require.Equal(t, "linked account not found", snapshot.Error)
@@ -203,10 +203,10 @@ func TestQuotaFetcher_AccountMissingYieldsLinkedAccountSnapshot(t *testing.T) {
 
 func TestQuotaFetcher_UsageAuthErrorMarksCredentialInvalid(t *testing.T) {
 	fetcher, usage, _, _, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[3] = &Account{ID: 3, Platform: domain.PlatformOpenAI}
+	accounts.accounts["3"] = &Account{ID: "3", Platform: domain.PlatformOpenAI}
 	usage.err = errors.New("API returned 401: unauthorized")
 
-	snapshot := fetcher.Fetch(context.Background(), 3)
+	snapshot := fetcher.Fetch(context.Background(), "3")
 
 	require.False(t, snapshot.Success)
 	require.True(t, snapshot.CredentialInvalid)
@@ -219,27 +219,27 @@ func TestQuotaFetcher_UsageValueChannelFailureYieldsFailureSnapshot(t *testing.T
 	fetcher, usage, _, _, accounts := newQuotaFetcherTestSetup(t)
 
 	// 凭据失效（401 语义）→ failed。
-	accounts.accounts[3] = &Account{ID: 3, Platform: domain.PlatformAnthropic}
+	accounts.accounts["3"] = &Account{ID: "3", Platform: domain.PlatformAnthropic}
 	usage.usage = &UsageInfo{Error: "usage API error: HTTP 401", ErrorCode: errorCodeUnauthenticated, NeedsReauth: true}
-	snapshot := fetcher.Fetch(context.Background(), 3)
+	snapshot := fetcher.Fetch(context.Background(), "3")
 	require.False(t, snapshot.Success)
 	require.True(t, snapshot.CredentialInvalid)
 	require.Contains(t, snapshot.Error, "401")
 	require.Equal(t, MonitorStatusFailed, deriveQuotaCheckResult(snapshot, "quota", time.Now()).Status)
 
 	// 限流等非凭据失败 → error（而非 operational）。
-	accounts.accounts[13] = &Account{ID: 13, Platform: domain.PlatformAnthropic}
+	accounts.accounts["13"] = &Account{ID: "13", Platform: domain.PlatformAnthropic}
 	usage.usage = &UsageInfo{Error: "usage API error: HTTP 429", ErrorCode: errorCodeRateLimited}
-	snapshot = fetcher.Fetch(context.Background(), 13)
+	snapshot = fetcher.Fetch(context.Background(), "13")
 	require.False(t, snapshot.Success)
 	require.False(t, snapshot.CredentialInvalid)
 	require.Contains(t, snapshot.Error, "429")
 	require.Equal(t, MonitorStatusError, deriveQuotaCheckResult(snapshot, "quota", time.Now()).Status)
 
 	// grok 已知未知态（尚未观测到计费/限流头）不算失败。
-	accounts.accounts[14] = &Account{ID: 14, Platform: domain.PlatformGrok}
+	accounts.accounts["14"] = &Account{ID: "14", Platform: domain.PlatformGrok}
 	usage.usage = &UsageInfo{ErrorCode: "quota_unknown", Error: "Grok quota is unknown until billing is probed"}
-	snapshot = fetcher.Fetch(context.Background(), 14)
+	snapshot = fetcher.Fetch(context.Background(), "14")
 	require.True(t, snapshot.Success)
 	require.Empty(t, snapshot.Error)
 	require.Empty(t, snapshot.Tiers)
@@ -280,14 +280,14 @@ func TestUsageFailureInfo_ClassificationMatrix(t *testing.T) {
 
 func TestQuotaFetcher_CNQuotaCredentialInvalidFlagPropagates(t *testing.T) {
 	fetcher, _, cnQuota, _, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[5] = &Account{
-		ID:          5,
+	accounts.accounts["5"] = &Account{
+		ID: "5",
 		Platform:    domain.PlatformZhipu,
 		Credentials: map[string]any{"account_mode": AccountModeCoding},
 	}
 	cnQuota.result = &CNProviderQuotaProbeResult{Success: false, CredentialValid: false, Error: "api key expired"}
 
-	snapshot := fetcher.Fetch(context.Background(), 5)
+	snapshot := fetcher.Fetch(context.Background(), "5")
 
 	require.False(t, snapshot.Success)
 	require.True(t, snapshot.CredentialInvalid)
@@ -296,10 +296,10 @@ func TestQuotaFetcher_CNQuotaCredentialInvalidFlagPropagates(t *testing.T) {
 
 func TestQuotaFetcher_CNBalanceHTTP403MarksCredentialInvalid(t *testing.T) {
 	fetcher, _, _, cnBalance, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[6] = &Account{ID: 6, Platform: domain.PlatformKimi}
+	accounts.accounts["6"] = &Account{ID: "6", Platform: domain.PlatformKimi}
 	cnBalance.result = &CNProviderBalanceResult{Success: false, StatusCode: 403, Error: "forbidden"}
 
-	snapshot := fetcher.Fetch(context.Background(), 6)
+	snapshot := fetcher.Fetch(context.Background(), "6")
 
 	require.False(t, snapshot.Success)
 	require.True(t, snapshot.CredentialInvalid)
@@ -308,15 +308,15 @@ func TestQuotaFetcher_CNBalanceHTTP403MarksCredentialInvalid(t *testing.T) {
 func TestQuotaFetcher_NilDependenciesProduceErrorSnapshots(t *testing.T) {
 	// fetcher 本体为 nil：直接降级为错误快照，不 panic。
 	var nilFetcher *ChannelMonitorQuotaFetcher
-	snapshot := nilFetcher.Fetch(context.Background(), 1)
+	snapshot := nilFetcher.Fetch(context.Background(), "1")
 	require.False(t, snapshot.Success)
 	require.Equal(t, "quota fetcher is not configured", snapshot.Error)
 
 	// 数据源缺失：账号能加载，但对应服务未注入。
 	fetcher, _, _, _, accounts := newQuotaFetcherTestSetup(t)
 	fetcher.usage = nil
-	accounts.accounts[2] = &Account{ID: 2, Platform: domain.PlatformOpenAI}
-	snapshot = fetcher.Fetch(context.Background(), 2)
+	accounts.accounts["2"] = &Account{ID: "2", Platform: domain.PlatformOpenAI}
+	snapshot = fetcher.Fetch(context.Background(), "2")
 	require.False(t, snapshot.Success)
 	require.Contains(t, snapshot.Error, "not configured")
 }
@@ -325,52 +325,52 @@ func TestQuotaFetcher_NilDependenciesProduceErrorSnapshots(t *testing.T) {
 
 func TestQuotaFetcher_CachesSuccessSnapshotPerAccount(t *testing.T) {
 	fetcher, usage, _, _, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[8] = &Account{ID: 8, Platform: domain.PlatformOpenAI}
+	accounts.accounts["8"] = &Account{ID: "8", Platform: domain.PlatformOpenAI}
 	usage.usage = &UsageInfo{FiveHour: &UsageProgress{Utilization: 10}}
 
 	for i := 0; i < 3; i++ {
-		snapshot := fetcher.Fetch(context.Background(), 8)
+		snapshot := fetcher.Fetch(context.Background(), "8")
 		require.True(t, snapshot.Success)
 	}
 	require.Equal(t, 1, usage.getCalls(), "success snapshots should be served from cache")
 
 	// 缓存过期后重新拉取。
 	fetcher.mu.Lock()
-	entry := fetcher.cache[8]
+	entry := fetcher.cache["8"]
 	entry.expiry = time.Now().Add(-time.Second)
-	fetcher.cache[8] = entry
+	fetcher.cache["8"] = entry
 	fetcher.mu.Unlock()
 
-	_ = fetcher.Fetch(context.Background(), 8)
+	_ = fetcher.Fetch(context.Background(), "8")
 	require.Equal(t, 2, usage.getCalls())
 }
 
 func TestQuotaFetcher_CachesFailureSnapshotWithShortTTL(t *testing.T) {
 	fetcher, usage, _, _, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[4] = &Account{ID: 4, Platform: domain.PlatformOpenAI}
+	accounts.accounts["4"] = &Account{ID: "4", Platform: domain.PlatformOpenAI}
 	usage.err = errors.New("boom")
 
 	for i := 0; i < 2; i++ {
-		snapshot := fetcher.Fetch(context.Background(), 4)
+		snapshot := fetcher.Fetch(context.Background(), "4")
 		require.False(t, snapshot.Success)
 	}
 	require.Equal(t, 1, usage.getCalls(), "failure snapshots should be served from the short negative cache")
 
 	// 失败快照的 TTL 是负缓存时长（而非成功 TTL）。
 	fetcher.mu.Lock()
-	entry := fetcher.cache[4]
+	entry := fetcher.cache["4"]
 	require.WithinDuration(t, entry.snapshot.FetchedAt.Add(monitorQuotaErrorCacheTTL), entry.expiry, time.Second)
 	entry.expiry = time.Now().Add(-time.Second)
-	fetcher.cache[4] = entry
+	fetcher.cache["4"] = entry
 	fetcher.mu.Unlock()
 
-	_ = fetcher.Fetch(context.Background(), 4)
+	_ = fetcher.Fetch(context.Background(), "4")
 	require.Equal(t, 2, usage.getCalls(), "expired negative cache should refetch")
 }
 
 func TestQuotaFetcher_ConcurrentFetchesShareSingleFlight(t *testing.T) {
 	fetcher, usage, _, _, accounts := newQuotaFetcherTestSetup(t)
-	accounts.accounts[12] = &Account{ID: 12, Platform: domain.PlatformOpenAI}
+	accounts.accounts["12"] = &Account{ID: "12", Platform: domain.PlatformOpenAI}
 	usage.usage = &UsageInfo{FiveHour: &UsageProgress{Utilization: 10}}
 	usage.block = make(chan struct{})
 
@@ -380,7 +380,7 @@ func TestQuotaFetcher_ConcurrentFetchesShareSingleFlight(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			snapshots[idx] = fetcher.Fetch(context.Background(), 12)
+			snapshots[idx] = fetcher.Fetch(context.Background(), "12")
 		}(i)
 	}
 
@@ -397,7 +397,7 @@ func TestQuotaFetcher_ConcurrentFetchesShareSingleFlight(t *testing.T) {
 	require.Equal(t, 1, usage.getCalls())
 
 	// 成功快照已缓存：再取一次仍不打上游。
-	_ = fetcher.Fetch(context.Background(), 12)
+	_ = fetcher.Fetch(context.Background(), "12")
 	require.Equal(t, 1, usage.getCalls())
 }
 

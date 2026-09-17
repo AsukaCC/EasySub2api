@@ -4,7 +4,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/payment"
@@ -88,8 +87,10 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 		88,
 		0,
 		88,
+		0,
+		false,
 		&payment.InstanceSelection{
-			InstanceID:     strconv.FormatInt(instance.ID, 10),
+			InstanceID:     instance.ID,
 			ProviderKey:    payment.TypeAlipay,
 			SupportedTypes: "alipay,alipay_direct",
 			PaymentMode:    "redirect",
@@ -97,12 +98,13 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 				"secretKey": "do-not-copy",
 			},
 		},
+		nil,
 	)
 	require.NoError(t, err)
-	require.Equal(t, strconv.FormatInt(instance.ID, 10), valueOrEmpty(order.ProviderInstanceID))
+	require.Equal(t, instance.ID, valueOrEmpty(order.ProviderInstanceID))
 	require.Equal(t, payment.TypeAlipay, valueOrEmpty(order.ProviderKey))
 	require.Equal(t, float64(2), order.ProviderSnapshot["schema_version"])
-	require.Equal(t, strconv.FormatInt(instance.ID, 10), order.ProviderSnapshot["provider_instance_id"])
+	require.Equal(t, instance.ID, order.ProviderSnapshot["provider_instance_id"])
 	require.Equal(t, payment.TypeAlipay, order.ProviderSnapshot["provider_key"])
 	require.Equal(t, "redirect", order.ProviderSnapshot["payment_mode"])
 	require.NotContains(t, order.ProviderSnapshot, "config")

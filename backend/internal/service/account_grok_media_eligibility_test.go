@@ -85,7 +85,7 @@ func TestGrokMediaCapabilityKeepsOnlyUnobservedOAuthAsProbeCandidate(t *testing.
 
 func TestGrokMediaCapabilityFiltersOnlyGeneration(t *testing.T) {
 	account := &Account{
-		ID:          1,
+		ID: "1",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,

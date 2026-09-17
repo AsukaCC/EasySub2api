@@ -29,21 +29,21 @@ type apiKeyRepoStub struct {
 	getByIDErr             error   // GetKeyAndOwnerID 的错误返回值
 	deleteErr              error   // Delete 的错误返回值
 	updateErr              error   // Update 的错误返回值
-	deletedIDs             []int64 // 记录已删除的 API Key ID 列表
+	deletedIDs             []string // 记录已删除的 API Key ID 列表
 	updatedKeys            []APIKey
 	allowListByUserID      bool
 	listByUserIDKeys       []APIKey
 	listByUserIDErr        error
-	listByUserIDCalls      []int64
+	listByUserIDCalls      []string
 	listByUserIDParams     []pagination.PaginationParams
 	listByUserIDFilters    []APIKeyListFilters
 	allowListAllByUserID   bool
 	listAllByUserIDKeys    []APIKey
 	listAllByUserIDErr     error
-	listAllByUserIDCalls   []int64
+	listAllByUserIDCalls   []string
 	listAllByUserIDFilters []APIKeyListFilters
-	updateLastUsed         func(ctx context.Context, id int64, usedAt time.Time) error
-	touchedIDs             []int64
+	updateLastUsed         func(ctx context.Context, id string, usedAt time.Time) error
+	touchedIDs             []string
 	touchedUsedAts         []time.Time
 }
 
@@ -53,7 +53,7 @@ func (s *apiKeyRepoStub) Create(ctx context.Context, key *APIKey) error {
 	panic("unexpected Create call")
 }
 
-func (s *apiKeyRepoStub) GetByID(ctx context.Context, id int64) (*APIKey, error) {
+func (s *apiKeyRepoStub) GetByID(ctx context.Context, id string) (*APIKey, error) {
 	if s.getByIDErr != nil {
 		return nil, s.getByIDErr
 	}
@@ -64,14 +64,14 @@ func (s *apiKeyRepoStub) GetByID(ctx context.Context, id int64) (*APIKey, error)
 	panic("unexpected GetByID call")
 }
 
-func (s *apiKeyRepoStub) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
+func (s *apiKeyRepoStub) GetKeyAndOwnerID(ctx context.Context, id string) (string, string, error) {
 	if s.getByIDErr != nil {
-		return "", 0, s.getByIDErr
+		return "", "", s.getByIDErr
 	}
 	if s.apiKey != nil {
 		return s.apiKey.Key, s.apiKey.UserID, nil
 	}
-	return "", 0, ErrAPIKeyNotFound
+	return "", "", ErrAPIKeyNotFound
 }
 
 func (s *apiKeyRepoStub) GetByKey(ctx context.Context, key string) (*APIKey, error) {
@@ -91,20 +91,20 @@ func (s *apiKeyRepoStub) Update(ctx context.Context, key *APIKey, _ APIKeyUpdate
 
 // Delete 记录被删除的 API Key ID 并返回预设的错误。
 // 通过 deletedIDs 可以验证删除操作是否被正确调用。
-func (s *apiKeyRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *apiKeyRepoStub) Delete(ctx context.Context, id string) error {
 	s.deletedIDs = append(s.deletedIDs, id)
 	return s.deleteErr
 }
 
 // DeleteWithAudit 与 Delete 一样记录被删除的 ID,供 service 测试断言。
-func (s *apiKeyRepoStub) DeleteWithAudit(ctx context.Context, id int64) error {
+func (s *apiKeyRepoStub) DeleteWithAudit(ctx context.Context, id string) error {
 	s.deletedIDs = append(s.deletedIDs, id)
 	return s.deleteErr
 }
 
 // 以下是接口要求实现但本测试不关心的方法
 
-func (s *apiKeyRepoStub) ListByUserID(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+func (s *apiKeyRepoStub) ListByUserID(ctx context.Context, userID string, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
 	if !s.allowListByUserID {
 		panic("unexpected ListByUserID call")
 	}
@@ -123,7 +123,7 @@ func (s *apiKeyRepoStub) ListByUserID(ctx context.Context, userID int64, params 
 	}, nil
 }
 
-func (s *apiKeyRepoStub) ListAllByUserID(ctx context.Context, userID int64, filters APIKeyListFilters) ([]APIKey, error) {
+func (s *apiKeyRepoStub) ListAllByUserID(ctx context.Context, userID string, filters APIKeyListFilters) ([]APIKey, error) {
 	if !s.allowListAllByUserID {
 		panic("unexpected ListAllByUserID call")
 	}
@@ -139,7 +139,7 @@ func (s *apiKeyRepoStub) ListAllByUserID(ctx context.Context, userID int64, filt
 	return filterAPIKeyStubKeys(userID, source, filters), nil
 }
 
-func filterAPIKeyStubKeys(userID int64, keys []APIKey, filters APIKeyListFilters) []APIKey {
+func filterAPIKeyStubKeys(userID string, keys []APIKey, filters APIKeyListFilters) []APIKey {
 	result := make([]APIKey, 0, len(keys))
 	search := strings.ToLower(filters.Search)
 	for _, key := range keys {
@@ -155,7 +155,7 @@ func filterAPIKeyStubKeys(userID int64, keys []APIKey, filters APIKeyListFilters
 			continue
 		}
 		if filters.GroupID != nil {
-			if *filters.GroupID == 0 {
+			if *filters.GroupID == "" {
 				if key.GroupID != nil {
 					continue
 				}
@@ -168,11 +168,11 @@ func filterAPIKeyStubKeys(userID int64, keys []APIKey, filters APIKeyListFilters
 	return result
 }
 
-func (s *apiKeyRepoStub) VerifyOwnership(ctx context.Context, userID int64, apiKeyIDs []int64) ([]int64, error) {
+func (s *apiKeyRepoStub) VerifyOwnership(ctx context.Context, userID string, apiKeyIDs []string) ([]string, error) {
 	panic("unexpected VerifyOwnership call")
 }
 
-func (s *apiKeyRepoStub) CountByUserID(ctx context.Context, userID int64) (int64, error) {
+func (s *apiKeyRepoStub) CountByUserID(ctx context.Context, userID string) (int64, error) {
 	panic("unexpected CountByUserID call")
 }
 
@@ -180,38 +180,38 @@ func (s *apiKeyRepoStub) ExistsByKey(ctx context.Context, key string) (bool, err
 	panic("unexpected ExistsByKey call")
 }
 
-func (s *apiKeyRepoStub) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
+func (s *apiKeyRepoStub) ListByGroupID(ctx context.Context, groupID string, params pagination.PaginationParams) ([]APIKey, *pagination.PaginationResult, error) {
 	panic("unexpected ListByGroupID call")
 }
 
-func (s *apiKeyRepoStub) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]APIKey, error) {
+func (s *apiKeyRepoStub) SearchAPIKeys(ctx context.Context, userID string, keyword string, limit int) ([]APIKey, error) {
 	panic("unexpected SearchAPIKeys call")
 }
 
-func (s *apiKeyRepoStub) ClearGroupIDByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (s *apiKeyRepoStub) ClearGroupIDByGroupID(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected ClearGroupIDByGroupID call")
 }
-func (s *apiKeyRepoStub) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (int64, error) {
+func (s *apiKeyRepoStub) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID string) (int64, error) {
 	panic("unexpected UpdateGroupIDByUserAndGroup call")
 }
 
-func (s *apiKeyRepoStub) CountByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (s *apiKeyRepoStub) CountByGroupID(ctx context.Context, groupID string) (int64, error) {
 	panic("unexpected CountByGroupID call")
 }
 
-func (s *apiKeyRepoStub) ListKeysByUserID(ctx context.Context, userID int64) ([]string, error) {
+func (s *apiKeyRepoStub) ListKeysByUserID(ctx context.Context, userID string) ([]string, error) {
 	panic("unexpected ListKeysByUserID call")
 }
 
-func (s *apiKeyRepoStub) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
+func (s *apiKeyRepoStub) ListKeysByGroupID(ctx context.Context, groupID string) ([]string, error) {
 	panic("unexpected ListKeysByGroupID call")
 }
 
-func (s *apiKeyRepoStub) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error) {
+func (s *apiKeyRepoStub) IncrementQuotaUsed(ctx context.Context, id string, amount float64) (float64, error) {
 	panic("unexpected IncrementQuotaUsed call")
 }
 
-func (s *apiKeyRepoStub) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
+func (s *apiKeyRepoStub) UpdateLastUsed(ctx context.Context, id string, usedAt time.Time) error {
 	s.touchedIDs = append(s.touchedIDs, id)
 	s.touchedUsedAts = append(s.touchedUsedAts, usedAt)
 	if s.updateLastUsed != nil {
@@ -220,15 +220,15 @@ func (s *apiKeyRepoStub) UpdateLastUsed(ctx context.Context, id int64, usedAt ti
 	return nil
 }
 
-func (s *apiKeyRepoStub) IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error {
+func (s *apiKeyRepoStub) IncrementRateLimitUsage(ctx context.Context, id string, cost float64) error {
 	panic("unexpected IncrementRateLimitUsage call")
 }
 
-func (s *apiKeyRepoStub) ResetRateLimitWindows(ctx context.Context, id int64) error {
+func (s *apiKeyRepoStub) ResetRateLimitWindows(ctx context.Context, id string) error {
 	panic("unexpected ResetRateLimitWindows call")
 }
 
-func (s *apiKeyRepoStub) GetRateLimitData(ctx context.Context, id int64) (*APIKeyRateLimitData, error) {
+func (s *apiKeyRepoStub) GetRateLimitData(ctx context.Context, id string) (*APIKeyRateLimitData, error) {
 	panic("unexpected GetRateLimitData call")
 }
 
@@ -238,23 +238,23 @@ func (s *apiKeyRepoStub) GetRateLimitData(ctx context.Context, id int64) (*APIKe
 // 设计说明：
 //   - invalidated: 记录被清除缓存的用户 ID 列表
 type apiKeyCacheStub struct {
-	invalidated    []int64  // 记录调用 DeleteCreateAttemptCount 时传入的用户 ID
+	invalidated    []string // 记录调用 DeleteCreateAttemptCount 时传入的用户 ID
 	deleteAuthKeys []string // 记录调用 DeleteAuthCache 时传入的缓存 key
 }
 
 // GetCreateAttemptCount 返回 0，表示用户未超过创建次数限制
-func (s *apiKeyCacheStub) GetCreateAttemptCount(ctx context.Context, userID int64) (int, error) {
+func (s *apiKeyCacheStub) GetCreateAttemptCount(ctx context.Context, userID string) (int, error) {
 	return 0, nil
 }
 
 // IncrementCreateAttemptCount 空实现，本测试不验证此行为
-func (s *apiKeyCacheStub) IncrementCreateAttemptCount(ctx context.Context, userID int64) error {
+func (s *apiKeyCacheStub) IncrementCreateAttemptCount(ctx context.Context, userID string) error {
 	return nil
 }
 
 // DeleteCreateAttemptCount 记录被清除缓存的用户 ID。
 // 删除 API Key 时会调用此方法清除用户的创建尝试计数缓存。
-func (s *apiKeyCacheStub) DeleteCreateAttemptCount(ctx context.Context, userID int64) error {
+func (s *apiKeyCacheStub) DeleteCreateAttemptCount(ctx context.Context, userID string) error {
 	s.invalidated = append(s.invalidated, userID)
 	return nil
 }
@@ -299,12 +299,12 @@ func (s *apiKeyCacheStub) SubscribeAuthCacheInvalidation(ctx context.Context, ha
 //   - 缓存不被清除
 func TestApiKeyService_Delete_OwnerMismatch(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		apiKey: &APIKey{ID: 10, UserID: 1, Key: "k"},
+		apiKey: &APIKey{ID: "10", UserID: "1", Key: "k"},
 	}
 	cache := &apiKeyCacheStub{}
 	svc := &APIKeyService{apiKeyRepo: repo, cache: cache}
 
-	err := svc.Delete(context.Background(), 10, 2) // API Key ID=10, 调用者 userID=2
+	err := svc.Delete(context.Background(), "10", "2") // API Key ID=10, 调用者 userID=2
 	require.ErrorIs(t, err, ErrInsufficientPerms)
 	require.Empty(t, repo.deletedIDs)   // 验证删除操作未被调用
 	require.Empty(t, cache.invalidated) // 验证缓存未被清除
@@ -320,18 +320,18 @@ func TestApiKeyService_Delete_OwnerMismatch(t *testing.T) {
 //   - 返回 nil 错误
 func TestApiKeyService_Delete_Success(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		apiKey: &APIKey{ID: 42, UserID: 7, Key: "k"},
+		apiKey: &APIKey{ID: "42", UserID: "7", Key: "k"},
 	}
 	cache := &apiKeyCacheStub{}
 	svc := &APIKeyService{apiKeyRepo: repo, cache: cache}
-	svc.lastUsedTouchL1.Store(int64(42), time.Now())
+	svc.lastUsedTouchL1.Store("42", time.Now())
 
-	err := svc.Delete(context.Background(), 42, 7) // API Key ID=42, 调用者 userID=7
+	err := svc.Delete(context.Background(), "42", "7") // API Key ID=42, 调用者 userID=7
 	require.NoError(t, err)
-	require.Equal(t, []int64{42}, repo.deletedIDs)  // 验证正确的 API Key 被删除
-	require.Equal(t, []int64{7}, cache.invalidated) // 验证所有者的缓存被清除
+	require.Equal(t, []string{"42"}, repo.deletedIDs)  // 验证正确的 API Key 被删除
+	require.Equal(t, []string{"7"}, cache.invalidated) // 验证所有者的缓存被清除
 	require.Equal(t, []string{svc.authCacheKey("k")}, cache.deleteAuthKeys)
-	_, exists := svc.lastUsedTouchL1.Load(int64(42))
+	_, exists := svc.lastUsedTouchL1.Load("42")
 	require.False(t, exists, "delete should clear touch debounce cache")
 }
 
@@ -346,7 +346,7 @@ func TestApiKeyService_Delete_NotFound(t *testing.T) {
 	cache := &apiKeyCacheStub{}
 	svc := &APIKeyService{apiKeyRepo: repo, cache: cache}
 
-	err := svc.Delete(context.Background(), 99, 1)
+	err := svc.Delete(context.Background(), "99", "1")
 	require.ErrorIs(t, err, ErrAPIKeyNotFound)
 	require.Empty(t, repo.deletedIDs)
 	require.Empty(t, cache.invalidated)
@@ -357,16 +357,16 @@ func TestAPIKeyService_List_FillsCurrentConcurrency(t *testing.T) {
 	repo := &apiKeyRepoStub{
 		allowListByUserID: true,
 		listByUserIDKeys: []APIKey{
-			{ID: 10, UserID: 7, Key: "sk-10", Name: "key-10"},
-			{ID: 11, UserID: 7, Key: "sk-11", Name: "key-11"},
+			{ID: "10", UserID: "7", Key: "sk-10", Name: "key-10"},
+			{ID: "11", UserID: "7", Key: "sk-11", Name: "key-11"},
 		},
 	}
 	concurrency := NewConcurrencyService(&stubConcurrencyCacheForTest{
-		apiKeyConcurrency: map[int64]int{10: 2, 11: 0},
+		apiKeyConcurrency: map[string]int{"10": 2, "11": 0},
 	})
 	svc := &APIKeyService{apiKeyRepo: repo, concurrencyService: concurrency}
 
-	keys, _, err := svc.List(context.Background(), 7, pagination.PaginationParams{Page: 1, PageSize: 20}, APIKeyListFilters{})
+	keys, _, err := svc.List(context.Background(), "7", pagination.PaginationParams{Page: 1, PageSize: 20}, APIKeyListFilters{})
 	require.NoError(t, err)
 	require.Len(t, keys, 2)
 	require.Equal(t, 2, keys[0].CurrentConcurrency)
@@ -374,16 +374,16 @@ func TestAPIKeyService_List_FillsCurrentConcurrency(t *testing.T) {
 }
 
 func TestAPIKeyService_List_SortByCurrentConcurrency(t *testing.T) {
-	groupID := int64(42)
+	groupID := "42"
 	keys := []APIKey{
-		{ID: 1, UserID: 7, Key: "sk-target-1", Name: "target-one", GroupID: &groupID, Status: StatusActive},
-		{ID: 2, UserID: 7, Key: "sk-target-2", Name: "target-two", GroupID: &groupID, Status: StatusActive},
-		{ID: 3, UserID: 7, Key: "sk-target-3", Name: "target-three", GroupID: &groupID, Status: StatusActive},
-		{ID: 4, UserID: 7, Key: "sk-target-4", Name: "target-four", GroupID: &groupID, Status: StatusActive},
-		{ID: 9, UserID: 7, Key: "sk-target-9", Name: "target-inactive", GroupID: &groupID, Status: StatusDisabled},
-		{ID: 10, UserID: 7, Key: "sk-other-10", Name: "other", GroupID: &groupID, Status: StatusActive},
-		{ID: 11, UserID: 7, Key: "sk-target-11", Name: "target-no-group", Status: StatusActive},
-		{ID: 12, UserID: 8, Key: "sk-target-12", Name: "target-other-user", GroupID: &groupID, Status: StatusActive},
+		{ID: "1", UserID: "7", Key: "sk-target-1", Name: "target-one", GroupID: &groupID, Status: StatusActive},
+		{ID: "2", UserID: "7", Key: "sk-target-2", Name: "target-two", GroupID: &groupID, Status: StatusActive},
+		{ID: "3", UserID: "7", Key: "sk-target-3", Name: "target-three", GroupID: &groupID, Status: StatusActive},
+		{ID: "4", UserID: "7", Key: "sk-target-4", Name: "target-four", GroupID: &groupID, Status: StatusActive},
+		{ID: "9", UserID: "7", Key: "sk-target-9", Name: "target-inactive", GroupID: &groupID, Status: StatusDisabled},
+		{ID: "10", UserID: "7", Key: "sk-other-10", Name: "other", GroupID: &groupID, Status: StatusActive},
+		{ID: "11", UserID: "7", Key: "sk-target-11", Name: "target-no-group", Status: StatusActive},
+		{ID: "12", UserID: "8", Key: "sk-target-12", Name: "target-other-user", GroupID: &groupID, Status: StatusActive},
 	}
 	filters := APIKeyListFilters{
 		Search:  "target",
@@ -395,33 +395,33 @@ func TestAPIKeyService_List_SortByCurrentConcurrency(t *testing.T) {
 		listAllByUserIDKeys:  keys,
 	}
 	concurrency := NewConcurrencyService(&stubConcurrencyCacheForTest{
-		apiKeyConcurrency: map[int64]int{
-			1:  5,
-			2:  5,
-			3:  2,
-			4:  8,
-			9:  99,
-			10: 99,
-			11: 99,
-			12: 99,
+		apiKeyConcurrency: map[string]int{
+			"1":  5,
+			"2":  5,
+			"3":  2,
+			"4":  8,
+			"9":  99,
+			"10": 99,
+			"11": 99,
+			"12": 99,
 		},
 	})
 	svc := &APIKeyService{apiKeyRepo: repo, concurrencyService: concurrency}
 
-	got, page, err := svc.List(context.Background(), 7, pagination.PaginationParams{
+	got, page, err := svc.List(context.Background(), "7", pagination.PaginationParams{
 		Page:      2,
 		PageSize:  2,
 		SortBy:    "current_concurrency",
 		SortOrder: "desc",
 	}, filters)
 	require.NoError(t, err)
-	require.Equal(t, []int64{1, 3}, apiKeyTestIDs(got))
+	require.Equal(t, []string{"1", "3"}, apiKeyTestIDs(got))
 	require.Equal(t, int64(4), page.Total)
 	require.Equal(t, 2, page.Page)
 	require.Equal(t, 2, page.PageSize)
 	require.Equal(t, 2, page.Pages)
 	require.Empty(t, repo.listByUserIDCalls)
-	require.Equal(t, []int64{7}, repo.listAllByUserIDCalls)
+	require.Equal(t, []string{"7"}, repo.listAllByUserIDCalls)
 	require.Len(t, repo.listAllByUserIDFilters, 1)
 	require.Equal(t, filters.Search, repo.listAllByUserIDFilters[0].Search)
 	require.Equal(t, filters.Status, repo.listAllByUserIDFilters[0].Status)
@@ -433,30 +433,30 @@ func TestAPIKeyService_List_SortByCurrentConcurrencyAscTiesByID(t *testing.T) {
 	repo := &apiKeyRepoStub{
 		allowListAllByUserID: true,
 		listAllByUserIDKeys: []APIKey{
-			{ID: 1, UserID: 7, Key: "sk-1", Name: "one", Status: StatusActive},
-			{ID: 2, UserID: 7, Key: "sk-2", Name: "two", Status: StatusActive},
-			{ID: 3, UserID: 7, Key: "sk-3", Name: "three", Status: StatusActive},
-			{ID: 4, UserID: 7, Key: "sk-4", Name: "four", Status: StatusActive},
+			{ID: "1", UserID: "7", Key: "sk-1", Name: "one", Status: StatusActive},
+			{ID: "2", UserID: "7", Key: "sk-2", Name: "two", Status: StatusActive},
+			{ID: "3", UserID: "7", Key: "sk-3", Name: "three", Status: StatusActive},
+			{ID: "4", UserID: "7", Key: "sk-4", Name: "four", Status: StatusActive},
 		},
 	}
 	concurrency := NewConcurrencyService(&stubConcurrencyCacheForTest{
-		apiKeyConcurrency: map[int64]int{1: 5, 2: 5, 3: 2, 4: 8},
+		apiKeyConcurrency: map[string]int{"1": 5, "2": 5, "3": 2, "4": 8},
 	})
 	svc := &APIKeyService{apiKeyRepo: repo, concurrencyService: concurrency}
 
-	got, page, err := svc.List(context.Background(), 7, pagination.PaginationParams{
+	got, page, err := svc.List(context.Background(), "7", pagination.PaginationParams{
 		Page:      1,
 		PageSize:  4,
 		SortBy:    "current_concurrency",
 		SortOrder: "asc",
 	}, APIKeyListFilters{})
 	require.NoError(t, err)
-	require.Equal(t, []int64{3, 1, 2, 4}, apiKeyTestIDs(got))
+	require.Equal(t, []string{"3", "1", "2", "4"}, apiKeyTestIDs(got))
 	require.Equal(t, 4, page.PageSize)
 }
 
-func apiKeyTestIDs(keys []APIKey) []int64 {
-	ids := make([]int64, 0, len(keys))
+func apiKeyTestIDs(keys []APIKey) []string {
+	ids := make([]string, 0, len(keys))
 	for _, key := range keys {
 		ids = append(ids, key.ID)
 	}
@@ -465,14 +465,14 @@ func apiKeyTestIDs(keys []APIKey) []int64 {
 
 func TestAPIKeyService_GetByID_FillsCurrentConcurrency(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		apiKey: &APIKey{ID: 10, UserID: 7, Key: "sk-10", Name: "key-10"},
+		apiKey: &APIKey{ID: "10", UserID: "7", Key: "sk-10", Name: "key-10"},
 	}
 	concurrency := NewConcurrencyService(&stubConcurrencyCacheForTest{
-		apiKeyConcurrency: map[int64]int{10: 4},
+		apiKeyConcurrency: map[string]int{"10": 4},
 	})
 	svc := &APIKeyService{apiKeyRepo: repo, concurrencyService: concurrency}
 
-	key, err := svc.GetByID(context.Background(), 10)
+	key, err := svc.GetByID(context.Background(), "10")
 	require.NoError(t, err)
 	require.Equal(t, 4, key.CurrentConcurrency)
 }
@@ -486,16 +486,16 @@ func TestAPIKeyService_GetByID_FillsCurrentConcurrency(t *testing.T) {
 //   - 返回包含 "delete api key" 的错误信息
 func TestApiKeyService_Delete_DeleteFails(t *testing.T) {
 	repo := &apiKeyRepoStub{
-		apiKey:    &APIKey{ID: 42, UserID: 3, Key: "k"},
+		apiKey:    &APIKey{ID: "42", UserID: "3", Key: "k"},
 		deleteErr: errors.New("delete failed"),
 	}
 	cache := &apiKeyCacheStub{}
 	svc := &APIKeyService{apiKeyRepo: repo, cache: cache}
 
-	err := svc.Delete(context.Background(), 3, 3) // API Key ID=3, 调用者 userID=3
+	err := svc.Delete(context.Background(), "3", "3") // API Key ID=3, 调用者 userID=3
 	require.Error(t, err)
 	require.ErrorContains(t, err, "delete api key")
-	require.Equal(t, []int64{3}, repo.deletedIDs) // 验证 DeleteWithAudit 被调用
+	require.Equal(t, []string{"3"}, repo.deletedIDs) // 验证 DeleteWithAudit 被调用
 	require.Empty(t, cache.invalidated)           // 验证删除失败时缓存未被清除（新顺序：先删后清）
 	require.Empty(t, cache.deleteAuthKeys)        // 验证删除失败时 auth 缓存未被清除
 }

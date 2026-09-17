@@ -19,7 +19,7 @@ func TestRedeemService_BatchUpdate_PartialFields(t *testing.T) {
 	svc := &RedeemService{redeemRepo: repo}
 
 	result, err := svc.BatchUpdate(context.Background(), &RedeemCodeBatchUpdateInput{
-		IDs: []int64{1, 2, 2},
+		IDs: []string{"1", "2", "2"},
 		Fields: RedeemCodeBatchUpdateFields{
 			Status:    &status,
 			ExpiresAt: NullableTimeUpdate{Set: true, Value: &expiresAt},
@@ -30,7 +30,7 @@ func TestRedeemService_BatchUpdate_PartialFields(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(2), result.Updated)
 	require.True(t, repo.batchUpdateCalled)
-	require.Equal(t, []int64{1, 2}, repo.batchUpdateIDs)
+	require.Equal(t, []string{"1", "2"}, repo.batchUpdateIDs)
 	require.Equal(t, &status, repo.batchUpdateFields.Status)
 	require.True(t, repo.batchUpdateFields.ExpiresAt.Set)
 	require.WithinDuration(t, expiresAt, *repo.batchUpdateFields.ExpiresAt.Value, time.Second)
@@ -46,7 +46,7 @@ func TestRedeemService_BatchUpdate_RejectsInvalidID(t *testing.T) {
 	notes := "bad id"
 
 	result, err := svc.BatchUpdate(context.Background(), &RedeemCodeBatchUpdateInput{
-		IDs:    []int64{1, 0},
+		IDs:    []string{"1", ""},
 		Fields: RedeemCodeBatchUpdateFields{Notes: &notes},
 	})
 
@@ -62,7 +62,7 @@ func TestRedeemService_BatchUpdate_RejectsCoreFieldsForUsedCodes(t *testing.T) {
 	newValue := 100.0
 
 	result, err := svc.BatchUpdate(context.Background(), &RedeemCodeBatchUpdateInput{
-		IDs: []int64{42},
+		IDs: []string{"42"},
 		Fields: RedeemCodeBatchUpdateFields{
 			Value: &newValue,
 		},

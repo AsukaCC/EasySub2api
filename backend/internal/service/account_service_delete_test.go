@@ -27,7 +27,7 @@ type accountRepoStub struct {
 	exists     bool    // ExistsByID 的返回值
 	existsErr  error   // ExistsByID 的错误返回值
 	deleteErr  error   // Delete 的错误返回值
-	deletedIDs []int64 // 记录已删除的账号 ID 列表
+	deletedIDs []string // 记录已删除的账号 ID 列表
 }
 
 // 以下方法在本测试中不应被调用，使用 panic 确保测试失败时能快速定位问题
@@ -36,17 +36,17 @@ func (s *accountRepoStub) Create(ctx context.Context, account *Account) error {
 	panic("unexpected Create call")
 }
 
-func (s *accountRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+func (s *accountRepoStub) GetByID(ctx context.Context, id string) (*Account, error) {
 	panic("unexpected GetByID call")
 }
 
-func (s *accountRepoStub) GetByIDs(ctx context.Context, ids []int64) ([]*Account, error) {
+func (s *accountRepoStub) GetByIDs(ctx context.Context, ids []string) ([]*Account, error) {
 	panic("unexpected GetByIDs call")
 }
 
 // ExistsByID 返回预设的存在性检查结果。
 // 这是 Delete 方法调用的第一个仓储方法，用于验证账号是否存在。
-func (s *accountRepoStub) ExistsByID(ctx context.Context, id int64) (bool, error) {
+func (s *accountRepoStub) ExistsByID(ctx context.Context, id string) (bool, error) {
 	return s.exists, s.existsErr
 }
 
@@ -58,7 +58,7 @@ func (s *accountRepoStub) FindByExtraField(ctx context.Context, key string, valu
 	panic("unexpected FindByExtraField call")
 }
 
-func (s *accountRepoStub) ListCRSAccountIDs(ctx context.Context) (map[string]int64, error) {
+func (s *accountRepoStub) ListCRSAccountIDs(ctx context.Context) (map[string]string, error) {
 	panic("unexpected ListCRSAccountIDs call")
 }
 
@@ -68,7 +68,7 @@ func (s *accountRepoStub) Update(ctx context.Context, account *Account) error {
 
 // Delete 记录被删除的账号 ID 并返回预设的错误。
 // 通过 deletedIDs 可以验证删除操作是否被正确调用。
-func (s *accountRepoStub) Delete(ctx context.Context, id int64) error {
+func (s *accountRepoStub) Delete(ctx context.Context, id string) error {
 	s.deletedIDs = append(s.deletedIDs, id)
 	return s.deleteErr
 }
@@ -79,15 +79,15 @@ func (s *accountRepoStub) List(ctx context.Context, params pagination.Pagination
 	panic("unexpected List call")
 }
 
-func (s *accountRepoStub) ListAllWithFilters(context.Context, string, string, string, string, int64, string) ([]Account, error) {
+func (s *accountRepoStub) ListAllWithFilters(context.Context, string, string, string, string, string, string, string) ([]Account, error) {
 	return nil, nil
 }
 
-func (s *accountRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID string, privacyMode string, expiryStatus string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected ListWithFilters call")
 }
 
-func (s *accountRepoStub) ListByGroup(ctx context.Context, groupID int64) ([]Account, error) {
+func (s *accountRepoStub) ListByGroup(ctx context.Context, groupID string) ([]Account, error) {
 	panic("unexpected ListByGroup call")
 }
 
@@ -99,23 +99,23 @@ func (s *accountRepoStub) ListByPlatform(ctx context.Context, platform string) (
 	panic("unexpected ListByPlatform call")
 }
 
-func (s *accountRepoStub) UpdateLastUsed(ctx context.Context, id int64) error {
+func (s *accountRepoStub) UpdateLastUsed(ctx context.Context, id string) error {
 	panic("unexpected UpdateLastUsed call")
 }
 
-func (s *accountRepoStub) BatchUpdateLastUsed(ctx context.Context, updates map[int64]time.Time) error {
+func (s *accountRepoStub) BatchUpdateLastUsed(ctx context.Context, updates map[string]time.Time) error {
 	panic("unexpected BatchUpdateLastUsed call")
 }
 
-func (s *accountRepoStub) SetError(ctx context.Context, id int64, errorMsg string) error {
+func (s *accountRepoStub) SetError(ctx context.Context, id string, errorMsg string) error {
 	panic("unexpected SetError call")
 }
 
-func (s *accountRepoStub) ClearError(ctx context.Context, id int64) error {
+func (s *accountRepoStub) ClearError(ctx context.Context, id string) error {
 	panic("unexpected ClearError call")
 }
 
-func (s *accountRepoStub) SetSchedulable(ctx context.Context, id int64, schedulable bool) error {
+func (s *accountRepoStub) SetSchedulable(ctx context.Context, id string, schedulable bool) error {
 	panic("unexpected SetSchedulable call")
 }
 
@@ -123,7 +123,7 @@ func (s *accountRepoStub) AutoPauseExpiredAccounts(ctx context.Context, now time
 	panic("unexpected AutoPauseExpiredAccounts call")
 }
 
-func (s *accountRepoStub) BindGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
+func (s *accountRepoStub) BindGroups(ctx context.Context, accountID string, groupIDs []string) error {
 	panic("unexpected BindGroups call")
 }
 
@@ -131,7 +131,7 @@ func (s *accountRepoStub) ListSchedulable(ctx context.Context) ([]Account, error
 	panic("unexpected ListSchedulable call")
 }
 
-func (s *accountRepoStub) ListSchedulableByGroupID(ctx context.Context, groupID int64) ([]Account, error) {
+func (s *accountRepoStub) ListSchedulableByGroupID(ctx context.Context, groupID string) ([]Account, error) {
 	panic("unexpected ListSchedulableByGroupID call")
 }
 
@@ -139,7 +139,7 @@ func (s *accountRepoStub) ListSchedulableByPlatform(ctx context.Context, platfor
 	panic("unexpected ListSchedulableByPlatform call")
 }
 
-func (s *accountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]Account, error) {
+func (s *accountRepoStub) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID string, platform string) ([]Account, error) {
 	panic("unexpected ListSchedulableByGroupIDAndPlatform call")
 }
 
@@ -147,7 +147,7 @@ func (s *accountRepoStub) ListSchedulableByPlatforms(ctx context.Context, platfo
 	panic("unexpected ListSchedulableByPlatforms call")
 }
 
-func (s *accountRepoStub) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID int64, platforms []string) ([]Account, error) {
+func (s *accountRepoStub) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID string, platforms []string) ([]Account, error) {
 	panic("unexpected ListSchedulableByGroupIDAndPlatforms call")
 }
 
@@ -159,71 +159,71 @@ func (s *accountRepoStub) ListSchedulableUngroupedByPlatforms(ctx context.Contex
 	panic("unexpected ListSchedulableUngroupedByPlatforms call")
 }
 
-func (s *accountRepoStub) ListModelAvailabilityCandidates(ctx context.Context, groupID *int64, platforms []string, includeGrouped bool) ([]Account, error) {
+func (s *accountRepoStub) ListModelAvailabilityCandidates(ctx context.Context, groupID *string, platforms []string, includeGrouped bool) ([]Account, error) {
 	panic("unexpected ListModelAvailabilityCandidates call")
 }
 
-func (s *accountRepoStub) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
+func (s *accountRepoStub) SetRateLimited(ctx context.Context, id string, resetAt time.Time) error {
 	panic("unexpected SetRateLimited call")
 }
 
-func (s *accountRepoStub) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time, reason ...string) error {
+func (s *accountRepoStub) SetModelRateLimit(ctx context.Context, id string, scope string, resetAt time.Time, reason ...string) error {
 	panic("unexpected SetModelRateLimit call")
 }
 
-func (s *accountRepoStub) SetOverloaded(ctx context.Context, id int64, until time.Time) error {
+func (s *accountRepoStub) SetOverloaded(ctx context.Context, id string, until time.Time) error {
 	panic("unexpected SetOverloaded call")
 }
 
-func (s *accountRepoStub) SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error {
+func (s *accountRepoStub) SetTempUnschedulable(ctx context.Context, id string, until time.Time, reason string) error {
 	panic("unexpected SetTempUnschedulable call")
 }
 
-func (s *accountRepoStub) ClearTempUnschedulable(ctx context.Context, id int64) error {
+func (s *accountRepoStub) ClearTempUnschedulable(ctx context.Context, id string) error {
 	panic("unexpected ClearTempUnschedulable call")
 }
 
-func (s *accountRepoStub) ClearRateLimit(ctx context.Context, id int64) error {
+func (s *accountRepoStub) ClearRateLimit(ctx context.Context, id string) error {
 	panic("unexpected ClearRateLimit call")
 }
 
-func (s *accountRepoStub) ClearAntigravityQuotaScopes(ctx context.Context, id int64) error {
+func (s *accountRepoStub) ClearAntigravityQuotaScopes(ctx context.Context, id string) error {
 	panic("unexpected ClearAntigravityQuotaScopes call")
 }
 
-func (s *accountRepoStub) ClearModelRateLimits(ctx context.Context, id int64) error {
+func (s *accountRepoStub) ClearModelRateLimits(ctx context.Context, id string) error {
 	panic("unexpected ClearModelRateLimits call")
 }
 
-func (s *accountRepoStub) UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error {
+func (s *accountRepoStub) UpdateSessionWindow(ctx context.Context, id string, start, end *time.Time, status string) error {
 	panic("unexpected UpdateSessionWindow call")
 }
 
-func (s *accountRepoStub) UpdateSessionWindowEnd(ctx context.Context, id int64, end time.Time) error {
+func (s *accountRepoStub) UpdateSessionWindowEnd(ctx context.Context, id string, end time.Time) error {
 	panic("unexpected UpdateSessionWindowEnd call")
 }
 
-func (s *accountRepoStub) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+func (s *accountRepoStub) UpdateExtra(ctx context.Context, id string, updates map[string]any) error {
 	panic("unexpected UpdateExtra call")
 }
 
-func (s *accountRepoStub) BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
+func (s *accountRepoStub) BulkUpdate(ctx context.Context, ids []string, updates AccountBulkUpdate) (int64, error) {
 	panic("unexpected BulkUpdate call")
 }
 
-func (s *accountRepoStub) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) error {
+func (s *accountRepoStub) IncrementQuotaUsed(ctx context.Context, id string, amount float64) error {
 	return nil
 }
 
-func (s *accountRepoStub) ResetQuotaUsed(ctx context.Context, id int64) error {
+func (s *accountRepoStub) ResetQuotaUsed(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *accountRepoStub) RevertProxyFallback(ctx context.Context, accountID int64) error {
+func (s *accountRepoStub) RevertProxyFallback(ctx context.Context, accountID string) error {
 	panic("unexpected RevertProxyFallback call")
 }
 
-func (s *accountRepoStub) ListShadowsByParent(ctx context.Context, parentID int64) ([]*Account, error) {
+func (s *accountRepoStub) ListShadowsByParent(ctx context.Context, parentID string) ([]*Account, error) {
 	return nil, nil
 }
 
@@ -236,7 +236,7 @@ func TestAccountService_Delete_NotFound(t *testing.T) {
 	repo := &accountRepoStub{exists: false}
 	svc := &AccountService{accountRepo: repo}
 
-	err := svc.Delete(context.Background(), 55)
+	err := svc.Delete(context.Background(), "55")
 	require.ErrorIs(t, err, ErrAccountNotFound)
 	require.Empty(t, repo.deletedIDs) // 验证删除操作未被调用
 }
@@ -250,7 +250,7 @@ func TestAccountService_Delete_CheckError(t *testing.T) {
 	repo := &accountRepoStub{existsErr: errors.New("db down")}
 	svc := &AccountService{accountRepo: repo}
 
-	err := svc.Delete(context.Background(), 55)
+	err := svc.Delete(context.Background(), "55")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "check account") // 验证错误信息包含上下文
 	require.Empty(t, repo.deletedIDs)
@@ -269,10 +269,10 @@ func TestAccountService_Delete_DeleteError(t *testing.T) {
 	}
 	svc := &AccountService{accountRepo: repo}
 
-	err := svc.Delete(context.Background(), 55)
+	err := svc.Delete(context.Background(), "55")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "delete account")
-	require.Equal(t, []int64{55}, repo.deletedIDs) // 验证删除操作被调用
+	require.Equal(t, []string{"55"}, repo.deletedIDs) // 验证删除操作被调用
 }
 
 // TestAccountService_Delete_Success 测试删除操作成功的场景。
@@ -285,7 +285,7 @@ func TestAccountService_Delete_Success(t *testing.T) {
 	repo := &accountRepoStub{exists: true}
 	svc := &AccountService{accountRepo: repo}
 
-	err := svc.Delete(context.Background(), 55)
+	err := svc.Delete(context.Background(), "55")
 	require.NoError(t, err)
-	require.Equal(t, []int64{55}, repo.deletedIDs) // 验证正确的 ID 被删除
+	require.Equal(t, []string{"55"}, repo.deletedIDs) // 验证正确的 ID 被删除
 }

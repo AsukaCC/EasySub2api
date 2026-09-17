@@ -17,7 +17,7 @@ func TestSchedulerCacheSnapshotUsesSlimMetadataButKeepsFullAccount(t *testing.T)
 	rdb := testRedis(t)
 	cache := NewSchedulerCache(rdb)
 
-	bucket := service.SchedulerBucket{GroupID: 2, Platform: service.PlatformGemini, Mode: service.SchedulerModeSingle}
+	bucket := service.SchedulerBucket{GroupID: "2", Platform: service.PlatformGemini, Mode: service.SchedulerModeSingle}
 	now := time.Now().UTC().Truncate(time.Second)
 	limitReset := now.Add(10 * time.Minute)
 	overloadUntil := now.Add(2 * time.Minute)
@@ -25,7 +25,7 @@ func TestSchedulerCacheSnapshotUsesSlimMetadataButKeepsFullAccount(t *testing.T)
 	windowEnd := now.Add(5 * time.Hour)
 
 	account := service.Account{
-		ID:          101,
+		ID: "101",
 		Name:        "gemini-heavy",
 		Platform:    service.PlatformGemini,
 		Type:        service.AccountTypeOAuth,
@@ -56,10 +56,10 @@ func TestSchedulerCacheSnapshotUsesSlimMetadataButKeepsFullAccount(t *testing.T)
 		SessionWindowStart:     &now,
 		SessionWindowEnd:       &windowEnd,
 		SessionWindowStatus:    "active",
-		GroupIDs:               []int64{bucket.GroupID},
+		GroupIDs: []string{},
 		AccountGroups: []service.AccountGroup{
 			{
-				AccountID: 101,
+				AccountID: "101",
 				GroupID:   bucket.GroupID,
 				Priority:  5,
 				Group:     &service.Group{ID: bucket.GroupID, Name: "gemini-group"},
@@ -109,8 +109,8 @@ func TestSchedulerCacheRetireAndReopenFencesOldEpochIntegration(t *testing.T) {
 	ctx := context.Background()
 	rdb := testRedis(t)
 	cache := NewSchedulerCache(rdb)
-	bucket := service.SchedulerBucket{GroupID: 77, Platform: service.PlatformAntigravity, Mode: service.SchedulerModeForced}
-	account := service.Account{ID: 7701, Platform: service.PlatformAntigravity, Type: service.AccountTypeOAuth}
+	bucket := service.SchedulerBucket{GroupID: "77", Platform: service.PlatformAntigravity, Mode: service.SchedulerModeForced}
+	account := service.Account{ID: "7701", Platform: service.PlatformAntigravity, Type: service.AccountTypeOAuth}
 
 	oldToken, err := cache.CaptureBucketWriteToken(ctx, bucket)
 	require.NoError(t, err)
@@ -142,7 +142,7 @@ func TestSchedulerCacheGroupLifecycleLeaseOwnerAndTTLIntegration(t *testing.T) {
 	ctx := context.Background()
 	rdb := testRedis(t)
 	cache := NewSchedulerCache(rdb)
-	const groupID int64 = 78
+	const groupID string = 78
 	const ttl = 500 * time.Millisecond
 
 	first, acquired, err := cache.TryAcquireGroupLifecycleLease(ctx, groupID, ttl)

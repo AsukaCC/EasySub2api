@@ -459,7 +459,7 @@ func TestBuildUpstreamModelsRequest_CNProviders(t *testing.T) {
 			if tc.mode != "" {
 				creds["account_mode"] = tc.mode
 			}
-			account := &Account{ID: 1, Platform: tc.platform, Type: AccountTypeAPIKey, Credentials: creds}
+			account := &Account{ID: "1", Platform: tc.platform, Type: AccountTypeAPIKey, Credentials: creds}
 			req, err := svc.buildUpstreamModelsRequest(context.Background(), account)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantURL, req.URL.String())
@@ -565,7 +565,7 @@ func TestBuildUpstreamModelsRequest_AnthropicProtocol(t *testing.T) {
 	t.Parallel()
 	svc := &AccountTestService{cfg: &config.Config{}}
 	account := &Account{
-		ID: 1, Platform: PlatformZhipu, Type: AccountTypeAPIKey,
+		ID: "1", Platform: PlatformZhipu, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{
 			"api_key":      "sk-test",
 			"api_protocol": APIProtocolAnthropic,

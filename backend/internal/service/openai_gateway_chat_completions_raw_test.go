@@ -779,7 +779,7 @@ func rawChatCompletionsTestConfig() *config.Config {
 
 func rawChatCompletionsTestAccount() *Account {
 	return &Account{
-		ID:          101,
+		ID: "101",
 		Name:        "raw-openai-apikey",
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,

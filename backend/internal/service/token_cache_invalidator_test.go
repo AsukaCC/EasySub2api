@@ -41,7 +41,7 @@ func TestCompositeTokenCacheInvalidator_Gemini(t *testing.T) {
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       10,
+		ID: "10",
 		Platform: PlatformGemini,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -60,7 +60,7 @@ func TestCompositeTokenCacheInvalidator_GeminiWithoutProjectID(t *testing.T) {
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       10,
+		ID: "10",
 		Platform: PlatformGemini,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -78,7 +78,7 @@ func TestCompositeTokenCacheInvalidator_Antigravity(t *testing.T) {
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       99,
+		ID: "99",
 		Platform: PlatformAntigravity,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -96,7 +96,7 @@ func TestCompositeTokenCacheInvalidator_AntigravityWithoutProjectID(t *testing.T
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       99,
+		ID: "99",
 		Platform: PlatformAntigravity,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -114,7 +114,7 @@ func TestCompositeTokenCacheInvalidator_OpenAI(t *testing.T) {
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       500,
+		ID: "500",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -131,7 +131,7 @@ func TestCompositeTokenCacheInvalidator_Claude(t *testing.T) {
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       600,
+		ID: "600",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -155,7 +155,7 @@ func TestCompositeTokenCacheInvalidator_SkipNonOAuth(t *testing.T) {
 		{
 			name: "gemini_api_key",
 			account: &Account{
-				ID:       1,
+				ID: "1",
 				Platform: PlatformGemini,
 				Type:     AccountTypeAPIKey,
 			},
@@ -163,7 +163,7 @@ func TestCompositeTokenCacheInvalidator_SkipNonOAuth(t *testing.T) {
 		{
 			name: "openai_api_key",
 			account: &Account{
-				ID:       2,
+				ID: "2",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeAPIKey,
 			},
@@ -171,7 +171,7 @@ func TestCompositeTokenCacheInvalidator_SkipNonOAuth(t *testing.T) {
 		{
 			name: "claude_api_key",
 			account: &Account{
-				ID:       3,
+				ID: "3",
 				Platform: PlatformAnthropic,
 				Type:     AccountTypeAPIKey,
 			},
@@ -179,7 +179,7 @@ func TestCompositeTokenCacheInvalidator_SkipNonOAuth(t *testing.T) {
 		{
 			name: "claude_setup_token",
 			account: &Account{
-				ID:       4,
+				ID: "4",
 				Platform: PlatformAnthropic,
 				Type:     AccountTypeSetupToken,
 			},
@@ -200,7 +200,7 @@ func TestCompositeTokenCacheInvalidator_SkipUnsupportedPlatform(t *testing.T) {
 	cache := &geminiTokenCacheStub{}
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 	account := &Account{
-		ID:       100,
+		ID: "100",
 		Platform: "unknown-platform",
 		Type:     AccountTypeOAuth,
 	}
@@ -213,7 +213,7 @@ func TestCompositeTokenCacheInvalidator_SkipUnsupportedPlatform(t *testing.T) {
 func TestCompositeTokenCacheInvalidator_NilCache(t *testing.T) {
 	invalidator := NewCompositeTokenCacheInvalidator(nil)
 	account := &Account{
-		ID:       2,
+		ID: "2",
 		Platform: PlatformGemini,
 		Type:     AccountTypeOAuth,
 	}
@@ -234,7 +234,7 @@ func TestCompositeTokenCacheInvalidator_NilAccount(t *testing.T) {
 func TestCompositeTokenCacheInvalidator_NilInvalidator(t *testing.T) {
 	var invalidator *CompositeTokenCacheInvalidator
 	account := &Account{
-		ID:       5,
+		ID: "5",
 		Platform: PlatformGemini,
 		Type:     AccountTypeOAuth,
 	}
@@ -255,7 +255,7 @@ func TestCompositeTokenCacheInvalidator_DeleteError(t *testing.T) {
 		{
 			name: "openai_delete_error",
 			account: &Account{
-				ID:       700,
+				ID: "700",
 				Platform: PlatformOpenAI,
 				Type:     AccountTypeOAuth,
 			},
@@ -263,7 +263,7 @@ func TestCompositeTokenCacheInvalidator_DeleteError(t *testing.T) {
 		{
 			name: "claude_delete_error",
 			account: &Account{
-				ID:       800,
+				ID: "800",
 				Platform: PlatformAnthropic,
 				Type:     AccountTypeOAuth,
 			},
@@ -286,10 +286,10 @@ func TestCompositeTokenCacheInvalidator_AllPlatformsIntegration(t *testing.T) {
 	invalidator := NewCompositeTokenCacheInvalidator(cache)
 
 	accounts := []*Account{
-		{ID: 1, Platform: PlatformGemini, Type: AccountTypeOAuth, Credentials: map[string]any{"project_id": "gemini-proj"}},
-		{ID: 2, Platform: PlatformAntigravity, Type: AccountTypeOAuth, Credentials: map[string]any{"project_id": "ag-proj"}},
-		{ID: 3, Platform: PlatformOpenAI, Type: AccountTypeOAuth},
-		{ID: 4, Platform: PlatformAnthropic, Type: AccountTypeOAuth},
+		{ID: "1", Platform: PlatformGemini, Type: AccountTypeOAuth, Credentials: map[string]any{"project_id": "gemini-proj"}},
+		{ID: "2", Platform: PlatformAntigravity, Type: AccountTypeOAuth, Credentials: map[string]any{"project_id": "ag-proj"}},
+		{ID: "3", Platform: PlatformOpenAI, Type: AccountTypeOAuth},
+		{ID: "4", Platform: PlatformAnthropic, Type: AccountTypeOAuth},
 	}
 
 	// 新行为：Gemini 和 Antigravity 会同时删除基于 project_id 和 account_id 的键
@@ -415,11 +415,11 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "no_version_in_account_but_db_has_version",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{},
 			},
 			latestAccount: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			expectedStale: true, // 当前 account 无版本但 DB 有，说明已被异步刷新，当前已过时
@@ -427,11 +427,11 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "both_no_version",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{},
 			},
 			latestAccount: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{},
 			},
 			expectedStale: false, // 两边都没有版本号，说明从未被异步刷新过，允许缓存
@@ -439,11 +439,11 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "same_version",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			latestAccount: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			expectedStale: false,
@@ -451,11 +451,11 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "current_version_newer",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(200)},
 			},
 			latestAccount: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			expectedStale: false,
@@ -463,11 +463,11 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "current_version_older_stale",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			latestAccount: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(200)},
 			},
 			expectedStale: true, // 当前版本过时
@@ -475,7 +475,7 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "repo_error",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			latestAccount: nil,
@@ -485,7 +485,7 @@ func TestCheckTokenVersion(t *testing.T) {
 		{
 			name: "repo_returns_nil",
 			account: &Account{
-				ID:          1,
+				ID: "1",
 				Credentials: map[string]any{"_token_version": int64(100)},
 			},
 			latestAccount: nil,
@@ -539,7 +539,7 @@ func TestCheckTokenVersion(t *testing.T) {
 
 func TestCheckTokenVersion_NilRepo(t *testing.T) {
 	account := &Account{
-		ID:          1,
+		ID: "1",
 		Credentials: map[string]any{"_token_version": int64(100)},
 	}
 	_, isStale := CheckTokenVersion(context.Background(), account, nil)

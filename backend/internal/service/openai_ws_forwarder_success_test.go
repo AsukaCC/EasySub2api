@@ -442,7 +442,7 @@ func TestOpenAIGatewayService_BuildOpenAIWSHeadersDeviceModePreservesClientSessi
 	c.Request.Header.Set("thread-id", "client-thread")
 	c.Request.Header.Set("x-client-request-id", "client-request")
 
-	account := newTestOAuthAccount(1300, map[string]any{codexFingerprintModeExtraKey: "device"})
+	account := newTestOAuthAccount("1300", map[string]any{codexFingerprintModeExtraKey: "device"})
 	ids := resolveCodexFingerprintIDsFromRequest(account, c.Request.Header)
 	require.NotNil(t, ids)
 	stageCodexFingerprintIDs(c, ids)
@@ -1069,7 +1069,7 @@ func TestOpenAIGatewayService_Forward_WSv2_CodexFingerprintHandshakeBodyParityAn
 		toolCorrector:    NewCodexToolCorrector(),
 		openaiWSPool:     pool,
 	}
-	account := newTestOAuthAccount(4405, map[string]any{
+	account := newTestOAuthAccount("4405", map[string]any{
 		codexFingerprintModeExtraKey:      "session",
 		"responses_websockets_v2_enabled": true,
 	})

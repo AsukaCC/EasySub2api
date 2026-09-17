@@ -11,7 +11,7 @@ import (
 )
 
 func TestDiagnoseModelAvailabilityForPlatform_NoModel_AlwaysAvailable(t *testing.T) {
-	repo := &mockAccountRepoForPlatform{accounts: nil, accountsByID: map[int64]*Account{}}
+	repo := &mockAccountRepoForPlatform{accounts: nil, accountsByID: map[string]*Account{}}
 	svc := &GatewayService{accountRepo: repo, cfg: testConfig()}
 
 	diag := svc.DiagnoseModelAvailabilityForPlatform(context.Background(), nil, "", PlatformOpenAI)
@@ -21,7 +21,7 @@ func TestDiagnoseModelAvailabilityForPlatform_NoModel_AlwaysAvailable(t *testing
 }
 
 func TestDiagnoseModelAvailabilityForPlatform_EmptyPlatform_AlwaysAvailable(t *testing.T) {
-	repo := &mockAccountRepoForPlatform{accounts: nil, accountsByID: map[int64]*Account{}}
+	repo := &mockAccountRepoForPlatform{accounts: nil, accountsByID: map[string]*Account{}}
 	svc := &GatewayService{accountRepo: repo, cfg: testConfig()}
 
 	diag := svc.DiagnoseModelAvailabilityForPlatform(context.Background(), nil, "gpt-5", "")
@@ -40,7 +40,7 @@ func TestDiagnoseModelAvailabilityForPlatform_NilReceiver(t *testing.T) {
 }
 
 func TestDiagnoseModelAvailabilityForPlatform_NoAccountsInPool(t *testing.T) {
-	repo := &mockAccountRepoForPlatform{accounts: nil, accountsByID: map[int64]*Account{}}
+	repo := &mockAccountRepoForPlatform{accounts: nil, accountsByID: map[string]*Account{}}
 	svc := &GatewayService{accountRepo: repo, cfg: testConfig()}
 
 	diag := svc.DiagnoseModelAvailabilityForPlatform(context.Background(), nil, "gpt-5", PlatformOpenAI)
@@ -53,7 +53,7 @@ func TestDiagnoseModelAvailabilityForPlatform_ExplicitMappingMatches(t *testing.
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -62,7 +62,7 @@ func TestDiagnoseModelAvailabilityForPlatform_ExplicitMappingMatches(t *testing.
 				},
 			},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range repo.accounts {
 		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
@@ -78,9 +78,9 @@ func TestDiagnoseModelAvailabilityForPlatform_ExplicitMappingMatches(t *testing.
 func TestDiagnoseModelAvailabilityForPlatform_EmptyMappingAllowsAll(t *testing.T) {
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true /* no ModelMapping = allow all */},
+			{ID: "1", Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true /* no ModelMapping = allow all */},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range repo.accounts {
 		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
@@ -96,7 +96,7 @@ func TestDiagnoseModelAvailabilityForPlatform_WildcardMappingMatches(t *testing.
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -105,7 +105,7 @@ func TestDiagnoseModelAvailabilityForPlatform_WildcardMappingMatches(t *testing.
 				},
 			},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range repo.accounts {
 		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
@@ -118,11 +118,11 @@ func TestDiagnoseModelAvailabilityForPlatform_WildcardMappingMatches(t *testing.
 }
 
 func TestDiagnoseModelAvailabilityForPlatform_NoMatchingModel_ReturnsNotFoundSignal(t *testing.T) {
-	groupID := int64(42)
+	groupID := "42"
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -132,7 +132,7 @@ func TestDiagnoseModelAvailabilityForPlatform_NoMatchingModel_ReturnsNotFoundSig
 				Credentials: map[string]any{"model_mapping": map[string]any{"gpt-5": "gpt-5"}},
 			},
 			{
-				ID:          2,
+				ID: "2",
 				Platform:    PlatformOpenAI,
 				Status:      StatusActive,
 				Schedulable: true,
@@ -142,7 +142,7 @@ func TestDiagnoseModelAvailabilityForPlatform_NoMatchingModel_ReturnsNotFoundSig
 				Credentials: map[string]any{"model_mapping": map[string]any{"gpt-5-mini": "gpt-5-mini"}},
 			},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range repo.accounts {
 		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
@@ -156,12 +156,12 @@ func TestDiagnoseModelAvailabilityForPlatform_NoMatchingModel_ReturnsNotFoundSig
 }
 
 func TestDiagnoseModelAvailabilityForPlatform_RateLimitedSupportingAccountRemainsConfigured(t *testing.T) {
-	groupID := int64(42)
+	groupID := "42"
 	cooldownUntil := time.Now().Add(time.Hour)
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID:                     1,
+				ID: "1",
 				Platform:               PlatformAnthropic,
 				Status:                 StatusActive,
 				Schedulable:            true,
@@ -174,7 +174,7 @@ func TestDiagnoseModelAvailabilityForPlatform_RateLimitedSupportingAccountRemain
 				},
 			},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	require.False(t, repo.accounts[0].IsSchedulable(), "test account must be excluded from normal scheduling while cooling down")
 	svc := &GatewayService{
@@ -190,12 +190,12 @@ func TestDiagnoseModelAvailabilityForPlatform_RateLimitedSupportingAccountRemain
 }
 
 func TestOpenAIDiagnoseModelAvailabilityForPlatform_RateLimitedSupportingAccountRemainsConfigured(t *testing.T) {
-	groupID := int64(43)
+	groupID := "43"
 	cooldownUntil := time.Now().Add(time.Hour)
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID:                     2,
+				ID: "2",
 				Platform:               PlatformOpenAI,
 				Status:                 StatusActive,
 				Schedulable:            true,
@@ -208,7 +208,7 @@ func TestOpenAIDiagnoseModelAvailabilityForPlatform_RateLimitedSupportingAccount
 				},
 			},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	require.False(t, repo.accounts[0].IsSchedulable(), "test account must be excluded from normal scheduling while cooling down")
 	svc := &OpenAIGatewayService{
@@ -230,14 +230,14 @@ func TestDiagnoseModelAvailabilityForPlatform_WrongPlatformFiltersOut(t *testing
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
-				ID:          1,
+				ID: "1",
 				Platform:    PlatformAnthropic,
 				Status:      StatusActive,
 				Schedulable: true,
 				Credentials: map[string]any{"model_mapping": map[string]any{"claude-sonnet-4-5": "claude-sonnet-4-5"}},
 			},
 		},
-		accountsByID: map[int64]*Account{},
+		accountsByID: map[string]*Account{},
 	}
 	for i := range repo.accounts {
 		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]

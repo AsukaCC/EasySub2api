@@ -95,23 +95,23 @@ func (s *userPlatformQuotaRepoStub) BulkInsertInitial(_ context.Context, records
 	return s.bulkInsertErr
 }
 
-func (s *userPlatformQuotaRepoStub) GetByUserPlatform(context.Context, int64, string) (*UserPlatformQuotaRecord, error) {
+func (s *userPlatformQuotaRepoStub) GetByUserPlatform(context.Context, string, string) (*UserPlatformQuotaRecord, error) {
 	panic("unexpected GetByUserPlatform call")
 }
 
-func (s *userPlatformQuotaRepoStub) ListByUser(context.Context, int64) ([]UserPlatformQuotaRecord, error) {
+func (s *userPlatformQuotaRepoStub) ListByUser(context.Context, string) ([]UserPlatformQuotaRecord, error) {
 	panic("unexpected ListByUser call")
 }
 
-func (s *userPlatformQuotaRepoStub) IncrementUsageWithReset(context.Context, int64, string, float64, time.Time) error {
+func (s *userPlatformQuotaRepoStub) IncrementUsageWithReset(context.Context, string, string, float64, time.Time) error {
 	panic("unexpected IncrementUsageWithReset call")
 }
 
-func (s *userPlatformQuotaRepoStub) UpsertForUser(context.Context, int64, []UserPlatformQuotaRecord) error {
+func (s *userPlatformQuotaRepoStub) UpsertForUser(context.Context, string, []UserPlatformQuotaRecord) error {
 	panic("unexpected UpsertForUser call")
 }
 
-func (s *userPlatformQuotaRepoStub) ResetExpiredWindow(context.Context, int64, string, string, time.Time) error {
+func (s *userPlatformQuotaRepoStub) ResetExpiredWindow(context.Context, string, string, string, time.Time) error {
 	panic("unexpected ResetExpiredWindow call")
 }
 
@@ -141,7 +141,7 @@ func (s *refreshTokenCacheStub) DeleteRefreshToken(context.Context, string) erro
 	return nil
 }
 
-func (s *refreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, int64) error {
+func (s *refreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, string) error {
 	return nil
 }
 
@@ -149,7 +149,7 @@ func (s *refreshTokenCacheStub) DeleteTokenFamily(context.Context, string) error
 	return nil
 }
 
-func (s *refreshTokenCacheStub) AddToUserTokenSet(context.Context, int64, string, time.Duration) error {
+func (s *refreshTokenCacheStub) AddToUserTokenSet(context.Context, string, string, time.Duration) error {
 	return nil
 }
 
@@ -157,7 +157,7 @@ func (s *refreshTokenCacheStub) AddToFamilyTokenSet(context.Context, string, str
 	return nil
 }
 
-func (s *refreshTokenCacheStub) GetUserTokenHashes(context.Context, int64) ([]string, error) {
+func (s *refreshTokenCacheStub) GetUserTokenHashes(context.Context, string) ([]string, error) {
 	return nil, nil
 }
 
@@ -216,11 +216,11 @@ func (s *emailCacheStub) SetPasswordResetEmailCooldown(ctx context.Context, emai
 	return nil
 }
 
-func (s *emailCacheStub) GetNotifyCodeUserRate(ctx context.Context, userID int64) (int64, error) {
+func (s *emailCacheStub) GetNotifyCodeUserRate(ctx context.Context, userID string) (int64, error) {
 	return 0, nil
 }
 
-func (s *emailCacheStub) IncrNotifyCodeUserRate(ctx context.Context, userID int64, window time.Duration) (int64, error) {
+func (s *emailCacheStub) IncrNotifyCodeUserRate(ctx context.Context, userID string, window time.Duration) (int64, error) {
 	return 0, nil
 }
 
@@ -306,7 +306,7 @@ func TestAuthService_Register_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 		}
 	}
 	require.NotNil(t, openaiRecord, "expected openai platform record")
-	require.Equal(t, int64(77), openaiRecord.UserID)
+	require.Equal(t, "77", openaiRecord.UserID)
 	require.NotNil(t, openaiRecord.WeeklyLimitUSD)
 	require.InDelta(t, 12.34, *openaiRecord.WeeklyLimitUSD, 0.0001)
 }
@@ -444,7 +444,7 @@ func TestAuthService_Register_NonWhitelistDomainAllowsFirstAccount(t *testing.T)
 
 	_, user, err := svc.Register(context.Background(), "first@custom.example", "password")
 	require.NoError(t, err)
-	require.Equal(t, int64(9), user.ID)
+	require.Equal(t, "9", user.ID)
 }
 
 func TestAuthService_Register_NonWhitelistDomainRejectsSecondAccount(t *testing.T) {
@@ -499,7 +499,7 @@ func TestAuthService_Register_WhitelistDomainAllowedWhenQuotaDisabled(t *testing
 
 	_, user, err := svc.Register(context.Background(), "user@example.com", "password")
 	require.NoError(t, err)
-	require.Equal(t, int64(12), user.ID)
+	require.Equal(t, "12", user.ID)
 	require.Zero(t, repo.domainLimitedCreates)
 }
 
@@ -546,7 +546,7 @@ func TestAuthService_Register_EmailSuffixAllowed(t *testing.T) {
 	_, user, err := service.Register(context.Background(), "user@example.com", "password")
 	require.NoError(t, err)
 	require.NotNil(t, user)
-	require.Equal(t, int64(8), user.ID)
+	require.Equal(t, "8", user.ID)
 }
 
 func TestAuthService_SendVerifyCode_EmailSuffixNotAllowed(t *testing.T) {
@@ -619,7 +619,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 	require.NotNil(t, user)
-	require.Equal(t, int64(5), user.ID)
+	require.Equal(t, "5", user.ID)
 	require.Equal(t, "user@test.com", user.Email)
 	require.Equal(t, RoleUser, user.Role)
 	require.Equal(t, StatusActive, user.Status)
@@ -635,7 +635,7 @@ func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 
 	// 创建用户并生成 token
 	user := &User{
-		ID:           1,
+		ID: "1",
 		Email:        "test@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -648,7 +648,7 @@ func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 	claims, err := service.ValidateToken(token)
 	require.NoError(t, err)
 	require.NotNil(t, claims)
-	require.Equal(t, int64(1), claims.UserID)
+	require.Equal(t, "1", claims.UserID)
 
 	// 模拟过期 token（通过创建一个过期很久的 token）
 	service.cfg.JWT.ExpireHour = -1 // 设置为负数使 token 立即过期
@@ -660,13 +660,13 @@ func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 	claims, err = service.ValidateToken(expiredToken)
 	require.ErrorIs(t, err, ErrTokenExpired)
 	require.NotNil(t, claims, "claims should not be nil when token is expired")
-	require.Equal(t, int64(1), claims.UserID)
+	require.Equal(t, "1", claims.UserID)
 	require.Equal(t, "test@test.com", claims.Email)
 }
 
 func TestAuthService_RefreshToken_ExpiredTokenNoPanic(t *testing.T) {
 	user := &User{
-		ID:           1,
+		ID: "1",
 		Email:        "test@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -711,7 +711,7 @@ func TestAuthService_GenerateToken_UsesExpireHourWhenMinutesZero(t *testing.T) {
 	service.cfg.JWT.AccessTokenExpireMinutes = 0
 
 	user := &User{
-		ID:           1,
+		ID: "1",
 		Email:        "test@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -736,7 +736,7 @@ func TestAuthService_GenerateToken_UsesMinutesWhenConfigured(t *testing.T) {
 	service.cfg.JWT.AccessTokenExpireMinutes = 90
 
 	user := &User{
-		ID:           2,
+		ID: "2",
 		Email:        "test2@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -769,10 +769,10 @@ func TestAuthService_Register_AssignsDefaultSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, user)
 	require.Len(t, assigner.calls, 2)
-	require.Equal(t, int64(42), assigner.calls[0].UserID)
-	require.Equal(t, int64(11), assigner.calls[0].GroupID)
+	require.Equal(t, "42", assigner.calls[0].UserID)
+	require.Equal(t, "11", assigner.calls[0].GroupID)
 	require.Equal(t, 30, assigner.calls[0].ValidityDays)
-	require.Equal(t, int64(12), assigner.calls[1].GroupID)
+	require.Equal(t, "12", assigner.calls[1].GroupID)
 	require.Equal(t, 7, assigner.calls[1].ValidityDays)
 }
 
@@ -795,7 +795,7 @@ func TestAuthService_Register_UsesEmailAuthSourceDefaultsWhenGrantEnabled(t *tes
 	require.Equal(t, 12.5, user.Balance)
 	require.Equal(t, 7, user.Concurrency)
 	require.Len(t, assigner.calls, 1)
-	require.Equal(t, int64(11), assigner.calls[0].GroupID)
+	require.Equal(t, "11", assigner.calls[0].GroupID)
 	require.Equal(t, 30, assigner.calls[0].ValidityDays)
 }
 
@@ -818,7 +818,7 @@ func TestAuthService_Register_GrantOnSignupFalseFallsBackToGlobalDefaults(t *tes
 	require.Equal(t, 3.5, user.Balance)
 	require.Equal(t, 2, user.Concurrency)
 	require.Len(t, assigner.calls, 1)
-	require.Equal(t, int64(31), assigner.calls[0].GroupID)
+	require.Equal(t, "31", assigner.calls[0].GroupID)
 	require.Equal(t, 5, assigner.calls[0].ValidityDays)
 }
 
@@ -841,7 +841,7 @@ func TestAuthService_Register_GrantOnSignupMergesSourceOverridesWithGlobalDefaul
 	require.Equal(t, 9.5, user.Balance)
 	require.Equal(t, 5, user.Concurrency)
 	require.Len(t, assigner.calls, 1)
-	require.Equal(t, int64(31), assigner.calls[0].GroupID)
+	require.Equal(t, "31", assigner.calls[0].GroupID)
 	require.Equal(t, 5, assigner.calls[0].ValidityDays)
 }
 
@@ -863,18 +863,18 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefa
 	require.NoError(t, err)
 	require.NotNil(t, tokenPair)
 	require.NotNil(t, user)
-	require.Equal(t, int64(61), user.ID)
+	require.Equal(t, "61", user.ID)
 	require.Equal(t, 21.75, user.Balance)
 	require.Equal(t, 9, user.Concurrency)
 	require.Len(t, repo.created, 1)
 	require.Len(t, assigner.calls, 1)
-	require.Equal(t, int64(22), assigner.calls[0].GroupID)
+	require.Equal(t, "22", assigner.calls[0].GroupID)
 	require.Equal(t, 14, assigner.calls[0].ValidityDays)
 }
 
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantAgain(t *testing.T) {
 	existing := &User{
-		ID:           88,
+		ID: "88",
 		Email:        "linuxdo-123@linuxdo-connect.invalid",
 		Username:     "existing-linuxdo",
 		Role:         RoleUser,

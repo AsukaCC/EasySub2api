@@ -32,8 +32,8 @@ type paymentOrderLifecycleQueryProvider struct {
 type paymentOrderLifecycleRedeemRepo struct {
 	codesByCode map[string]*RedeemCode
 	useCalls    []struct {
-		id     int64
-		userID int64
+		id     string
+		userID string
 	}
 }
 
@@ -91,7 +91,7 @@ func (r *paymentOrderLifecycleRedeemRepo) CreateBatch(context.Context, []RedeemC
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) GetByID(_ context.Context, id int64) (*RedeemCode, error) {
+func (r *paymentOrderLifecycleRedeemRepo) GetByID(_ context.Context, id string) (*RedeemCode, error) {
 	for _, code := range r.codesByCode {
 		if code.ID != id {
 			continue
@@ -115,15 +115,15 @@ func (r *paymentOrderLifecycleRedeemRepo) Update(context.Context, *RedeemCode) e
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) BatchUpdate(context.Context, []int64, RedeemCodeBatchUpdateFields) (int64, error) {
+func (r *paymentOrderLifecycleRedeemRepo) BatchUpdate(context.Context, []string, RedeemCodeBatchUpdateFields) (int64, error) {
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) Delete(context.Context, int64) error {
+func (r *paymentOrderLifecycleRedeemRepo) Delete(context.Context, string) error {
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) Use(_ context.Context, id, userID int64) error {
+func (r *paymentOrderLifecycleRedeemRepo) Use(_ context.Context, id, userID string) error {
 	for code, redeemCode := range r.codesByCode {
 		if redeemCode.ID != id {
 			continue
@@ -134,8 +134,8 @@ func (r *paymentOrderLifecycleRedeemRepo) Use(_ context.Context, id, userID int6
 		redeemCode.UsedAt = &now
 		r.codesByCode[code] = redeemCode
 		r.useCalls = append(r.useCalls, struct {
-			id     int64
-			userID int64
+			id     string
+			userID string
 		}{id: id, userID: userID})
 		return nil
 	}
@@ -150,15 +150,15 @@ func (r *paymentOrderLifecycleRedeemRepo) ListWithFilters(context.Context, pagin
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) ListByUser(context.Context, int64, int) ([]RedeemCode, error) {
+func (r *paymentOrderLifecycleRedeemRepo) ListByUser(context.Context, string, int) ([]RedeemCode, error) {
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) ListByUserPaginated(context.Context, int64, pagination.PaginationParams, string) ([]RedeemCode, *pagination.PaginationResult, error) {
+func (r *paymentOrderLifecycleRedeemRepo) ListByUserPaginated(context.Context, string, pagination.PaginationParams, string) ([]RedeemCode, *pagination.PaginationResult, error) {
 	panic("unexpected call")
 }
 
-func (r *paymentOrderLifecycleRedeemRepo) SumPositiveBalanceByUser(context.Context, int64) (float64, error) {
+func (r *paymentOrderLifecycleRedeemRepo) SumPositiveBalanceByUser(context.Context, string) (float64, error) {
 	panic("unexpected call")
 }
 
@@ -200,7 +200,7 @@ func TestVerifyOrderByOutTradeNoBackfillsTradeNoFromPaidQuery(t *testing.T) {
 			Balance:  0,
 		},
 	}
-	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+	userRepo.updateBalanceFn = func(ctx context.Context, id string, amount float64) error {
 		require.Equal(t, user.ID, id)
 		if userRepo.getByIDUser != nil {
 			userRepo.getByIDUser.Balance += amount
@@ -210,7 +210,7 @@ func TestVerifyOrderByOutTradeNoBackfillsTradeNoFromPaidQuery(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID:     1,
+				ID: "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -225,6 +225,7 @@ func TestVerifyOrderByOutTradeNoBackfillsTradeNoFromPaidQuery(t *testing.T) {
 		nil,
 		nil,
 		client,
+		nil,
 		nil,
 		nil,
 	)
@@ -301,7 +302,7 @@ func TestVerifyOrderByOutTradeNoRetriesZeroAmountPaidQueryOnce(t *testing.T) {
 			Balance:  0,
 		},
 	}
-	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+	userRepo.updateBalanceFn = func(ctx context.Context, id string, amount float64) error {
 		require.Equal(t, user.ID, id)
 		if userRepo.getByIDUser != nil {
 			userRepo.getByIDUser.Balance += amount
@@ -311,7 +312,7 @@ func TestVerifyOrderByOutTradeNoRetriesZeroAmountPaidQueryOnce(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID:     1,
+				ID: "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -326,6 +327,7 @@ func TestVerifyOrderByOutTradeNoRetriesZeroAmountPaidQueryOnce(t *testing.T) {
 		nil,
 		nil,
 		client,
+		nil,
 		nil,
 		nil,
 	)
@@ -402,7 +404,7 @@ func TestVerifyOrderByOutTradeNoRejectsPaidQueryWithZeroAmount(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID:     1,
+				ID: "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -417,6 +419,7 @@ func TestVerifyOrderByOutTradeNoRejectsPaidQueryWithZeroAmount(t *testing.T) {
 		nil,
 		nil,
 		client,
+		nil,
 		nil,
 		nil,
 	)
@@ -605,7 +608,7 @@ func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {
 			Balance:  0,
 		},
 	}
-	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+	userRepo.updateBalanceFn = func(ctx context.Context, id string, amount float64) error {
 		require.Equal(t, user.ID, id)
 		if userRepo.getByIDUser != nil {
 			userRepo.getByIDUser.Balance += amount
@@ -615,7 +618,7 @@ func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID:     1,
+				ID: "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -630,6 +633,7 @@ func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {
 		nil,
 		nil,
 		client,
+		nil,
 		nil,
 		nil,
 	)
@@ -707,7 +711,7 @@ func TestVerifyOrderByOutTradeNoUsesOutTradeNoWhenPaymentTradeNoAlreadyExistsFor
 			Balance:  0,
 		},
 	}
-	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+	userRepo.updateBalanceFn = func(ctx context.Context, id string, amount float64) error {
 		require.Equal(t, user.ID, id)
 		if userRepo.getByIDUser != nil {
 			userRepo.getByIDUser.Balance += amount
@@ -717,7 +721,7 @@ func TestVerifyOrderByOutTradeNoUsesOutTradeNoWhenPaymentTradeNoAlreadyExistsFor
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID:     1,
+				ID: "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -732,6 +736,7 @@ func TestVerifyOrderByOutTradeNoUsesOutTradeNoWhenPaymentTradeNoAlreadyExistsFor
 		nil,
 		nil,
 		client,
+		nil,
 		nil,
 		nil,
 	)

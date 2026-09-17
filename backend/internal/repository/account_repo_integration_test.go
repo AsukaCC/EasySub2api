@@ -27,7 +27,7 @@ type AccountRepoSuite struct {
 type schedulerCacheRecorder struct {
 	setAccounts []*service.Account
 	deleteIDs   []int64
-	accounts    map[int64]*service.Account
+	accounts    map[string]*service.Account
 	setCtxErr   error
 }
 
@@ -51,7 +51,7 @@ func (s *schedulerCacheRecorder) ReopenBucket(ctx context.Context, bucket servic
 	return service.SchedulerBucketWriteToken{Bucket: bucket, Epoch: 1}, nil
 }
 
-func (s *schedulerCacheRecorder) TryAcquireGroupLifecycleLease(_ context.Context, groupID int64, _ time.Duration) (service.SchedulerGroupLifecycleLease, bool, error) {
+func (s *schedulerCacheRecorder) TryAcquireGroupLifecycleLease(_ context.Context, groupID string, _ time.Duration) (service.SchedulerGroupLifecycleLease, bool, error) {
 	return service.SchedulerGroupLifecycleLease{GroupID: groupID, OwnerToken: "scheduler-cache-recorder"}, true, nil
 }
 
@@ -59,7 +59,7 @@ func (s *schedulerCacheRecorder) ReleaseGroupLifecycleLease(context.Context, ser
 	return nil
 }
 
-func (s *schedulerCacheRecorder) GetAccount(ctx context.Context, accountID int64) (*service.Account, error) {
+func (s *schedulerCacheRecorder) GetAccount(ctx context.Context, accountID string) (*service.Account, error) {
 	if s.accounts == nil {
 		return nil, nil
 	}
@@ -70,7 +70,7 @@ func (s *schedulerCacheRecorder) SetAccount(ctx context.Context, account *servic
 	s.setCtxErr = ctx.Err()
 	s.setAccounts = append(s.setAccounts, account)
 	if s.accounts == nil {
-		s.accounts = make(map[int64]*service.Account)
+		s.accounts = make(map[string]*service.Account)
 	}
 	if account != nil {
 		s.accounts[account.ID] = account
@@ -103,7 +103,7 @@ func (e *cancelAfterAtomicMutationSQLExecutor) ExecContext(ctx context.Context, 
 	return result, err
 }
 
-func (s *schedulerCacheRecorder) DeleteAccount(ctx context.Context, accountID int64) error {
+func (s *schedulerCacheRecorder) DeleteAccount(ctx context.Context, accountID string) error {
 	s.deleteIDs = append(s.deleteIDs, accountID)
 	if s.accounts != nil {
 		delete(s.accounts, accountID)
@@ -111,7 +111,7 @@ func (s *schedulerCacheRecorder) DeleteAccount(ctx context.Context, accountID in
 	return nil
 }
 
-func (s *schedulerCacheRecorder) UpdateLastUsed(ctx context.Context, updates map[int64]time.Time) error {
+func (s *schedulerCacheRecorder) UpdateLastUsed(ctx context.Context, updates map[string]time.Time) error {
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (s *schedulerCacheRecorder) GetOutboxWatermark(ctx context.Context) (int64,
 	return 0, nil
 }
 
-func (s *schedulerCacheRecorder) SetOutboxWatermark(ctx context.Context, id int64) error {
+func (s *schedulerCacheRecorder) SetOutboxWatermark(ctx context.Context, id string) error {
 	return nil
 }
 
@@ -271,7 +271,7 @@ func (s *AccountRepoSuite) TestDelete() {
 func (s *AccountRepoSuite) TestDelete_RemovesSchedulerAccountSnapshot() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "to-delete-cache"})
 	cacheRecorder := &schedulerCacheRecorder{
-		accounts: map[int64]*service.Account{
+		accounts: map[string]*service.Account{
 			account.ID: {
 				ID:          account.ID,
 				Name:        account.Name,
@@ -831,7 +831,7 @@ func (s *AccountRepoSuite) TestBulkUpdate_SyncSchedulerSnapshotOnDisabled() {
 	s.Require().Equal(int64(2), rows)
 
 	s.Require().Len(cacheRecorder.setAccounts, 2)
-	ids := map[int64]struct{}{}
+	ids := map[string]struct{}{}
 	for _, acc := range cacheRecorder.setAccounts {
 		ids[acc.ID] = struct{}{}
 	}
@@ -1458,7 +1458,7 @@ func (s *AccountRepoSuite) TestUpdateExtra_SchedulerNeutralSkipsOutboxAndSyncsFr
 		Extra:    map[string]any{"codex_usage_updated_at": "old"},
 	})
 	cacheRecorder := &schedulerCacheRecorder{
-		accounts: map[int64]*service.Account{
+		accounts: map[string]*service.Account{
 			account.ID: {
 				ID:       account.ID,
 				Platform: account.Platform,

@@ -80,7 +80,7 @@ func (s *GroupRepoSuite) TestCreateFromSourcePreservesPriorityAndFiltersIneligib
 	s.Require().NoError(s.repo.Create(s.ctx, source))
 
 	insertAccount := func(name, accountType string, deleted bool) int64 {
-		var id int64
+		var id string
 		deletedAt := any(nil)
 		if deleted {
 			deletedAt = "2026-07-16T00:00:00Z"
@@ -98,7 +98,7 @@ func (s *GroupRepoSuite) TestCreateFromSourcePreservesPriorityAndFiltersIneligib
 	apiKeyID := insertAccount("duplicate-apikey", service.AccountTypeAPIKey, false)
 	deletedID := insertAccount("duplicate-deleted", service.AccountTypeOAuth, true)
 	for _, binding := range []struct {
-		accountID int64
+		accountID string
 		priority  int
 	}{{oauthID, 37}, {apiKeyID, 8}, {deletedID, 3}} {
 		_, err := s.tx.ExecContext(
@@ -366,7 +366,7 @@ func (s *GroupRepoSuite) TestListWithFilters_Search() {
 		return newGroupRepositoryWithSQL(tx.Client(), tx), context.Background()
 	}
 
-	containsID := func(groups []service.Group, id int64) bool {
+	containsID := func(groups []service.Group, id string) bool {
 		for i := range groups {
 			if groups[i].ID == id {
 				return true
@@ -530,7 +530,7 @@ func (s *GroupRepoSuite) TestUpdateSortOrders_MissingGroupNoPartialUpdate() {
 
 	err = s.repo.UpdateSortOrders(s.ctx, []service.GroupSortOrderUpdate{
 		{ID: g1.ID, SortOrder: 99},
-		{ID: 99999999, SortOrder: 1},
+		{ID: "99999999", SortOrder: 1},
 	})
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, service.ErrGroupNotFound)
@@ -560,7 +560,7 @@ func (s *GroupRepoSuite) TestListWithFilters_AccountCount() {
 	s.Require().NoError(s.repo.Create(s.ctx, g1))
 	s.Require().NoError(s.repo.Create(s.ctx, g2))
 
-	var accountID int64
+	var accountID string
 	s.Require().NoError(scanSingleRow(
 		s.ctx,
 		s.tx,
@@ -752,7 +752,7 @@ func (s *GroupRepoSuite) TestListWithFilters_ActiveAccountCount_LessThanTotal() 
 	s.Require().NoError(s.repo.Create(s.ctx, g))
 
 	insertAccount := func(name, status string, schedulable bool) int64 {
-		var id int64
+		var id string
 		s.Require().NoError(scanSingleRow(
 			s.ctx, s.tx,
 			"INSERT INTO accounts (name, platform, type, status, schedulable) VALUES ($1, $2, $3, $4, $5) RETURNING id",
@@ -761,7 +761,7 @@ func (s *GroupRepoSuite) TestListWithFilters_ActiveAccountCount_LessThanTotal() 
 		))
 		return id
 	}
-	link := func(accountID int64, priority int) {
+	link := func(accountID string, priority int) {
 		_, err := s.tx.ExecContext(s.ctx,
 			"INSERT INTO account_groups (account_id, group_id, priority, created_at) VALUES ($1, $2, $3, NOW())",
 			accountID, g.ID, priority)
@@ -907,7 +907,7 @@ func (s *GroupRepoSuite) TestDeleteAccountGroupsByGroupID() {
 		SubscriptionType: service.SubscriptionTypeStandard,
 	}
 	s.Require().NoError(s.repo.Create(s.ctx, g))
-	var accountID int64
+	var accountID string
 	s.Require().NoError(scanSingleRow(
 		s.ctx,
 		s.tx,
@@ -939,7 +939,7 @@ func (s *GroupRepoSuite) TestDeleteAccountGroupsByGroupID_MultipleAccounts() {
 	s.Require().NoError(s.repo.Create(s.ctx, g))
 
 	insertAccount := func(name string) int64 {
-		var id int64
+		var id string
 		s.Require().NoError(scanSingleRow(
 			s.ctx,
 			s.tx,

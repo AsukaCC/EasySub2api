@@ -435,7 +435,7 @@ func mustCreateSubscription(t *testing.T, client *dbent.Client, s *service.UserS
 	return s
 }
 
-func mustBindAccountToGroup(t *testing.T, client *dbent.Client, accountID, groupID int64, priority int) {
+func mustBindAccountToGroup(t *testing.T, client *dbent.Client, accountID, groupID string, priority int) {
 	t.Helper()
 	ctx := context.Background()
 

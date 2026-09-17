@@ -432,7 +432,7 @@ func TestAPIContracts(t *testing.T) {
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
 				// 普通用户兑换历史不应包含 notes 等内部字段。
-				deps.redeemRepo.SetByUser(1, []service.RedeemCode{
+				deps.redeemRepo.SetByUser("1", []service.RedeemCode{
 					{
 						ID:        "redeem-900",
 						Code:      "CODE-123",
@@ -1835,7 +1835,7 @@ func (stubGroupRepo) CreateFromSource(ctx context.Context, group *service.Group,
 }
 
 type stubAccountRepo struct {
-	bulkUpdateIDs []int64
+	bulkUpdateIDs []string
 }
 
 func (s *stubAccountRepo) Create(ctx context.Context, account *service.Account) error {
@@ -1846,15 +1846,15 @@ func (s *stubAccountRepo) CreateWithAccountGroups(ctx context.Context, account *
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) GetByID(ctx context.Context, id int64) (*service.Account, error) {
+func (s *stubAccountRepo) GetByID(ctx context.Context, id string) (*service.Account, error) {
 	return nil, service.ErrAccountNotFound
 }
 
-func (s *stubAccountRepo) GetByIDs(ctx context.Context, ids []int64) ([]*service.Account, error) {
+func (s *stubAccountRepo) GetByIDs(ctx context.Context, ids []string) ([]*service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ExistsByID(ctx context.Context, id int64) (bool, error) {
+func (s *stubAccountRepo) ExistsByID(ctx context.Context, id string) (bool, error) {
 	return false, errors.New("not implemented")
 }
 
@@ -1880,7 +1880,7 @@ func (s *stubAccountRepo) UpdateWithAccountBillingSettings(
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) Delete(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) Delete(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
@@ -1888,15 +1888,15 @@ func (s *stubAccountRepo) List(ctx context.Context, params pagination.Pagination
 	return nil, nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListAllWithFilters(context.Context, string, string, string, string, int64, string) ([]service.Account, error) {
+func (s *stubAccountRepo) ListAllWithFilters(context.Context, string, string, string, string, string, string, string) ([]service.Account, error) {
 	return nil, nil
 }
 
-func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID string, privacyMode string, expiryStatus string) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {
+func (s *stubAccountRepo) ListByGroup(ctx context.Context, groupID string) ([]service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -1912,23 +1912,23 @@ func (s *stubAccountRepo) ListByPlatform(ctx context.Context, platform string) (
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) UpdateLastUsed(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) UpdateLastUsed(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) BatchUpdateLastUsed(ctx context.Context, updates map[int64]time.Time) error {
+func (s *stubAccountRepo) BatchUpdateLastUsed(ctx context.Context, updates map[string]time.Time) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) SetError(ctx context.Context, id int64, errorMsg string) error {
+func (s *stubAccountRepo) SetError(ctx context.Context, id string, errorMsg string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ClearError(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) ClearError(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) SetSchedulable(ctx context.Context, id int64, schedulable bool) error {
+func (s *stubAccountRepo) SetSchedulable(ctx context.Context, id string, schedulable bool) error {
 	return errors.New("not implemented")
 }
 
@@ -1936,11 +1936,11 @@ func (s *stubAccountRepo) AutoPauseExpiredAccounts(ctx context.Context, now time
 	return 0, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) BindGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
+func (s *stubAccountRepo) BindGroups(ctx context.Context, accountID string, groupIDs []string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListShadowsByParent(ctx context.Context, parentID int64) ([]*service.Account, error) {
+func (s *stubAccountRepo) ListShadowsByParent(ctx context.Context, parentID string) ([]*service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -1948,7 +1948,7 @@ func (s *stubAccountRepo) ListSchedulable(ctx context.Context) ([]service.Accoun
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListSchedulableByGroupID(ctx context.Context, groupID int64) ([]service.Account, error) {
+func (s *stubAccountRepo) ListSchedulableByGroupID(ctx context.Context, groupID string) ([]service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -1956,7 +1956,7 @@ func (s *stubAccountRepo) ListSchedulableByPlatform(ctx context.Context, platfor
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]service.Account, error) {
+func (s *stubAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID string, platform string) ([]service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -1964,7 +1964,7 @@ func (s *stubAccountRepo) ListSchedulableByPlatforms(ctx context.Context, platfo
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID int64, platforms []string) ([]service.Account, error) {
+func (s *stubAccountRepo) ListSchedulableByGroupIDAndPlatforms(ctx context.Context, groupID string, platforms []string) ([]service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -1976,72 +1976,72 @@ func (s *stubAccountRepo) ListSchedulableUngroupedByPlatforms(ctx context.Contex
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListModelAvailabilityCandidates(ctx context.Context, groupID *int64, platforms []string, includeGrouped bool) ([]service.Account, error) {
+func (s *stubAccountRepo) ListModelAvailabilityCandidates(ctx context.Context, groupID *string, platforms []string, includeGrouped bool) ([]service.Account, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
+func (s *stubAccountRepo) SetRateLimited(ctx context.Context, id string, resetAt time.Time) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time, reason ...string) error {
+func (s *stubAccountRepo) SetModelRateLimit(ctx context.Context, id string, scope string, resetAt time.Time, reason ...string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) SetOverloaded(ctx context.Context, id int64, until time.Time) error {
+func (s *stubAccountRepo) SetOverloaded(ctx context.Context, id string, until time.Time) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error {
+func (s *stubAccountRepo) SetTempUnschedulable(ctx context.Context, id string, until time.Time, reason string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ClearTempUnschedulable(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) ClearTempUnschedulable(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ClearRateLimit(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) ClearRateLimit(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ClearAntigravityQuotaScopes(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) ClearAntigravityQuotaScopes(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ClearModelRateLimits(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) ClearModelRateLimits(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error {
+func (s *stubAccountRepo) UpdateSessionWindow(ctx context.Context, id string, start, end *time.Time, status string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) UpdateSessionWindowEnd(ctx context.Context, id int64, end time.Time) error {
+func (s *stubAccountRepo) UpdateSessionWindowEnd(ctx context.Context, id string, end time.Time) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+func (s *stubAccountRepo) UpdateExtra(ctx context.Context, id string, updates map[string]any) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) error {
+func (s *stubAccountRepo) IncrementQuotaUsed(ctx context.Context, id string, amount float64) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ResetQuotaUsed(ctx context.Context, id int64) error {
+func (s *stubAccountRepo) ResetQuotaUsed(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) BulkUpdate(ctx context.Context, ids []int64, updates service.AccountBulkUpdate) (int64, error) {
-	s.bulkUpdateIDs = append([]int64{}, ids...)
+func (s *stubAccountRepo) BulkUpdate(ctx context.Context, ids []string, updates service.AccountBulkUpdate) (int64, error) {
+	s.bulkUpdateIDs = append([]string{}, ids...)
 	return int64(len(ids)), nil
 }
 
-func (s *stubAccountRepo) ListCRSAccountIDs(ctx context.Context) (map[string]int64, error) {
+func (s *stubAccountRepo) ListCRSAccountIDs(ctx context.Context) (map[string]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) RevertProxyFallback(ctx context.Context, accountID int64) error {
+func (s *stubAccountRepo) RevertProxyFallback(ctx context.Context, accountID string) error {
 	return nil
 }
 
@@ -2051,11 +2051,11 @@ func (stubProxyRepo) Create(ctx context.Context, proxy *service.Proxy) error {
 	return errors.New("not implemented")
 }
 
-func (stubProxyRepo) GetByID(ctx context.Context, id int64) (*service.Proxy, error) {
+func (stubProxyRepo) GetByID(ctx context.Context, id string) (*service.Proxy, error) {
 	return nil, service.ErrProxyNotFound
 }
 
-func (stubProxyRepo) ListByIDs(ctx context.Context, ids []int64) ([]service.Proxy, error) {
+func (stubProxyRepo) ListByIDs(ctx context.Context, ids []string) ([]service.Proxy, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -2063,7 +2063,7 @@ func (stubProxyRepo) Update(ctx context.Context, proxy *service.Proxy) error {
 	return errors.New("not implemented")
 }
 
-func (stubProxyRepo) Delete(ctx context.Context, id int64) error {
+func (stubProxyRepo) Delete(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
@@ -2091,11 +2091,11 @@ func (stubProxyRepo) ExistsByHostPortAuth(ctx context.Context, host string, port
 	return false, errors.New("not implemented")
 }
 
-func (stubProxyRepo) CountAccountsByProxyID(ctx context.Context, proxyID int64) (int64, error) {
+func (stubProxyRepo) CountAccountsByProxyID(ctx context.Context, proxyID string) (int64, error) {
 	return 0, errors.New("not implemented")
 }
 
-func (stubProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]service.ProxyAccountSummary, error) {
+func (stubProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID string) ([]service.ProxyAccountSummary, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -2116,12 +2116,12 @@ func (stubProxyRepo) CountExpiringSoon(ctx context.Context, now time.Time) (int6
 }
 
 type stubRedeemCodeRepo struct {
-	byUser map[int64][]service.RedeemCode
+	byUser map[string][]service.RedeemCode
 }
 
-func (r *stubRedeemCodeRepo) SetByUser(userID int64, codes []service.RedeemCode) {
+func (r *stubRedeemCodeRepo) SetByUser(userID string, codes []service.RedeemCode) {
 	if r.byUser == nil {
-		r.byUser = make(map[int64][]service.RedeemCode)
+		r.byUser = make(map[string][]service.RedeemCode)
 	}
 	r.byUser[userID] = append([]service.RedeemCode(nil), codes...)
 }
@@ -2134,7 +2134,7 @@ func (stubRedeemCodeRepo) CreateBatch(ctx context.Context, codes []service.Redee
 	return errors.New("not implemented")
 }
 
-func (stubRedeemCodeRepo) GetByID(ctx context.Context, id int64) (*service.RedeemCode, error) {
+func (stubRedeemCodeRepo) GetByID(ctx context.Context, id string) (*service.RedeemCode, error) {
 	return nil, service.ErrRedeemCodeNotFound
 }
 
@@ -2146,15 +2146,15 @@ func (stubRedeemCodeRepo) Update(ctx context.Context, code *service.RedeemCode) 
 	return errors.New("not implemented")
 }
 
-func (stubRedeemCodeRepo) BatchUpdate(ctx context.Context, ids []int64, fields service.RedeemCodeBatchUpdateFields) (int64, error) {
+func (stubRedeemCodeRepo) BatchUpdate(ctx context.Context, ids []string, fields service.RedeemCodeBatchUpdateFields) (int64, error) {
 	return int64(len(ids)), nil
 }
 
-func (stubRedeemCodeRepo) Delete(ctx context.Context, id int64) error {
+func (stubRedeemCodeRepo) Delete(ctx context.Context, id string) error {
 	return errors.New("not implemented")
 }
 
-func (stubRedeemCodeRepo) Use(ctx context.Context, id, userID int64) error {
+func (stubRedeemCodeRepo) Use(ctx context.Context, id, userID string) error {
 	return errors.New("not implemented")
 }
 
@@ -2166,7 +2166,7 @@ func (stubRedeemCodeRepo) ListWithFilters(ctx context.Context, params pagination
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubRedeemCodeRepo) ListByUser(ctx context.Context, userID int64, limit int) ([]service.RedeemCode, error) {
+func (r *stubRedeemCodeRepo) ListByUser(ctx context.Context, userID string, limit int) ([]service.RedeemCode, error) {
 	if r.byUser == nil {
 		return nil, nil
 	}
@@ -2177,11 +2177,11 @@ func (r *stubRedeemCodeRepo) ListByUser(ctx context.Context, userID int64, limit
 	return append([]service.RedeemCode(nil), codes...), nil
 }
 
-func (stubRedeemCodeRepo) ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
+func (stubRedeemCodeRepo) ListByUserPaginated(ctx context.Context, userID string, params pagination.PaginationParams, codeType string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (stubRedeemCodeRepo) SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error) {
+func (stubRedeemCodeRepo) SumPositiveBalanceByUser(ctx context.Context, userID string) (float64, error) {
 	return 0, errors.New("not implemented")
 }
 

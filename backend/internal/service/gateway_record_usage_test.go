@@ -80,7 +80,7 @@ func (s *openAIRecordUsageBestEffortLogRepoStub) Create(ctx context.Context, log
 	return false, s.createErr
 }
 
-func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
+func TestGatewayServiceRecordUsage_CanceledRequestStillBillsWithDetachedContext(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: false, err: context.DeadlineExceeded}
 	userRepo := &openAIRecordUsageUserRepoStub{}
 	subRepo := &openAIRecordUsageSubRepoStub{}
@@ -101,11 +101,11 @@ func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
-			ID:    501,
+			ID: "501",
 			Quota: 100,
 		},
-		User:          &User{ID: 601},
-		Account:       &Account{ID: 701},
+		User:          &User{ID: "601"},
+		Account:       &Account{ID: "701"},
 		APIKeyService: quotaSvc,
 	})
 
@@ -133,9 +133,9 @@ func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:             &APIKey{ID: 501, Quota: 100},
-		User:               &User{ID: 601},
-		Account:            &Account{ID: 701},
+		APIKey:             &APIKey{ID: "501", Quota: 100},
+		User:               &User{ID: "601"},
+		Account:            &Account{ID: "701"},
 		RequestPayloadHash: payloadHash,
 	})
 	require.NoError(t, err)
@@ -159,9 +159,9 @@ func TestGatewayServiceRecordUsage_BillingFingerprintFallsBackToContextRequestID
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 501, Quota: 100},
-		User:    &User{ID: 601},
-		Account: &Account{ID: 701},
+		APIKey:  &APIKey{ID: "501", Quota: 100},
+		User:    &User{ID: "601"},
+		Account: &Account{ID: "701"},
 	})
 	require.NoError(t, err)
 	require.NotNil(t, billingRepo.lastCmd)
@@ -181,9 +181,9 @@ func TestGatewayServiceRecordUsage_PreservesRequestedAndUpstreamModels(t *testin
 			UpstreamModel: mappedModel,
 			Duration:      time.Second,
 		},
-		APIKey:  &APIKey{ID: 501, Quota: 100},
-		User:    &User{ID: 601},
-		Account: &Account{ID: 701},
+		APIKey:  &APIKey{ID: "501", Quota: 100},
+		User:    &User{ID: "601"},
+		Account: &Account{ID: "701"},
 	})
 
 	require.NoError(t, err)
@@ -206,9 +206,9 @@ func TestGatewayServiceRecordUsage_PreservesChannelMappedUpstreamModel(t *testin
 			UpstreamModel: "gpt-5.6-terra",
 			Duration:      time.Second,
 		},
-		APIKey:  &APIKey{ID: 501, Quota: 100},
-		User:    &User{ID: 601},
-		Account: &Account{ID: 701},
+		APIKey:  &APIKey{ID: "501", Quota: 100},
+		User:    &User{ID: "601"},
+		Account: &Account{ID: "701"},
 		ChannelUsageFields: ChannelUsageFields{
 			OriginalModel:      "gpt-5.6-sol",
 			ChannelMappedModel: "gpt-5.6-terra",
@@ -235,9 +235,9 @@ func TestGatewayServiceRecordUsage_PreservesLoopedChannelAndAccountUpstreamModel
 			UpstreamModel: "gpt-5.6-sol",
 			Duration:      time.Second,
 		},
-		APIKey:  &APIKey{ID: 501, Quota: 100},
-		User:    &User{ID: 601},
-		Account: &Account{ID: 701},
+		APIKey:  &APIKey{ID: "501", Quota: 100},
+		User:    &User{ID: "601"},
+		Account: &Account{ID: "701"},
 		ChannelUsageFields: ChannelUsageFields{
 			OriginalModel:      "gpt-5.6-sol",
 			ChannelMappedModel: "gpt-5.6-terra",
@@ -254,7 +254,7 @@ func TestGatewayServiceRecordUsage_PreservesLoopedChannelAndAccountUpstreamModel
 
 func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersistence(t *testing.T) {
 	imagePrice2K := 0.19
-	groupID := int64(901)
+	groupID := "901"
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
 
@@ -267,7 +267,7 @@ func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersist
 			Duration:       time.Second,
 		},
 		APIKey: &APIKey{
-			ID:      801,
+			ID: "801",
 			GroupID: i64p(groupID),
 			Group: &Group{
 				ID:             groupID,
@@ -275,8 +275,8 @@ func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersist
 				ImagePrice2K:   &imagePrice2K,
 			},
 		},
-		User:    &User{ID: 601},
-		Account: &Account{ID: 701},
+		User:    &User{ID: "601"},
+		Account: &Account{ID: "701"},
 	})
 
 	require.NoError(t, err)
@@ -293,7 +293,7 @@ func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersist
 }
 
 func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *testing.T) {
-	groupID := int64(902)
+	groupID := "902"
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{})
@@ -312,7 +312,7 @@ func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
-			ID:      802,
+			ID: "802",
 			GroupID: i64p(groupID),
 			Group: &Group{
 				ID:                 groupID,
@@ -324,8 +324,8 @@ func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *
 				PeakRateMultiplier: 3.0,
 			},
 		},
-		User:    &User{ID: 602},
-		Account: &Account{ID: 702},
+		User:    &User{ID: "602"},
+		Account: &Account{ID: "702"},
 	})
 
 	require.NoError(t, err)
@@ -346,7 +346,7 @@ func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *
 }
 
 func TestGatewayServiceRecordUsage_TimePricingUsesPricingAt(t *testing.T) {
-	groupID := int64(904)
+	groupID := "904"
 	requestStart := time.Date(2024, time.January, 2, 2, 0, 0, 0, time.UTC) // 上海 10:00
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}
@@ -362,11 +362,11 @@ func TestGatewayServiceRecordUsage_TimePricingUsesPricingAt(t *testing.T) {
 			Model:     "gpt-5.1",
 			Usage:     ClaudeUsage{InputTokens: 1000, OutputTokens: 500},
 		},
-		APIKey: &APIKey{ID: 804, GroupID: i64p(groupID), Group: &Group{
+		APIKey: &APIKey{ID: "804", GroupID: i64p(groupID), Group: &Group{
 			ID: groupID, RateMultiplier: 0.8, SubscriptionType: SubscriptionTypeSubscription,
 		}},
-		User:      &User{ID: 604},
-		Account:   &Account{ID: 704},
+		User:      &User{ID: "604"},
+		Account:   &Account{ID: "704"},
 		PricingAt: requestStart,
 	})
 
@@ -380,7 +380,7 @@ func TestGatewayServiceRecordUsage_TimePricingUsesPricingAt(t *testing.T) {
 func TestGatewayServiceRecordUsage_UsesExplicitPricingAtForPeakRate(t *testing.T) {
 	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformGrok, PlatformAntigravity} {
 		t.Run(platform, func(t *testing.T) {
-			groupID := int64(903)
+			groupID := "903"
 			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 			userRepo := &openAIRecordUsageUserRepoStub{}
 			svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{})
@@ -399,7 +399,7 @@ func TestGatewayServiceRecordUsage_UsesExplicitPricingAtForPeakRate(t *testing.T
 					},
 				},
 				APIKey: &APIKey{
-					ID:      803,
+					ID: "803",
 					GroupID: i64p(groupID),
 					Group: &Group{
 						ID:                 groupID,
@@ -412,8 +412,8 @@ func TestGatewayServiceRecordUsage_UsesExplicitPricingAtForPeakRate(t *testing.T
 						PeakRateMultiplier: 3.0,
 					},
 				},
-				User:      &User{ID: 603},
-				Account:   &Account{ID: 703, Platform: platform},
+				User:      &User{ID: "603"},
+				Account:   &Account{ID: "703", Platform: platform},
 				PricingAt: pricingAt,
 			})
 
@@ -442,11 +442,11 @@ func TestGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t *testi
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
-			ID:    503,
+			ID: "503",
 			Quota: 100,
 		},
-		User:          &User{ID: 603},
-		Account:       &Account{ID: 703},
+		User:          &User{ID: "603"},
+		Account:       &Account{ID: "703"},
 		APIKeyService: quotaSvc,
 	})
 
@@ -456,7 +456,7 @@ func TestGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t *testi
 	require.Equal(t, 1, quotaSvc.quotaCalls)
 }
 
-func TestGatewayServiceRecordUsageWithLongContext_BillingUsesDetachedContext(t *testing.T) {
+func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: false, err: context.DeadlineExceeded}
 	userRepo := &openAIRecordUsageUserRepoStub{}
 	subRepo := &openAIRecordUsageSubRepoStub{}
@@ -466,7 +466,7 @@ func TestGatewayServiceRecordUsageWithLongContext_BillingUsesDetachedContext(t *
 	reqCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := svc.RecordUsageWithLongContext(reqCtx, &RecordUsageLongContextInput{
+	err := svc.RecordUsage(reqCtx, &RecordUsageInput{
 		Result: &ForwardResult{
 			RequestID: "gateway_long_context_detached_ctx",
 			Usage: ClaudeUsage{
@@ -477,14 +477,12 @@ func TestGatewayServiceRecordUsageWithLongContext_BillingUsesDetachedContext(t *
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
-			ID:    502,
+			ID: "502",
 			Quota: 100,
 		},
-		User:                  &User{ID: 602},
-		Account:               &Account{ID: 702},
-		LongContextThreshold:  200000,
-		LongContextMultiplier: 2,
-		APIKeyService:         quotaSvc,
+		User:          &User{ID: "602"},
+		Account:       &Account{ID: "702"},
+		APIKeyService: quotaSvc,
 	})
 
 	require.NoError(t, err)
@@ -512,9 +510,9 @@ func TestGatewayServiceRecordUsage_UsesFallbackRequestIDForUsageLog(t *testing.T
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 504},
-		User:    &User{ID: 604},
-		Account: &Account{ID: 704},
+		APIKey:  &APIKey{ID: "504"},
+		User:    &User{ID: "604"},
+		Account: &Account{ID: "704"},
 	})
 
 	require.NoError(t, err)
@@ -539,9 +537,9 @@ func TestGatewayServiceRecordUsage_PrefersClientRequestIDOverUpstreamRequestID(t
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 506},
-		User:    &User{ID: 606},
-		Account: &Account{ID: 706},
+		APIKey:  &APIKey{ID: "506"},
+		User:    &User{ID: "606"},
+		Account: &Account{ID: "706"},
 	})
 
 	require.NoError(t, err)
@@ -566,9 +564,9 @@ func TestGatewayServiceRecordUsage_GeneratesRequestIDWhenAllSourcesMissing(t *te
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 507},
-		User:    &User{ID: 607},
-		Account: &Account{ID: 707},
+		APIKey:  &APIKey{ID: "507"},
+		User:    &User{ID: "607"},
+		Account: &Account{ID: "707"},
 	})
 
 	require.NoError(t, err)
@@ -597,9 +595,9 @@ func TestGatewayServiceRecordUsage_DroppedUsageLogFallsBackToSyncCreate(t *testi
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 508},
-		User:    &User{ID: 608},
-		Account: &Account{ID: 708},
+		APIKey:  &APIKey{ID: "508"},
+		User:    &User{ID: "608"},
+		Account: &Account{ID: "708"},
 	})
 
 	require.NoError(t, err)
@@ -627,9 +625,9 @@ func TestGatewayServiceRecordUsage_BillingErrorWritesUnsettledUsageLog(t *testin
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 505},
-		User:    &User{ID: 605},
-		Account: &Account{ID: 705},
+		APIKey:  &APIKey{ID: "505"},
+		User:    &User{ID: "605"},
+		Account: &Account{ID: "705"},
 	})
 
 	require.ErrorIs(t, err, billingErr)
@@ -660,9 +658,9 @@ func TestGatewayServiceRecordUsage_ReasoningEffortPersisted(t *testing.T) {
 			Duration:        time.Second,
 			ReasoningEffort: &effort,
 		},
-		APIKey:  &APIKey{ID: 1},
-		User:    &User{ID: 1},
-		Account: &Account{ID: 1},
+		APIKey:  &APIKey{ID: "1"},
+		User:    &User{ID: "1"},
+		Account: &Account{ID: "1"},
 	})
 
 	require.NoError(t, err)
@@ -685,9 +683,9 @@ func TestGatewayServiceRecordUsage_ReasoningEffortNil(t *testing.T) {
 			Model:    "claude-sonnet-4",
 			Duration: time.Second,
 		},
-		APIKey:  &APIKey{ID: 1},
-		User:    &User{ID: 1},
-		Account: &Account{ID: 1},
+		APIKey:  &APIKey{ID: "1"},
+		User:    &User{ID: "1"},
+		Account: &Account{ID: "1"},
 	})
 
 	require.NoError(t, err)

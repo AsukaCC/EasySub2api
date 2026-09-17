@@ -19,14 +19,14 @@ func (s *GroupRepoSuite) TestListWithAccountCountSort_AttachesActiveCount() {
 	s.Require().NoError(s.repo.Create(s.ctx, gB))
 
 	insertAccount := func(name, status string) int64 {
-		var id int64
+		var id string
 		s.Require().NoError(scanSingleRow(s.ctx, s.tx,
 			"INSERT INTO accounts (name, platform, type, status) VALUES ($1, $2, $3, $4) RETURNING id",
 			[]any{name, service.PlatformAnthropic, service.AccountTypeOAuth, status},
 			&id))
 		return id
 	}
-	link := func(accountID, groupID int64, priority int) {
+	link := func(accountID, groupID string, priority int) {
 		_, err := s.tx.ExecContext(s.ctx,
 			"INSERT INTO account_groups (account_id, group_id, priority, created_at) VALUES ($1, $2, $3, NOW())",
 			accountID, groupID, priority)
@@ -61,7 +61,7 @@ func (s *GroupRepoSuite) TestListWithAccountCountSort_AttachesActiveCount() {
 	s.Assert().Equal(int64(1), cB.ActiveAccountCount, "gB ActiveAccountCount must be 1")
 
 	// Sort is by total (not active): gA (total=2) must rank higher than gB (total=1) in desc order
-	indexByID := make(map[int64]int, len(groups))
+	indexByID := make(map[string]int, len(groups))
 	for i, g := range groups {
 		indexByID[g.ID] = i
 	}
@@ -77,7 +77,7 @@ func (s *GroupRepoSuite) TestList_DefaultSortBySortOrderAsc() {
 	groups, _, err := s.repo.List(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 100})
 	s.Require().NoError(err)
 	s.Require().GreaterOrEqual(len(groups), 2)
-	indexByID := make(map[int64]int, len(groups))
+	indexByID := make(map[string]int, len(groups))
 	for i, g := range groups {
 		indexByID[g.ID] = i
 	}
@@ -101,7 +101,7 @@ func (s *GroupRepoSuite) TestList_SortBySortOrderDesc() {
 	})
 	s.Require().NoError(err)
 	s.Require().GreaterOrEqual(len(groups), 2)
-	indexByID := make(map[int64]int, len(groups))
+	indexByID := make(map[string]int, len(groups))
 	for i, group := range groups {
 		indexByID[group.ID] = i
 	}

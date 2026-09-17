@@ -342,7 +342,7 @@ func TestNormalizeClaudeOAuthRequestBody_HaikuShortModelStillNormalizesToDatedID
 }
 
 func TestApplyClaudeCodeOAuthMimicryToBody_HaikuRewritesSystem(t *testing.T) {
-	account := &Account{ID: 405, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	account := &Account{ID: "405", Platform: PlatformAnthropic, Type: AccountTypeOAuth}
 	body := []byte(`{"model":"claude-haiku-4-5","system":"Pi project instructions","messages":[{"role":"user","content":"hello"}]}`)
 	svc := &GatewayService{cfg: &config.Config{}}
 
@@ -368,7 +368,7 @@ func TestApplyClaudeCodeOAuthMimicryToBody_HaikuRewritesSystem(t *testing.T) {
 // targetURL 会走默认 claudeAPIURL，sanitize 逻辑与 baseURL 是否存在无关。
 func newAnthropicAPIKeyPassthroughAccountForBetaTest() *Account {
 	return &Account{
-		ID:       501,
+		ID: "501",
 		Name:     "anthropic-apikey-passthrough-ctxmgmt-test",
 		Platform: PlatformAnthropic,
 		Type:     AccountTypeAPIKey,
@@ -453,7 +453,7 @@ func TestBuildUpstreamRequest_OAuthMimicHaiku_PreservesContextManagementEndToEnd
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
-	account := &Account{ID: 401, Platform: PlatformAnthropic, Type: AccountTypeOAuth,
+	account := &Account{ID: "401", Platform: PlatformAnthropic, Type: AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "oauth-tok"},
 		Status:      StatusActive,
 		Schedulable: true,
@@ -485,7 +485,7 @@ func TestBuildUpstreamRequest_APIKeyHaiku_RemainsUnmimicked(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
 	account := &Account{
-		ID: 404, Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
+		ID: "404", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "sk-ant-xxx"},
 		Status:      StatusActive, Schedulable: true,
 	}
@@ -510,7 +510,7 @@ func TestBuildUpstreamRequest_OAuthMimicNonHaiku_PreservesContextManagementEndTo
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
-	account := &Account{ID: 402, Platform: PlatformAnthropic, Type: AccountTypeOAuth,
+	account := &Account{ID: "402", Platform: PlatformAnthropic, Type: AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "oauth-tok"},
 		Status:      StatusActive,
 		Schedulable: true,
@@ -544,7 +544,7 @@ func TestBuildUpstreamRequest_OAuthTransparentHaikuWithRealCCBeta_PreservesField
 	c.Request.Header.Set("Anthropic-Beta",
 		"claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,context-management-2025-06-27")
 
-	account := &Account{ID: 403, Platform: PlatformAnthropic, Type: AccountTypeOAuth,
+	account := &Account{ID: "403", Platform: PlatformAnthropic, Type: AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "oauth-tok"},
 		Status:      StatusActive, Schedulable: true,
 	}
@@ -574,7 +574,7 @@ func TestBuildCountTokensRequest_OAuthMimicHaiku_PreservesContextManagementEndTo
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
 
-	account := &Account{ID: 411, Platform: PlatformAnthropic, Type: AccountTypeOAuth,
+	account := &Account{ID: "411", Platform: PlatformAnthropic, Type: AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "oauth-tok"},
 		Status:      StatusActive, Schedulable: true,
 	}
@@ -605,7 +605,7 @@ func TestBuildCountTokensRequest_OAuthMimic_DropsInjectedMaxTokens(t *testing.T)
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
 
-	account := &Account{ID: 413, Platform: PlatformAnthropic, Type: AccountTypeOAuth,
+	account := &Account{ID: "413", Platform: PlatformAnthropic, Type: AccountTypeOAuth,
 		Credentials: map[string]any{"access_token": "oauth-tok"},
 		Status:      StatusActive, Schedulable: true,
 	}
@@ -634,7 +634,7 @@ func TestBuildCountTokensRequest_APIKeyHaiku_StripsContextManagementEndToEnd(t *
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
 	c.Request.Header.Set("Anthropic-Beta", "interleaved-thinking-2025-05-14")
 
-	account := &Account{ID: 412, Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
+	account := &Account{ID: "412", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "sk-ant-xxx"},
 		Status:      StatusActive, Schedulable: true,
 	}
@@ -723,7 +723,7 @@ func TestBuildUpstreamRequest_APIKeyHaikuWithContextManagement_StripsField(t *te
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 	c.Request.Header.Set("Anthropic-Beta", "interleaved-thinking-2025-05-14")
 
-	account := &Account{ID: 404, Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
+	account := &Account{ID: "404", Platform: PlatformAnthropic, Type: AccountTypeAPIKey,
 		Credentials: map[string]any{"api_key": "sk-ant-xxx"},
 		Status:      StatusActive, Schedulable: true,
 	}
