@@ -294,15 +294,12 @@ func (h *ProxyHandler) GetStats(c *gin.Context) {
 		return
 	}
 
-	// Return mock data for now
-	_ = proxyID
-	response.Success(c, gin.H{
-		"total_accounts":  0,
-		"active_accounts": 0,
-		"total_requests":  0,
-		"success_rate":    100.0,
-		"average_latency": 0,
-	})
+	stats, err := h.adminService.GetProxyStats(c.Request.Context(), proxyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, stats)
 }
 
 // GetProxyAccounts handles getting accounts using a proxy

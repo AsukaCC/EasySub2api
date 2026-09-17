@@ -10,6 +10,10 @@ import (
 )
 
 type stubAdminService struct {
+	groupStats                          *service.AdminGroupStats
+	proxyStats                          *service.AdminProxyStats
+	redeemStats                         *service.AdminRedeemStats
+	statsErr                            error
 	users                               []service.User
 	apiKeys                             []service.APIKey
 	groups                              []service.Group
@@ -21,6 +25,7 @@ type stubAdminService struct {
 	proxies                             []service.Proxy
 	proxyCounts                         []service.ProxyWithAccountCount
 	redeems                             []service.RedeemCode
+	listRedeemCodesErrorPage            int
 	boundAuthIdentity                   *service.AdminBindAuthIdentityInput
 	boundAuthIdentityFor                string
 	createdAccounts                     []*service.CreateAccountInput
@@ -80,6 +85,18 @@ type stubAdminService struct {
 		calls     int
 	}
 	mu sync.Mutex
+}
+
+func (s *stubAdminService) GetGroupStats(context.Context, string) (*service.AdminGroupStats, error) {
+	return s.groupStats, s.statsErr
+}
+
+func (s *stubAdminService) GetProxyStats(context.Context, string) (*service.AdminProxyStats, error) {
+	return s.proxyStats, s.statsErr
+}
+
+func (s *stubAdminService) GetRedeemStats(context.Context) (*service.AdminRedeemStats, error) {
+	return s.redeemStats, s.statsErr
 }
 
 func newStubAdminService() *stubAdminService {
@@ -693,7 +710,15 @@ func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize i
 	s.lastListRedeemCodes.sortBy = sortBy
 	s.lastListRedeemCodes.sortOrder = sortOrder
 	s.lastListRedeemCodes.calls++
-	return s.redeems, int64(len(s.redeems)), nil
+	if page == s.listRedeemCodesErrorPage {
+		return nil, 0, service.ErrRedeemCodeNotFound
+	}
+	start := (page - 1) * pageSize
+	if start >= len(s.redeems) {
+		return nil, int64(len(s.redeems)), nil
+	}
+	end := min(start+pageSize, len(s.redeems))
+	return s.redeems[start:end], int64(len(s.redeems)), nil
 }
 
 func (s *stubAdminService) GetRedeemCode(ctx context.Context, id string) (*service.RedeemCode, error) {

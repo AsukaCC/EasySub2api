@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const { get } = vi.hoisted(() => ({ get: vi.fn() }))
 vi.mock('@/api/client', () => ({ apiClient: { get } }))
 
-import { getAll, getAllWithCount, list } from '@/api/admin/proxies'
+import { getAll, getAllWithCount, getStats, list } from '@/api/admin/proxies'
 
 describe.each([
   { name: 'paginated list', load: () => list(), wrap: (items: unknown[]) => ({ items, total: items.length, pages: 1 }) },
@@ -24,5 +24,27 @@ describe.each([
     const data = wrap(items)
     get.mockResolvedValue({ data })
     await expect(load()).resolves.toBe(data)
+  })
+})
+
+describe('proxy statistics', () => {
+  beforeEach(() => { get.mockReset() })
+
+  it('preserves unavailable historical metrics instead of reporting a healthy proxy', async () => {
+    const stats = {
+      total_accounts: 3,
+      active_accounts: 2,
+      total_requests: null,
+      success_rate: null,
+      average_latency: null,
+    }
+    get.mockResolvedValue({ data: stats })
+    await expect(getStats('proxy-id')).resolves.toEqual(stats)
+    expect(get).toHaveBeenCalledWith('/admin/proxies/proxy-id/stats')
+  })
+
+  it('propagates statistics errors', async () => {
+    get.mockRejectedValue(new Error('Statistics unavailable'))
+    await expect(getStats('proxy-id')).rejects.toThrow('Statistics unavailable')
   })
 })

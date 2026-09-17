@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +20,56 @@ func setupRedeemExportRouter() (*gin.Engine, *stubAdminService) {
 	h := NewRedeemHandler(adminSvc, nil)
 	router.GET("/api/v1/admin/redeem-codes/export", h.Export)
 	return router, adminSvc
+}
+
+func TestRedeemExportReadsEveryPage(t *testing.T) {
+	for _, count := range []int{0, 1000, 1001, 2501} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			router, adminSvc := setupRedeemExportRouter()
+			adminSvc.redeems = make([]service.RedeemCode, count)
+			for i := range adminSvc.redeems {
+				adminSvc.redeems[i] = service.RedeemCode{ID: fmt.Sprint(i), Code: fmt.Sprintf("CODE-%d", i)}
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/export", nil))
+			require.Equal(t, http.StatusOK, rec.Code)
+			rows, err := csv.NewReader(rec.Body).ReadAll()
+			require.NoError(t, err)
+			require.Len(t, rows, count+1)
+			for i, row := range rows[1:] {
+				require.Equal(t, fmt.Sprint(i), row[0])
+			}
+			require.Equal(t, max(1, (count+999)/1000), adminSvc.lastListRedeemCodes.calls)
+		})
+	}
+}
+
+func TestRedeemExportDoesNotReturnPartialCSVOnPageFailure(t *testing.T) {
+	router, adminSvc := setupRedeemExportRouter()
+	adminSvc.redeems = make([]service.RedeemCode, 1001)
+	for i := range adminSvc.redeems {
+		adminSvc.redeems[i].ID = fmt.Sprint(i)
+	}
+	adminSvc.listRedeemCodesErrorPage = 2
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/export", nil))
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.NotContains(t, rec.Header().Get("Content-Type"), "text/csv")
+	require.Empty(t, rec.Header().Get("Content-Disposition"))
+}
+
+func TestRedeemExportRejectsDuplicateRowsAcrossPages(t *testing.T) {
+	router, adminSvc := setupRedeemExportRouter()
+	adminSvc.redeems = make([]service.RedeemCode, 1001)
+	for i := range adminSvc.redeems {
+		adminSvc.redeems[i].ID = fmt.Sprint(i)
+	}
+	adminSvc.redeems[1000].ID = adminSvc.redeems[999].ID
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/export", nil))
+	require.Equal(t, http.StatusConflict, rec.Code)
+	require.Empty(t, rec.Header().Get("Content-Disposition"))
+	require.Equal(t, 2, adminSvc.lastListRedeemCodes.calls)
 }
 
 func TestRedeemExportPassesSearchAndSort(t *testing.T) {

@@ -39,6 +39,7 @@ type AdminService interface {
 	// ordered by sort_order then id. Used by the API Key group filter dropdown.
 	GetAllGroupsIncludingInactive(ctx context.Context) ([]Group, error)
 	GetGroup(ctx context.Context, id string) (*Group, error)
+	GetGroupStats(ctx context.Context, id string) (*AdminGroupStats, error)
 	GetGroupModelsListCandidates(ctx context.Context, id string, platform string) ([]string, error)
 	CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error)
 	// DuplicateGroup creates an inactive independent copy of a group's configuration
@@ -115,6 +116,7 @@ type AdminService interface {
 	GetAllProxies(ctx context.Context) ([]Proxy, error)
 	GetAllProxiesWithAccountCount(ctx context.Context) ([]ProxyWithAccountCount, error)
 	GetProxy(ctx context.Context, id string) (*Proxy, error)
+	GetProxyStats(ctx context.Context, id string) (*AdminProxyStats, error)
 	GetProxiesByIDs(ctx context.Context, ids []string) ([]Proxy, error)
 	CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error)
 	UpdateProxy(ctx context.Context, id string, input *UpdateProxyInput) (*Proxy, error)
@@ -128,6 +130,7 @@ type AdminService interface {
 	// Redeem code management
 	ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string, sortBy, sortOrder string) ([]RedeemCode, int64, error)
 	GetRedeemCode(ctx context.Context, id string) (*RedeemCode, error)
+	GetRedeemStats(ctx context.Context) (*AdminRedeemStats, error)
 	GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error)
 	DeleteRedeemCode(ctx context.Context, id string) error
 	BatchDeleteRedeemCodes(ctx context.Context, ids []string) (int64, error)
