@@ -105,7 +105,7 @@ export default {
       currentMultiplier: 'Current user level multiplier',
       multiplierFormula: 'Actual billing multiplier = group multiplier * user level multiplier',
       groupMultiplier: 'Group multiplier',
-      nextMultiplier: '{level} lowest spend multiplier',
+      nextMultiplier: '{level} user level multiplier',
       effectiveMultiplier: 'Lowest effective multiplier',
       unavailable: 'Level information is temporarily unavailable',
       viewFull: 'View details',

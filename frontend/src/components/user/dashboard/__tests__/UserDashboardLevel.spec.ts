@@ -40,6 +40,25 @@ function render(value: UserLevelDashboard | null = profile(), loading = false) {
 afterEach(() => { for (const wrapper of wrappers.splice(0)) wrapper.unmount() })
 
 describe('UserDashboardLevel current multiplier', () => {
+  it('keeps group rates, combined rates and group names out of the level details', async () => {
+    const value = profile()
+    value.multiplier_group = 'Lowest-price group'
+    value.next_multiplier_group = 'Next-tier group'
+    const wrapper = render(value)
+    await wrapper.get('.dashboard-level__view-full').trigger('click')
+    const details = wrapper.get('.dashboard-level__full')
+    expect(details.text()).toContain('用户等级倍率')
+    expect(details.text()).toContain('×0.75')
+    expect(details.text()).toContain('Gold 用户等级倍率')
+    expect(details.text()).toContain('×0.50')
+    expect(details.text()).not.toContain('分组倍率')
+    expect(details.text()).not.toContain('最低生效倍率')
+    expect(details.text()).not.toContain('×0.20')
+    expect(details.text()).not.toContain('×0.075')
+    expect(details.text()).not.toContain('Lowest-price group')
+    expect(details.text()).not.toContain('Next-tier group')
+    expect(details.find('.dashboard-level__ladder').exists()).toBe(true)
+  })
   it('shows the current user level rate, not the next tier or combined group rate', () => {
     const wrapper = render()
     const rate = wrapper.get('.dashboard-level__current-rate')

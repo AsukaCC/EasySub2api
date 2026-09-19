@@ -77,22 +77,11 @@
             <strong v-if="profile.configured" class="dashboard-level__value">×{{ formatMultiplier(currentLevelMultiplier) }}</strong>
             <strong v-else class="dashboard-level__value dashboard-level__muted">—</strong>
           </div>
-          <div>
-            <span class="dashboard-level__label">{{ t('dashboard.level.groupMultiplier') }}</span>
-            <strong v-if="profile.group_rule_multiplier != null" class="dashboard-level__value">×{{ formatMultiplier(profile.group_rule_multiplier) }}</strong>
-            <strong v-else class="dashboard-level__value dashboard-level__muted">—</strong>
-          </div>
-          <div v-if="profile.effective_multiplier != null && !sameMultiplier">
-            <span class="dashboard-level__label">{{ t('dashboard.level.effectiveMultiplier') }}</span>
-            <strong class="dashboard-level__value">×{{ formatMultiplier(profile.effective_multiplier) }}</strong>
-            <small v-if="profile.multiplier_group" class="dashboard-level__group">{{ profile.multiplier_group }}</small>
-          </div>
           <div v-if="nextTier && nextTier.multiplier != null">
             <span class="dashboard-level__label">
               {{ t('dashboard.level.nextMultiplier', { level: nextTier.name }) }}
             </span>
             <strong class="dashboard-level__value">×{{ formatMultiplier(nextTier.multiplier) }}</strong>
-            <small v-if="profile.next_multiplier_group" class="dashboard-level__group">{{ profile.next_multiplier_group }}</small>
           </div>
         </div>
 
@@ -224,10 +213,6 @@ const progress = computed(() => {
   return span > 0 ? Math.min(100, Math.max(0, ((rule.spend - current) / span) * 100)) : 0
 })
 
-const sameMultiplier = computed(() => {
-  if (!props.profile || props.profile.user_level_multiplier == null || props.profile.effective_multiplier == null) return true
-  return Math.abs(props.profile.user_level_multiplier - props.profile.effective_multiplier) < 0.0001
-})
 </script>
 
 <style scoped>
@@ -264,7 +249,6 @@ const sameMultiplier = computed(() => {
 .dashboard-level__level { color: var(--color-text-primary); font-size: var(--font-size-xl); }
 .dashboard-level__value { color: var(--color-text-primary); font-size: var(--font-size-lg); }
 .dashboard-level__muted { color: var(--color-text-tertiary); }
-.dashboard-level__group { overflow: hidden; color: var(--color-text-tertiary); font-size: var(--font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-level__caption { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: 500; }
 .dashboard-level__current-rate { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; margin: 0; padding-top: .5rem; border-top: 1px solid var(--color-border-subtle); cursor: help; }
 .dashboard-level__current-rate-value { flex: 0 0 auto; color: var(--color-text-brand); font-size: var(--font-size-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
