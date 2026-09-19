@@ -54,6 +54,7 @@ type LiveCallIdentity struct {
 // Live sessions can outlive configuration changes, so finalization must use
 // this snapshot rather than re-resolving a potentially different rate card.
 type LiveBillingSnapshot struct {
+	RatePlan                *UserRatePlan
 	BillingType             int8
 	Platform                string
 	GroupID                 string

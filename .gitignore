@@ -140,6 +140,7 @@ docs/*
 !docs/ASYNC_IMAGE_TASKS.md
 !docs/README.md
 !docs/DEVELOPMENT.md
+!docs/USER_LEVEL_BILLING.md
 !docs/ACCOUNT_PROTECTION.md
 !docs/MODEL_RETIREMENT.md
 !docs/RELEASE.md

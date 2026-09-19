@@ -27,6 +27,32 @@ func scanUserLevelRule(ctx context.Context, q sqlQueryer, ruleID string) (*servi
 	return &rule, nil
 }
 
+func (r *userLevelRepository) SetDefaultLevelRule(ctx context.Context, ruleID string) (err error) {
+	defer func() { err = wrapUserLevelRuleDeleteError(err) }()
+	tx, err := r.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(276, 1)"); err != nil {
+		return err
+	}
+	var enabled bool
+	if err := tx.QueryRowContext(ctx, `SELECT enabled FROM user_level_rules WHERE id = $1::uuid`, ruleID).Scan(&enabled); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return service.ErrUserLevelRuleNotFound
+		}
+		return err
+	}
+	if !enabled {
+		return service.ErrUserLevelRuleDisabled
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE settings SET value = jsonb_build_array($1::text)::text, updated_at = NOW() WHERE key = 'default_user_level_rule_ids'`, ruleID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func loadUserLevelTiers(ctx context.Context, q sqlQueryer, ruleIDs []string) (map[string][]service.UserLevelTier, error) {
 	out := make(map[string][]service.UserLevelTier, len(ruleIDs))
 	if len(ruleIDs) == 0 {
@@ -105,6 +131,13 @@ func (r *userLevelRepository) ListLevelRules(ctx context.Context) ([]service.Use
 			return nil, err
 		}
 	}
+	var defaultID string
+	if err := scanSingleRow(ctx, r.sql, `SELECT required_default_user_level_rule()::text`, nil, &defaultID); err != nil {
+		return nil, err
+	}
+	for i := range rules {
+		rules[i].IsDefault = rules[i].ID == defaultID
+	}
 	return rules, nil
 }
 
@@ -125,6 +158,11 @@ func (r *userLevelRepository) GetLevelRule(ctx context.Context, ruleID string) (
 	if err != nil {
 		return nil, err
 	}
+	var defaultID string
+	if err := scanSingleRow(ctx, r.sql, `SELECT required_default_user_level_rule()::text`, nil, &defaultID); err != nil {
+		return nil, err
+	}
+	rule.IsDefault = rule.ID == defaultID
 	return rule, nil
 }
 
@@ -177,7 +215,8 @@ func (r *userLevelRepository) CreateLevelRule(ctx context.Context, rule *service
 	return tx.Commit()
 }
 
-func (r *userLevelRepository) UpdateLevelRule(ctx context.Context, rule *service.UserLevelRule) error {
+func (r *userLevelRepository) UpdateLevelRule(ctx context.Context, rule *service.UserLevelRule) (err error) {
+	defer func() { err = wrapUserLevelRuleDeleteError(err) }()
 	if rule == nil {
 		return fmt.Errorf("user level rule is nil")
 	}
@@ -187,6 +226,9 @@ func (r *userLevelRepository) UpdateLevelRule(ctx context.Context, rule *service
 	}
 	defer func() { _ = tx.Rollback() }()
 	var existingID string
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(276, 1)"); err != nil {
+		return err
+	}
 	if err := tx.QueryRowContext(ctx, `SELECT id::text FROM user_level_rules WHERE id = $1::uuid FOR UPDATE`, rule.ID).Scan(&existingID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return service.ErrUserLevelRuleNotFound
@@ -258,13 +300,27 @@ func (r *userLevelRepository) UpdateLevelRule(ctx context.Context, rule *service
 	return tx.Commit()
 }
 
-func (r *userLevelRepository) DeleteLevelRule(ctx context.Context, ruleID string) error {
+func (r *userLevelRepository) DeleteLevelRule(ctx context.Context, ruleID string) (err error) {
+	defer func() { err = wrapUserLevelRuleDeleteError(err) }()
 	tx, err := r.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
 	var exists string
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(276, 1)"); err != nil {
+		return err
+	}
+	var isDefault, hasMembers bool
+	if err := tx.QueryRowContext(ctx, `SELECT $1::uuid = required_default_user_level_rule(), EXISTS(SELECT 1 FROM user_level_rule_assignments WHERE rule_id = $1::uuid)`, ruleID).Scan(&isDefault, &hasMembers); err != nil {
+		return err
+	}
+	if isDefault {
+		return service.ErrUserLevelDefaultProtected
+	}
+	if hasMembers {
+		return service.ErrUserLevelRuleHasMembers
+	}
 	if err := tx.QueryRowContext(ctx, `SELECT id::text FROM user_level_rules WHERE id = $1::uuid FOR UPDATE`, ruleID).Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return service.ErrUserLevelRuleNotFound
@@ -295,6 +351,18 @@ func (r *userLevelRepository) DeleteLevelRule(ctx context.Context, ruleID string
 
 func wrapUserLevelRuleDeleteError(err error) error {
 	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		switch pqErr.Message {
+		case "USER_LEVEL_DEFAULT_INVALID":
+			return service.ErrUserLevelRuleAssignmentInput
+		case "USER_LEVEL_DEFAULT_PROTECTED":
+			return service.ErrUserLevelDefaultProtected
+		case "USER_LEVEL_RULE_HAS_MEMBERS":
+			return service.ErrUserLevelRuleHasMembers
+		case "USER_LEVEL_RULE_DISABLED":
+			return service.ErrUserLevelRuleDisabled
+		}
+	}
 	if errors.As(err, &pqErr) && pqErr.Code == "23503" {
 		return service.ErrUserLevelRuleReferenced
 	}
@@ -314,7 +382,12 @@ func (r *userLevelRepository) GetAssignedLevelRulesBatch(ctx context.Context, us
 	if len(userIDs) == 0 {
 		return out, nil
 	}
-	rows, err := r.sql.QueryContext(ctx, `
+	tx, err := r.sql.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.QueryContext(ctx, `
 		SELECT a.user_id::text, r.id::text, r.name, r.window_days, r.enabled, r.created_at, r.updated_at
 		FROM user_level_rule_assignments a
 	JOIN user_level_rules r ON r.id = a.rule_id
@@ -342,7 +415,7 @@ func (r *userLevelRepository) GetAssignedLevelRulesBatch(ctx context.Context, us
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	tiers, err := loadUserLevelTiers(ctx, r.sql, ruleIDs)
+	tiers, err := loadUserLevelTiers(ctx, tx, ruleIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -352,79 +425,63 @@ func (r *userLevelRepository) GetAssignedLevelRulesBatch(ctx context.Context, us
 		}
 		out[userID] = rules
 	}
-	return out, nil
+	return out, tx.Commit()
 }
 
 func (r *userLevelRepository) ReplaceUserLevelRules(ctx context.Context, userID string, ruleIDs []string) error {
-	tx, err := r.sql.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-	if err := validateAssignmentTargets(ctx, tx, []string{userID}, ruleIDs); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM user_level_rule_assignments WHERE user_id = $1::uuid`, userID); err != nil {
-		return err
-	}
-	for _, ruleID := range ruleIDs {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO user_level_rule_assignments (user_id, rule_id)
-			VALUES ($1::uuid, $2::uuid)
-		`, userID, ruleID); err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
+	_, err := r.BatchAssignUserLevelRules(ctx, []string{userID}, ruleIDs, service.UserLevelRuleAssignmentReplace)
+	return err
 }
 
-func (r *userLevelRepository) BatchAssignUserLevelRules(ctx context.Context, userIDs, ruleIDs []string, operation string) (int64, error) {
+func (r *userLevelRepository) BatchAssignUserLevelRules(ctx context.Context, userIDs, ruleIDs []string, operation string) (affected int64, err error) {
+	defer func() { err = wrapUserLevelRuleDeleteError(err) }()
+	if len(ruleIDs) > 1 || len(userIDs) == 0 {
+		return 0, service.ErrUserLevelRuleAssignmentInput
+	}
+	if operation != service.UserLevelRuleAssignmentAdd && operation != service.UserLevelRuleAssignmentReplace && operation != service.UserLevelRuleAssignmentRemove {
+		return 0, service.ErrUserLevelRuleAssignmentInput
+	}
 	tx, err := r.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(276, 1)"); err != nil {
+		return 0, err
+	}
 	if err := validateAssignmentTargets(ctx, tx, userIDs, ruleIDs); err != nil {
 		return 0, err
 	}
+	var target string
+	if len(ruleIDs) == 0 || operation == service.UserLevelRuleAssignmentRemove {
+		if err := tx.QueryRowContext(ctx, "SELECT required_default_user_level_rule()::text").Scan(&target); err != nil {
+			return 0, err
+		}
+	} else {
+		target = ruleIDs[0]
+	}
 	var result sql.Result
-	switch operation {
-	case service.UserLevelRuleAssignmentAdd:
+	if operation == service.UserLevelRuleAssignmentRemove && len(ruleIDs) == 1 {
+		result, err = tx.ExecContext(ctx, `
+			UPDATE user_level_rule_assignments SET rule_id = $3::uuid
+			WHERE user_id = ANY($1::uuid[]) AND rule_id = $2::uuid AND rule_id <> $3::uuid
+		`, pq.Array(userIDs), ruleIDs[0], target)
+	} else {
 		result, err = tx.ExecContext(ctx, `
 			INSERT INTO user_level_rule_assignments (user_id, rule_id)
-			SELECT u, r FROM unnest($1::uuid[]) AS users(u) CROSS JOIN unnest($2::uuid[]) AS rules(r)
-			ON CONFLICT (user_id, rule_id) DO NOTHING
-		`, pq.Array(userIDs), pq.Array(ruleIDs))
-	case service.UserLevelRuleAssignmentRemove:
-		if len(ruleIDs) == 0 {
-			return 0, tx.Commit()
-		}
-		result, err = tx.ExecContext(ctx, `
-			DELETE FROM user_level_rule_assignments
-			WHERE user_id = ANY($1::uuid[]) AND rule_id = ANY($2::uuid[])
-		`, pq.Array(userIDs), pq.Array(ruleIDs))
-	case service.UserLevelRuleAssignmentReplace:
-		if _, err = tx.ExecContext(ctx, `DELETE FROM user_level_rule_assignments WHERE user_id = ANY($1::uuid[])`, pq.Array(userIDs)); err == nil && len(ruleIDs) > 0 {
-			result, err = tx.ExecContext(ctx, `
-				INSERT INTO user_level_rule_assignments (user_id, rule_id)
-				SELECT u, r FROM unnest($1::uuid[]) AS users(u) CROSS JOIN unnest($2::uuid[]) AS rules(r)
-				ON CONFLICT (user_id, rule_id) DO NOTHING
-			`, pq.Array(userIDs), pq.Array(ruleIDs))
-		}
-	default:
-		return 0, service.ErrUserLevelRuleAssignmentInput
+			SELECT u, $2::uuid FROM unnest($1::uuid[]) AS users(u)
+			ON CONFLICT (user_id) DO UPDATE SET rule_id = EXCLUDED.rule_id
+			WHERE user_level_rule_assignments.rule_id <> EXCLUDED.rule_id
+		`, pq.Array(userIDs), target)
 	}
 	if err != nil {
 		return 0, err
 	}
-	if err := tx.Commit(); err != nil {
+	affected, err = result.RowsAffected()
+	if err != nil {
 		return 0, err
 	}
-	if result == nil {
-		return int64(len(userIDs)), nil
-	}
-	affected, _ := result.RowsAffected()
-	return affected, nil
+	return affected, tx.Commit()
 }
 
 func validateAssignmentTargets(ctx context.Context, q interface {
@@ -450,14 +507,19 @@ func validateAssignmentTargets(ctx context.Context, q interface {
 	return nil
 }
 
-func (r *userLevelRepository) ListLevelRuleMembers(ctx context.Context, ruleID string, page, pageSize int) ([]service.User, int64, error) {
+func (r *userLevelRepository) ListLevelRuleMembers(ctx context.Context, ruleID string, page, pageSize int, search ...string) ([]service.User, int64, error) {
+	query := ""
+	if len(search) > 0 {
+		query = strings.TrimSpace(search[0])
+	}
 	var total int64
 	if err := scanSingleRow(ctx, r.sql, `
 		SELECT COUNT(*)
 		FROM user_level_rule_assignments a
 		JOIN users u ON u.id = a.user_id
 		WHERE a.rule_id = $1::uuid AND u.deleted_at IS NULL
-	`, []any{ruleID}, &total); err != nil {
+		AND ($2 = '' OR STRPOS(LOWER(u.email), LOWER($2)) > 0 OR STRPOS(LOWER(COALESCE(u.username, '')), LOWER($2)) > 0)
+	`, []any{ruleID, query}, &total); err != nil {
 		return nil, 0, err
 	}
 	offset := (page - 1) * pageSize
@@ -468,9 +530,10 @@ func (r *userLevelRepository) ListLevelRuleMembers(ctx context.Context, ruleID s
 		FROM user_level_rule_assignments a
 		JOIN users u ON u.id = a.user_id
 		WHERE a.rule_id = $1::uuid AND u.deleted_at IS NULL
+		AND ($4 = '' OR STRPOS(LOWER(u.email), LOWER($4)) > 0 OR STRPOS(LOWER(COALESCE(u.username, '')), LOWER($4)) > 0)
 		ORDER BY u.created_at DESC, u.id DESC
 		LIMIT $2 OFFSET $3
-	`, ruleID, pageSize, offset)
+	`, ruleID, pageSize, offset, query)
 	if err != nil {
 		return nil, 0, err
 	}

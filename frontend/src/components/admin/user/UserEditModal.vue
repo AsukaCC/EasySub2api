@@ -68,10 +68,11 @@
           <p v-else-if="levelRules.length === 0" class="user-edit-modal__rule-empty">{{ t('admin.users.levels.empty') }}</p>
           <label v-for="rule in levelRules" :key="rule.id" class="user-edit-modal__rule">
             <input
-              type="checkbox"
+              type="radio"
+              name="user-level-rule"
               :value="rule.id"
               :checked="selectedLevelRuleIDs.includes(rule.id)"
-              :disabled="levelRulesLoading"
+              :disabled="levelRulesLoading || !rule.enabled"
               @change="toggleLevelRule(rule.id, ($event.target as HTMLInputElement).checked)"
             />
             <span class="user-edit-modal__rule-name">{{ rule.name }}</span>
@@ -154,13 +155,7 @@ async function loadLevelRules(userId: string) {
 }
 
 function toggleLevelRule(ruleID: string, checked: boolean) {
-  if (checked) {
-    if (!selectedLevelRuleIDs.value.includes(ruleID)) {
-      selectedLevelRuleIDs.value = [...selectedLevelRuleIDs.value, ruleID]
-    }
-    return
-  }
-  selectedLevelRuleIDs.value = selectedLevelRuleIDs.value.filter((id) => id !== ruleID)
+  if (checked) selectedLevelRuleIDs.value = [ruleID]
 }
 
 const generatePassword = () => {

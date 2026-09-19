@@ -621,6 +621,7 @@ export type ReasoningEffortMatchType = 'exact' | 'prefix' | 'suffix'
 export type ReasoningEffortOverLimitPolicy = 'downgrade' | 'deny'
 
 export interface DynamicRateOffer {
+  discount_coefficient: number
   group_id: string
   group_name: string
   rule_id: string

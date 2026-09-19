@@ -512,7 +512,7 @@
           </div>
           <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.rate') }}</span>
-            <span class="components-admin-usage-usage-table__text-38">{{ formatMultiplier(tooltipData?.rate_multiplier || 1) }}x</span>
+            <span class="components-admin-usage-usage-table__text-38">{{ formatMultiplier(tooltipData?.rate_multiplier ?? 1) }}x</span>
           </div>
           <div class="usage-tooltip__meta">
             <span class="components-admin-usage-usage-table__text-14">{{ t('usage.original') }}</span>

@@ -255,9 +255,14 @@ func (s *OpenAIGatewayService) resolveOpenAIProfitControlGate(ctx context.Contex
 	}
 	downstream := billingGroup.RateMultiplier
 	if userID, _ := ctx.Value(ctxkey.UserID).(string); userID != "" {
-		downstream = s.ResolveUserGroupRateMultiplier(ctx, userID, billingGroup.ID, billingGroup.RateMultiplier)
+		if plan := userRatePlanFromContext(ctx, billingGroup.ID); plan != nil {
+			downstream = plan.EffectiveMultiplier
+		} else if plan, ok := s.ResolveUserRatePlan(ctx, userID, billingGroup, pricingAt); ok {
+			downstream = plan.EffectiveMultiplier
+		} else {
+			downstream = 0
+		}
 	}
-	downstream *= billingGroup.PeakMultiplierAt(pricingAt)
 
 	deduction := group.ProfitMinMargin + group.ProfitSafetyBuffer
 	threshold := clampProfitControlThreshold(downstream * (1 - deduction))

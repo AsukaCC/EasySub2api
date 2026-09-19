@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"log/slog"
-
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -121,9 +119,8 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		}
 		userRates, err = h.apiKeyService.GetUserGroupRates(c.Request.Context(), subject.UserID)
 		if err != nil {
-			// 专属倍率仅是展示增强，失败降级为分组默认倍率。
-			slog.Warn("model_plaza_user_rates_failed", "error", err, "user_id", subject.UserID)
-			userRates = nil
+			response.ErrorFrom(c, err)
+			return
 		}
 	}
 

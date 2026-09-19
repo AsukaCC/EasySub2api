@@ -41,22 +41,15 @@
         </template>
         <template v-else>{{ t('dashboard.level.maxLevel') }}</template>
       </p>
-      <div
-        v-if="nextTier && nextTier.multiplier != null"
-        class="dashboard-level__next-rate"
+      <HelpTooltip
+        class="dashboard-level__current-rate"
+        :content="t('dashboard.level.multiplierFormula')"
       >
-        <div class="dashboard-level__next-rate-copy">
-          <span class="dashboard-level__label">
-            {{ t('dashboard.level.nextMultiplier', { level: nextTier.name }) }}
-          </span>
-          <small v-if="profile.next_multiplier_group" class="dashboard-level__group">
-            {{ profile.next_multiplier_group }}
-          </small>
-        </div>
-        <strong class="dashboard-level__next-rate-value">
-          ×{{ formatMultiplier(nextTier.multiplier) }}
-        </strong>
-      </div>
+        <template #trigger>
+          <span class="dashboard-level__label">{{ t('dashboard.level.currentMultiplier') }}</span>
+          <strong class="dashboard-level__current-rate-value">×{{ formatMultiplier(currentLevelMultiplier) }}</strong>
+        </template>
+      </HelpTooltip>
     </div>
     <div v-else class="dashboard-level__state dashboard-level__muted">
       {{ profile?.configured ? t('dashboard.level.unavailable') : t('dashboard.level.unconfigured') }}
@@ -81,7 +74,7 @@
           </div>
           <div>
             <span class="dashboard-level__label">{{ t('dashboard.level.userMultiplier') }}</span>
-            <strong v-if="profile.user_level_multiplier != null" class="dashboard-level__value">×{{ formatMultiplier(profile.user_level_multiplier) }}</strong>
+            <strong v-if="profile.configured" class="dashboard-level__value">×{{ formatMultiplier(currentLevelMultiplier) }}</strong>
             <strong v-else class="dashboard-level__value dashboard-level__muted">—</strong>
           </div>
           <div>
@@ -129,9 +122,11 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { UserLevelDashboard } from '@/api/userLevel'
 import { formatPoints } from '@/utils/format'
+import { formatMultiplier } from '@/utils/formatters'
 
 const props = defineProps<{
   profile: UserLevelDashboard | null
@@ -141,8 +136,6 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const showFullDialog = ref(false)
-
-const formatMultiplier = (value: number) => Number(value || 0).toFixed(2)
 
 type TierStatus = 'achieved' | 'inProgress' | 'locked'
 
@@ -171,6 +164,10 @@ const currentTierLabel = computed(() => {
   if (!rule) return t('dashboard.level.unconfigured')
   return rule.current_tier_name || t('dashboard.level.unconfigured')
 })
+
+const currentLevelMultiplier = computed(() =>
+  props.profile?.user_level_multiplier ?? primaryRule.value?.default_multiplier ?? 1
+)
 
 const sortedPrimaryTiers = computed(() =>
   (primaryRule.value?.tiers ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
@@ -269,9 +266,8 @@ const sameMultiplier = computed(() => {
 .dashboard-level__muted { color: var(--color-text-tertiary); }
 .dashboard-level__group { overflow: hidden; color: var(--color-text-tertiary); font-size: var(--font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-level__caption { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: 500; }
-.dashboard-level__next-rate { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .625rem .75rem; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: var(--glass-layer-inset-bg); box-shadow: 0 1px 0 var(--glass-highlight) inset; -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate)); backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate)); }
-.dashboard-level__next-rate-copy { display: grid; min-width: 0; gap: .125rem; }
-.dashboard-level__next-rate-value { flex: 0 0 auto; color: var(--color-text-brand); font-size: var(--font-size-lg); font-weight: 700; }
+.dashboard-level__current-rate { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; margin: 0; padding-top: .5rem; border-top: 1px solid var(--color-border-subtle); cursor: help; }
+.dashboard-level__current-rate-value { flex: 0 0 auto; color: var(--color-text-brand); font-size: var(--font-size-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
 .dashboard-level__progress { display: grid; gap: .4rem; }
 .dashboard-level__progress-track { height: .4rem; overflow: hidden; border-radius: 999px; background: var(--color-surface-muted); }
 .dashboard-level__progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--theme-accent), color-mix(in srgb, var(--theme-accent) 55%, white)); transition: width .25s ease; }

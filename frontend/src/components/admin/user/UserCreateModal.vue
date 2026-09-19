@@ -65,6 +65,14 @@
         />
         <p class="input-hint">{{ t('admin.users.form.rpmLimitHint') }}</p>
       </div>
+      <div>
+        <label class="input-label">{{ t('admin.users.levels.assignedRules') }}</label>
+        <select v-model="selectedRuleID" class="input" :disabled="loading || rulesLoading">
+          <option value="">{{ t('admin.users.levels.defaultRule') }}</option>
+          <option v-for="rule in levelRules.filter(r => r.enabled)" :key="rule.id" :value="rule.id">{{ rule.name }}</option>
+        </select>
+        <p v-if="createdUserID" role="status">{{ t('admin.users.levels.createdPendingBinding') }}</p>
+      </div>
     </form>
     <template #footer>
       <div class="components-admin-user-user-create-modal__panel-4">
@@ -89,6 +97,7 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
+import type { UserLevelRule } from '@/api/admin/users'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits(['close', 'success']); const { t } = useI18n()
@@ -98,6 +107,19 @@ const form = reactive({ email: '', password: '', username: '', notes: '', role: 
 
 const stepUp = useStepUp()
 const loading = ref(false)
+const rulesLoading = ref(false)
+const levelRules = ref<UserLevelRule[]>([])
+const selectedRuleID = ref('')
+const createdUserID = ref('')
+watch(() => props.show, async (show) => {
+  if (!show) return
+  createdUserID.value = ''
+  selectedRuleID.value = ''
+  rulesLoading.value = true
+  try { levelRules.value = await adminAPI.users.listLevelRules() }
+  catch { levelRules.value = []; appStore.showError(t('admin.users.levels.loadFailed')) }
+  finally { rulesLoading.value = false }
+}, { immediate: true })
 
 const submit = async () => {
   if (loading.value) return
@@ -110,7 +132,13 @@ const submit = async () => {
       payload.balance = Number(balance)
     }
     // 创建管理员属敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 验证并重试
-    await stepUp.run(() => adminAPI.users.create(payload))
+    if (!createdUserID.value) {
+      const user = await stepUp.run(() => adminAPI.users.create(payload))
+      createdUserID.value = user.id
+    }
+    if (selectedRuleID.value) {
+      await adminAPI.users.replaceUserLevelRules(createdUserID.value, [selectedRuleID.value])
+    }
     appStore.showSuccess(t('admin.users.userCreated'))
     emit('success'); emit('close')
   } catch (e: any) {

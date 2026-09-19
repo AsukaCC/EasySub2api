@@ -72,6 +72,27 @@ describe('BulkEditUserModal', () => {
     vi.restoreAllMocks()
   })
 
+  it('allows exactly one level rule and sends an atomic replacement', async () => {
+    listLevelRules.mockResolvedValue([
+      { id: 'rule-1', name: 'Default', window_days: 7, enabled: true, is_default: true },
+      { id: 'rule-2', name: 'VIP', window_days: 7, enabled: true }
+    ])
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.get('[data-test="enable-level-rules"]').trigger('click')
+    const radios = wrapper.findAll('input[type="radio"]')
+    expect(radios).toHaveLength(2)
+    await radios[0].setValue(true)
+    await radios[1].setValue(true)
+    expect((radios[0].element as HTMLInputElement).checked).toBe(false)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(batchAssignLevelRules).toHaveBeenCalledWith({ user_ids: ['user-4', 'user-7'], rule_ids: ['rule-2'], operation: 'replace' })
+  })
+
   it('disables submission until at least one enabled field has a value', async () => {
     const wrapper = mountModal()
 

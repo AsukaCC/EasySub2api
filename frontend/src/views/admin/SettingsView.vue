@@ -3657,8 +3657,11 @@
                     class="settings-default-level-rules__item"
                   >
                     <input
-                      v-model="form.default_user_level_rule_ids"
-                      type="checkbox"
+                      type="radio"
+                      name="default-user-level-rule"
+                      :checked="form.default_user_level_rule_ids[0] === rule.id"
+                      :disabled="!rule.enabled"
+                      @change="form.default_user_level_rule_ids = [rule.id]"
                       :value="rule.id"
                     />
                     <span class="settings-default-level-rules__content">

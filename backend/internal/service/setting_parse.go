@@ -170,7 +170,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateInviteeBindingRewardValidityDays:  strconv.Itoa(AffiliateBindingRewardValidityDefault),
 		SettingKeyDefaultUserRPMLimit:                        "0",
 		SettingKeyDefaultSubscriptions:                       "[]",
-		SettingKeyDefaultUserLevelRuleIDs:                    "[]",
 		SettingKeyAuthSourceDefaultEmailBalance:              "0",
 		SettingKeyAuthSourceDefaultEmailBonusValidityDays:    "0",
 		SettingKeyAuthSourceDefaultEmailConcurrency:          "5",

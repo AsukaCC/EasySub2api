@@ -526,6 +526,14 @@ func TestSettingService_InitializeDefaultSettingsPersistsConfiguredForwardedClie
 	require.JSONEq(t, `["X-Cdn-Ip","True-Client-Ip"]`, repo.values[SettingKeyForwardedClientIPHeaders])
 }
 
+func TestSingleUserLevelSettingsInitializationPreservesSeededDefault(t *testing.T) {
+	const configured = `["11111111-1111-4111-8111-111111111111"]`
+	repo := &forwardedIPMigrationRepoStub{values: map[string]string{SettingKeyDefaultUserLevelRuleIDs: configured}}
+	svc := NewSettingService(repo, &config.Config{})
+	require.NoError(t, svc.InitializeDefaultSettings(context.Background()))
+	require.JSONEq(t, configured, repo.values[SettingKeyDefaultUserLevelRuleIDs])
+}
+
 func TestSettingService_UpdateSettings_APIKeyACLTrustForwardedIPRefreshesConfig(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	cfg := &config.Config{}

@@ -12,6 +12,7 @@ type UserLevelRule struct {
 	Name              string          `json:"name"`
 	WindowDays        int             `json:"window_days"`
 	Enabled           bool            `json:"enabled"`
+	IsDefault         bool            `json:"is_default"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 	Tiers             []UserLevelTier `json:"tiers"`
@@ -64,7 +65,7 @@ type UserLevelRulesRepository interface {
 	GetAssignedLevelRulesBatch(ctx context.Context, userIDs []string) (map[string][]UserLevelRule, error)
 	ReplaceUserLevelRules(ctx context.Context, userID string, ruleIDs []string) error
 	BatchAssignUserLevelRules(ctx context.Context, userIDs, ruleIDs []string, operation string) (int64, error)
-	ListLevelRuleMembers(ctx context.Context, ruleID string, page, pageSize int) ([]User, int64, error)
+	ListLevelRuleMembers(ctx context.Context, ruleID string, page, pageSize int, search ...string) ([]User, int64, error)
 	GetLevelRuleReferenceCount(ctx context.Context, ruleID string) (int64, error)
 }
 

@@ -134,6 +134,7 @@ type upstreamBillingProbeResponse struct {
 	BillingScope            string   `json:"billing_scope"`
 	GroupRateMultiplier     *float64 `json:"group_rate_multiplier"`
 	UserRateMultiplier      *float64 `json:"user_rate_multiplier"`
+	DynamicRateMultiplier   *float64 `json:"dynamic_rate_multiplier"`
 	ResolvedRateMultiplier  *float64 `json:"resolved_rate_multiplier"`
 	PeakRateEnabled         *bool    `json:"peak_rate_enabled"`
 	PeakStart               *string  `json:"peak_start"`
@@ -858,7 +859,15 @@ func parseUpstreamBillingProbeResponse(body []byte) (map[string]any, error) {
 	} else if response.AppliedPeakMultiplier != nil && !equalBillingMultiplier(*response.AppliedPeakMultiplier, 1) {
 		return nil, fmt.Errorf("inconsistent applied peak multiplier")
 	}
-	if !equalBillingMultiplier(*response.EffectiveRateMultiplier, *response.ResolvedRateMultiplier*appliedPeak) {
+	dynamic := 1.0
+	if response.DynamicRateMultiplier != nil {
+		dynamic = *response.DynamicRateMultiplier
+		if !finitePositive(dynamic) || dynamic < 0.01 || dynamic > 1 {
+			return nil, fmt.Errorf("invalid dynamic billing multiplier")
+		}
+		data["dynamic_rate_multiplier"] = dynamic
+	}
+	if !equalBillingMultiplier(*response.EffectiveRateMultiplier, *response.ResolvedRateMultiplier*appliedPeak*dynamic) {
 		return nil, fmt.Errorf("inconsistent effective billing multiplier")
 	}
 	return data, nil

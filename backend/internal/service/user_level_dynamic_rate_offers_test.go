@@ -71,9 +71,9 @@ func offerTestGroup(rule GroupDynamicRateRule) *Group {
 
 func newOfferService(group *Group, repo *offerLevelRepo, withRules bool) *UserLevelService {
 	svc := NewUserLevelService(repo, nil, &offerGroupRepo{group: group}, nil, nil)
-	if withRules {
-		svc.rulesRepo = &stubLevelRulesRepo{}
-	}
+	_ = withRules
+	svc.rulesRepo = &singleLevelAssignments{assigned: []UserLevelRule{{ID: "default", WindowDays: 7, Enabled: true,
+		Tiers: []UserLevelTier{{ID: "base", SortOrder: 0, MinSpend: 0}}}}}
 	return svc
 }
 
@@ -138,7 +138,45 @@ func TestListActiveDynamicRateOffersReturnsSelectedWindow(t *testing.T) {
 	require.Equal(t, "group-1", offers[0].GroupID)
 	require.Equal(t, "VIP", offers[0].GroupName)
 	require.Equal(t, "rule-1", offers[0].RuleID)
+	require.InDelta(t, 0.8, offers[0].DiscountCoefficient, 1e-12)
 	require.Equal(t, "weekend", offers[0].RuleName)
 	require.True(t, offers[0].StartAt.Equal(start.UTC()))
 	require.True(t, offers[0].EndAt.Equal(end.UTC()))
+}
+
+type offerGroupsRepo struct {
+	GroupRepository
+	groups map[string]*Group
+}
+
+func (r *offerGroupsRepo) GetByIDLite(_ context.Context, id string) (*Group, error) {
+	return r.groups[id], nil
+}
+
+func TestListActiveDynamicRateOffersIncludesDiscountForEveryGroup(t *testing.T) {
+	now := time.Date(2026, 9, 20, 12, 0, 0, 0, time.UTC)
+	rule := offerWindowRule(now.Add(-time.Hour), now.Add(time.Hour))
+	groups := &offerGroupsRepo{groups: make(map[string]*Group)}
+	for id, coefficient := range map[string]float64{"group-1": .5, "group-2": .85, "no-discount": 1} {
+		copy := rule
+		copy.DiscountCoefficient = coefficient
+		group := offerTestGroup(copy)
+		group.ID = id
+		groups.groups[id] = group
+	}
+	// Overlapping windows select the best discount; never emit duplicate groups.
+	other := rule
+	other.ID = "less-discount"
+	other.DiscountCoefficient = .9
+	groups.groups["group-1"].DynamicRateRules = append(groups.groups["group-1"].DynamicRateRules, other)
+	svc := newOfferService(nil, &offerLevelRepo{}, true)
+	svc.groupRepo = groups
+	offers, err := svc.ListActiveDynamicRateOffers(context.Background(), "user", []string{"group-1", "group-2", "no-discount", "group-1"}, now)
+	require.NoError(t, err)
+	require.Len(t, offers, 2)
+	byGroup := make(map[string]float64)
+	for _, offer := range offers {
+		byGroup[offer.GroupID] = offer.DiscountCoefficient
+	}
+	require.Equal(t, map[string]float64{"group-1": .5, "group-2": .85}, byGroup)
 }

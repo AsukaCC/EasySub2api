@@ -61,9 +61,12 @@ export default {
     },
     dynamicRateOffer: {
       title: '分时优惠',
+      discount: '{percent}% off',
+      discountDetail: '优惠系数 ×{coefficient}，减免 {percent}%',
+      groups: '{count} 个分组',
       description: '当前已生效的分组优惠窗口',
       startsAt: '开始时间',
-      endsAt: '结束时间',
+      endsAt: '到期',
     },
     apiKeyUsage: {
       title: 'API Key 使用量',
@@ -99,6 +102,8 @@ export default {
       spend7d: '近 7 天消费',
       multiplier: '等级倍率',
       userMultiplier: '用户等级倍率',
+      currentMultiplier: '当前用户等级消费倍率',
+      multiplierFormula: '实际消费倍率 = 分组倍率 * 用户等级倍率',
       groupMultiplier: '分组倍率',
       nextMultiplier: '{level} 最低消费倍率',
       effectiveMultiplier: '当前最低生效倍率',

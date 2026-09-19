@@ -76,6 +76,7 @@ export interface UserLevelRule {
 	name: string
 	window_days: 7 | 14 | 30
 	enabled: boolean
+	is_default?: boolean
 	created_at: string
 	updated_at: string
 	tiers: UserLevelRuleTier[]
@@ -168,9 +169,13 @@ export async function batchAssignLevelRules(input: {
 	return data
 }
 
-export async function getLevelRuleMembers(id: string, page = 1, pageSize = 20): Promise<PaginatedResponse<AdminUser>> {
+export async function setDefaultLevelRule(id: string): Promise<void> {
+	await apiClient.put(`/admin/users/level-rules/${id}/default`)
+}
+
+export async function getLevelRuleMembers(id: string, page = 1, pageSize = 20, search = ''): Promise<PaginatedResponse<AdminUser>> {
 	const { data } = await apiClient.get<PaginatedResponse<AdminUser>>(`/admin/users/level-rules/${id}/members`, {
-		params: { page, page_size: pageSize }
+		params: { page, page_size: pageSize, search }
 	})
 	return data
 }
@@ -597,6 +602,7 @@ export const usersAPI = {
   deleteLevelRule,
   getUserLevelRules,
   replaceUserLevelRules,
+	setDefaultLevelRule,
   batchAssignLevelRules,
   getLevelRuleMembers,
   getLevelProfiles,

@@ -211,17 +211,11 @@
             <span v-else class="components-model-plaza-plaza-model-pricing-table__text-6">-</span>
           </td>
 
-          <!-- 折扣倍率(生图独立倍率行展示独立倍率;最低倍率与原倍率对比展示) -->
+          <!-- 分组倍率乘以当前等级与优惠系数。 -->
           <td
             class="components-model-plaza-plaza-model-pricing-table__cell-6"
           >
-            <span
-              v-if="usesIndependentImageRate(m)"
-              class="components-model-plaza-plaza-model-pricing-table__text-11"
-              >{{ requestRate(m) }}x</span
-            >
             <GroupRateDisplay
-              v-else
               :rate-multiplier="rateMultiplier"
               :user-rate-multiplier="userRateMultiplier"
             />
@@ -310,20 +304,10 @@ function paidPerMillion(value: number | null | undefined): string {
   return formatScaled(value * effectiveRate.value, PER_MILLION, MIN_DECIMALS)
 }
 
-/** 图片计费模型且分组开启生图独立倍率:实付倍率取独立倍率,与计费口径一致。 */
-function usesIndependentImageRate(m: PlazaModel): boolean {
-  return billingMode(m) === BILLING_MODE_IMAGE && props.imageRateIndependent === true
-}
-
-/** 按次/按图片行的生效倍率。 */
-function requestRate(m: PlazaModel): number {
-  return usesIndependentImageRate(m) ? (props.imageRateMultiplier ?? 1) : effectiveRate.value
-}
-
 /** 按次 / 按图片单价(乘该行生效倍率,不换算 1M)。 */
-function paidRequestPrice(m: PlazaModel, value: number | null | undefined): string {
+function paidRequestPrice(_model: PlazaModel, value: number | null | undefined): string {
   if (value == null) return '-'
-  return formatScaled(value * requestRate(m), 1, MIN_DECIMALS)
+  return formatScaled(value * effectiveRate.value, 1, MIN_DECIMALS)
 }
 
 /** 官方参考价不乘倍率。 */

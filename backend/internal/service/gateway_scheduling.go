@@ -104,6 +104,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			pricingAt = time.Now()
 		}
 		ranked, rankErr := s.userLevelService.RankGroups(ctx, billingUserID, groupIDs, pricingAt, "")
+		if rankErr != nil {
+			return nil, ErrUserLevelRulesUnavailable
+		}
 		if rankErr == nil {
 			if len(ranked) == 0 {
 				return nil, ErrNoAvailableAccounts
@@ -113,6 +116,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				candidate := &ranked[i]
 				candidateGroupID := candidate.Group.ID
 				candidateCtx := context.WithValue(ctx, ctxkey.APIKeyGroupIDs, []string{candidateGroupID})
+				candidateCtx = contextWithUserRatePlan(candidateCtx, candidate.Group, &candidate.Plan)
 				selection, err := s.selectAccountWithLoadAwarenessForGroup(candidateCtx, &candidateGroupID, sessionHash, requestedModel, excludedIDs, metadataUserID, easysub2apiUserID)
 				if err == nil && selection != nil {
 					selection.BillingGroup = candidate.Group

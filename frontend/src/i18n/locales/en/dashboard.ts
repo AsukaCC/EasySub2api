@@ -61,9 +61,12 @@ export default {
     },
     dynamicRateOffer: {
       title: 'Timed Discount',
+      discount: '{percent}% off',
+      discountDetail: 'Discount multiplier ×{coefficient}, save {percent}%',
+      groups: '{count} groups',
       description: 'Active group discount windows',
       startsAt: 'Starts',
-      endsAt: 'Ends',
+      endsAt: 'Expires',
     },
     apiKeyUsage: {
       title: 'API Key Usage',
@@ -99,6 +102,8 @@ export default {
       spend7d: 'Spend in 7 days',
       multiplier: 'Level multiplier',
       userMultiplier: 'User level multiplier',
+      currentMultiplier: 'Current user level multiplier',
+      multiplierFormula: 'Actual billing multiplier = group multiplier * user level multiplier',
       groupMultiplier: 'Group multiplier',
       nextMultiplier: '{level} lowest spend multiplier',
       effectiveMultiplier: 'Lowest effective multiplier',

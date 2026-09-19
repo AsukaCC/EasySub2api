@@ -109,6 +109,11 @@ func cloneLiveBillingSnapshot(snapshot *LiveBillingSnapshot) *LiveBillingSnapsho
 		return nil
 	}
 	copy := *snapshot
+	if snapshot.RatePlan != nil {
+		plan := *snapshot.RatePlan
+		plan.DynamicCandidates = append([]DynamicRateCandidate(nil), plan.DynamicCandidates...)
+		copy.RatePlan = &plan
+	}
 	if snapshot.RealtimePricePerMin != nil {
 		price := *snapshot.RealtimePricePerMin
 		copy.RealtimePricePerMin = &price
@@ -224,7 +229,27 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		account := selection.Account
 		billingSnapshot := cloneLiveBillingSnapshot(identity.Billing)
 		if billingSnapshot != nil {
-			billingSnapshot.RateMultiplier = s.ResolveUserGroupRateMultiplier(ctx, identity.UserID, billingSnapshot.GroupID, billingSnapshot.RateMultiplier)
+			if selection.RatePlan == nil && s.userLevelService != nil {
+				selection.ReleaseFunc()
+				return nil, ErrUserLevelRulesUnavailable
+			}
+			if selection.RatePlan != nil {
+				billingSnapshot.RatePlan = selection.RatePlan
+				billingSnapshot.RateMultiplier = selection.RatePlan.NonDynamicMultiplier
+			}
+			if IsGroupContextValid(selection.BillingGroup) {
+				group := selection.BillingGroup
+				billingSnapshot.GroupID = group.ID
+				billingSnapshot.Platform = group.Platform
+				billingSnapshot.SubscriptionType = group.SubscriptionType
+				billingSnapshot.RealtimePricePerMin = group.AudioRealtimePricePerMin
+				billingSnapshot.SubscriptionID = ""
+				billingSnapshot.BillingType = BillingTypeBalance
+				if selection.BillingSubscription != nil && group.IsSubscriptionType() {
+					billingSnapshot.SubscriptionID = selection.BillingSubscription.ID
+					billingSnapshot.BillingType = BillingTypeSubscription
+				}
+			}
 			if billingSnapshot.RateMultiplier < 0 || !finiteNonnegative(billingSnapshot.RateMultiplier) {
 				billingSnapshot.RateMultiplier = 1
 			}
@@ -954,9 +979,11 @@ func (s *OpenAIGatewayService) billLiveCall(record *LiveCallRecord) error {
 		}
 		return err
 	}
-	if apiKey.Group == nil {
-		apiKey.Group = &Group{ID: record.Billing.GroupID, Platform: record.Billing.Platform, SubscriptionType: record.Billing.SubscriptionType}
-	}
+	keySnapshot := *apiKey
+	apiKey = &keySnapshot
+	apiKey.GroupID = &record.Billing.GroupID
+	apiKey.Group = &Group{ID: record.Billing.GroupID, Platform: record.Billing.Platform,
+		SubscriptionType: record.Billing.SubscriptionType, Hydrated: true, Status: StatusActive}
 	apiKey.Group.AudioRealtimePricePerMin = record.Billing.RealtimePricePerMin
 	apiKey.Group.RateMultiplier = record.Billing.RateMultiplier
 	apiKey.Quota = record.Billing.APIKeyQuota
@@ -1019,7 +1046,7 @@ func (s *OpenAIGatewayService) billLiveCall(record *LiveCallRecord) error {
 		AccountRateMultiplierOverride:  &record.Billing.AccountRateMultiplier,
 		RequestTypeOverride:            RequestTypeLive,
 		SuppressUsageLogOnBillingError: true,
-		Selection:                      nil,
+		Selection:                      &AccountSelectionResult{RatePlan: record.Billing.RatePlan, BillingGroup: apiKey.Group, BillingSubscription: subscription},
 		PricingAt:                      record.CreatedAt,
 		SessionID:                      record.CallHash,
 	})

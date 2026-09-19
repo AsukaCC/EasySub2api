@@ -977,6 +977,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			pricingAt = time.Now()
 		}
 		ranked, rankErr := s.userLevelService.RankGroups(ctx, userID, groupIDs, pricingAt, PlatformOpenAI)
+		if rankErr != nil {
+			return nil, ErrUserLevelRulesUnavailable
+		}
 		if rankErr == nil {
 			if len(ranked) == 0 {
 				return nil, ErrNoAvailableAccounts
@@ -986,6 +989,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				candidate := &ranked[i]
 				candidateGroupID := candidate.Group.ID
 				candidateCtx := context.WithValue(ctx, ctxkey.APIKeyGroupIDs, []string{candidateGroupID})
+				candidateCtx = contextWithUserRatePlan(candidateCtx, candidate.Group, &candidate.Plan)
 				candidateCtx = s.withOpenAIProfitControlGate(candidateCtx, &candidateGroupID)
 				selection, err := s.selectAccountWithLoadAwareness(candidateCtx, &candidateGroupID, PlatformOpenAI, sessionHash, requestedModel, excludedIDs, false, "", true)
 				if err == nil && selection != nil {

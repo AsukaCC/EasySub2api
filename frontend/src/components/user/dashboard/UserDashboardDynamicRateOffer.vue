@@ -1,161 +1,144 @@
 <template>
   <section
-    v-if="offers.length > 0"
+    v-if="activeOffers.length > 0"
     class="dashboard-dynamic-rate-offer card"
     :aria-label="t('dashboard.dynamicRateOffer.title')"
   >
     <header class="dashboard-dynamic-rate-offer__header">
-      <div class="dashboard-dynamic-rate-offer__title-group">
-        <span class="dashboard-dynamic-rate-offer__icon"><Icon name="sparkles" size="md" /></span>
-        <div>
-          <h2 class="dashboard-dynamic-rate-offer__title">{{ t('dashboard.dynamicRateOffer.title') }}</h2>
-          <p class="dashboard-dynamic-rate-offer__description">{{ t('dashboard.dynamicRateOffer.description') }}</p>
-        </div>
-      </div>
+      <Icon name="sparkles" size="sm" class="dashboard-dynamic-rate-offer__icon" />
+      <h2 class="dashboard-dynamic-rate-offer__title">{{ t('dashboard.dynamicRateOffer.title') }}</h2>
+      <span class="dashboard-dynamic-rate-offer__count">{{ t('dashboard.dynamicRateOffer.groups', { count: activeOffers.length }) }}</span>
     </header>
-
     <ul class="dashboard-dynamic-rate-offer__list">
-      <li
-        v-for="offer in offers"
-        :key="`${offer.group_id}:${offer.rule_id}`"
-        class="dashboard-dynamic-rate-offer__item"
-      >
+      <li v-for="offer in activeOffers" :key="offer.group_id" class="dashboard-dynamic-rate-offer__item">
         <strong class="dashboard-dynamic-rate-offer__group">{{ offer.group_name || offer.rule_name }}</strong>
-        <dl class="dashboard-dynamic-rate-offer__times">
-          <div>
-            <dt>{{ t('dashboard.dynamicRateOffer.startsAt') }}</dt>
-            <dd>
-              <time :datetime="offer.start_at">{{ formatDateTimeToMinute(offer.start_at) }}</time>
-            </dd>
-          </div>
-          <div>
-            <dt>{{ t('dashboard.dynamicRateOffer.endsAt') }}</dt>
-            <dd>
-              <time :datetime="offer.end_at">{{ formatDateTimeToMinute(offer.end_at) }}</time>
-            </dd>
-          </div>
-        </dl>
+        <span class="dashboard-dynamic-rate-offer__discount" :title="t('dashboard.dynamicRateOffer.discountDetail', discountValues(offer))">
+          {{ t('dashboard.dynamicRateOffer.discount', discountValues(offer)) }}
+        </span>
+        <div class="dashboard-dynamic-rate-offer__expiry">
+          <Icon name="clock" size="xs" />
+          <span>{{ t('dashboard.dynamicRateOffer.endsAt') }}</span>
+          <time :datetime="offer.end_at">{{ formatDateTimeToMinute(offer.end_at, locale) }}</time>
+        </div>
       </li>
     </ul>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getDynamicRateOffers } from '@/api/userLevel'
 import Icon from '@/components/icons/Icon.vue'
 import type { DynamicRateOffer } from '@/types'
 import { formatDateTimeToMinute } from '@/utils/format'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const offers = ref<DynamicRateOffer[]>([])
+const now = ref(Date.now())
+const activeOffers = computed(() => offers.value.filter(offer =>
+  Date.parse(offer.start_at) <= now.value && now.value < Date.parse(offer.end_at)
+  && Number.isFinite(offer.discount_coefficient)
+  && offer.discount_coefficient > 0 && offer.discount_coefficient < 1
+))
 
-onMounted(async () => {
-  try {
-    offers.value = await getDynamicRateOffers()
-  } catch {
-    offers.value = []
+function discountValues(offer: DynamicRateOffer) {
+  const number = new Intl.NumberFormat(locale.value, { maximumFractionDigits: 3 })
+  return {
+    percent: number.format((1 - offer.discount_coefficient) * 100),
+    coefficient: String(offer.discount_coefficient),
   }
+}
+
+let clock: ReturnType<typeof setInterval> | undefined
+let refresh: ReturnType<typeof setInterval> | undefined
+let disposed = false
+let fetching = false
+async function loadOffers() {
+  if (fetching || disposed) return
+  fetching = true
+  now.value = Date.now()
+  try {
+    const result = await getDynamicRateOffers()
+    if (!disposed) offers.value = result
+  } catch {
+    if (!disposed) offers.value = []
+  } finally { fetching = false }
+}
+function refreshOnVisible() {
+  if (document.visibilityState === 'visible') void loadOffers()
+}
+
+onMounted(() => {
+  void loadOffers()
+  clock = setInterval(() => { now.value = Date.now() }, 1000)
+  refresh = setInterval(() => { if (document.visibilityState === 'visible') void loadOffers() }, 60_000)
+  document.addEventListener('visibilitychange', refreshOnVisible)
+})
+onUnmounted(() => {
+  disposed = true
+  clearInterval(clock)
+  clearInterval(refresh)
+  document.removeEventListener('visibilitychange', refreshOnVisible)
 })
 </script>
 
 <style scoped>
-.dashboard-dynamic-rate-offer {
-  overflow: hidden;
-}
-
-.dashboard-dynamic-rate-offer__header,
-.dashboard-dynamic-rate-offer__title-group {
+.dashboard-dynamic-rate-offer { overflow: hidden; }
+.dashboard-dynamic-rate-offer__header {
   display: flex;
   align-items: center;
-}
-
-.dashboard-dynamic-rate-offer__header {
-  gap: 1rem;
-  padding: 1rem 1.5rem;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
   border-bottom: 1px solid var(--color-border-subtle);
 }
-
-.dashboard-dynamic-rate-offer__title-group {
-  min-width: 0;
-  gap: 0.75rem;
-}
-
-.dashboard-dynamic-rate-offer__icon {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-md);
-  color: var(--color-text-success);
-  background: var(--color-success-subtle);
-}
-
+.dashboard-dynamic-rate-offer__icon { flex: 0 0 auto; color: var(--color-text-success); }
 .dashboard-dynamic-rate-offer__title {
   margin: 0;
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  font-weight: 650;
-}
-
-.dashboard-dynamic-rate-offer__description {
-  margin: 0.125rem 0 0;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
-}
-
-.dashboard-dynamic-rate-offer__list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dashboard-dynamic-rate-offer__item {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.875rem 1.5rem 1rem;
-}
-
-.dashboard-dynamic-rate-offer__item + .dashboard-dynamic-rate-offer__item {
-  border-top: 1px solid var(--color-border-subtle);
-}
-
-.dashboard-dynamic-rate-offer__group {
-  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 650;
 }
-
-.dashboard-dynamic-rate-offer__times {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-}
-
-.dashboard-dynamic-rate-offer__times > div {
-  display: grid;
-  gap: 0.125rem;
-}
-
-.dashboard-dynamic-rate-offer__times dt {
+.dashboard-dynamic-rate-offer__count {
+  margin-left: auto;
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
+  white-space: nowrap;
 }
-
-.dashboard-dynamic-rate-offer__times dd {
-  margin: 0;
-  color: var(--color-text-secondary);
+.dashboard-dynamic-rate-offer__list { margin: 0; padding: 0; list-style: none; }
+.dashboard-dynamic-rate-offer__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.625rem 1rem;
+}
+.dashboard-dynamic-rate-offer__item + .dashboard-dynamic-rate-offer__item { border-top: 1px solid var(--color-border-subtle); }
+.dashboard-dynamic-rate-offer__group {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 600;
 }
-
-@media (max-width: 767px) {
-  .dashboard-dynamic-rate-offer__description {
-    display: none;
-  }
+.dashboard-dynamic-rate-offer__discount {
+  color: var(--color-text-success);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dashboard-dynamic-rate-offer__expiry {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+}
+.dashboard-dynamic-rate-offer__expiry time {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 </style>
