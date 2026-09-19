@@ -105,7 +105,7 @@ export default {
       currentMultiplier: '当前用户等级消费倍率',
       multiplierFormula: '实际消费倍率 = 分组倍率 * 用户等级倍率',
       groupMultiplier: '分组倍率',
-      nextMultiplier: '{level} 最低消费倍率',
+      nextMultiplier: '{level} 用户等级倍率',
       effectiveMultiplier: '当前最低生效倍率',
       unavailable: '等级信息暂不可用',
       viewFull: '查看完整',
