@@ -13,20 +13,8 @@ import (
 )
 
 func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID, groupID string, groupDefaultMultiplier float64) float64 {
-	if s == nil {
-		return groupDefaultMultiplier
-	}
-	resolver := s.userGroupRateResolver
-	if resolver == nil {
-		resolver = newUserGroupRateResolver(
-			s.userGroupRateRepo,
-			s.userGroupRateCache,
-			resolveUserGroupRateCacheTTL(s.cfg),
-			&s.userGroupRateSF,
-			"service.gateway",
-		)
-	}
-	return resolver.Resolve(ctx, userID, groupID, groupDefaultMultiplier)
+	// Legacy override records no longer participate in customer pricing.
+	return groupDefaultMultiplier
 }
 
 // ResolveUserGroupRateMultiplier resolves the same cached multiplier used by usage billing.
@@ -430,6 +418,12 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	}
 
 	cmd := buildUsageBillingCommand(requestID, usageLog, p)
+	if p.Cost != nil {
+		p.Cost.ActualCost = QuantizeUsageBillingAmount(p.Cost.ActualCost)
+		if usageLog != nil {
+			usageLog.ActualCost = p.Cost.ActualCost
+		}
+	}
 	if cmd == nil || cmd.RequestID == "" || repo == nil {
 		postUsageBilling(ctx, p, deps)
 		return true, nil
@@ -867,12 +861,14 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		pricingAt = timezone.Now()
 	}
 	if ratePlan == nil && s.userLevelService != nil && user != nil && apiKey != nil && apiKey.Group != nil {
-		if resolved, resolveErr := s.userLevelService.ResolvePlan(ctx, user.ID, apiKey.Group, pricingAt); resolveErr == nil {
-			ratePlan = &resolved
+		resolved, resolveErr := s.userLevelService.ResolvePlan(ctx, user.ID, apiKey.Group, pricingAt)
+		if resolveErr != nil {
+			return resolveErr
 		}
+		ratePlan = &resolved
 	}
 
-	// 获取静态费率基数（分组倍率 × 用户专属分组倍率）。
+	// 静态费率基数：分组倍率 × 当前等级阶梯倍率。
 	multiplier := 1.0
 	if s.cfg != nil {
 		multiplier = s.cfg.Default.RateMultiplier

@@ -227,11 +227,11 @@ onMounted(refreshAll)
 
 /* ---- 右栏:分时优惠卡紧凑 ---- */
 .dashboard-page__side :deep(.dashboard-dynamic-rate-offer__header) {
-  padding: 0.75rem 1.25rem;
+  padding: 0.625rem 1rem;
 }
 
 .dashboard-page__side :deep(.dashboard-dynamic-rate-offer__item) {
-  padding: 0.75rem 1.25rem 0.875rem;
+  padding: 0.625rem 1rem;
 }
 
 /* ---- 右栏:公告卡改单列紧凑列表 ---- */

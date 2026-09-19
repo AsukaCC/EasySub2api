@@ -37,6 +37,7 @@
             <tr v-for="rule in rules" :key="rule.id">
               <td>
                 <strong>{{ rule.name }}</strong>
+                <span v-if="rule.is_default"> · {{ t('admin.users.levels.defaultRule') }}</span>
                 <small>{{ rule.id }}</small>
               </td>
               <td><span class="user-level-rules-view__window">{{ rule.window_days }}d</span></td>
@@ -49,10 +50,12 @@
               <td>{{ rule.assigned_user_count }}</td>
               <td>{{ rule.reference_count }}</td>
               <td class="user-level-rules-view__row-actions">
+                <button class="btn btn-ghost btn-sm" type="button" :title="t('admin.users.levels.members')" :aria-label="t('admin.users.levels.members')" @click="membersRule = rule"><Icon name="users" size="sm" /></button>
+                <button class="btn btn-ghost btn-sm" type="button" :disabled="rule.is_default || !rule.enabled || saving" :title="t('admin.users.levels.setDefault')" :aria-label="t('admin.users.levels.setDefault')" @click="makeDefault(rule)"><Icon name="checkCircle" size="sm" /></button>
                 <button class="btn btn-ghost btn-sm" type="button" :aria-label="t('common.edit')" @click="beginEdit(rule)">
                   <Icon name="edit" size="sm" />
                 </button>
-                <button class="btn btn-ghost btn-sm user-level-rules-view__delete" type="button" :aria-label="t('common.delete')" @click="removeRule(rule)">
+                <button class="btn btn-ghost btn-sm user-level-rules-view__delete" type="button" :disabled="rule.is_default || rule.assigned_user_count > 0 || rule.reference_count > 0" :title="t(rule.is_default ? 'admin.users.levels.defaultProtected' : rule.assigned_user_count > 0 || rule.reference_count > 0 ? 'admin.users.levels.deleteReferenced' : 'common.delete')" :aria-label="t('common.delete')" @click="removeRule(rule)">
                   <Icon name="trash" size="sm" />
                 </button>
               </td>
@@ -79,7 +82,7 @@
           </label>
           <label class="user-level-rule-editor__toggle">
             <span>{{ t('admin.users.levels.status') }}</span>
-            <input v-model="draft.enabled" type="checkbox" />
+            <input v-model="draft.enabled" type="checkbox" :disabled="editingProtected" :title="editingProtected ? t('admin.users.levels.inUseProtected') : undefined" />
             {{ draft.enabled ? t('admin.users.levels.enabled') : t('admin.users.levels.disabled') }}
           </label>
         </div>
@@ -130,11 +133,13 @@
         </div>
       </form>
     </BaseDialog>
+    <LevelRuleMembersDialog :rule="membersRule" :rules="rules" @close="membersRule = null" @changed="load" />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import LevelRuleMembersDialog from '@/components/admin/user/LevelRuleMembersDialog.vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -161,6 +166,14 @@ const errorMessage = ref('')
 const editorError = ref('')
 const editorOpen = ref(false)
 const editingID = ref('')
+const membersRule = ref<UserLevelRule | null>(null)
+const editingProtected = computed(() => rules.value.some(rule => rule.id === editingID.value && (rule.is_default || rule.assigned_user_count > 0)))
+async function makeDefault(rule: UserLevelRule) {
+  saving.value = true
+  try { await adminAPI.users.setDefaultLevelRule(rule.id); await load() }
+  catch (e) { appStore.showError(extractApiErrorMessage(e, t('admin.users.levels.saveFailed'))) }
+  finally { saving.value = false }
+}
 const draft = reactive<{ name: string; window_days: 7 | 14 | 30; enabled: boolean; tiers: TierDraft[] }>({
   name: '', window_days: 7, enabled: true, tiers: []
 })
@@ -170,6 +183,7 @@ async function load() {
   errorMessage.value = ''
   try {
     rules.value = await adminAPI.users.listLevelRules()
+    if (membersRule.value) membersRule.value = rules.value.find(r => r.id === membersRule.value?.id) ?? null
   } catch {
     errorMessage.value = t('admin.users.levels.loadFailed')
   } finally {
@@ -181,7 +195,7 @@ function resetDraft() {
   draft.name = ''
   draft.window_days = 7
   draft.enabled = true
-  draft.tiers = [{ id: '', name: t('admin.users.levels.baseTier'), sort_order: 0, min_spend: 0, default_multiplier: null }]
+  draft.tiers = [{ id: '', name: t('admin.users.levels.baseTier'), sort_order: 0, min_spend: 0, default_multiplier: 1 }]
   editorError.value = ''
 }
 
@@ -201,11 +215,11 @@ function beginEdit(rule: UserLevelRule) {
     name: tier.name,
     sort_order: tier.sort_order,
     min_spend: tier.min_spend,
-    default_multiplier: tier.default_multiplier ?? null
+    default_multiplier: tier.default_multiplier ?? 1
   }))
   draft.tiers = existingTiers.length > 0
     ? existingTiers
-    : [{ id: '', name: t('admin.users.levels.baseTier'), sort_order: 0, min_spend: 0, default_multiplier: null }]
+    : [{ id: '', name: t('admin.users.levels.baseTier'), sort_order: 0, min_spend: 0, default_multiplier: 1 }]
   editorError.value = ''
   editorOpen.value = true
 }
@@ -220,7 +234,7 @@ function addTier() {
   draft.tiers.push({
     id: '', name: `${t('admin.users.levels.tier')} ${draft.tiers.length + 1}`,
     sort_order: draft.tiers.length, min_spend: Number(previous?.min_spend || 0) + 1,
-    default_multiplier: null
+    default_multiplier: 1
   })
 }
 
@@ -253,7 +267,7 @@ function normalizedTiers(): UserLevelRuleTierInput[] {
     sort_order: tier.sort_order,
     min_spend: Number(tier.min_spend || 0),
     default_multiplier: tier.default_multiplier === '' || tier.default_multiplier == null
-      ? null
+      ? 1
       : Number(tier.default_multiplier)
   }))
 }

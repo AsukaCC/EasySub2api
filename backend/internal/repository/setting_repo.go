@@ -41,7 +41,8 @@ func (r *settingRepository) GetValue(ctx context.Context, key string) (string, e
 	return setting.Value, nil
 }
 
-func (r *settingRepository) Set(ctx context.Context, key, value string) error {
+func (r *settingRepository) Set(ctx context.Context, key, value string) (err error) {
+	defer func() { err = wrapUserLevelRuleDeleteError(err) }()
 	now := time.Now()
 	return r.client.Setting.
 		Create().
@@ -69,7 +70,8 @@ func (r *settingRepository) GetMultiple(ctx context.Context, keys []string) (map
 	return result, nil
 }
 
-func (r *settingRepository) SetMultiple(ctx context.Context, settings map[string]string) error {
+func (r *settingRepository) SetMultiple(ctx context.Context, settings map[string]string) (err error) {
+	defer func() { err = wrapUserLevelRuleDeleteError(err) }()
 	if len(settings) == 0 {
 		return nil
 	}

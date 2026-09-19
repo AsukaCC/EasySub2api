@@ -67,7 +67,7 @@ func (s *stubLevelRulesRepo) ReplaceUserLevelRules(context.Context, string, []st
 func (s *stubLevelRulesRepo) BatchAssignUserLevelRules(context.Context, []string, []string, string) (int64, error) {
 	return 0, nil
 }
-func (s *stubLevelRulesRepo) ListLevelRuleMembers(context.Context, string, int, int) ([]User, int64, error) {
+func (s *stubLevelRulesRepo) ListLevelRuleMembers(context.Context, string, int, int, ...string) ([]User, int64, error) {
 	return nil, 0, nil
 }
 func (s *stubLevelRulesRepo) GetLevelRuleReferenceCount(context.Context, string) (int64, error) {

@@ -209,13 +209,8 @@ func (s *adminServiceImpl) assignDefaultSubscriptions(ctx context.Context, userI
 }
 
 func (s *adminServiceImpl) UpdateUser(ctx context.Context, id string, input *UpdateUserInput) (*User, error) {
-	// 校验用户专属分组倍率：必须 >= 0（nil 合法，表示清除专属倍率）
 	if input.GroupRates != nil {
-		for groupID, rate := range input.GroupRates {
-			if rate != nil && *rate < 0 {
-				return nil, fmt.Errorf("rate_multiplier must be >= 0 (group_id=%v)", groupID)
-			}
-		}
+		return nil, ErrUserGroupRateDeprecated
 	}
 
 	user, err := s.userRepo.GetByID(ctx, id)
@@ -303,13 +298,6 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id string, input *Upd
 	if user.Role != oldRole {
 		logger.LegacyPrintf("service.admin", "audit: user role changed actor_admin_id=%v target_user_id=%v old_role=%s new_role=%s",
 			input.ActorAdminID, user.ID, oldRole, user.Role)
-	}
-
-	// 同步用户专属分组倍率
-	if input.GroupRates != nil && s.userGroupRateRepo != nil {
-		if err := s.userGroupRateRepo.SyncUserGroupRates(ctx, user.ID, input.GroupRates); err != nil {
-			logger.LegacyPrintf("service.admin", "failed to sync user group rates: user_id=%v err=%v", user.ID, err)
-		}
 	}
 
 	if s.authCacheInvalidator != nil {

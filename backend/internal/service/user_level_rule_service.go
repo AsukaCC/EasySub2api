@@ -15,8 +15,12 @@ var (
 	ErrUserLevelRuleNotFound        = infraerrors.NotFound("USER_LEVEL_RULE_NOT_FOUND", "user level rule not found")
 	ErrUserLevelRuleInvalid         = infraerrors.BadRequest("USER_LEVEL_RULE_INVALID", "invalid user level rule")
 	ErrUserLevelRuleReferenced      = infraerrors.Conflict("USER_LEVEL_RULE_REFERENCED", "user level rule is still referenced")
-	ErrUserLevelRulesUnavailable    = infraerrors.InternalServer("USER_LEVEL_RULES_UNAVAILABLE", "user level rule service unavailable")
+	ErrUserLevelRulesUnavailable    = infraerrors.ServiceUnavailable("USER_LEVEL_RULES_UNAVAILABLE", "user level rule service unavailable")
 	ErrUserLevelRuleAssignmentInput = infraerrors.BadRequest("USER_LEVEL_RULE_ASSIGNMENT_INVALID", "invalid user level rule assignment")
+	ErrUserLevelDefaultProtected    = infraerrors.Conflict("USER_LEVEL_DEFAULT_PROTECTED", "the default user level rule cannot be disabled or deleted")
+	ErrUserLevelRuleHasMembers      = infraerrors.Conflict("USER_LEVEL_RULE_HAS_MEMBERS", "move assigned users before disabling or deleting this rule")
+	ErrUserLevelRuleDisabled        = infraerrors.Conflict("USER_LEVEL_RULE_DISABLED", "the user level rule is disabled")
+	ErrUserGroupRateDeprecated      = infraerrors.BadRequest("USER_GROUP_RATE_DEPRECATED", "user group rate overrides are retired; assign a user level rule instead")
 )
 
 // UserLevelRuleTierInput is the editable representation used by the admin API.
@@ -55,6 +59,24 @@ func (s *UserLevelService) levelRulesRepo() UserLevelRulesRepository {
 	return s.rulesRepo
 }
 
+func (s *UserLevelService) SetDefaultLevelRule(ctx context.Context, ruleID string) error {
+	ids, err := s.NormalizeDefaultLevelRuleIDs(ctx, []string{ruleID})
+	if err != nil {
+		return err
+	}
+	writer, ok := s.levelRulesRepo().(interface {
+		SetDefaultLevelRule(context.Context, string) error
+	})
+	if !ok {
+		return ErrUserLevelRulesUnavailable
+	}
+	if err := writer.SetDefaultLevelRule(ctx, ids[0]); err != nil {
+		return err
+	}
+	s.invalidateProfiles()
+	return nil
+}
+
 func (s *UserLevelService) ListLevelRules(ctx context.Context) ([]UserLevelRule, error) {
 	repo := s.levelRulesRepo()
 	if repo == nil {
@@ -86,17 +108,22 @@ func (s *UserLevelService) GetLevelRule(ctx context.Context, ruleID string) (*Us
 	return rule, nil
 }
 
-// NormalizeDefaultLevelRuleIDs validates the settings reference list while
-// preserving rule order. Disabled rules are valid defaults but are skipped by
-// assignment until an administrator enables them again.
+// NormalizeDefaultLevelRuleIDs keeps the legacy array shape with one enabled rule.
 func (s *UserLevelService) NormalizeDefaultLevelRuleIDs(ctx context.Context, ruleIDs []string) ([]string, error) {
+	if len(ruleIDs) != 1 {
+		return nil, invalidAssignment("exactly one default rule is required")
+	}
 	normalized, err := normalizeUUIDs(ruleIDs, ErrUserLevelRuleInvalid)
 	if err != nil {
 		return nil, err
 	}
 	for _, ruleID := range normalized {
-		if _, err := s.GetLevelRule(ctx, ruleID); err != nil {
+		rule, err := s.GetLevelRule(ctx, ruleID)
+		if err != nil {
 			return nil, err
+		}
+		if !rule.Enabled {
+			return nil, ErrUserLevelRuleDisabled
 		}
 	}
 	return normalized, nil
@@ -130,7 +157,7 @@ func (s *UserLevelService) CreateLevelRule(ctx context.Context, input CreateUser
 			SortOrder:         0,
 			MinSpend:          0,
 			RuleID:            "",
-			DefaultMultiplier: nil,
+			DefaultMultiplier: userLevelFloatPtr(1),
 		}},
 	}
 	if err := repo.CreateLevelRule(ctx, rule); err != nil {
@@ -187,8 +214,16 @@ func (s *UserLevelService) UpdateLevelRule(ctx context.Context, ruleID string, i
 	if input.Enabled != nil {
 		enabled = *input.Enabled
 	}
+	if !enabled {
+		if existing.IsDefault {
+			return nil, ErrUserLevelDefaultProtected
+		}
+		if existing.AssignedUserCount > 0 {
+			return nil, ErrUserLevelRuleHasMembers
+		}
+	}
 	updated := &UserLevelRule{
-		ID: existing.ID, Name: name, WindowDays: windowDays, Enabled: enabled,
+		ID: existing.ID, Name: name, WindowDays: windowDays, Enabled: enabled, IsDefault: existing.IsDefault,
 		CreatedAt: existing.CreatedAt, UpdatedAt: existing.UpdatedAt, Tiers: tiers,
 	}
 	if err := repo.UpdateLevelRule(ctx, updated); err != nil {
@@ -207,8 +242,18 @@ func (s *UserLevelService) DeleteLevelRule(ctx context.Context, ruleID string) e
 	if err != nil {
 		return err
 	}
-	if _, err := repo.GetLevelRule(ctx, ruleID); err != nil {
+	rule, err := repo.GetLevelRule(ctx, ruleID)
+	if err != nil {
 		return err
+	}
+	if rule == nil {
+		return ErrUserLevelRuleNotFound
+	}
+	if rule.IsDefault {
+		return ErrUserLevelDefaultProtected
+	}
+	if rule.AssignedUserCount > 0 {
+		return ErrUserLevelRuleHasMembers
 	}
 	refs, err := repo.GetLevelRuleReferenceCount(ctx, ruleID)
 	if err != nil {
@@ -237,6 +282,9 @@ func (s *UserLevelService) GetUserLevelRules(ctx context.Context, userID string)
 }
 
 func (s *UserLevelService) ReplaceUserLevelRules(ctx context.Context, userID string, ruleIDs []string) error {
+	if len(ruleIDs) > 1 {
+		return invalidAssignment("only one rule may be assigned")
+	}
 	repo := s.levelRulesRepo()
 	if repo == nil {
 		return ErrUserLevelRulesUnavailable
@@ -257,6 +305,9 @@ func (s *UserLevelService) ReplaceUserLevelRules(ctx context.Context, userID str
 }
 
 func (s *UserLevelService) BatchAssignUserLevelRules(ctx context.Context, input BatchUserLevelRuleAssignmentInput) (int64, error) {
+	if len(input.RuleIDs) > 1 {
+		return 0, invalidAssignment("only one rule may be assigned")
+	}
 	repo := s.levelRulesRepo()
 	if repo == nil {
 		return 0, ErrUserLevelRulesUnavailable
@@ -284,7 +335,7 @@ func (s *UserLevelService) BatchAssignUserLevelRules(ctx context.Context, input 
 	return affected, nil
 }
 
-func (s *UserLevelService) ListLevelRuleMembers(ctx context.Context, ruleID string, page, pageSize int) ([]User, int64, error) {
+func (s *UserLevelService) ListLevelRuleMembers(ctx context.Context, ruleID string, page, pageSize int, search ...string) ([]User, int64, error) {
 	repo := s.levelRulesRepo()
 	if repo == nil {
 		return nil, 0, ErrUserLevelRulesUnavailable
@@ -302,7 +353,7 @@ func (s *UserLevelService) ListLevelRuleMembers(ctx context.Context, ruleID stri
 	if pageSize > 200 {
 		pageSize = 200
 	}
-	return repo.ListLevelRuleMembers(ctx, ruleID, page, pageSize)
+	return repo.ListLevelRuleMembers(ctx, ruleID, page, pageSize, search...)
 }
 
 func normalizeLevelRuleTiers(ruleID string, input []UserLevelRuleTierInput) ([]UserLevelTier, error) {
@@ -341,7 +392,7 @@ func normalizeLevelRuleTiers(ruleID string, input []UserLevelRuleTierInput) ([]U
 		if math.IsNaN(item.MinSpend) || math.IsInf(item.MinSpend, 0) || item.MinSpend < 0 {
 			return nil, invalidLevelRule("tier min_spend must be nonnegative")
 		}
-		var multiplier *float64
+		multiplier := userLevelFloatPtr(1)
 		if item.DefaultMultiplier != nil {
 			if math.IsNaN(*item.DefaultMultiplier) || math.IsInf(*item.DefaultMultiplier, 0) || *item.DefaultMultiplier < 0.01 || *item.DefaultMultiplier > 100 {
 				return nil, invalidLevelRule("tier default_multiplier must be between 0.01 and 100")

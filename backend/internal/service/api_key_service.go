@@ -304,6 +304,7 @@ type RateLimitCacheInvalidator interface {
 }
 
 type APIKeyService struct {
+	userLevelService          *UserLevelService
 	apiKeyRepo                APIKeyRepository
 	userRepo                  UserRepository
 	groupRepo                 GroupRepository
@@ -1158,13 +1159,37 @@ func (s *APIKeyService) GetUserAllowedGroupIDSet(ctx context.Context, userID str
 
 // GetUserGroupRates 获取用户的专属分组倍率配置
 // 返回 map[groupID]rateMultiplier
+func (s *APIKeyService) SetUserLevelService(levels *UserLevelService) { s.userLevelService = levels }
+
+// GetUserGroupRates retains the legacy display shape, now returning level *
+// discount coefficients. It never exposes or uses retired override records.
 func (s *APIKeyService) GetUserGroupRates(ctx context.Context, userID string) (map[string]float64, error) {
-	if s.userGroupRateRepo == nil {
-		return nil, nil
+	if s.userLevelService == nil {
+		return nil, ErrUserLevelRulesUnavailable
 	}
-	rates, err := s.userGroupRateRepo.GetByUserID(ctx, userID)
+	at := time.Now()
+	profile, err := s.userLevelService.ResolveProfile(ctx, userID, at)
 	if err != nil {
-		return nil, fmt.Errorf("get user group rates: %w", err)
+		return nil, err
+	}
+	groups, err := s.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rates := make(map[string]float64, len(groups))
+	for i := range groups {
+		plan, err := s.userLevelService.resolveGroupPlan(ctx, userID, &groups[i], profile, at)
+		if err != nil {
+			return nil, err
+		}
+		rate := *plan.UserLevelMultiplier
+		for _, candidate := range plan.DynamicCandidates {
+			if candidate.RuleID == plan.SelectedDynamicRuleID {
+				rate *= candidate.DiscountCoefficient
+				break
+			}
+		}
+		rates[groups[i].ID] = rate
 	}
 	return rates, nil
 }

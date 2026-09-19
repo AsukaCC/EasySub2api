@@ -132,11 +132,7 @@ func (s *OpenAIGatewayService) ResolveUserGroupRateMultiplier(ctx context.Contex
 	if s == nil {
 		return groupDefaultMultiplier
 	}
-	resolver := s.userGroupRateResolver
-	if resolver == nil {
-		resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
-	}
-	return resolver.Resolve(ctx, userID, groupID, groupDefaultMultiplier)
+	return groupDefaultMultiplier
 }
 
 // ResolveUserRatePlan exposes the canonical pricing snapshot to diagnostics
@@ -203,10 +199,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ApplyOpenAIImageBillingResolution(result)
 	}
 	pricingAt := openAIUsagePricingAt(input)
-	if ratePlan == nil && s.userLevelService != nil && user != nil && apiKey != nil && apiKey.Group != nil {
-		if resolved, resolveErr := s.userLevelService.ResolvePlan(ctx, user.ID, apiKey.Group, pricingAt); resolveErr == nil {
-			ratePlan = &resolved
+	if ratePlan == nil && input.RateMultiplierOverride == nil && s.userLevelService != nil && user != nil && apiKey != nil && apiKey.Group != nil {
+		resolved, resolveErr := s.userLevelService.ResolvePlan(ctx, user.ID, apiKey.Group, pricingAt)
+		if resolveErr != nil {
+			return resolveErr
 		}
+		ratePlan = &resolved
 	}
 
 	// OpenAI input_tokens 是总输入，包含缓存读取和缓存写入明细。

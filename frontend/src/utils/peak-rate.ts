@@ -14,7 +14,9 @@ export interface PeakRateFields {
 }
 
 export function hasPeakRate(fields?: PeakRateFields | null): boolean {
-  return Boolean(fields?.peak_rate_enabled && fields.peak_start && fields.peak_end)
+  // Legacy group peak settings are not a customer billing factor.
+  void fields
+  return false
 }
 
 /** "+08:00" → "UTC+08:00"；旧缓存无该字段时返回空串，调用方降级为不带时区标注 */

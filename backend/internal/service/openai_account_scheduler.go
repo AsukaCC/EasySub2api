@@ -2144,6 +2144,9 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 			pricingAt = time.Now()
 		}
 		ranked, rankErr := s.userLevelService.RankGroups(ctx, userID, groupIDs, pricingAt, NormalizeOpenAICompatiblePlatform(platform))
+		if rankErr != nil {
+			return nil, OpenAIAccountScheduleDecision{}, ErrUserLevelRulesUnavailable
+		}
 		if rankErr == nil {
 			if len(ranked) == 0 {
 				return nil, OpenAIAccountScheduleDecision{}, ErrNoAvailableAccounts
@@ -2154,6 +2157,7 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 				candidate := &ranked[i]
 				candidateGroupID := candidate.Group.ID
 				candidateCtx := context.WithValue(ctx, ctxkey.APIKeyGroupIDs, []string{candidateGroupID})
+				candidateCtx = contextWithUserRatePlan(candidateCtx, candidate.Group, &candidate.Plan)
 				selection, decision, err := s.selectAccountWithSchedulerForGroup(candidateCtx, &candidateGroupID, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform, previousResponseCanMove, useUpstreamTokenCost)
 				if err == nil && selection != nil {
 					selection.BillingGroup = candidate.Group

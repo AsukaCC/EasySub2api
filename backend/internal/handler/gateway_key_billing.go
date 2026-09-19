@@ -30,6 +30,7 @@ type keyBillingInfoResponse struct {
 	PeakRateMultiplier      *float64  `json:"peak_rate_multiplier,omitempty"`
 	AppliedPeakMultiplier   *float64  `json:"applied_peak_multiplier,omitempty"`
 	EffectiveRateMultiplier float64   `json:"effective_rate_multiplier"`
+	DynamicRateMultiplier   *float64  `json:"dynamic_rate_multiplier,omitempty"`
 	Timezone                *string   `json:"timezone,omitempty"`
 	ObservedAt              time.Time `json:"observed_at"`
 }
@@ -78,11 +79,7 @@ func (h *GatewayHandler) buildKeyBillingResponse(c *gin.Context, apiKey *service
 	if plan, ok := h.resolveKeyBillingPlan(c, apiKey, now); ok {
 		return buildKeyBillingInfoWithPlan(apiKey, plan, now), true
 	}
-	resolvedRate, ok := h.resolveKeyBillingRate(c, apiKey)
-	if !ok {
-		return keyBillingInfoResponse{}, false
-	}
-	return buildKeyBillingInfo(apiKey, resolvedRate, now), true
+	return keyBillingInfoResponse{}, false
 }
 
 func (h *GatewayHandler) resolveKeyBillingPlan(c *gin.Context, apiKey *service.APIKey, at time.Time) (*service.UserRatePlan, bool) {
@@ -165,16 +162,25 @@ func buildKeyBillingInfoWithPlan(apiKey *service.APIKey, plan *service.UserRateP
 	// Keep the legacy field's meaning stable: it is the configured group base
 	// rate, while GroupRuleMultiplier explains the complete group-side minimum.
 	response.GroupRateMultiplier = apiKey.Group.RateMultiplier
-	response.UserRateMultiplier = cloneBillingFloat(plan.UserRateMultiplier)
 	response.UserLevelMultiplier = cloneBillingFloat(plan.UserLevelMultiplier)
+	// The legacy field is a compatibility alias, not an override source.
+	response.UserRateMultiplier = cloneBillingFloat(plan.UserLevelMultiplier)
+	response.PeakRateEnabled = false
+	response.PeakStart, response.PeakEnd, response.PeakRateMultiplier = nil, nil, nil
+	response.AppliedPeakMultiplier, response.Timezone = nil, nil
+	dynamic := 1.0
+	for _, candidate := range plan.DynamicCandidates {
+		if candidate.RuleID == plan.SelectedDynamicRuleID {
+			dynamic = candidate.DiscountCoefficient
+			break
+		}
+	}
+	response.DynamicRateMultiplier = &dynamic
 	response.GroupRuleMultiplier = cloneBillingFloat(plan.GroupRuleMultiplier)
 	response.ResolvedRateMultiplier = plan.EffectiveBaseMultiplier
 	response.EffectiveBaseMultiplier = plan.EffectiveBaseMultiplier
 	response.EffectiveSource = plan.EffectiveSource
 	response.EffectiveRateMultiplier = plan.EffectiveMultiplier
-	if apiKey.Group.PeakRateEnabled {
-		response.AppliedPeakMultiplier = &plan.PeakMultiplier
-	}
 	return response
 }
 

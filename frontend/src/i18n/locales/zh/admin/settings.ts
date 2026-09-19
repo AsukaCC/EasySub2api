@@ -524,7 +524,7 @@ export default {
         defaultSubscriptionsEmpty: '未配置默认订阅。新用户不会自动获得订阅套餐。',
         defaultSubscriptionsDuplicate: '默认订阅存在重复分组：{groupId}。每个分组只能出现一次。',
         defaultUserLevelRules: '默认用户等级规则',
-        defaultUserLevelRulesHint: '新建普通用户时自动分配选中的等级规则，可同时选择多条；不会应用到管理员用户。',
+        defaultUserLevelRulesHint: '新用户自动绑定此规则；切换默认规则不改变现有用户绑定。',
         defaultUserLevelRulesEmpty: '暂无可配置的用户等级规则，请先在用户等级页面创建规则。',
         levelRuleEnabled: '启用',
         levelRuleDisabled: '已停用，暂不分配',

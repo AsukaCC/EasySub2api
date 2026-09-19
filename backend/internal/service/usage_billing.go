@@ -115,7 +115,8 @@ func (c *UsageBillingCommand) quantizeMonetaryFields() {
 	if c.DynamicRatePlan != nil {
 		c.DynamicRatePlan.StandardCost = QuantizeUsageBillingAmount(c.DynamicRatePlan.StandardCost)
 		c.DynamicRatePlan.AccountCost = QuantizeUsageBillingAmount(c.DynamicRatePlan.AccountCost)
-		c.DynamicRatePlan.FallbackMultiplier = QuantizeRateMultiplier(c.DynamicRatePlan.FallbackMultiplier)
+		// A product of two four-decimal configured rates needs eight decimals.
+		c.DynamicRatePlan.FallbackMultiplier = QuantizeUsageBillingAmount(c.DynamicRatePlan.FallbackMultiplier)
 		for i := range c.DynamicRatePlan.Rules {
 			if c.DynamicRatePlan.Rules[i].DiscountCoefficient == 0 {
 				c.DynamicRatePlan.Rules[i].DiscountCoefficient = c.DynamicRatePlan.Rules[i].Multiplier

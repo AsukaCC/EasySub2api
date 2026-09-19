@@ -408,15 +408,6 @@
                 }}</span>
               </button>
               <button
-                @click="handleRateMultipliers(row)"
-                class="views-admin-groups-view__action-5"
-              >
-                <Icon name="dollar" size="sm" />
-                <span class="views-admin-groups-view__text-16">{{
-                  t("admin.groups.rateMultipliers")
-                }}</span>
-              </button>
-              <button
                 @click="handleLevelRates(row)"
                 class="views-admin-groups-view__action-5"
               >
@@ -912,30 +903,6 @@
               />
               {{ t(imagePricingI18nKey(createForm.platform, "allowImageGeneration")) }}
             </label>
-            <label class="views-admin-groups-view__label-3">
-              <input
-                v-model="createForm.image_rate_independent"
-                type="checkbox"
-                class="views-admin-groups-view__field-5"
-              />
-              {{ t(imagePricingI18nKey(createForm.platform, "independentMultiplier")) }}
-            </label>
-          </div>
-          <div
-            v-if="createForm.image_rate_independent"
-            class="views-admin-groups-view__panel-33"
-          >
-            <label class="input-label">{{
-              t(imagePricingI18nKey(createForm.platform, "imageMultiplier"))
-            }}</label>
-            <input
-              v-model.number="createForm.image_rate_multiplier"
-              type="number"
-              step="0.0001"
-              min="0"
-              class="input"
-              placeholder="1"
-            />
           </div>
           <div class="views-admin-groups-view__panel-34">
             <div>
@@ -1004,30 +971,6 @@
             {{ t(videoPricingI18nKey("description")) }}
           </p>
           <div class="views-admin-groups-view__panel-33">
-            <label class="views-admin-groups-view__label-3">
-              <input
-                v-model="createForm.video_rate_independent"
-                type="checkbox"
-                class="views-admin-groups-view__field-5"
-              />
-              {{ t(videoPricingI18nKey("independentMultiplier")) }}
-            </label>
-          </div>
-          <div
-            v-if="createForm.video_rate_independent"
-            class="views-admin-groups-view__panel-33"
-          >
-            <label class="input-label">{{
-              t(videoPricingI18nKey("videoMultiplier"))
-            }}</label>
-            <input
-              v-model.number="createForm.video_rate_multiplier"
-              type="number"
-              step="0.0001"
-              min="0"
-              class="input"
-              placeholder="1"
-            />
           </div>
           <div class="views-admin-groups-view__panel-34">
             <div>
@@ -1121,52 +1064,6 @@
           </div>
         </div>
 
-        <!-- 高峰时段倍率配置（仅订阅类型分组） -->
-        <div v-if="createForm.subscription_type === 'subscription'" class="views-admin-groups-view__panel-25">
-          <div class="views-admin-groups-view__panel-32">
-            <label class="views-admin-groups-view__label-3">
-              <input
-                v-model="createForm.peak_rate_enabled"
-                type="checkbox"
-                class="views-admin-groups-view__field-5"
-              />
-              <span>{{ t("admin.groups.peakRate.enable") }}</span>
-            </label>
-          </div>
-          <div
-            v-if="createForm.peak_rate_enabled"
-            class="views-admin-groups-view__panel-43"
-          >
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakStart") }}</label>
-              <input
-                v-model="createForm.peak_start"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakEnd") }}</label>
-              <input
-                v-model="createForm.peak_end"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakMultiplier") }}</label>
-              <input
-                v-model.number="createForm.peak_rate_multiplier"
-                type="number"
-                step="0.001"
-                min="0"
-                class="input"
-                placeholder="1"
-                :title="t('admin.groups.peakRate.multiplierHint')"
-              />
-            </div>
-          </div>
-        </div>
 
         <!-- 分组利润控制（五个平台 token 请求） -->
         <div v-if="isProfitControlPlatform(createForm.platform)" class="views-admin-groups-view__panel-25">
@@ -2440,30 +2337,6 @@
               />
               {{ t(imagePricingI18nKey(editForm.platform, "allowImageGeneration")) }}
             </label>
-            <label class="views-admin-groups-view__label-3">
-              <input
-                v-model="editForm.image_rate_independent"
-                type="checkbox"
-                class="views-admin-groups-view__field-5"
-              />
-              {{ t(imagePricingI18nKey(editForm.platform, "independentMultiplier")) }}
-            </label>
-          </div>
-          <div
-            v-if="editForm.image_rate_independent"
-            class="views-admin-groups-view__panel-33"
-          >
-            <label class="input-label">{{
-              t(imagePricingI18nKey(editForm.platform, "imageMultiplier"))
-            }}</label>
-            <input
-              v-model.number="editForm.image_rate_multiplier"
-              type="number"
-              step="0.0001"
-              min="0"
-              class="input"
-              placeholder="1"
-            />
           </div>
           <div class="views-admin-groups-view__panel-34">
             <div>
@@ -2532,30 +2405,6 @@
             {{ t(videoPricingI18nKey("description")) }}
           </p>
           <div class="views-admin-groups-view__panel-33">
-            <label class="views-admin-groups-view__label-3">
-              <input
-                v-model="editForm.video_rate_independent"
-                type="checkbox"
-                class="views-admin-groups-view__field-5"
-              />
-              {{ t(videoPricingI18nKey("independentMultiplier")) }}
-            </label>
-          </div>
-          <div
-            v-if="editForm.video_rate_independent"
-            class="views-admin-groups-view__panel-33"
-          >
-            <label class="input-label">{{
-              t(videoPricingI18nKey("videoMultiplier"))
-            }}</label>
-            <input
-              v-model.number="editForm.video_rate_multiplier"
-              type="number"
-              step="0.0001"
-              min="0"
-              class="input"
-              placeholder="1"
-            />
           </div>
           <div class="views-admin-groups-view__panel-34">
             <div>
@@ -2649,52 +2498,6 @@
           </div>
         </div>
 
-        <!-- 高峰时段倍率配置（仅订阅类型分组） -->
-        <div v-if="editForm.subscription_type === 'subscription'" class="group-form__section">
-          <div class="views-admin-groups-view__panel-32">
-            <label class="views-admin-groups-view__label-3">
-              <input
-                v-model="editForm.peak_rate_enabled"
-                type="checkbox"
-                class="views-admin-groups-view__field-5"
-              />
-              <span>{{ t("admin.groups.peakRate.enable") }}</span>
-            </label>
-          </div>
-          <div
-            v-if="editForm.peak_rate_enabled"
-            class="views-admin-groups-view__panel-43"
-          >
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakStart") }}</label>
-              <input
-                v-model="editForm.peak_start"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakEnd") }}</label>
-              <input
-                v-model="editForm.peak_end"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakMultiplier") }}</label>
-              <input
-                v-model.number="editForm.peak_rate_multiplier"
-                type="number"
-                step="0.001"
-                min="0"
-                class="input"
-                placeholder="1"
-                :title="t('admin.groups.peakRate.multiplierHint')"
-              />
-            </div>
-          </div>
-        </div>
 
         <!-- 分组利润控制（五个平台 token 请求） -->
         <div v-if="isProfitControlPlatform(editForm.platform)" class="group-form__section">
@@ -3990,13 +3793,6 @@
       </template>
     </BaseDialog>
 
-    <!-- Group Rate Multipliers Modal -->
-    <GroupRateMultipliersModal
-      :show="showRateMultipliersModal"
-      :group="rateMultipliersGroup"
-      @close="showRateMultipliersModal = false"
-      @success="loadGroups"
-    />
 
     <GroupLevelRatesModal
       :show="showLevelRatesModal"
@@ -4046,7 +3842,6 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
-import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupLevelRatesModal from "@/components/admin/group/GroupLevelRatesModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
@@ -4619,10 +4414,8 @@ const sortSubmitting = ref(false);
 const editingGroup = ref<AdminGroup | null>(null);
 const deletingGroup = ref<AdminGroup | null>(null);
 const duplicatingGroupIds = reactive(new Set<string>());
-const showRateMultipliersModal = ref(false);
 const showLevelRatesModal = ref(false);
 const levelRatesGroup = ref<AdminGroup | null>(null);
-const rateMultipliersGroup = ref<AdminGroup | null>(null);
 const showRPMOverridesModal = ref(false);
 const rpmOverridesGroup = ref<AdminGroup | null>(null);
 const sortableGroups = ref<AdminGroup[]>([]);
@@ -5178,9 +4971,7 @@ const formatVideoPricePreview = (value: number | string | null | undefined) => {
 };
 
 const buildImageFinalPricePreview = (form: ImagePricingFormState) => {
-  const imageMultiplier = form.image_rate_independent
-    ? normalizePreviewNumber(form.image_rate_multiplier, 1)
-    : normalizePreviewNumber(form.rate_multiplier, 1);
+  const imageMultiplier = normalizePreviewNumber(form.rate_multiplier, 1);
   const multiplier = imageMultiplier;
   return imagePricingTiers.map((tier) => {
     const basePrice =
@@ -5196,9 +4987,7 @@ const buildImageFinalPricePreview = (form: ImagePricingFormState) => {
 };
 
 const buildVideoFinalPricePreview = (form: VideoPricingFormState) => {
-  const multiplier = form.video_rate_independent
-    ? normalizePreviewNumber(form.video_rate_multiplier, 1)
-    : normalizePreviewNumber(form.rate_multiplier, 1);
+  const multiplier = normalizePreviewNumber(form.rate_multiplier, 1);
   return videoPricingTiers.map((tier) => {
     const basePrice =
       parsePreviewPrice(form[tier.key]) ??
@@ -6052,10 +5841,6 @@ const removeEditMessagesDispatchMapping = (row: MessagesDispatchMappingRow) => {
   }
 };
 
-const handleRateMultipliers = (group: AdminGroup) => {
-  rateMultipliersGroup.value = group;
-  showRateMultipliersModal.value = true;
-};
 
 const handleLevelRates = (group: AdminGroup) => {
   levelRatesGroup.value = group;

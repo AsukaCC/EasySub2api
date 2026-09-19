@@ -157,6 +157,18 @@ func (h *UserHandler) ListLevelRules(c *gin.Context) {
 	response.Success(c, rules)
 }
 
+func (h *UserHandler) SetDefaultLevelRule(c *gin.Context) {
+	if h.userLevelService == nil {
+		response.ErrorFrom(c, service.ErrUserLevelRulesUnavailable)
+		return
+	}
+	if err := h.userLevelService.SetDefaultLevelRule(c.Request.Context(), c.Param("id")); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"is_default": true})
+}
+
 // CreateLevelRule creates a rule with one base tier and no implicit multiplier.
 func (h *UserHandler) CreateLevelRule(c *gin.Context) {
 	if h.userLevelService == nil {
@@ -281,7 +293,16 @@ func (h *UserHandler) ReplaceUserLevelRules(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"user_id": userID, "rule_ids": req.RuleIDs})
+	rules, err := h.userLevelService.GetUserLevelRules(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	ids := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		ids = append(ids, rule.ID)
+	}
+	response.Success(c, gin.H{"user_id": userID, "rule_ids": ids})
 }
 
 // BatchAssignLevelRules applies add/remove/replace for many users in one transaction.
@@ -317,7 +338,7 @@ func (h *UserHandler) ListLevelRuleMembers(c *gin.Context) {
 		return
 	}
 	page, pageSize := response.ParsePagination(c)
-	users, total, err := h.userLevelService.ListLevelRuleMembers(c.Request.Context(), ruleID, page, pageSize)
+	users, total, err := h.userLevelService.ListLevelRuleMembers(c.Request.Context(), ruleID, page, pageSize, c.Query("search"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

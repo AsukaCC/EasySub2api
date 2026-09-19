@@ -1065,22 +1065,11 @@ func (s *adminServiceImpl) GetGroupRateMultipliers(ctx context.Context, groupID 
 }
 
 func (s *adminServiceImpl) ClearGroupRateMultipliers(ctx context.Context, groupID string) error {
-	if s.userGroupRateRepo == nil {
-		return nil
-	}
-	return s.userGroupRateRepo.DeleteByGroupID(ctx, groupID)
+	return ErrUserGroupRateDeprecated
 }
 
 func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, groupID string, entries []GroupRateMultiplierInput) error {
-	if s.userGroupRateRepo == nil {
-		return nil
-	}
-	for _, e := range entries {
-		if e.RateMultiplier < 0 {
-			return fmt.Errorf("rate_multiplier must be >= 0 (user_id=%v)", e.UserID)
-		}
-	}
-	return s.userGroupRateRepo.SyncGroupRateMultipliers(ctx, groupID, entries)
+	return ErrUserGroupRateDeprecated
 }
 
 func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID string) error {

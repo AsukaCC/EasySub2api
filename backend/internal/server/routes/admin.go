@@ -317,6 +317,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 		users.GET("/level-rules/:id/members", h.Admin.User.ListLevelRuleMembers)
 		users.GET("/level-rules/:id", h.Admin.User.GetLevelRule)
 		users.PUT("/level-rules/:id", h.Admin.User.UpdateLevelRule)
+		users.PUT("/level-rules/:id/default", h.Admin.User.SetDefaultLevelRule)
 		users.DELETE("/level-rules/:id", h.Admin.User.DeleteLevelRule)
 		users.POST("/level-rules/assignments/batch", h.Admin.User.BatchAssignLevelRules)
 		users.POST("/level-profiles/batch", h.Admin.User.BatchLevelProfiles)

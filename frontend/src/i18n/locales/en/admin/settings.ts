@@ -528,7 +528,7 @@ export default {
         defaultSubscriptionsDuplicate:
           'Duplicate subscription group: {groupId}. Each group can only appear once.',
         defaultUserLevelRules: 'Default User Level Rules',
-        defaultUserLevelRulesHint: 'Assign the selected rules to newly created regular users. Multiple rules are supported; administrator users are excluded.',
+        defaultUserLevelRulesHint: 'New users receive this rule. Changing the default does not reassign existing users.',
         defaultUserLevelRulesEmpty: 'No user level rules are available. Create a rule on the User Levels page first.',
         levelRuleEnabled: 'Enabled',
         levelRuleDisabled: 'Disabled, not assigned',

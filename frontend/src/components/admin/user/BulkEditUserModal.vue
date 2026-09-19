@@ -90,10 +90,11 @@
             <p v-else-if="levelRules.length === 0" class="bulk-edit-user-modal__rule-empty">{{ t('admin.users.levels.empty') }}</p>
             <label v-for="rule in levelRules" :key="rule.id" class="bulk-edit-user-modal__rule">
               <input
-                type="checkbox"
+                type="radio"
+                name="bulk-user-level-rule"
                 :value="rule.id"
                 :checked="selectedLevelRuleIDs.includes(rule.id)"
-                :disabled="levelRulesLoading"
+                :disabled="levelRulesLoading || !rule.enabled"
                 @change="toggleLevelRule(rule.id, ($event.target as HTMLInputElement).checked)"
               />
               <span class="bulk-edit-user-modal__rule-name">{{ rule.name }}</span>
@@ -166,19 +167,12 @@ const selectedLevelRuleIDs = ref<string[]>([])
 const levelRules = ref<UserLevelRule[]>([])
 const levelRulesLoading = ref(false)
 const levelRuleOperationOptions = computed(() => [
-  { value: 'add', label: t('admin.users.levels.addOperation') },
   { value: 'remove', label: t('admin.users.levels.removeOperation') },
   { value: 'replace', label: t('admin.users.levels.replaceOperation') }
 ])
 
 function toggleLevelRule(ruleID: string, checked: boolean) {
-  if (checked) {
-    if (!selectedLevelRuleIDs.value.includes(ruleID)) {
-      selectedLevelRuleIDs.value = [...selectedLevelRuleIDs.value, ruleID]
-    }
-    return
-  }
-  selectedLevelRuleIDs.value = selectedLevelRuleIDs.value.filter((id) => id !== ruleID)
+  if (checked) selectedLevelRuleIDs.value = [ruleID]
 }
 
 const parseLimit = (value: string | number): number | null | undefined => {
@@ -205,8 +199,7 @@ const hasUpdate = computed(() =>
 )
 const levelRulesSelectionValid = computed(() =>
   !enableLevelRules.value
-  || levelRuleOperation.value === 'replace'
-  || selectedLevelRuleIDs.value.length > 0
+  || (!levelRulesLoading.value && selectedLevelRuleIDs.value.length === 1)
 )
 const selectionTooLarge = computed(() => props.selectedIds.length > MAX_BATCH_USER_IDS)
 const canSubmit = computed(() =>

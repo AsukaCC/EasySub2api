@@ -70,19 +70,6 @@
                   </div>
                 </div>
 
-                <!-- 专属倍率输入 -->
-                <div class="components-admin-user-user-allowed-groups-modal__panel-16">
-                  <label class="components-admin-user-user-allowed-groups-modal__label-2">{{ t('admin.users.customRate') }}</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    :value="config.customRate ?? ''"
-                    @input="updateCustomRate(config.groupId, ($event.target as HTMLInputElement).value)"
-                    :placeholder="String(config.defaultRate)"
-                    class="components-admin-user-user-allowed-groups-modal__field-2 hide-spinner"
-                  />
-                </div>
               </div>
             </div>
           </div>
@@ -128,19 +115,6 @@
                   </div>
                 </div>
 
-                <!-- 专属倍率输入 -->
-                <div class="components-admin-user-user-allowed-groups-modal__panel-16">
-                  <label class="components-admin-user-user-allowed-groups-modal__label-2">{{ t('admin.users.customRate') }}</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    :value="config.customRate ?? ''"
-                    @input="updateCustomRate(config.groupId, ($event.target as HTMLInputElement).value)"
-                    :placeholder="String(config.defaultRate)"
-                    class="components-admin-user-user-allowed-groups-modal__field-2 hide-spinner"
-                  />
-                </div>
               </div>
             </div>
           </div>
@@ -189,7 +163,6 @@ interface GroupRateConfig {
   platform: GroupPlatform
   isExclusive: boolean
   defaultRate: number
-  customRate: number | null
   isSelected: boolean
 }
 
@@ -200,7 +173,6 @@ const appStore = useAppStore()
 
 const groups = ref<Group[]>([])
 const groupConfigs = ref<GroupRateConfig[]>([])
-const originalGroupRates = ref<Record<string, number>>({}) // 记录原始专属倍率，用于检测删除
 const loading = ref(false)
 const submitting = ref(false)
 
@@ -229,10 +201,6 @@ const load = async () => {
 
     // 初始化配置
     const userAllowedGroups = props.user?.allowed_groups || []
-    const userGroupRates = props.user?.group_rates || {}
-
-    // 保存原始专属倍率，用于检测删除操作
-    originalGroupRates.value = { ...userGroupRates }
 
     groupConfigs.value = groups.value.map((g) => ({
       groupId: g.id,
@@ -240,7 +208,6 @@ const load = async () => {
       platform: g.platform,
       isExclusive: g.is_exclusive,
       defaultRate: g.rate_multiplier,
-      customRate: userGroupRates[g.id] ?? null,
       // 专属分组：检查是否在 allowed_groups 中
       // 公开分组：始终选中
       isSelected: g.is_exclusive ? userAllowedGroups.includes(g.id) : true,
@@ -259,17 +226,6 @@ const toggleExclusiveGroup = (groupId: string) => {
   }
 }
 
-const updateCustomRate = (groupId: string, value: string) => {
-  const config = groupConfigs.value.find((c) => c.groupId === groupId)
-  if (config) {
-    if (value === '' || value === null || value === undefined) {
-      config.customRate = null
-    } else {
-      const numValue = parseFloat(value)
-      config.customRate = isNaN(numValue) ? null : numValue
-    }
-  }
-}
 
 const handleSave = async () => {
   if (!props.user) return
@@ -279,25 +235,9 @@ const handleSave = async () => {
     // 构建 allowed_groups（仅包含专属分组中被勾选的）
     const allowedGroups = groupConfigs.value.filter((c) => c.isExclusive && c.isSelected).map((c) => c.groupId)
 
-    // 构建 group_rates
-    // - 有新专属倍率: 设置为该值
-    // - 原本有专属倍率但现在被清空: 设置为 null（表示删除）
-    const groupRates: Record<string, number | null> = {}
-    for (const c of groupConfigs.value) {
-      const hadOriginalRate = originalGroupRates.value[c.groupId] !== undefined
-
-      if (c.customRate !== null) {
-        // 有专属倍率
-        groupRates[c.groupId] = c.customRate
-      } else if (hadOriginalRate) {
-        // 原本有专属倍率，现在被清空，需要显式删除
-        groupRates[c.groupId] = null
-      }
-    }
 
     await adminAPI.users.update(props.user.id, {
       allowed_groups: allowedGroups,
-      group_rates: Object.keys(groupRates).length > 0 ? groupRates : undefined,
     })
 
     appStore.showSuccess(t('admin.users.groupConfigUpdated'))

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	gocache "github.com/patrickmn/go-cache"
 )
@@ -171,15 +172,34 @@ type RankedUserGroup struct {
 	Plan         UserRatePlan
 }
 
+type userRatePlanContextKey struct{}
+
+func contextWithUserRatePlan(ctx context.Context, group *Group, plan *UserRatePlan) context.Context {
+	ctx = context.WithValue(ctx, userRatePlanContextKey{}, plan)
+	ctx = context.WithValue(ctx, ctxkey.Group, group)
+	ctx = context.WithValue(ctx, gatewayTokenRequestBillingGroupCtxKey{}, group)
+	// Rebuild the profit gate from the same selected plan that will be billed.
+	return context.WithValue(ctx, openAIProfitControlGateCtxKey{}, (*openAIProfitControlGate)(nil))
+}
+
+func userRatePlanFromContext(ctx context.Context, groupID string) *UserRatePlan {
+	plan, _ := ctx.Value(userRatePlanContextKey{}).(*UserRatePlan)
+	if plan != nil && plan.GroupID == groupID {
+		return plan
+	}
+	return nil
+}
+
 // DynamicRateOffer is the user-safe window currently selected for a group.
 // It only includes the rule RankGroups already chose for billing.
 type DynamicRateOffer struct {
-	GroupID   string    `json:"group_id"`
-	GroupName string    `json:"group_name"`
-	RuleID    string    `json:"rule_id"`
-	RuleName  string    `json:"rule_name"`
-	StartAt   time.Time `json:"start_at"`
-	EndAt     time.Time `json:"end_at"`
+	DiscountCoefficient float64   `json:"discount_coefficient"`
+	GroupID             string    `json:"group_id"`
+	GroupName           string    `json:"group_name"`
+	RuleID              string    `json:"rule_id"`
+	RuleName            string    `json:"rule_name"`
+	StartAt             time.Time `json:"start_at"`
+	EndAt               time.Time `json:"end_at"`
 }
 
 type UserLevelService struct {
@@ -241,28 +261,25 @@ func (s *UserLevelService) ResolveProfile(ctx context.Context, userID string, at
 		Rules: []UserLevelRuleProfile{}, CurrentTierIDs: []string{},
 	}
 	if s == nil || strings.TrimSpace(userID) == "" || s.rulesRepo == nil {
-		return profile, nil
+		return profile, ErrUserLevelRulesUnavailable
 	}
-	key := s.profileCacheKey(userID, at)
-	if s.profileCache != nil {
-		if cached, ok := s.profileCache.Get(key); ok {
-			if value, valid := cached.(UserLevelProfile); valid {
-				return cloneUserLevelProfile(value), nil
-			}
-		}
-	}
+	// Membership and rule prices are authoritative on every request, including
+	// requests handled by a different instance after an administrator's edit.
 	rulesByUser, err := s.rulesRepo.GetAssignedLevelRulesBatch(ctx, []string{userID})
 	if err != nil {
 		return profile, err
 	}
 	rules := rulesByUser[userID]
+	if len(rules) != 1 || !rules[0].Enabled {
+		return profile, ErrUserLevelRulesUnavailable
+	}
 	spends, err := s.loadRuleSpends(ctx, []string{userID}, rules, at)
 	if err != nil {
 		return profile, err
 	}
 	profile = buildUserLevelProfile(userID, rules, spends[userID], at)
-	if s.profileCache != nil {
-		s.profileCache.Set(key, cloneUserLevelProfile(profile), userLevelProfileCacheTTL)
+	if !profile.Configured {
+		return profile, ErrUserLevelRulesUnavailable
 	}
 	return profile, nil
 }
@@ -276,8 +293,11 @@ func (s *UserLevelService) GetProfiles(ctx context.Context, userIDs []string, at
 	for _, id := range unique {
 		out[id] = UserLevelProfile{UserID: id, WindowFrom: at.Add(-7 * 24 * time.Hour), CalculatedAt: at, Rules: []UserLevelRuleProfile{}, CurrentTierIDs: []string{}}
 	}
-	if len(unique) == 0 || s == nil || s.rulesRepo == nil {
+	if len(unique) == 0 {
 		return out, nil
+	}
+	if s == nil || s.rulesRepo == nil {
+		return nil, ErrUserLevelRulesUnavailable
 	}
 	rulesByUser, err := s.rulesRepo.GetAssignedLevelRulesBatch(ctx, unique)
 	if err != nil {
@@ -289,10 +309,10 @@ func (s *UserLevelService) GetProfiles(ctx context.Context, userIDs []string, at
 	}
 	for _, id := range unique {
 		profile := buildUserLevelProfile(id, rulesByUser[id], spends[id], at)
-		out[id] = profile
-		if s.profileCache != nil {
-			s.profileCache.Set(s.profileCacheKey(id, at), cloneUserLevelProfile(profile), userLevelProfileCacheTTL)
+		if len(rulesByUser[id]) != 1 || !rulesByUser[id][0].Enabled {
+			return nil, ErrUserLevelRulesUnavailable
 		}
+		out[id] = profile
 	}
 	return out, nil
 }
@@ -358,9 +378,12 @@ func buildUserLevelProfile(userID string, rules []UserLevelRule, spends map[int]
 				entry.CurrentTierOrder = current.SortOrder
 				entry.MinSpend = current.MinSpend
 				entry.DefaultMultiplier = cloneFloatPtr(current.DefaultMultiplier)
+				if entry.DefaultMultiplier == nil {
+					entry.DefaultMultiplier = userLevelFloatPtr(1)
+				}
 				profile.CurrentTierIDs = append(profile.CurrentTierIDs, current.ID)
-				if current.DefaultMultiplier != nil && (lowest == nil || *current.DefaultMultiplier < *lowest) {
-					value := *current.DefaultMultiplier
+				if lowest == nil || *entry.DefaultMultiplier < *lowest {
+					value := *entry.DefaultMultiplier
 					lowest = &value
 				}
 				if current.SortOrder+1 > profile.Level {
@@ -525,17 +548,11 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	}
 	groupMultiplier := group.RateMultiplier
 	userMultiplier := 1.0
-	if s.userRateRepo != nil {
-		userRate, err := s.userRateRepo.GetByUserAndGroup(ctx, userID, group.ID)
-		if err != nil {
-			return UserRatePlan{}, err
-		}
-		if userRate != nil {
-			if !finiteNonnegative(*userRate) {
-				return UserRatePlan{}, errors.New("user rate multiplier is invalid")
-			}
-			userMultiplier = *userRate
-		}
+	if profile.UserLevelMultiplier != nil {
+		userMultiplier = *profile.UserLevelMultiplier
+	}
+	if !finitePositive(userMultiplier) || userMultiplier < 0.01 || userMultiplier > 100 {
+		return UserRatePlan{}, ErrUserLevelRulesUnavailable
 	}
 	selectedBase := groupMultiplier * userMultiplier
 	if math.IsNaN(selectedBase) || math.IsInf(selectedBase, 0) || selectedBase < 0 {
@@ -597,9 +614,9 @@ func (s *UserLevelService) resolveGroupPlan(ctx context.Context, userID string, 
 	return UserRatePlan{
 		GroupID: group.ID, UserLevel: profile.Level, Usage7d: profile.Usage7d,
 		BaseMultiplier: selectedBase, RateMultiplier: selectedBase, PeakMultiplier: 1, EffectiveMultiplier: effectiveMultiplier,
-		Source: "group_times_user", DynamicCandidates: candidates, SelectedDynamicRuleID: selectedRuleID,
-		UserLevelMultiplier: nil, UserRateMultiplier: rateCandidatePtr(rateCandidate{value: userMultiplier}), GroupRuleMultiplier: rateCandidatePtr(rateCandidate{value: groupMultiplier}),
-		EffectiveBaseMultiplier: selectedBase, EffectiveSource: "group_times_user", NonDynamicMultiplier: selectedBase,
+		Source: "group_times_level", DynamicCandidates: candidates, SelectedDynamicRuleID: selectedRuleID,
+		UserLevelMultiplier: userLevelFloatPtr(userMultiplier), UserRateMultiplier: nil, GroupRuleMultiplier: userLevelFloatPtr(groupMultiplier),
+		EffectiveBaseMultiplier: selectedBase, EffectiveSource: "group_times_level", NonDynamicMultiplier: selectedBase,
 	}, nil
 }
 
@@ -768,7 +785,7 @@ func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupI
 		}
 		plan, planErr := s.resolveGroupPlan(ctx, userID, group, profile, at)
 		if planErr != nil {
-			continue
+			return nil, planErr
 		}
 		ranked = append(ranked, RankedUserGroup{Group: group, Subscription: subscription, Plan: plan})
 	}
@@ -801,7 +818,7 @@ func (s *UserLevelService) ListActiveDynamicRateOffers(ctx context.Context, user
 			selected = &item.Plan.DynamicCandidates[i]
 			break
 		}
-		if selected == nil {
+		if selected == nil || selected.DiscountCoefficient <= 0 || selected.DiscountCoefficient >= 1 {
 			continue
 		}
 		start, end, _, ok := parseDynamicRateWindow(GroupDynamicRateRule{StartAt: selected.StartAt, EndAt: selected.EndAt})
@@ -809,12 +826,13 @@ func (s *UserLevelService) ListActiveDynamicRateOffers(ctx context.Context, user
 			continue
 		}
 		offers = append(offers, DynamicRateOffer{
-			GroupID:   item.Group.ID,
-			GroupName: item.Group.Name,
-			RuleID:    selected.RuleID,
-			RuleName:  selected.RuleName,
-			StartAt:   start,
-			EndAt:     end,
+			DiscountCoefficient: selected.DiscountCoefficient,
+			GroupID:             item.Group.ID,
+			GroupName:           item.Group.Name,
+			RuleID:              selected.RuleID,
+			RuleName:            selected.RuleName,
+			StartAt:             start,
+			EndAt:               end,
 		})
 	}
 	return offers, nil
