@@ -4,6 +4,8 @@ import { createI18n } from 'vue-i18n'
 import UserDashboardDynamicRateOffer from '../UserDashboardDynamicRateOffer.vue'
 import { getDynamicRateOffers } from '@/api/userLevel'
 import type { DynamicRateOffer } from '@/types'
+import zh from '@/i18n/locales/zh/dashboard'
+import en from '@/i18n/locales/en/dashboard'
 
 vi.mock('@/api/userLevel', () => ({ getDynamicRateOffers: vi.fn() }))
 vi.mock('@/utils/format', () => ({ formatDateTimeToMinute: (value: string) => `fmt:${value}` }))
@@ -14,16 +16,15 @@ function sampleOffer(overrides: Partial<DynamicRateOffer> = {}): DynamicRateOffe
     group_id: 'group-1', group_name: 'VIP', rule_id: 'rule-1', rule_name: 'weekend',
     discount_coefficient: 0.5,
     start_at: '2026-09-15T00:00:00Z', end_at: '2026-09-16T00:00:00Z',
+    status: 'participating', activation_spend: 100, usage_7d: 150,
+    personal_quota_amount: 0, personal_used_amount: 0,
     ...overrides,
   }
 }
 function mountOffer(locale = 'zh') {
   const i18n = createI18n({
     legacy: false, locale,
-    messages: {
-      zh: { dashboard: { dynamicRateOffer: { title: '分时优惠', groups: '{count} 个分组', discount: '{percent}% off', discountDetail: '优惠系数 ×{coefficient}，减免 {percent}%', endsAt: '到期' } } },
-      en: { dashboard: { dynamicRateOffer: { title: 'Timed Discount', groups: '{count} groups', discount: '{percent}% off', discountDetail: 'Multiplier ×{coefficient}, save {percent}%', endsAt: 'Expires' } } },
-    },
+    messages: { zh, en },
   })
   return mount(UserDashboardDynamicRateOffer, { global: { plugins: [i18n], stubs: { Icon: true } } })
 }
@@ -58,6 +59,7 @@ describe('UserDashboardDynamicRateOffer', () => {
     expect(wrapper.text()).not.toContain('2026-09-15T00:00:00Z')
     expect(wrapper.findAll('time')).toHaveLength(2)
     expect(wrapper.text()).toContain('2 个分组')
+    expect(wrapper.text()).toContain('参与中')
     wrapper.unmount()
   })
   it('renders percent saved in English', async () => {
@@ -66,6 +68,7 @@ describe('UserDashboardDynamicRateOffer', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('15% off')
     expect(wrapper.text()).toContain('Expires')
+    expect(wrapper.text()).toContain('Participating')
     wrapper.unmount()
   })
   it('excludes future, expired, invalid and non-discounted offers', async () => {
@@ -80,6 +83,52 @@ describe('UserDashboardDynamicRateOffer', () => {
     const wrapper = mountOffer()
     await flushPromises()
     expect(wrapper.find('section').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('shows unmet spending conditions instead of hiding the offer', async () => {
+    mockedGetOffers.mockResolvedValue([sampleOffer({ status: 'below_threshold', usage_7d: 25 })])
+    const wrapper = mountOffer()
+    await flushPromises()
+    expect(wrapper.text()).toContain('未达门槛')
+    expect(wrapper.text()).toContain('参与条件：')
+    expect(wrapper.text()).toContain('近 7 天消费满 100 积分')
+    expect(wrapper.text()).toContain('当前已消费 25 积分')
+    expect(wrapper.text()).not.toContain('参与中')
+    wrapper.unmount()
+  })
+  it.each([
+    ['quota_exhausted', '优惠额度已用尽'],
+    ['group_unavailable', '需获得该分组的使用权限'],
+    ['subscription_required', '需持有该分组的有效订阅'],
+    ['subscription_limited', '需有可用的订阅额度'],
+    ['level_required', '需由管理员配置有效的消费等级规则'],
+  ] as const)('shows the participation restriction for %s', async (status, message) => {
+    mockedGetOffers.mockResolvedValue([sampleOffer({ status, personal_quota_amount: 10, personal_used_amount: 10 })])
+    const wrapper = mountOffer()
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.text()).toContain('个人优惠额度已用 10 / 10 U')
+    expect(wrapper.text()).not.toContain('参与中')
+    wrapper.unmount()
+  })
+  it('refreshes eligibility when the user reaches the threshold', async () => {
+    mockedGetOffers.mockResolvedValueOnce([sampleOffer({ status: 'below_threshold', usage_7d: 99 })])
+      .mockResolvedValueOnce([sampleOffer({ usage_7d: 100 })])
+    const wrapper = mountOffer()
+    await flushPromises()
+    expect(wrapper.text()).toContain('未达门槛')
+    await vi.advanceTimersByTimeAsync(60_000)
+    await flushPromises()
+    expect(wrapper.text()).toContain('参与中')
+    expect(wrapper.text()).not.toContain('未达门槛')
+    wrapper.unmount()
+  })
+  it('shows when participation has no spending minimum', async () => {
+    mockedGetOffers.mockResolvedValue([sampleOffer({ activation_spend: 0 })])
+    const wrapper = mountOffer()
+    await flushPromises()
+    expect(wrapper.text()).toContain('无消费门槛')
+    expect(wrapper.text()).toContain('参与中')
     wrapper.unmount()
   })
   it('removes an offer at its expiry without waiting for the next request', async () => {

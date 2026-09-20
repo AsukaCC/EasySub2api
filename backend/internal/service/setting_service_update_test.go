@@ -150,6 +150,43 @@ type defaultSubGroupReaderStub struct {
 	calls []string
 }
 
+func TestSettingService_AffiliateTransferValidity(t *testing.T) {
+	for _, test := range []struct {
+		name, value, legacy string
+		want                int
+	}{
+		{name: "default", want: 90},
+		{name: "legacy fallback", legacy: "180", want: 180},
+		{name: "dedicated value", value: "30", legacy: "180", want: 30},
+		{name: "minimum", value: "1", want: 1},
+		{name: "maximum", value: "3650", want: 3650},
+		{name: "invalid fallback", value: "invalid", legacy: "60", want: 60},
+		{name: "zero fallback", value: "0", legacy: "60", want: 60},
+		{name: "invalid legacy", legacy: "-1", want: 90},
+		{name: "bounded duration", value: "999999", want: 3650},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			svc := NewSettingService(&settingGetAllRepoStub{values: map[string]string{
+				SettingKeyAffiliateTransferValidityDays:   test.value,
+				SettingKeyBonusBalanceDefaultValidityDays: test.legacy,
+			}}, &config.Config{})
+			settings, err := svc.GetAllSettings(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, test.want, settings.AffiliateTransferValidityDays)
+		})
+	}
+	t.Run("persisted independently", func(t *testing.T) {
+		repo := &settingUpdateRepoStub{}
+		svc := NewSettingService(repo, &config.Config{})
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			AffiliateTransferValidityDays: 30, BonusBalanceDefaultValidityDays: 180,
+		})
+		require.NoError(t, err)
+		require.Equal(t, "30", repo.updates[SettingKeyAffiliateTransferValidityDays])
+		require.Equal(t, "180", repo.updates[SettingKeyBonusBalanceDefaultValidityDays])
+	})
+}
+
 func TestSettingService_AffiliateAdminRechargeSetting(t *testing.T) {
 	t.Run("missing value defaults to disabled", func(t *testing.T) {
 		svc := NewSettingService(&settingGetAllRepoStub{values: map[string]string{}}, &config.Config{})

@@ -190,6 +190,8 @@ export default {
           freezeHoursDesc: '充值返利统一冻结 168 小时，退款窗口关闭后才可转为可用积分。',
           durationDays: '返利有效期（天）',
           durationDaysDesc: '被邀请用户注册后多少天内的充值产生返利。0 = 永久有效。',
+          transferValidityDays: '返利转入有效期（天）',
+          transferValidityDaysDesc: '返利提取为赠送积分后，从到账时起计算有效期（1–3650 天）。仅影响之后的转入，已到账积分的到期时间不变。未单独配置时沿用赠送积分默认有效期。',
           perInviteeCap: '单人返利积分上限',
           perInviteeCapDesc: '每个被邀请用户最多产生的返利积分。0 = 无上限。',
           adminRechargeEnabled: '管理员充值参与返利',

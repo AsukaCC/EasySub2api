@@ -190,6 +190,8 @@ export default {
           freezeHoursDesc: 'Recharge rebates are held for 168 hours and become available only after the refund window closes.',
           durationDays: 'Rebate Duration (days)',
           durationDaysDesc: 'Rebate relationship expires after this many days since invitee registration. 0 = permanent.',
+          transferValidityDays: 'Transferred Rebate Validity (days)',
+          transferValidityDaysDesc: 'Bonus points transferred from rebates expire this many days after crediting (1-3650 days). Applies only to future transfers; existing expiry dates stay unchanged. Uses the default bonus validity until configured separately.',
           perInviteeCap: 'Per-Invitee Rebate Point Cap',
           perInviteeCapDesc: 'Maximum rebate points from a single invitee. 0 = no limit.',
           adminRechargeEnabled: 'Include Admin Recharges',

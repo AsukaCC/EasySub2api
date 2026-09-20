@@ -162,6 +162,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateRebateRate:                        strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
 		SettingKeyAffiliateRebateRecipient:                   AffiliateRebateRecipientDefault,
 		SettingKeyAffiliateRebateFreezeHours:                 strconv.Itoa(AffiliateRebateFreezeHoursDefault),
+		SettingKeyAffiliateTransferValidityDays:              "", // Keep the legacy wallet validity until explicitly configured.
 		SettingKeyAffiliateRebateDurationDays:                strconv.Itoa(AffiliateRebateDurationDaysDefault),
 		SettingKeyAffiliateRebatePerInviteeCap:               strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
 		SettingKeyAffiliateInviterBindingRewardPoints:        "0",
@@ -463,6 +464,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result.AffiliateRebateRecipient = AffiliateRebateRecipientInviter
 	result.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
+	result.AffiliateTransferValidityDays = ResolveAffiliateTransferValidityDays(settings[SettingKeyAffiliateTransferValidityDays], settings[SettingKeyBonusBalanceDefaultValidityDays])
 	if durationDays, err := strconv.Atoi(settings[SettingKeyAffiliateRebateDurationDays]); err == nil && durationDays >= 0 {
 		if durationDays > AffiliateRebateDurationDaysMax {
 			durationDays = AffiliateRebateDurationDaysMax

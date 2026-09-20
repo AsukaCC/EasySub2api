@@ -40,6 +40,7 @@ const (
 	AffiliateBindingRewardPointsMax       = 1_000_000_000.0
 	AffiliateBindingRewardValidityDefault = 90
 	AffiliateBindingRewardValidityMax     = 3650
+	AffiliateTransferValidityDaysMax      = 3650
 )
 
 // Platform constants
@@ -254,6 +255,7 @@ const (
 	SettingKeyAffiliateInviterBindingRewardValidityDays = "affiliate_inviter_binding_reward_validity_days"
 	SettingKeyAffiliateInviteeBindingRewardPoints       = "affiliate_invitee_binding_reward_points"
 	SettingKeyAffiliateInviteeBindingRewardValidityDays = "affiliate_invitee_binding_reward_validity_days"
+	SettingKeyAffiliateTransferValidityDays             = "affiliate_transfer_validity_days"
 	SettingKeyRiskControlEnabled                        = "risk_control_enabled" // 是否启用风控中心入口与审计链路
 	SettingKeySupportTicketsEnabled                     = "support_tickets_enabled"
 	SettingKeySupportTicketsUserVisible                 = "support_tickets_user_visible"

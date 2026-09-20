@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -508,7 +509,36 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 	if balanceType != WalletKindRecharge && balanceType != WalletKindBonus {
 		return nil, fmt.Errorf("unsupported balance type: %q", balanceType)
 	}
-	before, err := s.userRepo.GetWalletSummary(ctx, userID)
+	if math.IsNaN(balance) || math.IsInf(balance, 0) || balance < 0 || (operation != "set" && balance == 0) {
+		return nil, infraerrors.BadRequest("INVALID_BALANCE", "invalid balance amount")
+	}
+	bonusPoints := 0.0
+	opCtx := ctx
+	var tx *dbent.Tx
+	if operation == "add" && balanceType == WalletKindRecharge {
+		if s.settingService != nil {
+			settings, err := s.settingService.settingRepo.GetMultiple(ctx, []string{SettingRechargeBonusTiers})
+			if err != nil {
+				return nil, fmt.Errorf("load recharge bonus tiers: %w", err)
+			}
+			if tier := selectRechargeBonusTier(balance, parseRechargeBonusTiers(settings[SettingRechargeBonusTiers])); tier != nil {
+				bonusPoints = tier.BonusPoints
+			}
+		}
+		// Keep both credits and response reads atomic so a failed attempt can be retried.
+		if s.entClient != nil {
+			var err error
+			tx, err = s.entClient.Tx(ctx)
+			if err != nil {
+				return nil, err
+			}
+			defer func() { _ = tx.Rollback() }()
+			opCtx = dbent.NewTxContext(ctx, tx)
+		} else if bonusPoints > 0 {
+			return nil, errors.New("admin recharge bonus requires a wallet transaction")
+		}
+	}
+	before, err := s.userRepo.GetWalletSummary(opCtx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -523,10 +553,18 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 	}
 	switch operation {
 	case "add":
-		_, err = s.userRepo.CreditWallet(ctx, WalletCreditInput{
+		_, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
 			UserID: userID, Amount: balance, Kind: balanceType, ExpiresAt: expiresAt,
 			SourceType: "admin_adjustment", SourceID: operationID, IdempotencyKey: operationID, Notes: notes,
 		})
+		if err == nil && bonusPoints > 0 {
+			bonusExpiresAt := time.Now().UTC().Add(rechargeBonusValidity)
+			_, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
+				UserID: userID, Amount: bonusPoints, Kind: WalletKindBonus, ExpiresAt: &bonusExpiresAt,
+				SourceType: "admin_adjustment", SourceID: operationID,
+				IdempotencyKey: operationID + ":bonus", Notes: notes,
+			})
+		}
 	case "subtract":
 		_, err = s.userRepo.DebitWallet(ctx, WalletDebitInput{
 			UserID: userID, Amount: balance, SourceType: "admin_adjustment", SourceID: operationID,
@@ -546,13 +584,18 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 	if err != nil {
 		return nil, err
 	}
-	after, err := s.userRepo.GetWalletSummary(ctx, userID)
+	after, err := s.userRepo.GetWalletSummary(opCtx, userID)
 	if err != nil {
 		return nil, err
 	}
-	user, err := s.userRepo.GetByID(ctx, userID)
+	user, err := s.userRepo.GetByID(opCtx, userID)
 	if err != nil {
 		return nil, err
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
 	}
 	balanceDiff := after.AvailableBalance - before.AvailableBalance
 	if s.authCacheInvalidator != nil && balanceDiff != 0 {

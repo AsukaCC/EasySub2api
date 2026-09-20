@@ -15,6 +15,21 @@
         <span class="dashboard-dynamic-rate-offer__discount" :title="t('dashboard.dynamicRateOffer.discountDetail', discountValues(offer))">
           {{ t('dashboard.dynamicRateOffer.discount', discountValues(offer)) }}
         </span>
+        <div class="dashboard-dynamic-rate-offer__participation">
+          <span
+            class="dashboard-dynamic-rate-offer__status"
+            :class="{ 'dashboard-dynamic-rate-offer__status--active': offer.status === 'participating' }"
+          >{{ t(`dashboard.dynamicRateOffer.status.${offer.status}`) }}</span>
+          <span>{{ t('dashboard.dynamicRateOffer.conditions') }}</span>
+          <span>{{ offer.activation_spend > 0
+            ? t('dashboard.dynamicRateOffer.spendRequired', { amount: formatAmount(offer.activation_spend) })
+            : t('dashboard.dynamicRateOffer.noSpendRequired') }}</span>
+          <span v-if="offer.activation_spend > 0">{{ t('dashboard.dynamicRateOffer.currentSpend', { amount: formatAmount(offer.usage_7d) }) }}</span>
+          <span v-if="offer.personal_quota_amount > 0">{{ t('dashboard.dynamicRateOffer.personalQuota', {
+            used: formatAmount(offer.personal_used_amount), amount: formatAmount(offer.personal_quota_amount),
+          }) }}</span>
+          <span v-if="participationRequirement(offer)">{{ participationRequirement(offer) }}</span>
+        </div>
         <div class="dashboard-dynamic-rate-offer__expiry">
           <Icon name="clock" size="xs" />
           <span>{{ t('dashboard.dynamicRateOffer.endsAt') }}</span>
@@ -47,6 +62,22 @@ function discountValues(offer: DynamicRateOffer) {
   return {
     percent: number.format((1 - offer.discount_coefficient) * 100),
     coefficient: String(offer.discount_coefficient),
+  }
+}
+
+function formatAmount(value: number) {
+  return new Intl.NumberFormat(locale.value, { maximumFractionDigits: 8 }).format(value)
+}
+
+function participationRequirement(offer: DynamicRateOffer) {
+  switch (offer.status) {
+    case 'group_unavailable':
+    case 'subscription_required':
+    case 'subscription_limited':
+    case 'level_required':
+      return t(`dashboard.dynamicRateOffer.requirement.${offer.status}`)
+    default:
+      return ''
   }
 }
 
@@ -137,6 +168,21 @@ onUnmounted(() => {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
 }
+.dashboard-dynamic-rate-offer__participation {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+.dashboard-dynamic-rate-offer__status {
+  color: var(--color-text-warning);
+  font-weight: 600;
+}
+.dashboard-dynamic-rate-offer__status--active { color: var(--color-text-success); }
 .dashboard-dynamic-rate-offer__expiry time {
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;

@@ -276,6 +276,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AffiliateRebateRate:                                    settings.AffiliateRebateRate,
 		AffiliateRebateRecipient:                               settings.AffiliateRebateRecipient,
 		AffiliateRebateFreezeHours:                             settings.AffiliateRebateFreezeHours,
+		AffiliateTransferValidityDays:                          settings.AffiliateTransferValidityDays,
 		AffiliateRebateDurationDays:                            settings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           settings.AffiliateRebatePerInviteeCap,
 		AdminRechargeRebateEnabled:                             settings.AdminRechargeRebateEnabled,

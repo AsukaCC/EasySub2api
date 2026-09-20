@@ -34,6 +34,9 @@
         <span class="components-layout-app-nav-user-module__text-3">
           {{ formatPoints(availableBalance) }}
         </span>
+        <span class="components-layout-app-nav-user-module__text-3 app-nav-user-bonus">
+          {{ t('common.bonusBalance') }}: {{ formatPoints(user.bonus_balance ?? 0) }}
+        </span>
       </span>
 
       <Icon
@@ -83,6 +86,9 @@
             <span class="components-layout-app-nav-user-module__text-9">{{ balanceAvailableText }}</span>
             <span class="components-layout-app-nav-user-module__text-10">
               {{ formatPoints(availableBalance) }}
+            </span>
+            <span class="components-layout-app-nav-user-module__text-9 app-nav-user-bonus">
+              {{ t('common.bonusBalance') }}: {{ formatPoints(user.bonus_balance ?? 0) }}
             </span>
           </div>
           <SubscriptionProgressMini class="app-nav-user-balance-subscription" />
@@ -481,6 +487,11 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem;
+}
+
+.app-nav-user-bonus {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .app-nav-user-balance-subscription {

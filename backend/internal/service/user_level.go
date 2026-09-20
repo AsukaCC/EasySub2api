@@ -190,8 +190,7 @@ func userRatePlanFromContext(ctx context.Context, groupID string) *UserRatePlan 
 	return nil
 }
 
-// DynamicRateOffer is the user-safe window currently selected for a group.
-// It only includes the rule RankGroups already chose for billing.
+// DynamicRateOffer exposes an active window and the caller's participation conditions.
 type DynamicRateOffer struct {
 	DiscountCoefficient float64   `json:"discount_coefficient"`
 	GroupID             string    `json:"group_id"`
@@ -200,6 +199,11 @@ type DynamicRateOffer struct {
 	RuleName            string    `json:"rule_name"`
 	StartAt             time.Time `json:"start_at"`
 	EndAt               time.Time `json:"end_at"`
+	Status              string    `json:"status"`
+	ActivationSpend     float64   `json:"activation_spend"`
+	Usage7d             float64   `json:"usage_7d"`
+	PersonalQuotaAmount float64   `json:"personal_quota_amount"`
+	PersonalUsedAmount  float64   `json:"personal_used_amount"`
 }
 
 type UserLevelService struct {
@@ -798,42 +802,116 @@ func (s *UserLevelService) RankGroups(ctx context.Context, userID string, groupI
 	return ranked, nil
 }
 
-// ListActiveDynamicRateOffers returns the currently selected absolute windows
-// for the caller's available groups. Eligibility matches resolveGroupPlan.
+// ListActiveDynamicRateOffers includes active discounts even when the caller
+// cannot participate. Available group IDs only grant eligibility, not visibility.
 func (s *UserLevelService) ListActiveDynamicRateOffers(ctx context.Context, userID string, groupIDs []string, at time.Time) ([]DynamicRateOffer, error) {
 	offers := make([]DynamicRateOffer, 0)
-	ranked, err := s.RankGroups(ctx, userID, groupIDs, at, "")
+	if s == nil || s.groupRepo == nil || s.repo == nil || strings.TrimSpace(userID) == "" {
+		return offers, nil
+	}
+	if at.IsZero() {
+		at = time.Now()
+	}
+	groups, err := s.groupRepo.ListActive(ctx)
 	if err != nil {
 		return offers, err
 	}
-	for _, item := range ranked {
-		if item.Group == nil || strings.TrimSpace(item.Plan.SelectedDynamicRuleID) == "" {
+	profile, err := s.ResolveProfile(ctx, userID, at)
+	if err != nil {
+		if !errors.Is(err, ErrUserLevelRulesUnavailable) {
+			return offers, err
+		}
+		spends, spendErr := s.loadRuleSpends(ctx, []string{userID}, nil, at)
+		if spendErr != nil {
+			return offers, spendErr
+		}
+		profile = buildUserLevelProfile(userID, nil, spends[userID], at)
+	}
+	available := make(map[string]bool, len(groupIDs))
+	for _, id := range groupIDs {
+		available[strings.TrimSpace(id)] = true
+	}
+	for _, group := range groups {
+		if !group.IsActive() {
 			continue
 		}
-		var selected *DynamicRateCandidate
-		for i := range item.Plan.DynamicCandidates {
-			if item.Plan.DynamicCandidates[i].RuleID != item.Plan.SelectedDynamicRuleID {
+		candidates := make([]DynamicRateOffer, 0)
+		keys := make([]DynamicRateUsageKey, 0)
+		for _, rule := range group.DynamicRateRules {
+			start, end, quotaKey, valid := parseDynamicRateWindow(rule)
+			coefficient := rule.DiscountCoefficient
+			if coefficient == 0 {
+				coefficient = rule.Multiplier
+			}
+			if !rule.Enabled || !valid || at.Before(start) || !at.Before(end) ||
+				!finitePositive(coefficient) || coefficient < 0.01 || coefficient >= 1 {
 				continue
 			}
-			selected = &item.Plan.DynamicCandidates[i]
-			break
+			keys = append(keys, DynamicRateUsageKey{RuleID: rule.ID, QuotaKey: quotaKey})
+			candidates = append(candidates, DynamicRateOffer{
+				GroupID: group.ID, GroupName: group.Name, RuleID: rule.ID, RuleName: rule.Name,
+				StartAt: start, EndAt: end, DiscountCoefficient: coefficient,
+				ActivationSpend: rule.ActivationSpend, Usage7d: profile.Usage7d,
+				PersonalQuotaAmount: dynamicRatePersonalQuotaAmount(rule),
+			})
 		}
-		if selected == nil || selected.DiscountCoefficient <= 0 || selected.DiscountCoefficient >= 1 {
+		if len(candidates) == 0 {
 			continue
 		}
-		start, end, _, ok := parseDynamicRateWindow(GroupDynamicRateRule{StartAt: selected.StartAt, EndAt: selected.EndAt})
-		if !ok {
-			continue
+		used, err := s.repo.GetDynamicRateUsage(ctx, userID, group.ID, keys)
+		if err != nil {
+			return nil, err
 		}
-		offers = append(offers, DynamicRateOffer{
-			DiscountCoefficient: selected.DiscountCoefficient,
-			GroupID:             item.Group.ID,
-			GroupName:           item.Group.Name,
-			RuleID:              selected.RuleID,
-			RuleName:            selected.RuleName,
-			StartAt:             start,
-			EndAt:               end,
+		groupStatus := "participating"
+		if !available[group.ID] {
+			groupStatus = "group_unavailable"
+			if group.IsSubscriptionType() {
+				groupStatus = "subscription_required"
+			}
+		} else if group.IsSubscriptionType() {
+			groupStatus = "subscription_required"
+			if s.subRepo != nil {
+				sub, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, group.ID)
+				if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+					return nil, err
+				}
+				if err == nil && sub != nil && sub.IsActive() {
+					groupStatus = "participating"
+					daily, weekly, monthly := sub.CheckAllLimits(&group, 0)
+					if !daily || !weekly || !monthly {
+						groupStatus = "subscription_limited"
+					}
+				}
+			}
+		}
+		for i := range candidates {
+			candidate := &candidates[i]
+			candidate.PersonalUsedAmount = used[keys[i]]
+			candidate.Status = groupStatus
+			if candidate.Status != "participating" {
+				continue
+			}
+			switch {
+			case !profile.Configured:
+				candidate.Status = "level_required"
+			case profile.Usage7d < candidate.ActivationSpend:
+				candidate.Status = "below_threshold"
+			case candidate.PersonalQuotaAmount > 0 && candidate.PersonalUsedAmount >= candidate.PersonalQuotaAmount:
+				candidate.Status = "quota_exhausted"
+			}
+		}
+		// Match billing's lowest eligible coefficient and rule-ID tie break.
+		sort.SliceStable(candidates, func(i, j int) bool {
+			iEligible, jEligible := candidates[i].Status == "participating", candidates[j].Status == "participating"
+			if iEligible != jEligible {
+				return iEligible
+			}
+			if candidates[i].DiscountCoefficient != candidates[j].DiscountCoefficient {
+				return candidates[i].DiscountCoefficient < candidates[j].DiscountCoefficient
+			}
+			return candidates[i].RuleID < candidates[j].RuleID
 		})
+		offers = append(offers, candidates[0])
 	}
 	return offers, nil
 }

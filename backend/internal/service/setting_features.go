@@ -254,6 +254,18 @@ func ClampAffiliateBindingRewardPoints(value float64) float64 {
 	return QuantizeUsageBillingAmount(value)
 }
 
+// ResolveAffiliateTransferValidityDays preserves the historical wallet setting
+// until a dedicated transfer validity has been configured.
+func ResolveAffiliateTransferValidityDays(value, legacyValue string) int {
+	for _, raw := range []string{value, legacyValue} {
+		days, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err == nil && days > 0 {
+			return min(days, AffiliateTransferValidityDaysMax)
+		}
+	}
+	return defaultBonusValidityDays
+}
+
 func ClampAffiliateBindingRewardValidity(days int) int {
 	if days < 1 {
 		return AffiliateBindingRewardValidityDefault

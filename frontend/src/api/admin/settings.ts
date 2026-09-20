@@ -428,6 +428,7 @@ export interface SystemSettings {
   affiliate_rebate_rate: number;
   affiliate_rebate_recipient: "inviter" | "invitee";
   affiliate_rebate_freeze_hours: number;
+  affiliate_transfer_validity_days: number;
   affiliate_rebate_duration_days: number;
   affiliate_rebate_per_invitee_cap: number;
   affiliate_admin_recharge_enabled: boolean;
@@ -785,6 +786,7 @@ export interface UpdateSettingsRequest {
   affiliate_rebate_rate?: number;
   affiliate_rebate_recipient?: "inviter" | "invitee";
   affiliate_rebate_freeze_hours?: number;
+  affiliate_transfer_validity_days?: number;
   affiliate_rebate_duration_days?: number;
   affiliate_rebate_per_invitee_cap?: number;
   affiliate_admin_recharge_enabled?: boolean;

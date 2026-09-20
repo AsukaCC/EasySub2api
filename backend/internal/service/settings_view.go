@@ -177,6 +177,7 @@ type SystemSettings struct {
 	AffiliateRebateRate                       float64
 	AffiliateRebateRecipient                  string
 	AffiliateRebateFreezeHours                int
+	AffiliateTransferValidityDays             int
 	AffiliateRebateDurationDays               int
 	AffiliateRebatePerInviteeCap              float64
 	AdminRechargeRebateEnabled                bool

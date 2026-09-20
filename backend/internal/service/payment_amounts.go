@@ -32,16 +32,7 @@ func normalizeSubscriptionUSDToCNYRate(rate float64) float64 {
 
 func buildRechargeOrderPricing(principal float64, tiers []RechargeBonusTier) *rechargeOrderPricing {
 	basePoints := decimal.NewFromFloat(principal).Round(2).InexactFloat64()
-	var selected *RechargeBonusTier
-	for i := range tiers {
-		if basePoints+1e-9 < tiers[i].MinAmount {
-			continue
-		}
-		candidate := tiers[i]
-		if selected == nil || candidate.MinAmount > selected.MinAmount {
-			selected = &candidate
-		}
-	}
+	selected := selectRechargeBonusTier(basePoints, tiers)
 	bonusPoints := 0.0
 	if selected != nil {
 		bonusPoints = selected.BonusPoints
@@ -57,6 +48,20 @@ func buildRechargeOrderPricing(principal float64, tiers []RechargeBonusTier) *re
 		CreditedPoints:  creditedPoints,
 		BonusTier:       selected,
 	}
+}
+
+func selectRechargeBonusTier(basePoints float64, tiers []RechargeBonusTier) *RechargeBonusTier {
+	var selected *RechargeBonusTier
+	for i := range tiers {
+		if basePoints+1e-9 < tiers[i].MinAmount {
+			continue
+		}
+		candidate := tiers[i]
+		if selected == nil || candidate.MinAmount > selected.MinAmount {
+			selected = &candidate
+		}
+	}
+	return selected
 }
 
 func rechargeFeeAmount(payAmount, principal float64) float64 {

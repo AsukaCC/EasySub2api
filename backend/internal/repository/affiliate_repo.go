@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -326,15 +325,9 @@ func (r *affiliateRepository) TransferQuotaToBalance(ctx context.Context, userID
 		debtPaid := math.Min(transferred, math.Max(-walletBefore.balance, 0))
 		bonusAmount := walletMoney(transferred - debtPaid)
 		if bonusAmount > 0 {
-			validityDays := 90
-			var validityValue string
-			if validityRows, queryErr := txClient.QueryContext(txCtx, `SELECT value FROM settings WHERE key = 'bonus_balance_default_validity_days'`); queryErr == nil {
-				if validityRows.Next() && validityRows.Scan(&validityValue) == nil {
-					if parsed, parseErr := strconv.Atoi(validityValue); parseErr == nil && parsed > 0 {
-						validityDays = parsed
-					}
-				}
-				_ = validityRows.Close()
+			validityDays, err := affiliateTransferValidityDays(txCtx, txClient)
+			if err != nil {
+				return fmt.Errorf("read affiliate transfer validity: %w", err)
 			}
 			expiresAt := time.Now().UTC().Add(time.Duration(validityDays) * 24 * time.Hour)
 			grantID := newWalletUUID()
@@ -401,6 +394,27 @@ VALUES ($1, 'transfer', $2, NULL, $3, $4, $5, $6, NOW(), NOW())`,
 	}
 
 	return transferred, newBalance, nil
+}
+
+func affiliateTransferValidityDays(ctx context.Context, exec sqlQueryExecutor) (int, error) {
+	rows, err := exec.QueryContext(ctx, `SELECT key, value FROM settings WHERE key IN ($1, $2)`,
+		service.SettingKeyAffiliateTransferValidityDays, service.SettingKeyBonusBalanceDefaultValidityDays)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	values := make(map[string]string, 2)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return 0, err
+		}
+		values[key] = value
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	return service.ResolveAffiliateTransferValidityDays(values[service.SettingKeyAffiliateTransferValidityDays], values[service.SettingKeyBonusBalanceDefaultValidityDays]), nil
 }
 
 func (r *affiliateRepository) ListInvitees(ctx context.Context, inviterID string, limit int) ([]service.AffiliateInvitee, error) {

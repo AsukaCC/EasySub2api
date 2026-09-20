@@ -39,6 +39,45 @@ func querySingleInt(t *testing.T, ctx context.Context, client *dbent.Client, que
 	return value
 }
 
+func TestAffiliateRepository_TransferValidityOnlyAffectsNewGrants(t *testing.T) {
+	ctx := context.Background()
+	tx := testEntTx(t)
+	txCtx := dbent.NewTxContext(ctx, tx)
+	client := tx.Client()
+	repo := NewAffiliateRepository(client, integrationDB)
+	u := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("affiliate-validity-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5,
+	})
+	_, err := client.ExecContext(txCtx, `INSERT INTO user_affiliates (user_id, aff_code, aff_quota, created_at, updated_at)
+VALUES ($1, $2, 10, NOW(), NOW())`, u.ID, fmt.Sprintf("AFF%09d", time.Now().UnixNano()%1_000_000_000))
+	require.NoError(t, err)
+	for _, days := range []int{30, 60} {
+		err := NewSettingRepository(client).Set(txCtx, service.SettingKeyAffiliateTransferValidityDays, fmt.Sprint(days))
+		require.NoError(t, err)
+		_, err = client.ExecContext(txCtx, `UPDATE user_affiliates SET aff_quota = 10 WHERE user_id = $1`, u.ID)
+		require.NoError(t, err)
+		transferred, _, err := repo.TransferQuotaToBalance(txCtx, u.ID)
+		require.NoError(t, err)
+		require.Equal(t, 10.0, transferred)
+	}
+	rows, err := client.QueryContext(txCtx, `SELECT expires_at FROM wallet_bonus_grants
+WHERE user_id = $1 AND source_type = 'affiliate_transfer' ORDER BY expires_at`, u.ID)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	for _, days := range []int{30, 60} {
+		require.True(t, rows.Next())
+		var expiresAt time.Time
+		require.NoError(t, rows.Scan(&expiresAt))
+		require.WithinDuration(t, time.Now().Add(time.Duration(days)*24*time.Hour), expiresAt, time.Minute)
+	}
+	require.False(t, rows.Next())
+	require.NoError(t, rows.Err())
+	require.NoError(t, rows.Close())
+	_, _, err = repo.TransferQuotaToBalance(txCtx, u.ID)
+	require.ErrorIs(t, err, service.ErrAffiliateQuotaEmpty)
+}
+
 func TestAffiliateRepository_TransferQuotaToBalance_UsesClaimedQuotaBeforeClear(t *testing.T) {
 	ctx := context.Background()
 	tx := testEntTx(t)

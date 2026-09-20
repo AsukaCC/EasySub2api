@@ -168,6 +168,7 @@ type SystemSettings struct {
 	AffiliateRebateRate                       float64                      `json:"affiliate_rebate_rate"`
 	AffiliateRebateRecipient                  string                       `json:"affiliate_rebate_recipient"`
 	AffiliateRebateFreezeHours                int                          `json:"affiliate_rebate_freeze_hours"`
+	AffiliateTransferValidityDays             int                          `json:"affiliate_transfer_validity_days"`
 	AffiliateRebateDurationDays               int                          `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap              float64                      `json:"affiliate_rebate_per_invitee_cap"`
 	AdminRechargeRebateEnabled                bool                         `json:"affiliate_admin_recharge_enabled"`

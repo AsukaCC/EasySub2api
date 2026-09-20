@@ -721,6 +721,9 @@ export default {
 	  rechargeBalance: 'Recharge points',
 	  bonusBalance: 'Bonus points',
       bonusValidityDays: 'Bonus validity (days)',
+      rechargeTierBonus: 'Recharge bonus points',
+      rechargeTierBonusValidity: 'Valid for 7 days',
+      rechargeBonusLoadFailed: 'Failed to load recharge bonus tiers. Please retry.',
 	  walletActions: {
 		credit: 'Point credit', bonus: 'Bonus point credit', debit: 'Point debit', hold: 'Point hold',
 		capture: 'Hold capture', release: 'Hold release', expire: 'Bonus expiry', refund: 'Point refund', adjust: 'Admin adjustment'

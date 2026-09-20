@@ -385,6 +385,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyAffiliateRebateRecipient] = settings.AffiliateRebateRecipient
 	settings.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	updates[SettingKeyAffiliateRebateFreezeHours] = strconv.Itoa(settings.AffiliateRebateFreezeHours)
+	settings.AffiliateTransferValidityDays = ResolveAffiliateTransferValidityDays(strconv.Itoa(settings.AffiliateTransferValidityDays), strconv.Itoa(settings.BonusBalanceDefaultValidityDays))
+	updates[SettingKeyAffiliateTransferValidityDays] = strconv.Itoa(settings.AffiliateTransferValidityDays)
 	if settings.AffiliateRebateDurationDays < 0 {
 		settings.AffiliateRebateDurationDays = AffiliateRebateDurationDaysDefault
 	}

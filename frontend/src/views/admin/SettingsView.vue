@@ -7135,6 +7135,25 @@
               </div>
 
               <div>
+                <label for="affiliate-transfer-validity-days" class="input-label">
+                  {{ t('admin.settings.features.affiliate.transferValidityDays') }}
+                </label>
+                <input
+                  id="affiliate-transfer-validity-days"
+                  v-model.number="form.affiliate_transfer_validity_days"
+                  type="number"
+                  step="1"
+                  min="1"
+                  max="3650"
+                  required
+                  class="input"
+                />
+                <p class="views-admin-settings-view__description-31">
+                  {{ t('admin.settings.features.affiliate.transferValidityDaysDesc') }}
+                </p>
+              </div>
+
+              <div>
                 <label class="input-label">
                   {{ t('admin.settings.features.affiliate.perInviteeCap') }}
                 </label>
@@ -8714,6 +8733,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
   "feature-affiliate": new Set([
     "affiliate_rebate_rate", "affiliate_rebate_recipient", "affiliate_rebate_freeze_hours",
     "affiliate_rebate_duration_days", "affiliate_rebate_per_invitee_cap",
+    "affiliate_transfer_validity_days",
     "affiliate_inviter_binding_reward_points", "affiliate_inviter_binding_reward_validity_days",
     "affiliate_invitee_binding_reward_points", "affiliate_invitee_binding_reward_validity_days",
     "affiliate_admin_recharge_enabled",
@@ -9453,6 +9473,7 @@ const form = reactive<SettingsForm>({
   affiliate_rebate_rate: 20,
   affiliate_rebate_recipient: "inviter",
   affiliate_rebate_freeze_hours: 168,
+  affiliate_transfer_validity_days: 90,
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,
   affiliate_admin_recharge_enabled: false,
@@ -11279,6 +11300,7 @@ async function saveSettings(section?: SettingsSection) {
       ),
       affiliate_rebate_recipient: "inviter",
       affiliate_rebate_freeze_hours: 168,
+      affiliate_transfer_validity_days: Math.max(1, Math.min(3650, Math.floor(Number(form.affiliate_transfer_validity_days) || 90))),
       affiliate_rebate_duration_days: Math.max(0, Math.min(3650, Math.floor(Number(form.affiliate_rebate_duration_days) || 0))),
       affiliate_rebate_per_invitee_cap: Math.max(0, Number(form.affiliate_rebate_per_invitee_cap) || 0),
       affiliate_admin_recharge_enabled: form.affiliate_admin_recharge_enabled,

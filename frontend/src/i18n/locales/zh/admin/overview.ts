@@ -725,6 +725,9 @@ export default {
 	  rechargeBalance: '充值积分',
 	  bonusBalance: '赠送积分',
       bonusValidityDays: '赠送有效期（天）',
+      rechargeTierBonus: '充值赠送积分',
+      rechargeTierBonusValidity: '有效期 7 天',
+      rechargeBonusLoadFailed: '充值赠送档位加载失败，请重试',
 	  walletActions: {
 		credit: '积分入账', bonus: '赠送积分入账', debit: '积分消费', hold: '积分冻结',
 		capture: '冻结核销', release: '冻结释放', expire: '赠送积分过期', refund: '积分退回', adjust: '管理员调账'

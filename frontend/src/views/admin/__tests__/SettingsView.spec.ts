@@ -1218,6 +1218,31 @@ describe("admin SettingsView payment visible method controls", () => {
     }));
   });
 
+  it("loads and saves the transferred rebate validity independently of other validity settings", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      affiliate_transfer_validity_days: 45,
+      affiliate_rebate_duration_days: 180,
+      bonus_balance_default_validity_days: 90,
+    });
+    const wrapper = mountView("feature-affiliate");
+    await flushPromises();
+
+    const input = wrapper.get<HTMLInputElement>("#affiliate-transfer-validity-days");
+    expect(input.element.value).toBe("45");
+    expect(input.attributes("min")).toBe("1");
+    expect(input.attributes("max")).toBe("3650");
+    await input.setValue("30");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      affiliate_transfer_validity_days: 30,
+      affiliate_rebate_duration_days: 180,
+    }));
+    expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty("bonus_balance_default_validity_days");
+  });
+
   it("submits the admin recharge affiliate rebate setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

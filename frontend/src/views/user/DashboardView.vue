@@ -9,6 +9,7 @@
             <UserDashboardStats
               :stats="stats"
               :balance="user?.balance || 0"
+              :bonus-balance="user?.bonus_balance ?? 0"
               :is-simple="authStore.isSimpleMode"
             />
           </div>

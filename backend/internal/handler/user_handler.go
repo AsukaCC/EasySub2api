@@ -86,7 +86,7 @@ func (h *UserHandler) GetLevel(c *gin.Context) {
 	response.Success(c, level)
 }
 
-// ListDynamicRateOffers returns the currently billed dynamic-rate windows.
+// ListDynamicRateOffers returns active discounts and participation conditions.
 // GET /api/v1/user/dynamic-rate-offers
 func (h *UserHandler) ListDynamicRateOffers(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
@@ -94,20 +94,20 @@ func (h *UserHandler) ListDynamicRateOffers(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	if h.userLevelService == nil {
+	if h.userLevelService == nil || h.apiKeyService == nil {
 		response.InternalError(c, "User level service unavailable")
 		return
 	}
 
-	var groupIDs []string
-	if h.apiKeyService != nil {
-		if groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID); err == nil {
-			groupIDs = make([]string, 0, len(groups))
-			for i := range groups {
-				if groups[i].ID != "" {
-					groupIDs = append(groupIDs, groups[i].ID)
-				}
-			}
+	groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	groupIDs := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if group.ID != "" {
+			groupIDs = append(groupIDs, group.ID)
 		}
 	}
 

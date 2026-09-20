@@ -11,6 +11,7 @@
           <p class="stat-card__label">{{ t('dashboard.balance') }}</p>
           <p class="stat-card__value">{{ formatPoints(balance) }}</p>
           <p class="stat-card__hint">{{ t('common.available') }}</p>
+          <p class="stat-card__hint">{{ t('common.bonusBalance') }}: {{ formatPoints(bonusBalance) }}</p>
         </div>
       </div>
     </div>
@@ -109,6 +110,7 @@ import { formatPoints } from '@/utils/format'
 defineProps<{
   stats: UserStatsType
   balance: number
+  bonusBalance: number
   isSimple: boolean
 }>()
 const { t } = useI18n()

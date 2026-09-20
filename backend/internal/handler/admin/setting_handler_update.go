@@ -175,6 +175,7 @@ type UpdateSettingsRequest struct {
 	AffiliateRebateRate                        *float64                          `json:"affiliate_rebate_rate"`
 	AffiliateRebateRecipient                   *string                           `json:"affiliate_rebate_recipient"`
 	AffiliateRebateFreezeHours                 *int                              `json:"affiliate_rebate_freeze_hours"`
+	AffiliateTransferValidityDays              *int                              `json:"affiliate_transfer_validity_days"`
 	AffiliateRebateDurationDays                *int                              `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap               *float64                          `json:"affiliate_rebate_per_invitee_cap"`
 	AdminRechargeRebateEnabled                 *bool                             `json:"affiliate_admin_recharge_enabled"`
@@ -678,6 +679,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	affiliateRebateRecipient := service.AffiliateRebateRecipientInviter
 	affiliateRebateFreezeHours := service.AffiliateRebateFreezeHoursDefault
+	affiliateTransferValidityDays := previousSettings.AffiliateTransferValidityDays
+	if req.AffiliateTransferValidityDays != nil {
+		if *req.AffiliateTransferValidityDays < 1 || *req.AffiliateTransferValidityDays > service.AffiliateTransferValidityDaysMax {
+			response.BadRequest(c, "Affiliate transfer validity must be between 1 and 3650 days")
+			return
+		}
+		affiliateTransferValidityDays = *req.AffiliateTransferValidityDays
+	} else {
+		omitted[service.SettingKeyAffiliateTransferValidityDays] = struct{}{}
+	}
 	affiliateRebateDurationDays := previousSettings.AffiliateRebateDurationDays
 	if req.AffiliateRebateDurationDays != nil {
 		affiliateRebateDurationDays = *req.AffiliateRebateDurationDays
@@ -1755,6 +1766,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateUserVisible:                      affiliateUserVisible,
 		PaymentUserVisible:                        paymentUserVisible,
 		AffiliateRebateFreezeHours:                affiliateRebateFreezeHours,
+		AffiliateTransferValidityDays:             affiliateTransferValidityDays,
 		AffiliateRebateDurationDays:               affiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:              affiliateRebatePerInviteeCap,
 		AdminRechargeRebateEnabled:                adminRechargeRebateEnabled,
@@ -2402,6 +2414,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateRebateRate:                                    updatedSettings.AffiliateRebateRate,
 		AffiliateRebateRecipient:                               updatedSettings.AffiliateRebateRecipient,
 		AffiliateRebateFreezeHours:                             updatedSettings.AffiliateRebateFreezeHours,
+		AffiliateTransferValidityDays:                          updatedSettings.AffiliateTransferValidityDays,
 		AffiliateRebateDurationDays:                            updatedSettings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           updatedSettings.AffiliateRebatePerInviteeCap,
 		AdminRechargeRebateEnabled:                             updatedSettings.AdminRechargeRebateEnabled,

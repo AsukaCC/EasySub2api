@@ -628,6 +628,11 @@ export interface DynamicRateOffer {
   rule_name: string
   start_at: string
   end_at: string
+  status: 'participating' | 'below_threshold' | 'quota_exhausted' | 'group_unavailable' | 'subscription_required' | 'subscription_limited' | 'level_required'
+  activation_spend: number
+  usage_7d: number
+  personal_quota_amount: number
+  personal_used_amount: number
 }
 
 export interface GroupDynamicRateRule {
