@@ -17,6 +17,7 @@ type rateLimitAccountRepoStub struct {
 	mockAccountRepoForGemini
 	setErrorCalls          int
 	tempCalls              int
+	rateLimitedCalls       int
 	updateCredentialsCalls int
 	updateExtraCalls       int
 	lastCredentials        map[string]any
@@ -25,6 +26,9 @@ type rateLimitAccountRepoStub struct {
 	lastTempReason         string
 	lastErrorID            string
 	lastTempID             string
+	lastRateLimitedID      string
+	lastRateLimitedAt      time.Time
+	tempErr                error
 }
 
 func (r *rateLimitAccountRepoStub) SetError(ctx context.Context, id string, errorMsg string) error {
@@ -38,6 +42,13 @@ func (r *rateLimitAccountRepoStub) SetTempUnschedulable(ctx context.Context, id 
 	r.tempCalls++
 	r.lastTempID = id
 	r.lastTempReason = reason
+	return r.tempErr
+}
+
+func (r *rateLimitAccountRepoStub) SetRateLimited(ctx context.Context, id string, resetAt time.Time) error {
+	r.rateLimitedCalls++
+	r.lastRateLimitedID = id
+	r.lastRateLimitedAt = resetAt
 	return nil
 }
 
@@ -93,7 +104,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401SetsTempUnschedulable(t *t
 		service := NewRateLimitService(repo, &config.Config{}, nil)
 		service.SetTokenCacheInvalidator(invalidator)
 		account := &Account{
-			ID: "100",
+			ID:       "100",
 			Platform: PlatformGemini,
 			Type:     AccountTypeOAuth,
 			Credentials: map[string]any{
@@ -124,7 +135,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401SetsTempUnschedulable(t *t
 		service := NewRateLimitService(repo, &config.Config{}, nil)
 		service.SetTokenCacheInvalidator(invalidator)
 		account := &Account{
-			ID: "100",
+			ID:       "100",
 			Platform: PlatformAntigravity,
 			Type:     AccountTypeOAuth,
 			Status:   StatusActive,
@@ -171,7 +182,7 @@ func TestRateLimitService_HandleUpstreamError_SparkShadow401RedirectsToParent(t 
 
 	shadowParent := parentID
 	shadow := &Account{
-		ID: "501",
+		ID:              "501",
 		Platform:        PlatformOpenAI,
 		Type:            AccountTypeOAuth,
 		ParentAccountID: &shadowParent,
@@ -200,7 +211,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401InvalidatorError(t *testin
 	service := NewRateLimitService(repo, &config.Config{}, nil)
 	service.SetTokenCacheInvalidator(invalidator)
 	account := &Account{
-		ID: "101",
+		ID:       "101",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -223,7 +234,7 @@ func TestRateLimitService_HandleUpstreamError_NonOAuth401(t *testing.T) {
 	service := NewRateLimitService(repo, &config.Config{}, nil)
 	service.SetTokenCacheInvalidator(invalidator)
 	account := &Account{
-		ID: "102",
+		ID:       "102",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 	}
@@ -244,7 +255,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401DoesNotOverwriteCredential
 	repo := &rateLimitAccountRepoStub{}
 	service := NewRateLimitService(repo, &config.Config{}, nil)
 	account := &Account{
-		ID: "103",
+		ID:       "103",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -271,7 +282,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401NoRefreshTokenSetsError(t 
 		service := NewRateLimitService(repo, &config.Config{}, nil)
 		service.SetTokenCacheInvalidator(invalidator)
 		account := &Account{
-			ID: "2881",
+			ID:       "2881",
 			Platform: PlatformOpenAI,
 			Type:     AccountTypeOAuth,
 			Credentials: map[string]any{
@@ -294,7 +305,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401NoRefreshTokenSetsError(t 
 		repo := &rateLimitAccountRepoStub{}
 		service := NewRateLimitService(repo, &config.Config{}, nil)
 		account := &Account{
-			ID: "2882",
+			ID:       "2882",
 			Platform: PlatformOpenAI,
 			Type:     AccountTypeOAuth,
 			Credentials: map[string]any{
@@ -316,7 +327,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401NoRefreshTokenSetsError(t 
 		service := NewRateLimitService(repo, &config.Config{}, nil)
 		service.SetTokenCacheInvalidator(invalidator)
 		account := &Account{
-			ID: "2883",
+			ID:       "2883",
 			Platform: PlatformAntigravity,
 			Type:     AccountTypeOAuth,
 			Credentials: map[string]any{

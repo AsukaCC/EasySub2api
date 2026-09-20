@@ -109,7 +109,7 @@ const mountView = () => mount(AccountsView, {
       },
       DataTable: {
         props: ['data'],
-        template: '<div data-test="data-table"><div v-for="row in data" :key="row.id"><slot name="cell-select" :row="row" /></div></div>'
+        template: '<div data-test="data-table"><div v-for="row in data" :key="row.id"><slot name="cell-select" :row="row" /><slot name="cell-status" :row="row" /></div></div>'
       },
       Pagination: true,
       ConfirmDialog: true,
@@ -132,6 +132,7 @@ const mountView = () => mount(AccountsView, {
       PlatformTypeBadge: true,
       AccountCapacityCell: true,
       AccountStatusIndicator: true,
+      AccountProtectionPanel: true,
       AccountTodayStatsCell: true,
       AccountGroupsCell: true,
       AccountUsageCell: true,
@@ -165,6 +166,23 @@ describe('admin AccountsView select all filtered results', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('keeps account status visible without row or batch protection controls', async () => {
+    listAccounts.mockResolvedValue({ items: makeAccounts(3), total: 3, page: 1, page_size: 20, pages: 1 })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.findAll('account-status-indicator-stub')).toHaveLength(3)
+    expect(wrapper.find('account-protection-panel-stub').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('admin.accounts.protection.batch')
+
+    await wrapper.get('[data-test="select-page"]').trigger('click')
+
+    expect(wrapper.get('[data-test="selected-count"]').text()).toBe('3')
+    expect(wrapper.find('account-protection-panel-stub').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('admin.accounts.protection.batch')
+    wrapper.unmount()
   })
 
   it.each([

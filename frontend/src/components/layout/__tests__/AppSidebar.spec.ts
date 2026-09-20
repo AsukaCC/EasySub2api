@@ -69,7 +69,32 @@ describe('AppSidebar mobile visibility', () => {
     expect(componentSource).toContain(
       'inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) 0 0;',
     )
-    expect(componentSource).toContain('z-index: var(--z-sidebar);')
+    expect(componentSource).toContain('z-index: calc(var(--z-sidebar) - 1);')
+  })
+
+  it('keeps the mobile overlay behind the drawer so menu items remain clickable', () => {
+    expect(styleSource).toContain('z-index: var(--z-sidebar);')
+    expect(componentSource).toContain('z-index: calc(var(--z-sidebar) - 1);')
+  })
+})
+
+describe('AppSidebar mobile group navigation', () => {
+  it('expands parent items without navigating or closing the mobile drawer', () => {
+    const handler = componentSource.match(
+      /function handleGroupClick\(item: NavItem, event\?: MouseEvent\) \{[\s\S]*?\n\}/,
+    )?.[0]
+
+    expect(handler).toBeDefined()
+    expect(handler).toContain(`if (mobileOpen.value) {
+    toggleGroup(item)
+    return
+  }`)
+    expect(handler?.indexOf('if (mobileOpen.value)')).toBeLessThan(
+      handler?.indexOf('if (sidebarCollapsed.value)') ?? -1,
+    )
+    expect(handler?.indexOf('if (mobileOpen.value)')).toBeLessThan(
+      handler?.indexOf('router.push(item.path)') ?? -1,
+    )
   })
 })
 

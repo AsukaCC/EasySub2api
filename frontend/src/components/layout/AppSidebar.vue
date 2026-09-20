@@ -1336,12 +1336,17 @@ function onCollapsedFlyoutKeydown(event: KeyboardEvent) {
 
 /**
  * Click handler for collapsible parent items.
+ * - When the mobile drawer is open: only toggle the inline secondary menu.
  * - When sidebar is collapsed: open a flyout with the secondary menu.
  * - When `expandOnly` is true: only toggle expand state.
  * - Otherwise (default, e.g. /admin/orders): navigate to the parent path
  *   (router-link semantics) and ensure the group is expanded.
  */
 function handleGroupClick(item: NavItem, event?: MouseEvent) {
+  if (mobileOpen.value) {
+    toggleGroup(item)
+    return
+  }
   if (sidebarCollapsed.value) {
     if (isCollapsedFlyoutOpen(item) && collapsedFlyoutPinned.value) {
       closeCollapsedFlyout()
@@ -1691,7 +1696,7 @@ onBeforeUnmount(() => {
 
   .components-layout-app-sidebar__panel-3 {
     inset: calc(var(--app-shell-sticky-offset) + env(safe-area-inset-top, 0px)) 0 0;
-    z-index: var(--z-sidebar);
+    z-index: calc(var(--z-sidebar) - 1);
   }
 }
 </style>
