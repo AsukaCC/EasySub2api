@@ -31,13 +31,13 @@
       />
 
       <!-- Date Input -->
-      <input
+      <DateTimePicker
         v-else-if="attr.type === 'date'"
         v-model="localValues[attr.id]"
         type="date"
         :required="attr.required"
         class="input"
-        @input="emitChange"
+        @update:model-value="emitChange"
       />
 
       <!-- Textarea -->
@@ -89,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, watch, onMounted } from 'vue'
 import { adminAPI } from '@/api/admin'

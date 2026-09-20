@@ -436,6 +436,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions, formatDateValue } from '@/utils/datetime'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -519,7 +520,7 @@ const quotaEstimateLabel = (complete: boolean): string =>
 const formatQuotaReset = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
+  return formatDateWithOptions(date, undefined, undefined)
 }
 const loadAccountQuotas = async () => {
   quotaLoading.value = true
@@ -534,7 +535,7 @@ const loadAccountQuotas = async () => {
 
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return formatDateValue(date, 'YYYY-MM-DD')
 }
 
 const getLast24HoursRangeDates = (): { start: string; end: string } => {

@@ -2,9 +2,9 @@
   <div>
     <!-- Loading state -->
     <div v-if="props.loading && !props.stats" class="components-account-account-today-stats-cell__panel">
-      <div class="components-account-account-today-stats-cell__panel-2"></div>
-      <div class="components-account-account-today-stats-cell__panel-3"></div>
-      <div class="components-account-account-today-stats-cell__panel-4"></div>
+      <div class="components-account-account-today-stats-cell__panel-2 loading-shimmer"></div>
+      <div class="components-account-account-today-stats-cell__panel-3 loading-shimmer"></div>
+      <div class="components-account-account-today-stats-cell__panel-4 loading-shimmer"></div>
     </div>
 
     <!-- Error state -->

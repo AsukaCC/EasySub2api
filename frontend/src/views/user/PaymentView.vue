@@ -1,9 +1,7 @@
 <template>
   <component :is="embedded ? 'div' : AppLayout">
     <div :class="['page-stack', { 'page-stack--narrow': !embedded }]">
-      <div v-if="loading" class="views-user-payment-view__panel-2">
-        <div class="views-user-payment-view__panel-3"></div>
-      </div>
+      <LoadingState v-if="loading" variant="page" />
       <template v-else>
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
         <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" class="views-user-payment-view__panel-4">
@@ -369,6 +367,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
+import LoadingState from '@/components/common/LoadingState.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
@@ -760,7 +760,7 @@ function formatWalletAmount(value: number): string {
 }
 
 function formatWalletExpiry(value: string): string {
-  return new Intl.DateTimeFormat(localeCode.value || undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return formatDateWithOptions(new Date(value), { dateStyle: 'medium', timeStyle: 'short' }, localeCode.value || undefined)
 }
 
 const methodOptions = computed<PaymentMethodOption[]>(() =>

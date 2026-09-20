@@ -8,6 +8,7 @@
     "build": "vue-tsc -b && vite build --config vite.config.ts",
     "style:check": "node scripts/style-audit.mjs",
     "loading:check": "node scripts/loading-audit.mjs",
+    "icons:check": "node scripts/icon-audit.mjs",
     "style:inventory": "node scripts/style-migration-report.mjs",
     "preview": "vite preview --config vite.config.ts",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",

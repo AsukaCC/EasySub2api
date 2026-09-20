@@ -626,6 +626,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -770,7 +771,7 @@ const compositePlatforms: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'a
 // ── Helpers ──
 function formatDate(value: string): string {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString()
+  return formatDateWithOptions(new Date(value), { year: 'numeric', month: '2-digit', day: '2-digit' }, undefined)
 }
 
 // ── Platform section helpers ──

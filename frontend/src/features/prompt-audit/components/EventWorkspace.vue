@@ -44,11 +44,11 @@
       <FilterInput v-model="localFilters.keyword" :label="t('admin.promptAudit.events.keyword')" @change="filtersChanged" />
       <label class="features-prompt-audit-components-event-workspace__label">
         <span>{{ t('admin.promptAudit.events.startAt') }}</span>
-        <input v-model="localFilters.start_at" type="datetime-local" class="features-prompt-audit-components-event-workspace__field input" :aria-label="t('admin.promptAudit.events.startAt')" @change="filtersChanged" />
+        <DateTimePicker v-model="localFilters.start_at" type="datetime-local" class="features-prompt-audit-components-event-workspace__field input" :aria-label="t('admin.promptAudit.events.startAt')" @change="filtersChanged" />
       </label>
       <label class="features-prompt-audit-components-event-workspace__label">
         <span>{{ t('admin.promptAudit.events.endAt') }}</span>
-        <input v-model="localFilters.end_at" type="datetime-local" class="features-prompt-audit-components-event-workspace__field input" :aria-label="t('admin.promptAudit.events.endAt')" @change="filtersChanged" />
+        <DateTimePicker v-model="localFilters.end_at" type="datetime-local" class="features-prompt-audit-components-event-workspace__field input" :aria-label="t('admin.promptAudit.events.endAt')" @change="filtersChanged" />
       </label>
       <div class="features-prompt-audit-components-event-workspace__panel-3">
         <button type="submit" class="btn btn-primary btn-sm">{{ t('common.search') }}</button>
@@ -104,6 +104,8 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed, defineComponent, h, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Pagination from '@/components/common/Pagination.vue'
@@ -182,7 +184,7 @@ function toggleAll() {
   emit('selection', allSelected.value ? [] : props.events.map((event) => event.id))
 }
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value))
+  return formatDateWithOptions(new Date(value), { dateStyle: 'short', timeStyle: 'medium' }, locale.value)
 }
 function decisionClass(decision: string): string {
   if (decision === 'critical') return 'features-prompt-audit-components-event-workspace__state'

@@ -389,6 +389,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api'
@@ -837,7 +838,7 @@ function formatDate(value?: string): string {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
+  return formatDateWithOptions(date, undefined, undefined)
 }
 
 onMounted(async () => {

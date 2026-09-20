@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { formatDateValue } from '@/utils/datetime'
 import QuotaNotifyToggle from './QuotaNotifyToggle.vue'
 import Select from '@/components/common/Select.vue'
 import type { QuotaThresholdType, QuotaResetMode } from '@/constants/account'
@@ -57,10 +58,7 @@ const onModeChange = (value: string | number | boolean | null) => {
 
 function getTimezoneOffsetLabel(tz: string): string {
   try {
-    const dtf = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' })
-    const parts = dtf.formatToParts(new Date())
-    const tzPart = parts.find(p => p.type === 'timeZoneName')
-    return tzPart ? (tzPart.value === 'GMT' ? 'GMT+0' : tzPart.value) : ''
+    return formatDateValue(new Date(), '[UTC]Z', undefined, tz)
   } catch {
     return ''
   }

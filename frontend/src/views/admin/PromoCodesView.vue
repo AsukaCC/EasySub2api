@@ -212,7 +212,7 @@
             {{ t('admin.promo.expiresAt') }}
             <span class="views-admin-promo-codes-view__text-4">({{ t('common.optional') }})</span>
           </label>
-          <input
+          <DateTimePicker
             v-model="createForm.expires_at_str"
             type="datetime-local"
             class="input"
@@ -291,7 +291,7 @@
             {{ t('admin.promo.expiresAt') }}
             <span class="views-admin-promo-codes-view__text-4">({{ t('common.optional') }})</span>
           </label>
-          <input
+          <DateTimePicker
             v-model="editForm.expires_at_str"
             type="datetime-local"
             class="input"
@@ -394,6 +394,7 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

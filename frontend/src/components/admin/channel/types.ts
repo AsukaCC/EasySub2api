@@ -1,4 +1,5 @@
 import type { BillingMode, ChannelTimePricing, PricingInterval } from '@/api/admin/channels'
+import { formatDateValue } from '@/utils/datetime'
 
 type TranslateFn = (key: string, params?: Record<string, unknown>) => string
 
@@ -152,14 +153,7 @@ export function validateTimePricing(value: TimePricingFormEntry, t: TranslateFn)
 
 export function formatTimezoneOffset(timezone: string, at = new Date()): string {
   try {
-    const part = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      timeZoneName: 'shortOffset',
-    }).formatToParts(at).find(item => item.type === 'timeZoneName')?.value
-    if (!part || part === 'GMT') return 'UTC+00:00'
-    const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(part)
-    if (!match) return ''
-    return `UTC${match[1]}${match[2].padStart(2, '0')}:${match[3] || '00'}`
+    return formatDateValue(at, '[UTC]Z', undefined, timezone)
   } catch {
     return ''
   }

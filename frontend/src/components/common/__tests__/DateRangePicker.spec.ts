@@ -69,14 +69,16 @@ describe('DateRangePicker', () => {
       }
     })
 
-    await wrapper.find('.date-picker-trigger').trigger('click')
-    const presetButton = wrapper.findAll('.date-picker-preset').find((node) =>
-      node.text().includes('Last 24 Hours')
+    await wrapper.find('.date-range-picker__trigger').trigger('click')
+    const presetButton = Array.from(document.querySelectorAll<HTMLButtonElement>('.date-range-dropdown__preset')).find((node) =>
+      node.textContent?.includes('Last 24 Hours')
     )
     expect(presetButton).toBeDefined()
 
-    await presetButton!.trigger('click')
-    await wrapper.find('.date-picker-apply').trigger('click')
+    presetButton!.click()
+    await wrapper.vm.$nextTick()
+    document.querySelector<HTMLButtonElement>('.date-range-dropdown__apply')!.click()
+    await wrapper.vm.$nextTick()
 
     const nowAfterClick = new Date()
     const yesterdayAfterClick = new Date(nowAfterClick.getTime() - 24 * 60 * 60 * 1000)
@@ -92,5 +94,6 @@ describe('DateRangePicker', () => {
         preset: 'last24Hours'
       }
     ])
+    wrapper.unmount()
   })
 })

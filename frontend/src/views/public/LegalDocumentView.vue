@@ -26,9 +26,7 @@
     </header>
 
     <main class="views-public-legal-document-view__main">
-      <div v-if="loading" class="views-public-legal-document-view__panel-3">
-        <div class="views-public-legal-document-view__panel-4"></div>
-      </div>
+      <LoadingState v-if="loading" variant="page" />
 
       <section
         v-else-if="loadError"
@@ -90,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'

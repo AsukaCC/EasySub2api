@@ -176,6 +176,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
@@ -251,10 +252,10 @@ const memberSinceLabel = computed(() => {
     return '-'
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return formatDateWithOptions(date, {
     year: 'numeric',
     month: 'short',
-  }).format(date)
+  }, undefined)
 })
 
 const providerLabels = computed<Record<UserAuthProvider, string>>(() => ({

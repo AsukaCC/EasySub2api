@@ -1,3 +1,4 @@
+import { formatDateWithOptions } from '@/utils/datetime'
 /**
  * Shared utility functions for payment order display.
  * Used by AdminOrderDetail, AdminOrderTable, AdminRefundDialog, AdminOrdersView, etc.
@@ -98,5 +99,5 @@ export function canDirectRefund(order: DirectRefundOrder, now: Date | number = D
 
 export function formatOrderDateTime(dateStr: string): string {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleString()
+  return formatDateWithOptions(new Date(dateStr), undefined, undefined)
 }

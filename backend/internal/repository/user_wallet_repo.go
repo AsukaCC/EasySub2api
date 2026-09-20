@@ -504,6 +504,10 @@ func (r *userRepository) SetWalletBalance(ctx context.Context, input service.Wal
 
 func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.WalletDebitInput, key string) (service.WalletMutationResult, error) {
 	amount := walletMoney(input.Amount)
+	rechargeOnly := walletMoney(input.RechargeOnlyAmount)
+	if rechargeOnly < 0 || math.IsNaN(rechargeOnly) || math.IsInf(rechargeOnly, 0) || rechargeOnly > amount {
+		return service.WalletMutationResult{}, errors.New("invalid recharge-only debit amount")
+	}
 	result := service.WalletMutationResult{Amount: amount}
 	exists, err := walletTransactionExists(ctx, exec, key)
 	if err != nil {
@@ -523,8 +527,11 @@ func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.Wal
 	if !input.AllowOverdraft && row.balance < amount {
 		return result, service.ErrInsufficientBalance
 	}
+	if rechargeOnly > walletMoney(math.Max(row.balance-row.bonus, 0)) {
+		return result, service.ErrInsufficientBalance
+	}
 	before := row
-	bonusUsed, _, err := consumeBonusTx(ctx, exec, input.UserID, math.Min(amount, math.Max(row.bonus, 0)), false)
+	bonusUsed, _, err := consumeBonusTx(ctx, exec, input.UserID, math.Min(walletMoney(amount-rechargeOnly), math.Max(row.bonus, 0)), false)
 	if err != nil {
 		return result, err
 	}

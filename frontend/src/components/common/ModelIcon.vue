@@ -1,6 +1,7 @@
 <template>
+  <PlatformIcon v-if="isGemini" platform="gemini" class="model-icon" :style="{ width: size, height: size }" />
   <svg
-    v-if="iconInfo"
+    v-else-if="iconInfo"
     :width="size"
     :height="size"
     viewBox="0 0 24 24"
@@ -18,6 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import PlatformIcon from './PlatformIcon.vue'
 
 const props = withDefaults(defineProps<{
   model: string
@@ -153,10 +155,11 @@ const iconData: Record<string, IconData> = {
   }
 }
 
-const fallbackText = computed(() => props.model.charAt(0).toUpperCase())
+const fallbackText = computed(() => props.model.trim().charAt(0).toUpperCase() || '?')
+const isGemini = computed(() => /(?:^|[/.:\s-])gemini(?:[-\s]|$)/i.test(props.model.trim()))
 
 const iconKey = computed(() => {
-  const modelLower = props.model.toLowerCase()
+  const modelLower = props.model.trim().toLowerCase().replace(/^(?:openai|azure|anthropic|google|vertex)\//, '')
 
   // OpenAI models
   if (modelLower.startsWith('gpt') || modelLower.startsWith('o1') ||

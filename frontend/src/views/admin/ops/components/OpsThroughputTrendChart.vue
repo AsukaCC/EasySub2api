@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { formatDateValue } from '@/utils/datetime'
 import type { OpsThroughputGroupBreakdownItem, OpsThroughputPlatformBreakdownItem, OpsThroughputTrendPoint } from '@/api/admin/ops'
 import type { ChartState } from '../types'
 import { formatHistoryLabel, sumNumbers } from '../utils/opsFormatters'
@@ -158,7 +159,7 @@ function downloadChart() {
   if (!url) return
   const a = document.createElement('a')
   a.href = url
-  a.download = `ops-throughput-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.svg`
+  a.download = `ops-throughput-${formatDateValue(new Date(), 'YYYY-MM-DD-HH-mm-ss', undefined, 'UTC')}.svg`
   a.click()
 }
 </script>

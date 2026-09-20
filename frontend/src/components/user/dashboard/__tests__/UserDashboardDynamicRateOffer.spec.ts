@@ -60,6 +60,8 @@ describe('UserDashboardDynamicRateOffer', () => {
     expect(wrapper.findAll('time')).toHaveLength(2)
     expect(wrapper.text()).toContain('2 个分组')
     expect(wrapper.text()).toContain('参与中')
+    expect(wrapper.text()).toContain('特惠优先扣充值积分')
+    expect(wrapper.text()).toContain('赠送积分按分组倍率 × 用户等级倍率扣除')
     wrapper.unmount()
   })
   it('renders percent saved in English', async () => {
@@ -69,6 +71,7 @@ describe('UserDashboardDynamicRateOffer', () => {
     expect(wrapper.text()).toContain('15% off')
     expect(wrapper.text()).toContain('Expires')
     expect(wrapper.text()).toContain('Participating')
+    expect(wrapper.text()).toContain('Offers use recharge points first')
     wrapper.unmount()
   })
   it('excludes future, expired, invalid and non-discounted offers', async () => {

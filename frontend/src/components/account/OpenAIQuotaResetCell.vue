@@ -138,6 +138,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
@@ -292,7 +293,7 @@ const formatResetCreditExpiry = (value: string, style: 'short' | 'full'): string
     options.year = 'numeric'
   }
 
-  return new Intl.DateTimeFormat(undefined, options).format(date)
+  return formatDateWithOptions(date, options, undefined)
 }
 
 const extractErrorMessage = (e: unknown): string => {

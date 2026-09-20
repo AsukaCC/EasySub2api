@@ -559,6 +559,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import LoadingButtonContent from './LoadingButtonContent.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
@@ -756,7 +757,7 @@ function formatPublishedAt(publishedAt: string): string {
   if (!publishedAt) return ''
   const date = new Date(publishedAt)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString()
+  return formatDateWithOptions(date, { year: 'numeric', month: '2-digit', day: '2-digit' }, undefined)
 }
 
 async function handleRollback() {

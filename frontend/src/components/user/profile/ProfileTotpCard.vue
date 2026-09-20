@@ -101,6 +101,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { totpAPI } from '@/api'
@@ -139,13 +140,13 @@ const handleDisableSuccess = () => {
 const formatDate = (timestamp: number) => {
   // Backend returns Unix timestamp in seconds, convert to milliseconds
   const date = new Date(timestamp * 1000)
-  return date.toLocaleDateString(undefined, {
+  return formatDateWithOptions(date, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  })
+  }, undefined)
 }
 
 onMounted(() => {

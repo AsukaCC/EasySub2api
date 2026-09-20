@@ -89,11 +89,12 @@ const sizeClass = computed(() => {
     md: 'platform-icon--md',
     lg: 'platform-icon--lg'
   }
-  return sizes[props.size] + ' flex-shrink-0'
+  return 'platform-icon ' + sizes[props.size]
 })
 </script>
 
 <style scoped>
+.platform-icon { display: inline-block; flex: none; vertical-align: middle; }
 .platform-icon--xs { width: 0.75rem; height: 0.75rem; }
 .platform-icon--sm { width: 0.875rem; height: 0.875rem; }
 .platform-icon--md { width: 1rem; height: 1rem; }

@@ -177,6 +177,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { passkeyAPI, type PasskeyCredentialSummary } from '@/api'
@@ -290,11 +291,11 @@ async function confirmDelete(): Promise<void> {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return formatDateWithOptions(new Date(value), {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
-  }).format(new Date(value))
+  }, undefined)
 }
 
 watch(

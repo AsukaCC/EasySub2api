@@ -1,46 +1,14 @@
 import type { GroupDynamicRateRule } from '@/types'
+import { formatDateValue, parsePickerValue } from '@/utils/datetime'
 
 export type DynamicRateRuleStatus = 'legacy' | 'not_started' | 'active' | 'expired' | 'invalid'
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
 export function toLocalDateTimeInput(value?: string): string {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return [
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-  ].join('T')
+  return formatDateValue(value, 'YYYY-MM-DDTHH:mm:ss')
 }
 
 export function localDateTimeToUTC(value: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value)
-  if (!match) return ''
-  const [, year, month, day, hour, minute, second] = match
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second ?? 0),
-    0
-  )
-  if (Number.isNaN(date.getTime())) return ''
-  if (
-    date.getFullYear() !== Number(year) ||
-    date.getMonth() !== Number(month) - 1 ||
-    date.getDate() !== Number(day) ||
-    date.getHours() !== Number(hour) ||
-    date.getMinutes() !== Number(minute) ||
-    date.getSeconds() !== Number(second ?? 0)
-  ) {
-    return ''
-  }
-  return date.toISOString()
+  return parsePickerValue(value, 'datetime-local')?.toISOString() ?? ''
 }
 
 export function isLegacyDynamicRateRule(rule: GroupDynamicRateRule): boolean {

@@ -165,6 +165,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { useI18n } from 'vue-i18n'
 import { computed, reactive, ref, watch } from 'vue'
 import type {
@@ -456,18 +457,18 @@ function formatMs(value: number | null) {
 }
 
 function formatAxisTime(value: string) {
-  return new Intl.DateTimeFormat(locale.value || undefined, {
+  return formatDateWithOptions(new Date(value), {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }, locale.value || undefined)
 }
 
 function formatBucketRange(value: string) {
   const start = new Date(value)
   const end = new Date(start.getTime() + props.coverage.bucket_seconds * 1000)
-  return `${formatAxisTime(start.toISOString())} - ${new Intl.DateTimeFormat(locale.value || undefined, { hour: '2-digit', minute: '2-digit' }).format(end)}`
+  return `${formatAxisTime(start.toISOString())} - ${formatDateWithOptions(end, { hour: '2-digit', minute: '2-digit' }, locale.value || undefined)}`
 }
 </script>
 

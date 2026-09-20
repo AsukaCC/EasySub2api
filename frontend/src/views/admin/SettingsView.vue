@@ -5818,13 +5818,13 @@
                         <label class="views-admin-settings-view__label-14">{{
                           t("admin.settings.webSearchEmulation.subscribedAt")
                         }}</label>
-                        <input
-                          :value="formatSubscribedAt(provider.subscribed_at)"
+                        <DateTimePicker
+                          :model-value="formatSubscribedAt(provider.subscribed_at)"
                           type="date"
                           class="views-admin-settings-view__field-22 input"
-                          @input="
+                          @update:model-value="
                             provider.subscribed_at = parseSubscribedAt(
-                              ($event.target as HTMLInputElement).value,
+                              $event,
                             )
                           "
                         />
@@ -6682,7 +6682,7 @@
                   <label class="views-admin-settings-view__label-3">
                     {{ localText("条款更新日期", "Updated date") }}
                   </label>
-                  <input
+                  <DateTimePicker
                     v-model="form.login_agreement_updated_at"
                     type="date"
                     class="input"
@@ -8549,6 +8549,8 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { dayjs, formatDateValue } from '@/utils/datetime'
 import LoadingButtonContent from "@/components/common/LoadingButtonContent.vue";
 import LoadingState from "@/components/common/LoadingState.vue";
 import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from "vue";
@@ -10095,17 +10097,14 @@ function addWebSearchProvider() {
 function formatSubscribedAt(ts: number | null): string {
   if (!ts) return "";
   // Use UTC to avoid timezone drift on repeated edits
-  const d = new Date(ts * 1000);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatDateValue(ts * 1000, 'YYYY-MM-DD', undefined, 'UTC');
 }
 
 function parseSubscribedAt(dateStr: string): number | null {
   if (!dateStr) return null;
   // Parse as UTC to match formatSubscribedAt
-  return Math.floor(new Date(dateStr + "T00:00:00Z").getTime() / 1000);
+  const date = dayjs.utc(dateStr, 'YYYY-MM-DD', true);
+  return date.isValid() ? date.unix() : null;
 }
 
 function quotaPercentage(provider: WebSearchProviderConfig): number {

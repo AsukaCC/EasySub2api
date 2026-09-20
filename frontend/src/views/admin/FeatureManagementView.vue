@@ -11,10 +11,7 @@
         </button>
       </header>
 
-      <div v-if="loading && !loaded" class="feature-management__loading">
-        <Icon name="refresh" size="lg" />
-        <span>{{ t('common.loading') }}</span>
-      </div>
+      <LoadingState v-if="loading && !loaded" variant="page" />
 
       <section v-else class="feature-management__list" :aria-busy="loading">
         <article class="feature-management__row">
@@ -99,6 +96,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'

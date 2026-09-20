@@ -493,10 +493,11 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateValue } from '@/utils/datetime'
 import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/datetime'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
@@ -2166,9 +2167,7 @@ const handleAccountUpdated = (updatedAccount: Account) => {
   enterAutoRefreshSilentWindow()
 }
 const formatExportTimestamp = () => {
-  const now = new Date()
-  const pad2 = (value: number) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
+  return formatDateValue(new Date(), 'YYYYMMDDHHmmss')
 }
 const openExportDataDialog = () => {
   includeProxyOnExport.value = true

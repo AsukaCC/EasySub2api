@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -425,6 +426,9 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		}
 	}
 	if cmd == nil || cmd.RequestID == "" || repo == nil {
+		if cmd != nil && cmd.DynamicRatePlan != nil {
+			return false, errors.New("dynamic rate billing requires atomic wallet settlement")
+		}
 		postUsageBilling(ctx, p, deps)
 		return true, nil
 	}

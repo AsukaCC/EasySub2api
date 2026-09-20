@@ -138,6 +138,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions, formatDateValue } from '@/utils/datetime'
 import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -177,26 +178,22 @@ let controller: AbortController | null = null
 let refreshTimer: number | null = null
 
 function formatClock(value: Date): string {
-  return new Intl.DateTimeFormat(locale.value || undefined, {
+  return formatDateWithOptions(value, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  }).format(value)
+  }, locale.value || undefined)
 }
 
 function localDateKey(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
+  return formatDateValue(date, 'YYYY-MM-DD')
 }
 
 function formatHeatmapDay(date: Date): string {
-  return new Intl.DateTimeFormat(locale.value || undefined, {
+  return formatDateWithOptions(date, {
     month: 'short',
     day: 'numeric',
-  }).format(date)
+  }, locale.value || undefined)
 }
 
 const heatmapDays = computed<HeatmapDay[]>(() => {
@@ -339,7 +336,7 @@ function errorRateClass(value: number | null | undefined): string {
 }
 
 function format24Hour(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  return formatDateValue(date, 'HH:mm')
 }
 
 function formatBucketRange(start: Date): string {

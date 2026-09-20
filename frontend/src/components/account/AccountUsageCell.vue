@@ -11,20 +11,20 @@
       <div v-if="loading" class="components-account-account-usage-cell__panel">
         <!-- OAuth: 3 rows, Setup Token: 1 row -->
         <div class="components-account-account-usage-cell__panel-2">
-          <div class="components-account-account-usage-cell__panel-3"></div>
-          <div class="components-account-account-usage-cell__panel-4"></div>
-          <div class="components-account-account-usage-cell__panel-3"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
         </div>
         <template v-if="account.type === 'oauth'">
           <div class="components-account-account-usage-cell__panel-2">
-            <div class="components-account-account-usage-cell__panel-3"></div>
-            <div class="components-account-account-usage-cell__panel-4"></div>
-            <div class="components-account-account-usage-cell__panel-3"></div>
+            <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+            <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
+            <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
           </div>
           <div class="components-account-account-usage-cell__panel-2">
-            <div class="components-account-account-usage-cell__panel-3"></div>
-            <div class="components-account-account-usage-cell__panel-4"></div>
-            <div class="components-account-account-usage-cell__panel-3"></div>
+            <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+            <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
+            <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
           </div>
         </template>
       </div>
@@ -172,14 +172,14 @@
       </div>
       <div v-else-if="loading" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
-          <div class="components-account-account-usage-cell__panel-3"></div>
-          <div class="components-account-account-usage-cell__panel-4"></div>
-          <div class="components-account-account-usage-cell__panel-3"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
         </div>
         <div class="components-account-account-usage-cell__panel-2">
-          <div class="components-account-account-usage-cell__panel-3"></div>
-          <div class="components-account-account-usage-cell__panel-4"></div>
-          <div class="components-account-account-usage-cell__panel-3"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
         </div>
       </div>
       <div v-else>
@@ -197,8 +197,8 @@
     <template v-else-if="account.platform === 'gemini'">
       <div v-if="loading" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
-          <div class="components-account-account-usage-cell__panel-3"></div>
-          <div class="components-account-account-usage-cell__panel-4"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
         </div>
       </div>
       <div v-else-if="error" class="components-account-account-usage-cell__panel-5">{{ error }}</div>
@@ -216,8 +216,8 @@
     <template v-else-if="account.platform === 'antigravity' && account.type === 'oauth'">
       <div v-if="loading" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
-          <div class="components-account-account-usage-cell__panel-3"></div>
-          <div class="components-account-account-usage-cell__panel-4"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
         </div>
       </div>
       <div v-else-if="error" class="components-account-account-usage-cell__panel-5">{{ error }}</div>
@@ -239,9 +239,9 @@
     <template v-else-if="account.platform === 'grok' && account.type === 'oauth'">
       <div v-if="loading" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
-          <div class="components-account-account-usage-cell__panel-3"></div>
-          <div class="components-account-account-usage-cell__panel-4"></div>
-          <div class="components-account-account-usage-cell__panel-3"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
+          <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
         </div>
       </div>
       <div v-else-if="error" class="components-account-account-usage-cell__panel-5">
@@ -395,9 +395,9 @@
         v-else-if="todayStatsLoading"
         class="components-account-account-usage-cell__panel-22"
       >
-        <div class="components-account-account-usage-cell__panel-23"></div>
-        <div class="components-account-account-usage-cell__panel-24"></div>
-        <div class="components-account-account-usage-cell__panel-25"></div>
+        <div class="components-account-account-usage-cell__panel-23 loading-shimmer"></div>
+        <div class="components-account-account-usage-cell__panel-24 loading-shimmer"></div>
+        <div class="components-account-account-usage-cell__panel-25 loading-shimmer"></div>
       </div>
 
       <!-- API Key accounts with quota limits: show progress bars -->

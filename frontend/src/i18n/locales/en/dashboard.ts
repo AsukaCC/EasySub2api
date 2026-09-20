@@ -68,6 +68,7 @@ export default {
       startsAt: 'Starts',
       endsAt: 'Expires',
       conditions: 'Requirements:',
+      rechargeOnly: 'Offers use recharge points first; any remainder paid with bonus points uses group rate × user level rate',
       spendRequired: 'Spend at least {amount} credits in the last 7 days',
       noSpendRequired: 'No spending minimum',
       currentSpend: 'Current spend: {amount} credits',
@@ -1093,6 +1094,9 @@ export default {
 
   // Dates
   dates: {
+    selectDate: 'Select date', selectTime: 'Select time', clear: 'Clear', now: 'Now',
+    previousMonth: 'Previous month', nextMonth: 'Next month', year: 'Year', month: 'Month',
+    hour: 'Hour', minute: 'Minute', second: 'Second', invalidDate: 'Enter a valid date or time within the allowed range',
     today: 'Today',
     yesterday: 'Yesterday',
     thisWeek: 'This Week',

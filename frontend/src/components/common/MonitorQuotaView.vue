@@ -48,6 +48,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatDateValue } from '@/utils/datetime'
 import { useI18n } from 'vue-i18n'
 import type { MonitorQuotaSnapshot, MonitorQuotaTier } from '@/api/admin/channelMonitor'
 
@@ -149,8 +150,6 @@ const formatReset = (iso: string) => {
   if (diffMs < 3_600_000) return `${Math.max(1, Math.round(diffMs / 60_000))}m`
   const hours = Math.round(diffMs / 3_600_000)
   if (hours < 48) return `${hours}h`
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${mm}-${dd}`
+  return formatDateValue(d, 'MM-DD')
 }
 </script>

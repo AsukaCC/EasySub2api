@@ -58,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -101,12 +102,12 @@ const chartData = computed(() => {
   const points = visibleTrend.value
   if (!points.length) return null
   const labels = points.map((p) =>
-    new Intl.DateTimeFormat(locale.value || undefined, {
+    formatDateWithOptions(new Date(p.bucket_start), {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(p.bucket_start))
+    }, locale.value || undefined)
   )
   const errorRates = smoothTrend(points.map((p) => (p.metrics.error_rate || 0) * 100))
   const cacheRates = smoothTrend(points.map((p) => (p.metrics.cache_rate || 0) * 100))

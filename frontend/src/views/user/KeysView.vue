@@ -880,7 +880,7 @@
             <!-- Date picker (always show for precise adjustment) -->
             <div>
               <label class="input-label">{{ t('keys.expirationDate') }}</label>
-              <input
+              <DateTimePicker
                 v-model="formData.expiration_date"
                 type="datetime-local"
                 class="input"
@@ -978,6 +978,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateValue } from '@/utils/datetime'
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
@@ -1019,9 +1021,7 @@ const formatPointRange = (used: number | null | undefined, limit: number | null 
 
 // Helper to format date for datetime-local input
 const formatDateTimeLocal = (isoDate: string): string => {
-  const date = new Date(isoDate)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatDateValue(isoDate, 'YYYY-MM-DDTHH:mm')
 }
 
 interface GroupOption {

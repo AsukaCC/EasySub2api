@@ -56,11 +56,11 @@
         <div v-if="selectedRange === 'custom'" class="account-profit-modal__custom-range">
           <label>
             <span>{{ t('admin.accounts.profit.rangeFrom') }}</span>
-            <input v-model="customFrom" type="date" :max="customTo || undefined" />
+            <DateTimePicker v-model="customFrom" type="date" :max="customTo || undefined" />
           </label>
           <label>
             <span>{{ t('admin.accounts.profit.rangeTo') }}</span>
-            <input v-model="customTo" type="date" :min="customFrom || undefined" />
+            <DateTimePicker v-model="customTo" type="date" :min="customFrom || undefined" />
           </label>
           <span v-if="customFrom && customTo && !customRangeValid" class="account-profit-modal__range-error">
             {{ t('admin.accounts.profit.rangeInvalid') }}
@@ -121,6 +121,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateValue } from '@/utils/datetime'
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -235,10 +237,7 @@ const usageChartOptions = computed<D3ChartOptions>(() => {
 })
 
 function dateOnly(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return formatDateValue(date, 'YYYY-MM-DD')
 }
 
 function rangeFrom(): string | undefined {

@@ -15,6 +15,9 @@ import { ref, readonly, computed } from 'vue'
 export function useNavigationLoading() {
   // 内部加载状态
   const _isLoading = ref(false)
+  const pendingLoads = ref(0)
+  let navigationID = 0
+  const pageLoads = new Set<symbol>()
 
   // 导航开始时间（用于防闪烁计算）
   let navigationStartTime: number | null = null
@@ -41,37 +44,52 @@ export function useNavigationLoading() {
   /**
    * 导航开始时调用
    */
-  const startNavigation = (): void => {
+  const updateLoading = (): void => {
+    if (!_isLoading.value && pendingLoads.value === 0) {
+      clearTimer()
+      shouldShowLoading.value = false
+    } else if (!shouldShowLoading.value && showLoadingTimer === null) {
+      showLoadingTimer = setTimeout(() => {
+        showLoadingTimer = null
+        shouldShowLoading.value = _isLoading.value || pendingLoads.value > 0
+      }, ANTI_FLICKER_DELAY)
+    }
+  }
+
+  const startNavigation = (): number => {
     navigationStartTime = Date.now()
     _isLoading.value = true
-
-    // 延迟显示加载指示器，实现防闪烁
-    clearTimer()
-    showLoadingTimer = setTimeout(() => {
-      if (_isLoading.value) {
-        shouldShowLoading.value = true
-      }
-    }, ANTI_FLICKER_DELAY)
+    updateLoading()
+    return ++navigationID
   }
 
   /**
    * 导航结束时调用
    */
-  const endNavigation = (): void => {
-    clearTimer()
+  const endNavigation = (id = navigationID): void => {
+    if (id !== navigationID) return
     _isLoading.value = false
-    shouldShowLoading.value = false
     navigationStartTime = null
+    updateLoading()
   }
 
   /**
    * 导航取消时调用（比如快速连续点击不同链接）
    */
   const cancelNavigation = (): void => {
-    clearTimer()
-    // 保持加载状态，因为新的导航会立即开始
-    // 但重置导航开始时间
-    navigationStartTime = null
+    endNavigation()
+  }
+
+  const beginPageLoad = (): (() => void) => {
+    const token = Symbol('page-load')
+    pageLoads.add(token)
+    pendingLoads.value = pageLoads.size
+    updateLoading()
+    return () => {
+      pageLoads.delete(token)
+      pendingLoads.value = pageLoads.size
+      updateLoading()
+    }
   }
 
   /**
@@ -82,6 +100,9 @@ export function useNavigationLoading() {
     _isLoading.value = false
     shouldShowLoading.value = false
     navigationStartTime = null
+    pageLoads.clear()
+    pendingLoads.value = 0
+    ++navigationID
   }
 
   /**
@@ -106,6 +127,7 @@ export function useNavigationLoading() {
     startNavigation,
     endNavigation,
     cancelNavigation,
+    beginPageLoad,
     resetState,
     getNavigationDuration,
     // 导出常量用于测试

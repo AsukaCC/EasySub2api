@@ -21,6 +21,7 @@
             :class="{ 'dashboard-dynamic-rate-offer__status--active': offer.status === 'participating' }"
           >{{ t(`dashboard.dynamicRateOffer.status.${offer.status}`) }}</span>
           <span>{{ t('dashboard.dynamicRateOffer.conditions') }}</span>
+          <span>{{ t('dashboard.dynamicRateOffer.rechargeOnly') }}</span>
           <span>{{ offer.activation_spend > 0
             ? t('dashboard.dynamicRateOffer.spendRequired', { amount: formatAmount(offer.activation_spend) })
             : t('dashboard.dynamicRateOffer.noSpendRequired') }}</span>

@@ -1,11 +1,7 @@
 <template>
   <AppLayout>
     <div class="page-stack">
-      <div v-if="loading" class="views-user-affiliate-view__panel-2">
-        <div
-          class="views-user-affiliate-view__panel-3"
-        ></div>
-      </div>
+      <LoadingState v-if="loading" variant="page" />
 
       <template v-else-if="detail">
         <section v-if="detail.can_bind_inviter" class="affiliate-bind card card-body">
@@ -233,6 +229,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'

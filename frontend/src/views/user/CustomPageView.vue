@@ -2,11 +2,7 @@
   <AppLayout>
     <div class="custom-page-layout">
       <div class="views-user-custom-page-view__panel card">
-        <div v-if="loading" class="views-user-custom-page-view__panel-2">
-          <div
-            class="views-user-custom-page-view__panel-3"
-          ></div>
-        </div>
+        <LoadingState v-if="loading" variant="page" />
 
         <div
           v-else-if="!menuItem"
@@ -125,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useResizeObserver } from '@vueuse/core'

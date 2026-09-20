@@ -219,6 +219,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateValue } from '@/utils/datetime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -333,7 +334,9 @@ let statsReqSeq = 0
 let modelStatsReqSeq = 0
 
 const formatLocalDate = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  {
+  return formatDateValue(date, 'YYYY-MM-DD')
+}
 
 const getLast24HoursRangeDates = () => {
   const end = new Date()

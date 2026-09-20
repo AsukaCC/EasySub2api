@@ -44,6 +44,11 @@ type UsageBillingCommand struct {
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
 	DynamicRatePlan     *UsageDynamicRatePlan
+	// Preserve charge destinations when a discounted estimate rounds to zero;
+	// wallet allocation can still produce a nonzero regular-rate final charge.
+	ChargeBalance         bool
+	ChargeAPIKeyQuota     bool
+	ChargeAPIKeyRateLimit bool
 }
 
 // UsageDynamicRateRule is a transaction-ready snapshot of one active rule.
@@ -107,6 +112,9 @@ const UsageBillingMonetaryScale = 8
 // 在参数进入 SQL 之前量化一次，两条语句就都拿到已经落在 8 位刻度上的同一个金额，
 // 存储阶段不再发生任何舍入，delta 精确相等。
 func (c *UsageBillingCommand) quantizeMonetaryFields() {
+	c.ChargeBalance = c.ChargeBalance || c.BalanceCost > 0
+	c.ChargeAPIKeyQuota = c.ChargeAPIKeyQuota || c.APIKeyQuotaCost > 0
+	c.ChargeAPIKeyRateLimit = c.ChargeAPIKeyRateLimit || c.APIKeyRateLimitCost > 0
 	c.BalanceCost = QuantizeUsageBillingAmount(c.BalanceCost)
 	c.SubscriptionCost = QuantizeUsageBillingAmount(c.SubscriptionCost)
 	c.APIKeyQuotaCost = QuantizeUsageBillingAmount(c.APIKeyQuotaCost)
@@ -224,6 +232,7 @@ type UsageBillingApplyResult struct {
 	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
 	FinalActualCost      *float64           // post dynamic-quota cost used by all user-facing deductions
 	FinalRateMultiplier  *float64           // weighted effective multiplier after quota splitting
+	RechargeOnlyCost     float64            // discounted points that must not be paid from bonus or overdraft
 }
 
 type UsageBillingRepository interface {

@@ -66,6 +66,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatDateValue } from '@/utils/datetime'
 import { useI18n } from 'vue-i18n'
 import type { AccountPlatform, AccountType } from '@/types'
 import GrokFreeIcon from './GrokFreeIcon.vue'
@@ -284,10 +285,7 @@ const expiresLabel = computed(() => {
   try {
     const d = new Date(props.subscriptionExpiresAt)
     if (isNaN(d.getTime())) return ''
-    const yyyy = d.getFullYear()
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${t('admin.accounts.subscriptionExpires')} ${yyyy}-${mm}-${dd}`
+    return `${t('admin.accounts.subscriptionExpires')} ${formatDateValue(d, 'YYYY-MM-DD')}`
   } catch {
     return ''
   }

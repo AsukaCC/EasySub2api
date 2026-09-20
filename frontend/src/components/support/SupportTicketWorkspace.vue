@@ -196,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -251,7 +252,7 @@ function statusLabel(status: string) { return t(`tickets.statuses.${status.toLow
 function categoryLabel(category: string) { return t(`tickets.categories.${category.toLowerCase()}`, category) }
 function authorLabel(role: string) { return t(`tickets.authors.${role.toLowerCase()}`, role) }
 function eventLabel(event?: string) { return event ? t(`tickets.events.${event.toLowerCase()}`, event) : t('tickets.systemEvent') }
-function formatDate(value?: string) { return value ? new Intl.DateTimeFormat(String(locale.value), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '-' }
+function formatDate(value?: string) { return value ? formatDateWithOptions(new Date(value), { dateStyle: 'medium', timeStyle: 'short' }, String(locale.value)) : '-' }
 function notifyUpdated() { window.dispatchEvent(new CustomEvent('support-tickets:updated')) }
 function ticketOwner(ticket: SupportTicket) { return ticket.username || ticket.email || ticket.user_id.slice(0, 8) }
 function isMine(message: SupportTicketMessage) {

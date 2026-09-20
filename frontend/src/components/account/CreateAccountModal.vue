@@ -2385,7 +2385,7 @@
       </div>
       <div class="components-account-create-account-modal__panel-30">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
-        <input v-model="expiresAtInput" type="datetime-local" class="input" />
+        <DateTimePicker v-model="expiresAtInput" type="datetime-local" class="input" />
         <p class="input-hint">
           {{ t('admin.accounts.expiresAtHint') }}
           {{ t('admin.accounts.expiresAtTimezoneHint', { timezone: browserTimeZone }) }}
@@ -2892,6 +2892,7 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, reactive, computed, watch } from 'vue'

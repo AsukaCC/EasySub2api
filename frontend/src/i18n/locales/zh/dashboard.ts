@@ -68,6 +68,7 @@ export default {
       startsAt: '开始时间',
       endsAt: '到期',
       conditions: '参与条件：',
+      rechargeOnly: '特惠优先扣充值积分；充值不足时，赠送积分按分组倍率 × 用户等级倍率扣除',
       spendRequired: '近 7 天消费满 {amount} 积分',
       noSpendRequired: '无消费门槛',
       currentSpend: '当前已消费 {amount} 积分',
@@ -1095,6 +1096,9 @@ export default {
 
   // Dates
   dates: {
+    selectDate: '选择日期', selectTime: '选择时间', clear: '清空', now: '现在',
+    previousMonth: '上个月', nextMonth: '下个月', year: '年', month: '月',
+    hour: '时', minute: '分', second: '秒', invalidDate: '请输入有效且在允许范围内的日期或时间',
     today: '今天',
     yesterday: '昨天',
     thisWeek: '本周',

@@ -2,9 +2,7 @@
   <div class="views-user-payment-result-view__panel">
     <div class="views-user-payment-result-view__panel-2">
       <!-- Loading -->
-      <div v-if="loading" class="views-user-payment-result-view__panel-3">
-        <div class="views-user-payment-result-view__panel-4"></div>
-      </div>
+      <LoadingState v-if="loading" variant="section" />
       <template v-else>
         <!-- Status Icon -->
         <div class="views-user-payment-result-view__panel-5">
@@ -109,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'

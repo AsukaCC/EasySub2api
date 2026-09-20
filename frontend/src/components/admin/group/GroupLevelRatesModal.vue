@@ -31,8 +31,8 @@
           </div>
           <div class="level-rates-modal__rule-grid">
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--name"><span>{{ t('admin.groups.levelRates.name') }}</span><input v-model="rule.name" class="input" maxlength="100" /></label>
-            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.startAt') }}</span><input :value="toLocalDateTimeInput(rule.start_at)" class="input" type="datetime-local" step="1" @input="updateDateTime(rule, 'start_at', ($event.target as HTMLInputElement).value)" /></label>
-            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.endAt') }}</span><input :value="toLocalDateTimeInput(rule.end_at)" class="input" type="datetime-local" step="1" @input="updateDateTime(rule, 'end_at', ($event.target as HTMLInputElement).value)" /></label>
+            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.startAt') }}</span><DateTimePicker :model-value="toLocalDateTimeInput(rule.start_at)" class="input" type="datetime-local" step="1" @update:model-value="updateDateTime(rule, 'start_at', $event)" /></label>
+            <label class="level-rates-modal__rule-field level-rates-modal__rule-field--datetime"><span>{{ t('admin.groups.levelRates.endAt') }}</span><DateTimePicker :model-value="toLocalDateTimeInput(rule.end_at)" class="input" type="datetime-local" step="1" @update:model-value="updateDateTime(rule, 'end_at', $event)" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.discountCoefficient') }}</span><input v-model.number="rule.discount_coefficient" class="input" type="number" min="0.01" max="1" step="0.01" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.activationSpend') }}</span><input v-model.number="rule.activation_spend" class="input" type="number" min="0" step="0.01" /></label>
             <label class="level-rates-modal__rule-field level-rates-modal__rule-field--metric"><span>{{ t('admin.groups.levelRates.personalQuotaAmount') }}</span><input v-model.number="rule.personal_quota_amount" class="input" type="number" min="0" step="0.01" /></label>
@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'

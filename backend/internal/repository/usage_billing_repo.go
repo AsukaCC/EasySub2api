@@ -126,7 +126,8 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	if cmd.BalanceCost > 0 {
 		walletResult, err := debitWalletTx(ctx, tx, service.WalletDebitInput{
 			UserID: cmd.UserID, Amount: cmd.BalanceCost, AllowOverdraft: true,
-			SourceType: "api_usage", SourceID: cmd.RequestID,
+			RechargeOnlyAmount: result.RechargeOnlyCost,
+			SourceType:         "api_usage", SourceID: cmd.RequestID,
 		}, "wallet-usage:"+cmd.APIKeyID+":"+cmd.RequestID)
 		if err != nil {
 			return err
@@ -167,8 +168,24 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 	}
 	plan := cmd.DynamicRatePlan
 	if strings.TrimSpace(cmd.UserID) == "" || strings.TrimSpace(plan.GroupID) == "" || plan.FallbackMultiplier < 0 ||
+		math.IsNaN(plan.StandardCost) || math.IsInf(plan.StandardCost, 0) ||
+		math.IsNaN(plan.FallbackMultiplier) || math.IsInf(plan.FallbackMultiplier, 0) ||
 		plan.AccountCost < 0 || math.IsNaN(plan.AccountCost) || math.IsInf(plan.AccountCost, 0) {
 		return errors.New("invalid dynamic rate billing plan")
+	}
+	// Lock the wallet before quota rows. Pricing and the eventual debit must see
+	// the same available buckets, including bonus expiry and concurrent spending.
+	rechargeAvailable := 0.0
+	balanceCharge := cmd.ChargeBalance || cmd.BalanceCost > 0
+	if balanceCharge {
+		row, err := lockWalletUser(ctx, tx, cmd.UserID)
+		if err != nil {
+			return err
+		}
+		if _, err := expireUserBonusTx(ctx, tx, cmd.UserID, &row); err != nil {
+			return err
+		}
+		rechargeAvailable = walletMoney(math.Max(row.balance-row.bonus, 0))
 	}
 	accountCostPerStandard := plan.AccountCost / plan.StandardCost
 	rules := append([]service.UsageDynamicRateRule(nil), plan.Rules...)
@@ -192,7 +209,9 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 	remainingStandard := plan.StandardCost
 	finalCost := 0.0
 	for _, rule := range rules {
-		if remainingStandard <= 0 || rule.DiscountCoefficient <= 0 || rule.DiscountCoefficient >= 1 {
+		if remainingStandard <= 0 || rechargeAvailable <= 0 || plan.FallbackMultiplier == 0 ||
+			rule.DiscountCoefficient <= 0 || rule.DiscountCoefficient >= 1 ||
+			math.IsNaN(rule.DiscountCoefficient) || math.IsInf(rule.DiscountCoefficient, 0) {
 			continue
 		}
 		if rule.SharedQuotaAmount < 0 || rule.PersonalQuotaAmount < 0 ||
@@ -243,7 +262,8 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		if available <= 0 {
 			continue
 		}
-		coveredStandard := remainingStandard
+		costPerStandard := plan.FallbackMultiplier * rule.DiscountCoefficient
+		coveredStandard := math.Min(remainingStandard, rechargeAvailable/costPerStandard)
 		allocatedAccountCost := service.QuantizeUsageBillingAmount(coveredStandard * accountCostPerStandard)
 		if !math.IsInf(available, 1) && accountCostPerStandard > 0 && allocatedAccountCost > available {
 			allocatedAccountCost = available
@@ -261,6 +281,7 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 				allocatedCost = service.QuantizeUsageBillingAmount(coveredStandard * plan.FallbackMultiplier * rule.DiscountCoefficient)
 			}
 		}
+		allocatedCost = math.Min(allocatedCost, rechargeAvailable)
 		if allocatedAccountCost > 0 {
 			if _, err := tx.ExecContext(ctx, `
 				UPDATE user_dynamic_rate_usage
@@ -272,6 +293,8 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 			}
 		}
 		finalCost += allocatedCost
+		result.RechargeOnlyCost = walletMoney(result.RechargeOnlyCost + allocatedCost)
+		rechargeAvailable = walletMoney(rechargeAvailable - allocatedCost)
 		remainingStandard -= coveredStandard
 		if remainingStandard < 0.0000000001 {
 			remainingStandard = 0
@@ -285,16 +308,16 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 	result.FinalActualCost = &finalCost
 	result.FinalRateMultiplier = &finalMultiplier
 
-	if cmd.SubscriptionCost > 0 {
+	if cmd.SubscriptionID != nil {
 		cmd.SubscriptionCost = finalCost
 	}
-	if cmd.BalanceCost > 0 {
+	if balanceCharge {
 		cmd.BalanceCost = finalCost
 	}
-	if cmd.APIKeyQuotaCost > 0 {
+	if cmd.ChargeAPIKeyQuota || cmd.APIKeyQuotaCost > 0 {
 		cmd.APIKeyQuotaCost = finalCost
 	}
-	if cmd.APIKeyRateLimitCost > 0 {
+	if cmd.ChargeAPIKeyRateLimit || cmd.APIKeyRateLimitCost > 0 {
 		cmd.APIKeyRateLimitCost = finalCost
 	}
 	return nil

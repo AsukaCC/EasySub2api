@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -26,11 +27,13 @@ func TestBuildUsageBillingCommandUsesAccountSevenDayCostForDynamicQuota(t *testi
 		Account:               &Account{ID: "account-1"},
 		AccountRateMultiplier: 1.5,
 		RatePlan: &UserRatePlan{
-			GroupID:        "group-1",
-			BaseMultiplier: 1,
-			PeakMultiplier: 1,
+			GroupID:               "group-1",
+			BaseMultiplier:        1,
+			NonDynamicMultiplier:  1,
+			SelectedDynamicRuleID: "rule-1",
+			PeakMultiplier:        1,
 			DynamicCandidates: []DynamicRateCandidate{{
-				RuleID: "rule-1", QuotaKey: "2026-09-04T00:00:00Z", Multiplier: 0.5, SharedQuotaAmount: 10, PersonalQuotaAmount: 5,
+				RuleID: "rule-1", QuotaKey: "2026-09-04T00:00:00Z", Multiplier: 0.5, DiscountCoefficient: 0.5, SharedQuotaAmount: 10, PersonalQuotaAmount: 5,
 			}},
 		},
 	}
@@ -39,4 +42,20 @@ func TestBuildUsageBillingCommandUsesAccountSevenDayCostForDynamicQuota(t *testi
 	require.NotNil(t, command)
 	require.NotNil(t, command.DynamicRatePlan)
 	require.InDelta(t, 6.0, command.DynamicRatePlan.AccountCost, 0.000000001)
+}
+
+func TestApplyUsageBillingDynamicDiscountRequiresAtomicSettlement(t *testing.T) {
+	params := &postUsageBillingParams{
+		Cost:   &CostBreakdown{TotalCost: 2, ActualCost: 1},
+		APIKey: &APIKey{ID: "key"}, User: &User{ID: "user"}, Account: &Account{ID: "account"},
+		RatePlan: &UserRatePlan{GroupID: "group", NonDynamicMultiplier: 1, PeakMultiplier: 1,
+			SelectedDynamicRuleID: "rule",
+			DynamicCandidates:     []DynamicRateCandidate{{RuleID: "rule", QuotaKey: "window", DiscountCoefficient: .5}},
+		},
+	}
+	for _, requestID := range []string{"request", ""} {
+		applied, err := applyUsageBilling(context.Background(), requestID, nil, params, &billingDeps{}, nil)
+		require.ErrorContains(t, err, "requires atomic wallet settlement")
+		require.False(t, applied)
+	}
 }

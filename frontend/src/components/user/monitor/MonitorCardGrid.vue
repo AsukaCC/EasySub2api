@@ -10,18 +10,18 @@
         class="components-user-monitor-monitor-card-grid__panel-2"
       >
         <div class="components-user-monitor-monitor-card-grid__panel-3">
-          <div class="components-user-monitor-monitor-card-grid__panel-4"></div>
+          <div class="components-user-monitor-monitor-card-grid__panel-4 loading-shimmer"></div>
           <div class="components-user-monitor-monitor-card-grid__panel-5">
-            <div class="components-user-monitor-monitor-card-grid__panel-6"></div>
-            <div class="components-user-monitor-monitor-card-grid__panel-7"></div>
+            <div class="components-user-monitor-monitor-card-grid__panel-6 loading-shimmer"></div>
+            <div class="components-user-monitor-monitor-card-grid__panel-7 loading-shimmer"></div>
           </div>
-          <div class="components-user-monitor-monitor-card-grid__panel-8"></div>
+          <div class="components-user-monitor-monitor-card-grid__panel-8 loading-shimmer"></div>
         </div>
         <div class="components-user-monitor-monitor-card-grid__panel-9">
-          <div class="components-user-monitor-monitor-card-grid__panel-10"></div>
-          <div class="components-user-monitor-monitor-card-grid__panel-10"></div>
+          <div class="components-user-monitor-monitor-card-grid__panel-10 loading-shimmer"></div>
+          <div class="components-user-monitor-monitor-card-grid__panel-10 loading-shimmer"></div>
         </div>
-        <div class="components-user-monitor-monitor-card-grid__panel-11"></div>
+        <div class="components-user-monitor-monitor-card-grid__panel-11 loading-shimmer"></div>
       </div>
     </div>
 
@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePageLoading } from '@/composables/usePageLoading'
 import { useI18n } from 'vue-i18n'
 import type { UserMonitorView, UserMonitorDetail } from '@/api/channelMonitor'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -67,6 +68,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+usePageLoading(() => props.loading && props.items.length === 0)
 
 function resolveAvailability(item: UserMonitorView): number | null {
   if (props.window === '7d') {
@@ -79,3 +81,7 @@ function resolveAvailability(item: UserMonitorView): number | null {
   return props.window === '15d' ? primary.availability_15d ?? null : primary.availability_30d ?? null
 }
 </script>
+
+<style scoped>
+.components-user-monitor-monitor-card-grid__panel-2 { animation: none; }
+</style>

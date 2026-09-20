@@ -1032,7 +1032,7 @@ export default {
       rateLabel: '倍率',
       levelRates: {
         action: '分时动态倍率', title: '分时动态倍率',
-        hint: '按时间区间匹配优惠系数；1 表示原价，多个规则同时命中时取最低系数。',
+        hint: '按时间区间匹配优惠系数；1 表示原价，多个规则同时命中时取最低系数。特惠优先扣充值积分，赠送积分仅按分组倍率 × 用户等级倍率扣除。',
         independentQuotaHint: '动态优惠额度按用户和规则独立计算；额度用完后恢复分组倍率 × 等级倍率。',
         dynamicRules: '分时动态倍率', addRule: '新增规则', noRules: '暂无动态规则',
         name: '规则名称', start: '开始', end: '结束', startAt: '开始时间', endAt: '结束时间', discountCoefficient: '优惠系数',

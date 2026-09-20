@@ -1,3 +1,4 @@
+import { formatDateValue } from '@/utils/datetime'
 /**
  * Ops 页面共享的格式化/样式工具。
  *
@@ -28,9 +29,7 @@ export function truncateMessage(msg: string, maxLength = 80): string {
  * 输出: `MM-DD HH:mm:ss`
  */
 export function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+  return formatDateValue(dateStr)
 }
 
 export function sumNumbers(values: Array<number | null | undefined>): number {
@@ -59,14 +58,7 @@ export function parseTimeRangeMinutes(range: string): number {
 }
 
 export function formatHistoryLabel(date: string | undefined, timeRange: string): string {
-  if (!date) return ''
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) return ''
-  const minutes = parseTimeRangeMinutes(timeRange)
-  if (minutes >= 24 * 60) {
-    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  }
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return formatDateValue(date, parseTimeRangeMinutes(timeRange) >= 24 * 60 ? 'MM-DD HH:mm' : 'HH:mm')
 }
 
 export function formatByteRate(bytes: number, windowMinutes: number): string {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { formatDateWithOptions, formatDateValue } from '@/utils/datetime'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
@@ -95,16 +97,7 @@ const customStartTimeInput = ref('')
 const customEndTimeInput = ref('')
 
 function formatCustomTimeRangeLabel(startTime: string, endTime: string): string {
-  const start = new Date(startTime)
-  const end = new Date(endTime)
-  const formatDate = (d: Date) => {
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    const hour = String(d.getHours()).padStart(2, '0')
-    const minute = String(d.getMinutes()).padStart(2, '0')
-    return `${month}-${day} ${hour}:${minute}`
-  }
-  return `${formatDate(start)} ~ ${formatDate(end)}`
+  return `${formatDateValue(startTime, 'MM-DD HH:mm')} ~ ${formatDateValue(endTime, 'MM-DD HH:mm')}`
 }
 
 const groups = ref<Array<{ id: string; name: string; platform: string }>>([])
@@ -179,8 +172,8 @@ function handleTimeRangeChange(val: string | number | boolean | null) {
     // 初始化为最近1小时
     const now = new Date()
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-    customStartTimeInput.value = oneHourAgo.toISOString().slice(0, 16)
-    customEndTimeInput.value = now.toISOString().slice(0, 16)
+    customStartTimeInput.value = formatDateValue(oneHourAgo, 'YYYY-MM-DDTHH:mm')
+    customEndTimeInput.value = formatDateValue(now, 'YYYY-MM-DDTHH:mm')
     showCustomTimeRangeDialog.value = true
   } else {
     emit('update:timeRange', newValue)
@@ -642,7 +635,7 @@ function formatTimeShort(ts?: string | null): string {
   if (!ts) return '-'
   const d = new Date(ts)
   if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleTimeString()
+  return formatDateWithOptions(d, { hour: '2-digit', minute: '2-digit', second: '2-digit' }, undefined)
 }
 
 const cpuPercentValue = computed<number | null>(() => {
@@ -885,7 +878,7 @@ function handleToolbarRefresh() {
           </span>
 
           <span>·</span>
-          <span>{{ t('common.refresh') }}: {{ props.lastUpdated ? props.lastUpdated.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-') : t('common.unknown') }}</span>
+          <span>{{ t('common.refresh') }}: {{ props.lastUpdated ? formatDateValue(props.lastUpdated) : t('common.unknown') }}</span>
 
           <template v-if="props.autoRefreshEnabled && props.autoRefreshCountdown !== undefined">
             <span>·</span>
@@ -1590,7 +1583,7 @@ function handleToolbarRefresh() {
           <label class="views-admin-ops-components-ops-dashboard-header__label">
             {{ t('admin.ops.customTimeRange.startTime') }}
           </label>
-          <input
+          <DateTimePicker
             v-model="customStartTimeInput"
             type="datetime-local"
             class="views-admin-ops-components-ops-dashboard-header__field-5"
@@ -1600,7 +1593,7 @@ function handleToolbarRefresh() {
           <label class="views-admin-ops-components-ops-dashboard-header__label">
             {{ t('admin.ops.customTimeRange.endTime') }}
           </label>
-          <input
+          <DateTimePicker
             v-model="customEndTimeInput"
             type="datetime-local"
             class="views-admin-ops-components-ops-dashboard-header__field-5"

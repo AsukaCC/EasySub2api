@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -110,7 +112,7 @@ const formatTime = (value: string) => {
   if (!value) return '-'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleString()
+  return formatDateWithOptions(d, undefined, undefined)
 }
 
 const getExtraString = (extra: Record<string, any> | undefined, key: string) => {
@@ -460,11 +462,11 @@ onMounted(async () => {
       </label>
       <label class="views-admin-ops-components-ops-system-log-table__label">
         {{ t('admin.ops.systemLogs.startTime') }}
-        <input v-model="filters.start_time" type="datetime-local" class="views-admin-ops-components-ops-system-log-table__field input" />
+        <DateTimePicker v-model="filters.start_time" type="datetime-local" class="views-admin-ops-components-ops-system-log-table__field input" />
       </label>
       <label class="views-admin-ops-components-ops-system-log-table__label">
         {{ t('admin.ops.systemLogs.endTime') }}
-        <input v-model="filters.end_time" type="datetime-local" class="views-admin-ops-components-ops-system-log-table__field input" />
+        <DateTimePicker v-model="filters.end_time" type="datetime-local" class="views-admin-ops-components-ops-system-log-table__field input" />
       </label>
       <label class="views-admin-ops-components-ops-system-log-table__label">
         {{ t('admin.ops.systemLogs.level') }}

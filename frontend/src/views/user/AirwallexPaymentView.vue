@@ -1,9 +1,7 @@
 <template>
   <AppLayout>
     <div class="views-user-airwallex-payment-view__panel">
-      <div v-if="loading" class="views-user-airwallex-payment-view__panel-2">
-        <div class="views-user-airwallex-payment-view__panel-3"></div>
-      </div>
+      <LoadingState v-if="loading" variant="page" />
 
       <div v-else-if="errorMessage" class="views-user-airwallex-payment-view__panel-4 card">
         <div class="views-user-airwallex-payment-view__panel-5">
@@ -25,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'

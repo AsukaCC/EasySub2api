@@ -7,8 +7,8 @@
             <Icon name="search" size="md" class="views-admin-affiliates-admin-affiliate-records-table__icon" />
             <input v-model="filters.search" type="text" class="views-admin-affiliates-admin-affiliate-records-table__field input" :placeholder="t('admin.affiliates.records.searchPlaceholder')" @input="debounceLoad" />
           </div>
-          <input v-model="filters.start_at" type="date" class="views-admin-affiliates-admin-affiliate-records-table__field-2 input" :title="t('admin.affiliates.records.startAt')" @change="reloadFromFirstPage" />
-          <input v-model="filters.end_at" type="date" class="views-admin-affiliates-admin-affiliate-records-table__field-2 input" :title="t('admin.affiliates.records.endAt')" @change="reloadFromFirstPage" />
+          <DateTimePicker v-model="filters.start_at" type="date" class="views-admin-affiliates-admin-affiliate-records-table__field-2 input" :title="t('admin.affiliates.records.startAt')" @change="reloadFromFirstPage" />
+          <DateTimePicker v-model="filters.end_at" type="date" class="views-admin-affiliates-admin-affiliate-records-table__field-2 input" :title="t('admin.affiliates.records.endAt')" @change="reloadFromFirstPage" />
           <button class="views-admin-affiliates-admin-affiliate-records-table__action btn btn-secondary" :disabled="loading" :title="t('common.refresh')" @click="loadRecords">
             <Icon name="refresh" size="md" :class="loading ? 'views-admin-affiliates-admin-affiliate-records-table__icon-2' : ''" />
           </button>
@@ -165,6 +165,7 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { computed, defineComponent, h, onMounted, reactive, ref, type PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'

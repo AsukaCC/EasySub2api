@@ -1,9 +1,7 @@
 <template>
   <component :is="isPopup ? 'div' : AppLayout" :class="isPopup ? 'views-user-stripe-payment-view__component' : ''">
     <div class="views-user-stripe-payment-view__panel" :class="isPopup ? 'views-user-stripe-payment-view__panel-21' : ''">
-      <div v-if="loading" class="views-user-stripe-payment-view__panel-2">
-        <div class="views-user-stripe-payment-view__panel-3"></div>
-      </div>
+      <LoadingState v-if="loading" variant="page" />
       <div v-else-if="initError" class="views-user-stripe-payment-view__panel-4 card">
         <div class="views-user-stripe-payment-view__panel-5">
           <Icon name="exclamationCircle" size="xl" class="views-user-stripe-payment-view__icon" />
@@ -94,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'

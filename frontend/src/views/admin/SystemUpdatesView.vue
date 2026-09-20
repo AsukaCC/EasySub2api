@@ -11,10 +11,7 @@
         </button>
       </header>
 
-      <section v-if="loading && !versionInfo" class="system-updates__loading" aria-live="polite">
-        <Icon name="refresh" size="lg" class="system-updates__spin" />
-        <span>{{ t('common.loading') }}</span>
-      </section>
+      <LoadingState v-if="loading && !versionInfo" variant="page" />
 
       <template v-else-if="versionInfo">
         <section class="system-updates__summary" :class="{ 'is-update': versionInfo.has_update }">
@@ -148,6 +145,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
+import LoadingState from '@/components/common/LoadingState.vue'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -253,7 +252,7 @@ async function restartNow() {
 function formatPublishedAt(value: string): string {
   if (!value) return ''
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString()
+  return Number.isNaN(date.getTime()) ? '' : formatDateWithOptions(date, { year: 'numeric', month: '2-digit', day: '2-digit' }, undefined)
 }
 
 onMounted(() => checkForUpdates(false))

@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import DataTable from '../DataTable.vue'
+import { _resetNavigationLoadingInstance, useNavigationLoadingState } from '@/composables/useNavigationLoading'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -42,6 +43,32 @@ const stubMobileMatchMedia = () => {
 }
 
 describe('DataTable', () => {
+  it('tracks initial loading and refreshes in the page progress lifecycle', async () => {
+    vi.useFakeTimers()
+    _resetNavigationLoadingInstance()
+    const state = useNavigationLoadingState()
+    const wrapper = mount(DataTable, {
+      props: { columns: [{ key: 'name', label: 'Name' }], data: [], loading: true },
+    })
+    try {
+      await vi.advanceTimersByTimeAsync(100)
+      expect(wrapper.find('.data-table__skeleton').exists()).toBe(true)
+      expect(state.isLoading.value).toBe(true)
+      await wrapper.setProps({ data: [{ id: '1', name: 'Loaded' }], loading: false })
+      expect(state.isLoading.value).toBe(false)
+      expect(wrapper.find('.data-table__skeleton').exists()).toBe(false)
+      await wrapper.setProps({ loading: true })
+      await vi.advanceTimersByTimeAsync(100)
+      expect(wrapper.text()).toContain('Loaded')
+      expect(state.isLoading.value).toBe(true)
+      wrapper.unmount()
+      expect(state.isLoading.value).toBe(false)
+    } finally {
+      wrapper.unmount()
+      _resetNavigationLoadingInstance()
+      vi.useRealTimers()
+    }
+  })
   beforeEach(() => {
     stubDesktopMatchMedia()
     localStorage.clear()
@@ -72,15 +99,15 @@ describe('DataTable', () => {
     expect(nameHeader.find('[data-test="custom-name-header"]').exists()).toBe(true)
     expect(nameHeader.attributes('aria-sort')).toBe('ascending')
     expect(nameHeader.findAll('svg')).toHaveLength(2)
-    expect(nameHeader.findAll('svg')[0].classes()).toContain('text-primary-600')
-    expect(nameHeader.findAll('svg')[1].classes()).toContain('text-gray-300')
+    expect(nameHeader.findAll('svg')[0].classes()).toContain('is-active')
+    expect(nameHeader.findAll('svg')[1].classes()).not.toContain('is-active')
 
     await nameHeader.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(nameHeader.attributes('aria-sort')).toBe('descending')
-    expect(nameHeader.findAll('svg')[0].classes()).toContain('text-gray-300')
-    expect(nameHeader.findAll('svg')[1].classes()).toContain('text-primary-600')
+    expect(nameHeader.findAll('svg')[0].classes()).not.toContain('is-active')
+    expect(nameHeader.findAll('svg')[1].classes()).toContain('is-active')
   })
 
   it('renders every row with no virtual padding spacer for small datasets (virtualization off)', async () => {
@@ -330,8 +357,8 @@ describe('DataTable', () => {
     expect(wrapper.findAll('[data-field="usage"]')).toHaveLength(1)
     expect(wrapper.find('[data-field="ollama_cloud_usage"]').exists()).toBe(false)
     const field = wrapper.get('[data-field="usage"]')
-    expect(field.classes()).toContain('min-w-0')
-    expect(field.get('div').classes()).toEqual(expect.arrayContaining(['min-w-0', 'max-w-full']))
+    expect(field.classes()).toContain('data-table__mobile-field')
+    expect(field.get('div').classes()).toContain('data-table__mobile-value')
     expect(wrapper.findAll('[data-test="usage-cell"]')).toHaveLength(1)
 
     wrapper.unmount()

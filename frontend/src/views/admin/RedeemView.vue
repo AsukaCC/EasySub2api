@@ -454,7 +454,7 @@
               </label>
               <template v-if="batchUpdateForm.update_expires_at">
                 <Select v-model="batchUpdateForm.expires_mode" :options="batchExpiryModeOptions" />
-                <input
+                <DateTimePicker
                   v-if="batchUpdateForm.expires_mode === 'custom'"
                   v-model="batchUpdateForm.expires_at_local"
                   type="datetime-local"
@@ -609,6 +609,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateValue } from '@/utils/datetime'
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -719,7 +721,7 @@ const downloadGeneratedCodes = () => {
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `redeem-codes-${new Date().toISOString().split('T')[0]}.txt`
+  link.download = `redeem-codes-${formatDateValue(new Date(), 'YYYY-MM-DD', undefined, 'UTC')}.txt`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -950,10 +952,7 @@ const getRedeemCodeExpiresInDays = () => {
 }
 
 const toDatetimeLocalInputValue = (date: Date) => {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`
+  return formatDateValue(date, 'YYYY-MM-DDTHH:mm')
 }
 
 const resetBatchUpdateForm = () => {
@@ -1072,7 +1071,7 @@ const handleExportCodes = async () => {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `redeem-codes-${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `redeem-codes-${formatDateValue(new Date(), 'YYYY-MM-DD', undefined, 'UTC')}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

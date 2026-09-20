@@ -7,11 +7,7 @@
         </h2>
 
         <!-- Loading State -->
-        <div v-if="loading" class="views-user-subscriptions-view__panel-2">
-          <div
-            class="views-user-subscriptions-view__panel-3"
-          ></div>
-        </div>
+        <LoadingState v-if="loading" variant="page" />
 
         <!-- Empty State -->
         <div v-else-if="subscriptions.length === 0" class="views-user-subscriptions-view__panel-4 card">
@@ -363,6 +359,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

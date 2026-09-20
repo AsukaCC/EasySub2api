@@ -68,10 +68,9 @@ describe('TimePricingSection', () => {
       global: { stubs: { Select: SelectStub, Icon: true } },
     })
 
-    const timeInputs = wrapper.findAll('input[inputmode="numeric"]')
+    const timeInputs = wrapper.findAll('.date-time-picker__input')
     expect(timeInputs).toHaveLength(2)
     expect(timeInputs.every(input => input.attributes('type') === 'text')).toBe(true)
-    expect(timeInputs.every(input => input.attributes('maxlength') === '8')).toBe(true)
     expect(timeInputs.every(input => input.attributes('placeholder') === 'HH:mm:ss')).toBe(true)
   })
 

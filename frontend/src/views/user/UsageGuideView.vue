@@ -10,7 +10,7 @@
           <time v-if="updatedAt" :datetime="updatedAt">{{ formatUpdatedAt(updatedAt) }}</time>
         </header>
 
-        <div v-if="loading" class="usage-guide-state">{{ t('common.loading') }}</div>
+        <LoadingState v-if="loading" variant="page" />
         <div v-else-if="error" class="usage-guide-state usage-guide-state--error">
           <p>{{ t('usageGuide.loadFailed') }}</p>
           <button type="button" class="btn btn-secondary" @click="load">{{ t('common.retry') }}</button>
@@ -23,6 +23,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
+import LoadingState from '@/components/common/LoadingState.vue'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
@@ -38,7 +40,7 @@ const updatedAt = ref('')
 
 function formatUpdatedAt(value: string): string {
   try {
-    return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(value))
+    return formatDateWithOptions(new Date(value), { dateStyle: 'medium' }, locale.value)
   } catch {
     return value
   }

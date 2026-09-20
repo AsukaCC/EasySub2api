@@ -279,11 +279,11 @@
       <div class="views-admin-audit-log-view__panel-36">
         <div>
           <label class="input-label">{{ t('admin.ops.customTimeRange.startTime') }}</label>
-          <input v-model="customStartTimeInput" type="datetime-local" class="input" />
+          <DateTimePicker v-model="customStartTimeInput" type="datetime-local" class="input" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.ops.customTimeRange.endTime') }}</label>
-          <input v-model="customEndTimeInput" type="datetime-local" class="input" />
+          <DateTimePicker v-model="customEndTimeInput" type="datetime-local" class="input" />
         </div>
       </div>
       <template #footer>
@@ -352,6 +352,8 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { formatDateWithOptions, formatDateValue } from '@/utils/datetime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type AuditLog } from '@/api/admin'
@@ -422,17 +424,13 @@ const timeRangeOptions = computed(() => [
 
 function formatCustomTimeRangeLabel(startTime: string, endTime: string): string {
   const fmt = (raw: string) => {
-    const d = new Date(raw)
-    if (Number.isNaN(d.getTime())) return raw
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
+  return formatDateValue(raw, 'MM-DD HH:mm') || raw
+}
   return `${fmt(startTime)} ~ ${fmt(endTime)}`
 }
 
 function toDatetimeLocal(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return formatDateValue(d, 'YYYY-MM-DDTHH:mm')
 }
 
 function handleTimeRangeChange(val: string | number | boolean | null) {
@@ -661,7 +659,7 @@ async function submitClear() {
 function formatTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString()
+  return formatDateWithOptions(d, undefined, undefined)
 }
 
 function statusText(status: number): string {

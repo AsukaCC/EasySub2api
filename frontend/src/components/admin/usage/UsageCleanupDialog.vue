@@ -116,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -218,7 +219,7 @@ const formatDateTime = (value?: string | null) => {
   if (!value) return '--'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
+  return formatDateWithOptions(date, undefined, undefined)
 }
 
 const formatRange = (task: UsageCleanupTask) => {

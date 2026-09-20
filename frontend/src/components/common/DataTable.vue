@@ -289,6 +289,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { usePageLoading } from '@/composables/usePageLoading'
 import { useVirtualizer, observeElementRect as observeElementRectDefault } from '@tanstack/vue-virtual'
 import { useI18n } from 'vue-i18n'
 import type { Column } from './types'
@@ -545,6 +546,7 @@ watch(
 
 const isInitialLoading = computed(() => props.loading && !hasCompletedInitialLoad.value)
 const isRefreshing = computed(() => props.loading && hasCompletedInitialLoad.value)
+usePageLoading(() => props.loading)
 
 const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
@@ -1687,7 +1689,6 @@ defineExpose({
     display: inline-block;
     border-radius: 0.375rem;
     background: var(--color-skeleton);
-    animation: data-table-pulse 1.4s ease-in-out infinite;
 
     &--cell {
       width: min(8rem, 80%);
@@ -1921,16 +1922,6 @@ defineExpose({
   }
 }
 
-@keyframes data-table-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
 
 @media (max-width: 767px) {
   /* 移动端为卡片列表形态,自带瓷片边框,外壳去掉 */
@@ -1953,10 +1944,6 @@ defineExpose({
     animation: none;
   }
 
-  .data-table__skeleton {
-    animation-duration: 1ms;
-    animation-iteration-count: 1;
-  }
 
   .data-table__body,
   .data-table__mobile-card,

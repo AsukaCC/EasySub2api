@@ -3,7 +3,7 @@
  * Defines all application routes with lazy loading and navigation guards
  */
 
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -1033,6 +1033,7 @@ let authInitialized = false
 
 // 初始化导航加载状态和预加载
 const navigationLoading = useNavigationLoadingState()
+const navigationIDs = new WeakMap<RouteLocationNormalized, number>()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/monitor', '/payment/result', '/payment/airwallex', '/legal']
@@ -1080,7 +1081,7 @@ function isBackendModePublicRouteAllowed(path: string, hasPendingAuthSession: bo
 
 router.beforeEach(async (to, _from, next) => {
   // 开始导航加载状态
-  navigationLoading.startNavigation()
+  navigationIDs.set(to, navigationLoading.startNavigation())
 
   const authStore = useAuthStore()
 
@@ -1317,9 +1318,11 @@ router.beforeEach(async (to, _from, next) => {
 /**
  * Navigation guard: End loading and trigger prefetch
  */
-router.afterEach((to) => {
+router.afterEach((to, _from, failure) => {
   // 结束导航加载状态
-  navigationLoading.endNavigation()
+  const navigationID = navigationIDs.get(to)
+  if (navigationID !== undefined) navigationLoading.endNavigation(navigationID)
+  if (failure) return
 
   // 懒初始化预加载（首次导航时创建，传入 router 实例）
   if (!routePrefetch) {
@@ -1333,7 +1336,9 @@ router.afterEach((to) => {
  * Navigation guard: Error handling
  * Handles dynamic import failures caused by deployment updates
  */
-router.onError((error) => {
+router.onError((error, to) => {
+  const navigationID = navigationIDs.get(to)
+  if (navigationID !== undefined) navigationLoading.endNavigation(navigationID)
   console.error('Router error:', error)
 
   // Check if this is a dynamic import failure (chunk loading error)

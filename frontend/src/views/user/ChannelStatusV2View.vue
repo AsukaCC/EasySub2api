@@ -193,7 +193,7 @@
         <div
           v-for="i in (showThroughput ? 5 : 4)"
           :key="i"
-          class="views-user-channel-status-v2-view__panel-11"
+          class="views-user-channel-status-v2-view__panel-11 loading-shimmer"
         />
       </section>
 
@@ -394,6 +394,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
+import { usePageLoading } from '@/composables/usePageLoading'
 import { useI18n } from 'vue-i18n'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -477,6 +479,7 @@ const modelRows = ref<MonitorModelRow[]>([])
 const errorRows = ref<MonitorErrorRow[]>([])
 const userRows = ref<MonitorUserRow[]>([])
 const loading = ref(false)
+usePageLoading(loading)
 const tabLoading = ref(false)
 const refreshing = ref(false)
 const expandedErrors = ref(new Set<string>())
@@ -748,12 +751,12 @@ function latencyKpiSecondary(metric: {
   return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms)
 }
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat(locale.value || undefined, {
+  return formatDateWithOptions(new Date(value), {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }, locale.value || undefined)
 }
 function statusDot(health?: MonitorHealth | HealthState, errorRate?: number, requestCount = 0) {
   if (!health || typeof health === 'string') {

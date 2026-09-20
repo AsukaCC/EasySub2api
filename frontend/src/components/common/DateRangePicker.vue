@@ -3,6 +3,8 @@
     <button
       ref="triggerRef"
       type="button"
+      :aria-expanded="isOpen"
+      aria-haspopup="dialog"
       @click="toggle"
       :class="['date-range-picker__trigger', isOpen && 'date-range-picker__trigger--open']"
     >
@@ -35,6 +37,7 @@
           <button
             v-for="preset in presets"
             :key="preset.value"
+            type="button"
             @click="selectPreset(preset)"
             :class="['date-range-dropdown__preset', isPresetActive(preset) && 'date-range-dropdown__preset--active']"
           >
@@ -48,11 +51,12 @@
         <div class="date-range-dropdown__custom">
           <div class="date-range-dropdown__field">
             <label class="date-range-dropdown__label">{{ t('dates.startDate') }}</label>
-            <input
+            <DateTimePicker
               type="date"
               v-model="localStartDate"
               :max="localEndDate || tomorrow"
               class="date-range-dropdown__input"
+              :aria-label="t('dates.startDate')"
               @change="onDateChange"
             />
           </div>
@@ -61,12 +65,13 @@
           </div>
           <div class="date-range-dropdown__field">
             <label class="date-range-dropdown__label">{{ t('dates.endDate') }}</label>
-            <input
+            <DateTimePicker
               type="date"
               v-model="localEndDate"
               :min="localStartDate"
               :max="tomorrow"
               class="date-range-dropdown__input"
+              :aria-label="t('dates.endDate')"
               @change="onDateChange"
             />
           </div>
@@ -74,7 +79,7 @@
 
         <!-- Apply button -->
         <div class="date-range-dropdown__actions">
-          <button @click="apply" class="date-range-dropdown__apply">
+          <button type="button" @click="apply" :disabled="!rangeValid" class="date-range-dropdown__apply">
             {{ t('dates.apply') }}
           </button>
         </div>
@@ -85,6 +90,8 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { dayjs, formatDateValue, parsePickerValue } from '@/utils/datetime'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
@@ -123,14 +130,11 @@ const { panelRef, style: panelStyle } = useFloatingPanel(triggerRef, isOpen, {
 const localStartDate = ref(props.startDate)
 const localEndDate = ref(props.endDate)
 const activePreset = ref<string | null>('last24Hours')
+const rangeValid = computed(() => !!parsePickerValue(localStartDate.value, 'date') && !!parsePickerValue(localEndDate.value, 'date') && localStartDate.value <= localEndDate.value && localEndDate.value <= tomorrow.value)
 
 const today = computed(() => {
   // Use local timezone to avoid UTC timezone issues
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return dayjs().format('YYYY-MM-DD')
 })
 
 // Tomorrow's date - used for max date to handle timezone differences
@@ -143,10 +147,7 @@ const tomorrow = computed(() => {
 
 // Helper function to format date to YYYY-MM-DD using local timezone
 const formatDateToString = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return formatDateValue(date, 'YYYY-MM-DD')
 }
 
 const presets: DatePreset[] = [
@@ -251,9 +252,7 @@ const displayValue = computed(() => {
 })
 
 const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr + 'T00:00:00')
-  const dateLocale = locale.value === 'zh' ? 'zh-CN' : 'en-US'
-  return date.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })
+  return formatDateValue(dateStr, 'YYYY-MM-DD', locale.value)
 }
 
 const isPresetActive = (preset: DatePreset): boolean => {
@@ -284,6 +283,7 @@ const toggle = () => {
 }
 
 const apply = () => {
+  if (!rangeValid.value) return
   emit('update:startDate', localStartDate.value)
   emit('update:endDate', localEndDate.value)
   emit('change', {
@@ -296,6 +296,7 @@ const apply = () => {
 
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as Node
+  if (target instanceof Element && target.closest('[data-date-picker-panel]')) return
   if (containerRef.value?.contains(target) || panelRef.value?.contains(target)) return
   isOpen.value = false
 }
@@ -397,7 +398,7 @@ onUnmounted(() => {
   position: absolute;
   left: 0;
   z-index: var(--z-dropdown);
-  min-width: 320px;
+  min-width: 0;
   margin-top: 0.5rem;
   overflow: hidden;
   border: 1px solid var(--glass-border);
@@ -452,7 +453,8 @@ onUnmounted(() => {
 }
 
 .date-range-dropdown__custom {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-end;
   gap: 0.5rem;
   padding: 0.75rem;
@@ -460,6 +462,7 @@ onUnmounted(() => {
 
 .date-range-dropdown__field {
   flex: 1;
+  min-width: 0;
 }
 
 .date-range-dropdown__label {

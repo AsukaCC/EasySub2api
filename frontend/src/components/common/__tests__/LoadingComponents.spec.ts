@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { afterEach } from 'vitest'
 import LoadingButtonContent from '../LoadingButtonContent.vue'
 import LoadingSpinner from '../LoadingSpinner.vue'
 import LoadingState from '../LoadingState.vue'
+import Skeleton from '../Skeleton.vue'
+
+enableAutoUnmount(afterEach)
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
@@ -46,7 +50,12 @@ describe('LoadingState', () => {
     expect(wrapper.attributes('aria-live')).toBe('polite')
     expect(wrapper.attributes('aria-busy')).toBe('true')
     expect(wrapper.text()).toContain('Working')
-    expect(wrapper.getComponent(LoadingSpinner).props('decorative')).toBe(true)
+    if (variant === 'inline') {
+      expect(wrapper.getComponent(LoadingSpinner).props('decorative')).toBe(true)
+    } else {
+      expect(wrapper.findComponent(LoadingSpinner).exists()).toBe(false)
+      expect(wrapper.findAllComponents(Skeleton).length).toBeGreaterThan(0)
+    }
   })
 })
 

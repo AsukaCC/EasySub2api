@@ -23,9 +23,7 @@
     </p>
 
     <!-- 加载/错误/空 -->
-    <div v-if="loading" class="components-model-plaza-model-plaza-content__panel-3">
-      <div class="components-model-plaza-model-plaza-content__panel-4"></div>
-    </div>
+    <LoadingState v-if="loading" variant="page" />
     <div
       v-else-if="error"
       class="components-model-plaza-model-plaza-content__panel-5"
@@ -63,6 +61,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'

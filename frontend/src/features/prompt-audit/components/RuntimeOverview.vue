@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PromptAuditRuntime } from '../types'
@@ -109,7 +110,7 @@ const guardMetricItems = computed(() => {
 })
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
+  return formatDateWithOptions(new Date(value), { dateStyle: 'medium', timeStyle: 'medium' }, locale.value)
 }
 
 function statusDot(status: string): string {

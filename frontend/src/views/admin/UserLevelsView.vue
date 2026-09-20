@@ -18,7 +18,7 @@
       </header>
 
       <div v-if="errorMessage" class="user-level-rules-view__error">{{ errorMessage }}</div>
-      <div v-if="loading && rules.length === 0" class="user-level-rules-view__state">{{ t('common.loading') }}</div>
+      <LoadingState v-if="loading && rules.length === 0" variant="page" />
       <div v-else-if="rules.length === 0" class="user-level-rules-view__state">{{ t('admin.users.levels.empty') }}</div>
       <div v-else class="user-level-rules-view__table-wrap">
         <table class="user-level-rules-view__table">
@@ -138,6 +138,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import LevelRuleMembersDialog from '@/components/admin/user/LevelRuleMembersDialog.vue'
 import { useI18n } from 'vue-i18n'

@@ -939,7 +939,7 @@ export default {
       rateLabel: 'rate',
       levelRates: {
         action: 'Time-window discounts', title: 'Time-window discounts',
-        hint: 'Match an offer coefficient by time window; 1 means original price. Overlapping rules use the lowest coefficient.',
+        hint: 'Match an offer coefficient by time window; 1 means original price. Overlapping rules use the lowest coefficient. Offers use recharge points first; bonus points use only group rate × user level rate.',
         independentQuotaHint: 'Discount quota is tracked independently per user and rule. After quota is exhausted, billing returns to group rate × level rate.',
         dynamicRules: 'Time-window discounts', addRule: 'Add rule', noRules: 'No discount rules',
         name: 'Rule name', start: 'Start', end: 'End', startAt: 'Start time', endAt: 'End time', discountCoefficient: 'Discount coefficient',

@@ -21,11 +21,11 @@
         <div v-if="preset === 'custom'" class="features-prompt-audit-components-filter-delete-dialog__panel-3" data-test="custom-range">
           <label class="features-prompt-audit-components-filter-delete-dialog__label-2">
             <span>{{ t('admin.promptAudit.events.startAt') }}</span>
-            <input v-model="local.start_at" type="datetime-local" class="features-prompt-audit-components-filter-delete-dialog__field-2 input" :aria-label="t('admin.promptAudit.events.startAt')" @change="criteriaChanged" />
+            <DateTimePicker v-model="local.start_at" type="datetime-local" class="features-prompt-audit-components-filter-delete-dialog__field-2 input" :aria-label="t('admin.promptAudit.events.startAt')" @change="criteriaChanged" />
           </label>
           <label class="features-prompt-audit-components-filter-delete-dialog__label-2">
             <span>{{ t('admin.promptAudit.events.endAt') }}</span>
-            <input v-model="local.end_at" type="datetime-local" class="features-prompt-audit-components-filter-delete-dialog__field-2 input" :aria-label="t('admin.promptAudit.events.endAt')" @change="criteriaChanged" />
+            <DateTimePicker v-model="local.end_at" type="datetime-local" class="features-prompt-audit-components-filter-delete-dialog__field-2 input" :aria-label="t('admin.promptAudit.events.endAt')" @change="criteriaChanged" />
           </label>
           <p v-if="!canPreview" class="features-prompt-audit-components-filter-delete-dialog__description-3">{{ t('admin.promptAudit.events.customRangeInvalid') }}</p>
         </div>
@@ -117,6 +117,8 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -190,6 +192,6 @@ function requestConfirm() {
   emit('confirm', resolveDeleteRangeFilters(local, preset.value))
 }
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
+  return formatDateWithOptions(new Date(value), { dateStyle: 'medium', timeStyle: 'medium' }, locale.value)
 }
 </script>

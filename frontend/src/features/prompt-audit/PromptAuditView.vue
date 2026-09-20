@@ -148,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -429,7 +430,7 @@ async function confirmFilterDelete(filters?: PromptEventFilters) {
   } finally { loading.deleting = false }
 }
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(value))
+  return formatDateWithOptions(new Date(value), { dateStyle: 'medium', timeStyle: 'medium' }, locale.value)
 }
 
 onMounted(loadInitial)

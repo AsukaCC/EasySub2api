@@ -38,34 +38,26 @@
           <label :for="`${inputIdPrefix}-start-${index}`" class="components-admin-channel-time-pricing-section__label-3">
             {{ t('admin.channels.form.startTime') }}
           </label>
-          <input
+          <DateTimePicker
             :id="`${inputIdPrefix}-start-${index}`"
-            :value="period.start_time"
-            type="text"
-            inputmode="numeric"
-            maxlength="8"
-            placeholder="HH:mm:ss"
-            pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
-            autocomplete="off"
+            :model-value="period.start_time"
+            type="time"
+            :step="1"
             class="components-admin-channel-time-pricing-section__field-2 input"
-            @input="updatePeriod(index, 'start_time', normalizeClockTime(($event.target as HTMLInputElement).value))"
+            @update:model-value="updatePeriod(index, 'start_time', $event)"
           />
         </div>
         <div class="components-admin-channel-time-pricing-section__panel-5">
           <label :for="`${inputIdPrefix}-end-${index}`" class="components-admin-channel-time-pricing-section__label-3">
             {{ t('admin.channels.form.endTime') }}
           </label>
-          <input
+          <DateTimePicker
             :id="`${inputIdPrefix}-end-${index}`"
-            :value="period.end_time"
-            type="text"
-            inputmode="numeric"
-            maxlength="8"
-            placeholder="HH:mm:ss"
-            pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
-            autocomplete="off"
+            :model-value="period.end_time"
+            type="time"
+            :step="1"
             class="components-admin-channel-time-pricing-section__field-2 input"
-            @input="updatePeriod(index, 'end_time', normalizeClockTime(($event.target as HTMLInputElement).value))"
+            @update:model-value="updatePeriod(index, 'end_time', $event)"
           />
         </div>
         <div class="components-admin-channel-time-pricing-section__panel-5">
@@ -102,6 +94,7 @@
 import { getCurrentInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
   COMMON_TIMEZONES,
@@ -124,11 +117,6 @@ const timezoneOptions = COMMON_TIMEZONES.map(value => {
 
 function updateTimezone(value: string | number | boolean | null) {
   emit('update:modelValue', { ...props.modelValue, timezone: String(value ?? '') })
-}
-
-function normalizeClockTime(value: string): string {
-  const normalized = value.replace(/：/g, ':')
-  return normalized === '24:00:00' ? '00:00:00' : normalized
 }
 
 function addPeriod() {

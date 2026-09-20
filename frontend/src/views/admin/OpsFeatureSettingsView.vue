@@ -11,7 +11,7 @@
         </RouterLink>
       </header>
 
-      <div v-if="loading" class="ops-feature-settings__loading">{{ t('common.loading') }}</div>
+      <LoadingState v-if="loading" variant="page" />
       <template v-else>
         <section class="card ops-feature-settings__card">
           <div class="ops-feature-settings__row">
@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'

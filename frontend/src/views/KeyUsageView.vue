@@ -107,13 +107,13 @@
                 : 'views-key-usage-view__action-7'"
             >{{ range.label }}</button>
             <div v-if="currentRange === 'custom'" class="views-key-usage-view__panel-10">
-              <input
+              <DateTimePicker
                 v-model="customStartDate"
                 type="date"
                 class="views-key-usage-view__field-2 input-ring"
               />
               <span class="views-key-usage-view__text-3">-</span>
-              <input
+              <DateTimePicker
                 v-model="customEndDate"
                 type="date"
                 class="views-key-usage-view__field-2 input-ring"
@@ -417,6 +417,9 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import { formatDateWithOptions } from '@/utils/datetime'
+import { usePageLoading } from '@/composables/usePageLoading'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
@@ -455,6 +458,7 @@ const keyVisible = ref(false)
 const isQuerying = ref(false)
 const showResults = ref(false)
 const showLoading = ref(false)
+usePageLoading(showLoading)
 const showDatePicker = ref(false)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const resultData = ref<any>(null)
@@ -854,7 +858,7 @@ function formatDate(iso: string | null | undefined): string {
   if (!iso) return '-'
   const d = new Date(iso)
   const loc = locale.value === 'zh' ? 'zh-CN' : 'en-US'
-  return d.toLocaleDateString(loc, { year: 'numeric', month: 'long', day: 'numeric' })
+  return formatDateWithOptions(d, { year: 'numeric', month: 'long', day: 'numeric' }, loc)
 }
 
 function getBrowserTimezone(): string {
@@ -969,19 +973,8 @@ onUnmounted(() => {
 }
 
 /* Skeleton loading */
-@keyframes shimmer-kv {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
 .skeleton {
-  background: linear-gradient(90deg, #e4e4e7 25%, #f4f4f5 50%, #e4e4e7 75%);
-  background-size: 200% 100%;
-  animation: shimmer-kv 1.8s ease-in-out infinite;
   border-radius: 8px;
-}
-:global(.dark) .skeleton {
-  background: linear-gradient(90deg, #26262b 25%, #17171a 50%, #26262b 75%);
-  background-size: 200% 100%;
 }
 
 /* Fade up animation */

@@ -41,6 +41,7 @@ func TestSingleUserLevelDynamicQuotaSplit(t *testing.T) {
 	mock.ExpectBegin()
 	tx, err := db.BeginTx(context.Background(), nil)
 	require.NoError(t, err)
+	expectDynamicRechargeWallet(mock, "user", 10, 0)
 	mock.ExpectExec("INSERT INTO user_dynamic_rate_usage").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)SELECT used_amount.*FOR UPDATE").WillReturnRows(sqlmock.NewRows([]string{"used_amount"}).AddRow(0.9))
 	mock.ExpectExec("UPDATE user_dynamic_rate_usage").WillReturnResult(sqlmock.NewResult(0, 1))

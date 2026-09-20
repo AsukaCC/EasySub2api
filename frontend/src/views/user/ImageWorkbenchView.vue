@@ -40,7 +40,7 @@
       </div>
 
       <section class="gallery" aria-live="polite">
-        <div v-if="loadingHistory" class="empty-state">{{ t('imageWorkbench.loading') }}</div>
+        <LoadingState v-if="loadingHistory" variant="section" :label="t('imageWorkbench.loading')" />
         <div v-else-if="inCollectionOverview && collectionCards.length === 0" class="empty-state">
           <Icon name="folder" size="xl" />
           <strong>{{ emptyMessage }}</strong>
@@ -379,8 +379,10 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { formatDateValue } from '@/utils/datetime'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -1074,7 +1076,7 @@ async function exportData() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `image-workbench-history-${new Date().toISOString().slice(0, 10)}.json`
+  link.download = `image-workbench-history-${formatDateValue(new Date(), 'YYYY-MM-DD', undefined, 'UTC')}.json`
   link.click()
   URL.revokeObjectURL(url)
 }

@@ -475,7 +475,7 @@
             class="views-admin-proxies-view__field-4 input"
             :placeholder="t('admin.proxies.expiryDaysPlaceholder')"
           />
-          <input v-model="createForm.expires_at" type="date" max="9999-12-31" class="input" />
+          <DateTimePicker v-model="createForm.expires_at" type="date" max="9999-12-31" class="input" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.fallbackMode') }}</label>
@@ -668,7 +668,7 @@
             class="views-admin-proxies-view__field-4 input"
             :placeholder="t('admin.proxies.expiryDaysPlaceholder')"
           />
-          <input v-model="editForm.expires_at" type="date" max="9999-12-31" class="input" />
+          <DateTimePicker v-model="editForm.expires_at" type="date" max="9999-12-31" class="input" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.fallbackMode') }}</label>
@@ -777,7 +777,7 @@
               {{ t('admin.proxies.qualityBaseLatency') }}:
               {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
             </div>
-            <div>{{ t('admin.proxies.qualityCheckedAt') }}: {{ new Date(qualityReport.checked_at * 1000).toLocaleString() }}</div>
+            <div>{{ t('admin.proxies.qualityCheckedAt') }}: {{ formatDateValue(qualityReport.checked_at * 1000) }}</div>
           </div>
         </div>
 
@@ -868,6 +868,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateValue } from '@/utils/datetime'
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
@@ -1609,10 +1611,7 @@ const qualityStatusLabel = (status: string) => {
 // 有效期「选天数」⇄ 日历联动:天数自 base 起算(创建=今天;编辑=代理创建日),本地日历日 round-trip 稳定;canonical 仍是 expires_at 日期串
 const EXPIRY_PRESETS = [7, 30, 90, 180]
 const toLocalDateStr = (dt: Date): string => {
-  const y = dt.getFullYear()
-  const m = String(dt.getMonth() + 1).padStart(2, '0')
-  const d = String(dt.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  return formatDateValue(dt, 'YYYY-MM-DD')
 }
 // base 为空 → 今天本地 00:00;否则该日期本地 00:00
 const baseDateOrToday = (baseDateStr: string): Date => {
@@ -1806,9 +1805,7 @@ const handleBatchQualityCheck = async () => {
 }
 
 const formatExportTimestamp = () => {
-  const now = new Date()
-  const pad2 = (value: number) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
+  return formatDateValue(new Date(), 'YYYYMMDDHHmmss')
 }
 
 const handleExportData = async () => {

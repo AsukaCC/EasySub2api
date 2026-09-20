@@ -95,7 +95,7 @@
               </thead>
               <tbody>
                 <tr v-if="loading">
-                  <td :colspan="tableColumnCount" class="account-profit-view__state">{{ t('common.loading') }}</td>
+                  <td :colspan="tableColumnCount"><LoadingState variant="section" /></td>
                 </tr>
                 <tr v-else-if="error">
                   <td :colspan="tableColumnCount" class="account-profit-view__state is-error">{{ error }}</td>
@@ -207,6 +207,7 @@
 </template>
 
 <script setup lang="ts">
+import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'

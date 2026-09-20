@@ -1,0 +1,39 @@
+// Shared shimmer for current components and the remaining legacy placeholders.
+.loading-shimmer {
+  animation: none;
+}
+
+.app-skeleton,
+.data-table__skeleton,
+.skeleton,
+.loading-shimmer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: var(--color-skeleton);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, transparent, var(--color-skeleton-highlight), transparent);
+    transform: translateX(-100%);
+    animation: loading-shimmer 1.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes loading-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-skeleton::after,
+  .data-table__skeleton::after,
+  .skeleton::after,
+  .loading-shimmer::after {
+    animation: none;
+    content: none;
+  }
+}

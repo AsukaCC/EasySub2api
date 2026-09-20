@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateWithOptions } from '@/utils/datetime'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PaymentOrder } from '@/types/payment'
@@ -66,7 +67,7 @@ const props = defineProps<{
   showUser?: boolean
 }>()
 
-function formatDate(dateStr: string) { return new Date(dateStr).toLocaleString() }
+function formatDate(dateStr: string) { return formatDateWithOptions(new Date(dateStr), undefined, undefined) }
 
 function subscriptionPoints(order: PaymentOrder): number {
   return order.wallet_amount > 0 ? order.wallet_amount : order.amount

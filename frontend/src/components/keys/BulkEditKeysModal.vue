@@ -103,7 +103,7 @@
               />
               {{ t('keys.noExpiration') }}
             </label>
-            <input
+            <DateTimePicker
               v-if="!neverExpires"
               v-model="expirationDate"
               type="datetime-local"
@@ -169,6 +169,7 @@
 </template>
 
 <script setup lang="ts">
+import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { keysAPI } from '@/api'

@@ -4,6 +4,7 @@
  */
 
 import { i18n, getLocale } from '@/i18n'
+import { dayjs, formatDateValue, formatDateWithOptions } from './datetime'
 
 /**
  * 格式化相对时间
@@ -13,9 +14,7 @@ import { i18n, getLocale } from '@/i18n'
 export function formatRelativeTime(date: string | Date | null | undefined): string {
   if (!date) return i18n.global.t('common.time.never')
 
-  const now = new Date()
-  const past = new Date(date)
-  const diffMs = now.getTime() - past.getTime()
+  const diffMs = dayjs().diff(dayjs(date))
 
   // 处理未来时间或无效日期
   if (diffMs < 0 || isNaN(diffMs)) return i18n.global.t('common.time.never')
@@ -174,13 +173,7 @@ export function formatDate(
   },
   localeOverride?: string
 ): string {
-  if (!date) return ''
-
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return ''
-
-  const locale = localeOverride ?? getLocale()
-  return new Intl.DateTimeFormat(locale, options).format(d)
+  return formatDateWithOptions(date, options, localeOverride ?? getLocale())
 }
 
 /**
@@ -236,26 +229,14 @@ export function formatDateTimeToMinute(
  * 格式化为 date 控件值（YYYY-MM-DD，使用本地时间）
  */
 export function formatDateLocalInput(date: Date): string {
-  if (isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return formatDateValue(date, 'YYYY-MM-DD')
 }
 
 /**
  * 格式化为 datetime-local 控件值（YYYY-MM-DDTHH:mm，使用本地时间）
  */
 export function formatDateTimeLocalInput(timestampSeconds: number | null): string {
-  if (!timestampSeconds) return ''
-  const date = new Date(timestampSeconds * 1000)
-  if (isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
+  return timestampSeconds == null ? '' : formatDateValue(timestampSeconds * 1000, 'YYYY-MM-DDTHH:mm')
 }
 
 /**

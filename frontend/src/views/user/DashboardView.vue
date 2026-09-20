@@ -4,7 +4,7 @@
       <!-- 整页两栏:左 = 统计卡 + 图表 / 右 = 分时优惠 + 站内通知 + 消费等级 + 快捷操作 -->
       <div class="dashboard-page__grid">
         <div class="dashboard-page__main">
-          <LoadingState v-if="loading" variant="section" class="dashboard-page__loading" />
+          <LoadingState v-if="loading" variant="page" class="dashboard-page__loading" />
           <div v-else-if="stats" class="dashboard-page__stats">
             <UserDashboardStats
               :stats="stats"

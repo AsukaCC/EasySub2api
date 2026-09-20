@@ -1,13 +1,15 @@
 /**
  * NavigationProgress 组件单元测试
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { nextTick, ref } from 'vue'
 import NavigationProgress from '../../common/NavigationProgress.vue'
 
 // Mock useNavigationLoadingState
 const mockIsLoading = ref(false)
+enableAutoUnmount(afterEach)
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: () => 'Loading' }) }))
 
 vi.mock('@/composables/useNavigationLoading', () => ({
   useNavigationLoadingState: () => ({
@@ -17,8 +19,10 @@ vi.mock('@/composables/useNavigationLoading', () => ({
 
 describe('NavigationProgress', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     mockIsLoading.value = false
   })
+  afterEach(() => { vi.useRealTimers() })
 
   it('isLoading=false 时进度条应该隐藏', () => {
     mockIsLoading.value = false
@@ -47,8 +51,7 @@ describe('NavigationProgress', () => {
     const progressBar = wrapper.find('.navigation-progress')
     expect(progressBar.attributes('role')).toBe('progressbar')
     expect(progressBar.attributes('aria-label')).toBe('Loading')
-    expect(progressBar.attributes('aria-valuemin')).toBe('0')
-    expect(progressBar.attributes('aria-valuemax')).toBe('100')
+    expect(progressBar.attributes('aria-valuenow')).toBeUndefined()
   })
 
   it('进度条应该有动画 class', () => {
@@ -79,5 +82,35 @@ describe('NavigationProgress', () => {
 
     // 清理
     wrapper2.unmount()
+  })
+
+  it('finishes at the end before hiding, and cancels completion when another load begins', async () => {
+    mockIsLoading.value = true
+    const wrapper = mount(NavigationProgress)
+    await vi.advanceTimersByTimeAsync(1000)
+    const before = wrapper.get('.navigation-progress-bar').attributes('style')
+    expect(before).not.toContain('scaleX(1)')
+    mockIsLoading.value = false
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(100)
+    mockIsLoading.value = true
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(400)
+    expect(wrapper.get('.navigation-progress').isVisible()).toBe(true)
+    expect(wrapper.get('.navigation-progress-bar').attributes('style')).not.toContain('scaleX(1)')
+    mockIsLoading.value = false
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(150)
+    expect(wrapper.get('.navigation-progress-bar').attributes('style')).toContain('scaleX(1)')
+    await vi.advanceTimersByTimeAsync(220)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(wrapper.get('.navigation-progress').attributes('style')).toContain('display: none')
+  })
+
+  it('clears its timers when unmounted during loading', () => {
+    mockIsLoading.value = true
+    const wrapper = mount(NavigationProgress)
+    wrapper.unmount()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

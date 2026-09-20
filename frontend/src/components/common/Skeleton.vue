@@ -6,6 +6,7 @@
       customClass
     ]"
     :style="style"
+    aria-hidden="true"
   ></div>
 </template>
 
@@ -46,16 +47,6 @@ const style = computed(() => {
 </script>
 
 <style scoped>
-.app-skeleton {
-  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  background: var(--glass-layer-inset-bg);
-  backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
-}
-
 .app-skeleton--circle { border-radius: 9999px; }
 .app-skeleton--rounded { border-radius: var(--radius-md); }
-
-@keyframes skeleton-pulse {
-  50% { opacity: 0.5; }
-}
 </style>
