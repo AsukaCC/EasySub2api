@@ -8,6 +8,7 @@ import (
 )
 
 func (s *AccountTestService) doAccountTestWithProtection(req *http.Request, proxy string, account *Account, profile *tlsfingerprint.Profile) (*http.Response, error) {
+	applyModelFingerprintHeaders(req)
 	if req.GetBody != nil {
 		body, err := req.GetBody()
 		if err != nil {

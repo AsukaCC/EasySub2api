@@ -19,6 +19,10 @@
               <Icon name="chart" size="sm" class="components-admin-account-account-action-menu__icon-2" />
               {{ t('admin.accounts.viewStats') }}
             </button>
+            <button @click="$emit('fingerprint', account); $emit('close')" class="components-admin-account-account-action-menu__action">
+              <Icon name="chart" size="sm" class="components-admin-account-account-action-menu__icon-2" />
+              {{ t('admin.accounts.fingerprint.title') }}
+            </button>
             <button @click="$emit('schedule', account); $emit('close')" class="components-admin-account-account-action-menu__action">
               <Icon name="clock" size="sm" class="components-admin-account-account-action-menu__icon-3" />
               {{ t('admin.scheduledTests.schedule') }}
@@ -70,7 +74,7 @@ import { Icon } from '@/components/icons'
 import type { Account } from '@/types'
 
 const props = defineProps<{ show: boolean; account: Account | null; anchorRect: DOMRect | null }>()
-const emit = defineEmits(['close', 'test', 'stats', 'schedule', 'duplicate', 'reauth', 'refresh-token', 'recover-state', 'reset-quota', 'set-privacy', 'create-spark-shadow'])
+const emit = defineEmits(['close', 'test', 'fingerprint', 'stats', 'schedule', 'duplicate', 'reauth', 'refresh-token', 'recover-state', 'reset-quota', 'set-privacy', 'create-spark-shadow'])
 const { t } = useI18n()
 const menuRef = ref<HTMLElement | null>(null)
 const { width: viewportWidth, height: viewportHeight } = useWindowSize()

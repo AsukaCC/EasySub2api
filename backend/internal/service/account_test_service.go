@@ -152,6 +152,8 @@ type AccountTestService struct {
 	modelMetadataRegistry     map[string]modelsDevProvider
 	modelMetadataRegistryAt   time.Time
 	agentIdentityTaskMu       sync.Mutex
+	modelFingerprintMu        sync.Mutex
+	modelFingerprintActive    int
 	agentIdentityWS           agentIdentityWSConnectionInvalidator
 	// grokWSDialer is optional; realtime account tests use the default OpenAI-style
 	// WS dialer when nil (supports proxy + coder/websocket handshake).
@@ -438,6 +440,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create test payload")
 	}
+	applyModelFingerprintPayload(ctx, payload, "anthropic", false)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
@@ -489,7 +492,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 
 		// 403 表示账号被上游封禁，标记为 error 状态
 		if resp.StatusCode == http.StatusForbidden {
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+			_ = s.accountRepo.SetError(ctx, account.ID, modelFingerprintSafeError(ctx, errMsg))
 		}
 
 		return s.sendErrorAndEnd(c, errMsg)
@@ -516,6 +519,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create test payload")
 	}
+	applyModelFingerprintPayload(ctx, payload, "anthropic", false)
 	payloadBytes, _ := json.Marshal(payload)
 	vertexBody, err := buildVertexAnthropicRequestBody(payloadBytes)
 	if err != nil {
@@ -559,7 +563,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 		body, _ := io.ReadAll(resp.Body)
 		errMsg := fmt.Sprintf("API returned %v: %s", resp.StatusCode, string(body))
 		if resp.StatusCode == http.StatusForbidden {
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+			_ = s.accountRepo.SetError(ctx, account.ID, modelFingerprintSafeError(ctx, errMsg))
 		}
 		return s.sendErrorAndEnd(c, errMsg)
 	}
@@ -600,6 +604,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 		"max_tokens":  256,
 		"temperature": 1,
 	}
+	applyModelFingerprintPayload(ctx, bedrockPayload, "anthropic", false)
 	bedrockBody, _ := json.Marshal(bedrockPayload)
 
 	// Use non-streaming endpoint (response is standard Claude JSON)
@@ -765,6 +770,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		upstreamTestModelID = normalizeOpenAIModelForUpstream(credentialAccount, testModelID)
 	}
 	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth)
+	applyModelFingerprintPayload(ctx, payload, "responses", isOAuth)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event once. A task-invalid Agent Identity response may
@@ -845,7 +851,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		body = redactAgentIdentitySensitiveBodyForAccount(ctx, s.accountRepo, credentialAccount, body)
-		if !agentIdentityTaskRecoveryWasTried(ctx) && credentialAccount.IsOpenAIAgentIdentity() && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, body) {
+		if fingerprintProbe(ctx) == nil && !agentIdentityTaskRecoveryWasTried(ctx) && credentialAccount.IsOpenAIAgentIdentity() && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, body) {
 			expectedTaskID := credentialAccount.GetCredential("task_id")
 			if err := ensureAgentIdentityTaskForAccount(ctx, s.accountRepo, s.agentIdentityWS, &s.agentIdentityTaskMu, credentialAccount, expectedTaskID); err != nil {
 				return s.sendErrorAndEnd(c, fmt.Sprintf("Agent Identity task recovery failed: %s", err.Error()))
@@ -859,7 +865,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		// 401 Unauthorized: 标记账号为永久错误
 		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+			_ = s.accountRepo.SetError(ctx, account.ID, modelFingerprintSafeError(ctx, errMsg))
 		}
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %v: %s", resp.StatusCode, string(body)))
 	}
@@ -1135,6 +1141,7 @@ func (s *AccountTestService) testGrokResponsesConnection(c *gin.Context, ctx con
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create Grok test payload")
 	}
+	payloadBytes = modelFingerprintPayloadBytes(ctx, payloadBytes, "responses")
 
 	if !agentIdentityTaskRecoveryWasTried(ctx) {
 		s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
@@ -1145,6 +1152,7 @@ func (s *AccountTestService) testGrokResponsesConnection(c *gin.Context, ctx con
 		return s.sendErrorAndEnd(c, "Failed to create Grok request")
 	}
 	s.applyGrokTestRequestHeaders(req, account, authToken, "application/json, text/event-stream")
+	applyModelFingerprintHeaders(req)
 
 	resp, err := s.httpUpstream.Do(req, s.grokTestProxyURL(account), account.ID, account.Concurrency)
 	if err != nil {
@@ -2011,6 +2019,7 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 	c.Writer.Flush()
 
 	payload := createOpenAIChatCompletionsTestPayload(testModelID, prompt)
+	applyModelFingerprintPayload(ctx, payload, "chat", false)
 	payloadBytes, _ := json.Marshal(payload)
 
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
@@ -2047,7 +2056,7 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 		}
 		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
 			errMsg := fmt.Sprintf("Chat Completions authentication failed (401): %s", string(body))
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+			_ = s.accountRepo.SetError(ctx, account.ID, modelFingerprintSafeError(ctx, errMsg))
 		}
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) returned %v: %s", resp.StatusCode, string(body)))
 	}
@@ -2787,6 +2796,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	// Create test payload (Gemini format)
 	payload := createGeminiTestPayload(testModelID, prompt)
+	payload = modelFingerprintPayloadBytes(ctx, payload, "gemini")
 
 	// Build request based on account type
 	var req *http.Request
@@ -3148,6 +3158,12 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 }
 
 func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
+	if c.Request != nil {
+		if probe := fingerprintProbe(c.Request.Context()); probe != nil {
+			probe.event(event)
+			return
+		}
+	}
 	eventJSON, _ := json.Marshal(event)
 	if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", eventJSON); err != nil {
 		log.Printf("failed to write SSE event: %v", err)
@@ -3158,6 +3174,9 @@ func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
 
 // sendErrorAndEnd sends an error event and ends the stream
 func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) error {
+	if c.Request != nil {
+		errorMsg = modelFingerprintSafeError(c.Request.Context(), errorMsg)
+	}
 	log.Printf("Account test error: %s", errorMsg)
 	s.sendEvent(c, TestEvent{Type: "error", Error: errorMsg})
 	return fmt.Errorf("%s", errorMsg)

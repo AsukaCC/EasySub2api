@@ -298,6 +298,9 @@
           <template #cell-capacity="{ row }">
             <AccountCapacityCell :account="row" />
           </template>
+          <template #cell-model_fingerprint="{ row }">
+            <ModelFingerprintCell :account="row" @open="handleFingerprint" @update="updateFingerprint" />
+          </template>
           <template #cell-status="{ row }">
             <div class="views-admin-accounts-view__panel-18">
               <AccountStatusIndicator :account="row" @show-temp-unsched="handleShowTempUnsched" />
@@ -457,9 +460,10 @@
     <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
     <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
+    <ModelFingerprintModal :show="!!fingerprintAcc" :account="fingerprintAcc" @close="fingerprintAcc = null" @update="updateFingerprint" />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
-    <AccountActionMenu :show="menu.show" :account="menu.acc" :anchor-rect="menu.anchorRect" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @duplicate="handleDuplicateAccount" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" @create-spark-shadow="handleCreateSparkShadow" />
+    <AccountActionMenu :show="menu.show" :account="menu.acc" :anchor-rect="menu.anchorRect" @close="menu.show = false" @test="handleTest" @fingerprint="handleFingerprint" @stats="handleViewStats" @schedule="handleSchedule" @duplicate="handleDuplicateAccount" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" @create-spark-shadow="handleCreateSparkShadow" />
     <SyncFromCrsModal :show="showSync" @close="showSync = false" @synced="reload" />
     <ImportDataModal :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
     <BulkEditAccountModal
@@ -520,6 +524,9 @@ import AccountActionMenu from '@/components/admin/account/AccountActionMenu.vue'
 import ImportDataModal from '@/components/admin/account/ImportDataModal.vue'
 import ReAuthAccountModal from '@/components/admin/account/ReAuthAccountModal.vue'
 import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
+import ModelFingerprintModal from '@/components/admin/account/ModelFingerprintModal.vue'
+import ModelFingerprintCell from '@/components/admin/account/ModelFingerprintCell.vue'
+import type { ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 import AccountStatsModal from '@/components/admin/account/AccountStatsModal.vue'
 import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
@@ -621,6 +628,12 @@ const showDeleteDialog = ref(false)
 const showCreateShadowDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
+const fingerprintAcc = ref<Account | null>(null)
+const handleFingerprint = (account: Account) => { fingerprintAcc.value = account }
+const updateFingerprint = (id: string, snapshot: ModelFingerprintSnapshot | null) => {
+  const account = accounts.value.find(item => item.id === id)
+  if (account) account.extra = { ...account.extra, model_fingerprint: snapshot }
+}
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
@@ -1301,6 +1314,7 @@ const isAnyModalOpen = computed(() => {
     showDeleteDialog.value ||
     showReAuth.value ||
     showTest.value ||
+    !!fingerprintAcc.value ||
     showStats.value ||
     showSchedulePanel.value ||
     showErrorPassthrough.value ||
@@ -1693,6 +1707,7 @@ const allColumns = computed(() => {
     { key: 'subscription_tier', label: t('admin.accounts.columns.subscriptionTier'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
+    { key: 'model_fingerprint', label: t('admin.accounts.fingerprint.attribution'), sortable: false },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
   ]

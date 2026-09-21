@@ -1,5 +1,17 @@
 export default {
     accounts: {
+      fingerprint: {
+        title: '模型指纹测试', attribution: '模型归因', start: '开始测试', notTested: '未测试',
+        samples: '3 组指纹样本', serial: '单会话串行采样', inBackground: '后台测试中',
+        progress: '采样 {count}/{total}', allCandidates: '全部候选模型',
+        scope: '单会话样本相关，占比仅为 GPT / Claude 候选库内的相对归因，未经独立样本校准，并非模型身份证明。',
+        noModels: '没有可测试的文本模型', loadFailed: '模型列表加载失败，请重新打开。',
+        pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能启动，请检查是否已有测试或测试名额已满。',
+        errors: {
+          interrupted: '测试中断，请重新测试', timeout: '测试超时', upstream_failed: '上游调用失败',
+          insufficient_samples: '有效样本不足 3 组', analysis_failed: '归因失败', internal_error: '测试异常', save_failed: '结果保存失败'
+        }
+      },
       protection: {"title":"账号保护","strategy":"保护策略","preview":"预览","integrity":"请求完整性","off":"关闭","observe":"仅观察","enforce":"严格拦截","diagnostics":"诊断策略","configuredTLS":"配置 TLS","effectiveTLS":"生效传输","observation":"握手观测","observed":"已观测","unverified":"未观测","concurrency":"并发上限","disableConfirm":"关闭保护并还原已保存的身份与传输配置？当前并发设置保持不变。","applyConfirm":"确认应用所选账号保护配置？","batch":"批量开启保护","batchResult":"已开启：{success}；失败：{failed}","modes":{"legacy":"初代兼容","mode1":"兼容架构 v3","mode2":"完整收敛","minimal_compat":"设备兼容","session_standard":"会话兼容","tls_node24":"Node.js 24 对照","low_concurrency":"低并发","generic":"通用并发保护","disabled":"已关闭"}},
       opencode: { mode: '账号模式', protocol: '上游协议', adaptive: '按模型自动选择', rules: '模型协议规则', defaults: '恢复默认', pattern: '模型匹配规则', addRule: '添加规则', monthly: '每月' },
       title: '账号管理',

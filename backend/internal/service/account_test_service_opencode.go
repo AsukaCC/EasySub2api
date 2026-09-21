@@ -22,13 +22,16 @@ func (s *AccountTestService) testOpenCodeAccountConnection(c *gin.Context, accou
 	if strings.TrimSpace(prompt) == "" {
 		prompt = "Reply OK"
 	}
-	body, err := json.Marshal(map[string]any{"model": model, "input": prompt, "stream": false})
+	payload := map[string]any{"model": model, "input": prompt, "stream": false}
+	applyModelFingerprintPayload(c.Request.Context(), payload, "responses", false)
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 	recorder := httptest.NewRecorder()
 	probe, _ := gin.CreateTestContext(recorder)
 	probe.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body)).WithContext(c.Request.Context())
+	applyModelFingerprintHeaders(probe.Request)
 	gateway := s.openAIGatewayService
 	if gateway == nil {
 		gateway = &OpenAIGatewayService{cfg: s.cfg, httpUpstream: s.httpUpstream}

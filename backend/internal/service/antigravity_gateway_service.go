@@ -361,6 +361,9 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 	if mappedModel == "" {
 		return nil, fmt.Errorf("model %s not in whitelist", modelID)
 	}
+	if fingerprintProbe(ctx) != nil {
+		return s.testModelFingerprint(ctx, account, mappedModel, projectID, accessToken)
+	}
 
 	// 构建请求体
 	var requestBody []byte

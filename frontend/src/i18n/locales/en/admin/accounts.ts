@@ -1,5 +1,17 @@
 export default {
     accounts: {
+      fingerprint: {
+        title: 'Model Fingerprint Test', attribution: 'Model Attribution', start: 'Start Test', notTested: 'Not tested',
+        samples: '3 fingerprint samples', serial: 'One conversation, sequential turns', inBackground: 'Testing in background',
+        progress: 'Sampling {count}/{total}', allCandidates: 'All candidates',
+        scope: 'Single-conversation samples are correlated. Shares are relative GPT / Claude candidate attribution, not calibrated confidence or proof of identity.',
+        noModels: 'No text models available', loadFailed: 'Could not load models. Reopen to retry.',
+        pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not start. A test may already exist or all test slots may be occupied.',
+        errors: {
+          interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out', upstream_failed: 'Upstream request failed',
+          insufficient_samples: 'Fewer than 3 valid samples', analysis_failed: 'Attribution failed', internal_error: 'Test failed', save_failed: 'Could not save results'
+        }
+      },
       protection: {"title":"Account protection","strategy":"Strategy","preview":"Preview","integrity":"Request integrity","off":"Off","observe":"Observe","enforce":"Enforce","diagnostics":"Diagnostic strategies","configuredTLS":"Configured TLS","effectiveTLS":"Effective transport","observation":"Handshake observation","observed":"Observed","unverified":"Not observed","concurrency":"Concurrency ceiling","disableConfirm":"Disable protection and restore the saved identity and transport settings? Current concurrency edits will be retained.","applyConfirm":"Apply the selected account protection settings?","batch":"Enable protection","batchResult":"Enabled: {success}; failed: {failed}","modes":{"legacy":"Legacy compatibility","mode1":"Compatibility v3","mode2":"Full convergence","minimal_compat":"Device compatibility","session_standard":"Session compatibility","tls_node24":"Node.js 24 comparison","low_concurrency":"Low concurrency","generic":"Concurrency protection","disabled":"Disabled"}},
       opencode: { mode: 'Account mode', protocol: 'Upstream protocol', adaptive: 'Automatic by model', rules: 'Model protocol rules', defaults: 'Restore defaults', pattern: 'Model pattern', addRule: 'Add rule', monthly: 'Monthly' },
       title: 'Account Management',
