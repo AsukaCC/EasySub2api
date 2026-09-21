@@ -248,6 +248,7 @@ func ProvideAccountTestService(
 	tlsFPProfileService *TLSFingerprintProfileService,
 	openAIGatewayService *OpenAIGatewayService,
 	settingService *SettingService,
+	usageLogRepo UsageLogRepository,
 ) *AccountTestService {
 	service := NewAccountTestService(
 		accountRepo,
@@ -261,6 +262,7 @@ func ProvideAccountTestService(
 	)
 	service.openAIGatewayService = openAIGatewayService
 	service.agentIdentityWS = openAIGatewayService
+	service.modelFingerprintUsage = usageLogRepo
 	service.SetSettingService(settingService)
 	return service
 }

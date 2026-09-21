@@ -19,6 +19,7 @@ import { nextTick } from 'vue'
 import UsageTable from '../UsageTable.vue'
 
 const messages: Record<string, string> = {
+  'usage.testRequest': 'Test request',
   'admin.usage.userDeletedBadge': 'Deleted',
   'usage.costDetails': 'Cost Breakdown',
   'admin.usage.inputCost': 'Input Cost',
@@ -85,6 +86,7 @@ const DataTableStub = {
   template: `
     <div>
       <div v-for="row in data" :key="row.request_id">
+        <slot name="cell-api_key" :row="row" />
         <slot name="cell-model" :row="row" :value="row.model" />
         <slot name="cell-stream" :row="row" />
         <slot name="cell-billing_mode" :row="row" />
@@ -125,6 +127,19 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
+  it('labels keyless fingerprint usage as a test without mislabeling a deleted key', () => {
+    const wrapper = mount(UsageTable, {
+      props: { columns: [], data: [
+        { ...baseImageRow, request_id: 'test', api_key: null, request_type: 'test', stream: true },
+        { ...baseImageRow, request_id: 'ordinary', api_key: null, request_type: 'stream', stream: true }
+      ] as any },
+      global: { stubs: { DataTable: DataTableStub, Icon: true } }
+    })
+    expect(wrapper.findAll('.components-admin-usage-usage-table__text-5').map(item => item.text())).toEqual(['Test request', '-'])
+    expect(wrapper.text().match(/Test request/g)).toHaveLength(2)
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 0,
@@ -214,7 +229,7 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('1.00x')
     expect(text).toContain('Account rate')
     expect(text).toContain('User billed')
-    expect(text).toContain('Account points used')
+    expect(text).toContain('Account billed')
     expect(text).toContain('0.092883 points')
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')

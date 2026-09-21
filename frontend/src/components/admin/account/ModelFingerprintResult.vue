@@ -1,15 +1,15 @@
 <template>
   <div v-if="snapshot" class="fingerprint-result" :class="{ 'fingerprint-result--compact': compact }">
-    <div class="fingerprint-model" :title="snapshot.model">{{ snapshot.model }}</div>
+    <div v-if="!compact" class="fingerprint-model" :title="snapshot.model">{{ snapshot.model }}</div>
     <div v-if="snapshot.status === 'running'" class="fingerprint-status" role="status">
       <Icon name="refresh" size="sm" class="fingerprint-spin" />
       {{ t('admin.accounts.fingerprint.progress', { count: snapshot.completed, total: snapshot.total }) }}
     </div>
-    <div v-else-if="snapshot.status === 'failed'" class="fingerprint-error" role="status">
+    <div v-else-if="snapshot.status === 'failed'" class="fingerprint-error" role="status" :title="t(`admin.accounts.fingerprint.errors.${snapshot.error || 'upstream_failed'}`)">
       {{ t(`admin.accounts.fingerprint.errors.${snapshot.error || 'upstream_failed'}`) }}
     </div>
     <template v-else-if="snapshot.result">
-      <div class="fingerprint-bar" role="img" :aria-label="familyLabel" :title="familyLabel">
+      <div v-if="!compact" class="fingerprint-bar" role="img" :aria-label="familyLabel" :title="familyLabel">
         <span v-for="family in snapshot.result.families" :key="family.family"
           :class="family.family === 'gpt' ? 'fingerprint-gpt' : 'fingerprint-claude'"
           :style="{ width: `${family.probability * 100}%` }" />
@@ -45,13 +45,21 @@ import type { ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 const props = defineProps<{ snapshot: ModelFingerprintSnapshot | null; compact?: boolean }>()
 const { t } = useI18n()
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`
-const visibleModels = computed(() => props.snapshot?.result?.models.slice(0, props.compact ? 1 : 3) || [])
+const visibleModels = computed(() => {
+  const models = props.snapshot?.result?.models || []
+  if (!props.compact) return models.slice(0, 3)
+  return models.length ? [models.reduce((top, item) => item.probability > top.probability ? item : top)] : []
+})
 const familyLabel = computed(() => props.snapshot?.result?.families.map(f => `${f.display_name} ${percent(f.probability)}`).join(', ') || '')
 </script>
 
 <style scoped>
 .fingerprint-result { display: grid; gap: 10px; min-width: 0; font-size: var(--font-size-sm); }
-.fingerprint-result--compact { width: 180px; gap: 5px; font-size: var(--font-size-xs); text-align: left; }
+.fingerprint-result--compact { width: 100%; font-size: var(--font-size-xs); text-align: left; }
+.fingerprint-result--compact .fingerprint-row { grid-template-columns: minmax(0, 1fr) 44px; column-gap: 6px; }
+.fingerprint-result--compact .fingerprint-row > span:last-child { text-align: right; }
+.fingerprint-result--compact .fingerprint-candidate,
+.fingerprint-result--compact .fingerprint-error { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fingerprint-model { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fingerprint-bar { display: flex; height: 6px; overflow: hidden; border-radius: 3px; background: var(--color-surface-muted); }
 .fingerprint-gpt { background: #138a72; }

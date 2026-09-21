@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,29 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 )
+
+func TestModelFingerprintCleanup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo := &accountRepository{sql: db}
+	now := time.Now()
+	query := `(?s)UPDATE accounts\s+SET extra = extra - 'model_fingerprint'.*WHERE extra \? 'model_fingerprint' AND COALESCE\(.*finished_at.*expires_at.*started_at.*\) <= \$1\s+RETURNING id`
+	for _, ids := range [][]string{{"expired-one", "expired-two"}, {}} {
+		rows := sqlmock.NewRows([]string{"id"})
+		for _, id := range ids {
+			rows.AddRow(id)
+		}
+		mock.ExpectQuery(query).WithArgs(now.Add(-2 * time.Hour)).WillReturnRows(rows).RowsWillBeClosed()
+		removed, err := repo.DeleteExpiredModelFingerprints(context.Background(), now)
+		require.NoError(t, err)
+		require.Equal(t, int64(len(ids)), removed)
+	}
+	mock.ExpectQuery(query).WithArgs(now.Add(-2 * time.Hour)).WillReturnError(errors.New("database unavailable"))
+	_, err = repo.DeleteExpiredModelFingerprints(context.Background(), now)
+	require.Error(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
 
 func TestModelFingerprintLeaseConflictAndLostWorker(t *testing.T) {
 	db, mock, err := sqlmock.New()

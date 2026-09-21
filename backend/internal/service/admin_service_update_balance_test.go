@@ -131,9 +131,11 @@ type authCacheInvalidatorStub struct {
 }
 
 type adminRechargeAffiliateAccruerStub struct {
-	calls  []adminRechargeAffiliateAccrual
-	rebate float64
-	err    error
+	calls     []adminRechargeAffiliateAccrual
+	txs       []*dbent.Tx
+	rebate    float64
+	committed float64
+	err       error
 }
 
 type adminRechargeAffiliateAccrual struct {
@@ -141,13 +143,26 @@ type adminRechargeAffiliateAccrual struct {
 	amount float64
 }
 
-func (s *adminRechargeAffiliateAccruerStub) AccrueInviteRebate(_ context.Context, userID string, amount float64) (float64, error) {
+func (s *adminRechargeAffiliateAccruerStub) AccrueInviteRebate(ctx context.Context, userID string, amount float64) (float64, error) {
 	s.calls = append(s.calls, adminRechargeAffiliateAccrual{userID: userID, amount: amount})
+	tx := dbent.TxFromContext(ctx)
+	s.txs = append(s.txs, tx)
+	if s.err == nil && tx != nil {
+		tx.OnCommit(func(next dbent.Committer) dbent.Committer {
+			return dbent.CommitFunc(func(ctx context.Context, tx *dbent.Tx) error {
+				if err := next.Commit(ctx, tx); err != nil {
+					return err
+				}
+				s.committed += s.rebate
+				return nil
+			})
+		})
+	}
 	return s.rebate, s.err
 }
 
 func adminRechargeSettingService(enabled bool) *SettingService {
-	values := map[string]string{}
+	values := map[string]string{SettingKeyAffiliateEnabled: "true"}
 	if enabled {
 		values[SettingKeyAffiliateAdminRechargeEnabled] = "true"
 	}
@@ -257,13 +272,15 @@ func TestAdminService_UpdateUserBalance_NoChangeNoInvalidate(t *testing.T) {
 	require.Empty(t, redeemRepo.created)
 }
 
-func TestAdminService_UpdateUserBalance_NeverAccruesAffiliateRebate(t *testing.T) {
+func TestAdminService_UpdateUserBalance_AffiliateRebatePolicy(t *testing.T) {
 	tests := []struct {
-		name      string
-		enabled   bool
-		operation string
-		amount    float64
-		wantCalls []adminRechargeAffiliateAccrual
+		name           string
+		enabled        bool
+		globalDisabled bool
+		operation      string
+		kind           string
+		amount         float64
+		wantCalls      []adminRechargeAffiliateAccrual
 	}{
 		{
 			name:      "disabled by default",
@@ -275,6 +292,28 @@ func TestAdminService_UpdateUserBalance_NeverAccruesAffiliateRebate(t *testing.T
 			enabled:   true,
 			operation: "add",
 			amount:    0.1,
+			wantCalls: []adminRechargeAffiliateAccrual{{userID: "7", amount: 0.1}},
+		},
+		{
+			name:      "enabled recharge excluding bonus",
+			enabled:   true,
+			operation: "add",
+			amount:    50,
+			wantCalls: []adminRechargeAffiliateAccrual{{userID: "7", amount: 50}},
+		},
+		{
+			name:           "global switch disabled",
+			enabled:        true,
+			globalDisabled: true,
+			operation:      "add",
+			amount:         5,
+		},
+		{
+			name:      "manual bonus excluded",
+			enabled:   true,
+			operation: "add",
+			kind:      WalletKindBonus,
+			amount:    5,
 		},
 		{
 			name:      "enabled set increase",
@@ -292,41 +331,56 @@ func TestAdminService_UpdateUserBalance_NeverAccruesAffiliateRebate(t *testing.T
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sqlDB, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, sqlDB)))
+			t.Cleanup(func() { _ = client.Close() })
 			baseRepo := &userRepoStub{user: &User{ID: "7", Balance: 10}}
 			repo := &balanceUserRepoStub{userRepoStub: baseRepo}
 			redeemRepo := &balanceRedeemRepoStub{redeemRepoStub: &redeemRepoStub{}}
-			affiliate := &adminRechargeAffiliateAccruerStub{}
+			affiliate := &adminRechargeAffiliateAccruerStub{rebate: 1}
+			settings := adminRechargeSettingService(tt.enabled)
+			settings.settingRepo.(*settingRepoStub).values[SettingRechargeBonusTiers] = `[{"threshold_cny":50,"bonus_points":3}]`
+			if tt.globalDisabled {
+				settings.settingRepo.(*settingRepoStub).values[SettingKeyAffiliateEnabled] = "false"
+			}
 			svc := &adminServiceImpl{
 				userRepo:         repo,
 				redeemCodeRepo:   redeemRepo,
-				settingService:   adminRechargeSettingService(tt.enabled),
+				entClient:        client,
+				settingService:   settings,
 				affiliateService: affiliate,
 			}
 
-			_, err := svc.UpdateUserBalance(context.Background(), "7", tt.amount, tt.operation, "")
+			if tt.operation == "add" && tt.kind != WalletKindBonus {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			}
+			_, err = svc.UpdateUserWalletBalance(context.Background(), "7", tt.amount, tt.operation, tt.kind, 0, "")
 			require.NoError(t, err)
 			require.Equal(t, tt.wantCalls, affiliate.calls)
+			require.Equal(t, float64(len(tt.wantCalls)), affiliate.committed)
+			for _, tx := range affiliate.txs {
+				require.NotNil(t, tx)
+				require.Contains(t, repo.pending, tx, "rebate must use the same transaction as the credit")
+			}
+			require.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
 
-func TestAdminService_UpdateUserBalance_LegacyAffiliateSettingDoesNotAccrue(t *testing.T) {
-	baseRepo := &userRepoStub{user: &User{ID: "7", Balance: 10}}
-	repo := &balanceUserRepoStub{userRepoStub: baseRepo}
-	redeemRepo := &balanceRedeemRepoStub{redeemRepoStub: &redeemRepoStub{}}
-	affiliate := &adminRechargeAffiliateAccruerStub{err: errors.New("affiliate unavailable")}
-	svc := &adminServiceImpl{
-		userRepo:         repo,
-		redeemCodeRepo:   redeemRepo,
-		settingService:   adminRechargeSettingService(true),
-		affiliateService: affiliate,
+func TestAdminService_RechargeRebateRequiresTransactionAndService(t *testing.T) {
+	for _, missingService := range []bool{false, true} {
+		repo := &balanceUserRepoStub{userRepoStub: &userRepoStub{user: &User{ID: "7", Balance: 10}}}
+		svc := &adminServiceImpl{userRepo: repo, settingService: adminRechargeSettingService(true)}
+		if !missingService {
+			svc.affiliateService = &adminRechargeAffiliateAccruerStub{}
+		}
+		_, err := svc.UpdateUserBalance(context.Background(), "7", 5, "add", "")
+		require.Error(t, err)
+		require.Empty(t, repo.credits)
+		require.Equal(t, 10.0, repo.user.Balance)
 	}
-
-	user, err := svc.UpdateUserBalance(context.Background(), "7", 5, "add", "")
-	require.NoError(t, err)
-	require.Equal(t, 15.0, user.Balance)
-	require.Empty(t, affiliate.calls)
-	require.Len(t, redeemRepo.created, 1)
 }
 
 func TestAdminService_RechargeBonusTiers(t *testing.T) {
@@ -380,41 +434,53 @@ func TestAdminService_RechargeBonusTiers(t *testing.T) {
 	}
 }
 
-func TestAdminService_RechargeBonusRollsBackBeforeRetry(t *testing.T) {
-	for _, failure := range []string{"principal", "bonus", "response read"} {
+func TestAdminService_RechargeRewardsRollBackBeforeRetry(t *testing.T) {
+	for _, failure := range []string{"principal", "bonus", "rebate", "response read", "commit"} {
 		t.Run(failure, func(t *testing.T) {
 			sqlDB, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, sqlDB)))
 			t.Cleanup(func() { _ = client.Close() })
 			repo := &balanceUserRepoStub{userRepoStub: &userRepoStub{user: &User{ID: "7", Balance: 10}}}
+			affiliate := &adminRechargeAffiliateAccruerStub{rebate: 10}
 			switch failure {
 			case "principal":
 				repo.failCreditAt = 1
 			case "bonus":
 				repo.failCreditAt = 2
+			case "rebate":
+				affiliate.err = errors.New("affiliate unavailable")
 			case "response read":
 				repo.getErr = errors.New("read failed")
 			}
 			audit := &balanceRedeemRepoStub{}
 			invalidator := &authCacheInvalidatorStub{}
+			settings := adminRechargeSettingService(true)
+			settings.settingRepo.(*settingRepoStub).values[SettingRechargeBonusTiers] = `[{"threshold_cny":50,"bonus_points":3}]`
 			svc := &adminServiceImpl{userRepo: repo, redeemCodeRepo: audit, entClient: client, authCacheInvalidator: invalidator,
-				settingService: NewSettingService(&settingRepoStub{values: map[string]string{SettingRechargeBonusTiers: `[{"threshold_cny":50,"bonus_points":3}]`}}, nil)}
+				settingService: settings, affiliateService: affiliate}
 			mock.ExpectBegin()
-			mock.ExpectRollback()
+			if failure == "commit" {
+				mock.ExpectCommit().WillReturnError(errors.New("commit rejected"))
+			} else {
+				mock.ExpectRollback()
+			}
 			_, err = svc.UpdateUserBalance(context.Background(), "7", 50, "add", "")
 			require.Error(t, err)
 			require.Equal(t, 10.0, repo.user.Balance)
 			require.Zero(t, repo.user.BonusBalance)
+			require.Zero(t, affiliate.committed)
 			require.Empty(t, audit.created)
 			require.Empty(t, invalidator.userIDs)
 			repo.failCreditAt, repo.getErr = 0, nil
+			affiliate.err = nil
 			mock.ExpectBegin()
 			mock.ExpectCommit()
 			_, err = svc.UpdateUserBalance(context.Background(), "7", 50, "add", "")
 			require.NoError(t, err)
 			require.Equal(t, 63.0, repo.user.Balance)
 			require.Equal(t, 3.0, repo.user.BonusBalance)
+			require.Equal(t, 10.0, affiliate.committed)
 			require.Len(t, audit.created, 1)
 			require.NoError(t, mock.ExpectationsWereMet())
 		})
@@ -425,7 +491,7 @@ func TestAdminService_RechargeBonusSettingsFailureDoesNotCredit(t *testing.T) {
 	repo := &balanceUserRepoStub{userRepoStub: &userRepoStub{user: &User{ID: "7", Balance: 10}}}
 	svc := &adminServiceImpl{userRepo: repo, settingService: NewSettingService(&settingRepoStub{err: errors.New("settings unavailable")}, nil)}
 	_, err := svc.UpdateUserBalance(context.Background(), "7", 50, "add", "")
-	require.ErrorContains(t, err, "load recharge bonus tiers")
+	require.ErrorContains(t, err, "load admin recharge settings")
 	require.Empty(t, repo.credits)
 	require.Equal(t, 10.0, repo.user.Balance)
 }

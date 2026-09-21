@@ -1707,7 +1707,7 @@ const allColumns = computed(() => {
     { key: 'subscription_tier', label: t('admin.accounts.columns.subscriptionTier'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
-    { key: 'model_fingerprint', label: t('admin.accounts.fingerprint.attribution'), sortable: false },
+    { key: 'model_fingerprint', label: t('admin.accounts.fingerprint.attribution'), sortable: false, width: '180px', maxWidth: '180px' },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
   ]

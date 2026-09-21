@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/AsukaCC/EasySub2api/internal/service"
 )
@@ -51,4 +52,34 @@ func (r *accountRepository) SaveModelFingerprint(ctx context.Context, id string,
 	}
 	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
+}
+
+// Evaluate expiration in the UPDATE so cleanup cannot remove a newer test.
+func (r *accountRepository) DeleteExpiredModelFingerprints(ctx context.Context, now time.Time) (int64, error) {
+	rows, err := r.sql.QueryContext(ctx, `UPDATE accounts
+		SET extra = extra - 'model_fingerprint', updated_at = NOW()
+		WHERE extra ? 'model_fingerprint' AND COALESCE(
+			NULLIF(extra->'model_fingerprint'->>'finished_at', '')::timestamptz,
+			NULLIF(extra->'model_fingerprint'->>'expires_at', '')::timestamptz,
+			NULLIF(extra->'model_fingerprint'->>'started_at', '')::timestamptz,
+			'-infinity'::timestamptz
+		) <= $1
+		RETURNING id`, now.Add(-service.ModelFingerprintRetention))
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	r.syncSchedulerAccountSnapshots(ctx, ids)
+	return int64(len(ids)), nil
 }

@@ -8,7 +8,7 @@
     }"
     :aria-busy="loading ? 'true' : undefined"
   >
-    <div v-if="!isDesktopViewport" class="data-table__mobile-list">
+    <div v-if="!isDesktopViewport" class="data-table__mobile-list" :inert="loading || undefined">
       <template v-if="isInitialLoading">
         <div v-for="i in 5" :key="i" class="data-table__mobile-card data-table__mobile-card--skeleton">
           <div v-for="column in dataColumns" :key="column.key" class="data-table__mobile-field">
@@ -66,6 +66,7 @@
               @click.stop
               @change="toggleRowSelection(row, index, ($event.target as HTMLInputElement).checked)"
             />
+            <span v-if="isRefreshing" class="data-table__skeleton data-table__refresh-placeholder data-table__skeleton--checkbox" aria-hidden="true"></span>
           </div>
           <div
             v-for="column in dataColumns"
@@ -75,13 +76,19 @@
           >
             <span class="data-table__mobile-label">{{ column.label }}</span>
             <div class="data-table__mobile-value">
-              <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]" :expanded="actionsExpanded">
-                {{ column.formatter ? column.formatter(row[column.key], row) : row[column.key] }}
-              </slot>
+              <span class="data-table__cell-content" :aria-hidden="isRefreshing || undefined">
+                <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]" :expanded="actionsExpanded">
+                  {{ column.formatter ? column.formatter(row[column.key], row) : row[column.key] }}
+                </slot>
+              </span>
+              <span v-if="isRefreshing" class="data-table__skeleton data-table__refresh-placeholder" aria-hidden="true"></span>
             </div>
           </div>
           <div v-if="hasActionsColumn" class="data-table__mobile-actions">
-            <slot name="cell-actions" :row="row" :value="row.actions" :expanded="actionsExpanded"></slot>
+            <span class="data-table__cell-content" :aria-hidden="isRefreshing || undefined">
+              <slot name="cell-actions" :row="row" :value="row.actions" :expanded="actionsExpanded"></slot>
+            </span>
+            <span v-if="isRefreshing" class="data-table__skeleton data-table__refresh-placeholder" aria-hidden="true"></span>
           </div>
         </div>
       </template>
@@ -91,6 +98,7 @@
       v-else
       ref="tableWrapperRef"
       class="data-table__viewport table-wrapper"
+      :inert="loading || undefined"
       :class="{
         'actions-expanded': actionsExpanded,
         'is-scrollable': isScrollable,
@@ -239,6 +247,7 @@
                   @click.stop
                   @change="toggleRowSelection(item.row, item.index, ($event.target as HTMLInputElement).checked)"
                 />
+                <span v-if="isRefreshing" class="data-table__skeleton data-table__refresh-placeholder data-table__skeleton--checkbox" aria-hidden="true"></span>
               </td>
               <td
                 v-for="(column, colIndex) in columns"
@@ -253,14 +262,17 @@
                   { 'is-resized': hasCustomColumnWidth(column.key) },
                 ]"
               >
-                <slot
-                  :name="`cell-${column.key}`"
-                  :row="item.row"
-                  :value="item.row[column.key]"
-                  :expanded="actionsExpanded"
-                >
-                  {{ column.formatter ? column.formatter(item.row[column.key], item.row) : item.row[column.key] }}
-                </slot>
+                <span class="data-table__cell-content" :aria-hidden="isRefreshing || undefined">
+                  <slot
+                    :name="`cell-${column.key}`"
+                    :row="item.row"
+                    :value="item.row[column.key]"
+                    :expanded="actionsExpanded"
+                  >
+                    {{ column.formatter ? column.formatter(item.row[column.key], item.row) : item.row[column.key] }}
+                  </slot>
+                </span>
+                <span v-if="isRefreshing" class="data-table__skeleton data-table__refresh-placeholder" aria-hidden="true"></span>
               </td>
             </tr>
             <tr v-if="virtualPaddingBottom > 0" aria-hidden="true">
@@ -271,19 +283,15 @@
       </table>
     </div>
 
-    <div
-      v-if="isRefreshing"
-      class="data-table__loading-overlay"
-      :class="isDesktopViewport ? 'data-table__loading-overlay--desktop' : 'data-table__loading-overlay--mobile'"
+    <span
+      v-if="loading"
+      class="data-table__loading-status"
       role="status"
       aria-live="polite"
       aria-atomic="true"
     >
-      <div class="data-table__loading-state">
-        <span class="data-table__spinner" aria-hidden="true"></span>
-        <span>{{ t('common.loading') }}</span>
-      </div>
-    </div>
+      {{ t('common.loading') }}
+    </span>
   </div>
 </template>
 
@@ -527,25 +535,8 @@ const props = withDefaults(defineProps<Props>(), {
   selectedKeys: () => []
 })
 
-const hasCompletedInitialLoad = ref(props.data.length > 0)
-const hasObservedLoading = ref(props.loading)
-
-watch(
-  () => props.loading,
-  (loading) => {
-    if (loading) {
-      hasObservedLoading.value = true
-      return
-    }
-    if (hasObservedLoading.value) {
-      hasCompletedInitialLoad.value = true
-    }
-  },
-  { immediate: true }
-)
-
-const isInitialLoading = computed(() => props.loading && !hasCompletedInitialLoad.value)
-const isRefreshing = computed(() => props.loading && hasCompletedInitialLoad.value)
+const isInitialLoading = computed(() => props.loading && props.data.length === 0)
+const isRefreshing = computed(() => props.loading && props.data.length > 0)
 usePageLoading(() => props.loading)
 
 const sortKey = ref<string>('')
@@ -1308,63 +1299,59 @@ defineExpose({
       user-select: none;
     }
 
-    .data-table__body,
-    .data-table__mobile-card,
+    .data-table__cell-content,
+    .data-table__checkbox,
     .data-table__mobile-selection {
-      opacity: 0.48;
+      visibility: hidden;
     }
   }
 
-  &__loading-overlay {
+  &__loading-status {
     position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: calc(var(--z-sticky) + 8);
-    display: grid;
-    min-height: 6.5rem;
-    place-items: center;
-    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-    background-color: var(--glass-layer-content-bg);
-    -webkit-backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-layer-content-blur)) saturate(var(--glass-saturate));
-    cursor: wait;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
-  &__loading-overlay--desktop {
-    top: 2.75rem;
+  // Keep slot components mounted and retain their geometry during refresh.
+  &__cell-content {
+    display: contents;
   }
 
-  &__loading-overlay--mobile {
-    top: 0;
-    border-radius: var(--radius-lg, 0.5rem);
-  }
-
-  &__loading-state {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 2rem;
-    padding: 0.375rem 0.75rem;
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md, 0.5rem);
-    background: var(--glass-layer-inset-bg);
-    box-shadow: var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
-    color: var(--color-text-secondary);
-    font-size: var(--type-caption-size);
-    line-height: 1;
-    -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-layer-inset-blur)) saturate(var(--glass-saturate));
-  }
-
-  &__spinner {
-    width: 0.875rem;
+  &__refresh-placeholder {
+    position: absolute;
+    top: 50%;
+    left: var(--data-table-cell-padding, 1rem);
+    width: min(8rem, calc(100% - 2 * var(--data-table-cell-padding, 1rem)));
     height: 0.875rem;
-    flex: 0 0 auto;
-    border: 2px solid var(--color-border-strong);
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: data-table-spin 0.7s linear infinite;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  &__selection-cell .data-table__refresh-placeholder {
+    left: 50%;
+    width: 1rem;
+    height: 1rem;
+    transform: translate(-50%, -50%);
+  }
+
+  &__mobile-value,
+  &__mobile-actions {
+    position: relative;
+
+    .data-table__refresh-placeholder {
+      right: 0;
+      left: auto;
+      width: min(8rem, 100%);
+    }
+  }
+
+  &__mobile-row-selection .data-table__refresh-placeholder {
+    left: 0;
+    width: 1rem;
+    height: 1rem;
   }
 
   &__viewport {
@@ -1557,6 +1544,7 @@ defineExpose({
 
   // 单元格默认透明，让玻璃卡底透出；sticky 列使用 L2 半透明材质遮挡滚动内容。
   &__body-cell {
+    position: relative;
     height: 3.25rem;
     border-bottom: 1px solid var(--color-border-subtle);
     background: transparent;
@@ -1602,21 +1590,25 @@ defineExpose({
 
   &__cell {
     &--padding-compact {
+      --data-table-cell-padding: 0.5rem;
       padding-right: 0.5rem;
       padding-left: 0.5rem;
     }
 
     &--padding-condensed {
+      --data-table-cell-padding: 0.75rem;
       padding-right: 0.75rem;
       padding-left: 0.75rem;
     }
 
     &--padding-default {
+      --data-table-cell-padding: 1rem;
       padding-right: 1rem;
       padding-left: 1rem;
     }
 
     &--padding-comfortable {
+      --data-table-cell-padding: 1.5rem;
       padding-right: 1.5rem;
       padding-left: 1.5rem;
     }
@@ -1916,13 +1908,6 @@ defineExpose({
   user-select: none !important;
 }
 
-@keyframes data-table-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-
 @media (max-width: 767px) {
   /* 移动端为卡片列表形态,自带瓷片边框,外壳去掉 */
   .data-table,
@@ -1940,11 +1925,6 @@ defineExpose({
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .data-table__spinner {
-    animation: none;
-  }
-
-
   .data-table__body,
   .data-table__mobile-card,
   .data-table__mobile-selection {

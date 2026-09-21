@@ -2028,7 +2028,7 @@ var (
 		{Name: "video_duration_seconds", Type: field.TypeInt, Nullable: true},
 		{Name: "cache_ttl_overridden", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "api_key_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "api_key_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "account_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "group_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},

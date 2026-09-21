@@ -579,6 +579,7 @@ const cancelExport = () => exportAbortController?.abort()
 const openCleanupDialog = () => { cleanupDialogVisible.value = true }
 const getRequestTypeLabel = (log: AdminUsageLog): string => {
   const requestType = resolveUsageRequestType(log)
+  if (requestType === 'test') return t('usage.testRequest')
   if (requestType === 'cyber') return t('usage.cyber')
   if (requestType === 'live') return t('usage.live')
   if (requestType === 'ws_v2') return t('usage.ws')
@@ -614,7 +615,7 @@ const exportToExcel = async () => {
       )
       if (c.signal.aborted) break; if (p === 1) { total = res.total; exportProgress.total = total }
       const rows = (res.items || []).map((log: AdminUsageLog) => [
-        log.created_at, log.user?.email || '', log.api_key?.name || '', log.account?.name || '', log.model,
+        log.created_at, log.user?.email || '', log.request_type === 'test' ? t('usage.testRequest') : log.api_key?.name || '', log.account?.name || '', log.model,
         log.upstream_model || log.model, log.upstream_response_model || '', log.upstream_model_mismatch == null ? '' : t(log.upstream_model_mismatch ? 'common.yes' : 'common.no'), formatReasoningEffortMapping(log.requested_reasoning_effort, log.reasoning_effort), log.group?.name || '',
         log.inbound_endpoint || '', log.upstream_endpoint || '', getRequestTypeLabel(log), getUsageServiceTierLabel(log.service_tier, t), t(log.native_compaction_v2 ? 'common.yes' : 'common.no'),
         log.input_tokens, log.output_tokens, log.cache_read_tokens, log.cache_creation_tokens,

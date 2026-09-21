@@ -513,19 +513,26 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 		return nil, infraerrors.BadRequest("INVALID_BALANCE", "invalid balance amount")
 	}
 	bonusPoints := 0.0
+	accrueRebate := false
 	opCtx := ctx
 	var tx *dbent.Tx
 	if operation == "add" && balanceType == WalletKindRecharge {
 		if s.settingService != nil {
-			settings, err := s.settingService.settingRepo.GetMultiple(ctx, []string{SettingRechargeBonusTiers})
+			settings, err := s.settingService.settingRepo.GetMultiple(ctx, []string{
+				SettingRechargeBonusTiers, SettingKeyAffiliateEnabled, SettingKeyAffiliateAdminRechargeEnabled,
+			})
 			if err != nil {
-				return nil, fmt.Errorf("load recharge bonus tiers: %w", err)
+				return nil, fmt.Errorf("load admin recharge settings: %w", err)
 			}
 			if tier := selectRechargeBonusTier(balance, parseRechargeBonusTiers(settings[SettingRechargeBonusTiers])); tier != nil {
 				bonusPoints = tier.BonusPoints
 			}
+			accrueRebate = settings[SettingKeyAffiliateEnabled] == "true" && settings[SettingKeyAffiliateAdminRechargeEnabled] == "true"
 		}
-		// Keep both credits and response reads atomic so a failed attempt can be retried.
+		if accrueRebate && s.affiliateService == nil {
+			return nil, errors.New("admin recharge affiliate service unavailable")
+		}
+		// Recharge, bonus, rebate and response reads must succeed together before commit.
 		if s.entClient != nil {
 			var err error
 			tx, err = s.entClient.Tx(ctx)
@@ -534,8 +541,8 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 			}
 			defer func() { _ = tx.Rollback() }()
 			opCtx = dbent.NewTxContext(ctx, tx)
-		} else if bonusPoints > 0 {
-			return nil, errors.New("admin recharge bonus requires a wallet transaction")
+		} else if bonusPoints > 0 || accrueRebate {
+			return nil, errors.New("admin recharge rewards require a wallet transaction")
 		}
 	}
 	before, err := s.userRepo.GetWalletSummary(opCtx, userID)
@@ -553,17 +560,24 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 	}
 	switch operation {
 	case "add":
-		_, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
+		var credit WalletMutationResult
+		credit, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
 			UserID: userID, Amount: balance, Kind: balanceType, ExpiresAt: expiresAt,
 			SourceType: "admin_adjustment", SourceID: operationID, IdempotencyKey: operationID, Notes: notes,
 		})
-		if err == nil && bonusPoints > 0 {
+		if err == nil && credit.Applied && bonusPoints > 0 {
 			bonusExpiresAt := time.Now().UTC().Add(rechargeBonusValidity)
 			_, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
 				UserID: userID, Amount: bonusPoints, Kind: WalletKindBonus, ExpiresAt: &bonusExpiresAt,
 				SourceType: "admin_adjustment", SourceID: operationID,
 				IdempotencyKey: operationID + ":bonus", Notes: notes,
 			})
+		}
+		if err == nil && credit.Applied && accrueRebate {
+			// Only newly credited recharge principal earns a rebate, never bonus points.
+			if _, err = s.affiliateService.AccrueInviteRebate(opCtx, userID, balance); err != nil {
+				return nil, fmt.Errorf("accrue admin recharge affiliate rebate: %w", err)
+			}
 		}
 	case "subtract":
 		_, err = s.userRepo.DebitWallet(ctx, WalletDebitInput{

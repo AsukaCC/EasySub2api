@@ -4,6 +4,7 @@
       <div class="fingerprint-account">{{ account?.name }}</div>
       <label class="fingerprint-label">{{ t('admin.accounts.selectTestModel') }}</label>
       <Select v-model="selectedModel" :options="models" value-key="id" label-key="display_name"
+        searchable creatable
         :disabled="loadingModels || busy || starting"
         :placeholder="loadingModels ? t('common.loading') : t('admin.accounts.selectTestModel')" />
       <p v-if="loadError" class="fingerprint-error" role="alert">{{ t('admin.accounts.fingerprint.loadFailed') }}</p>
@@ -61,7 +62,7 @@ watch(accountId, async (id, _, onCleanup) => {
   loadingModels.value = Boolean(id)
   if (!id) return
   try {
-    const items = await adminAPI.accounts.getAvailableModels(id)
+    const items = await adminAPI.accounts.getAvailableModels(id, true)
     if (stale) return
     models.value = items.filter(item => isFingerprintTextModel(item.id))
     const previous = (props.account?.extra?.model_fingerprint as ModelFingerprintSnapshot | undefined)?.model

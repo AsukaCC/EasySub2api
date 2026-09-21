@@ -38,7 +38,7 @@ func (UsageLog) Fields() []ent.Field {
 	return []ent.Field{
 		// 关联字段
 		field.String("user_id").SchemaType(postgresUUIDSchema),
-		field.String("api_key_id").SchemaType(postgresUUIDSchema),
+		field.String("api_key_id").SchemaType(postgresUUIDSchema).Optional(),
 		field.String("account_id").SchemaType(postgresUUIDSchema),
 		field.String("request_id").
 			MaxLen(64).
@@ -211,7 +211,6 @@ func (UsageLog) Edges() []ent.Edge {
 		edge.From("api_key", APIKey.Type).
 			Ref("usage_logs").
 			Field("api_key_id").
-			Required().
 			Unique(),
 		edge.From("account", Account.Type).
 			Ref("usage_logs").

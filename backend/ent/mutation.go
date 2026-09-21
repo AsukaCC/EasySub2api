@@ -56220,9 +56220,22 @@ func (m *UsageLogMutation) OldAPIKeyID(ctx context.Context) (v string, err error
 	return oldValue.APIKeyID, nil
 }
 
+// ClearAPIKeyID clears the value of the "api_key_id" field.
+func (m *UsageLogMutation) ClearAPIKeyID() {
+	m.api_key = nil
+	m.clearedFields[usagelog.FieldAPIKeyID] = struct{}{}
+}
+
+// APIKeyIDCleared returns if the "api_key_id" field was cleared in this mutation.
+func (m *UsageLogMutation) APIKeyIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldAPIKeyID]
+	return ok
+}
+
 // ResetAPIKeyID resets all changes to the "api_key_id" field.
 func (m *UsageLogMutation) ResetAPIKeyID() {
 	m.api_key = nil
+	delete(m.clearedFields, usagelog.FieldAPIKeyID)
 }
 
 // SetAccountID sets the "account_id" field.
@@ -58655,7 +58668,7 @@ func (m *UsageLogMutation) ClearAPIKey() {
 
 // APIKeyCleared reports if the "api_key" edge to the APIKey entity was cleared.
 func (m *UsageLogMutation) APIKeyCleared() bool {
-	return m.clearedapi_key
+	return m.APIKeyIDCleared() || m.clearedapi_key
 }
 
 // APIKeyIDs returns the "api_key" edge IDs in the mutation.
@@ -59775,6 +59788,9 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *UsageLogMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(usagelog.FieldAPIKeyID) {
+		fields = append(fields, usagelog.FieldAPIKeyID)
+	}
 	if m.FieldCleared(usagelog.FieldRequestedModel) {
 		fields = append(fields, usagelog.FieldRequestedModel)
 	}
@@ -59858,6 +59874,9 @@ func (m *UsageLogMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *UsageLogMutation) ClearField(name string) error {
 	switch name {
+	case usagelog.FieldAPIKeyID:
+		m.ClearAPIKeyID()
+		return nil
 	case usagelog.FieldRequestedModel:
 		m.ClearRequestedModel()
 		return nil

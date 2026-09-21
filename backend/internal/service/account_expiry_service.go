@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// AccountExpiryService periodically pauses expired accounts when auto-pause is enabled.
+// AccountExpiryService pauses expired accounts and removes expired test results.
 type AccountExpiryService struct {
 	accountRepo AccountRepository
 	interval    time.Duration
@@ -57,6 +57,7 @@ func (s *AccountExpiryService) Stop() {
 }
 
 func (s *AccountExpiryService) runOnce() {
+	defer s.cleanupModelFingerprints()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -67,5 +68,19 @@ func (s *AccountExpiryService) runOnce() {
 	}
 	if updated > 0 {
 		log.Printf("[AccountExpiry] Auto paused %v expired accounts", updated)
+	}
+}
+
+func (s *AccountExpiryService) cleanupModelFingerprints() {
+	store, ok := s.accountRepo.(interface {
+		DeleteExpiredModelFingerprints(context.Context, time.Time) (int64, error)
+	})
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := store.DeleteExpiredModelFingerprints(ctx, time.Now()); err != nil {
+		log.Printf("[AccountExpiry] Remove expired model fingerprints failed: %v", err)
 	}
 }

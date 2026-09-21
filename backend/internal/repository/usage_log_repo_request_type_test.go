@@ -39,68 +39,9 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 		CreatedAt:      createdAt,
 	}
 
+	prepared := prepareUsageLogInsert(log)
 	mock.ExpectQuery("INSERT INTO usage_logs").
-		WithArgs(
-			log.UserID,
-			log.APIKeyID,
-			log.AccountID,
-			log.RequestID,
-			log.Model,
-			log.RequestedModel,
-			sqlmock.AnyArg(), // upstream_model
-			sqlmock.AnyArg(), // upstream_response_model
-			sqlmock.AnyArg(), // upstream_model_mismatch
-			sqlmock.AnyArg(), // group_id
-			sqlmock.AnyArg(), // subscription_id
-			log.InputTokens,
-			log.OutputTokens,
-			log.CacheCreationTokens,
-			log.CacheReadTokens,
-			log.CacheCreation5mTokens,
-			log.CacheCreation1hTokens,
-			log.ImageOutputTokens,
-			log.ImageOutputCost,
-			log.ImageInputTokens,
-			log.ImageInputCost,
-			log.InputCost,
-			log.OutputCost,
-			log.CacheCreationCost,
-			log.CacheReadCost,
-			log.TotalCost,
-			log.ActualCost,
-			log.RateMultiplier,
-			log.AccountRateMultiplier,
-			log.BillingType,
-			int16(service.RequestTypeWSV2),
-			true,
-			true,
-			sqlmock.AnyArg(), // duration_ms
-			sqlmock.AnyArg(), // first_token_ms
-			sqlmock.AnyArg(), // user_agent
-			sqlmock.AnyArg(), // ip_address
-			log.ImageCount,
-			sqlmock.AnyArg(), // image_size
-			sqlmock.AnyArg(), // image_input_size
-			sqlmock.AnyArg(), // image_output_size
-			sqlmock.AnyArg(), // image_size_source
-			sqlmock.AnyArg(), // image_size_breakdown
-			sqlmock.AnyArg(), // video_count
-			sqlmock.AnyArg(), // video_resolution
-			sqlmock.AnyArg(), // video_duration_seconds
-			sqlmock.AnyArg(), // service_tier
-			sqlmock.AnyArg(), // reasoning_effort
-			sqlmock.AnyArg(), // inbound_endpoint
-			sqlmock.AnyArg(), // upstream_endpoint
-			log.CacheTTLOverridden,
-			log.LongContextBillingApplied,
-			sqlmock.AnyArg(), // channel_id
-			sqlmock.AnyArg(), // model_mapping_chain
-			sqlmock.AnyArg(), // billing_tier
-			sqlmock.AnyArg(), // billing_mode
-			sqlmock.AnyArg(), // account_stats_cost
-			sqlmock.AnyArg(), // session_id
-			createdAt,
-		).
+		WithArgs(anySliceToDriverValues(prepared.args)...).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
 
 	inserted, err := repo.Create(context.Background(), log)
@@ -131,68 +72,9 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 		CreatedAt:      createdAt,
 	}
 
+	prepared := prepareUsageLogInsert(log)
 	mock.ExpectQuery("INSERT INTO usage_logs").
-		WithArgs(
-			log.UserID,
-			log.APIKeyID,
-			log.AccountID,
-			log.RequestID,
-			log.Model,
-			log.RequestedModel,
-			sqlmock.AnyArg(), // upstream_model
-			sqlmock.AnyArg(), // upstream_response_model
-			sqlmock.AnyArg(), // upstream_model_mismatch
-			sqlmock.AnyArg(), // group_id
-			sqlmock.AnyArg(), // subscription_id
-			log.InputTokens,
-			log.OutputTokens,
-			log.CacheCreationTokens,
-			log.CacheReadTokens,
-			log.CacheCreation5mTokens,
-			log.CacheCreation1hTokens,
-			log.ImageOutputTokens,
-			log.ImageOutputCost,
-			log.ImageInputTokens,
-			log.ImageInputCost,
-			log.InputCost,
-			log.OutputCost,
-			log.CacheCreationCost,
-			log.CacheReadCost,
-			log.TotalCost,
-			log.ActualCost,
-			log.RateMultiplier,
-			log.AccountRateMultiplier,
-			log.BillingType,
-			int16(service.RequestTypeSync),
-			false,
-			false,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			log.ImageCount,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(), // image_input_size
-			sqlmock.AnyArg(), // image_output_size
-			sqlmock.AnyArg(), // image_size_source
-			sqlmock.AnyArg(), // image_size_breakdown
-			sqlmock.AnyArg(), // video_count
-			sqlmock.AnyArg(), // video_resolution
-			sqlmock.AnyArg(), // video_duration_seconds
-			serviceTier,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			log.CacheTTLOverridden,
-			log.LongContextBillingApplied,
-			sqlmock.AnyArg(), // channel_id
-			sqlmock.AnyArg(), // model_mapping_chain
-			sqlmock.AnyArg(), // billing_tier
-			sqlmock.AnyArg(), // billing_mode
-			sqlmock.AnyArg(), // account_stats_cost
-			sqlmock.AnyArg(), // session_id
-			createdAt,
-		).
+		WithArgs(anySliceToDriverValues(prepared.args)...).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
 
 	inserted, err := repo.Create(context.Background(), log)
@@ -740,9 +622,9 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	end := start.Add(24 * time.Hour)
 
 	rows := sqlmock.NewRows([]string{"user_id", "email", "username", "actual_cost", "requests", "tokens", "total_actual_cost", "total_requests", "total_tokens"}).
-		AddRow(int64(2), "beta@example.com", "beta", 12.5, int64(9), int64(900), 40.0, int64(30), int64(2600)).
-		AddRow(int64(1), "alpha@example.com", "alpha", 12.5, int64(8), int64(800), 40.0, int64(30), int64(2600)).
-		AddRow(int64(3), "gamma@example.com", "", 4.25, int64(5), int64(300), 40.0, int64(30), int64(2600))
+		AddRow("user-2", "beta@example.com", "beta", 12.5, int64(9), int64(900), 40.0, int64(30), int64(2600)).
+		AddRow("user-1", "alpha@example.com", "alpha", 12.5, int64(8), int64(800), 40.0, int64(30), int64(2600)).
+		AddRow("user-3", "gamma@example.com", "", 4.25, int64(5), int64(300), 40.0, int64(30), int64(2600))
 
 	mock.ExpectQuery("WITH user_spend AS \\(").
 		WithArgs(start, end, 12).

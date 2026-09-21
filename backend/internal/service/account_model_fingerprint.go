@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	apperrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/modeltrace"
 	"github.com/gin-gonic/gin"
@@ -17,6 +20,7 @@ import (
 )
 
 const ModelFingerprintExtraKey = "model_fingerprint"
+const ModelFingerprintRetention = 2 * time.Hour
 const modelFingerprintMaxTokens = 1536
 
 type ModelFingerprintSnapshot struct {
@@ -45,7 +49,11 @@ func (s *AccountTestService) GetModelFingerprint(ctx context.Context, id string)
 	if err != nil {
 		return nil, err
 	}
-	raw := a.Extra[ModelFingerprintExtraKey]
+	return ParseModelFingerprintSnapshot(a.Extra[ModelFingerprintExtraKey], time.Now())
+}
+
+// The worker lease (expires_at) is separate from the completed result's lifetime.
+func ParseModelFingerprintSnapshot(raw any, now time.Time) (*ModelFingerprintSnapshot, error) {
 	if raw == nil {
 		return nil, nil
 	}
@@ -57,31 +65,54 @@ func (s *AccountTestService) GetModelFingerprint(ctx context.Context, id string)
 	if err := json.Unmarshal(body, &snapshot); err != nil {
 		return nil, err
 	}
-	if snapshot.Status == "running" && time.Now().After(snapshot.ExpiresAt) {
+	finished := snapshot.StartedAt
+	if !snapshot.ExpiresAt.IsZero() {
+		finished = snapshot.ExpiresAt
+	}
+	if snapshot.FinishedAt != nil {
+		finished = *snapshot.FinishedAt
+	}
+	if !now.Before(finished.Add(ModelFingerprintRetention)) {
+		return nil, nil
+	}
+	if snapshot.Status == "running" && !now.Before(snapshot.ExpiresAt) {
 		snapshot.Status = "failed"
 		snapshot.Error = "interrupted"
+		snapshot.FinishedAt = &finished
 	}
 	return &snapshot, nil
 }
 
-func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, model string) (*ModelFingerprintSnapshot, error) {
+// DirectModelTestAccount isolates test routing from the account's saved allowlist.
+func DirectModelTestAccount(account *Account) *Account {
+	copy := *account
+	copy.Credentials = maps.Clone(account.Credentials)
+	delete(copy.Credentials, "model_mapping")
+	copy.modelMappingCacheReady = false
+	copy.modelMappingCache = nil
+	return &copy
+}
+
+func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, model, userID string) (*ModelFingerprintSnapshot, error) {
 	model = strings.TrimSpace(model)
 	a, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if model == "" || len(model) > 200 || strings.ContainsAny(model, "\r\n*") {
+	if model == "" || len(model) > 100 || strings.ContainsAny(model, "\r\n*") {
 		return nil, apperrors.BadRequest("INVALID_MODEL", "Select a text model")
 	}
-	mapped := a.GetMappedModel(model)
-	if err := CheckActiveModel(model, mapped); err != nil {
+	if err := CheckActiveModel(model); err != nil {
 		return nil, err
 	}
-	if !IsModelFingerprintTextModel(model) || !IsModelFingerprintTextModel(mapped) || !a.IsModelSupported(model) {
+	if !IsModelFingerprintTextModel(model) {
 		return nil, apperrors.BadRequest("INVALID_MODEL", "Model fingerprinting requires an available text model")
 	}
 	if err := ValidateAccountProtectionConfiguration(a); err != nil {
 		return nil, err
+	}
+	if userID == "" || s.modelFingerprintUsage == nil {
+		return nil, errors.New("model fingerprint usage logging unavailable")
 	}
 	store, ok := s.accountRepo.(modelFingerprintStore)
 	if !ok {
@@ -108,7 +139,7 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 		return nil, apperrors.New(409, "MODEL_FINGERPRINT_RUNNING", "An account fingerprint test is already running")
 	}
 	initial := *snapshot
-	go func() { defer release(); s.runModelFingerprint(id, snapshot, store) }()
+	go func() { defer release(); s.runModelFingerprint(id, userID, snapshot, store) }()
 	return &initial, nil
 }
 
@@ -122,7 +153,7 @@ func IsModelFingerprintTextModel(model string) bool {
 	return strings.TrimSpace(model) != ""
 }
 
-func (s *AccountTestService) runModelFingerprint(id string, snapshot *ModelFingerprintSnapshot, store modelFingerprintStore) {
+func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *ModelFingerprintSnapshot, store modelFingerprintStore) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
 	defer func() {
@@ -140,9 +171,9 @@ func (s *AccountTestService) runModelFingerprint(id string, snapshot *ModelFinge
 	}()
 	outputs := make([][]int, 0, modeltrace.QueryCount)
 	conversation := &modelFingerprintConversation{id: snapshot.ID}
-	for _, challenge := range modeltrace.Challenges() {
+	for turn, challenge := range modeltrace.Challenges() {
 		probeCtx, stop := context.WithTimeout(ctx, 70*time.Second)
-		probe := &modelFingerprintProbe{prompt: challenge.Prompt, expected: challenge.Expected, cancel: stop, conversation: conversation}
+		probe := &modelFingerprintProbe{model: snapshot.Model, prompt: challenge.Prompt, expected: challenge.Expected, cancel: stop, conversation: conversation, startedAt: time.Now()}
 		probeCtx = context.WithValue(probeCtx, modelFingerprintContextKey{}, probe)
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest(http.MethodPost, "/model-fingerprint", nil).WithContext(probeCtx)
@@ -150,6 +181,12 @@ func (s *AccountTestService) runModelFingerprint(id string, snapshot *ModelFinge
 		timedOut := probeCtx.Err() != nil && !probe.enough
 		stop()
 		snapshot.Completed++
+		if err := s.recordModelFingerprintUsage(userID, id, snapshot, turn, probe); err != nil {
+			snapshot.Status = "failed"
+			snapshot.Error = "save_failed"
+			slog.Warn("model fingerprint usage could not be saved", "account_id", id, "job_id", snapshot.ID)
+			return
+		}
 		if !probe.enough && (err != nil || probe.failed || timedOut || !probe.complete) {
 			snapshot.Status = "failed"
 			snapshot.Error = "upstream_failed"
@@ -193,14 +230,19 @@ type modelFingerprintConversation struct {
 	turns        []modelFingerprintTurn
 }
 type modelFingerprintProbe struct {
-	conversation *modelFingerprintConversation
-	prompt       string
-	expected     int
-	text         strings.Builder
-	cancel       context.CancelFunc
-	enough       bool
-	complete     bool
-	failed       bool
+	conversation  *modelFingerprintConversation
+	model         string
+	prompt        string
+	expected      int
+	text          strings.Builder
+	cancel        context.CancelFunc
+	enough        bool
+	complete      bool
+	failed        bool
+	startedAt     time.Time
+	firstTokenMs  *int
+	upstreamModel string
+	usage         UsageLog
 }
 
 func fingerprintProbe(ctx context.Context) *modelFingerprintProbe {
@@ -210,7 +252,13 @@ func fingerprintProbe(ctx context.Context) *modelFingerprintProbe {
 
 func (p *modelFingerprintProbe) event(event TestEvent) {
 	switch event.Type {
+	case "test_start":
+		p.upstreamModel = event.Model
 	case "content":
+		if p.firstTokenMs == nil && event.Text != "" {
+			ms := int(time.Since(p.startedAt).Milliseconds())
+			p.firstTokenMs = &ms
+		}
 		if p.enough || p.failed {
 			return
 		}
@@ -231,6 +279,32 @@ func (p *modelFingerprintProbe) event(event TestEvent) {
 	case "error":
 		p.failed = true
 	}
+}
+
+type modelFingerprintUsageWriter interface {
+	Create(context.Context, *UsageLog) (bool, error)
+}
+
+func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID string, snapshot *ModelFingerprintSnapshot, turn int, probe *modelFingerprintProbe) error {
+	log := probe.usage
+	log.UserID, log.AccountID = userID, accountID
+	log.RequestID = fmt.Sprintf("fingerprint:%s:%d", snapshot.ID, turn+1)
+	log.Model, log.RequestedModel = snapshot.Model, snapshot.Model
+	log.RequestType, log.Stream = RequestTypeTest, true
+	log.SessionID = &snapshot.ID
+	log.CreatedAt = probe.startedAt
+	ms := int(time.Since(probe.startedAt).Milliseconds())
+	log.DurationMs, log.FirstTokenMs = &ms, probe.firstTokenMs
+	if probe.upstreamModel != "" {
+		log.UpstreamModel = &probe.upstreamModel
+	}
+	endpoint := "/admin/accounts/:id/model-fingerprint"
+	log.InboundEndpoint = &endpoint
+	// Persist even when sampling canceled upstream early. Tests never debit a wallet/key.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := s.modelFingerprintUsage.Create(ctx, &log)
+	return err
 }
 
 // Only fingerprint contexts alter payloads. Native identity/authentication stays in
@@ -257,11 +331,11 @@ func applyModelFingerprintPayload(ctx context.Context, payload map[string]any, p
 		payload["max_tokens"] = modelFingerprintMaxTokens
 		delete(payload, "temperature")
 		if protocol == "chat" {
+			payload["stream_options"] = map[string]any{"include_usage": true}
 			model, _ := payload["model"].(string)
 			if modelFingerprintReasoningModel(model) {
 				delete(payload, "max_tokens")
 				payload["max_completion_tokens"] = modelFingerprintMaxTokens
-				payload["reasoning_effort"] = "low"
 			}
 		}
 	case "responses":
@@ -275,9 +349,6 @@ func applyModelFingerprintPayload(ctx context.Context, payload map[string]any, p
 		}
 		payload["input"] = input
 		delete(payload, "tools")
-		if model, _ := payload["model"].(string); modelFingerprintReasoningModel(model) {
-			payload["reasoning"] = map[string]any{"effort": "low"}
-		}
 		if !codex {
 			payload["max_output_tokens"] = modelFingerprintMaxTokens
 		}
@@ -293,6 +364,60 @@ func applyModelFingerprintPayload(ctx context.Context, payload map[string]any, p
 		payload["contents"] = contents
 		payload["generationConfig"] = map[string]any{"maxOutputTokens": modelFingerprintMaxTokens}
 	}
+	applyModelFingerprintEffort(p, payload, protocol)
+}
+
+func applyModelFingerprintEffort(probe *modelFingerprintProbe, payload map[string]any, protocol string) {
+	model, _ := payload["model"].(string)
+	if model == "" {
+		// Gemini and Bedrock carry the model in the URL instead of the payload.
+		model = probe.model
+	}
+	model = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(model), "models/"))
+	effort := "low"
+	switch protocol {
+	case "chat":
+		if !modelFingerprintReasoningModel(model) && !grokSupportsReasoningEffort(model) && payload["reasoning_effort"] == nil {
+			return
+		}
+		payload["reasoning_effort"] = effort
+	case "responses":
+		if !modelFingerprintReasoningModel(model) && !grokSupportsReasoningEffort(model) && payload["reasoning"] == nil {
+			return
+		}
+		reasoning, _ := payload["reasoning"].(map[string]any)
+		if reasoning == nil {
+			reasoning = map[string]any{}
+		}
+		reasoning["effort"] = effort
+		payload["reasoning"] = reasoning
+	case "anthropic":
+		if len(claude.EffortLevelsForModel(model)) == 0 {
+			return
+		}
+		config, _ := payload["output_config"].(map[string]any)
+		if config == nil {
+			config = map[string]any{}
+		}
+		config["effort"] = effort
+		payload["output_config"] = config
+		delete(payload, "thinking")
+	case "gemini":
+		config, _ := payload["generationConfig"].(map[string]any)
+		switch {
+		case strings.HasPrefix(model, "gemini-3"):
+			config["thinkingConfig"] = map[string]any{"thinkingLevel": effort, "includeThoughts": false}
+		case strings.HasPrefix(model, "gemini-2.5"), strings.HasPrefix(model, "claude-"):
+			// Budget-based APIs express the low tier with at most 1024 tokens.
+			config["thinkingConfig"] = map[string]any{"thinkingBudget": geminiThinkingBudgetLowMax, "includeThoughts": false}
+		default:
+			return
+		}
+	default:
+		return
+	}
+	probe.usage.ReasoningEffort = &effort
+	probe.usage.RequestedReasoningEffort = &effort
 }
 
 func modelFingerprintReasoningModel(model string) bool {

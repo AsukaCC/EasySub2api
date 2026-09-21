@@ -2,6 +2,7 @@ package admin
 
 import (
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
+	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,7 +13,7 @@ func (h *AccountHandler) StartModelFingerprint(c *gin.Context) {
 		return
 	}
 	var request struct {
-		Model string `json:"model_id" binding:"required,max=200"`
+		Model string `json:"model_id" binding:"required,max=100"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		response.BadRequest(c, "Invalid model selection")
@@ -22,7 +23,12 @@ func (h *AccountHandler) StartModelFingerprint(c *gin.Context) {
 		response.InternalError(c, "Account test service unavailable")
 		return
 	}
-	snapshot, err := h.accountTestService.StartModelFingerprint(c.Request.Context(), id, request.Model)
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "Admin not authenticated")
+		return
+	}
+	snapshot, err := h.accountTestService.StartModelFingerprint(c.Request.Context(), id, request.Model, subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

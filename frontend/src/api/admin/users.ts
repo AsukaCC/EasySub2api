@@ -356,13 +356,14 @@ export async function updateBalance(
   balanceType: 'recharge' | 'bonus' = 'recharge',
   bonusValidityDays = 90,
 ): Promise<AdminUser> {
+  const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const { data } = await apiClient.post<AdminUser>(`/admin/users/${id}/balance`, {
     balance,
     operation,
 	 notes: notes || '',
 	 balance_type: balanceType,
 	 bonus_validity_days: balanceType === 'bonus' ? bonusValidityDays : undefined,
-  })
+  }, { headers: { 'Idempotency-Key': `admin-user-balance-${id}-${requestID}` } })
   return data
 }
 

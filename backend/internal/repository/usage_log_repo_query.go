@@ -344,7 +344,9 @@ func collectUsageLogIDs(logs []service.UsageLog) usageLogIDs {
 
 	for i := range logs {
 		userIDs[logs[i].UserID] = struct{}{}
-		apiKeyIDs[logs[i].APIKeyID] = struct{}{}
+		if logs[i].APIKeyID != "" {
+			apiKeyIDs[logs[i].APIKeyID] = struct{}{}
+		}
 		accountIDs[logs[i].AccountID] = struct{}{}
 		if logs[i].GroupID != nil {
 			groupIDs[*logs[i].GroupID] = struct{}{}
@@ -443,7 +445,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	var (
 		id                        string
 		userID                    string
-		apiKeyID                  string
+		apiKeyID                  sql.NullString
 		accountID                 string
 		requestID                 sql.NullString
 		model                     string
@@ -577,7 +579,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	log := &service.UsageLog{
 		ID:                        id,
 		UserID:                    userID,
-		APIKeyID:                  apiKeyID,
+		APIKeyID:                  apiKeyID.String,
 		AccountID:                 accountID,
 		Model:                     model,
 		RequestedModel:            coalesceTrimmedString(requestedModel, model),

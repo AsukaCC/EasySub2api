@@ -2672,6 +2672,9 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		response.NotFound(c, "Account not found")
 		return
 	}
+	if c.Query("direct") == "true" {
+		account = service.DirectModelTestAccount(account)
+	}
 
 	// Handle OpenAI accounts
 	if account.IsOpenAI() {

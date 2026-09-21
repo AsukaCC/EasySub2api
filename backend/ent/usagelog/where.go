@@ -425,6 +425,16 @@ func APIKeyIDHasSuffix(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldHasSuffix(FieldAPIKeyID, v))
 }
 
+// APIKeyIDIsNil applies the IsNil predicate on the "api_key_id" field.
+func APIKeyIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldAPIKeyID))
+}
+
+// APIKeyIDNotNil applies the NotNil predicate on the "api_key_id" field.
+func APIKeyIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldAPIKeyID))
+}
+
 // APIKeyIDEqualFold applies the EqualFold predicate on the "api_key_id" field.
 func APIKeyIDEqualFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEqualFold(FieldAPIKeyID, v))

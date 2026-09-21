@@ -154,6 +154,7 @@ type AccountTestService struct {
 	agentIdentityTaskMu       sync.Mutex
 	modelFingerprintMu        sync.Mutex
 	modelFingerprintActive    int
+	modelFingerprintUsage     modelFingerprintUsageWriter
 	agentIdentityWS           agentIdentityWSConnectionInvalidator
 	// grokWSDialer is optional; realtime account tests use the default OpenAI-style
 	// WS dialer when nil (supports proxy + coder/websocket handshake).
@@ -337,6 +338,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 	}
 	if err := ValidateAccountProtectionConfiguration(account); err != nil {
 		return s.sendErrorAndEnd(c, err.Error())
+	}
+	if fingerprintProbe(ctx) != nil {
+		account = DirectModelTestAccount(account)
 	}
 
 	// Synthetic UI load-test accounts exercise the real SSE parsing and modal
@@ -2346,6 +2350,9 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader)
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			continue
 		}
+		if c.Request != nil {
+			collectModelFingerprintUsage(c.Request.Context(), data)
+		}
 
 		eventType, _ := data["type"].(string)
 
@@ -2412,6 +2419,9 @@ func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, 
 			return s.sendErrorAndEnd(c, "Invalid Chat Completions response from /v1/chat/completions: expected JSON data")
 		}
 		seenJSON = true
+		if c.Request != nil {
+			collectModelFingerprintUsage(c.Request.Context(), data)
+		}
 
 		if errData, ok := data["error"].(map[string]any); ok {
 			errorMsg := "Chat Completions API (/v1/chat/completions) returned an error"
@@ -2482,6 +2492,9 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, body io.Reader)
 		var data map[string]any
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			continue
+		}
+		if c.Request != nil {
+			collectModelFingerprintUsage(c.Request.Context(), data)
 		}
 
 		eventType, _ := data["type"].(string)
@@ -3104,6 +3117,9 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 		var data map[string]any
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			continue
+		}
+		if c.Request != nil {
+			collectModelFingerprintUsage(c.Request.Context(), data)
 		}
 
 		// Support two Gemini response formats:

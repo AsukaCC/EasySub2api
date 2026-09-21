@@ -60,8 +60,9 @@ describe('UserDashboardDynamicRateOffer', () => {
     expect(wrapper.findAll('time')).toHaveLength(2)
     expect(wrapper.text()).toContain('2 个分组')
     expect(wrapper.text()).toContain('参与中')
-    expect(wrapper.text()).toContain('特惠优先扣充值积分')
-    expect(wrapper.text()).toContain('赠送积分按分组倍率 × 用户等级倍率扣除')
+    expect(wrapper.findAll('.dashboard-dynamic-rate-offer__participation').map(item => item.text())).toEqual(['参与中', '参与中'])
+    expect(wrapper.text()).not.toContain('特惠优先扣充值积分')
+    expect(wrapper.text()).not.toContain('赠送积分按分组倍率 × 用户等级倍率扣除')
     wrapper.unmount()
   })
   it('renders percent saved in English', async () => {
@@ -71,7 +72,8 @@ describe('UserDashboardDynamicRateOffer', () => {
     expect(wrapper.text()).toContain('15% off')
     expect(wrapper.text()).toContain('Expires')
     expect(wrapper.text()).toContain('Participating')
-    expect(wrapper.text()).toContain('Offers use recharge points first')
+    expect(wrapper.get('.dashboard-dynamic-rate-offer__participation').text()).toBe('Participating')
+    expect(wrapper.text()).not.toContain('Offers use recharge points first')
     wrapper.unmount()
   })
   it('excludes future, expired, invalid and non-discounted offers', async () => {
@@ -88,29 +90,30 @@ describe('UserDashboardDynamicRateOffer', () => {
     expect(wrapper.find('section').exists()).toBe(false)
     wrapper.unmount()
   })
-  it('shows unmet spending conditions instead of hiding the offer', async () => {
+  it.each([
+    ['zh', '未达门槛', '近 7 天消费 25 / 100 积分'],
+    ['en', 'Requirements not met', '7-day spend: 25 / 100 credits'],
+  ])('shows a compact spending threshold in %s', async (locale, status, progress) => {
     mockedGetOffers.mockResolvedValue([sampleOffer({ status: 'below_threshold', usage_7d: 25 })])
-    const wrapper = mountOffer()
+    const wrapper = mountOffer(locale)
     await flushPromises()
-    expect(wrapper.text()).toContain('未达门槛')
-    expect(wrapper.text()).toContain('参与条件：')
-    expect(wrapper.text()).toContain('近 7 天消费满 100 积分')
-    expect(wrapper.text()).toContain('当前已消费 25 积分')
-    expect(wrapper.text()).not.toContain('参与中')
+    expect(wrapper.findAll('.dashboard-dynamic-rate-offer__participation > span').map(item => item.text())).toEqual([status, progress])
     wrapper.unmount()
   })
   it.each([
     ['quota_exhausted', '优惠额度已用尽'],
-    ['group_unavailable', '需获得该分组的使用权限'],
-    ['subscription_required', '需持有该分组的有效订阅'],
-    ['subscription_limited', '需有可用的订阅额度'],
-    ['level_required', '需由管理员配置有效的消费等级规则'],
+    ['group_unavailable', '需分组权限'],
+    ['subscription_required', '需有效订阅'],
+    ['subscription_limited', '订阅额度不足'],
+    ['level_required', '需配置消费等级'],
   ] as const)('shows the participation restriction for %s', async (status, message) => {
     mockedGetOffers.mockResolvedValue([sampleOffer({ status, personal_quota_amount: 10, personal_used_amount: 10 })])
     const wrapper = mountOffer()
     await flushPromises()
     expect(wrapper.text()).toContain(message)
-    expect(wrapper.text()).toContain('个人优惠额度已用 10 / 10 U')
+    if (status === 'quota_exhausted') expect(wrapper.text()).toContain('优惠额度 10 / 10 U')
+    else expect(wrapper.text()).not.toContain('10 / 10 U')
+    expect(wrapper.text()).not.toContain('近 7 天消费')
     expect(wrapper.text()).not.toContain('参与中')
     wrapper.unmount()
   })
@@ -124,14 +127,15 @@ describe('UserDashboardDynamicRateOffer', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('参与中')
     expect(wrapper.text()).not.toContain('未达门槛')
+    expect(wrapper.get('.dashboard-dynamic-rate-offer__participation').text()).toBe('参与中')
     wrapper.unmount()
   })
-  it('shows when participation has no spending minimum', async () => {
-    mockedGetOffers.mockResolvedValue([sampleOffer({ activation_spend: 0 })])
+  it('omits redundant conditions while participating with no spending minimum', async () => {
+    mockedGetOffers.mockResolvedValue([sampleOffer({ activation_spend: 0, personal_quota_amount: 10, personal_used_amount: 2 })])
     const wrapper = mountOffer()
     await flushPromises()
-    expect(wrapper.text()).toContain('无消费门槛')
-    expect(wrapper.text()).toContain('参与中')
+    expect(wrapper.text()).not.toContain('无消费门槛')
+    expect(wrapper.get('.dashboard-dynamic-rate-offer__participation').text()).toBe('参与中')
     wrapper.unmount()
   })
   it('removes an offer at its expiry without waiting for the next request', async () => {

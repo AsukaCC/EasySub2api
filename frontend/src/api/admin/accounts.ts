@@ -610,8 +610,8 @@ export async function setSchedulable(id: string, schedulable: boolean): Promise<
  * @param id - Account ID
  * @returns List of available models for this account
  */
-export async function getAvailableModels(id: string): Promise<ClaudeModel[]> {
-  const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`)
+export async function getAvailableModels(id: string, direct = false): Promise<ClaudeModel[]> {
+  const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`, { params: direct ? { direct: true } : undefined })
   return data
 }
 

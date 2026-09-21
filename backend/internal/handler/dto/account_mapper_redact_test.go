@@ -3,11 +3,29 @@ package dto
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/AsukaCC/EasySub2api/internal/service"
 )
+
+func TestModelFingerprintAccountMappingRetention(t *testing.T) {
+	for _, age := range []time.Duration{time.Hour, 2 * time.Hour, 3 * time.Hour} {
+		t.Run(age.String(), func(t *testing.T) {
+			finished := time.Now().Add(-age)
+			src := &service.Account{Extra: map[string]any{
+				service.ModelFingerprintExtraKey: map[string]any{"status": "completed", "finished_at": finished.Format(time.RFC3339Nano)},
+				"ordinary":                       "kept",
+			}}
+			got := AccountFromServiceShallow(src)
+			_, visible := got.Extra[service.ModelFingerprintExtraKey]
+			require.Equal(t, age < 2*time.Hour, visible)
+			require.Equal(t, "kept", got.Extra["ordinary"])
+			require.Contains(t, src.Extra, service.ModelFingerprintExtraKey)
+		})
+	}
+}
 
 func TestAccountFromServiceShallow_RedactsSensitiveCredentials(t *testing.T) {
 	src := &service.Account{

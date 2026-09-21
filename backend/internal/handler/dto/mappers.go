@@ -435,6 +435,10 @@ func redactAccountManagedExtra(extra map[string]any) map[string]any {
 			service.OllamaCloudUsageAutoRefreshExtraKey,
 			service.OllamaCloudUsageSnapshotExtraKey:
 			continue
+		case service.ModelFingerprintExtraKey:
+			if snapshot, err := service.ParseModelFingerprintSnapshot(value, time.Now()); err == nil && snapshot != nil {
+				redacted[key] = snapshot
+			}
 		default:
 			redacted[key] = value
 		}

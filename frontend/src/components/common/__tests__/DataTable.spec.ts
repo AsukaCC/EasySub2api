@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, onMounted, onUnmounted } from 'vue'
 
 import DataTable from '../DataTable.vue'
 import { _resetNavigationLoadingInstance, useNavigationLoadingState } from '@/composables/useNavigationLoading'
@@ -60,6 +61,8 @@ describe('DataTable', () => {
       await wrapper.setProps({ loading: true })
       await vi.advanceTimersByTimeAsync(100)
       expect(wrapper.text()).toContain('Loaded')
+      expect(wrapper.find('.data-table__refresh-placeholder').exists()).toBe(true)
+      expect(wrapper.find('.data-table__loading-overlay').exists()).toBe(false)
       expect(state.isLoading.value).toBe(true)
       wrapper.unmount()
       expect(state.isLoading.value).toBe(false)
@@ -72,6 +75,59 @@ describe('DataTable', () => {
   beforeEach(() => {
     stubDesktopMatchMedia()
     localStorage.clear()
+  })
+
+  it.each(['desktop', 'mobile'])('keeps %s cell instances and selection mounted while refreshing with skeletons', async (viewport) => {
+    if (viewport === 'mobile') stubMobileMatchMedia()
+    const mounted = vi.fn()
+    const unmounted = vi.fn()
+    const Cell = defineComponent({
+      setup() {
+        onMounted(mounted)
+        onUnmounted(unmounted)
+        return () => h('button', { 'data-test': 'cell-action' }, 'Account details')
+      }
+    })
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Account' }],
+        data: [{ id: 'account-1', name: 'Account 1' }],
+        selectable: true,
+        selectedKeys: ['account-1']
+      },
+      slots: { 'cell-name': () => h(Cell) }
+    })
+    try {
+      const action = wrapper.get('[data-test="cell-action"]').element
+      await wrapper.setProps({ loading: true })
+      expect(wrapper.findAll('.data-table__refresh-placeholder')).toHaveLength(2)
+      expect(wrapper.get('.data-table__cell-content').attributes('aria-hidden')).toBe('true')
+      expect(wrapper.get(viewport === 'desktop' ? '.data-table__viewport' : '.data-table__mobile-list').attributes('inert')).toBeDefined()
+      expect(wrapper.find('.data-table__spinner').exists()).toBe(false)
+      expect(wrapper.find('.data-table__loading-overlay').exists()).toBe(false)
+      expect(wrapper.get('[role="status"]').text()).toBe('common.loading')
+      await wrapper.setProps({ loading: false })
+      expect(wrapper.get('[data-test="cell-action"]').element).toBe(action)
+      expect(wrapper.find('.data-table__refresh-placeholder').exists()).toBe(false)
+      expect(wrapper.get('.data-table__cell-content').attributes('aria-hidden')).toBeUndefined()
+      expect((wrapper.get('[data-test="select-row"]').element as HTMLInputElement).checked).toBe(true)
+      expect(mounted).toHaveBeenCalledTimes(1)
+      expect(unmounted).not.toHaveBeenCalled()
+    } finally { wrapper.unmount() }
+  })
+
+  it('uses skeleton rows when refreshing an already-loaded empty table', async () => {
+    const wrapper = mount(DataTable, {
+      props: { columns: [{ key: 'name', label: 'Account' }], data: [], loading: true }
+    })
+    try {
+      await wrapper.setProps({ loading: false })
+      expect(wrapper.text()).toContain('empty.noData')
+      await wrapper.setProps({ loading: true })
+      expect(wrapper.findAll('.data-table__skeleton-row')).toHaveLength(5)
+      expect(wrapper.text()).not.toContain('empty.noData')
+      expect(wrapper.find('.data-table__loading-overlay').exists()).toBe(false)
+    } finally { wrapper.unmount() }
   })
 
   it('renders paired sort arrows and highlights the active direction', async () => {

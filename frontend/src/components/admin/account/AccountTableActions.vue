@@ -1,8 +1,8 @@
 <template>
   <div class="account-table-actions">
     <slot name="before"></slot>
-    <button @click="$emit('refresh')" :disabled="loading" class="btn btn-secondary">
-      <Icon name="refresh" size="md" :class="{ 'account-table-actions__spinner': loading }" />
+    <button @click="$emit('refresh')" :disabled="loading" :aria-label="t('common.refresh')" :title="t('common.refresh')" class="btn btn-secondary">
+      <Icon name="refresh" size="md" />
     </button>
     <slot name="after"></slot>
     <slot name="beforeCreate"></slot>
@@ -27,13 +27,5 @@ const { t } = useI18n()
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
-}
-
-.account-table-actions__spinner {
-  animation: account-table-actions-spin 1s linear infinite;
-}
-
-@keyframes account-table-actions-spin {
-  to { transform: rotate(360deg); }
 }
 </style>

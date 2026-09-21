@@ -1,5 +1,32 @@
-import { onUnmounted, ref, watch, type Ref } from 'vue'
+import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import { getModelFingerprint, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
+
+const retentionMs = 2 * 60 * 60 * 1000
+
+function retainedUntil(value: ModelFingerprintSnapshot) {
+  // expires_at is the worker lease, used only for interrupted/legacy results.
+  const finished = Date.parse(value.finished_at || value.expires_at || value.started_at)
+  return Number.isFinite(finished) ? finished + retentionMs : 0
+}
+
+export function useModelFingerprintExpiry(source: Ref<ModelFingerprintSnapshot | null | undefined>, onExpire: () => void) {
+  const now = ref(Date.now())
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const snapshot = computed(() => source.value && retainedUntil(source.value) > now.value ? source.value : null)
+  function update() {
+    clearTimeout(timer)
+    now.value = Date.now()
+    if (!source.value) return
+    const remaining = retainedUntil(source.value) - now.value
+    if (remaining <= 0) onExpire()
+    else timer = setTimeout(update, Math.min(remaining, retentionMs))
+  }
+  watch(source, update, { immediate: true })
+  useEventListener(document, 'visibilitychange', update)
+  onUnmounted(() => clearTimeout(timer))
+  return snapshot
+}
 
 export function useModelFingerprint(accountId: Ref<string | null>, onUpdate?: (snapshot: ModelFingerprintSnapshot | null) => void) {
   const snapshot = ref<ModelFingerprintSnapshot | null>(null)
@@ -15,9 +42,12 @@ export function useModelFingerprint(accountId: Ref<string | null>, onUpdate?: (s
   }
 
   function setSnapshot(value: ModelFingerprintSnapshot | null) {
+    if (value && retainedUntil(value) <= Date.now()) value = null
     snapshot.value = value
     onUpdate?.(value)
   }
+
+  const visibleSnapshot = useModelFingerprintExpiry(snapshot, () => setSnapshot(null))
 
   async function refresh() {
     const id = accountId.value
@@ -53,5 +83,5 @@ export function useModelFingerprint(accountId: Ref<string | null>, onUpdate?: (s
     if (accountId.value) void refresh()
   }, { immediate: true })
   onUnmounted(stop)
-  return { snapshot, pollingError, refresh, track }
+  return { snapshot: visibleSnapshot, pollingError, refresh, track }
 }

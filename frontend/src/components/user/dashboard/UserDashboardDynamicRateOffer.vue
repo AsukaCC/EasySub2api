@@ -20,15 +20,6 @@
             class="dashboard-dynamic-rate-offer__status"
             :class="{ 'dashboard-dynamic-rate-offer__status--active': offer.status === 'participating' }"
           >{{ t(`dashboard.dynamicRateOffer.status.${offer.status}`) }}</span>
-          <span>{{ t('dashboard.dynamicRateOffer.conditions') }}</span>
-          <span>{{ t('dashboard.dynamicRateOffer.rechargeOnly') }}</span>
-          <span>{{ offer.activation_spend > 0
-            ? t('dashboard.dynamicRateOffer.spendRequired', { amount: formatAmount(offer.activation_spend) })
-            : t('dashboard.dynamicRateOffer.noSpendRequired') }}</span>
-          <span v-if="offer.activation_spend > 0">{{ t('dashboard.dynamicRateOffer.currentSpend', { amount: formatAmount(offer.usage_7d) }) }}</span>
-          <span v-if="offer.personal_quota_amount > 0">{{ t('dashboard.dynamicRateOffer.personalQuota', {
-            used: formatAmount(offer.personal_used_amount), amount: formatAmount(offer.personal_quota_amount),
-          }) }}</span>
           <span v-if="participationRequirement(offer)">{{ participationRequirement(offer) }}</span>
         </div>
         <div class="dashboard-dynamic-rate-offer__expiry">
@@ -72,9 +63,16 @@ function formatAmount(value: number) {
 
 function participationRequirement(offer: DynamicRateOffer) {
   switch (offer.status) {
+    case 'below_threshold':
+      return offer.activation_spend > 0 ? t('dashboard.dynamicRateOffer.spendProgress', {
+        used: formatAmount(offer.usage_7d), amount: formatAmount(offer.activation_spend),
+      }) : ''
+    case 'quota_exhausted':
+      return offer.personal_quota_amount > 0 ? t('dashboard.dynamicRateOffer.personalQuota', {
+        used: formatAmount(offer.personal_used_amount), amount: formatAmount(offer.personal_quota_amount),
+      }) : ''
     case 'group_unavailable':
     case 'subscription_required':
-    case 'subscription_limited':
     case 'level_required':
       return t(`dashboard.dynamicRateOffer.requirement.${offer.status}`)
     default:

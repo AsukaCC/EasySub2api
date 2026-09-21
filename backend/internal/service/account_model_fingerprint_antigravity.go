@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/antigravity"
 )
@@ -48,6 +49,16 @@ func (s *AntigravityGatewayService) testModelFingerprint(ctx context.Context, ac
 	}
 	if len(data) > limit {
 		return nil, fmt.Errorf("fingerprint response too large")
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		var event map[string]any
+		if json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data:"))), &event) == nil {
+			collectModelFingerprintUsage(ctx, event)
+		}
 	}
 	return &TestConnectionResult{Text: extractTextFromSSEResponse(data), MappedModel: model}, nil
 }

@@ -45,7 +45,7 @@
         </template>
 
         <template #cell-api_key="{ row }">
-          <span class="components-admin-usage-usage-table__text-5">{{ row.api_key?.name || '-' }}</span>
+          <span class="components-admin-usage-usage-table__text-5">{{ row.request_type === 'test' ? t('usage.testRequest') : row.api_key?.name || '-' }}</span>
         </template>
 
         <template #cell-account="{ row }">
@@ -780,6 +780,7 @@ const tokenTooltipData = ref<AdminUsageLog | null>(null)
 
 const getRequestTypeLabel = (row: AdminUsageLog): string => {
   const requestType = resolveUsageRequestType(row)
+  if (requestType === 'test') return t('usage.testRequest')
   if (requestType === 'cyber') return t('usage.cyber')
   if (requestType === 'live') return t('usage.live')
   if (requestType === 'ws_v2') return t('usage.ws')

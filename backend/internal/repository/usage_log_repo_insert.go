@@ -159,7 +159,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 		return r.createSingle(ctx, tx.Client(), log)
 	}
 	requestID := strings.TrimSpace(log.RequestID)
-	if requestID == "" {
+	if requestID == "" || log.APIKeyID == "" {
 		return r.createSingle(ctx, r.sql, log)
 	}
 	log.RequestID = requestID
@@ -175,7 +175,7 @@ func (r *usageLogRepository) CreateBestEffort(ctx context.Context, log *service.
 		_, err := r.createSingle(ctx, tx.Client(), log)
 		return err
 	}
-	if r.db == nil {
+	if r.db == nil || log.APIKeyID == "" {
 		_, err := r.createSingle(ctx, r.sql, log)
 		return err
 	}
@@ -295,14 +295,14 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			$20, $21, $22, $23, $24, $25,
 			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62
 		)
-		ON CONFLICT (request_id, api_key_id) DO NOTHING
+		ON CONFLICT DO NOTHING
 		RETURNING id, created_at
 	`
 
 	if err := scanSingleRow(ctx, sqlq, query, prepared.args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && prepared.requestID != "" {
-			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"
-			if err := scanSingleRow(ctx, sqlq, selectQuery, []any{prepared.requestID, log.APIKeyID}, &log.ID, &log.CreatedAt); err != nil {
+			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id IS NOT DISTINCT FROM $2"
+			if err := scanSingleRow(ctx, sqlq, selectQuery, []any{prepared.requestID, prepared.args[1]}, &log.ID, &log.CreatedAt); err != nil {
 				return false, err
 			}
 			log.RateMultiplier = prepared.rateMultiplier
@@ -1305,7 +1305,7 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 		requestType:    requestType,
 		args: []any{
 			log.UserID,
-			log.APIKeyID,
+			nullID(&log.APIKeyID),
 			log.AccountID,
 			requestIDArg,
 			log.Model,
