@@ -219,7 +219,7 @@ func (p *modelFingerprintProbe) event(event TestEvent) {
 			p.cancel()
 			return
 		}
-		p.text.WriteString(event.Text)
+		_, _ = p.text.WriteString(event.Text)
 		text := p.text.String()
 		// Wait for a delimiter so a digit split over SSE chunks is not counted early.
 		if len(text) > 0 && (text[len(text)-1] < '0' || text[len(text)-1] > '9') && len(modeltrace.ParseNumbers(text)) >= p.expected {
