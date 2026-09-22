@@ -1705,7 +1705,7 @@ func normalizeOpenAIReasoningEffort(raw string) string {
 }
 
 func normalizeOpenAIReasoningEffortForModel(raw, model string) string {
-	if strings.EqualFold(strings.TrimSpace(raw), "max") && (isOpenAIGPT56Model(model) || isOpenAIGPT6AstraModel(model)) {
+	if strings.EqualFold(strings.TrimSpace(raw), "max") && (isOpenAIGPT56Model(model) || isOpenAIGPT6Model(model)) {
 		return "max"
 	}
 	return normalizeOpenAIReasoningEffort(raw)

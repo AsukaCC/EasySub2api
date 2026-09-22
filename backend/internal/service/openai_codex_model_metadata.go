@@ -76,6 +76,8 @@ func accountCodexToolCapabilities(account *Account, modelID string) map[string]j
 		target := modelID
 		if isOpenAIGPT6AstraModel(target) {
 			target = "gpt-6-astra"
+		} else if base := openAIGPT6SolLunaBaseModel(target); base != "" {
+			target = base
 		}
 		if _, disabled := apiKeyCodexModelsWithoutResponsesLite[target]; disabled && bytes.Equal(capabilities["use_responses_lite"], []byte("true")) {
 			capabilities["use_responses_lite"] = json.RawMessage("false")

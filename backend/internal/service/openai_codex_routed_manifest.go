@@ -361,9 +361,10 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 			if isOpenAIGPT56Model(modelID) {
 				d.MaxContextWindow = configuredCodexGPT56MaxContext
 			}
-			if isOpenAIGPT6AstraModel(modelID) {
+			if isOpenAIGPT6Model(modelID) {
 				d.ContextWindow = configuredCodexGPT6AstraContext
 				d.MaxContextWindow = configuredCodexGPT6AstraContext
+				d.InputModalities = []string{"text", "image"}
 			}
 		}
 		if SupportsVerbosity(modelID) {
@@ -405,7 +406,7 @@ func configuredCodexSupportsPriorityServiceTier(modelID string) bool {
 			return true
 		}
 	}
-	return isOpenAIGPT6AstraModel(normalized)
+	return isOpenAIGPT6Model(normalized)
 }
 
 func configuredCodexSupportsUltrafastServiceTier(modelID string) bool {
@@ -439,6 +440,9 @@ func claudeCodexDefaultReasoningLevel(levels []configuredCodexReasoningLevel) st
 }
 
 func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasoningLevel {
+	if openAIGPT6SolLunaBaseModel(modelID) != "" {
+		return reasoningLevels("none", "low", "medium", "high", "xhigh", "max")
+	}
 	values := []string{"low", "medium", "high", "xhigh"}
 	if isOpenAIGPT56Model(modelID) || isOpenAIGPT6AstraModel(modelID) {
 		values = append(values, "max")
@@ -462,12 +466,12 @@ func isOpenAICodexGPTModel(modelID string) bool {
 
 func isOpenAICodexReasoningGPTModel(modelID string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
-	return strings.HasPrefix(normalized, "gpt-5") || isOpenAIGPT6AstraModel(normalized)
+	return strings.HasPrefix(normalized, "gpt-5") || isOpenAIGPT6Model(normalized)
 }
 
 func isOpenAICodexImageInputModel(modelID string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
-	return isOpenAIGPT6AstraModel(normalized) || strings.HasPrefix(normalized, "gpt-5") || strings.HasPrefix(normalized, "gpt-4o") ||
+	return isOpenAIGPT6Model(normalized) || strings.HasPrefix(normalized, "gpt-5") || strings.HasPrefix(normalized, "gpt-4o") ||
 		strings.HasPrefix(normalized, "gpt-4.1") || strings.HasPrefix(normalized, "gpt-4.5") ||
 		strings.HasPrefix(normalized, "gpt-4-turbo") || strings.HasPrefix(normalized, "gpt-4-vision")
 }

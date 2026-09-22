@@ -143,6 +143,7 @@ docs/*
 !docs/USER_LEVEL_BILLING.md
 !docs/ACCOUNT_PROTECTION.md
 !docs/MODEL_RETIREMENT.md
+!docs/GPT6_SOL_LUNA.md
 !docs/RELEASE.md
 !docs/releases/
 !docs/releases/*.md

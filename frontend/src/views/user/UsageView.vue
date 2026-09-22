@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="page-stack">
+    <div class="page-stack page-shell--wide usage-page">
       <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
 
       <div class="views-user-usage-view__panel-2">
@@ -924,6 +924,11 @@ watch(endpointDistributionSource, () => {
 </script>
 
 <style scoped>
+.usage-page {
+  width: 100%;
+  min-width: 0;
+}
+
 .views-user-usage-view__panel-8 {
   gap: 1.25rem;
 }

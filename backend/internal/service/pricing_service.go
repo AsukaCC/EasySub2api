@@ -70,6 +70,42 @@ var (
 		Mode:                                "chat",
 		SupportsPromptCaching:               true,
 	}
+	// GPT-6 Sol/Luna official rates, verified 2026-09-23:
+	// https://developers.openai.com/api/docs/pricing
+	openAIGPT6SolFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   2e-06,
+		InputCostPerTokenPriority:           4e-06,
+		OutputCostPerToken:                  10e-06,
+		OutputCostPerTokenPriority:          20e-06,
+		CacheCreationInputTokenCost:         2.5e-06,
+		CacheCreationInputTokenCostPriority: 5e-06,
+		CacheReadInputTokenCost:             0.2e-06,
+		CacheReadInputTokenCostPriority:     0.4e-06,
+		LongContextInputTokenThreshold:      272000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
+	openAIGPT6LunaFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   0.1e-06,
+		InputCostPerTokenPriority:           0.2e-06,
+		OutputCostPerToken:                  0.5e-06,
+		OutputCostPerTokenPriority:          1e-06,
+		CacheCreationInputTokenCost:         0.125e-06,
+		CacheCreationInputTokenCostPriority: 0.25e-06,
+		CacheReadInputTokenCost:             0.01e-06,
+		CacheReadInputTokenCostPriority:     0.02e-06,
+		LongContextInputTokenThreshold:      272000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
 	openAIGPT56SolFallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:                   5e-06,
 		InputCostPerTokenPriority:           1e-05,
@@ -1229,6 +1265,9 @@ func normalizeModelNameForPricing(model string) string {
 
 	model = strings.TrimLeft(model, "/")
 	if canonical := canonicalizeOpenAIModelAliasSpelling(model); canonical != "" {
+		if base := openAIGPT6SolLunaBaseModel(canonical); base != "" {
+			return base
+		}
 		if canonical == "gpt-6" || canonical == "gpt-6-astra" || strings.HasPrefix(canonical, "gpt-6-astra-") {
 			return "gpt-6-astra"
 		}
@@ -1402,6 +1441,16 @@ func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
 // 5. gpt-5.4* -> 业务静态兜底价
 // 6. 最终回退到 DefaultTestModel (gpt-5.1-codex)
 func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
+	// Sol/Luna must never fall through to the generic gpt-6 (Astra) rate.
+	if base := openAIGPT6SolLunaBaseModel(model); base != "" {
+		if pricing, ok := s.pricingData[base]; ok {
+			return pricing
+		}
+		if base == "gpt-6-sol" {
+			return openAIGPT6SolFallbackPricing
+		}
+		return openAIGPT6LunaFallbackPricing
+	}
 	if strings.HasPrefix(model, "gpt-5.3-codex-spark") {
 		if pricing, ok := s.pricingData["gpt-5.1-codex"]; ok {
 			logger.LegacyPrintf("service.pricing", "[Pricing][SparkBilling] %s -> %s billing", model, "gpt-5.1-codex")

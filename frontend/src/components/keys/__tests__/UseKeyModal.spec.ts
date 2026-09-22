@@ -558,6 +558,10 @@ describe('UseKeyModal', () => {
       expect(models[model].variants).toHaveProperty('xhigh')
     }
     expect(models['gpt-5.6'].name).toBe('GPT-5.6 (Sol)')
+    for (const model of ['gpt-6-sol', 'gpt-6-luna']) {
+      expect(models[model].limit).toEqual({ context: 1050000, output: 128000 })
+      expect(Object.keys(models[model].variants)).toEqual(['none', 'low', 'medium', 'high', 'xhigh', 'max'])
+    }
   })
 
 })

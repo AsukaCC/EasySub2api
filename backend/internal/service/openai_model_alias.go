@@ -69,6 +69,9 @@ func normalizeKnownOpenAICodexModel(model string) string {
 			return mapped
 		}
 	}
+	if base := openAIGPT6SolLunaBaseModel(normalized); base != "" {
+		return base
+	}
 
 	switch {
 	case isOpenAIGPT6AstraModel(normalized):
@@ -108,6 +111,21 @@ func normalizeKnownOpenAICodexModel(model string) string {
 func isOpenAIGPT6AstraModel(model string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(model)
 	return normalized == "gpt-6" || normalized == "gpt-6-astra" || strings.HasPrefix(normalized, "gpt-6-astra-")
+}
+
+// Keep the GPT-6 tiers distinct, including provider and dated aliases.
+func openAIGPT6SolLunaBaseModel(model string) string {
+	normalized := canonicalizeOpenAIModelAliasSpelling(model)
+	for _, base := range []string{"gpt-6-sol", "gpt-6-luna"} {
+		if normalized == base || strings.HasPrefix(normalized, base+"-") {
+			return base
+		}
+	}
+	return ""
+}
+
+func isOpenAIGPT6Model(model string) bool {
+	return isOpenAIGPT6AstraModel(model) || openAIGPT6SolLunaBaseModel(model) != ""
 }
 
 // isOpenAIGPT56Model 判断是否 GPT-5.6 系列模型；入参可为原始模型名

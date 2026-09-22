@@ -14,6 +14,8 @@ describe('useModelWhitelist', () => {
     expect(models.some(model => /^gpt-5\.[45](?:$|[-.])/.test(model))).toBe(false)
     expect(models).toContain('codex-auto-review')
     expect(models).toContain('gpt-5.6')
+    expect(models).toContain('gpt-6-sol')
+    expect(models).toContain('gpt-6-luna')
   })
 
   it('openai 模型列表不再暴露已下线的 ChatGPT 登录 Codex 模型', () => {

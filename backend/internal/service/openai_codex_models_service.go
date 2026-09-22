@@ -595,6 +595,8 @@ func codexModelsManifestBodyETag(body []byte) string {
 
 var apiKeyCodexModelsWithoutResponsesLite = map[string]struct{}{
 	"gpt-6-astra":   {},
+	"gpt-6-sol":     {},
+	"gpt-6-luna":    {},
 	"gpt-5.6-sol":   {},
 	"gpt-5.6-terra": {},
 	"gpt-5.6-luna":  {},
@@ -634,6 +636,8 @@ func adjustAPIKeyCodexModelsManifest(body []byte, accounts ...*Account) ([]byte,
 		}
 		if isOpenAIGPT6AstraModel(target) {
 			target = "gpt-6-astra"
+		} else if base := openAIGPT6SolLunaBaseModel(target); base != "" {
+			target = base
 		}
 		if _, targeted := apiKeyCodexModelsWithoutResponsesLite[target]; !targeted {
 			continue

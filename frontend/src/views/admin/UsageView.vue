@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="views-admin-usage-view__panel">
+    <div class="views-admin-usage-view__panel page-shell--wide usage-page">
       <UsageStatsCards :stats="usageStats" :admin-stats="adminUsageStats" />
       <!-- Charts Section -->
       <div class="views-admin-usage-view__panel-2">
@@ -919,6 +919,11 @@ defineExpose({ requestedModelStats, refreshData })
 </script>
 
 <style scoped>
+.usage-page {
+  width: 100%;
+  min-width: 0;
+}
+
 .views-admin-usage-view__icon-2 {
   color: var(--color-text-brand);
   flex-shrink: 0;
