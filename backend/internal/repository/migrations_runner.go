@@ -94,6 +94,9 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 	// 271 was applied by an earlier local build before the migration file was
 	// tracked. Accept that known checksum alongside the committed form.
 	"271_multiply_group_user_rates.sql": newMigrationChecksumCompatibilityRule("76bc8ed697d7523876b5a7f2643a68962a836f0e6de683dec9d3d526ce39a3e8", "fd245cd039e450b61cdb81f31bf2464f89c9c0f0ed251e84a5d218674e64ac13"),
+	// 280 originally lacked SET CONSTRAINTS ALL IMMEDIATE and only succeeded on
+	// databases without users; those keep the original checksum.
+	"280_wallet_balance_bucket_split.sql": newMigrationChecksumCompatibilityRule("988532a2ae2137865b49157cd965ace68b9f589c21f121bc87a4830f35a3d573", "2da9b2d0e85d1132a4527bda25ae663ea56626f3c019a05430b2a76c8489a837"),
 }
 
 // ApplyMigrations 将嵌入的 SQL 迁移文件应用到指定的数据库。

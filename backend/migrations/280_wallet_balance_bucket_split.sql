@@ -1,6 +1,10 @@
 -- Split the legacy aggregate wallet into independent recharge and bonus buckets.
 -- Historical balance is total available points, so subtract existing bonus points
 -- before dropping the legacy columns. Negative recharge balances are preserved.
+-- users carries deferred constraint triggers (276); PostgreSQL rejects ALTER TABLE
+-- while their events are still queued, so fire them per statement here.
+SET CONSTRAINTS ALL IMMEDIATE;
+
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS recharge_balance DECIMAL(20,8) NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS frozen_recharge_balance DECIMAL(20,8) NOT NULL DEFAULT 0;
