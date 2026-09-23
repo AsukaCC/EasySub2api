@@ -11,7 +11,7 @@ func UserFromServiceShallow(u *service.User) *User {
 	if u == nil {
 		return nil
 	}
-	wallet := service.NewWalletSummary(u.Balance, u.BonusBalance, u.FrozenBalance, u.FrozenBonusBalance)
+	wallet := service.NewWalletSummary(u.RechargeBalance, u.BonusBalance, u.FrozenRechargeBalance, u.FrozenBonusBalance)
 	wallet.NextBonusExpiresAt = u.NextBonusExpiresAt
 	wallet.NextExpiringBonus = u.NextExpiringBonusAmount
 	return &User{
@@ -19,12 +19,10 @@ func UserFromServiceShallow(u *service.User) *User {
 		Email:                      u.Email,
 		Username:                   u.Username,
 		Role:                       u.Role,
-		Balance:                    u.Balance,
 		AvailableBalance:           wallet.AvailableBalance,
 		RechargeBalance:            wallet.RechargeBalance,
 		BonusBalance:               wallet.BonusBalance,
 		OverdraftAmount:            wallet.OverdraftAmount,
-		FrozenBalance:              u.FrozenBalance,
 		FrozenRechargeBalance:      wallet.FrozenRecharge,
 		FrozenBonusBalance:         wallet.FrozenBonus,
 		TotalBalance:               wallet.TotalBalance,
@@ -249,6 +247,10 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	redactedCreds, credsStatus := RedactCredentials(a.Credentials)
 	extra := redactAccountManagedExtra(a.Extra)
 	var ollamaCloudUsage *service.OllamaCloudUsageState
+	var openCodeGoUsage *service.OpenCodeGoUsageState
+	if state := service.OpenCodeGoUsageStateFromAccount(a); state.Eligible {
+		openCodeGoUsage = state
+	}
 	if state := service.OllamaCloudUsageStateFromAccount(a); state.Eligible {
 		ollamaCloudUsage = state
 	}
@@ -267,6 +269,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		CredentialsStatus:       credsStatus,
 		Extra:                   extra,
 		OllamaCloudUsage:        ollamaCloudUsage,
+		OpenCodeGoUsage:         openCodeGoUsage,
 		ProxyID:                 a.ProxyID,
 		ProxyFallbackOriginID:   a.ProxyFallbackOriginID,
 		ProxyFallbackOriginName: a.ProxyFallbackOriginName,
@@ -433,7 +436,9 @@ func redactAccountManagedExtra(extra map[string]any) map[string]any {
 		switch key {
 		case service.OllamaCloudUsageSessionExtraKey,
 			service.OllamaCloudUsageAutoRefreshExtraKey,
-			service.OllamaCloudUsageSnapshotExtraKey:
+			service.OllamaCloudUsageSnapshotExtraKey,
+			service.OpenCodeGoUsageAutoRefreshExtraKey,
+			service.OpenCodeGoUsageSnapshotExtraKey:
 			continue
 		case service.ModelFingerprintExtraKey:
 			if snapshot, err := service.ParseModelFingerprintSnapshot(value, time.Now()); err == nil && snapshot != nil {

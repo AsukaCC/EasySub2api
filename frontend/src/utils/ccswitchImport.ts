@@ -180,7 +180,7 @@ function inferCcSwitchImportConfig(
     case 'minimax':
       return {
         app: 'codex',
-        endpoint: baseUrl,
+        endpoint: withV1Endpoint(baseUrl),
         model: OPENAI_CC_SWITCH_CODEX_MODEL
       }
     case 'grok':

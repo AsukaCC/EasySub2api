@@ -323,6 +323,7 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	action := resolveRedeemAction(existing, lookupErr)
 
 	if action == redeemActionSkipCompleted {
+		s.invalidateWalletBalanceCache(ctx, o.UserID)
 		if err := s.applyAffiliateRebateForOrder(ctx, o, lease); err != nil {
 			return err
 		}
@@ -331,10 +332,20 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	if err := s.creditBalanceRechargePoints(ctx, o, lease); err != nil {
 		return err
 	}
+	s.invalidateWalletBalanceCache(ctx, o.UserID)
 	if err := s.applyAffiliateRebateForOrder(ctx, o, lease); err != nil {
 		return err
 	}
 	return s.markCompleted(ctx, o, lease, "RECHARGE_SUCCESS")
+}
+
+func (s *PaymentService) invalidateWalletBalanceCache(ctx context.Context, userID string) {
+	if s.billingCacheService == nil {
+		return
+	}
+	if err := s.billingCacheService.InvalidateUserBalance(ctx, userID); err != nil {
+		slog.Warn("payment_wallet_balance_cache_invalidate_failed", "user_id", userID, "error", err)
+	}
 }
 
 func (s *PaymentService) creditBalanceRechargePoints(ctx context.Context, o *dbent.PaymentOrder, leases ...*paymentFulfillmentLease) error {

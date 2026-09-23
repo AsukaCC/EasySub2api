@@ -148,7 +148,7 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		SetNotes(userIn.Notes).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
-		SetBalance(0).
+		SetRechargeBalance(0).
 		SetConcurrency(userIn.Concurrency).
 		SetStatus(userIn.Status).
 		SetSignupSource(userSignupSourceOrDefault(userIn.SignupSource)).
@@ -189,6 +189,7 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		if creditErr != nil {
 			return creditErr
 		}
+		userIn.RechargeBalance = result.Summary.RechargeBalance
 		userIn.Balance = result.Summary.AvailableBalance
 		userIn.BonusBalance = result.Summary.BonusBalance
 	}
@@ -217,9 +218,11 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*service.User,
 
 	out := userEntityToService(m)
 	if summary, summaryErr := r.GetWalletSummary(ctx, id); summaryErr == nil {
-		out.Balance = summary.Balance
+		out.RechargeBalance = summary.RechargeBalance
+		out.Balance = summary.AvailableBalance
 		out.BonusBalance = summary.BonusBalance
-		out.FrozenBalance = summary.FrozenBalance
+		out.FrozenRechargeBalance = summary.FrozenRecharge
+		out.FrozenBalance = summary.FrozenRecharge
 		out.FrozenBonusBalance = summary.FrozenBonus
 		out.NextBonusExpiresAt = summary.NextBonusExpiresAt
 		out.NextExpiringBonusAmount = summary.NextExpiringBonus
@@ -712,7 +715,7 @@ func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) 
 		field = dbuser.FieldRole
 		defaultField = false
 	case "balance":
-		field = dbuser.FieldBalance
+		field = dbuser.FieldRechargeBalance
 		defaultField = false
 	case "concurrency":
 		field = dbuser.FieldConcurrency
@@ -1062,7 +1065,7 @@ func (r *userRepository) filterUsersByAttributes(ctx context.Context, attrs map[
 
 func (r *userRepository) UpdateBalance(ctx context.Context, id string, amount float64) error {
 	client := clientFromContext(ctx, r.client)
-	update := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(amount)
+	update := client.User.Update().Where(dbuser.IDEQ(id)).AddRechargeBalance(amount)
 	// Track cumulative recharge amount for percentage-based notifications
 	if amount > 0 {
 		update = update.AddTotalRecharged(amount)
@@ -1080,7 +1083,7 @@ func (r *userRepository) UpdateBalance(ctx context.Context, id string, amount fl
 func (r *userRepository) ApplyRedeemBalanceAdjustment(ctx context.Context, id string, delta float64) error {
 	const updateSQL = `
 		UPDATE users
-		SET balance = GREATEST(balance + $1, 0), updated_at = NOW()
+		SET recharge_balance = GREATEST(recharge_balance + $1, 0), updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL
 	`
 	client := clientFromContext(ctx, r.client)
@@ -1102,29 +1105,11 @@ func (r *userRepository) ApplyRedeemBalanceAdjustment(ctx context.Context, id st
 // 透支策略：允许余额变为负数，确保当前请求能够完成
 // 中间件会阻止余额 <= 0 的用户发起后续请求
 func (r *userRepository) DeductBalance(ctx context.Context, id string, amount float64) error {
-	client := clientFromContext(ctx, r.client)
-	n, err := client.User.Update().
-		Where(dbuser.IDEQ(id), dbuser.BalanceGTE(amount)).
-		AddBalance(-amount).
-		Save(ctx)
-	if err != nil {
-		return err
-	}
-	if n > 0 {
-		return nil
-	}
-
-	n, err = client.User.Update().
-		Where(dbuser.IDEQ(id)).
-		AddBalance(-amount).
-		Save(ctx)
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return service.ErrUserNotFound
-	}
-	return nil
+	_, err := r.DebitWallet(ctx, service.WalletDebitInput{
+		UserID: id, Amount: amount, AllowOverdraft: false,
+		SourceType: "api_usage_fallback", SourceID: id,
+	})
+	return err
 }
 
 // DeductAvailableBalance atomically deducts min(amount, max(balance, 0)).
@@ -1136,16 +1121,16 @@ func (r *userRepository) DeductAvailableBalance(ctx context.Context, id string, 
 	}
 	const updateSQL = `
 		WITH target AS (
-			SELECT id, balance
+			SELECT id, recharge_balance
 			FROM users
 			WHERE id = $2 AND deleted_at IS NULL
 			FOR UPDATE
 		), updated AS (
 			UPDATE users AS u
-			SET balance = target.balance - LEAST($1, GREATEST(target.balance, 0)), updated_at = NOW()
+			SET recharge_balance = target.recharge_balance - LEAST($1, GREATEST(target.recharge_balance, 0)), updated_at = NOW()
 			FROM target
 			WHERE u.id = target.id AND u.deleted_at IS NULL
-			RETURNING target.balance - u.balance AS deducted
+			RETURNING target.recharge_balance - u.recharge_balance AS deducted
 		)
 		SELECT deducted FROM updated
 	`
@@ -1176,9 +1161,9 @@ func (r *userRepository) DeductAvailableBalance(ctx context.Context, id string, 
 func (r *userRepository) AdjustBalance(ctx context.Context, id string, delta float64) (service.BalanceChange, error) {
 	const updateSQL = `
 		UPDATE users
-		SET balance = balance + $1, updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL AND balance + $1 >= 0
-		RETURNING balance - $1, balance
+		SET recharge_balance = recharge_balance + $1, updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL AND recharge_balance + $1 >= 0
+		RETURNING recharge_balance - $1, recharge_balance
 	`
 	change, ok, err := scanBalanceChange(ctx, clientFromContext(ctx, r.client), updateSQL, delta, id)
 	if err != nil {
@@ -1196,7 +1181,7 @@ func (r *userRepository) AdjustBalance(ctx context.Context, id string, delta flo
 	return service.BalanceChange{Old: current, New: current + delta}, service.ErrBalanceNegative
 }
 
-// SetBalance 原子地把余额置为 value，并返回变更前后的值。
+// SetRechargeBalance 原子地把余额置为 value，并返回变更前后的值。
 func (r *userRepository) SetBalance(ctx context.Context, id string, value float64) (service.BalanceChange, error) {
 	if value < 0 {
 		// 连同当前余额一起返回，便于上层给出可读的错误信息。
@@ -1208,10 +1193,10 @@ func (r *userRepository) SetBalance(ctx context.Context, id string, value float6
 	}
 	const updateSQL = `
 		UPDATE users AS u
-		SET balance = $1, updated_at = NOW()
-		FROM (SELECT id, balance FROM users WHERE id = $2 AND deleted_at IS NULL) AS prev
+		SET recharge_balance = $1, updated_at = NOW()
+		FROM (SELECT id, recharge_balance FROM users WHERE id = $2 AND deleted_at IS NULL) AS prev
 		WHERE u.id = prev.id AND u.deleted_at IS NULL
-		RETURNING prev.balance, u.balance
+		RETURNING prev.recharge_balance, u.recharge_balance
 	`
 	change, ok, err := scanBalanceChange(ctx, clientFromContext(ctx, r.client), updateSQL, value, id)
 	if err != nil {
@@ -1226,7 +1211,7 @@ func (r *userRepository) SetBalance(ctx context.Context, id string, value float6
 // currentBalance 读取用户当前余额，用户不存在时返回 ErrUserNotFound。
 func (r *userRepository) currentBalance(ctx context.Context, id string) (balance float64, err error) {
 	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx,
-		`SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL`, id)
+		`SELECT recharge_balance FROM users WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		return 0, err
 	}

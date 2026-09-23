@@ -56,7 +56,17 @@ func (s *GatewayService) handleUpstreamTransportError(
 }
 
 func (s *GatewayService) tempUnscheduleTransportError(ctx context.Context, account *Account, safeErr string) {
-	if s == nil || account == nil || s.accountRepo == nil {
+	if s == nil {
+		return
+	}
+	tempUnscheduleAccountForTransportError(ctx, s.accountRepo, account, safeErr)
+}
+
+// tempUnscheduleAccountForTransportError is the repo-level implementation
+// shared by every forward path whose scheduler reads the persisted
+// temp-unschedulable state (Anthropic/Bedrock and Gemini).
+func tempUnscheduleAccountForTransportError(ctx context.Context, repo AccountRepository, account *Account, safeErr string) {
+	if account == nil || repo == nil {
 		return
 	}
 	until := time.Now().Add(gatewayTransportErrorTempUnschedDuration)
@@ -68,7 +78,7 @@ func (s *GatewayService) tempUnscheduleTransportError(ctx context.Context, accou
 	}
 	bgCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), openAIAccountStateUpdateTimeout)
 	defer cancel()
-	if err := s.accountRepo.SetTempUnschedulable(bgCtx, account.ID, until, reason); err != nil {
+	if err := repo.SetTempUnschedulable(bgCtx, account.ID, until, reason); err != nil {
 		logger.L().With(zap.String("component", "service.gateway")).Warn(
 			"gateway.account_temp_unschedule_transport_failed",
 			zap.String("account_id", account.ID),

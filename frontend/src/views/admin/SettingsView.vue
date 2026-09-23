@@ -5477,6 +5477,13 @@
 
               <!-- Codex 客户端版本号 -->
               <div>
+                <label class="views-admin-settings-view__label-3">{{ t('upstreamUpdate.claudeVersion') }}</label>
+                <input v-model="form.claude_code_client_version" class="views-admin-settings-view__field-12 input" type="text" />
+                <label class="views-admin-settings-view__label-3"><input v-model="form.claude_code_version_auto_sync_enabled" type="checkbox" />{{ t('upstreamUpdate.syncVersion') }}</label>
+                <p>{{ t('upstreamUpdate.syncedVersion') }}: {{ form.claude_code_client_version_synced || '-' }}</p>
+              </div>
+              <OpenCodeUsageSettings />
+              <div>
                 <label
                   class="views-admin-settings-view__label-3"
                 >
@@ -8549,6 +8556,7 @@
 </template>
 
 <script setup lang="ts">
+import OpenCodeUsageSettings from '@/components/admin/OpenCodeUsageSettings.vue';
 import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { dayjs, formatDateValue } from '@/utils/datetime'
 import LoadingButtonContent from "@/components/common/LoadingButtonContent.vue";
@@ -8798,6 +8806,7 @@ const SETTINGS_SECTION_FIELDS: Record<SettingsSection, ReadonlySet<string>> = {
     "enable_anthropic_cache_ttl_1h_injection", "rewrite_message_cache_control",
     "enable_client_dateline_normalization",
     "openai_codex_user_agent", "openai_codex_client_version", "openai_codex_version_auto_sync_enabled",
+    "claude_code_client_version", "claude_code_version_auto_sync_enabled",
     "min_codex_version", "max_codex_version", "codex_cli_only_blacklist",
     "codex_cli_only_whitelist", "codex_cli_only_allow_app_server_clients",
     "codex_cli_only_engine_fingerprint_signals", "openai_low_upstream_rate_priority_enabled",
@@ -9702,6 +9711,9 @@ const form = reactive<SettingsForm>({
   enable_client_dateline_normalization: true,
   openai_codex_user_agent: "",
   openai_codex_client_version: "",
+  claude_code_client_version: "",
+  claude_code_client_version_synced: "",
+  claude_code_version_auto_sync_enabled: false,
   // 只读展示：自动同步任务写入的官方最新稳定版，不参与提交（提交载荷按字段显式构造）
   openai_codex_client_version_synced: "",
   openai_codex_version_auto_sync_enabled: true,
@@ -11469,6 +11481,8 @@ async function saveSettings(section?: SettingsSection) {
         form.openai_codex_user_agent?.trim() || "",
       openai_codex_client_version:
         form.openai_codex_client_version?.trim() || "",
+      claude_code_client_version: form.claude_code_client_version.trim(),
+      claude_code_version_auto_sync_enabled: form.claude_code_version_auto_sync_enabled,
       openai_codex_version_auto_sync_enabled:
         form.openai_codex_version_auto_sync_enabled,
       min_codex_version: form.min_codex_version?.trim() || "",

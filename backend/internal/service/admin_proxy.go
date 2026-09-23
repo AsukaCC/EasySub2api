@@ -238,6 +238,7 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id string) (*ProxyTest
 		LatencyMs:   &latency,
 		Message:     "Proxy is accessible",
 		IPAddress:   exitInfo.IP,
+		Timezone:    exitInfo.Timezone,
 		Country:     exitInfo.Country,
 		CountryCode: exitInfo.CountryCode,
 		Region:      exitInfo.Region,
@@ -249,6 +250,7 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id string) (*ProxyTest
 		Message:     "Proxy is accessible",
 		LatencyMs:   latencyMs,
 		IPAddress:   exitInfo.IP,
+		Timezone:    exitInfo.Timezone,
 		City:        exitInfo.City,
 		Region:      exitInfo.Region,
 		Country:     exitInfo.Country,
@@ -513,6 +515,7 @@ func (s *adminServiceImpl) saveProxyQualitySnapshot(ctx context.Context, proxyID
 	}
 	if exitInfo != nil {
 		info.IPAddress = exitInfo.IP
+		info.Timezone = exitInfo.Timezone
 		info.Country = exitInfo.Country
 		info.CountryCode = exitInfo.CountryCode
 		info.Region = exitInfo.Region
@@ -541,6 +544,7 @@ func (s *adminServiceImpl) probeProxyLatency(ctx context.Context, proxy *Proxy) 
 		LatencyMs:   &latency,
 		Message:     "Proxy is accessible",
 		IPAddress:   exitInfo.IP,
+		Timezone:    exitInfo.Timezone,
 		Country:     exitInfo.Country,
 		CountryCode: exitInfo.CountryCode,
 		Region:      exitInfo.Region,
@@ -598,6 +602,9 @@ func (s *adminServiceImpl) saveProxyLatency(ctx context.Context, proxyID string,
 	merged := *info
 	if latencies, err := s.proxyLatencyCache.GetProxyLatencies(ctx, []string{proxyID}); err == nil {
 		if existing := latencies[proxyID]; existing != nil {
+			if merged.Timezone == "" {
+				merged.Timezone = existing.Timezone
+			}
 			if merged.QualityCheckedAt == nil &&
 				merged.QualityScore == nil &&
 				merged.QualityGrade == "" &&

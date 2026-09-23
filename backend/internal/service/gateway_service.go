@@ -443,6 +443,7 @@ var allowedHeaders = map[string]bool{
 	"x-stainless-runtime":                       true,
 	"x-stainless-runtime-version":               true,
 	"x-stainless-helper-method":                 true,
+	"x-stainless-timezone":                      true,
 	"anthropic-dangerous-direct-browser-access": true,
 	"anthropic-version":                         true,
 	"x-app":                                     true,
@@ -574,6 +575,8 @@ type AccountSelectionResult struct {
 	Acquired    bool
 	ReleaseFunc func()
 	WaitPlan    *AccountWaitPlan // nil means no wait allowed
+	// stickySessionHit 标记账号来自会话粘性绑定命中，供非高级调度路径回填决策标签。
+	stickySessionHit bool
 	// profitGate 携带本次选号真实生效的利润门（无门为 nil）。门安装在调度栈的
 	// 局部 ctx 上，handler 必须经 ContextWithSelectionProfitGate 重放后才能在
 	// 调度栈之外做抢槽后终检与准入后粘性绑定。
@@ -809,6 +812,15 @@ type GatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	userLevelService      *UserLevelService
+	proxyTimezoneResolver ProxyTimezoneResolver
+}
+
+// SetProxyTimezoneResolver wires the proxy exit-timezone cache after gateway
+// construction. It remains optional so focused test constructors stay small.
+func (s *GatewayService) SetProxyTimezoneResolver(resolver ProxyTimezoneResolver) {
+	if s != nil {
+		s.proxyTimezoneResolver = resolver
+	}
 }
 
 // NewGatewayService creates a new GatewayService without optional user-level

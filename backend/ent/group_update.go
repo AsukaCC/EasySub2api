@@ -1491,7 +1491,7 @@ func (_u *GroupUpdate) ExecX(ctx context.Context) {
 func (_u *GroupUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if group.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized group.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized group.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := group.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -3724,7 +3724,7 @@ func (_u *GroupUpdateOne) ExecX(ctx context.Context) {
 func (_u *GroupUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if group.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized group.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized group.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := group.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

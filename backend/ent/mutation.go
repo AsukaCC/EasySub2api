@@ -60263,12 +60263,12 @@ type UserMutation struct {
 	email                         *string
 	password_hash                 *string
 	role                          *string
-	balance                       *float64
-	addbalance                    *float64
+	recharge_balance              *float64
+	addrecharge_balance           *float64
 	bonus_balance                 *float64
 	addbonus_balance              *float64
-	frozen_balance                *float64
-	addfrozen_balance             *float64
+	frozen_recharge_balance       *float64
+	addfrozen_recharge_balance    *float64
 	frozen_bonus_balance          *float64
 	addfrozen_bonus_balance       *float64
 	concurrency                   *int
@@ -60669,60 +60669,60 @@ func (m *UserMutation) ResetRole() {
 	m.role = nil
 }
 
-// SetBalance sets the "balance" field.
-func (m *UserMutation) SetBalance(f float64) {
-	m.balance = &f
-	m.addbalance = nil
+// SetRechargeBalance sets the "recharge_balance" field.
+func (m *UserMutation) SetRechargeBalance(f float64) {
+	m.recharge_balance = &f
+	m.addrecharge_balance = nil
 }
 
-// Balance returns the value of the "balance" field in the mutation.
-func (m *UserMutation) Balance() (r float64, exists bool) {
-	v := m.balance
+// RechargeBalance returns the value of the "recharge_balance" field in the mutation.
+func (m *UserMutation) RechargeBalance() (r float64, exists bool) {
+	v := m.recharge_balance
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldBalance returns the old "balance" field's value of the User entity.
+// OldRechargeBalance returns the old "recharge_balance" field's value of the User entity.
 // If the User object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldBalance(ctx context.Context) (v float64, err error) {
+func (m *UserMutation) OldRechargeBalance(ctx context.Context) (v float64, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldBalance is only allowed on UpdateOne operations")
+		return v, errors.New("OldRechargeBalance is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldBalance requires an ID field in the mutation")
+		return v, errors.New("OldRechargeBalance requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldBalance: %w", err)
+		return v, fmt.Errorf("querying old value for OldRechargeBalance: %w", err)
 	}
-	return oldValue.Balance, nil
+	return oldValue.RechargeBalance, nil
 }
 
-// AddBalance adds f to the "balance" field.
-func (m *UserMutation) AddBalance(f float64) {
-	if m.addbalance != nil {
-		*m.addbalance += f
+// AddRechargeBalance adds f to the "recharge_balance" field.
+func (m *UserMutation) AddRechargeBalance(f float64) {
+	if m.addrecharge_balance != nil {
+		*m.addrecharge_balance += f
 	} else {
-		m.addbalance = &f
+		m.addrecharge_balance = &f
 	}
 }
 
-// AddedBalance returns the value that was added to the "balance" field in this mutation.
-func (m *UserMutation) AddedBalance() (r float64, exists bool) {
-	v := m.addbalance
+// AddedRechargeBalance returns the value that was added to the "recharge_balance" field in this mutation.
+func (m *UserMutation) AddedRechargeBalance() (r float64, exists bool) {
+	v := m.addrecharge_balance
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// ResetBalance resets all changes to the "balance" field.
-func (m *UserMutation) ResetBalance() {
-	m.balance = nil
-	m.addbalance = nil
+// ResetRechargeBalance resets all changes to the "recharge_balance" field.
+func (m *UserMutation) ResetRechargeBalance() {
+	m.recharge_balance = nil
+	m.addrecharge_balance = nil
 }
 
 // SetBonusBalance sets the "bonus_balance" field.
@@ -60781,60 +60781,60 @@ func (m *UserMutation) ResetBonusBalance() {
 	m.addbonus_balance = nil
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (m *UserMutation) SetFrozenBalance(f float64) {
-	m.frozen_balance = &f
-	m.addfrozen_balance = nil
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (m *UserMutation) SetFrozenRechargeBalance(f float64) {
+	m.frozen_recharge_balance = &f
+	m.addfrozen_recharge_balance = nil
 }
 
-// FrozenBalance returns the value of the "frozen_balance" field in the mutation.
-func (m *UserMutation) FrozenBalance() (r float64, exists bool) {
-	v := m.frozen_balance
+// FrozenRechargeBalance returns the value of the "frozen_recharge_balance" field in the mutation.
+func (m *UserMutation) FrozenRechargeBalance() (r float64, exists bool) {
+	v := m.frozen_recharge_balance
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldFrozenBalance returns the old "frozen_balance" field's value of the User entity.
+// OldFrozenRechargeBalance returns the old "frozen_recharge_balance" field's value of the User entity.
 // If the User object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *UserMutation) OldFrozenBalance(ctx context.Context) (v float64, err error) {
+func (m *UserMutation) OldFrozenRechargeBalance(ctx context.Context) (v float64, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldFrozenBalance is only allowed on UpdateOne operations")
+		return v, errors.New("OldFrozenRechargeBalance is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldFrozenBalance requires an ID field in the mutation")
+		return v, errors.New("OldFrozenRechargeBalance requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldFrozenBalance: %w", err)
+		return v, fmt.Errorf("querying old value for OldFrozenRechargeBalance: %w", err)
 	}
-	return oldValue.FrozenBalance, nil
+	return oldValue.FrozenRechargeBalance, nil
 }
 
-// AddFrozenBalance adds f to the "frozen_balance" field.
-func (m *UserMutation) AddFrozenBalance(f float64) {
-	if m.addfrozen_balance != nil {
-		*m.addfrozen_balance += f
+// AddFrozenRechargeBalance adds f to the "frozen_recharge_balance" field.
+func (m *UserMutation) AddFrozenRechargeBalance(f float64) {
+	if m.addfrozen_recharge_balance != nil {
+		*m.addfrozen_recharge_balance += f
 	} else {
-		m.addfrozen_balance = &f
+		m.addfrozen_recharge_balance = &f
 	}
 }
 
-// AddedFrozenBalance returns the value that was added to the "frozen_balance" field in this mutation.
-func (m *UserMutation) AddedFrozenBalance() (r float64, exists bool) {
-	v := m.addfrozen_balance
+// AddedFrozenRechargeBalance returns the value that was added to the "frozen_recharge_balance" field in this mutation.
+func (m *UserMutation) AddedFrozenRechargeBalance() (r float64, exists bool) {
+	v := m.addfrozen_recharge_balance
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// ResetFrozenBalance resets all changes to the "frozen_balance" field.
-func (m *UserMutation) ResetFrozenBalance() {
-	m.frozen_balance = nil
-	m.addfrozen_balance = nil
+// ResetFrozenRechargeBalance resets all changes to the "frozen_recharge_balance" field.
+func (m *UserMutation) ResetFrozenRechargeBalance() {
+	m.frozen_recharge_balance = nil
+	m.addfrozen_recharge_balance = nil
 }
 
 // SetFrozenBonusBalance sets the "frozen_bonus_balance" field.
@@ -62370,14 +62370,14 @@ func (m *UserMutation) Fields() []string {
 	if m.role != nil {
 		fields = append(fields, user.FieldRole)
 	}
-	if m.balance != nil {
-		fields = append(fields, user.FieldBalance)
+	if m.recharge_balance != nil {
+		fields = append(fields, user.FieldRechargeBalance)
 	}
 	if m.bonus_balance != nil {
 		fields = append(fields, user.FieldBonusBalance)
 	}
-	if m.frozen_balance != nil {
-		fields = append(fields, user.FieldFrozenBalance)
+	if m.frozen_recharge_balance != nil {
+		fields = append(fields, user.FieldFrozenRechargeBalance)
 	}
 	if m.frozen_bonus_balance != nil {
 		fields = append(fields, user.FieldFrozenBonusBalance)
@@ -62450,12 +62450,12 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.PasswordHash()
 	case user.FieldRole:
 		return m.Role()
-	case user.FieldBalance:
-		return m.Balance()
+	case user.FieldRechargeBalance:
+		return m.RechargeBalance()
 	case user.FieldBonusBalance:
 		return m.BonusBalance()
-	case user.FieldFrozenBalance:
-		return m.FrozenBalance()
+	case user.FieldFrozenRechargeBalance:
+		return m.FrozenRechargeBalance()
 	case user.FieldFrozenBonusBalance:
 		return m.FrozenBonusBalance()
 	case user.FieldConcurrency:
@@ -62511,12 +62511,12 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldPasswordHash(ctx)
 	case user.FieldRole:
 		return m.OldRole(ctx)
-	case user.FieldBalance:
-		return m.OldBalance(ctx)
+	case user.FieldRechargeBalance:
+		return m.OldRechargeBalance(ctx)
 	case user.FieldBonusBalance:
 		return m.OldBonusBalance(ctx)
-	case user.FieldFrozenBalance:
-		return m.OldFrozenBalance(ctx)
+	case user.FieldFrozenRechargeBalance:
+		return m.OldFrozenRechargeBalance(ctx)
 	case user.FieldFrozenBonusBalance:
 		return m.OldFrozenBonusBalance(ctx)
 	case user.FieldConcurrency:
@@ -62602,12 +62602,12 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRole(v)
 		return nil
-	case user.FieldBalance:
+	case user.FieldRechargeBalance:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetBalance(v)
+		m.SetRechargeBalance(v)
 		return nil
 	case user.FieldBonusBalance:
 		v, ok := value.(float64)
@@ -62616,12 +62616,12 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetBonusBalance(v)
 		return nil
-	case user.FieldFrozenBalance:
+	case user.FieldFrozenRechargeBalance:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetFrozenBalance(v)
+		m.SetFrozenRechargeBalance(v)
 		return nil
 	case user.FieldFrozenBonusBalance:
 		v, ok := value.(float64)
@@ -62750,14 +62750,14 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *UserMutation) AddedFields() []string {
 	var fields []string
-	if m.addbalance != nil {
-		fields = append(fields, user.FieldBalance)
+	if m.addrecharge_balance != nil {
+		fields = append(fields, user.FieldRechargeBalance)
 	}
 	if m.addbonus_balance != nil {
 		fields = append(fields, user.FieldBonusBalance)
 	}
-	if m.addfrozen_balance != nil {
-		fields = append(fields, user.FieldFrozenBalance)
+	if m.addfrozen_recharge_balance != nil {
+		fields = append(fields, user.FieldFrozenRechargeBalance)
 	}
 	if m.addfrozen_bonus_balance != nil {
 		fields = append(fields, user.FieldFrozenBonusBalance)
@@ -62782,12 +62782,12 @@ func (m *UserMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
-	case user.FieldBalance:
-		return m.AddedBalance()
+	case user.FieldRechargeBalance:
+		return m.AddedRechargeBalance()
 	case user.FieldBonusBalance:
 		return m.AddedBonusBalance()
-	case user.FieldFrozenBalance:
-		return m.AddedFrozenBalance()
+	case user.FieldFrozenRechargeBalance:
+		return m.AddedFrozenRechargeBalance()
 	case user.FieldFrozenBonusBalance:
 		return m.AddedFrozenBonusBalance()
 	case user.FieldConcurrency:
@@ -62807,12 +62807,12 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case user.FieldBalance:
+	case user.FieldRechargeBalance:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.AddBalance(v)
+		m.AddRechargeBalance(v)
 		return nil
 	case user.FieldBonusBalance:
 		v, ok := value.(float64)
@@ -62821,12 +62821,12 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddBonusBalance(v)
 		return nil
-	case user.FieldFrozenBalance:
+	case user.FieldFrozenRechargeBalance:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.AddFrozenBalance(v)
+		m.AddFrozenRechargeBalance(v)
 		return nil
 	case user.FieldFrozenBonusBalance:
 		v, ok := value.(float64)
@@ -62947,14 +62947,14 @@ func (m *UserMutation) ResetField(name string) error {
 	case user.FieldRole:
 		m.ResetRole()
 		return nil
-	case user.FieldBalance:
-		m.ResetBalance()
+	case user.FieldRechargeBalance:
+		m.ResetRechargeBalance()
 		return nil
 	case user.FieldBonusBalance:
 		m.ResetBonusBalance()
 		return nil
-	case user.FieldFrozenBalance:
-		m.ResetFrozenBalance()
+	case user.FieldFrozenRechargeBalance:
+		m.ResetFrozenRechargeBalance()
 		return nil
 	case user.FieldFrozenBonusBalance:
 		m.ResetFrozenBonusBalance()

@@ -183,7 +183,7 @@ func calculateStatsCost(pricing *ChannelModelPricing, tokens UsageTokens, reques
 		if len(options) > 1 {
 			effort, _ = options[1].(string)
 		}
-		*cost *= maxReasoningEffortBillingMultiplier(model, effort, &ModelPricing{MaxReasoningEffortMultiplier: pricing.MaxReasoningEffortMultiplier})
+		*cost *= reasoningEffortBillingMultiplier(effort, effectiveReasoningEffortMultipliers(model, pricing.ReasoningEffortMultipliers))
 		return cost
 	}
 }

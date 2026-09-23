@@ -355,7 +355,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			ID:                         apiKey.User.ID,
 			Status:                     apiKey.User.Status,
 			Role:                       apiKey.User.Role,
-			Balance:                    apiKey.User.Balance,
+			Balance:                    NewWalletSummary(apiKey.User.RechargeBalance, apiKey.User.BonusBalance, apiKey.User.FrozenRechargeBalance, apiKey.User.FrozenBonusBalance).AvailableBalance,
 			Concurrency:                apiKey.User.Concurrency,
 			AllowedGroups:              apiKey.User.AllowedGroups,
 			Email:                      apiKey.User.Email,

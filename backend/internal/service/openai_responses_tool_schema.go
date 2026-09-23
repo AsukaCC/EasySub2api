@@ -21,8 +21,9 @@ const (
 // openAIResponsesToolSchemaNullType 记录一处待修正的 null，用原始 body 上的
 // 绝对字节偏移表示，便于最后一次性拼接。
 type openAIResponsesToolSchemaNullType struct {
-	offset int
-	length int
+	offset      int
+	length      int
+	replacement string
 }
 
 // sanitizeOpenAIResponsesToolParameterTypes 修正请求体中显式为 null 的
@@ -69,7 +70,11 @@ func sanitizeOpenAIResponsesToolParameterTypes(body []byte) ([]byte, bool, error
 			continue
 		}
 		sanitized = append(sanitized, body[cursor:hit.offset]...)
-		sanitized = append(sanitized, openAIResponsesToolSchemaFallbackType...)
+		replacement := hit.replacement
+		if replacement == "" {
+			replacement = openAIResponsesToolSchemaFallbackType
+		}
+		sanitized = append(sanitized, replacement...)
 		cursor = hit.offset + hit.length
 	}
 	sanitized = append(sanitized, body[cursor:]...)
@@ -91,7 +96,7 @@ func collectOpenAIResponsesToolSchemaNullTypes(
 		}
 		// Responses 形态用顶层 parameters，ChatCompletions 形态用 function.parameters，
 		// 两种都可能出现在 Responses 请求里（见 normalizeCodexTools）。
-		for _, suffix := range []string{"parameters", "function.parameters"} {
+		for _, suffix := range []string{"parameters", "function.parameters", "input_schema"} {
 			params := tool.Get(suffix)
 			if !params.IsObject() {
 				continue
@@ -101,6 +106,7 @@ func collectOpenAIResponsesToolSchemaNullTypes(
 			if typ := params.Get("type"); typ.Type == gjson.Null && typ.Raw == openAIResponsesToolSchemaNullLiteral {
 				appendOpenAIResponsesToolSchemaNullType(body, typ, hits)
 			}
+			collectNullRequired(body, params, 0, hits)
 		}
 		// 历史输入里的工具定义会再嵌套一层 tools（upstream 报错路径形如
 		// input[234].tools[0].tools[3].parameters）。

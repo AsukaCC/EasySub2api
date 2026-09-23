@@ -18,7 +18,7 @@ type proxyLatencyCache struct {
 	rdb *redis.Client
 }
 
-func NewProxyLatencyCache(rdb *redis.Client) service.ProxyLatencyCache {
+func NewProxyLatencyCache(rdb *redis.Client) *proxyLatencyCache {
 	return &proxyLatencyCache{rdb: rdb}
 }
 
@@ -70,4 +70,18 @@ func (c *proxyLatencyCache) SetProxyLatency(ctx context.Context, proxyID string,
 		return err
 	}
 	return c.rdb.Set(ctx, proxyLatencyKey(proxyID), payload, 0).Err()
+}
+
+func (c *proxyLatencyCache) GetProxyTimezone(ctx context.Context, proxyID string) (string, error) {
+	if c == nil || proxyID == "" {
+		return "", nil
+	}
+	latencies, err := c.GetProxyLatencies(ctx, []string{proxyID})
+	if err != nil {
+		return "", err
+	}
+	if info := latencies[proxyID]; info != nil {
+		return info.Timezone, nil
+	}
+	return "", nil
 }

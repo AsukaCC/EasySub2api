@@ -51,6 +51,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 
 		// BuildInfo provider
 		provideServiceBuildInfo,
+		provideAPIKeyRepositories,
+		provideQuotaDashboards,
 
 		// Cleanup function provider
 		provideCleanup,
@@ -63,6 +65,14 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 
 func providePrivacyClientFactory() service.PrivacyClientFactory {
 	return repository.CreatePrivacyReqClient
+}
+
+func provideAPIKeyRepositories(repo service.APIKeyRepository) []service.APIKeyRepository {
+	return []service.APIKeyRepository{repo}
+}
+
+func provideQuotaDashboards(svc *service.AccountQuotaDashboardService) []*service.AccountQuotaDashboardService {
+	return []*service.AccountQuotaDashboardService{svc}
 }
 
 func provideServiceBuildInfo(buildInfo handler.BuildInfo) service.BuildInfo {
@@ -90,6 +100,7 @@ func provideCleanup(
 	accountExpiry *service.AccountExpiryService,
 	cnProviderBalanceCheck *service.CNProviderBalanceCheckService,
 	codexVersionSync *service.OpenAICodexVersionSyncService,
+	claudeVersionSync *service.ClaudeCodeVersionSyncService,
 	proxyExpiry *service.ProxyExpiryService,
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
@@ -111,6 +122,7 @@ func provideCleanup(
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
+	opencodeGoUsage *service.OpenCodeGoUsageService,
 	auditLog *service.AuditLogService,
 	promptAudit *securityaudit.PromptService,
 ) func() {
@@ -230,6 +242,7 @@ func provideCleanup(
 				return nil
 			}},
 			{"OpenAICodexVersionSyncService", func() error {
+				claudeVersionSync.Stop()
 				codexVersionSync.Stop()
 				return nil
 			}},
@@ -328,6 +341,7 @@ func provideCleanup(
 				return nil
 			}},
 			{"OllamaCloudUsageService", func() error {
+				opencodeGoUsage.Stop()
 				if ollamaCloudUsage != nil {
 					ollamaCloudUsage.Stop()
 				}

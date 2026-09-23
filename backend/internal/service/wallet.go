@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 )
 
@@ -18,12 +19,11 @@ var ErrWalletBonusGrantNotFound = errors.New("wallet bonus grant not found")
 var ErrWalletRefundBonusFrozen = errors.New("refund source bonus is frozen by another operation")
 
 type WalletSummary struct {
-	Balance            float64    `json:"balance"`
+	Balance            float64    `json:"-"`
 	AvailableBalance   float64    `json:"available_balance"`
 	RechargeBalance    float64    `json:"recharge_balance"`
 	BonusBalance       float64    `json:"bonus_balance"`
 	OverdraftAmount    float64    `json:"overdraft_amount"`
-	FrozenBalance      float64    `json:"frozen_balance"`
 	FrozenRecharge     float64    `json:"frozen_recharge_balance"`
 	FrozenBonus        float64    `json:"frozen_bonus_balance"`
 	TotalBalance       float64    `json:"total_balance"`
@@ -31,30 +31,22 @@ type WalletSummary struct {
 	NextExpiringBonus  float64    `json:"next_expiring_bonus_amount"`
 }
 
-func NewWalletSummary(balance, bonus, frozen, frozenBonus float64) WalletSummary {
-	available := balance
-	if available < 0 {
-		available = 0
-	}
+func NewWalletSummary(recharge, bonus, frozenRecharge, frozenBonus float64) WalletSummary {
 	if bonus < 0 {
 		bonus = 0
 	}
-	if bonus > available {
-		bonus = available
-	}
-	overdraft := 0.0
-	if balance < 0 {
-		overdraft = -balance
-	}
-	frozenRecharge := frozen - frozenBonus
+	available := math.Max(recharge, 0) + bonus
+	overdraft := math.Max(-recharge, 0)
 	if frozenRecharge < 0 {
 		frozenRecharge = 0
 	}
+	frozenRecharge = math.Max(frozenRecharge, 0)
 	return WalletSummary{
-		Balance: balance, AvailableBalance: available,
-		RechargeBalance: available - bonus, BonusBalance: bonus, OverdraftAmount: overdraft,
-		FrozenBalance: frozen, FrozenRecharge: frozenRecharge, FrozenBonus: frozenBonus,
-		TotalBalance: available + frozen,
+		Balance:          available,
+		AvailableBalance: available,
+		RechargeBalance:  recharge, BonusBalance: bonus, OverdraftAmount: overdraft,
+		FrozenRecharge: frozenRecharge, FrozenBonus: frozenBonus,
+		TotalBalance: available + frozenRecharge + frozenBonus,
 	}
 }
 
@@ -155,8 +147,8 @@ type WalletTransaction struct {
 	BonusAmount    float64   `json:"bonus_amount"`
 	RechargeAmount float64   `json:"recharge_amount"`
 	FrozenAmount   float64   `json:"frozen_amount"`
-	BalanceBefore  float64   `json:"balance_before"`
-	BalanceAfter   float64   `json:"balance_after"`
+	RechargeBefore float64   `json:"recharge_before"`
+	RechargeAfter  float64   `json:"recharge_after"`
 	BonusBefore    float64   `json:"bonus_before"`
 	BonusAfter     float64   `json:"bonus_after"`
 	SourceType     string    `json:"source_type"`

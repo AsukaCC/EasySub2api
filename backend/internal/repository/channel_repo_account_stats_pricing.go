@@ -67,7 +67,7 @@ func (r *channelRepository) batchLoadAccountStatsModelPricing(ctx context.Contex
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, rule_id, platform, models, billing_mode, input_price, output_price,
-		        cache_write_price, cache_write_1h_price, cache_read_price, image_output_price, per_request_price, max_reasoning_effort_multiplier, created_at, updated_at
+		        cache_write_price, cache_write_1h_price, cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, created_at, updated_at
 		 FROM channel_account_stats_model_pricing WHERE rule_id = ANY($1) ORDER BY rule_id, id`,
 		pq.Array(ruleIDs),
 	)
@@ -81,10 +81,11 @@ func (r *channelRepository) batchLoadAccountStatsModelPricing(ctx context.Contex
 		var p service.ChannelModelPricing
 		var ruleID string
 		var modelsJSON []byte
+		var reasoningJSON []byte
 		if err := rows.Scan(
 			&p.ID, &ruleID, &p.Platform, &modelsJSON, &p.BillingMode,
 			&p.InputPrice, &p.OutputPrice, &p.CacheWritePrice, &p.CacheWrite1hPrice, &p.CacheReadPrice,
-			&p.ImageOutputPrice, &p.PerRequestPrice, &p.MaxReasoningEffortMultiplier, &p.CreatedAt, &p.UpdatedAt,
+			&p.ImageOutputPrice, &p.PerRequestPrice, &reasoningJSON, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan account stats model pricing: %w", err)
 		}
@@ -92,6 +93,11 @@ func (r *channelRepository) batchLoadAccountStatsModelPricing(ctx context.Contex
 			p.Models = []string{}
 		}
 		pricingMap[ruleID] = append(pricingMap[ruleID], p)
+		multipliers, err := unmarshalReasoningEffortMultipliers(reasoningJSON)
+		if err != nil {
+			return nil, err
+		}
+		pricingMap[ruleID][len(pricingMap[ruleID])-1].ReasoningEffortMultipliers = multipliers
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate account stats model pricing: %w", err)
@@ -168,6 +174,10 @@ func createAccountStatsPricingRuleTx(ctx context.Context, tx *sql.Tx, rule *serv
 
 // createAccountStatsModelPricingTx 在事务中创建单条账号统计模型定价
 func createAccountStatsModelPricingTx(ctx context.Context, tx *sql.Tx, ruleID string, pricing *service.ChannelModelPricing) error {
+	reasoningJSON, err := marshalReasoningEffortMultipliers(pricing.ReasoningEffortMultipliers)
+	if err != nil {
+		return err
+	}
 	modelsJSON, err := json.Marshal(pricing.Models)
 	if err != nil {
 		return fmt.Errorf("marshal models: %w", err)
@@ -178,11 +188,11 @@ func createAccountStatsModelPricingTx(ctx context.Context, tx *sql.Tx, ruleID st
 	}
 	platform := pricing.Platform
 	err = tx.QueryRowContext(ctx,
-		`INSERT INTO channel_account_stats_model_pricing (rule_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price, image_output_price, per_request_price, max_reasoning_effort_multiplier)
+		`INSERT INTO channel_account_stats_model_pricing (rule_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, created_at, updated_at`,
 		ruleID, platform, modelsJSON, billingMode,
 		pricing.InputPrice, pricing.OutputPrice, pricing.CacheWritePrice, pricing.CacheWrite1hPrice, pricing.CacheReadPrice,
-		pricing.ImageOutputPrice, pricing.PerRequestPrice, pricing.MaxReasoningEffortMultiplier,
+		pricing.ImageOutputPrice, pricing.PerRequestPrice, reasoningJSON,
 	).Scan(&pricing.ID, &pricing.CreatedAt, &pricing.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert account stats model pricing: %w", err)

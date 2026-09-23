@@ -149,12 +149,10 @@ export interface CheckoutInfoResponse {
 }
 
 export interface WalletSummary {
-  balance: number
   available_balance: number
   recharge_balance: number
   bonus_balance: number
   overdraft_amount: number
-  frozen_balance: number
   frozen_recharge_balance: number
   frozen_bonus_balance: number
   total_balance: number

@@ -426,7 +426,7 @@ func (_u *UserSubscriptionUpdate) ExecX(ctx context.Context) {
 func (_u *UserSubscriptionUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if usersubscription.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized usersubscription.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized usersubscription.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := usersubscription.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -1085,7 +1085,7 @@ func (_u *UserSubscriptionUpdateOne) ExecX(ctx context.Context) {
 func (_u *UserSubscriptionUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if usersubscription.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized usersubscription.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized usersubscription.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := usersubscription.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

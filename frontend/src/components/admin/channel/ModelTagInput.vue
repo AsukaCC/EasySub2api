@@ -23,9 +23,9 @@
         type="text"
         class="components-admin-channel-model-tag-input__field"
         :placeholder="models.length === 0 ? placeholder : ''"
-        @keydown.enter.prevent="addModel"
-        @keydown.tab.prevent="addModel"
-        @keydown.delete="handleBackspace"
+        @keydown.enter="handleEnter"
+        @keydown.tab="handleTab"
+        @keydown.backspace="handleBackspace"
         @paste="handlePaste"
         @blur="addModel"
       />
@@ -72,11 +72,15 @@ function removeModel(idx: number) {
   emit('update:models', newModels)
 }
 
-function handleBackspace() {
+function handleBackspace(event: KeyboardEvent) {
+  if (event.isComposing) return
   if (inputValue.value === '' && props.models.length > 0) {
     removeModel(props.models.length - 1)
   }
 }
+
+function handleEnter(event: KeyboardEvent) { if (event.isComposing) return; event.preventDefault(); addModel() }
+function handleTab(event: KeyboardEvent) { if (event.isComposing || !inputValue.value.trim()) return; event.preventDefault(); addModel() }
 
 function handlePaste(e: ClipboardEvent) {
   e.preventDefault()

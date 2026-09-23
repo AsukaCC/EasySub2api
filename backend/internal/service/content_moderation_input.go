@@ -114,7 +114,14 @@ func collectLastAnthropicUserMessage(messages gjson.Result, parts *[]string, ima
 	if len(array) == 0 {
 		return
 	}
-	last := array[len(array)-1]
+	index := len(array) - 1
+	for index >= 0 && strings.EqualFold(strings.TrimSpace(array[index].Get("role").String()), "system") {
+		index--
+	}
+	if index < 0 {
+		return
+	}
+	last := array[index]
 	if strings.ToLower(strings.TrimSpace(last.Get("role").String())) != "user" {
 		return
 	}

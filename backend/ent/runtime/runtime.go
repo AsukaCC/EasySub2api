@@ -2887,18 +2887,18 @@ func init() {
 	user.DefaultRole = userDescRole.Default.(string)
 	// user.RoleValidator is a validator for the "role" field. It is called by the builders before save.
 	user.RoleValidator = userDescRole.Validators[0].(func(string) error)
-	// userDescBalance is the schema descriptor for balance field.
-	userDescBalance := userFields[3].Descriptor()
-	// user.DefaultBalance holds the default value on creation for the balance field.
-	user.DefaultBalance = userDescBalance.Default.(float64)
+	// userDescRechargeBalance is the schema descriptor for recharge_balance field.
+	userDescRechargeBalance := userFields[3].Descriptor()
+	// user.DefaultRechargeBalance holds the default value on creation for the recharge_balance field.
+	user.DefaultRechargeBalance = userDescRechargeBalance.Default.(float64)
 	// userDescBonusBalance is the schema descriptor for bonus_balance field.
 	userDescBonusBalance := userFields[4].Descriptor()
 	// user.DefaultBonusBalance holds the default value on creation for the bonus_balance field.
 	user.DefaultBonusBalance = userDescBonusBalance.Default.(float64)
-	// userDescFrozenBalance is the schema descriptor for frozen_balance field.
-	userDescFrozenBalance := userFields[5].Descriptor()
-	// user.DefaultFrozenBalance holds the default value on creation for the frozen_balance field.
-	user.DefaultFrozenBalance = userDescFrozenBalance.Default.(float64)
+	// userDescFrozenRechargeBalance is the schema descriptor for frozen_recharge_balance field.
+	userDescFrozenRechargeBalance := userFields[5].Descriptor()
+	// user.DefaultFrozenRechargeBalance holds the default value on creation for the frozen_recharge_balance field.
+	user.DefaultFrozenRechargeBalance = userDescFrozenRechargeBalance.Default.(float64)
 	// userDescFrozenBonusBalance is the schema descriptor for frozen_bonus_balance field.
 	userDescFrozenBonusBalance := userFields[6].Descriptor()
 	// user.DefaultFrozenBonusBalance holds the default value on creation for the frozen_bonus_balance field.

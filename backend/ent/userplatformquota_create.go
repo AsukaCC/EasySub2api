@@ -262,14 +262,14 @@ func (_c *UserPlatformQuotaCreate) ExecX(ctx context.Context) {
 func (_c *UserPlatformQuotaCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if userplatformquota.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userplatformquota.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userplatformquota.DefaultCreatedAt (forgotten import entgen/runtime?)")
 		}
 		v := userplatformquota.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if userplatformquota.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userplatformquota.DefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userplatformquota.DefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := userplatformquota.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -288,7 +288,7 @@ func (_c *UserPlatformQuotaCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if userplatformquota.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized userplatformquota.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userplatformquota.DefaultID (forgotten import entgen/runtime?)")
 		}
 		v := userplatformquota.DefaultID()
 		_c.mutation.SetID(v)

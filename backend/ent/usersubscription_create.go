@@ -329,14 +329,14 @@ func (_c *UserSubscriptionCreate) ExecX(ctx context.Context) {
 func (_c *UserSubscriptionCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if usersubscription.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized usersubscription.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized usersubscription.DefaultCreatedAt (forgotten import entgen/runtime?)")
 		}
 		v := usersubscription.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if usersubscription.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized usersubscription.DefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized usersubscription.DefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := usersubscription.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -359,14 +359,14 @@ func (_c *UserSubscriptionCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.AssignedAt(); !ok {
 		if usersubscription.DefaultAssignedAt == nil {
-			return fmt.Errorf("ent: uninitialized usersubscription.DefaultAssignedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized usersubscription.DefaultAssignedAt (forgotten import entgen/runtime?)")
 		}
 		v := usersubscription.DefaultAssignedAt()
 		_c.mutation.SetAssignedAt(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if usersubscription.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized usersubscription.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized usersubscription.DefaultID (forgotten import entgen/runtime?)")
 		}
 		v := usersubscription.DefaultID()
 		_c.mutation.SetID(v)

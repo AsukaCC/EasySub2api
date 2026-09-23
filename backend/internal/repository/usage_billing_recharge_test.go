@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -49,9 +50,10 @@ func expectRechargeBillingDebit(mock sqlmock.Sqlmock, balance, bonus, cost, bonu
 	if bonusUsed > 0 {
 		mock.ExpectExec("UPDATE wallet_bonus_grants").WithArgs(bonusUsed, "grant").WillReturnResult(sqlmock.NewResult(0, 1))
 	}
-	afterBalance, afterBonus := walletMoney(balance-cost), walletMoney(bonus-bonusUsed)
-	mock.ExpectExec("UPDATE users SET balance = balance -").
-		WithArgs(cost, bonusUsed, "user").WillReturnResult(sqlmock.NewResult(0, 1))
+	rechargeUsed := walletMoney(cost - bonusUsed)
+	afterBalance, afterBonus := walletMoney(balance-rechargeUsed), walletMoney(bonus-bonusUsed)
+	mock.ExpectExec("UPDATE users SET recharge_balance = recharge_balance -").
+		WithArgs(rechargeUsed, bonusUsed, "user").WillReturnResult(sqlmock.NewResult(0, 1))
 	ledger := mock.ExpectExec("INSERT INTO wallet_transactions").
 		WithArgs("user", "debit", -cost, -bonusUsed, -walletMoney(cost-bonusUsed), 0.0,
 			balance, afterBalance, bonus, afterBonus, "api_usage", "request", "wallet-usage:key:request", "")
@@ -60,8 +62,8 @@ func expectRechargeBillingDebit(mock sqlmock.Sqlmock, balance, bonus, cost, bonu
 		return
 	}
 	ledger.WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("(?s)SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance.*FROM users WHERE").
-		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance", "frozen_balance", "frozen_bonus_balance"}).AddRow(afterBalance, afterBonus, 0, 0))
+	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users WHERE").
+		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(afterBalance, afterBonus, 0, 0))
 	mock.ExpectQuery("SELECT expires_at, SUM").WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"expires_at", "remaining_amount"}))
 }
@@ -71,17 +73,17 @@ func TestUsageBillingRechargeSettlementAndDedup(t *testing.T) {
 		name                                                        string
 		recharge, bonus, cost, bonusUsed, discountedRecharge, quota float64
 	}{
-		{"recharge first preserves bonus", 10, 10, 1, 0, 1, 20},
-		{"mixed payment", .4, 10, 1.6, 1.2, .4, 8},
+		{"discounted amount uses recharge bucket", 10, 10, 1, 0, 1, 20},
+		{"mixed payment", .4, 10, 1.6, .4, 1.2, 8},
 		{"bonus only pays regular rate", 0, 10, 2, 2, 0, 0},
-		{"overdraft pays regular rate", .4, .2, 1.6, .2, .4, 8},
+		{"recharge covers remainder without overdraft", 2, .2, 1.6, .2, .4, 8},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			defer db.Close()
 			repo := &usageBillingRepository{db: db}
-			balance := walletMoney(tc.recharge + tc.bonus)
+			balance := walletMoney(tc.recharge)
 			expectRechargeBillingClaim(mock)
 			expectDynamicRechargeWallet(mock, "user", balance, tc.bonus)
 			if tc.quota > 0 {
@@ -94,8 +96,8 @@ func TestUsageBillingRechargeSettlementAndDedup(t *testing.T) {
 			require.True(t, result.Applied)
 			require.Equal(t, tc.cost, *result.FinalActualCost)
 			require.Equal(t, tc.discountedRecharge, result.RechargeOnlyCost)
-			require.Equal(t, walletMoney(balance-tc.cost), *result.NewBalance)
-			require.Equal(t, balance < tc.cost, result.BalanceOverdrafted)
+			require.Equal(t, walletMoney(math.Max(balance-(tc.cost-tc.bonusUsed), 0)+tc.bonus-tc.bonusUsed), *result.NewBalance)
+			require.False(t, result.BalanceOverdrafted)
 
 			// A duplicate claims no quota and performs no wallet mutation.
 			cmd := rechargeBillingCommand()
@@ -141,7 +143,7 @@ func TestUsageBillingRechargeRollbackAndRetry(t *testing.T) {
 }
 
 func TestWalletRechargeReservationCannotUseBonusOrDebt(t *testing.T) {
-	for _, balance := range []float64{10, 9} {
+	for _, balance := range []float64{0, -1} {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
 		mock.ExpectQuery("SELECT 1 FROM wallet_transactions").WillReturnRows(sqlmock.NewRows([]string{"exists"}))
@@ -163,8 +165,8 @@ func TestDynamicRateBillingExcludesFrozenRecharge(t *testing.T) {
 	mock.ExpectBegin()
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	mock.ExpectQuery("(?s)SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance.*FOR UPDATE").
-		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance", "frozen_balance", "frozen_bonus_balance"}).AddRow(10, 10, 100, 0))
+	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
+		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(0, 10, 100, 0))
 	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
 		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
 	result := &service.UsageBillingApplyResult{}
@@ -183,8 +185,8 @@ func TestDynamicRateBillingExpiresBonusBeforePricing(t *testing.T) {
 	mock.ExpectBegin()
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	mock.ExpectQuery("(?s)SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance.*FOR UPDATE").
-		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance", "frozen_balance", "frozen_bonus_balance"}).AddRow(10.4, 10, 0, 0))
+	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
+		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(10.4, 10, 0, 0))
 	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
 		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}).AddRow("expired", 3))
 	mock.ExpectExec("UPDATE wallet_bonus_grants").WithArgs("expired", 3.0).WillReturnResult(sqlmock.NewResult(0, 1))

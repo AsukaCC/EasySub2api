@@ -418,7 +418,7 @@ func (_q *ChannelMonitorQuery) Aggregate(fns ...AggregateFunc) *ChannelMonitorSe
 func (_q *ChannelMonitorQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
-			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized interceptor (forgotten import entgen/runtime?)")
 		}
 		if trv, ok := inter.(Traverser); ok {
 			if err := trv.Traverse(ctx, _q); err != nil {

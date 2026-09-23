@@ -34,7 +34,7 @@ type Group struct {
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// 用户等级倍率候选，key 为 user level tier UUID
 	LevelRateMultipliers map[string]float64 `json:"level_rate_multipliers,omitempty"`
-	// 分时动态倍率规则，包含等级范围、触发消费和用户独立日额度
+	// 分时动态优惠规则，包含时间窗口、触发消费、优惠系数和用户独立额度
 	DynamicRateRules []domain.GroupDynamicRateRule `json:"dynamic_rate_rules,omitempty"`
 	// 是否启用高峰时段倍率
 	PeakRateEnabled bool `json:"peak_rate_enabled,omitempty"`

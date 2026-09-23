@@ -2,10 +2,10 @@ package service
 
 import (
 	"fmt"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"regexp"
 	"strings"
 
-	"github.com/AsukaCC/EasySub2api/internal/pkg/claude"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -17,7 +17,7 @@ var ccVersionWithFingerprintInBillingRe = regexp.MustCompile(`cc_version=\d+\.\d
 
 func effectiveBillingUserAgent(tokenType string, mimicClaudeCode bool, fingerprint *Fingerprint) string {
 	if tokenType == "oauth" && mimicClaudeCode {
-		return claude.DefaultHeaders["User-Agent"]
+		return claude.DefaultHeaders()["User-Agent"]
 	}
 	if fingerprint == nil {
 		return ""

@@ -135,7 +135,7 @@ func TestAuthServiceBindEmailIdentity_UpdatesEmailAndAppliesFirstBindDefaults(t 
 		SetEmail("legacy-user" + service.LinuxDoConnectSyntheticEmailDomain).
 		SetUsername("legacy-user").
 		SetPasswordHash("old-hash").
-		SetBalance(2.5).
+		SetRechargeBalance(2.5).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -150,7 +150,7 @@ func TestAuthServiceBindEmailIdentity_UpdatesEmailAndAppliesFirstBindDefaults(t 
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
 	require.Equal(t, "newemail@example.com", storedUser.Email)
-	require.Equal(t, 11.0, storedUser.Balance)
+	require.Equal(t, 11.0, storedUser.RechargeBalance)
 	require.Equal(t, 5, storedUser.Concurrency)
 	require.True(t, svc.CheckPassword("new-password", storedUser.PasswordHash))
 
@@ -187,7 +187,7 @@ func TestAuthServiceBindEmailIdentity_RejectsExistingEmailOnAnotherUser(t *testi
 		SetEmail("source-user" + service.OIDCConnectSyntheticEmailDomain).
 		SetUsername("source-user").
 		SetPasswordHash("old-hash").
-		SetBalance(1).
+		SetRechargeBalance(1).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -197,7 +197,7 @@ func TestAuthServiceBindEmailIdentity_RejectsExistingEmailOnAnotherUser(t *testi
 		SetEmail("taken@example.com").
 		SetUsername("taken-user").
 		SetPasswordHash("hash").
-		SetBalance(1).
+		SetRechargeBalance(1).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -236,7 +236,7 @@ func TestAuthServiceBindEmailIdentity_RollsBackWhenFirstBindDefaultsFail(t *test
 		SetEmail(originalEmail).
 		SetUsername("legacy-rollback").
 		SetPasswordHash("old-hash").
-		SetBalance(2.5).
+		SetRechargeBalance(2.5).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -252,7 +252,7 @@ func TestAuthServiceBindEmailIdentity_RollsBackWhenFirstBindDefaultsFail(t *test
 	require.NoError(t, err)
 	require.Equal(t, originalEmail, storedUser.Email)
 	require.Equal(t, "old-hash", storedUser.PasswordHash)
-	require.Equal(t, 2.5, storedUser.Balance)
+	require.Equal(t, 2.5, storedUser.RechargeBalance)
 	require.Equal(t, 1, storedUser.Concurrency)
 
 	identityCount, err := client.AuthIdentity.Query().
@@ -285,7 +285,7 @@ func TestAuthServiceBindEmailIdentity_RejectsReservedEmail(t *testing.T) {
 		SetEmail("source-user@example.com").
 		SetUsername("source-user").
 		SetPasswordHash("old-hash").
-		SetBalance(1).
+		SetRechargeBalance(1).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -321,7 +321,7 @@ func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefault
 		SetEmail("current@example.com").
 		SetUsername("bound-user").
 		SetPasswordHash(hashedPassword).
-		SetBalance(7.5).
+		SetRechargeBalance(7.5).
 		SetConcurrency(3).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -344,7 +344,7 @@ func TestAuthServiceBindEmailIdentity_ReplacesBoundEmailAndSkipsFirstBindDefault
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
 	require.Equal(t, "new@example.com", storedUser.Email)
-	require.Equal(t, 7.5, storedUser.Balance)
+	require.Equal(t, 7.5, storedUser.RechargeBalance)
 	require.Equal(t, 3, storedUser.Concurrency)
 	require.True(t, svc.CheckPassword("current-password", storedUser.PasswordHash))
 
@@ -392,7 +392,7 @@ func TestAuthServiceBindEmailIdentity_RejectsWrongCurrentPasswordForBoundEmail(t
 		SetEmail("current@example.com").
 		SetUsername("bound-user").
 		SetPasswordHash(hashedPassword).
-		SetBalance(1).
+		SetRechargeBalance(1).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -620,7 +620,7 @@ func createEmailBindTestUser(t *testing.T, client *dbent.Client, email, username
 		SetEmail(email).
 		SetUsername(username).
 		SetPasswordHash(passwordHash).
-		SetBalance(1).
+		SetRechargeBalance(1).
 		SetConcurrency(1).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).

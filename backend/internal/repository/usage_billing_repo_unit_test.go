@@ -14,12 +14,12 @@ import (
 
 const (
 	walletTransactionExistsSQL = `SELECT 1 FROM wallet_transactions WHERE idempotency_key = \$1`
-	lockWalletUserSQL          = `(?s)SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance.*FROM users.*WHERE id = \$1 AND deleted_at IS NULL.*FOR UPDATE`
+	lockWalletUserSQL          = `(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users.*WHERE id = \$1 AND deleted_at IS NULL.*FOR UPDATE`
 	expiredWalletBonusSQL      = `(?s)SELECT id, remaining_amount.*FROM wallet_bonus_grants.*expires_at <= NOW().*FOR UPDATE`
 	availableWalletBonusSQL    = `(?s)SELECT id, remaining_amount.*FROM wallet_bonus_grants.*expires_at > NOW().*FOR UPDATE`
 	updateWalletBalanceSQL     = `(?s)UPDATE users SET balance = balance - \$1, bonus_balance = bonus_balance - \$2, updated_at = NOW().*WHERE id = \$3`
 	insertWalletTransactionSQL = `(?s)INSERT INTO wallet_transactions.*VALUES`
-	loadWalletSummarySQL       = `(?s)SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance.*FROM users WHERE id = \$1 AND deleted_at IS NULL`
+	loadWalletSummarySQL       = `(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users WHERE id = \$1 AND deleted_at IS NULL`
 	nextExpiringWalletBonusSQL = `(?s)SELECT expires_at, SUM\(remaining_amount\).*FROM wallet_bonus_grants.*WHERE user_id = \$1.*LIMIT 1`
 )
 
@@ -29,7 +29,7 @@ func expectWalletDebitQueries(mock sqlmock.Sqlmock, userID, idempotencyKey strin
 		WillReturnRows(sqlmock.NewRows([]string{"?column?"}))
 	mock.ExpectQuery(lockWalletUserSQL).
 		WithArgs(userID).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance", "frozen_balance", "frozen_bonus_balance"}).
+		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).
 			AddRow(balanceBefore, 0.0, 0.0, 0.0))
 	mock.ExpectQuery(expiredWalletBonusSQL).
 		WithArgs(userID).
@@ -44,7 +44,7 @@ func expectWalletDebitQueries(mock sqlmock.Sqlmock, userID, idempotencyKey strin
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(loadWalletSummarySQL).
 		WithArgs(userID).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance", "frozen_balance", "frozen_bonus_balance"}).
+		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).
 			AddRow(balanceAfter, 0.0, 0.0, 0.0))
 	mock.ExpectQuery(nextExpiringWalletBonusSQL).
 		WithArgs(userID).
@@ -102,7 +102,7 @@ func TestApplyUsageBillingEffects_ReturnsUserNotFoundForUnknownStringID(t *testi
 		WillReturnRows(sqlmock.NewRows([]string{"?column?"}))
 	mock.ExpectQuery(lockWalletUserSQL).
 		WithArgs(userID).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance", "frozen_balance", "frozen_bonus_balance"}))
+		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}))
 	mock.ExpectRollback()
 
 	result := &service.UsageBillingApplyResult{Applied: true}

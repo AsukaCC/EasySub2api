@@ -35,6 +35,7 @@ export interface UserPricingInterval {
 }
 
 export interface UserSupportedModelPricing {
+  reasoning_effort_multipliers?: Record<string, number> | null
   billing_mode: BillingMode
   input_price: number | null
   output_price: number | null

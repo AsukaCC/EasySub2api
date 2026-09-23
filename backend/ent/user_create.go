@@ -103,16 +103,16 @@ func (_c *UserCreate) SetNillableRole(v *string) *UserCreate {
 	return _c
 }
 
-// SetBalance sets the "balance" field.
-func (_c *UserCreate) SetBalance(v float64) *UserCreate {
-	_c.mutation.SetBalance(v)
+// SetRechargeBalance sets the "recharge_balance" field.
+func (_c *UserCreate) SetRechargeBalance(v float64) *UserCreate {
+	_c.mutation.SetRechargeBalance(v)
 	return _c
 }
 
-// SetNillableBalance sets the "balance" field if the given value is not nil.
-func (_c *UserCreate) SetNillableBalance(v *float64) *UserCreate {
+// SetNillableRechargeBalance sets the "recharge_balance" field if the given value is not nil.
+func (_c *UserCreate) SetNillableRechargeBalance(v *float64) *UserCreate {
 	if v != nil {
-		_c.SetBalance(*v)
+		_c.SetRechargeBalance(*v)
 	}
 	return _c
 }
@@ -131,16 +131,16 @@ func (_c *UserCreate) SetNillableBonusBalance(v *float64) *UserCreate {
 	return _c
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (_c *UserCreate) SetFrozenBalance(v float64) *UserCreate {
-	_c.mutation.SetFrozenBalance(v)
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (_c *UserCreate) SetFrozenRechargeBalance(v float64) *UserCreate {
+	_c.mutation.SetFrozenRechargeBalance(v)
 	return _c
 }
 
-// SetNillableFrozenBalance sets the "frozen_balance" field if the given value is not nil.
-func (_c *UserCreate) SetNillableFrozenBalance(v *float64) *UserCreate {
+// SetNillableFrozenRechargeBalance sets the "frozen_recharge_balance" field if the given value is not nil.
+func (_c *UserCreate) SetNillableFrozenRechargeBalance(v *float64) *UserCreate {
 	if v != nil {
-		_c.SetFrozenBalance(*v)
+		_c.SetFrozenRechargeBalance(*v)
 	}
 	return _c
 }
@@ -631,14 +631,14 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 func (_c *UserCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if user.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultCreatedAt (forgotten import entgen/runtime?)")
 		}
 		v := user.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if user.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := user.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -647,17 +647,17 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
 	}
-	if _, ok := _c.mutation.Balance(); !ok {
-		v := user.DefaultBalance
-		_c.mutation.SetBalance(v)
+	if _, ok := _c.mutation.RechargeBalance(); !ok {
+		v := user.DefaultRechargeBalance
+		_c.mutation.SetRechargeBalance(v)
 	}
 	if _, ok := _c.mutation.BonusBalance(); !ok {
 		v := user.DefaultBonusBalance
 		_c.mutation.SetBonusBalance(v)
 	}
-	if _, ok := _c.mutation.FrozenBalance(); !ok {
-		v := user.DefaultFrozenBalance
-		_c.mutation.SetFrozenBalance(v)
+	if _, ok := _c.mutation.FrozenRechargeBalance(); !ok {
+		v := user.DefaultFrozenRechargeBalance
+		_c.mutation.SetFrozenRechargeBalance(v)
 	}
 	if _, ok := _c.mutation.FrozenBonusBalance(); !ok {
 		v := user.DefaultFrozenBonusBalance
@@ -709,7 +709,7 @@ func (_c *UserCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if user.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultID (forgotten import entgen/runtime?)")
 		}
 		v := user.DefaultID()
 		_c.mutation.SetID(v)
@@ -749,14 +749,14 @@ func (_c *UserCreate) check() error {
 			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "User.role": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.Balance(); !ok {
-		return &ValidationError{Name: "balance", err: errors.New(`ent: missing required field "User.balance"`)}
+	if _, ok := _c.mutation.RechargeBalance(); !ok {
+		return &ValidationError{Name: "recharge_balance", err: errors.New(`ent: missing required field "User.recharge_balance"`)}
 	}
 	if _, ok := _c.mutation.BonusBalance(); !ok {
 		return &ValidationError{Name: "bonus_balance", err: errors.New(`ent: missing required field "User.bonus_balance"`)}
 	}
-	if _, ok := _c.mutation.FrozenBalance(); !ok {
-		return &ValidationError{Name: "frozen_balance", err: errors.New(`ent: missing required field "User.frozen_balance"`)}
+	if _, ok := _c.mutation.FrozenRechargeBalance(); !ok {
+		return &ValidationError{Name: "frozen_recharge_balance", err: errors.New(`ent: missing required field "User.frozen_recharge_balance"`)}
 	}
 	if _, ok := _c.mutation.FrozenBonusBalance(); !ok {
 		return &ValidationError{Name: "frozen_bonus_balance", err: errors.New(`ent: missing required field "User.frozen_bonus_balance"`)}
@@ -869,17 +869,17 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
 		_node.Role = value
 	}
-	if value, ok := _c.mutation.Balance(); ok {
-		_spec.SetField(user.FieldBalance, field.TypeFloat64, value)
-		_node.Balance = value
+	if value, ok := _c.mutation.RechargeBalance(); ok {
+		_spec.SetField(user.FieldRechargeBalance, field.TypeFloat64, value)
+		_node.RechargeBalance = value
 	}
 	if value, ok := _c.mutation.BonusBalance(); ok {
 		_spec.SetField(user.FieldBonusBalance, field.TypeFloat64, value)
 		_node.BonusBalance = value
 	}
-	if value, ok := _c.mutation.FrozenBalance(); ok {
-		_spec.SetField(user.FieldFrozenBalance, field.TypeFloat64, value)
-		_node.FrozenBalance = value
+	if value, ok := _c.mutation.FrozenRechargeBalance(); ok {
+		_spec.SetField(user.FieldFrozenRechargeBalance, field.TypeFloat64, value)
+		_node.FrozenRechargeBalance = value
 	}
 	if value, ok := _c.mutation.FrozenBonusBalance(); ok {
 		_spec.SetField(user.FieldFrozenBonusBalance, field.TypeFloat64, value)
@@ -1279,21 +1279,21 @@ func (u *UserUpsert) UpdateRole() *UserUpsert {
 	return u
 }
 
-// SetBalance sets the "balance" field.
-func (u *UserUpsert) SetBalance(v float64) *UserUpsert {
-	u.Set(user.FieldBalance, v)
+// SetRechargeBalance sets the "recharge_balance" field.
+func (u *UserUpsert) SetRechargeBalance(v float64) *UserUpsert {
+	u.Set(user.FieldRechargeBalance, v)
 	return u
 }
 
-// UpdateBalance sets the "balance" field to the value that was provided on create.
-func (u *UserUpsert) UpdateBalance() *UserUpsert {
-	u.SetExcluded(user.FieldBalance)
+// UpdateRechargeBalance sets the "recharge_balance" field to the value that was provided on create.
+func (u *UserUpsert) UpdateRechargeBalance() *UserUpsert {
+	u.SetExcluded(user.FieldRechargeBalance)
 	return u
 }
 
-// AddBalance adds v to the "balance" field.
-func (u *UserUpsert) AddBalance(v float64) *UserUpsert {
-	u.Add(user.FieldBalance, v)
+// AddRechargeBalance adds v to the "recharge_balance" field.
+func (u *UserUpsert) AddRechargeBalance(v float64) *UserUpsert {
+	u.Add(user.FieldRechargeBalance, v)
 	return u
 }
 
@@ -1315,21 +1315,21 @@ func (u *UserUpsert) AddBonusBalance(v float64) *UserUpsert {
 	return u
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (u *UserUpsert) SetFrozenBalance(v float64) *UserUpsert {
-	u.Set(user.FieldFrozenBalance, v)
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (u *UserUpsert) SetFrozenRechargeBalance(v float64) *UserUpsert {
+	u.Set(user.FieldFrozenRechargeBalance, v)
 	return u
 }
 
-// UpdateFrozenBalance sets the "frozen_balance" field to the value that was provided on create.
-func (u *UserUpsert) UpdateFrozenBalance() *UserUpsert {
-	u.SetExcluded(user.FieldFrozenBalance)
+// UpdateFrozenRechargeBalance sets the "frozen_recharge_balance" field to the value that was provided on create.
+func (u *UserUpsert) UpdateFrozenRechargeBalance() *UserUpsert {
+	u.SetExcluded(user.FieldFrozenRechargeBalance)
 	return u
 }
 
-// AddFrozenBalance adds v to the "frozen_balance" field.
-func (u *UserUpsert) AddFrozenBalance(v float64) *UserUpsert {
-	u.Add(user.FieldFrozenBalance, v)
+// AddFrozenRechargeBalance adds v to the "frozen_recharge_balance" field.
+func (u *UserUpsert) AddFrozenRechargeBalance(v float64) *UserUpsert {
+	u.Add(user.FieldFrozenRechargeBalance, v)
 	return u
 }
 
@@ -1725,24 +1725,24 @@ func (u *UserUpsertOne) UpdateRole() *UserUpsertOne {
 	})
 }
 
-// SetBalance sets the "balance" field.
-func (u *UserUpsertOne) SetBalance(v float64) *UserUpsertOne {
+// SetRechargeBalance sets the "recharge_balance" field.
+func (u *UserUpsertOne) SetRechargeBalance(v float64) *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
-		s.SetBalance(v)
+		s.SetRechargeBalance(v)
 	})
 }
 
-// AddBalance adds v to the "balance" field.
-func (u *UserUpsertOne) AddBalance(v float64) *UserUpsertOne {
+// AddRechargeBalance adds v to the "recharge_balance" field.
+func (u *UserUpsertOne) AddRechargeBalance(v float64) *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
-		s.AddBalance(v)
+		s.AddRechargeBalance(v)
 	})
 }
 
-// UpdateBalance sets the "balance" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateBalance() *UserUpsertOne {
+// UpdateRechargeBalance sets the "recharge_balance" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateRechargeBalance() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
-		s.UpdateBalance()
+		s.UpdateRechargeBalance()
 	})
 }
 
@@ -1767,24 +1767,24 @@ func (u *UserUpsertOne) UpdateBonusBalance() *UserUpsertOne {
 	})
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (u *UserUpsertOne) SetFrozenBalance(v float64) *UserUpsertOne {
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (u *UserUpsertOne) SetFrozenRechargeBalance(v float64) *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
-		s.SetFrozenBalance(v)
+		s.SetFrozenRechargeBalance(v)
 	})
 }
 
-// AddFrozenBalance adds v to the "frozen_balance" field.
-func (u *UserUpsertOne) AddFrozenBalance(v float64) *UserUpsertOne {
+// AddFrozenRechargeBalance adds v to the "frozen_recharge_balance" field.
+func (u *UserUpsertOne) AddFrozenRechargeBalance(v float64) *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
-		s.AddFrozenBalance(v)
+		s.AddFrozenRechargeBalance(v)
 	})
 }
 
-// UpdateFrozenBalance sets the "frozen_balance" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateFrozenBalance() *UserUpsertOne {
+// UpdateFrozenRechargeBalance sets the "frozen_recharge_balance" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateFrozenRechargeBalance() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
-		s.UpdateFrozenBalance()
+		s.UpdateFrozenRechargeBalance()
 	})
 }
 
@@ -2391,24 +2391,24 @@ func (u *UserUpsertBulk) UpdateRole() *UserUpsertBulk {
 	})
 }
 
-// SetBalance sets the "balance" field.
-func (u *UserUpsertBulk) SetBalance(v float64) *UserUpsertBulk {
+// SetRechargeBalance sets the "recharge_balance" field.
+func (u *UserUpsertBulk) SetRechargeBalance(v float64) *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
-		s.SetBalance(v)
+		s.SetRechargeBalance(v)
 	})
 }
 
-// AddBalance adds v to the "balance" field.
-func (u *UserUpsertBulk) AddBalance(v float64) *UserUpsertBulk {
+// AddRechargeBalance adds v to the "recharge_balance" field.
+func (u *UserUpsertBulk) AddRechargeBalance(v float64) *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
-		s.AddBalance(v)
+		s.AddRechargeBalance(v)
 	})
 }
 
-// UpdateBalance sets the "balance" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateBalance() *UserUpsertBulk {
+// UpdateRechargeBalance sets the "recharge_balance" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateRechargeBalance() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
-		s.UpdateBalance()
+		s.UpdateRechargeBalance()
 	})
 }
 
@@ -2433,24 +2433,24 @@ func (u *UserUpsertBulk) UpdateBonusBalance() *UserUpsertBulk {
 	})
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (u *UserUpsertBulk) SetFrozenBalance(v float64) *UserUpsertBulk {
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (u *UserUpsertBulk) SetFrozenRechargeBalance(v float64) *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
-		s.SetFrozenBalance(v)
+		s.SetFrozenRechargeBalance(v)
 	})
 }
 
-// AddFrozenBalance adds v to the "frozen_balance" field.
-func (u *UserUpsertBulk) AddFrozenBalance(v float64) *UserUpsertBulk {
+// AddFrozenRechargeBalance adds v to the "frozen_recharge_balance" field.
+func (u *UserUpsertBulk) AddFrozenRechargeBalance(v float64) *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
-		s.AddFrozenBalance(v)
+		s.AddFrozenRechargeBalance(v)
 	})
 }
 
-// UpdateFrozenBalance sets the "frozen_balance" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateFrozenBalance() *UserUpsertBulk {
+// UpdateFrozenRechargeBalance sets the "frozen_recharge_balance" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateFrozenRechargeBalance() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
-		s.UpdateFrozenBalance()
+		s.UpdateFrozenRechargeBalance()
 	})
 }
 

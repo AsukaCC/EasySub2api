@@ -384,5 +384,6 @@ func openCodeGoQuotaURL(baseURL string) string {
 	if base == "" {
 		base = DefaultOpenCodeGoBaseURL
 	}
-	return base + openCodeGoUsagePath
+	base = strings.TrimSuffix(base, "/v1")
+	return base + "/v1" + openCodeGoUsagePath
 }

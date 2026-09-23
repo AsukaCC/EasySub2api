@@ -136,6 +136,7 @@ func (s *proxyProbeService) parseIPAPI(body []byte, latencyMs int64) (*service.P
 		RegionName  string `json:"regionName"`
 		Country     string `json:"country"`
 		CountryCode string `json:"countryCode"`
+		Timezone    string `json:"timezone"`
 	}
 
 	if err := json.Unmarshal(body, &ipInfo); err != nil {
@@ -158,6 +159,7 @@ func (s *proxyProbeService) parseIPAPI(body []byte, latencyMs int64) (*service.P
 	}
 	return &service.ProxyExitInfo{
 		IP:          ipInfo.Query,
+		Timezone:    ipInfo.Timezone,
 		City:        ipInfo.City,
 		Region:      region,
 		Country:     ipInfo.Country,

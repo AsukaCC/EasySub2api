@@ -51,6 +51,8 @@ services:
       - SERVER_MODE=${SERVER_MODE:-release}
       - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
+      - SIMPLE_MODE_AUTO_CREATE_DEFAULT_GROUPS=${SIMPLE_MODE_AUTO_CREATE_DEFAULT_GROUPS:-true}
+      - SIMPLE_MODE_KEY_RATE_LIMIT_ENABLED=${SIMPLE_MODE_KEY_RATE_LIMIT_ENABLED:-false}
       # Debug only: capture headers actually written by the upstream transport
       # for one exact inbound X-Request-ID; empty keeps this disabled.
       - EASYSUB2API_DEBUG_UPSTREAM_HEADERS_REQUEST_ID=${EASYSUB2API_DEBUG_UPSTREAM_HEADERS_REQUEST_ID:-}

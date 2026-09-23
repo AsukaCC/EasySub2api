@@ -1076,14 +1076,14 @@ func (_c *GroupCreate) ExecX(ctx context.Context) {
 func (_c *GroupCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if group.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized group.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized group.DefaultCreatedAt (forgotten import entgen/runtime?)")
 		}
 		v := group.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if group.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized group.DefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized group.DefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := group.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -1266,7 +1266,7 @@ func (_c *GroupCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if group.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized group.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized group.DefaultID (forgotten import entgen/runtime?)")
 		}
 		v := group.DefaultID()
 		_c.mutation.SetID(v)

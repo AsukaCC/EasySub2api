@@ -337,7 +337,7 @@ func (_u *UserPlatformQuotaUpdate) ExecX(ctx context.Context) {
 func (_u *UserPlatformQuotaUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if userplatformquota.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userplatformquota.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userplatformquota.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := userplatformquota.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -815,7 +815,7 @@ func (_u *UserPlatformQuotaUpdateOne) ExecX(ctx context.Context) {
 func (_u *UserPlatformQuotaUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if userplatformquota.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userplatformquota.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userplatformquota.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := userplatformquota.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

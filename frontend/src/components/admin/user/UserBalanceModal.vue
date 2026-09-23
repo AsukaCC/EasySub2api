@@ -3,7 +3,7 @@
     <form v-if="user" id="balance-form" @submit.prevent="handleBalanceSubmit" class="components-admin-user-user-balance-modal__form">
       <div class="components-admin-user-user-balance-modal__panel">
         <div class="components-admin-user-user-balance-modal__panel-2"><span class="components-admin-user-user-balance-modal__text">{{ user.email.charAt(0).toUpperCase() }}</span></div>
-        <div class="components-admin-user-user-balance-modal__panel-3"><p class="components-admin-user-user-balance-modal__description">{{ user.email }}</p><p class="components-admin-user-user-balance-modal__description-2">{{ t('admin.users.currentBalance') }}: {{ formatPoints(user.balance) }}</p></div>
+		<div class="components-admin-user-user-balance-modal__panel-3"><p class="components-admin-user-user-balance-modal__description">{{ user.email }}</p><p class="components-admin-user-user-balance-modal__description-2">{{ t('admin.users.currentBalance') }}: {{ formatPoints(user.available_balance ?? 0) }}</p></div>
       </div>
       <div>
         <label for="balance-amount" class="input-label">{{ operation === 'add' ? t('admin.users.depositAmount') : t('admin.users.withdrawAmount') }} ({{ t('common.points') }})</label>
@@ -15,7 +15,7 @@
           <button v-if="operation === 'subtract'" type="button" @click="fillAllBalance" class="components-admin-user-user-balance-modal__action btn btn-secondary">{{ t('admin.users.withdrawAll') }}</button>
         </div>
       </div>
-	  <div v-if="operation === 'add'">
+	  <div>
 		<label class="input-label">{{ t('admin.users.balanceType') }}</label>
 		<Select v-model="form.balanceType" :options="[
 		  { value: 'recharge', label: t('admin.users.rechargeBalance') },
@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractApiErrorMessage } from '@/utils/apiError'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -106,13 +107,14 @@ watch(() => [props.show, props.operation, props.user?.id] as const, ([show]) => 
 // 填入全部余额
 const fillAllBalance = () => {
   if (props.user) {
-    form.amount = props.user.balance
+		form.amount = form.balanceType === 'bonus' ? (props.user.bonus_balance ?? 0) : (props.user.recharge_balance ?? 0)
   }
 }
 
 const calculateNewBalance = () => {
   if (!props.user) return 0
-  const result = props.operation === 'add' ? props.user.balance + form.amount + bonusPoints.value : props.user.balance - form.amount
+	const current = form.balanceType === 'bonus' ? (props.user.bonus_balance ?? 0) : (props.user.recharge_balance ?? 0)
+	const result = props.operation === 'add' ? current + form.amount + bonusPoints.value : current - form.amount
   // 避免浮点数精度问题导致的 -0.00 显示
   return Math.abs(result) < 1e-10 ? 0 : result
 }
@@ -123,7 +125,8 @@ const handleBalanceSubmit = async () => {
     return
   }
   // 退款时验证金额不超过实际余额
-  if (props.operation === 'subtract' && form.amount > props.user.balance) {
+	const available = form.balanceType === 'bonus' ? (props.user.bonus_balance ?? 0) : (props.user.recharge_balance ?? 0)
+	if (props.operation === 'subtract' && form.amount > Math.max(available, 0)) {
     appStore.showError(t('admin.users.insufficientBalance'))
     return
   }
@@ -133,7 +136,7 @@ const handleBalanceSubmit = async () => {
     appStore.showSuccess(t('common.success')); emit('success'); emit('close')
   } catch (e: any) {
     console.error('Failed to update balance:', e)
-    appStore.showError(e.response?.data?.detail || t('common.error'))
+    appStore.showError(extractApiErrorMessage(e, t('common.error')))
   } finally { submitting.value = false }
 }
 </script>

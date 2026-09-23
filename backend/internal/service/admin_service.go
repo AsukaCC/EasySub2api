@@ -560,6 +560,7 @@ type ProxyTestResult struct {
 	Message     string `json:"message"`
 	LatencyMs   int64  `json:"latency_ms,omitempty"`
 	IPAddress   string `json:"ip_address,omitempty"`
+	Timezone    string `json:"timezone,omitempty"`
 	City        string `json:"city,omitempty"`
 	Region      string `json:"region,omitempty"`
 	Country     string `json:"country,omitempty"`
@@ -595,6 +596,7 @@ type ProxyQualityCheckItem struct {
 // ProxyExitInfo represents proxy exit information from ip-api.com
 type ProxyExitInfo struct {
 	IP          string
+	Timezone    string
 	City        string
 	Region      string
 	Country     string

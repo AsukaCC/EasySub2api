@@ -1,5 +1,6 @@
 import type { BillingMode, ChannelTimePricing, PricingInterval } from '@/api/admin/channels'
 import { formatDateValue } from '@/utils/datetime'
+import { REASONING_EFFORT_LEVELS } from '@/constants/channel'
 
 type TranslateFn = (key: string, params?: Record<string, unknown>) => string
 
@@ -24,7 +25,7 @@ export interface PricingFormEntry {
   cache_write_price: number | string | null
   cache_write_1h_price?: number | string | null
   cache_read_price: number | string | null
-  max_reasoning_effort_multiplier?: number | string | null
+  reasoning_effort_multipliers?: Record<string, number | string> | null
   image_input_price: number | string | null
   image_cache_read_price: number | string | null
   image_output_price: number | string | null
@@ -166,6 +167,30 @@ export function toNullableNumber(val: number | string | null | undefined): numbe
   if (val === null || val === undefined || val === '') return null
   const num = Number(val)
   return isNaN(num) ? null : num
+}
+
+export function formReasoningEffortMultipliersToAPI(
+  value: PricingFormEntry['reasoning_effort_multipliers'],
+): Record<string, number> | null {
+  const entries = Object.entries(value || {})
+    .filter(([, multiplier]) => multiplier !== '')
+    .map(([effort, multiplier]) => [effort, Number(multiplier)])
+  return value == null ? null : Object.fromEntries(entries)
+}
+
+export function validateReasoningEffortMultipliers(
+  value: PricingFormEntry['reasoning_effort_multipliers'],
+  t: TranslateFn,
+): string | null {
+  for (const [effort, multiplier] of Object.entries(value || {})) {
+    if (!REASONING_EFFORT_LEVELS.some(level => level === effort)) {
+      return t('admin.channels.form.reasoningEffortLevelInvalid', { effort })
+    }
+    if (multiplier !== '' && !isValidPositiveMultiplier(multiplier)) {
+      return t('admin.channels.form.reasoningEffortMultiplierPositive', { effort })
+    }
+  }
+  return null
 }
 
 /** 前端显示值($/MTok) → 后端存储值(per-token) */

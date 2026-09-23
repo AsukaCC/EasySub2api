@@ -760,7 +760,7 @@ func (_u *AccountUpdate) ExecX(ctx context.Context) {
 func (_u *AccountUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if account.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized account.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := account.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -1934,7 +1934,7 @@ func (_u *AccountUpdateOne) ExecX(ctx context.Context) {
 func (_u *AccountUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if account.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized account.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := account.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

@@ -31,6 +31,7 @@ export const claudeModels = [
   'claude-opus-4-7',
   'claude-opus-4-8',
   'claude-opus-5',
+  'claude-opus-5-5',
   'claude-sonnet-4-6',
   'claude-sonnet-5',
   'claude-fable-5-1',
@@ -128,6 +129,7 @@ const metaModels = [
 // xAI Grok
 const xaiModels = [
   'grok-4.6',
+  'grok-4.7',
   'grok-4.5',
   'grok-4.3',
   'grok-build-0.1',
@@ -140,6 +142,7 @@ const xaiModels = [
   'grok-4.3-latest',
   'grok-latest',
   'grok-4.6-latest',
+  'grok-4.7-latest',
   'grok-4.5-latest',
   'grok-build-latest',
   'composer-2.5',
@@ -274,6 +277,7 @@ const anthropicPresetMappings = [
   { label: 'Opus 4.7', from: 'claude-opus-4-7', to: 'claude-opus-4-7', color: 'composables-use-model-whitelist__state-4' },
   { label: 'Opus 4.8', from: 'claude-opus-4-8', to: 'claude-opus-4-8', color: 'composables-use-model-whitelist__state-4' },
   { label: 'Opus 5', from: 'claude-opus-5', to: 'claude-opus-5', color: 'composables-use-model-whitelist__state-4' },
+  { label: 'Opus 5.5', from: 'claude-opus-5-5', to: 'claude-opus-5-5', color: 'composables-use-model-whitelist__state-4' },
   { label: 'Haiku 3.5', from: 'claude-3-5-haiku-20241022', to: 'claude-3-5-haiku-20241022', color: 'composables-use-model-whitelist__state-5' },
   { label: 'Haiku 4.5', from: 'claude-haiku-4-5-20251001', to: 'claude-haiku-4-5-20251001', color: 'composables-use-model-whitelist__state-6' },
   { label: 'Opus->Sonnet', from: 'claude-opus-4-6', to: 'claude-sonnet-4-5-20250929', color: 'composables-use-model-whitelist__state-7' }
@@ -315,6 +319,7 @@ const antigravityPresetMappings = [
 
 const grokPresetMappings = [
   { label: 'Grok 4.6', from: 'grok-4.6', to: 'grok-4.6', color: 'composables-use-model-whitelist__state-14' },
+  { label: 'Grok 4.7', from: 'grok-4.7', to: 'grok-4.7', color: 'composables-use-model-whitelist__state-14' },
   { label: 'Grok 4.5', from: 'grok-4.5', to: 'grok-4.5', color: 'composables-use-model-whitelist__state-14' },
   { label: 'Grok 4.3', from: 'grok-4.3', to: 'grok-4.3', color: 'composables-use-model-whitelist__state-14' },
   { label: 'Grok Latest', from: 'grok-latest', to: 'grok-4.5', color: 'composables-use-model-whitelist__state-6' },

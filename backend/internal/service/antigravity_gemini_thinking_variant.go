@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/AsukaCC/EasySub2api/internal/domain"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/antigravity"
 )
 
 // Gemini 原生请求（/v1beta/models/{model}:generateContent 等）经 Antigravity 账号转发时，
@@ -87,6 +88,29 @@ func geminiThinkingLevelFromBody(body []byte) string {
 
 // accountExplicitModelMappingHasKey 判断 key 是否来自账号的
 // credentials.model_mapping，而不是本函数为无显式映射账号使用的默认目录。
+// geminiThinkingLevelFromClaudeThinking 用 Claude Messages 协议的 thinking 配置推导档位，
+// 阈值与 geminiThinkingLevelFromBody 保持一致，使同一请求无论走 Gemini 原生还是
+// Chat Completions / Messages 兼容层都落到同一个上游变体。
+func geminiThinkingLevelFromClaudeThinking(thinking *antigravity.ThinkingConfig) string {
+	if thinking == nil {
+		return "high"
+	}
+	if strings.EqualFold(strings.TrimSpace(thinking.Type), "disabled") {
+		return "low"
+	}
+	budget := thinking.BudgetTokens
+	switch {
+	case budget <= 0:
+		return "high" // 动态思考 / 未指定预算
+	case budget <= geminiThinkingBudgetLowMax:
+		return "low"
+	case budget <= geminiThinkingBudgetMediumMax:
+		return "medium"
+	default:
+		return "high"
+	}
+}
+
 func accountExplicitModelMappingHasKey(account *Account, key string) bool {
 	if account == nil {
 		return false
@@ -102,6 +126,10 @@ func accountExplicitModelMappingHasKey(account *Account, key string) bool {
 // resolveGeminiThinkingVariant 为裸 Gemini 模型名挑选账号映射表里存在的思考深度变体。
 // 返回 (映射后的上游模型名, 是否命中)。未命中时调用方应回退到常规 getMappedModel 流程。
 func resolveGeminiThinkingVariant(account *Account, requestedModel string, body []byte) (string, bool) {
+	return resolveGeminiThinkingVariantForLevel(account, requestedModel, geminiThinkingLevelFromBody(body))
+}
+
+func resolveGeminiThinkingVariantForLevel(account *Account, requestedModel, preferred string) (string, bool) {
 	if account == nil {
 		return "", false
 	}
@@ -127,7 +155,6 @@ func resolveGeminiThinkingVariant(account *Account, requestedModel string, body 
 		}
 	}
 
-	preferred := geminiThinkingLevelFromBody(body)
 	order := []string{preferred}
 	for _, level := range []string{"high", "medium", "low", "tiered"} {
 		if level != preferred {

@@ -278,7 +278,7 @@ const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRela
 const homePath = computed(() => (authStore.isAdmin ? '/admin/dashboard' : '/dashboard'))
 const isDark = ref(document.documentElement.classList.contains('dark'))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
-const availableBalance = computed(() => Number(user.value?.available_balance ?? user.value?.balance ?? 0))
+const availableBalance = computed(() => Number(user.value?.available_balance ?? 0))
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {

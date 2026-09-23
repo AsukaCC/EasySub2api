@@ -21,6 +21,7 @@
         </div>
 
         <RiskControlSystemSettings />
+        <ModerationEngineSettings @saved="loadAll" />
 
         <div class="views-admin-risk-control-view__panel-6">
           <div
@@ -1118,6 +1119,7 @@
 </template>
 
 <script setup lang="ts">
+import ModerationEngineSettings from '@/components/admin/ModerationEngineSettings.vue'
 import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingState from '@/components/common/LoadingState.vue'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'

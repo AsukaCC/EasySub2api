@@ -535,7 +535,7 @@ func (_u *APIKeyUpdate) ExecX(ctx context.Context) {
 func (_u *APIKeyUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if apikey.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized apikey.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized apikey.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := apikey.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -1335,7 +1335,7 @@ func (_u *APIKeyUpdateOne) ExecX(ctx context.Context) {
 func (_u *APIKeyUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if apikey.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized apikey.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized apikey.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := apikey.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

@@ -322,7 +322,7 @@ func (r *affiliateRepository) TransferQuotaToBalance(ctx context.Context, userID
 		if _, err := expireUserBonusTx(txCtx, txClient, userID, &walletBefore); err != nil {
 			return err
 		}
-		debtPaid := math.Min(transferred, math.Max(-walletBefore.balance, 0))
+		debtPaid := math.Min(transferred, math.Max(-walletBefore.recharge, 0))
 		bonusAmount := walletMoney(transferred - debtPaid)
 		if bonusAmount > 0 {
 			validityDays, err := affiliateTransferValidityDays(txCtx, txClient)
@@ -346,7 +346,7 @@ WHERE id = $3 AND deleted_at IS NULL
 			return fmt.Errorf("credit user bonus by affiliate quota: %w", err)
 		}
 		walletAfter := walletBefore
-		walletAfter.balance = walletMoney(walletAfter.balance + transferred)
+		walletAfter.recharge = walletMoney(walletAfter.recharge + transferred)
 		walletAfter.bonus = walletMoney(walletAfter.bonus + bonusAmount)
 		if err := insertWalletTransaction(txCtx, txClient, userID, "bonus", transferred, bonusAmount, debtPaid, 0,
 			walletBefore, walletAfter, "affiliate_transfer", userID, "wallet-affiliate-transfer:"+newWalletUUID(), "affiliate quota transfer"); err != nil {

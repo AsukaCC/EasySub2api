@@ -45,7 +45,7 @@
                 <strong>{{ user.email }}</strong>
                 <small v-if="user.username">{{ user.username }}</small>
               </td>
-              <td>{{ formatPoints(user.balance) }}</td>
+              <td>{{ formatPoints(user.available_balance ?? 0) }}</td>
               <td>{{ user.last_used_at ? formatDateTime(user.last_used_at) : '-' }}</td>
               <td>{{ user.deleted_at ? formatDateTime(user.deleted_at) : '-' }}</td>
               <td>

@@ -137,7 +137,7 @@ func TestPrepDeductBalanceRequiresForceWhenBalanceIsInsufficient(t *testing.T) {
 			svc := &PaymentService{userRepo: &mockUserRepo{getByIDUser: &User{Balance: tc.balance}}}
 
 			result := svc.prepDeduct(context.Background(), &dbent.PaymentOrder{
-				UserID: "1",
+				UserID:    "1",
 				OrderType: payment.OrderTypeBalance,
 			}, plan, tc.force)
 
@@ -537,7 +537,7 @@ func TestFinalizePendingRefundSuccessRollsBackPostDeductionFailure(t *testing.T)
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	order := createPendingRefundOrderForTest(t, ctx, client, "finalize-rollback")
-	_, err := client.User.UpdateOneID(order.UserID).SetBalance(100).Save(ctx)
+	_, err := client.User.UpdateOneID(order.UserID).SetRechargeBalance(100).Save(ctx)
 	require.NoError(t, err)
 
 	svc := &PaymentService{
@@ -545,7 +545,7 @@ func TestFinalizePendingRefundSuccessRollsBackPostDeductionFailure(t *testing.T)
 		userRepo: &mockUserRepo{deductAvailableBalanceFn: func(ctx context.Context, id string, amount float64) (float64, error) {
 			tx := dbent.TxFromContext(ctx)
 			require.NotNil(t, tx)
-			if _, updateErr := tx.Client().User.UpdateOneID(id).AddBalance(-amount).Save(ctx); updateErr != nil {
+			if _, updateErr := tx.Client().User.UpdateOneID(id).AddRechargeBalance(-amount).Save(ctx); updateErr != nil {
 				return 0, updateErr
 			}
 			return 0, errors.New("injected failure after deduction")
@@ -558,7 +558,7 @@ func TestFinalizePendingRefundSuccessRollsBackPostDeductionFailure(t *testing.T)
 
 	user, err := client.User.Get(ctx, order.UserID)
 	require.NoError(t, err)
-	require.Equal(t, 100.0, user.Balance)
+	require.Equal(t, 100.0, user.RechargeBalance)
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusRefundPending, reloaded.Status)

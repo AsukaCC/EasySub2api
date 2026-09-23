@@ -268,7 +268,7 @@ func (_u *UserAttributeDefinitionUpdate) ExecX(ctx context.Context) {
 func (_u *UserAttributeDefinitionUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if userattributedefinition.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userattributedefinition.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userattributedefinition.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := userattributedefinition.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -676,7 +676,7 @@ func (_u *UserAttributeDefinitionUpdateOne) ExecX(ctx context.Context) {
 func (_u *UserAttributeDefinitionUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if userattributedefinition.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userattributedefinition.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized userattributedefinition.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := userattributedefinition.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

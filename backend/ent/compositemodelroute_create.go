@@ -234,14 +234,14 @@ func (_c *CompositeModelRouteCreate) ExecX(ctx context.Context) {
 func (_c *CompositeModelRouteCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if compositemodelroute.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized compositemodelroute.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized compositemodelroute.DefaultCreatedAt (forgotten import entgen/runtime?)")
 		}
 		v := compositemodelroute.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if compositemodelroute.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized compositemodelroute.DefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized compositemodelroute.DefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := compositemodelroute.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -272,7 +272,7 @@ func (_c *CompositeModelRouteCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if compositemodelroute.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized compositemodelroute.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized compositemodelroute.DefaultID (forgotten import entgen/runtime?)")
 		}
 		v := compositemodelroute.DefaultID()
 		_c.mutation.SetID(v)

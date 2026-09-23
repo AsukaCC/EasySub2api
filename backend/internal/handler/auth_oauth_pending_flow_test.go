@@ -1185,7 +1185,7 @@ func TestCreateOIDCOAuthAccountAppliesPromoCodeFromPendingSession(t *testing.T) 
 	require.Equal(t, []string{"WELCOME2024"}, promoRepo.applyCalls)
 	createdUser, err := client.User.Query().Where(dbuser.EmailEQ("promo@example.com")).Only(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 25.0, createdUser.Balance)
+	require.Equal(t, 25.0, createdUser.RechargeBalance)
 	require.Len(t, promoRepo.usages, 1)
 	require.Equal(t, createdUser.ID, promoRepo.usages[0].UserID)
 }
@@ -1238,7 +1238,7 @@ func TestCreateOIDCOAuthAccountWithoutPromoCodeDoesNotApplyPromo(t *testing.T) {
 	require.Empty(t, promoRepo.applyCalls)
 	createdUser, err := client.User.Query().Where(dbuser.EmailEQ("no-promo@example.com")).Only(ctx)
 	require.NoError(t, err)
-	require.Zero(t, createdUser.Balance)
+	require.Zero(t, createdUser.RechargeBalance)
 }
 
 func TestCreateOIDCOAuthAccountDoesNotApplyPromoWhenDisabled(t *testing.T) {
@@ -1290,7 +1290,7 @@ func TestCreateOIDCOAuthAccountDoesNotApplyPromoWhenDisabled(t *testing.T) {
 	require.Empty(t, promoRepo.applyCalls)
 	createdUser, err := client.User.Query().Where(dbuser.EmailEQ("promo-disabled@example.com")).Only(ctx)
 	require.NoError(t, err)
-	require.Zero(t, createdUser.Balance)
+	require.Zero(t, createdUser.RechargeBalance)
 }
 
 func TestOAuthExistingUserLoginDoesNotApplyPromoCode(t *testing.T) {
@@ -1309,7 +1309,7 @@ func TestOAuthExistingUserLoginDoesNotApplyPromoCode(t *testing.T) {
 		SetPasswordHash("hash").
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
-		SetBalance(7).
+		SetRechargeBalance(7).
 		Save(ctx)
 	require.NoError(t, err)
 
@@ -1328,7 +1328,7 @@ func TestOAuthExistingUserLoginDoesNotApplyPromoCode(t *testing.T) {
 	require.Empty(t, promoRepo.applyCalls)
 	reloadedUser, err := client.User.Get(ctx, existingUser.ID)
 	require.NoError(t, err)
-	require.Equal(t, 7.0, reloadedUser.Balance)
+	require.Equal(t, 7.0, reloadedUser.RechargeBalance)
 }
 
 func TestCreateOIDCOAuthAccountExistingEmailReturnsChoicePendingSessionState(t *testing.T) {
@@ -2144,7 +2144,7 @@ func TestBindOIDCOAuthLoginAppliesFirstBindGrantOnce(t *testing.T) {
 		SetEmail("owner@example.com").
 		SetUsername("owner-user").
 		SetPasswordHash(passwordHash).
-		SetBalance(5).
+		SetRechargeBalance(5).
 		SetConcurrency(2).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -2184,7 +2184,7 @@ func TestBindOIDCOAuthLoginAppliesFirstBindGrantOnce(t *testing.T) {
 
 	storedUser, err := client.User.Get(ctx, existingUser.ID)
 	require.NoError(t, err)
-	require.Equal(t, 17.5, storedUser.Balance)
+	require.Equal(t, 17.5, storedUser.RechargeBalance)
 	require.Equal(t, 5, storedUser.Concurrency)
 	require.Zero(t, storedUser.TotalRecharged)
 	require.Len(t, defaultSubAssigner.calls, 1)
@@ -2226,7 +2226,7 @@ func TestBindOIDCOAuthLoginAppliesFirstBindGrantOnce(t *testing.T) {
 
 	storedUser, err = client.User.Get(ctx, existingUser.ID)
 	require.NoError(t, err)
-	require.Equal(t, 17.5, storedUser.Balance)
+	require.Equal(t, 17.5, storedUser.RechargeBalance)
 	require.Equal(t, 5, storedUser.Concurrency)
 	require.Zero(t, storedUser.TotalRecharged)
 	require.Len(t, defaultSubAssigner.calls, 1)
@@ -2376,7 +2376,7 @@ func TestLogin2FACompletesPendingOAuthBindAndConsumesSession(t *testing.T) {
 		SetEmail("owner@example.com").
 		SetUsername("owner-user").
 		SetPasswordHash(passwordHash).
-		SetBalance(1.5).
+		SetRechargeBalance(1.5).
 		SetConcurrency(4).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -2466,7 +2466,7 @@ func TestLogin2FACompletesPendingOAuthBindAndConsumesSession(t *testing.T) {
 
 	storedUser, err := client.User.Get(ctx, existingUser.ID)
 	require.NoError(t, err)
-	require.Equal(t, 9.5, storedUser.Balance)
+	require.Equal(t, 9.5, storedUser.RechargeBalance)
 	require.Equal(t, 6, storedUser.Concurrency)
 	require.Equal(t, 1, countProviderGrantRecords(t, client, existingUser.ID, "oidc", "first_bind"))
 	require.Empty(t, defaultSubAssigner.calls)
@@ -3149,7 +3149,7 @@ func (r *oauthPendingFlowUserRepo) Create(ctx context.Context, user *service.Use
 		SetNotes(user.Notes).
 		SetPasswordHash(user.PasswordHash).
 		SetRole(user.Role).
-		SetBalance(user.Balance).
+		SetRechargeBalance(user.Balance).
 		SetConcurrency(user.Concurrency).
 		SetStatus(user.Status).
 		SetNillableTotpSecretEncrypted(user.TotpSecretEncrypted).
@@ -3242,7 +3242,7 @@ func (r *oauthPendingFlowUserRepo) Update(ctx context.Context, user *service.Use
 		SetNotes(user.Notes).
 		SetPasswordHash(user.PasswordHash).
 		SetRole(user.Role).
-		SetBalance(user.Balance).
+		SetRechargeBalance(user.Balance).
 		SetConcurrency(user.Concurrency).
 		SetStatus(user.Status).
 		SetNillableTotpSecretEncrypted(user.TotpSecretEncrypted).
@@ -3381,7 +3381,7 @@ func (r *oauthPendingFlowUserRepo) UpdateBalance(ctx context.Context, userID str
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		client = tx.Client()
 	}
-	return client.User.UpdateOneID(userID).AddBalance(amount).Exec(ctx)
+	return client.User.UpdateOneID(userID).AddRechargeBalance(amount).Exec(ctx)
 }
 
 func (r *oauthPendingFlowUserRepo) DeductBalance(context.Context, string, float64) error {
@@ -3521,7 +3521,7 @@ func oauthPendingFlowServiceUser(entity *dbent.User) *service.User {
 		Notes:               entity.Notes,
 		PasswordHash:        entity.PasswordHash,
 		Role:                entity.Role,
-		Balance:             entity.Balance,
+		Balance:             entity.RechargeBalance,
 		Concurrency:         entity.Concurrency,
 		Status:              entity.Status,
 		SignupSource:        entity.SignupSource,

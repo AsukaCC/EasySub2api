@@ -300,7 +300,7 @@ const currentAccent = ref(resolveThemeAccent(appStore.cachedPublicSettings?.them
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
-const availableBalance = computed(() => Number(user.value?.available_balance ?? user.value?.balance ?? 0))
+const availableBalance = computed(() => Number(user.value?.available_balance ?? 0))
 const balanceAvailableText = computed(() =>
   t('common.availableBalance') === 'common.availableBalance'
     ? '可用余额'

@@ -669,7 +669,7 @@ function onPaymentSettled() {
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
   plans: [], balance_disabled: false, subscription_enabled: true, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
-  wallet: { balance: 0, available_balance: 0, recharge_balance: 0, bonus_balance: 0, overdraft_amount: 0, frozen_balance: 0, frozen_recharge_balance: 0, frozen_bonus_balance: 0, total_balance: 0, next_expiring_bonus_amount: 0 },
+  wallet: { available_balance: 0, recharge_balance: 0, bonus_balance: 0, overdraft_amount: 0, frozen_recharge_balance: 0, frozen_bonus_balance: 0, total_balance: 0, next_expiring_bonus_amount: 0 },
 })
 
 const renderedHelpText = computed(() => DOMPurify.sanitize(

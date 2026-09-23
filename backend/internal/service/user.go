@@ -7,25 +7,29 @@ import (
 )
 
 type User struct {
-	ID                 string
-	Email              string
-	Username           string
-	Notes              string
-	AvatarURL          string
-	AvatarSource       string
-	AvatarMIME         string
-	AvatarByteSize     int
-	AvatarSHA256       string
-	PasswordHash       string
-	Role               string
-	Balance            float64
-	BonusBalance       float64
-	FrozenBalance      float64
-	FrozenBonusBalance float64
-	Concurrency        int
-	Status             string
-	AllowedGroups      []string
-	TokenVersion       int64 // Incremented on password change to invalidate existing tokens
+	ID              string
+	Email           string
+	Username        string
+	Notes           string
+	AvatarURL       string
+	AvatarSource    string
+	AvatarMIME      string
+	AvatarByteSize  int
+	AvatarSHA256    string
+	PasswordHash    string
+	Role            string
+	RechargeBalance float64
+	// Balance is an internal compatibility alias during the bucket migration.
+	// Public DTOs and wallet calculations use RechargeBalance.
+	Balance               float64
+	BonusBalance          float64
+	FrozenRechargeBalance float64
+	FrozenBalance         float64
+	FrozenBonusBalance    float64
+	Concurrency           int
+	Status                string
+	AllowedGroups         []string
+	TokenVersion          int64 // Incremented on password change to invalidate existing tokens
 	// TokenVersionResolved indicates TokenVersion already contains the fingerprint-derived
 	// value expected in JWT claims and refresh-token state.
 	TokenVersionResolved bool

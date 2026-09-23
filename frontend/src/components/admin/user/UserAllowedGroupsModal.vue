@@ -174,6 +174,7 @@ const appStore = useAppStore()
 const groups = ref<Group[]>([])
 const groupConfigs = ref<GroupRateConfig[]>([])
 const loading = ref(false)
+const loaded = ref(false)
 const submitting = ref(false)
 
 // 分离专属分组和公开分组
@@ -193,6 +194,7 @@ watch(
 )
 
 const load = async () => {
+  loaded.value = false
   loading.value = true
   try {
     const res = await adminAPI.groups.list(1, 1000)
@@ -212,6 +214,7 @@ const load = async () => {
       // 公开分组：始终选中
       isSelected: g.is_exclusive ? userAllowedGroups.includes(g.id) : true,
     }))
+    loaded.value = true
   } catch (error) {
     console.error('Failed to load groups:', error)
   } finally {
@@ -228,7 +231,7 @@ const toggleExclusiveGroup = (groupId: string) => {
 
 
 const handleSave = async () => {
-  if (!props.user) return
+  if (!props.user || !loaded.value) return
   submitting.value = true
 
   try {

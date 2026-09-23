@@ -67,12 +67,12 @@
                   {{ t('profile.accountBalance') }}
                 </p>
                 <p class="components-user-profile-profile-info-card__description-3">
-                  {{ formatPoints(user?.balance || 0) }}
+                  {{ formatPoints(user?.available_balance || 0) }}
                 </p>
               </div>
 			  <div class="components-user-profile-profile-info-card__panel-11">
 				<p class="components-user-profile-profile-info-card__description-2">{{ t('common.rechargeBalance') }}</p>
-				<p class="components-user-profile-profile-info-card__description-3">{{ formatPoints(user?.recharge_balance ?? user?.balance ?? 0) }}</p>
+				<p class="components-user-profile-profile-info-card__description-3">{{ formatPoints(user?.recharge_balance ?? 0) }}</p>
 			  </div>
 			  <div class="components-user-profile-profile-info-card__panel-11">
 				<p class="components-user-profile-profile-info-card__description-2">{{ t('common.bonusBalance') }}</p>

@@ -103,3 +103,26 @@ func CodexBaseInstructionsForModel(model string) string {
 	}
 	return latestCodexInstructions()
 }
+
+// IsGPT6SolOrLunaModelSpelling recognizes official IDs and existing local effort/compact suffixes.
+func IsGPT6SolOrLunaModelSpelling(model string) bool {
+	canonical := strings.ToLower(strings.TrimSpace(model))
+	if i := strings.LastIndex(canonical, "/"); i >= 0 {
+		canonical = canonical[i+1:]
+	}
+	canonical = strings.ReplaceAll(canonical, "gpt6", "gpt-6")
+	canonical = strings.ReplaceAll(canonical, "gpt 6", "gpt-6")
+	for _, base := range []string{"gpt-6-sol", "gpt-6-luna"} {
+		if canonical == base {
+			return true
+		}
+		suffix, ok := strings.CutPrefix(canonical, base+"-")
+		if ok {
+			switch suffix {
+			case "none", "low", "medium", "high", "xhigh", "max", "openai-compact":
+				return true
+			}
+		}
+	}
+	return false
+}

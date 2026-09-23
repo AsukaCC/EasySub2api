@@ -84,12 +84,10 @@ export interface User {
   oidc_bound?: boolean
   wechat_bound?: boolean
   role: 'admin' | 'user' // User role for authorization
-  balance: number // User balance for API usage
 	available_balance?: number
 	recharge_balance?: number
 	bonus_balance?: number
 	overdraft_amount?: number
-	 frozen_balance?: number // Balance currently held by async batch jobs
 	frozen_recharge_balance?: number
 	frozen_bonus_balance?: number
 	total_balance?: number
@@ -1254,6 +1252,7 @@ export interface Account {
   credentials?: Record<string, unknown>
   credentials_status?: Record<string, boolean>
   ollama_cloud_usage?: OllamaCloudUsageState
+  opencode_go_usage?: import('@/api/admin/upstreamCapabilities').OpenCodeGoUsageState
   // Extra fields including Codex usage, OpenAI compact capability, and model-level rate limits.
   extra?: (CodexUsageSnapshot & OpenAICompactState & {
     model_rate_limits?: Record<string, { rate_limited_at: string; rate_limit_reset_at: string }>

@@ -164,7 +164,7 @@ func (s *UserRepoSuite) TestAdjustBalance_UserNotFound() {
 func (s *UserRepoSuite) TestSetBalance_ReplacesValueAndReportsPrevious() {
 	user := s.mustCreateUser(&service.User{Email: "set-balance@example.com", Balance: 7})
 
-	change, err := s.repo.SetBalance(s.ctx, user.ID, 2)
+	change, err := s.repo.SetRechargeBalance(s.ctx, user.ID, 2)
 	s.Require().NoError(err, "SetBalance")
 	s.Require().InDelta(7, change.Old, 1e-9)
 	s.Require().InDelta(2, change.New, 1e-9)
@@ -177,7 +177,7 @@ func (s *UserRepoSuite) TestSetBalance_ReplacesValueAndReportsPrevious() {
 func (s *UserRepoSuite) TestSetBalance_RejectsNegativeValue() {
 	user := s.mustCreateUser(&service.User{Email: "set-balance-negative@example.com", Balance: 7})
 
-	_, err := s.repo.SetBalance(s.ctx, user.ID, -1)
+	_, err := s.repo.SetRechargeBalance(s.ctx, user.ID, -1)
 	s.Require().ErrorIs(err, service.ErrBalanceNegative)
 
 	got, err := s.repo.GetByID(s.ctx, user.ID)
@@ -186,6 +186,6 @@ func (s *UserRepoSuite) TestSetBalance_RejectsNegativeValue() {
 }
 
 func (s *UserRepoSuite) TestSetBalance_UserNotFound() {
-	_, err := s.repo.SetBalance(s.ctx, 99999999, 1)
+	_, err := s.repo.SetRechargeBalance(s.ctx, 99999999, 1)
 	s.Require().ErrorIs(err, service.ErrUserNotFound)
 }

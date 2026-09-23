@@ -453,7 +453,7 @@
                 </button>
                 <!-- Instant tooltip -->
                 <div class="views-admin-users-view__panel-26">
-				  <div>{{ t('common.rechargeBalance') }}: {{ formatPoints(Number(row.recharge_balance ?? row.balance)) }}</div>
+				  <div>{{ t('common.rechargeBalance') }}: {{ formatPoints(Number(row.recharge_balance ?? 0)) }}</div>
 				  <div>{{ t('common.bonusBalance') }}: {{ formatPoints(Number(row.bonus_balance ?? 0)) }}</div>
 				  <div v-if="row.next_bonus_expires_at">{{ formatDateTime(row.next_bonus_expires_at) }}</div>
                   <div class="views-admin-users-view__panel-27"></div>
@@ -1733,11 +1733,21 @@ const closeEditModal = () => {
 const handleToggleStatus = async (user: AdminUser) => {
   const newStatus = user.status === 'active' ? 'disabled' : 'active'
   try {
-    await adminAPI.users.toggleStatus(user.id, newStatus)
+    const updated = await adminAPI.users.toggleStatus(user.id, newStatus)
     appStore.showSuccess(
       newStatus === 'active' ? t('admin.users.userEnabled') : t('admin.users.userDisabled')
     )
-    loadUsers()
+    if (loading.value) {
+      // 与本次更新并发的列表请求可能读到更新前的状态，重新拉取保证一致。
+      loadUsers()
+      return
+    }
+    // 更新接口的响应不含 current_concurrency、subscriptions 等列表专属字段，只回写状态相关字段。
+    const row = users.value.find((u) => u.id === user.id)
+    if (row) {
+      row.status = updated.status
+      row.updated_at = updated.updated_at
+    }
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.users.failedToToggle'))
     console.error('Error toggling user status:', error)

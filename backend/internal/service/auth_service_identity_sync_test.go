@@ -183,7 +183,7 @@ func TestAuthServiceLoginDefersLastLoginTouchUntilRecordSuccessfulLogin(t *testi
 		SetPasswordHash(passwordHash).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
-		SetBalance(1).
+		SetRechargeBalance(1).
 		SetConcurrency(1).
 		Save(ctx)
 	require.NoError(t, err)
@@ -276,7 +276,7 @@ func TestAuthServiceLogin_DoesNotApplyEmailFirstBindDefaultsWhenBackfillingLegac
 		SetEmail("legacy@example.com").
 		SetUsername("legacy-user").
 		SetPasswordHash(passwordHash).
-		SetBalance(1.5).
+		SetRechargeBalance(1.5).
 		SetConcurrency(2).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -291,7 +291,7 @@ func TestAuthServiceLogin_DoesNotApplyEmailFirstBindDefaultsWhenBackfillingLegac
 
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1.5, storedUser.Balance)
+	require.Equal(t, 1.5, storedUser.RechargeBalance)
 	require.Equal(t, 2, storedUser.Concurrency)
 	require.Empty(t, assigner.calls)
 
@@ -313,7 +313,7 @@ func TestAuthServiceLogin_DoesNotApplyEmailFirstBindDefaultsWhenBackfillingLegac
 
 	storedUser, err = client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1.5, storedUser.Balance)
+	require.Equal(t, 1.5, storedUser.RechargeBalance)
 	require.Equal(t, 2, storedUser.Concurrency)
 	require.Empty(t, assigner.calls)
 	require.Equal(t, 0, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))
@@ -337,7 +337,7 @@ func TestAuthServiceLogin_DoesNotApplyMergedEmailFirstBindDefaultsWhenBackfillin
 		SetEmail("merged-first-bind@example.com").
 		SetUsername("merged-user").
 		SetPasswordHash(passwordHash).
-		SetBalance(1.5).
+		SetRechargeBalance(1.5).
 		SetConcurrency(2).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -352,7 +352,7 @@ func TestAuthServiceLogin_DoesNotApplyMergedEmailFirstBindDefaultsWhenBackfillin
 
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1.5, storedUser.Balance)
+	require.Equal(t, 1.5, storedUser.RechargeBalance)
 	require.Equal(t, 2, storedUser.Concurrency)
 	require.Empty(t, assigner.calls)
 	require.Equal(t, 0, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))
@@ -375,7 +375,7 @@ func TestAuthServiceLogin_DoesNotApplyEmailFirstBindDefaultsWhenIdentityAlreadyE
 		SetEmail("bound@example.com").
 		SetUsername("bound-user").
 		SetPasswordHash(passwordHash).
-		SetBalance(2).
+		SetRechargeBalance(2).
 		SetConcurrency(3).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -399,7 +399,7 @@ func TestAuthServiceLogin_DoesNotApplyEmailFirstBindDefaultsWhenIdentityAlreadyE
 
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, 2.0, storedUser.Balance)
+	require.Equal(t, 2.0, storedUser.RechargeBalance)
 	require.Equal(t, 3, storedUser.Concurrency)
 	require.Empty(t, assigner.calls)
 	require.Equal(t, 0, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))
@@ -422,7 +422,7 @@ func TestAuthServiceLogin_DoesNotRetryEmailFirstBindDefaultsForBackfilledEmailId
 		SetEmail("retry-first-bind@example.com").
 		SetUsername("retry-user").
 		SetPasswordHash(passwordHash).
-		SetBalance(1.5).
+		SetRechargeBalance(1.5).
 		SetConcurrency(2).
 		SetRole(service.RoleUser).
 		SetStatus(service.StatusActive).
@@ -437,7 +437,7 @@ func TestAuthServiceLogin_DoesNotRetryEmailFirstBindDefaultsForBackfilledEmailId
 
 	storedUser, err := client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1.5, storedUser.Balance)
+	require.Equal(t, 1.5, storedUser.RechargeBalance)
 	require.Equal(t, 2, storedUser.Concurrency)
 	require.Empty(t, assigner.calls)
 	require.Equal(t, 0, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))
@@ -450,7 +450,7 @@ func TestAuthServiceLogin_DoesNotRetryEmailFirstBindDefaultsForBackfilledEmailId
 
 	storedUser, err = client.User.Get(ctx, user.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1.5, storedUser.Balance)
+	require.Equal(t, 1.5, storedUser.RechargeBalance)
 	require.Equal(t, 2, storedUser.Concurrency)
 	require.Empty(t, assigner.calls)
 	require.Equal(t, 0, countProviderGrantRecords(t, client, user.ID, "email", "first_bind"))

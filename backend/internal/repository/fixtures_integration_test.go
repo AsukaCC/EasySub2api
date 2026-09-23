@@ -38,7 +38,7 @@ func mustCreateUser(t *testing.T, client *dbent.Client, u *service.User) *servic
 		SetPasswordHash(u.PasswordHash).
 		SetRole(u.Role).
 		SetStatus(u.Status).
-		SetBalance(u.Balance).
+		SetRechargeBalance(u.Balance).
 		SetConcurrency(u.Concurrency).
 		SetUsername(u.Username).
 		SetNotes(u.Notes)

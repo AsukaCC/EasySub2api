@@ -244,7 +244,7 @@ func (_u *CompositeModelRouteUpdate) ExecX(ctx context.Context) {
 func (_u *CompositeModelRouteUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if compositemodelroute.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized compositemodelroute.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized compositemodelroute.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := compositemodelroute.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -613,7 +613,7 @@ func (_u *CompositeModelRouteUpdateOne) ExecX(ctx context.Context) {
 func (_u *CompositeModelRouteUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if compositemodelroute.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized compositemodelroute.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized compositemodelroute.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := compositemodelroute.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

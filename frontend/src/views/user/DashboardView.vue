@@ -8,7 +8,7 @@
           <div v-else-if="stats" class="dashboard-page__stats">
             <UserDashboardStats
               :stats="stats"
-              :balance="user?.balance || 0"
+              :balance="user?.available_balance || 0"
               :bonus-balance="user?.bonus_balance ?? 0"
               :is-simple="authStore.isSimpleMode"
             />

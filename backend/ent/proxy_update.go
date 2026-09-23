@@ -369,7 +369,7 @@ func (_u *ProxyUpdate) ExecX(ctx context.Context) {
 func (_u *ProxyUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if proxy.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized proxy.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized proxy.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := proxy.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -975,7 +975,7 @@ func (_u *ProxyUpdateOne) ExecX(ctx context.Context) {
 func (_u *ProxyUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if proxy.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized proxy.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized proxy.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := proxy.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

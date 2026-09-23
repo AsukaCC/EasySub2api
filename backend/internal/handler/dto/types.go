@@ -14,12 +14,10 @@ type User struct {
 	Email                   string     `json:"email"`
 	Username                string     `json:"username"`
 	Role                    string     `json:"role"`
-	Balance                 float64    `json:"balance"`
 	AvailableBalance        float64    `json:"available_balance"`
 	RechargeBalance         float64    `json:"recharge_balance"`
 	BonusBalance            float64    `json:"bonus_balance"`
 	OverdraftAmount         float64    `json:"overdraft_amount"`
-	FrozenBalance           float64    `json:"frozen_balance"`
 	FrozenRechargeBalance   float64    `json:"frozen_recharge_balance"`
 	FrozenBonusBalance      float64    `json:"frozen_bonus_balance"`
 	TotalBalance            float64    `json:"total_balance"`
@@ -225,6 +223,7 @@ type Account struct {
 	CredentialsStatus       map[string]bool                `json:"credentials_status,omitempty"`
 	Extra                   map[string]any                 `json:"extra"`
 	OllamaCloudUsage        *service.OllamaCloudUsageState `json:"ollama_cloud_usage,omitempty"`
+	OpenCodeGoUsage         *service.OpenCodeGoUsageState  `json:"opencode_go_usage,omitempty"`
 	ProxyID                 *string                        `json:"proxy_id"`
 	ProxyFallbackOriginID   *string                        `json:"proxy_fallback_origin_id"`
 	ProxyFallbackOriginName *string                        `json:"proxy_fallback_origin_name,omitempty"`

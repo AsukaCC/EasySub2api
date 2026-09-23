@@ -16,10 +16,10 @@ import (
 const defaultBonusValidityDays = 90
 
 type walletUserRow struct {
-	balance     float64
-	bonus       float64
-	frozen      float64
-	frozenBonus float64
+	recharge       float64
+	bonus          float64
+	frozenRecharge float64
+	frozenBonus    float64
 }
 
 func walletMoney(value float64) float64 {
@@ -74,7 +74,7 @@ func (r *userRepository) withWalletTx(ctx context.Context, fn func(context.Conte
 
 func lockWalletUser(ctx context.Context, exec sqlQueryExecutor, userID string) (walletUserRow, error) {
 	rows, err := exec.QueryContext(ctx, `
-		SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance
+		SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL
 		FOR UPDATE
@@ -90,7 +90,7 @@ func lockWalletUser(ctx context.Context, exec sqlQueryExecutor, userID string) (
 		return walletUserRow{}, service.ErrUserNotFound
 	}
 	var row walletUserRow
-	if err := rows.Scan(&row.balance, &row.bonus, &row.frozen, &row.frozenBonus); err != nil {
+	if err := rows.Scan(&row.recharge, &row.bonus, &row.frozenRecharge, &row.frozenBonus); err != nil {
 		return walletUserRow{}, err
 	}
 	return row, rows.Err()
@@ -98,25 +98,25 @@ func lockWalletUser(ctx context.Context, exec sqlQueryExecutor, userID string) (
 
 func loadWalletSummary(ctx context.Context, exec sqlQueryExecutor, userID string) (service.WalletSummary, error) {
 	rows, err := exec.QueryContext(ctx, `
-		SELECT balance, bonus_balance, frozen_balance, frozen_bonus_balance
+		SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance
 		FROM users WHERE id = $1 AND deleted_at IS NULL
 	`, userID)
 	if err != nil {
 		return service.WalletSummary{}, err
 	}
-	var balance, bonus, frozen, frozenBonus float64
+	var recharge, bonus, frozenRecharge, frozenBonus float64
 	if !rows.Next() {
 		_ = rows.Close()
 		return service.WalletSummary{}, service.ErrUserNotFound
 	}
-	if err := rows.Scan(&balance, &bonus, &frozen, &frozenBonus); err != nil {
+	if err := rows.Scan(&recharge, &bonus, &frozenRecharge, &frozenBonus); err != nil {
 		_ = rows.Close()
 		return service.WalletSummary{}, err
 	}
 	if err := rows.Close(); err != nil {
 		return service.WalletSummary{}, err
 	}
-	summary := service.NewWalletSummary(balance, bonus, frozen, frozenBonus)
+	summary := service.NewWalletSummary(recharge, bonus, frozenRecharge, frozenBonus)
 	expiryRows, err := exec.QueryContext(ctx, `
 		SELECT expires_at, SUM(remaining_amount)
 		FROM wallet_bonus_grants
@@ -156,7 +156,7 @@ func insertWalletTransaction(ctx context.Context, exec sqlQueryExecutor, userID,
 			source_type, source_id, idempotency_key, notes
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 	`, userID, action, walletMoney(amount), walletMoney(bonusAmount), walletMoney(rechargeAmount), walletMoney(frozenAmount),
-		walletMoney(before.balance), walletMoney(after.balance), walletMoney(before.bonus), walletMoney(after.bonus),
+		walletMoney(before.recharge), walletMoney(after.recharge), walletMoney(before.bonus), walletMoney(after.bonus),
 		strings.TrimSpace(sourceType), strings.TrimSpace(sourceID), key, strings.TrimSpace(notes))
 	return err
 }
@@ -209,12 +209,11 @@ func expireUserBonusTx(ctx context.Context, exec sqlQueryExecutor, userID string
 	}
 	if _, err := exec.ExecContext(ctx, `
 		UPDATE users
-		SET balance = balance - $1, bonus_balance = bonus_balance - $1, updated_at = NOW()
+		SET bonus_balance = bonus_balance - $1, updated_at = NOW()
 		WHERE id = $2
 	`, total, userID); err != nil {
 		return 0, err
 	}
-	row.balance = walletMoney(row.balance - total)
 	row.bonus = walletMoney(row.bonus - total)
 	return total, insertWalletTransaction(ctx, exec, userID, "expire", -total, -total, 0, 0, before, *row, "bonus_expiry", "", "bonus-expiry:"+newWalletUUID(), "expired bonus balance")
 }
@@ -354,16 +353,20 @@ func (r *userRepository) CreditWallet(ctx context.Context, input service.WalletC
 		before := row
 		bonusAvailable := 0.0
 		if kind == service.WalletKindBonus {
-			bonusAvailable = walletMoney(math.Min(amount, math.Max(row.balance+amount, 0)))
+			bonusAvailable = walletMoney(amount)
+		}
+		rechargeCredit := 0.0
+		if kind == service.WalletKindRecharge {
+			rechargeCredit = amount
 		}
 		if _, err := exec.ExecContext(txCtx, `
 			UPDATE users
-			SET balance = balance + $1,
+			SET recharge_balance = recharge_balance + $1,
 				bonus_balance = bonus_balance + $2,
 				total_recharged = total_recharged + $3,
 				updated_at = NOW()
 			WHERE id = $4
-		`, amount, bonusAvailable, func() float64 {
+		`, rechargeCredit, bonusAvailable, func() float64 {
 			if input.CountAsRecharged {
 				return amount
 			}
@@ -371,7 +374,7 @@ func (r *userRepository) CreditWallet(ctx context.Context, input service.WalletC
 		}(), input.UserID); err != nil {
 			return err
 		}
-		row.balance = walletMoney(row.balance + amount)
+		row.recharge = walletMoney(row.recharge + rechargeCredit)
 		row.bonus = walletMoney(row.bonus + bonusAvailable)
 		if kind == service.WalletKindBonus {
 			status := "active"
@@ -484,14 +487,14 @@ func (r *userRepository) SetWalletBalance(ctx context.Context, input service.Wal
 			}
 		}
 		if _, err := exec.ExecContext(txCtx, `
-			UPDATE users SET balance = $1, bonus_balance = $2, updated_at = NOW() WHERE id = $3
+			UPDATE users SET recharge_balance = $1, bonus_balance = $2, updated_at = NOW() WHERE id = $3
 		`, recharge+bonus, bonus, input.UserID); err != nil {
 			return err
 		}
-		row.balance = recharge + bonus
+		row.recharge = recharge + bonus
 		row.bonus = bonus
-		if err := insertWalletTransaction(txCtx, exec, input.UserID, "adjust", row.balance-before.balance,
-			row.bonus-before.bonus, recharge-math.Max(before.balance-before.bonus, 0), 0,
+		if err := insertWalletTransaction(txCtx, exec, input.UserID, "adjust", row.recharge-before.recharge,
+			row.bonus-before.bonus, recharge-math.Max(before.recharge-before.bonus, 0), 0,
 			before, row, input.SourceType, input.SourceID, key, input.Notes); err != nil {
 			return err
 		}
@@ -524,10 +527,12 @@ func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.Wal
 	if _, err := expireUserBonusTx(ctx, exec, input.UserID, &row); err != nil {
 		return result, err
 	}
-	if !input.AllowOverdraft && row.balance < amount {
+	bonusCapacity := math.Min(amount, math.Max(row.bonus, 0))
+	requiredRecharge := math.Max(amount-bonusCapacity, rechargeOnly)
+	if !input.AllowOverdraft && row.recharge < requiredRecharge {
 		return result, service.ErrInsufficientBalance
 	}
-	if rechargeOnly > walletMoney(math.Max(row.balance-row.bonus, 0)) {
+	if rechargeOnly > walletMoney(math.Max(row.recharge, 0)) {
 		return result, service.ErrInsufficientBalance
 	}
 	before := row
@@ -537,12 +542,12 @@ func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.Wal
 	}
 	rechargeUsed := walletMoney(amount - bonusUsed)
 	if _, err := exec.ExecContext(ctx, `
-		UPDATE users SET balance = balance - $1, bonus_balance = bonus_balance - $2, updated_at = NOW()
+		UPDATE users SET recharge_balance = recharge_balance - $1, bonus_balance = bonus_balance - $2, updated_at = NOW()
 		WHERE id = $3
-	`, amount, bonusUsed, input.UserID); err != nil {
+	`, rechargeUsed, bonusUsed, input.UserID); err != nil {
 		return result, err
 	}
-	row.balance = walletMoney(row.balance - amount)
+	row.recharge = walletMoney(row.recharge - rechargeUsed)
 	row.bonus = walletMoney(row.bonus - bonusUsed)
 	result.BonusAmount = bonusUsed
 	result.RechargeAmount = rechargeUsed
@@ -591,7 +596,8 @@ func (r *userRepository) HoldWallet(ctx context.Context, input service.WalletHol
 		if _, err := expireUserBonusTx(txCtx, exec, input.UserID, &row); err != nil {
 			return err
 		}
-		if row.balance < amount {
+		requiredRecharge := math.Max(amount-math.Min(amount, math.Max(row.bonus, 0)), 0)
+		if row.recharge < requiredRecharge {
 			return service.ErrInsufficientBalance
 		}
 		before := row
@@ -617,16 +623,16 @@ func (r *userRepository) HoldWallet(ctx context.Context, input service.WalletHol
 		}
 		if _, err := exec.ExecContext(txCtx, `
 			UPDATE users SET
-				balance = balance - $1, bonus_balance = bonus_balance - $2,
-				frozen_balance = frozen_balance + $1, frozen_bonus_balance = frozen_bonus_balance + $2,
+				recharge_balance = recharge_balance - $1, bonus_balance = bonus_balance - $2,
+				frozen_recharge_balance = frozen_recharge_balance + $1, frozen_bonus_balance = frozen_bonus_balance + $2,
 				updated_at = NOW()
 			WHERE id = $3
-		`, amount, bonusUsed, input.UserID); err != nil {
+		`, rechargeUsed, bonusUsed, input.UserID); err != nil {
 			return err
 		}
-		row.balance = walletMoney(row.balance - amount)
+		row.recharge = walletMoney(row.recharge - rechargeUsed)
 		row.bonus = walletMoney(row.bonus - bonusUsed)
-		row.frozen = walletMoney(row.frozen + amount)
+		row.frozenRecharge = walletMoney(row.frozenRecharge + rechargeUsed)
 		row.frozenBonus = walletMoney(row.frozenBonus + bonusUsed)
 		if err := insertWalletTransaction(txCtx, exec, input.UserID, "hold", -amount, -bonusUsed, -rechargeUsed, amount, before, row, input.Purpose, input.ReferenceID, "wallet-hold:"+input.Purpose+":"+input.ReferenceID, input.Notes); err != nil {
 			return err
@@ -652,7 +658,7 @@ func (r *userRepository) GetRefundPointCapacity(ctx context.Context, userID, bon
 		if _, err := expireUserBonusTx(txCtx, exec, userID, &row); err != nil {
 			return err
 		}
-		capacity.RechargeAvailable = walletMoney(math.Max(row.balance-row.bonus, 0))
+		capacity.RechargeAvailable = walletMoney(math.Max(row.recharge, 0))
 		bonusGrantID = strings.TrimSpace(bonusGrantID)
 		if bonusGrantID == "" {
 			return nil
@@ -765,8 +771,8 @@ func (r *userRepository) HoldRefundPoints(ctx context.Context, input service.Ref
 		}
 
 		rechargePoints := walletMoney(basePoints + bonusToHold - sourceBonus)
-		availableRecharge := walletMoney(math.Max(row.balance-row.bonus, 0))
-		if rechargePoints > availableRecharge || amount > walletMoney(math.Max(row.balance, 0)) {
+		availableRecharge := walletMoney(math.Max(row.recharge, 0))
+		if rechargePoints > availableRecharge {
 			return service.ErrInsufficientBalance
 		}
 
@@ -797,16 +803,16 @@ func (r *userRepository) HoldRefundPoints(ctx context.Context, input service.Ref
 		}
 		if _, err := exec.ExecContext(txCtx, `
 			UPDATE users SET
-				balance = balance - $1, bonus_balance = bonus_balance - $2,
-				frozen_balance = frozen_balance + $1, frozen_bonus_balance = frozen_bonus_balance + $2,
+				recharge_balance = recharge_balance - $1, bonus_balance = bonus_balance - $2,
+				frozen_recharge_balance = frozen_recharge_balance + $1, frozen_bonus_balance = frozen_bonus_balance + $2,
 				updated_at = NOW()
 			WHERE id = $3
-		`, amount, sourceBonus, input.UserID); err != nil {
+		`, rechargePoints, sourceBonus, input.UserID); err != nil {
 			return err
 		}
-		row.balance = walletMoney(row.balance - amount)
+		row.recharge = walletMoney(row.recharge - amount)
 		row.bonus = walletMoney(row.bonus - sourceBonus)
-		row.frozen = walletMoney(row.frozen + amount)
+		row.frozenRecharge = walletMoney(row.frozenRecharge + rechargePoints)
 		row.frozenBonus = walletMoney(row.frozenBonus + sourceBonus)
 		if err := insertWalletTransaction(txCtx, exec, input.UserID, "hold", -amount, -sourceBonus, -rechargePoints, amount,
 			before, row, "payment_refund", input.RefundID, "wallet-hold:payment_refund:"+input.RefundID, input.Notes); err != nil {
@@ -890,16 +896,16 @@ func (r *userRepository) CaptureWalletHold(ctx context.Context, holdID, idempote
 			return err
 		}
 		if _, err := exec.ExecContext(txCtx, `
-			UPDATE users SET frozen_balance = frozen_balance - $1,
+			UPDATE users SET frozen_recharge_balance = frozen_recharge_balance - $1,
 				frozen_bonus_balance = frozen_bonus_balance - $2, updated_at = NOW()
-			WHERE id = $3 AND frozen_balance >= $1 AND frozen_bonus_balance >= $2
-		`, hold.amount, hold.bonus, hold.userID); err != nil {
+			WHERE id = $3 AND frozen_recharge_balance >= $1 AND frozen_bonus_balance >= $2
+		`, hold.recharge, hold.bonus, hold.userID); err != nil {
 			return err
 		}
 		if _, err := exec.ExecContext(txCtx, `UPDATE wallet_holds SET status = 'captured', updated_at = NOW() WHERE id = $1`, hold.id); err != nil {
 			return err
 		}
-		row.frozen = walletMoney(row.frozen - hold.amount)
+		row.frozenRecharge = walletMoney(row.frozenRecharge - hold.recharge)
 		row.frozenBonus = walletMoney(row.frozenBonus - hold.bonus)
 		key := walletIdempotencyKey("wallet-capture:"+hold.id, idempotencyKey)
 		if err := insertWalletTransaction(txCtx, exec, hold.userID, "capture", -hold.amount, -hold.bonus, -hold.recharge, -hold.amount, before, row, hold.purpose, hold.referenceID, key, "capture wallet hold"); err != nil {
@@ -991,19 +997,19 @@ func (r *userRepository) ReleaseWalletHold(ctx context.Context, holdID, idempote
 		restored := walletMoney(hold.recharge + restoredBonus)
 		if _, err := exec.ExecContext(txCtx, `
 			UPDATE users SET
-				balance = balance + $1, bonus_balance = bonus_balance + $2,
-				frozen_balance = frozen_balance - $3, frozen_bonus_balance = frozen_bonus_balance - $4,
+				recharge_balance = recharge_balance + $1, bonus_balance = bonus_balance + $2,
+				frozen_recharge_balance = frozen_recharge_balance - $3, frozen_bonus_balance = frozen_bonus_balance - $4,
 				updated_at = NOW()
 			WHERE id = $5
-		`, restored, restoredBonus, hold.amount, hold.bonus, hold.userID); err != nil {
+		`, hold.recharge, restoredBonus, hold.recharge, hold.bonus, hold.userID); err != nil {
 			return err
 		}
 		if _, err := exec.ExecContext(txCtx, `UPDATE wallet_holds SET status = 'released', updated_at = NOW() WHERE id = $1`, hold.id); err != nil {
 			return err
 		}
-		row.balance = walletMoney(row.balance + restored)
+		row.recharge = walletMoney(row.recharge + hold.recharge)
 		row.bonus = walletMoney(row.bonus + restoredBonus)
-		row.frozen = walletMoney(row.frozen - hold.amount)
+		row.frozenRecharge = walletMoney(row.frozenRecharge - hold.recharge)
 		row.frozenBonus = walletMoney(row.frozenBonus - hold.bonus)
 		key := walletIdempotencyKey("wallet-release:"+hold.id, idempotencyKey)
 		if err := insertWalletTransaction(txCtx, exec, hold.userID, "release", restored, restoredBonus, hold.recharge, -hold.amount, before, row, hold.purpose, hold.referenceID, key, "release wallet hold"); err != nil {
@@ -1128,8 +1134,8 @@ func (r *userRepository) RefundWalletHold(ctx context.Context, holdID string, am
 		}
 		restored := walletMoney(rechargeShare + restoredBonus)
 		if _, err := exec.ExecContext(txCtx, `
-			UPDATE users SET balance = balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW() WHERE id = $3
-		`, restored, restoredBonus, hold.userID); err != nil {
+			UPDATE users SET recharge_balance = recharge_balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW() WHERE id = $3
+		`, rechargeShare, restoredBonus, hold.userID); err != nil {
 			return err
 		}
 		newRefunded := walletMoney(hold.refunded + amount)
@@ -1145,7 +1151,7 @@ func (r *userRepository) RefundWalletHold(ctx context.Context, holdID string, am
 		`, amount, bonusShare, rechargeShare, status, hold.id); err != nil {
 			return err
 		}
-		row.balance = walletMoney(row.balance + restored)
+		row.recharge = walletMoney(row.recharge + rechargeShare)
 		row.bonus = walletMoney(row.bonus + restoredBonus)
 		result.BonusAmount = restoredBonus
 		result.RechargeAmount = rechargeShare
@@ -1200,7 +1206,7 @@ func (r *userRepository) ListWalletTransactions(ctx context.Context, userID stri
 	for rows.Next() {
 		var item service.WalletTransaction
 		if err := rows.Scan(&item.ID, &item.Action, &item.Amount, &item.BonusAmount, &item.RechargeAmount, &item.FrozenAmount,
-			&item.BalanceBefore, &item.BalanceAfter, &item.BonusBefore, &item.BonusAfter,
+			&item.RechargeBefore, &item.RechargeAfter, &item.BonusBefore, &item.BonusAfter,
 			&item.SourceType, &item.SourceID, &item.Notes, &item.CreatedAt); err != nil {
 			return service.WalletTransactionPage{}, err
 		}

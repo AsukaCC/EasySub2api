@@ -6,6 +6,7 @@ import type { UserAnnouncement } from '@/types'
 const THROTTLE_MS = 20 * 60 * 1000 // 20 minutes
 
 export const useAnnouncementStore = defineStore('announcements', () => {
+  let fetchGeneration = 0
   // State
   const announcements = ref<UserAnnouncement[]>([])
   const loading = ref(false)
@@ -45,18 +46,21 @@ export const useAnnouncementStore = defineStore('announcements', () => {
 
     // Set immediately to prevent concurrent duplicate requests
     lastFetchTime.value = now
+    const generation = ++fetchGeneration
 
     try {
       loading.value = true
       const all = await announcementsAPI.list(false)
+      if (generation !== fetchGeneration) return
       announcements.value = all.slice(0, 20)
       enqueueNewPopups()
     } catch (err: any) {
+      if (generation !== fetchGeneration) return
       // Revert throttle timestamp on failure so retry is allowed
       lastFetchTime.value = 0
       console.error('Failed to fetch announcements:', err)
     } finally {
-      loading.value = false
+      if (generation === fetchGeneration) loading.value = false
     }
   }
 
@@ -148,6 +152,7 @@ export const useAnnouncementStore = defineStore('announcements', () => {
   }
 
   function reset() {
+    fetchGeneration++
     announcements.value = []
     lastFetchTime.value = 0
     shownPopupIds = new Set()

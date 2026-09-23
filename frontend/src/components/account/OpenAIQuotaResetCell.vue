@@ -1,5 +1,6 @@
 <template>
   <div v-if="visible" class="components-account-open-aiquota-reset-cell__panel">
+    <OpenAIReferralCell :account="account" />
     <!--
       Unified action row. Parents that already render their own "local query"
       affordance (e.g. AccountUsageCell's active-sampling refresh) pass it in
@@ -138,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import OpenAIReferralCell from './OpenAIReferralCell.vue'
 import { formatDateWithOptions } from '@/utils/datetime'
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

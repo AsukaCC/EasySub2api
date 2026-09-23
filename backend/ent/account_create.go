@@ -556,28 +556,28 @@ func (_c *AccountCreate) ExecX(ctx context.Context) {
 func (_c *AccountCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if account.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized account.DefaultCreatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.DefaultCreatedAt (forgotten import entgen/runtime?)")
 		}
 		v := account.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if account.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized account.DefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.DefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := account.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
 	if _, ok := _c.mutation.Credentials(); !ok {
 		if account.DefaultCredentials == nil {
-			return fmt.Errorf("ent: uninitialized account.DefaultCredentials (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.DefaultCredentials (forgotten import entgen/runtime?)")
 		}
 		v := account.DefaultCredentials()
 		_c.mutation.SetCredentials(v)
 	}
 	if _, ok := _c.mutation.Extra(); !ok {
 		if account.DefaultExtra == nil {
-			return fmt.Errorf("ent: uninitialized account.DefaultExtra (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.DefaultExtra (forgotten import entgen/runtime?)")
 		}
 		v := account.DefaultExtra()
 		_c.mutation.SetExtra(v)
@@ -612,7 +612,7 @@ func (_c *AccountCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if account.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized account.DefaultID (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized account.DefaultID (forgotten import entgen/runtime?)")
 		}
 		v := account.DefaultID()
 		_c.mutation.SetID(v)

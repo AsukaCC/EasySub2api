@@ -267,8 +267,8 @@ func (r *ModelPricingResolver) applyTokenOverrides(chPricing *ChannelModelPricin
 			resolved.BasePricing.ImageOutputPricePerToken = 0
 		}
 		resolved.BasePricing.ImageOutputPriceExplicit = true
-		if chPricing.MaxReasoningEffortMultiplier != nil {
-			resolved.BasePricing.MaxReasoningEffortMultiplier = chPricing.MaxReasoningEffortMultiplier
+		if chPricing.ReasoningEffortMultipliers != nil {
+			resolved.BasePricing.ReasoningEffortMultipliers = chPricing.ReasoningEffortMultipliers
 		}
 		applyChannelImageInputPrice(chPricing, resolved.BasePricing)
 		applyChannelImageCacheReadPrice(chPricing, resolved.BasePricing)
@@ -316,8 +316,8 @@ func (r *ModelPricingResolver) applyTokenOverrides(chPricing *ChannelModelPricin
 		resolved.BasePricing.ImageOutputPricePerToken = 0
 	}
 	resolved.BasePricing.ImageOutputPriceExplicit = true
-	if chPricing.MaxReasoningEffortMultiplier != nil {
-		resolved.BasePricing.MaxReasoningEffortMultiplier = chPricing.MaxReasoningEffortMultiplier
+	if chPricing.ReasoningEffortMultipliers != nil {
+		resolved.BasePricing.ReasoningEffortMultipliers = chPricing.ReasoningEffortMultipliers
 	}
 	applyChannelImageInputPrice(chPricing, resolved.BasePricing)
 	applyChannelImageCacheReadPrice(chPricing, resolved.BasePricing)

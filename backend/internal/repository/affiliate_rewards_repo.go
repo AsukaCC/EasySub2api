@@ -158,14 +158,14 @@ func creditAffiliateBindingRewardTx(ctx context.Context, exec sqlQueryExecutor, 
 		return service.AffiliateBindingReward{}, err
 	}
 	before := row
-	bonusAvailable := walletMoney(math.Min(amount, math.Max(row.balance+amount, 0)))
+	bonusAvailable := walletMoney(math.Min(amount, math.Max(row.recharge+amount, 0)))
 	if _, err := exec.ExecContext(ctx, `
 UPDATE users
 SET balance = balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW()
 WHERE id = $3 AND deleted_at IS NULL`, amount, bonusAvailable, userID); err != nil {
 		return service.AffiliateBindingReward{}, err
 	}
-	row.balance = walletMoney(row.balance + amount)
+	row.recharge = walletMoney(row.recharge + amount)
 	row.bonus = walletMoney(row.bonus + bonusAvailable)
 	status := "active"
 	if bonusAvailable <= 0 {

@@ -125,14 +125,14 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 
 	if cmd.BalanceCost > 0 {
 		walletResult, err := debitWalletTx(ctx, tx, service.WalletDebitInput{
-			UserID: cmd.UserID, Amount: cmd.BalanceCost, AllowOverdraft: true,
+			UserID: cmd.UserID, Amount: cmd.BalanceCost, AllowOverdraft: false,
 			RechargeOnlyAmount: result.RechargeOnlyCost,
 			SourceType:         "api_usage", SourceID: cmd.RequestID,
 		}, "wallet-usage:"+cmd.APIKeyID+":"+cmd.RequestID)
 		if err != nil {
 			return err
 		}
-		newBalance := walletResult.Summary.Balance
+		newBalance := walletResult.Summary.AvailableBalance
 		result.NewBalance = &newBalance
 		result.BalanceOverdrafted = newBalance < 0
 	}
@@ -185,7 +185,7 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		if _, err := expireUserBonusTx(ctx, tx, cmd.UserID, &row); err != nil {
 			return err
 		}
-		rechargeAvailable = walletMoney(math.Max(row.balance-row.bonus, 0))
+		rechargeAvailable = walletMoney(math.Max(row.recharge, 0))
 	}
 	accountCostPerStandard := plan.AccountCost / plan.StandardCost
 	rules := append([]service.UsageDynamicRateRule(nil), plan.Rules...)

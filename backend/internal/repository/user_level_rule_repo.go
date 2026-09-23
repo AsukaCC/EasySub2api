@@ -525,7 +525,7 @@ func (r *userLevelRepository) ListLevelRuleMembers(ctx context.Context, ruleID s
 	offset := (page - 1) * pageSize
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT u.id::text, u.email, COALESCE(u.username, ''), COALESCE(u.notes, ''),
-		       u.role, u.balance::double precision, u.status, u.concurrency,
+		       u.role, u.recharge_balance::double precision, u.status, u.concurrency,
 		       u.created_at, u.updated_at, u.deleted_at
 		FROM user_level_rule_assignments a
 		JOIN users u ON u.id = a.user_id
@@ -542,7 +542,7 @@ func (r *userLevelRepository) ListLevelRuleMembers(ctx context.Context, ruleID s
 	for rows.Next() {
 		var user service.User
 		var deletedAt sql.NullTime
-		if err := rows.Scan(&user.ID, &user.Email, &user.Username, &user.Notes, &user.Role, &user.Balance, &user.Status, &user.Concurrency, &user.CreatedAt, &user.UpdatedAt, &deletedAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.Username, &user.Notes, &user.Role, &user.RechargeBalance, &user.Status, &user.Concurrency, &user.CreatedAt, &user.UpdatedAt, &deletedAt); err != nil {
 			return nil, 0, err
 		}
 		if deletedAt.Valid {

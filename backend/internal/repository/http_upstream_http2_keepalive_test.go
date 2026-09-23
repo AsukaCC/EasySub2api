@@ -40,7 +40,7 @@ func requireHTTP2Configured(t *testing.T, tr *http.Transport, msg string) {
 func TestEnableHTTP2KeepAlive_EnablesPingHealthCheck(t *testing.T) {
 	tr := &http.Transport{}
 
-	h2, err := enableHTTP2KeepAlive(tr)
+	h2, err := enableHTTP2KeepAlive(tr, upstreamProtocolModeLongStreamH2)
 	require.NoError(t, err)
 	require.NotNil(t, h2, "必须返回已配置的 *http2.Transport")
 

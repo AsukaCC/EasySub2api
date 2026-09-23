@@ -148,13 +148,6 @@
                 type="number" step="any" min="0" class="components-admin-channel-pricing-entry-card__field input" :placeholder="t('admin.channels.form.pricePlaceholder')" />
             </div>
           </div>
-          <div class="components-admin-channel-pricing-entry-card__panel-9">
-            <div>
-              <label class="components-admin-channel-pricing-entry-card__label-3">{{ t('admin.channels.form.maxReasoningEffortMultiplier') }}</label>
-              <input :value="entry.max_reasoning_effort_multiplier" @input="emitField('max_reasoning_effort_multiplier', ($event.target as HTMLInputElement).value)"
-                type="number" step="any" min="0.000001" class="components-admin-channel-pricing-entry-card__field input" :placeholder="maxReasoningEffortMultiplierPlaceholder" />
-            </div>
-          </div>
 
           <!-- Token intervals (channel-only; group long-context uses official presets) -->
           <div v-if="!hideTokenIntervals" class="components-admin-channel-pricing-entry-card__panel-10">
@@ -254,6 +247,43 @@
             />
           </div>
         </div>
+
+        <div class="reasoning-pricing" data-testid="reasoning-effort-multipliers">
+          <div class="reasoning-pricing__heading">
+            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('admin.channels.form.reasoningEffortMultipliers') }}
+            </label>
+            <button
+              v-if="Object.keys(entry.reasoning_effort_multipliers || {}).length"
+              type="button"
+              class="text-xs text-gray-500 hover:text-red-500"
+              @click="emit('update', { ...entry, reasoning_effort_multipliers: {} })"
+            >
+              {{ t('admin.channels.form.clearReasoningEffortMultipliers') }}
+            </button>
+          </div>
+          <label class="reasoning-pricing__inherit"><input type="checkbox" :checked="entry.reasoning_effort_multipliers == null" @change="emit('update', { ...entry, reasoning_effort_multipliers: ($event.target as HTMLInputElement).checked ? null : {} })" />{{ t('admin.channels.form.inheritReasoningEffortMultipliers') }}</label>
+          <div v-if="entry.reasoning_effort_multipliers != null" class="reasoning-pricing__grid">
+            <label v-for="effort in REASONING_EFFORT_LEVELS" :key="effort" class="text-xs text-gray-500 dark:text-gray-400">
+              {{ effort }}
+              <input
+                :value="entry.reasoning_effort_multipliers?.[effort]"
+                :aria-label="t('admin.channels.form.reasoningEffortMultiplierLabel', { effort })"
+                :aria-invalid="!isValidPositiveMultiplier(entry.reasoning_effort_multipliers?.[effort])"
+                :data-reasoning-effort="effort"
+                @input="updateReasoningEffortMultiplier(effort, ($event.target as HTMLInputElement).value)"
+                type="number"
+                step="any"
+                min="0"
+                class="input"
+                :placeholder="t('admin.channels.form.reasoningEffortMultiplierDefault')"
+              />
+            </label>
+          </div>
+          <p v-if="reasoningEffortMultiplierError" role="alert" class="mt-1 text-xs text-red-500">
+            {{ reasoningEffortMultiplierError }}
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -268,7 +298,8 @@ import IntervalRow from './IntervalRow.vue'
 import ModelTagInput from './ModelTagInput.vue'
 import TimePricingSection from './TimePricingSection.vue'
 import type { PricingFormEntry, IntervalFormEntry } from './types'
-import { perTokenToMTok, getPlatformTagClass } from './types'
+import { perTokenToMTok, getPlatformTagClass, isValidPositiveMultiplier, validateReasoningEffortMultipliers } from './types'
+import { REASONING_EFFORT_LEVELS, type ReasoningEffortLevel } from '@/constants/channel'
 import type { BillingMode } from '@/api/admin/channels'
 import channelsAPI from '@/api/admin/channels'
 
@@ -304,11 +335,19 @@ const billingModeLabel = computed(() => {
   return opt ? opt.label : props.entry.billing_mode
 })
 
-const maxReasoningEffortMultiplierPlaceholder = computed(() =>
-  props.entry.models.some(model => /fable(?:-5-1|-5\.1|5\.1|51)(?!\d)/i.test(model))
-    ? t('admin.channels.form.fable51DefaultMaxReasoningMultiplier')
-    : t('admin.channels.form.multiplierPlaceholder')
+const reasoningEffortMultiplierError = computed(() =>
+  validateReasoningEffortMultipliers(props.entry.reasoning_effort_multipliers, t)
 )
+
+function updateReasoningEffortMultiplier(effort: ReasoningEffortLevel, value: string) {
+  const multipliers = { ...props.entry.reasoning_effort_multipliers }
+  if (value === '') delete multipliers[effort]
+  else multipliers[effort] = value
+  emit('update', {
+    ...props.entry,
+    reasoning_effort_multipliers: multipliers,
+  })
+}
 
 function emitField(field: keyof PricingFormEntry, value: string) {
   emit('update', { ...props.entry, [field]: value === '' ? null : value })
@@ -391,6 +430,11 @@ async function onModelsUpdate(newModels: string[]) {
 </script>
 
 <style scoped>
+.reasoning-pricing { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.reasoning-pricing__heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.reasoning-pricing__inherit { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; }
+.reasoning-pricing__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.reasoning-pricing__grid input { width: 100%; min-width: 0; }
 .collapsible-content {
   display: grid;
   grid-template-rows: 1fr;

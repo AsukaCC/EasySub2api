@@ -95,9 +95,9 @@ func Role(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldRole, v))
 }
 
-// Balance applies equality check predicate on the "balance" field. It's identical to BalanceEQ.
-func Balance(v float64) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldBalance, v))
+// RechargeBalance applies equality check predicate on the "recharge_balance" field. It's identical to RechargeBalanceEQ.
+func RechargeBalance(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRechargeBalance, v))
 }
 
 // BonusBalance applies equality check predicate on the "bonus_balance" field. It's identical to BonusBalanceEQ.
@@ -105,9 +105,9 @@ func BonusBalance(v float64) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldBonusBalance, v))
 }
 
-// FrozenBalance applies equality check predicate on the "frozen_balance" field. It's identical to FrozenBalanceEQ.
-func FrozenBalance(v float64) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldFrozenBalance, v))
+// FrozenRechargeBalance applies equality check predicate on the "frozen_recharge_balance" field. It's identical to FrozenRechargeBalanceEQ.
+func FrozenRechargeBalance(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldFrozenRechargeBalance, v))
 }
 
 // FrozenBonusBalance applies equality check predicate on the "frozen_bonus_balance" field. It's identical to FrozenBonusBalanceEQ.
@@ -520,44 +520,44 @@ func RoleContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldRole, v))
 }
 
-// BalanceEQ applies the EQ predicate on the "balance" field.
-func BalanceEQ(v float64) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldBalance, v))
+// RechargeBalanceEQ applies the EQ predicate on the "recharge_balance" field.
+func RechargeBalanceEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRechargeBalance, v))
 }
 
-// BalanceNEQ applies the NEQ predicate on the "balance" field.
-func BalanceNEQ(v float64) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldBalance, v))
+// RechargeBalanceNEQ applies the NEQ predicate on the "recharge_balance" field.
+func RechargeBalanceNEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldRechargeBalance, v))
 }
 
-// BalanceIn applies the In predicate on the "balance" field.
-func BalanceIn(vs ...float64) predicate.User {
-	return predicate.User(sql.FieldIn(FieldBalance, vs...))
+// RechargeBalanceIn applies the In predicate on the "recharge_balance" field.
+func RechargeBalanceIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldRechargeBalance, vs...))
 }
 
-// BalanceNotIn applies the NotIn predicate on the "balance" field.
-func BalanceNotIn(vs ...float64) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldBalance, vs...))
+// RechargeBalanceNotIn applies the NotIn predicate on the "recharge_balance" field.
+func RechargeBalanceNotIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldRechargeBalance, vs...))
 }
 
-// BalanceGT applies the GT predicate on the "balance" field.
-func BalanceGT(v float64) predicate.User {
-	return predicate.User(sql.FieldGT(FieldBalance, v))
+// RechargeBalanceGT applies the GT predicate on the "recharge_balance" field.
+func RechargeBalanceGT(v float64) predicate.User {
+	return predicate.User(sql.FieldGT(FieldRechargeBalance, v))
 }
 
-// BalanceGTE applies the GTE predicate on the "balance" field.
-func BalanceGTE(v float64) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldBalance, v))
+// RechargeBalanceGTE applies the GTE predicate on the "recharge_balance" field.
+func RechargeBalanceGTE(v float64) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldRechargeBalance, v))
 }
 
-// BalanceLT applies the LT predicate on the "balance" field.
-func BalanceLT(v float64) predicate.User {
-	return predicate.User(sql.FieldLT(FieldBalance, v))
+// RechargeBalanceLT applies the LT predicate on the "recharge_balance" field.
+func RechargeBalanceLT(v float64) predicate.User {
+	return predicate.User(sql.FieldLT(FieldRechargeBalance, v))
 }
 
-// BalanceLTE applies the LTE predicate on the "balance" field.
-func BalanceLTE(v float64) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldBalance, v))
+// RechargeBalanceLTE applies the LTE predicate on the "recharge_balance" field.
+func RechargeBalanceLTE(v float64) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldRechargeBalance, v))
 }
 
 // BonusBalanceEQ applies the EQ predicate on the "bonus_balance" field.
@@ -600,44 +600,44 @@ func BonusBalanceLTE(v float64) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldBonusBalance, v))
 }
 
-// FrozenBalanceEQ applies the EQ predicate on the "frozen_balance" field.
-func FrozenBalanceEQ(v float64) predicate.User {
-	return predicate.User(sql.FieldEQ(FieldFrozenBalance, v))
+// FrozenRechargeBalanceEQ applies the EQ predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldFrozenRechargeBalance, v))
 }
 
-// FrozenBalanceNEQ applies the NEQ predicate on the "frozen_balance" field.
-func FrozenBalanceNEQ(v float64) predicate.User {
-	return predicate.User(sql.FieldNEQ(FieldFrozenBalance, v))
+// FrozenRechargeBalanceNEQ applies the NEQ predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceNEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldFrozenRechargeBalance, v))
 }
 
-// FrozenBalanceIn applies the In predicate on the "frozen_balance" field.
-func FrozenBalanceIn(vs ...float64) predicate.User {
-	return predicate.User(sql.FieldIn(FieldFrozenBalance, vs...))
+// FrozenRechargeBalanceIn applies the In predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldFrozenRechargeBalance, vs...))
 }
 
-// FrozenBalanceNotIn applies the NotIn predicate on the "frozen_balance" field.
-func FrozenBalanceNotIn(vs ...float64) predicate.User {
-	return predicate.User(sql.FieldNotIn(FieldFrozenBalance, vs...))
+// FrozenRechargeBalanceNotIn applies the NotIn predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceNotIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldFrozenRechargeBalance, vs...))
 }
 
-// FrozenBalanceGT applies the GT predicate on the "frozen_balance" field.
-func FrozenBalanceGT(v float64) predicate.User {
-	return predicate.User(sql.FieldGT(FieldFrozenBalance, v))
+// FrozenRechargeBalanceGT applies the GT predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceGT(v float64) predicate.User {
+	return predicate.User(sql.FieldGT(FieldFrozenRechargeBalance, v))
 }
 
-// FrozenBalanceGTE applies the GTE predicate on the "frozen_balance" field.
-func FrozenBalanceGTE(v float64) predicate.User {
-	return predicate.User(sql.FieldGTE(FieldFrozenBalance, v))
+// FrozenRechargeBalanceGTE applies the GTE predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceGTE(v float64) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldFrozenRechargeBalance, v))
 }
 
-// FrozenBalanceLT applies the LT predicate on the "frozen_balance" field.
-func FrozenBalanceLT(v float64) predicate.User {
-	return predicate.User(sql.FieldLT(FieldFrozenBalance, v))
+// FrozenRechargeBalanceLT applies the LT predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceLT(v float64) predicate.User {
+	return predicate.User(sql.FieldLT(FieldFrozenRechargeBalance, v))
 }
 
-// FrozenBalanceLTE applies the LTE predicate on the "frozen_balance" field.
-func FrozenBalanceLTE(v float64) predicate.User {
-	return predicate.User(sql.FieldLTE(FieldFrozenBalance, v))
+// FrozenRechargeBalanceLTE applies the LTE predicate on the "frozen_recharge_balance" field.
+func FrozenRechargeBalanceLTE(v float64) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldFrozenRechargeBalance, v))
 }
 
 // FrozenBonusBalanceEQ applies the EQ predicate on the "frozen_bonus_balance" field.

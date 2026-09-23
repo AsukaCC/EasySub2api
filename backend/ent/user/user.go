@@ -27,12 +27,12 @@ const (
 	FieldPasswordHash = "password_hash"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
-	// FieldBalance holds the string denoting the balance field in the database.
-	FieldBalance = "balance"
+	// FieldRechargeBalance holds the string denoting the recharge_balance field in the database.
+	FieldRechargeBalance = "recharge_balance"
 	// FieldBonusBalance holds the string denoting the bonus_balance field in the database.
 	FieldBonusBalance = "bonus_balance"
-	// FieldFrozenBalance holds the string denoting the frozen_balance field in the database.
-	FieldFrozenBalance = "frozen_balance"
+	// FieldFrozenRechargeBalance holds the string denoting the frozen_recharge_balance field in the database.
+	FieldFrozenRechargeBalance = "frozen_recharge_balance"
 	// FieldFrozenBonusBalance holds the string denoting the frozen_bonus_balance field in the database.
 	FieldFrozenBonusBalance = "frozen_bonus_balance"
 	// FieldConcurrency holds the string denoting the concurrency field in the database.
@@ -204,9 +204,9 @@ var Columns = []string{
 	FieldEmail,
 	FieldPasswordHash,
 	FieldRole,
-	FieldBalance,
+	FieldRechargeBalance,
 	FieldBonusBalance,
-	FieldFrozenBalance,
+	FieldFrozenRechargeBalance,
 	FieldFrozenBonusBalance,
 	FieldConcurrency,
 	FieldStatus,
@@ -264,12 +264,12 @@ var (
 	DefaultRole string
 	// RoleValidator is a validator for the "role" field. It is called by the builders before save.
 	RoleValidator func(string) error
-	// DefaultBalance holds the default value on creation for the "balance" field.
-	DefaultBalance float64
+	// DefaultRechargeBalance holds the default value on creation for the "recharge_balance" field.
+	DefaultRechargeBalance float64
 	// DefaultBonusBalance holds the default value on creation for the "bonus_balance" field.
 	DefaultBonusBalance float64
-	// DefaultFrozenBalance holds the default value on creation for the "frozen_balance" field.
-	DefaultFrozenBalance float64
+	// DefaultFrozenRechargeBalance holds the default value on creation for the "frozen_recharge_balance" field.
+	DefaultFrozenRechargeBalance float64
 	// DefaultFrozenBonusBalance holds the default value on creation for the "frozen_bonus_balance" field.
 	DefaultFrozenBonusBalance float64
 	// DefaultConcurrency holds the default value on creation for the "concurrency" field.
@@ -342,9 +342,9 @@ func ByRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRole, opts...).ToFunc()
 }
 
-// ByBalance orders the results by the balance field.
-func ByBalance(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBalance, opts...).ToFunc()
+// ByRechargeBalance orders the results by the recharge_balance field.
+func ByRechargeBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRechargeBalance, opts...).ToFunc()
 }
 
 // ByBonusBalance orders the results by the bonus_balance field.
@@ -352,9 +352,9 @@ func ByBonusBalance(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBonusBalance, opts...).ToFunc()
 }
 
-// ByFrozenBalance orders the results by the frozen_balance field.
-func ByFrozenBalance(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldFrozenBalance, opts...).ToFunc()
+// ByFrozenRechargeBalance orders the results by the frozen_recharge_balance field.
+func ByFrozenRechargeBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFrozenRechargeBalance, opts...).ToFunc()
 }
 
 // ByFrozenBonusBalance orders the results by the frozen_bonus_balance field.

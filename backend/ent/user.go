@@ -29,12 +29,12 @@ type User struct {
 	PasswordHash string `json:"password_hash,omitempty"`
 	// Role holds the value of the "role" field.
 	Role string `json:"role,omitempty"`
-	// Balance holds the value of the "balance" field.
-	Balance float64 `json:"balance,omitempty"`
+	// RechargeBalance holds the value of the "recharge_balance" field.
+	RechargeBalance float64 `json:"recharge_balance,omitempty"`
 	// BonusBalance holds the value of the "bonus_balance" field.
 	BonusBalance float64 `json:"bonus_balance,omitempty"`
-	// FrozenBalance holds the value of the "frozen_balance" field.
-	FrozenBalance float64 `json:"frozen_balance,omitempty"`
+	// FrozenRechargeBalance holds the value of the "frozen_recharge_balance" field.
+	FrozenRechargeBalance float64 `json:"frozen_recharge_balance,omitempty"`
 	// FrozenBonusBalance holds the value of the "frozen_bonus_balance" field.
 	FrozenBonusBalance float64 `json:"frozen_bonus_balance,omitempty"`
 	// Concurrency holds the value of the "concurrency" field.
@@ -243,7 +243,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldTotpEnabled, user.FieldBalanceNotifyEnabled:
 			values[i] = new(sql.NullBool)
-		case user.FieldBalance, user.FieldBonusBalance, user.FieldFrozenBalance, user.FieldFrozenBonusBalance, user.FieldBalanceNotifyThreshold, user.FieldTotalRecharged:
+		case user.FieldRechargeBalance, user.FieldBonusBalance, user.FieldFrozenRechargeBalance, user.FieldFrozenBonusBalance, user.FieldBalanceNotifyThreshold, user.FieldTotalRecharged:
 			values[i] = new(sql.NullFloat64)
 		case user.FieldConcurrency, user.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
@@ -309,11 +309,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Role = value.String
 			}
-		case user.FieldBalance:
+		case user.FieldRechargeBalance:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
-				return fmt.Errorf("unexpected type %T for field balance", values[i])
+				return fmt.Errorf("unexpected type %T for field recharge_balance", values[i])
 			} else if value.Valid {
-				_m.Balance = value.Float64
+				_m.RechargeBalance = value.Float64
 			}
 		case user.FieldBonusBalance:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -321,11 +321,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.BonusBalance = value.Float64
 			}
-		case user.FieldFrozenBalance:
+		case user.FieldFrozenRechargeBalance:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
-				return fmt.Errorf("unexpected type %T for field frozen_balance", values[i])
+				return fmt.Errorf("unexpected type %T for field frozen_recharge_balance", values[i])
 			} else if value.Valid {
-				_m.FrozenBalance = value.Float64
+				_m.FrozenRechargeBalance = value.Float64
 			}
 		case user.FieldFrozenBonusBalance:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -560,14 +560,14 @@ func (_m *User) String() string {
 	builder.WriteString("role=")
 	builder.WriteString(_m.Role)
 	builder.WriteString(", ")
-	builder.WriteString("balance=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Balance))
+	builder.WriteString("recharge_balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RechargeBalance))
 	builder.WriteString(", ")
 	builder.WriteString("bonus_balance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.BonusBalance))
 	builder.WriteString(", ")
-	builder.WriteString("frozen_balance=")
-	builder.WriteString(fmt.Sprintf("%v", _m.FrozenBalance))
+	builder.WriteString("frozen_recharge_balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FrozenRechargeBalance))
 	builder.WriteString(", ")
 	builder.WriteString("frozen_bonus_balance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FrozenBonusBalance))

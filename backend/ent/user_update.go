@@ -108,24 +108,24 @@ func (_u *UserUpdate) SetNillableRole(v *string) *UserUpdate {
 	return _u
 }
 
-// SetBalance sets the "balance" field.
-func (_u *UserUpdate) SetBalance(v float64) *UserUpdate {
-	_u.mutation.ResetBalance()
-	_u.mutation.SetBalance(v)
+// SetRechargeBalance sets the "recharge_balance" field.
+func (_u *UserUpdate) SetRechargeBalance(v float64) *UserUpdate {
+	_u.mutation.ResetRechargeBalance()
+	_u.mutation.SetRechargeBalance(v)
 	return _u
 }
 
-// SetNillableBalance sets the "balance" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableBalance(v *float64) *UserUpdate {
+// SetNillableRechargeBalance sets the "recharge_balance" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableRechargeBalance(v *float64) *UserUpdate {
 	if v != nil {
-		_u.SetBalance(*v)
+		_u.SetRechargeBalance(*v)
 	}
 	return _u
 }
 
-// AddBalance adds value to the "balance" field.
-func (_u *UserUpdate) AddBalance(v float64) *UserUpdate {
-	_u.mutation.AddBalance(v)
+// AddRechargeBalance adds value to the "recharge_balance" field.
+func (_u *UserUpdate) AddRechargeBalance(v float64) *UserUpdate {
+	_u.mutation.AddRechargeBalance(v)
 	return _u
 }
 
@@ -150,24 +150,24 @@ func (_u *UserUpdate) AddBonusBalance(v float64) *UserUpdate {
 	return _u
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (_u *UserUpdate) SetFrozenBalance(v float64) *UserUpdate {
-	_u.mutation.ResetFrozenBalance()
-	_u.mutation.SetFrozenBalance(v)
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (_u *UserUpdate) SetFrozenRechargeBalance(v float64) *UserUpdate {
+	_u.mutation.ResetFrozenRechargeBalance()
+	_u.mutation.SetFrozenRechargeBalance(v)
 	return _u
 }
 
-// SetNillableFrozenBalance sets the "frozen_balance" field if the given value is not nil.
-func (_u *UserUpdate) SetNillableFrozenBalance(v *float64) *UserUpdate {
+// SetNillableFrozenRechargeBalance sets the "frozen_recharge_balance" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableFrozenRechargeBalance(v *float64) *UserUpdate {
 	if v != nil {
-		_u.SetFrozenBalance(*v)
+		_u.SetFrozenRechargeBalance(*v)
 	}
 	return _u
 }
 
-// AddFrozenBalance adds value to the "frozen_balance" field.
-func (_u *UserUpdate) AddFrozenBalance(v float64) *UserUpdate {
-	_u.mutation.AddFrozenBalance(v)
+// AddFrozenRechargeBalance adds value to the "frozen_recharge_balance" field.
+func (_u *UserUpdate) AddFrozenRechargeBalance(v float64) *UserUpdate {
+	_u.mutation.AddFrozenRechargeBalance(v)
 	return _u
 }
 
@@ -981,7 +981,7 @@ func (_u *UserUpdate) ExecX(ctx context.Context) {
 func (_u *UserUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if user.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := user.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -1054,11 +1054,11 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Balance(); ok {
-		_spec.SetField(user.FieldBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.RechargeBalance(); ok {
+		_spec.SetField(user.FieldRechargeBalance, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedBalance(); ok {
-		_spec.AddField(user.FieldBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.AddedRechargeBalance(); ok {
+		_spec.AddField(user.FieldRechargeBalance, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.BonusBalance(); ok {
 		_spec.SetField(user.FieldBonusBalance, field.TypeFloat64, value)
@@ -1066,11 +1066,11 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedBonusBalance(); ok {
 		_spec.AddField(user.FieldBonusBalance, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.FrozenBalance(); ok {
-		_spec.SetField(user.FieldFrozenBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.FrozenRechargeBalance(); ok {
+		_spec.SetField(user.FieldFrozenRechargeBalance, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedFrozenBalance(); ok {
-		_spec.AddField(user.FieldFrozenBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.AddedFrozenRechargeBalance(); ok {
+		_spec.AddField(user.FieldFrozenRechargeBalance, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.FrozenBonusBalance(); ok {
 		_spec.SetField(user.FieldFrozenBonusBalance, field.TypeFloat64, value)
@@ -1838,24 +1838,24 @@ func (_u *UserUpdateOne) SetNillableRole(v *string) *UserUpdateOne {
 	return _u
 }
 
-// SetBalance sets the "balance" field.
-func (_u *UserUpdateOne) SetBalance(v float64) *UserUpdateOne {
-	_u.mutation.ResetBalance()
-	_u.mutation.SetBalance(v)
+// SetRechargeBalance sets the "recharge_balance" field.
+func (_u *UserUpdateOne) SetRechargeBalance(v float64) *UserUpdateOne {
+	_u.mutation.ResetRechargeBalance()
+	_u.mutation.SetRechargeBalance(v)
 	return _u
 }
 
-// SetNillableBalance sets the "balance" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableBalance(v *float64) *UserUpdateOne {
+// SetNillableRechargeBalance sets the "recharge_balance" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableRechargeBalance(v *float64) *UserUpdateOne {
 	if v != nil {
-		_u.SetBalance(*v)
+		_u.SetRechargeBalance(*v)
 	}
 	return _u
 }
 
-// AddBalance adds value to the "balance" field.
-func (_u *UserUpdateOne) AddBalance(v float64) *UserUpdateOne {
-	_u.mutation.AddBalance(v)
+// AddRechargeBalance adds value to the "recharge_balance" field.
+func (_u *UserUpdateOne) AddRechargeBalance(v float64) *UserUpdateOne {
+	_u.mutation.AddRechargeBalance(v)
 	return _u
 }
 
@@ -1880,24 +1880,24 @@ func (_u *UserUpdateOne) AddBonusBalance(v float64) *UserUpdateOne {
 	return _u
 }
 
-// SetFrozenBalance sets the "frozen_balance" field.
-func (_u *UserUpdateOne) SetFrozenBalance(v float64) *UserUpdateOne {
-	_u.mutation.ResetFrozenBalance()
-	_u.mutation.SetFrozenBalance(v)
+// SetFrozenRechargeBalance sets the "frozen_recharge_balance" field.
+func (_u *UserUpdateOne) SetFrozenRechargeBalance(v float64) *UserUpdateOne {
+	_u.mutation.ResetFrozenRechargeBalance()
+	_u.mutation.SetFrozenRechargeBalance(v)
 	return _u
 }
 
-// SetNillableFrozenBalance sets the "frozen_balance" field if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableFrozenBalance(v *float64) *UserUpdateOne {
+// SetNillableFrozenRechargeBalance sets the "frozen_recharge_balance" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableFrozenRechargeBalance(v *float64) *UserUpdateOne {
 	if v != nil {
-		_u.SetFrozenBalance(*v)
+		_u.SetFrozenRechargeBalance(*v)
 	}
 	return _u
 }
 
-// AddFrozenBalance adds value to the "frozen_balance" field.
-func (_u *UserUpdateOne) AddFrozenBalance(v float64) *UserUpdateOne {
-	_u.mutation.AddFrozenBalance(v)
+// AddFrozenRechargeBalance adds value to the "frozen_recharge_balance" field.
+func (_u *UserUpdateOne) AddFrozenRechargeBalance(v float64) *UserUpdateOne {
+	_u.mutation.AddFrozenRechargeBalance(v)
 	return _u
 }
 
@@ -2724,7 +2724,7 @@ func (_u *UserUpdateOne) ExecX(ctx context.Context) {
 func (_u *UserUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if user.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
 		}
 		v := user.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -2814,11 +2814,11 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Balance(); ok {
-		_spec.SetField(user.FieldBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.RechargeBalance(); ok {
+		_spec.SetField(user.FieldRechargeBalance, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedBalance(); ok {
-		_spec.AddField(user.FieldBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.AddedRechargeBalance(); ok {
+		_spec.AddField(user.FieldRechargeBalance, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.BonusBalance(); ok {
 		_spec.SetField(user.FieldBonusBalance, field.TypeFloat64, value)
@@ -2826,11 +2826,11 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	if value, ok := _u.mutation.AddedBonusBalance(); ok {
 		_spec.AddField(user.FieldBonusBalance, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.FrozenBalance(); ok {
-		_spec.SetField(user.FieldFrozenBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.FrozenRechargeBalance(); ok {
+		_spec.SetField(user.FieldFrozenRechargeBalance, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.AddedFrozenBalance(); ok {
-		_spec.AddField(user.FieldFrozenBalance, field.TypeFloat64, value)
+	if value, ok := _u.mutation.AddedFrozenRechargeBalance(); ok {
+		_spec.AddField(user.FieldFrozenRechargeBalance, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.FrozenBonusBalance(); ok {
 		_spec.SetField(user.FieldFrozenBonusBalance, field.TypeFloat64, value)
