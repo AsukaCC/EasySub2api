@@ -69,7 +69,10 @@ const confirm = ref<'apply' | 'enable' | 'disable' | null>(null)
 const preview = ref<ProtectionPreview | null>(null)
 const runtime = ref<ProtectionPreview['runtime']>()
 const integrityModes: IntegrityMode[] = ['off', 'observe', 'enforce']
-const integrity = computed(() => current.value.extra?.request_integrity_mode || runtime.value?.integrity_mode || 'off')
+const integrity = computed((): IntegrityMode => {
+  const mode = current.value.extra?.request_integrity_mode ?? runtime.value?.integrity_mode
+  return mode === 'observe' || mode === 'enforce' ? mode : 'off'
+})
 const eligibleStrategies = computed(() => strategies.value.filter(s =>
   s.apply_supported && (!s.diagnostic_only || diagnostics.value) &&
   (!s.requires_openai || (current.value.platform === 'openai' && ['oauth', 'setup-token'].includes(current.value.type)))
