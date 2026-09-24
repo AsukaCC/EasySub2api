@@ -34,7 +34,7 @@
             v-if="dropdownOpen"
             ref="panelRef"
             :style="panelStyleWithWidth"
-            class="components-common-version-badge__panel-2"
+            class="components-common-version-badge__panel-2 dropdown dropdown--portal"
             :class="rollbackPanelOpen && isReleaseBuild ? 'components-common-version-badge__panel-23' : 'components-common-version-badge__panel-24'"
             @click.stop
           >

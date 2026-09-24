@@ -27,13 +27,13 @@
         v-if="showDropdown"
         ref="panelRef"
         :style="panelStyle"
-        class="components-common-auto-refresh-button__panel-2"
+        class="components-common-auto-refresh-button__panel-2 dropdown dropdown--portal"
         @click.stop
       >
       <div class="components-common-auto-refresh-button__panel-3">
         <button
           @click="$emit('update:enabled', !enabled)"
-          class="components-common-auto-refresh-button__action-2"
+          class="components-common-auto-refresh-button__action-2 dropdown-item"
         >
           <span>{{ t('common.autoRefresh.enable') }}</span>
           <svg v-if="enabled" class="components-common-auto-refresh-button__icon-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -45,7 +45,7 @@
           v-for="sec in intervals"
           :key="sec"
           @click="$emit('update:interval', sec)"
-          class="components-common-auto-refresh-button__action-2"
+          class="components-common-auto-refresh-button__action-2 dropdown-item"
         >
           <span>{{ t('common.autoRefresh.seconds', { n: sec }) }}</span>
           <svg v-if="intervalSeconds === sec" class="components-common-auto-refresh-button__icon-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

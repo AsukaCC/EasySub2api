@@ -541,14 +541,14 @@
                     <!-- Search results dropdown -->
                     <div
                       v-if="showRuleAccountDropdown[`${section.platform}-${ruleIndex}`] && (ruleAccountSearchResults[`${section.platform}-${ruleIndex}`]?.length ?? 0) > 0"
-                      class="views-admin-channels-view__panel-27"
+                      class="views-admin-channels-view__panel-27 dropdown dropdown--menu"
                     >
                       <button
                         v-for="account in ruleAccountSearchResults[`${section.platform}-${ruleIndex}`]"
                         :key="account.id"
                         type="button"
                         @click="selectRuleAccount(rule, account, section.platform, ruleIndex)"
-                        class="views-admin-channels-view__action-10"
+                        class="views-admin-channels-view__action-10 dropdown-item"
                         :class="{ 'views-admin-channels-view__action-11': rule.account_ids.includes(account.id) }"
                         :disabled="rule.account_ids.includes(account.id)"
                       >

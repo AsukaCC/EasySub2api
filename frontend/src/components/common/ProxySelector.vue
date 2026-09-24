@@ -28,7 +28,7 @@
         <div
           v-if="isOpen"
           ref="panelRef"
-          class="select-dropdown"
+          class="select-dropdown-portal dropdown dropdown--portal"
           :style="panelStyle"
           @click.stop
         >
@@ -185,7 +185,8 @@ const triggerRef = ref<HTMLButtonElement | null>(null)
 const { panelRef, style: panelStyle } = useFloatingPanel(triggerRef, isOpen, {
   maxWidth: 480,
   align: 'start',
-  minComfortableHeight: 220
+  minComfortableHeight: 220,
+  zIndex: 100000020
 })
 const searchInputRef = ref<HTMLInputElement | null>(null)
 
@@ -305,69 +306,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.select-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.625rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--glass-field-bg);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
-}
-
-.select-trigger:hover {
-  border-color: var(--color-border-strong);
-}
-
-.select-trigger:focus {
-  border-color: var(--color-primary);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
-}
-
-.select-trigger-open {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
-}
-
-.select-trigger-disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.select-value {
-  flex: 1;
-  overflow: hidden;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.select-icon {
-  flex-shrink: 0;
-  color: var(--color-text-tertiary);
-}
-
-.select-dropdown {
-  position: absolute;
-  z-index: var(--z-dropdown);
-  width: 100%;
-  margin-top: 0.5rem;
-  overflow: hidden;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  background: var(--glass-layer-floating-bg);
-  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
-}
-
 .select-header {
   display: flex;
   align-items: center;
@@ -376,26 +314,10 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.select-search {
-  display: flex;
+.select-header .select-search {
   flex: 1;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.select-search-input {
-  flex: 1;
-  background: transparent;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-}
-
-.select-search-input:focus {
-  outline: none;
-}
-
-.select-search-input::placeholder {
-  color: var(--color-text-tertiary);
+  padding: 0;
+  border-bottom: none;
 }
 
 .batch-test-btn {
@@ -416,63 +338,6 @@ onUnmounted(() => {
   opacity: 0.5;
 }
 
-.select-options {
-  max-height: 15rem;
-  overflow-y: auto;
-  padding: 0.25rem 0;
-}
-
-.select-option {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  margin: 0 0.25rem 0.125rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.select-option:hover {
-  color: var(--color-text-primary);
-  border-color: var(--glass-border);
-  background-color: var(--glass-bg-interactive-hover);
-  -webkit-backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur-xs-hover)) saturate(var(--glass-saturate));
-  box-shadow: 0 1px 0 var(--glass-highlight) inset;
-}
-
-.select-option-selected {
-  background-color: var(--color-primary-subtle);
-  border-color: var(--color-primary-border);
-  color: var(--color-text-brand);
-  font-weight: var(--font-weight-semibold);
-}
-
-.dark .select-option-selected {
-  color: var(--color-text-brand);
-  background-color: var(--color-primary-subtle);
-}
-
-.select-option-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.select-empty {
-  padding: 2rem 1rem;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
-  text-align: center;
-}
-
 .test-btn {
   flex-shrink: 0;
   padding: 0.25rem;
@@ -489,17 +354,5 @@ onUnmounted(() => {
 .test-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-/* Dropdown animation */
-.select-dropdown-enter-active,
-.select-dropdown-leave-active {
-  transition: all 0.2s ease;
-}
-
-.select-dropdown-enter-from,
-.select-dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
 }
 </style>

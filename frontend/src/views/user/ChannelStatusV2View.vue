@@ -605,11 +605,20 @@ async function loadDimensions(signal?: AbortSignal, id = sequence) {
 }
 
 async function loadMetrics(signal?: AbortSignal, id = sequence) {
-  const nextSnapshot = await api.getSnapshot(filter.value, isAdmin.value, signal)
+  const [snapshotResult, tabResult] = await Promise.allSettled([
+    api.getSnapshot(filter.value, isAdmin.value, signal),
+    loadTab(signal, id),
+  ])
   if (id !== sequence) return
-  snapshot.value = nextSnapshot
-  scheduleAutoRefresh()
-  await loadTab(signal, id)
+  if (snapshotResult.status === 'fulfilled') {
+    snapshot.value = snapshotResult.value
+    scheduleAutoRefresh()
+  } else {
+    throw snapshotResult.reason
+  }
+  if (tabResult.status === 'rejected') {
+    throw tabResult.reason
+  }
 }
 
 async function reload(silent = true) {

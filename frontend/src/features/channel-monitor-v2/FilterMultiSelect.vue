@@ -33,7 +33,7 @@
         <div
           v-if="isOpen"
           ref="dropdownRef"
-          class="select-dropdown-portal dropdown filter-dropdown"
+          class="select-dropdown-portal dropdown dropdown--portal filter-dropdown"
           :class="[instanceId]"
           :style="dropdownStyle"
           role="listbox"
@@ -43,7 +43,7 @@
         >
           <button
             type="button"
-            class="features-channel-monitor-v2-filter-multi-select__action-2 dropdown-item select-option select-option-group"
+            class="features-channel-monitor-v2-filter-multi-select__action-2 select-option select-option-group"
             @click="clear"
           >
             <span>{{ allLabel }}</span>
@@ -55,7 +55,7 @@
             :key="option.value"
             type="button"
             role="option"
-            class="features-channel-monitor-v2-filter-multi-select__action-3 dropdown-item select-option"
+            class="features-channel-monitor-v2-filter-multi-select__action-3 select-option"
             :class="modelValue.includes(option.value) ? 'select-option-selected' : ''"
             :aria-selected="modelValue.includes(option.value)"
             @click="toggle(option.value)"
@@ -231,50 +231,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.select-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.625rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--glass-field-bg);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
-}
-
-.select-trigger:hover {
-  border-color: var(--color-border-strong);
-}
-
-.select-trigger-open {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
-}
-
 .filter-menu summary::-webkit-details-marker {
   display: none;
 }
 
 .filter-dropdown {
-  width: max-content;
-  min-width: 200px;
   max-height: min(50vh, 360px);
   overflow-y: auto;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  background: var(--glass-layer-floating-bg);
-  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-  box-shadow: var(--glass-shadow-hover), 0 1px 0 var(--glass-highlight) inset;
-}
-
-.dropdown-item {
-  cursor: pointer;
 }
 
 .checkbox {

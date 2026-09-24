@@ -11,6 +11,7 @@ import { useAdminComplianceStore } from '@/stores/adminCompliance'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
+import { ensureRouteMessages } from '@/i18n'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
@@ -1082,6 +1083,8 @@ function isBackendModePublicRouteAllowed(path: string, hasPendingAuthSession: bo
 router.beforeEach(async (to, _from, next) => {
   // 开始导航加载状态
   navigationIDs.set(to, navigationLoading.startNavigation())
+
+  await ensureRouteMessages(to.path)
 
   const authStore = useAuthStore()
 

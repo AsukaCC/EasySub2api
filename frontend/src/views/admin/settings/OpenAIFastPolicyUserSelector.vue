@@ -47,7 +47,7 @@
 
     <div
       v-if="showDropdown && searchQuery.trim()"
-      class="views-admin-settings-open-aifast-policy-user-selector__panel-3"
+      class="views-admin-settings-open-aifast-policy-user-selector__panel-3 dropdown dropdown--menu"
     >
       <div v-if="searchLoading" class="views-admin-settings-open-aifast-policy-user-selector__panel-4">
         {{ t("common.loading") }}
@@ -63,7 +63,7 @@
           v-for="user in availableResults"
           :key="user.id"
           type="button"
-          class="views-admin-settings-open-aifast-policy-user-selector__action-2"
+          class="views-admin-settings-open-aifast-policy-user-selector__action-2 dropdown-item"
           @click="selectUser(user)"
         >
           <span class="views-admin-settings-open-aifast-policy-user-selector__text-4">

@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { RouterView, useRouter, useRoute } from 'vue-router'
-import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, watch } from 'vue'
 import Toast from '@/components/common/Toast.vue'
 import NavigationProgress from '@/components/common/NavigationProgress.vue'
-import AdminComplianceDialog from '@/components/admin/AdminComplianceDialog.vue'
 import { resolveRouteDocumentTitle } from '@/router/title'
-import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
 import AnnouncementBanner from '@/components/common/AnnouncementBanner.vue'
-import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
+import { useSubscriptionStore } from '@/stores/subscriptions'
+import { useAnnouncementStore } from '@/stores/announcements'
+import { useAdminComplianceStore } from '@/stores/adminCompliance'
+import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import { ensureRouteMessages } from '@/i18n'
+import { scheduleIdle } from '@/utils/scheduleIdle'
+
+const AnnouncementPopup = defineAsyncComponent(() => import('@/components/common/AnnouncementPopup.vue'))
+const AdminComplianceDialog = defineAsyncComponent(() => import('@/components/admin/AdminComplianceDialog.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -75,10 +83,13 @@ function onAdminComplianceRequired(event: Event) {
 const subscriptionFeatureEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.subscription))
 
 function startSubscriptionSync() {
-  subscriptionStore.fetchActiveSubscriptions().catch((error) => {
-    console.error('Failed to preload subscriptions:', error)
+  scheduleIdle(() => {
+    if (!authStore.isAuthenticated || !subscriptionFeatureEnabled.value) return
+    subscriptionStore.fetchActiveSubscriptions().catch((error) => {
+      console.error('Failed to preload subscriptions:', error)
+    })
+    subscriptionStore.startPolling()
   })
-  subscriptionStore.startPolling()
 }
 
 watch(subscriptionFeatureEnabled, (enabled) => {
@@ -105,6 +116,7 @@ watch(
       if (subscriptionFeatureEnabled.value) {
         startSubscriptionSync()
       }
+      void ensureRouteMessages(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
 
       // Announcements: new login vs page refresh restore
       if (oldValue === false) {
@@ -143,19 +155,17 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   window.addEventListener('admin-compliance-required', onAdminComplianceRequired)
 
-  // Check if setup is needed
-  try {
-    const status = await getSetupStatus()
-    if (status.needs_setup && route.path !== '/setup') {
+  const [setupResult] = await Promise.allSettled([
+    getSetupStatus(),
+    appStore.fetchPublicSettings(),
+  ])
+
+  if (setupResult.status === 'fulfilled') {
+    if (setupResult.value.needs_setup && route.path !== '/setup') {
       router.replace('/setup')
       return
     }
-  } catch {
-    // If setup endpoint fails, assume normal mode and continue
   }
-
-  // Load public settings into appStore (will be cached for other components)
-  await appStore.fetchPublicSettings()
 
   // Re-resolve document title now that site settings are available
   updateDocumentTitle()
@@ -168,5 +178,5 @@ onMounted(async () => {
   <RouterView />
   <Toast />
   <AnnouncementPopup />
-  <AdminComplianceDialog />
+  <AdminComplianceDialog v-if="authStore.isAdmin" />
 </template>

@@ -39,7 +39,7 @@
           v-if="showDropdown"
           ref="panelRef"
           :style="panelStyle"
-          class="components-account-model-whitelist-selector__panel-5"
+          class="components-account-model-whitelist-selector__panel-5 dropdown dropdown--portal"
           @click.stop
         >
         <div class="components-account-model-whitelist-selector__panel-6">
@@ -61,7 +61,7 @@
             <button
               type="button"
               data-testid="select-model"
-              class="components-account-model-whitelist-selector__action-2"
+              class="components-account-model-whitelist-selector__action-2 dropdown-item"
               @click="toggleModel(model.value)"
             >
               <span

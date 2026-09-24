@@ -86,6 +86,9 @@ vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError,
     showSuccess,
+    cachedPublicSettings: null,
+    publicSettingsLoaded: false,
+    fetchPublicSettings: getPublicSettings,
   }),
 }))
 

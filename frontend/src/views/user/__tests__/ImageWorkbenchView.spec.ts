@@ -39,8 +39,9 @@ async function mountWorkbench() {
     },
   })
   await flushPromises()
-  const selects = wrapper.findAll('.settings-form select')
-  return { keySelect: selects[0], modelSelect: selects[1] }
+  const keySelect = wrapper.findComponent('[data-testid="workbench-key-select"]')
+  const modelSelect = wrapper.findComponent('[data-testid="workbench-model-select"]')
+  return { keySelect, modelSelect }
 }
 
 describe('image workbench model selection', () => {
@@ -60,14 +61,14 @@ describe('image workbench model selection', () => {
     const old = deferred()
     vi.mocked(listImageModels).mockReturnValueOnce(old.promise).mockResolvedValueOnce([{ id: 'gpt-image-2' }])
     const { keySelect, modelSelect } = await mountWorkbench()
-    expect(modelSelect.attributes('disabled')).toBeDefined()
+    expect(modelSelect.props('disabled')).toBe(true)
     await keySelect.setValue('second')
     await flushPromises()
     if (outcome === 'success') old.resolve([{ id: 'gpt-image-1' }])
     else old.reject(new Error('old failure'))
     await flushPromises()
-    expect((modelSelect.element as HTMLSelectElement).value).toBe('gpt-image-2')
-    expect(modelSelect.text()).not.toContain('gpt-image-1')
+    expect(modelSelect.props('modelValue')).toBe('gpt-image-2')
+    expect(JSON.stringify(modelSelect.props('options'))).not.toContain('gpt-image-1')
     expect(wrapper!.find('[role="alert"]').exists()).toBe(false)
     expect(listImageModels).toHaveBeenCalledTimes(2)
   })
@@ -80,12 +81,12 @@ describe('image workbench model selection', () => {
     const { keySelect, modelSelect } = await mountWorkbench()
     await keySelect.setValue('second')
     await flushPromises()
-    expect((modelSelect.element as HTMLSelectElement).value).toBe('')
-    expect(modelSelect.attributes('disabled')).toBeDefined()
+    expect(modelSelect.props('modelValue')).toBe('')
+    expect(modelSelect.props('disabled')).toBe(true)
     expect(wrapper!.get('[role="alert"]').text()).toBe('API key expired')
     await keySelect.setValue('first')
     await flushPromises()
-    expect((modelSelect.element as HTMLSelectElement).value).toBe('gpt-image-2')
+    expect(modelSelect.props('modelValue')).toBe('gpt-image-2')
     expect(wrapper!.find('[role="alert"]').exists()).toBe(false)
   })
 
@@ -95,7 +96,7 @@ describe('image workbench model selection', () => {
     }))
     vi.mocked(listImageModels).mockResolvedValue([{ id: 'gpt-image-1' }, { id: 'gpt-image-2' }])
     const { modelSelect } = await mountWorkbench()
-    expect((modelSelect.element as HTMLSelectElement).value).toBe('gpt-image-2')
+    expect(modelSelect.props('modelValue')).toBe('gpt-image-2')
     expect(listImageModels).toHaveBeenCalledTimes(1)
   })
 })

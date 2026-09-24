@@ -1,17 +1,11 @@
-import landing from './landing'
-import common from './common'
-import dashboard from './dashboard'
+import core from './core'
+import app from './app'
 import channelMonitorV2 from './channelMonitorV2'
 import admin from './admin'
-import misc from './misc'
-import upstreamUpdate from './upstreamUpdate'
 
 export default {
-  ...upstreamUpdate,
-  ...landing,
-  ...common,
-  ...dashboard,
+  ...core,
+  ...app,
   ...channelMonitorV2,
   admin,
-  ...misc,
 }

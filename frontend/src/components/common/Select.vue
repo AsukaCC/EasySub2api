@@ -527,7 +527,9 @@ onUnmounted(() => {
 .app-select__chevron--open {
   transform: rotate(180deg);
 }
+</style>
 
+<style>
 .select-trigger {
   display: flex;
   align-items: center;
@@ -605,9 +607,7 @@ onUnmounted(() => {
 .select-clear:hover {
   color: var(--color-text-secondary);
 }
-</style>
 
-<style>
 .select-dropdown__search-icon,
 .select-dropdown__create-icon {
   flex-shrink: 0;

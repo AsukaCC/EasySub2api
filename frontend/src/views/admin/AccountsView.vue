@@ -88,19 +88,19 @@
                           {{ t('admin.accounts.dataActions') }}
                         </div>
                       </div>
-                      <button class="account-tools-menu-item" @click="openSyncFromCrs">
+                      <button class="dropdown-item" @click="openSyncFromCrs">
                         <span class="views-admin-accounts-view__text-2 account-tools-menu-icon">
                           <Icon name="sync" size="sm" />
                         </span>
                         <span class="views-admin-accounts-view__text-3">{{ t('admin.accounts.syncFromCrs') }}</span>
                       </button>
-                      <button class="account-tools-menu-item" @click="openImportData">
+                      <button class="dropdown-item" @click="openImportData">
                         <span class="views-admin-accounts-view__text-4 account-tools-menu-icon">
                           <Icon name="upload" size="sm" />
                         </span>
                         <span class="views-admin-accounts-view__text-3">{{ t('admin.accounts.dataImport') }}</span>
                       </button>
-                      <button class="account-tools-menu-item" @click="openExportDataDialogFromMenu">
+                      <button class="dropdown-item" @click="openExportDataDialogFromMenu">
                         <span class="views-admin-accounts-view__text-5 account-tools-menu-icon">
                           <Icon name="download" size="sm" />
                         </span>
@@ -121,13 +121,13 @@
                           {{ t('admin.accounts.toolActions') }}
                         </div>
                       </div>
-                      <button class="account-tools-menu-item" @click="openErrorPassthrough">
+                      <button class="dropdown-item" @click="openErrorPassthrough">
                         <span class="views-admin-accounts-view__text-7 account-tools-menu-icon">
                           <Icon name="shield" size="sm" />
                         </span>
                         <span class="views-admin-accounts-view__text-3">{{ t('admin.errorPassthrough.title') }}</span>
                       </button>
-                      <button class="account-tools-menu-item" @click="openTLSFingerprintProfiles">
+                      <button class="dropdown-item" @click="openTLSFingerprintProfiles">
                         <span class="views-admin-accounts-view__text-8 account-tools-menu-icon">
                           <Icon name="lock" size="sm" />
                         </span>
@@ -2615,22 +2615,6 @@ onUnmounted(() => {
   .account-schedule-toggle__thumb {
     transition-duration: 0.01ms;
   }
-}
-
-.account-tools-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  transition: background-color 150ms ease;
-}
-
-.account-tools-menu-item:hover {
-  background: rgba(120, 120, 128, 0.12);
 }
 
 .account-tools-menu-icon {

@@ -9,55 +9,67 @@
     "expected": [
       {
         "model": "gpt-5.4",
-        "probability": 0.9999999900868378
+        "probability": 0.9999997898233897
       },
       {
-        "model": "gpt-5.5",
-        "probability": 4.897434361866102e-9
+        "model": "gpt-6-sol",
+        "probability": 2.101194752717e-7
+      },
+      {
+        "model": "gpt-6-luna",
+        "probability": 1.75406469608459e-11
       },
       {
         "model": "gpt-6-astra",
-        "probability": 3.5324795383448176e-9
+        "probability": 1.447410692128913e-11
       },
       {
-        "model": "gpt-5.6-sol",
-        "probability": 4.5684946028607204e-10
-      },
-      {
-        "model": "claude-opus-4-6",
-        "probability": 4.4183142960160963e-10
-      },
-      {
-        "model": "gpt-5.6-terra",
-        "probability": 4.2193124034707217e-10
+        "model": "gpt-5.5",
+        "probability": 1.1192360815903885e-11
       },
       {
         "model": "claude-sonnet-4-6",
-        "probability": 1.3479602720284702e-10
+        "probability": 7.232352248144247e-12
+      },
+      {
+        "model": "gpt-5.6-terra",
+        "probability": 2.746810240386597e-12
+      },
+      {
+        "model": "claude-opus-4-6",
+        "probability": 2.4393851116200763e-12
+      },
+      {
+        "model": "gpt-5.6-sol",
+        "probability": 1.1415200748758658e-12
+      },
+      {
+        "model": "claude-opus-5-5",
+        "probability": 2.6299797280463305e-13
       },
       {
         "model": "gpt-5.6-luna",
-        "probability": 2.783777231652176e-11
+        "probability": 1.0469541494900702e-13
       },
       {
         "model": "claude-haiku-4-5-20251001",
-        "probability": 2.090899729435297e-15
-      },
-      {
-        "model": "claude-opus-5",
-        "probability": 2.1808738771607274e-16
+        "probability": 1.0598815214254681e-16
       },
       {
         "model": "claude-opus-4-8",
-        "probability": 2.174197225382382e-16
+        "probability": 3.485814099277079e-17
+      },
+      {
+        "model": "claude-opus-5",
+        "probability": 1.1516238606418795e-17
       },
       {
         "model": "claude-sonnet-5",
-        "probability": 9.584643712572517e-17
+        "probability": 5.698857572357598e-18
       },
       {
         "model": "claude-opus-4-7",
-        "probability": 4.657680812608614e-19
+        "probability": 1.1527044323710169e-19
       }
     ]
   },
@@ -75,51 +87,63 @@
       },
       {
         "model": "claude-opus-5",
-        "probability": 1.9941641810847876e-16
-      },
-      {
-        "model": "claude-sonnet-4-6",
-        "probability": 6.2677389445264e-17
-      },
-      {
-        "model": "gpt-5.4",
-        "probability": 6.194872921804782e-17
-      },
-      {
-        "model": "claude-opus-4-6",
-        "probability": 4.698644540645938e-17
+        "probability": 2.356678804131479e-16
       },
       {
         "model": "claude-opus-4-7",
-        "probability": 4.0609536890549434e-17
+        "probability": 8.206151401401948e-17
       },
       {
-        "model": "gpt-5.5",
-        "probability": 1.3994819672109775e-17
+        "model": "claude-sonnet-4-6",
+        "probability": 5.458362621682926e-17
       },
       {
         "model": "claude-opus-4-8",
-        "probability": 4.960651740969342e-18
+        "probability": 1.0562915681743392e-17
+      },
+      {
+        "model": "claude-opus-4-6",
+        "probability": 7.860377811488618e-18
+      },
+      {
+        "model": "gpt-5.4",
+        "probability": 5.019120028045181e-18
       },
       {
         "model": "claude-sonnet-5",
-        "probability": 3.320021495090501e-18
+        "probability": 1.5872920619905071e-18
+      },
+      {
+        "model": "gpt-5.5",
+        "probability": 3.258668634058361e-19
+      },
+      {
+        "model": "claude-opus-5-5",
+        "probability": 2.6748987690915654e-19
+      },
+      {
+        "model": "gpt-6-luna",
+        "probability": 2.3044755059389976e-19
       },
       {
         "model": "gpt-5.6-terra",
-        "probability": 2.048999845979424e-18
-      },
-      {
-        "model": "gpt-5.6-luna",
-        "probability": 1.478471525198376e-18
+        "probability": 1.5232422555704132e-19
       },
       {
         "model": "gpt-6-astra",
-        "probability": 1.2349680390700598e-18
+        "probability": 7.064325483282976e-20
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "probability": 5.1852763638528963e-20
       },
       {
         "model": "gpt-5.6-sol",
-        "probability": 1.1187973061798832e-18
+        "probability": 3.753475630907985e-20
+      },
+      {
+        "model": "gpt-6-sol",
+        "probability": 2.0837138349066884e-21
       }
     ]
   },
@@ -133,55 +157,67 @@
     "expected": [
       {
         "model": "gpt-5.4",
-        "probability": 0.9982668464576276
+        "probability": 0.9992760956487504
       },
       {
         "model": "claude-haiku-4-5-20251001",
-        "probability": 0.00145693471566789
+        "probability": 0.0007059893305114099
       },
       {
         "model": "gpt-6-astra",
-        "probability": 0.00023293928587681063
+        "probability": 0.000013930140227926082
       },
       {
         "model": "gpt-5.6-terra",
-        "probability": 0.000022356481740774788
+        "probability": 0.0000014885727107157514
+      },
+      {
+        "model": "gpt-6-sol",
+        "probability": 0.0000011436038456633706
+      },
+      {
+        "model": "claude-opus-5-5",
+        "probability": 8.615964064521021e-7
       },
       {
         "model": "gpt-5.6-sol",
-        "probability": 0.000019922948750909392
-      },
-      {
-        "model": "gpt-5.5",
-        "probability": 4.688096902375459e-7
-      },
-      {
-        "model": "gpt-5.6-luna",
-        "probability": 2.339793072145529e-7
-      },
-      {
-        "model": "claude-opus-4-6",
-        "probability": 1.5698104921671797e-7
+        "probability": 4.403680690422961e-7
       },
       {
         "model": "claude-sonnet-4-6",
-        "probability": 1.4033852370446403e-7
+        "probability": 3.008404736871171e-8
+      },
+      {
+        "model": "gpt-6-luna",
+        "probability": 6.7573878284878704e-9
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "probability": 6.523113906053313e-9
+      },
+      {
+        "model": "claude-opus-4-6",
+        "probability": 4.332290412708573e-9
+      },
+      {
+        "model": "gpt-5.5",
+        "probability": 3.0423694517785743e-9
       },
       {
         "model": "claude-opus-5",
-        "probability": 9.31212792025709e-13
-      },
-      {
-        "model": "claude-sonnet-5",
-        "probability": 5.848838198110363e-13
+        "probability": 1.103255288481468e-13
       },
       {
         "model": "claude-opus-4-7",
-        "probability": 2.3029420456977557e-13
+        "probability": 9.115521693425207e-14
+      },
+      {
+        "model": "claude-sonnet-5",
+        "probability": 6.254217309912266e-14
       },
       {
         "model": "claude-opus-4-8",
-        "probability": 1.91818012733398e-14
+        "probability": 5.369654862607269e-15
       }
     ]
   }

@@ -74,11 +74,11 @@
           </label>
           <label>
             <span>{{ t('admin.users.levels.window') }}</span>
-            <select v-model.number="draft.window_days" class="input">
-              <option :value="7">7d</option>
-              <option :value="14">14d</option>
-              <option :value="30">30d</option>
-            </select>
+            <Select
+              v-model="draft.window_days"
+              :options="windowDayOptions"
+              :searchable="false"
+            />
           </label>
           <label class="user-level-rule-editor__toggle">
             <span>{{ t('admin.users.levels.status') }}</span>
@@ -145,6 +145,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
+import Select from '@/components/common/Select.vue'
 import { adminAPI } from '@/api'
 import type { UserLevelRule, UserLevelRuleTierInput } from '@/api/admin/users'
 import { useAppStore } from '@/stores/app'
@@ -160,6 +161,11 @@ interface TierDraft {
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const windowDayOptions = [
+  { value: 7, label: '7d' },
+  { value: 14, label: '14d' },
+  { value: 30, label: '30d' },
+]
 const rules = ref<UserLevelRule[]>([])
 const loading = ref(false)
 const saving = ref(false)

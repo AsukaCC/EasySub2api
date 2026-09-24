@@ -7417,13 +7417,13 @@
                   />
                   <div
                     v-if="affiliateModal.userResults.length > 0"
-                    class="views-admin-settings-view__panel-136"
+                    class="views-admin-settings-view__panel-136 dropdown dropdown--menu"
                   >
                     <button
                       v-for="u in affiliateModal.userResults"
                       :key="u.id"
                       type="button"
-                      class="views-admin-settings-view__action-33"
+                      class="views-admin-settings-view__action-33 dropdown-item"
                       @click="selectAffiliateUser(u)"
                     >
                       {{ u.email }} <span class="views-admin-settings-view__label-14">({{ u.username }})</span>

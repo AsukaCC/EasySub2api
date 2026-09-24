@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import OpenCodeAccountFields from '../OpenCodeAccountFields.vue'
+import Select from '@/components/common/Select.vue'
 import { applyOpenCodeSettings, defaultOpenCodeRules, openCodeBaseUrl, readOpenCodeSettings } from '../openCodeCredentials'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -22,10 +23,10 @@ describe('OpenCode account settings', () => {
   })
   it('switches the official endpoint with the plan and preserves a custom endpoint', async () => {
     const wrapper = mount(OpenCodeAccountFields, { props: { modelValue: readOpenCodeSettings(), baseUrl: openCodeBaseUrl('go') } })
-    await wrapper.findAll('select')[0]!.setValue('zen')
+    await wrapper.findAllComponents(Select)[0]!.setValue('zen')
     expect(wrapper.emitted('update:baseUrl')?.[0]).toEqual([openCodeBaseUrl('zen')])
     await wrapper.setProps({ baseUrl: 'https://relay.example/v1' })
-    await wrapper.findAll('select')[0]!.setValue('zen')
+    await wrapper.findAllComponents(Select)[0]!.setValue('zen')
     expect(wrapper.emitted('update:baseUrl')).toHaveLength(1)
   })
   it('edits rules without mutating the supplied settings', async () => {

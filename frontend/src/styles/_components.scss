@@ -17,12 +17,26 @@
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-tight);
   white-space: nowrap;
-  // 按压 transform 由 GSAP 委托(utils/pressEffect)接管,transition 不含 transform
-  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 120ms ease-out;
+
+  &:active:not(:disabled):not([aria-disabled='true']) {
+    transform: scale(0.97);
+  }
 
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .btn {
+    transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+
+    &:active:not(:disabled):not([aria-disabled='true']) {
+      transform: none;
+    }
   }
 }
 

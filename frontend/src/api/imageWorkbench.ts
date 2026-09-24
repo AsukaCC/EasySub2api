@@ -227,9 +227,16 @@ export async function loadWorkbenchCredentials(): Promise<{ keys: ApiKey[]; grou
     userGroupsAPI.getAvailable(),
   ])
   const allKeys = [...keyPage.items]
-  for (let page = 2; page <= keyPage.pages; page += 1) {
-    const nextPage = await keysAPI.list(page, keyPage.page_size, { status: 'active' })
-    allKeys.push(...nextPage.items)
+  const remainingPages = Array.from({ length: Math.max(0, keyPage.pages - 1) }, (_, index) => index + 2)
+  const concurrency = 3
+  for (let index = 0; index < remainingPages.length; index += concurrency) {
+    const batch = remainingPages.slice(index, index + concurrency)
+    const pages = await Promise.all(
+      batch.map((page) => keysAPI.list(page, keyPage.page_size, { status: 'active' }))
+    )
+    for (const nextPage of pages) {
+      allKeys.push(...nextPage.items)
+    }
   }
   const groupMap = new Map(groups.map((group) => [group.id, group]))
   const keys = allKeys.map((key) => ({

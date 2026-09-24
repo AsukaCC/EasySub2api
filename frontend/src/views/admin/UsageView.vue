@@ -410,17 +410,28 @@ const loadStats = async (force = false) => {
   try {
     const requestType = filters.value.request_type
     const legacyStream = requestType ? requestTypeToLegacyStream(requestType) : filters.value.stream
-    const s = await adminAPI.usage.getStats({
+    const statsRequest = {
       ...filters.value,
       stream: legacyStream === null ? undefined : legacyStream,
       scope: adminUsageRoleScope.value,
       base_path: `${usageApiBasePath.value}/stats`,
       ...(force ? { nocache: 1 } : {}),
-    })
+    }
+    const [s, adminS] = await Promise.all([
+      adminAPI.usage.getStats(statsRequest),
+      isMergedUsagePage.value
+        ? adminAPI.usage.getStats({
+            ...filters.value,
+            scope: 'admin',
+            base_path: '/admin/accounts/admin-usage/stats',
+            ...(force ? { nocache: 1 } : {}),
+          })
+        : Promise.resolve(null),
+    ])
     if (seq !== statsReqSeq) return
     usageStats.value = s
-    if (isMergedUsagePage.value) {
-      adminUsageStats.value = await adminAPI.usage.getStats({ ...filters.value, scope: 'admin', base_path: '/admin/accounts/admin-usage/stats', ...(force ? { nocache: 1 } : {}) })
+    if (adminS) {
+      adminUsageStats.value = adminS
     }
     inboundEndpointStats.value = s.endpoints || []
     upstreamEndpointStats.value = s.upstream_endpoints || []
@@ -912,7 +923,17 @@ watch(() => route.path, (path, previousPath) => {
   errRows.value = []
   applyRouteQueryFilters()
   void loadRouteUserFilterLabel()
-  applyFilters()
+  pagination.page = 1
+  invalidateModelStatsCache()
+  loadLogs()
+  loadStats()
+  loadModelStats(modelDistributionSource.value, true)
+  window.setTimeout(() => {
+    void loadChartData()
+  }, 120)
+  if (activeTab.value === 'errors') {
+    loadAdminErrors()
+  }
 })
 
 defineExpose({ requestedModelStats, refreshData })

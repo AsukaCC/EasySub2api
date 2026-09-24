@@ -21,14 +21,15 @@
         >
           <Icon name="folder" size="sm" />
         </button>
-        <label v-if="!inCollectionOverview" class="pill-select">
+        <div v-if="!inCollectionOverview" class="pill-select">
           <span class="sr-only">{{ t('imageWorkbench.all') }}</span>
-          <select v-model="modelFilter">
-            <option value="">{{ t('imageWorkbench.all') }}</option>
-            <option v-for="model in historyModels" :key="model" :value="model">{{ model }}</option>
-          </select>
-          <Icon name="chevronDown" size="xs" />
-        </label>
+          <Select
+            v-model="modelFilter"
+            :options="modelFilterOptions"
+            :searchable="false"
+            :aria-label="t('imageWorkbench.all')"
+          />
+        </div>
         <label class="search-field">
           <Icon name="search" size="sm" />
           <input
@@ -160,37 +161,38 @@
 
         <Transition name="advanced-slide">
           <div v-if="showAdvanced && hasAdvancedCapabilities" class="composer__advanced">
-            <label v-if="adapter.capabilities.outputFormat" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.format')">
+            <div v-if="adapter.capabilities.outputFormat" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.format')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.format') }}</span>
-              <select v-model="params.output_format">
-                <option value="png">PNG</option>
-                <option value="jpeg">JPEG</option>
-                <option value="webp">WebP</option>
-              </select>
-              <Icon name="chevronDown" size="xs" />
-            </label>
+              <Select
+                v-model="params.output_format"
+                :options="formatOptions"
+                :searchable="false"
+                :aria-label="t('imageWorkbench.format')"
+              />
+            </div>
             <label v-if="adapter.capabilities.outputFormat" class="toolbar-pill toolbar-pill--input" :title="t('imageWorkbench.compression')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.compression') }}</span>
               <input v-model.number="params.output_compression" type="number" min="0" max="100" step="1" />
               <span class="toolbar-pill__suffix">%</span>
             </label>
-            <label v-if="adapter.capabilities.transparency" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.transparent')">
+            <div v-if="adapter.capabilities.transparency" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.transparent')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.transparent') }}</span>
-              <select v-model="params.background">
-                <option value="auto">auto</option>
-                <option value="transparent">transparent</option>
-                <option value="opaque">opaque</option>
-              </select>
-              <Icon name="chevronDown" size="xs" />
-            </label>
-            <label v-if="adapter.capabilities.quality" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.moderation')">
+              <Select
+                v-model="params.background"
+                :options="backgroundOptions"
+                :searchable="false"
+                :aria-label="t('imageWorkbench.transparent')"
+              />
+            </div>
+            <div v-if="adapter.capabilities.quality" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.moderation')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.moderation') }}</span>
-              <select v-model="params.moderation">
-                <option value="auto">auto</option>
-                <option value="low">low</option>
-              </select>
-              <Icon name="chevronDown" size="xs" />
-            </label>
+              <Select
+                v-model="params.moderation"
+                :options="moderationOptions"
+                :searchable="false"
+                :aria-label="t('imageWorkbench.moderation')"
+              />
+            </div>
           </div>
         </Transition>
 
@@ -216,16 +218,15 @@
               <span class="toolbar-pill__val">{{ params.size || 'auto' }}</span>
               <Icon name="chevronDown" size="xs" />
             </button>
-            <label v-if="adapter.capabilities.quality" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.quality')">
+            <div v-if="adapter.capabilities.quality" class="toolbar-pill toolbar-pill--select" :title="t('imageWorkbench.quality')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.quality') }}</span>
-              <select v-model="params.quality">
-                <option value="auto">auto</option>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
-              <Icon name="chevronDown" size="xs" />
-            </label>
+              <Select
+                v-model="params.quality"
+                :options="qualityOptions"
+                :searchable="false"
+                :aria-label="t('imageWorkbench.quality')"
+              />
+            </div>
             <label class="toolbar-pill toolbar-pill--number" :title="t('imageWorkbench.quantity')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.quantity') }}</span>
               <input v-model.number="params.n" type="number" min="1" max="4" step="1" />
@@ -305,17 +306,23 @@
         </div>
         <label>
           <span>{{ t('imageWorkbench.apiKey') }}</span>
-          <select v-model="selectedKeyId" :disabled="eligibleKeys.length === 0">
-            <option value="">{{ eligibleKeys.length ? t('imageWorkbench.apiKey') : t('imageWorkbench.noKeys') }}</option>
-            <option v-for="key in eligibleKeys" :key="key.id" :value="key.id">{{ key.name || key.id }}</option>
-          </select>
+          <Select
+            v-model="selectedKeyId"
+            data-testid="workbench-key-select"
+            :options="keySelectOptions"
+            :disabled="eligibleKeys.length === 0"
+            :placeholder="eligibleKeys.length ? t('imageWorkbench.apiKey') : t('imageWorkbench.noKeys')"
+          />
         </label>
         <label>
           <span>{{ t('imageWorkbench.model') }}</span>
-          <select v-model="selectedModel" :disabled="loadingModels || models.length === 0">
-            <option value="">{{ loadingModels ? t('imageWorkbench.loading') : modelsError ? t('imageWorkbench.modelsLoadFailed') : models.length ? t('imageWorkbench.model') : t('imageWorkbench.noModels') }}</option>
-            <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name || model.id }}</option>
-          </select>
+          <Select
+            v-model="selectedModel"
+            data-testid="workbench-model-select"
+            :options="modelSelectOptions"
+            :disabled="loadingModels || models.length === 0"
+            :placeholder="modelSelectPlaceholder"
+          />
         </label>
         <p v-if="modelsError" role="alert">{{ modelsError }}</p>
         <button class="primary-button" type="button" @click="saveConnection">{{ t('common.save') }}</button>
@@ -329,12 +336,7 @@
         </div>
         <label>
           <span>{{ t('imageWorkbench.quality') }}</span>
-          <select v-model="preferences.quality">
-            <option value="auto">auto</option>
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-          </select>
+          <Select v-model="preferences.quality" :options="qualityOptions" :searchable="false" />
         </label>
         <button class="primary-button" type="button" @click="savePreferences">{{ t('common.save') }}</button>
       </div>
@@ -386,7 +388,8 @@ import { formatDateValue } from '@/utils/datetime'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import { useAppStore } from '@/stores'
+import Select from '@/components/common/Select.vue'
+import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import {
   eligibleImageKeys,
@@ -514,6 +517,45 @@ const favoriteButtonTitle = computed(() => {
   return t('imageWorkbench.favorites')
 })
 const historyModels = computed(() => [...new Set(history.value.map((item) => item.model).filter(Boolean))])
+const modelFilterOptions = computed(() => [
+  { value: '', label: t('imageWorkbench.all') },
+  ...historyModels.value.map((model) => ({ value: model, label: model })),
+])
+const formatOptions = [
+  { value: 'png', label: 'PNG' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'webp', label: 'WebP' },
+]
+const backgroundOptions = [
+  { value: 'auto', label: 'auto' },
+  { value: 'transparent', label: 'transparent' },
+  { value: 'opaque', label: 'opaque' },
+]
+const moderationOptions = [
+  { value: 'auto', label: 'auto' },
+  { value: 'low', label: 'low' },
+]
+const qualityOptions = [
+  { value: 'auto', label: 'auto' },
+  { value: 'low', label: 'low' },
+  { value: 'medium', label: 'medium' },
+  { value: 'high', label: 'high' },
+]
+const keySelectOptions = computed(() =>
+  eligibleKeys.value.map((key) => ({ value: key.id, label: key.name || key.id })),
+)
+const modelSelectPlaceholder = computed(() =>
+  loadingModels.value
+    ? t('imageWorkbench.loading')
+    : modelsError.value
+      ? t('imageWorkbench.modelsLoadFailed')
+      : models.value.length
+        ? t('imageWorkbench.model')
+        : t('imageWorkbench.noModels'),
+)
+const modelSelectOptions = computed(() =>
+  models.value.map((model) => ({ value: model.id, label: model.name || model.id })),
+)
 const favoriteItems = computed(() => history.value.filter((item) => isItemFavorite(item, defaultFavoriteCollectionId.value)))
 const collectionCards = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -1196,24 +1238,33 @@ onMounted(async () => {
   favoriteCollections.value = ensureDefaultFavoriteCollection(favoriteState.collections)
   defaultFavoriteCollectionId.value = favoriteState.defaultFavoriteCollectionId
   try {
-    credentials.value = await loadWorkbenchCredentials()
-  } catch {
-    errorMessage.value = t('imageWorkbench.loadFailed')
-  }
-  try {
-    history.value = await listHistory()
-    let migrated = false
-    for (const item of history.value) {
-      const ids = itemCollectionIds(item, defaultFavoriteCollectionId.value)
-      const favorite = ids.length > 0
-      if (item.favorite === favorite && (item.favoriteCollectionIds || []).join() === ids.join()) continue
-      await putHistory({ ...item, favorite, favoriteCollectionIds: ids })
-      migrated = true
+    const [credentialsResult, historyResult, tasksResult] = await Promise.allSettled([
+      loadWorkbenchCredentials(),
+      listHistory(),
+      listTasks(),
+    ])
+    if (credentialsResult.status === 'fulfilled') {
+      credentials.value = credentialsResult.value
+    } else {
+      errorMessage.value = t('imageWorkbench.loadFailed')
     }
-    if (migrated) history.value = await listHistory()
-    taskItems.value = await listTasks()
-    for (const task of taskItems.value) {
-      if (task.status === 'queued' || task.status === 'processing') startTaskPolling(task)
+    if (historyResult.status === 'fulfilled') {
+      history.value = historyResult.value
+      let migrated = false
+      for (const item of history.value) {
+        const ids = itemCollectionIds(item, defaultFavoriteCollectionId.value)
+        const favorite = ids.length > 0
+        if (item.favorite === favorite && (item.favoriteCollectionIds || []).join() === ids.join()) continue
+        await putHistory({ ...item, favorite, favoriteCollectionIds: ids })
+        migrated = true
+      }
+      if (migrated) history.value = await listHistory()
+    }
+    if (tasksResult.status === 'fulfilled') {
+      taskItems.value = tasksResult.value
+      for (const task of taskItems.value) {
+        if (task.status === 'queued' || task.status === 'processing') startTaskPolling(task)
+      }
     }
   } finally {
     loadingHistory.value = false
@@ -1286,7 +1337,7 @@ onUnmounted(() => {
 .pill-select {
   position: relative;
   min-width: 5.4rem;
-  padding: 0 1.85rem 0 .95rem;
+  padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
@@ -1305,36 +1356,34 @@ onUnmounted(() => {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 25%, transparent);
 }
 
-.pill-select select,
-.pill-select select:hover,
-.pill-select select:focus,
-.pill-select select:active {
+.pill-select :deep(.app-select) {
   width: 100%;
+}
+
+.pill-select :deep(.select-trigger),
+.pill-select :deep(.select-trigger:hover),
+.pill-select :deep(.select-trigger:focus),
+.pill-select :deep(.select-trigger-open) {
+  min-height: 2.35rem;
+  padding: 0 .85rem 0 .95rem;
   border: 0 !important;
+  border-radius: var(--radius-full);
   background: transparent !important;
-  background-color: transparent !important;
   box-shadow: none !important;
   outline: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  appearance: none !important;
-  color: var(--color-text-primary) !important;
+  color: var(--color-text-primary);
   font: inherit;
   cursor: pointer;
 }
 
-.pill-select :deep(.app-icon) {
-  position: absolute;
-  right: .75rem;
-  pointer-events: none;
+.pill-select :deep(.select-icon) {
   color: var(--color-text-tertiary);
-  transition: color .15s ease;
 }
 
-.pill-select:hover :deep(.app-icon),
-.pill-select:focus-within :deep(.app-icon) {
+.pill-select:hover :deep(.select-icon),
+.pill-select:focus-within :deep(.select-icon) {
   color: var(--color-text-primary);
 }
 
@@ -1827,37 +1876,42 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
 }
 
-.toolbar-pill--select select,
-.toolbar-pill--select select:hover,
-.toolbar-pill--select select:focus,
-.toolbar-pill--select select:active {
+.toolbar-pill--select :deep(.app-select) {
+  min-width: 0;
+  width: auto;
+}
+
+.toolbar-pill--select :deep(.select-trigger),
+.toolbar-pill--select :deep(.select-trigger:hover),
+.toolbar-pill--select :deep(.select-trigger:focus),
+.toolbar-pill--select :deep(.select-trigger-open) {
+  min-height: 0;
+  width: auto;
+  padding: 0;
   border: 0 !important;
   background: transparent !important;
-  background-color: transparent !important;
   box-shadow: none !important;
   outline: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  appearance: none !important;
   color: var(--color-text-primary) !important;
   font: inherit;
   font-size: inherit;
   font-weight: 500;
   cursor: pointer;
-  padding: 0 .15rem 0 0;
-  margin: 0;
 }
 
-.toolbar-pill--select :deep(.app-icon) {
+.toolbar-pill--select :deep(.select-value) {
+  max-width: 6.5rem;
+}
+
+.toolbar-pill--select :deep(.select-icon) {
   color: var(--color-text-tertiary);
   pointer-events: none;
-  transition: transform .15s ease, color .15s ease;
 }
 
-.toolbar-pill--select:hover :deep(.app-icon),
-.toolbar-pill--select:focus-within :deep(.app-icon) {
+.toolbar-pill--select:hover :deep(.select-icon),
+.toolbar-pill--select:focus-within :deep(.select-icon) {
   color: var(--color-text-primary);
 }
 
@@ -2000,10 +2054,20 @@ select option {
 .param-field select,
 .param-field input,
 .param-field__value,
-.settings-form select,
+.settings-form :deep(.app-select),
 .settings-form input {
   width: 100%;
   box-sizing: border-box;
+}
+
+.settings-form :deep(.select-trigger) {
+  font-size: .82rem;
+}
+
+.param-field select,
+.param-field input,
+.param-field__value,
+.settings-form input {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
@@ -2015,7 +2079,6 @@ select option {
 }
 
 .param-field select,
-.settings-form select,
 .param-field__value {
   appearance: none;
   -webkit-appearance: none;
@@ -2027,13 +2090,11 @@ select option {
   padding-right: 1.65rem;
 }
 
-.settings-form select:hover,
 .param-field select:hover {
   border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--color-border));
   background-color: color-mix(in srgb, var(--color-surface) 98%, transparent);
 }
 
-.settings-form select:focus,
 .param-field select:focus {
   border-color: var(--theme-accent);
   background-color: var(--color-surface);
@@ -2041,7 +2102,6 @@ select option {
   outline: none;
 }
 
-.settings-form select:disabled,
 .param-field select:disabled {
   opacity: .5;
   cursor: not-allowed;

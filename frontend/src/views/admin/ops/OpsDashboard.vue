@@ -811,15 +811,12 @@ onMounted(async () => {
     return
   }
 
-  // Load thresholds configuration
   loadThresholds()
-
-  // Load auto refresh settings
-  await loadDashboardAdvancedSettings()
-
+  const settingsPromise = loadDashboardAdvancedSettings()
   if (opsEnabled.value) {
-    await fetchData()
+    void fetchData()
   }
+  await settingsPromise
 
   // Start auto refresh if enabled
   if (autoRefreshEnabled.value) {

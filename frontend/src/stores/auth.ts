@@ -5,7 +5,8 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
-import { authAPI, isTotp2FARequired, passkeyAPI, type LoginResponse } from '@/api'
+import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api/auth'
+import { passkeyAPI } from '@/api/passkey'
 import type {
   User,
   LoginRequest,
@@ -432,30 +433,49 @@ export const useAuthStore = defineStore('auth', () => {
    * @returns Promise resolving to the updated user
    * @throws Error if not authenticated or request fails
    */
+  const REFRESH_USER_TTL_MS = 2000
+  let refreshUserInFlight: Promise<User> | null = null
+  let lastRefreshUserAt = 0
+
   async function refreshUser(): Promise<User> {
     if (!token.value) {
       throw new Error('Not authenticated')
     }
 
-    try {
-      const response = await authAPI.getCurrentUser()
-      if (response.data.run_mode) {
-        runMode.value = response.data.run_mode
-      }
-      const { run_mode: _run_mode, ...userData } = response.data
-      user.value = userData
-
-      // Update localStorage
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData))
-
-      return userData
-    } catch (error) {
-      // If refresh fails with 401, clear auth state
-      if ((error as { status?: number }).status === 401) {
-        clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
-      }
-      throw error
+    if (refreshUserInFlight) {
+      return refreshUserInFlight
     }
+
+    if (user.value && Date.now() - lastRefreshUserAt < REFRESH_USER_TTL_MS) {
+      return user.value
+    }
+
+    refreshUserInFlight = (async () => {
+      try {
+        const response = await authAPI.getCurrentUser()
+        if (response.data.run_mode) {
+          runMode.value = response.data.run_mode
+        }
+        const { run_mode: _run_mode, ...userData } = response.data
+        user.value = userData
+
+        // Update localStorage
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData))
+        lastRefreshUserAt = Date.now()
+
+        return userData
+      } catch (error) {
+        // If refresh fails with 401, clear auth state
+        if ((error as { status?: number }).status === 401) {
+          clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+        }
+        throw error
+      } finally {
+        refreshUserInFlight = null
+      }
+    })()
+
+    return refreshUserInFlight
   }
 
   /**
@@ -472,6 +492,8 @@ export const useAuthStore = defineStore('auth', () => {
     refreshTokenValue.value = null
     tokenExpiresAt.value = null
     user.value = null
+    refreshUserInFlight = null
+    lastRefreshUserAt = 0
     localStorage.removeItem(AUTH_TOKEN_KEY)
     localStorage.removeItem(AUTH_USER_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)

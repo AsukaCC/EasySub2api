@@ -1,10 +1,23 @@
 import { onMounted, onUnmounted, nextTick } from 'vue'
-import { driver, type Driver, type DriveStep } from 'driver.js'
-import 'driver.js/dist/driver.css'
+import type { Driver, DriveStep } from 'driver.js'
 import { useAuthStore as useUserStore } from '@/stores/auth'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { useI18n } from 'vue-i18n'
 import { getAdminSteps, getUserSteps } from '@/components/Guide/steps'
+
+type DriverFactory = typeof import('driver.js')['driver']
+
+let driverFactory: DriverFactory | null = null
+
+async function loadDriver(): Promise<DriverFactory> {
+  if (driverFactory) return driverFactory
+  const [{ driver }] = await Promise.all([
+    import('driver.js'),
+    import('driver.js/dist/driver.css'),
+  ])
+  driverFactory = driver
+  return driver
+}
 
 export interface OnboardingOptions {
   storageKey?: string
@@ -120,6 +133,7 @@ export function useOnboardingTour(options: OnboardingOptions) {
     }
 
     // 创建新的 driver 实例并存储到 store
+    const driver = await loadDriver()
     driverInstance = driver({
       showProgress: true,
       steps,

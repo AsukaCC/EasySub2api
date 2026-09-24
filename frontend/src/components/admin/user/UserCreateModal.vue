@@ -67,10 +67,12 @@
       </div>
       <div>
         <label class="input-label">{{ t('admin.users.levels.assignedRules') }}</label>
-        <select v-model="selectedRuleID" class="input" :disabled="loading || rulesLoading">
-          <option value="">{{ t('admin.users.levels.defaultRule') }}</option>
-          <option v-for="rule in levelRules.filter(r => r.enabled)" :key="rule.id" :value="rule.id">{{ rule.name }}</option>
-        </select>
+        <Select
+          v-model="selectedRuleID"
+          :options="ruleOptions"
+          :disabled="loading || rulesLoading"
+          :searchable="false"
+        />
         <p v-if="createdUserID" role="status">{{ t('admin.users.levels.createdPendingBinding') }}</p>
       </div>
     </form>
@@ -89,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'; import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -111,6 +113,10 @@ const rulesLoading = ref(false)
 const levelRules = ref<UserLevelRule[]>([])
 const selectedRuleID = ref('')
 const createdUserID = ref('')
+const ruleOptions = computed(() => [
+  { value: '', label: t('admin.users.levels.defaultRule') },
+  ...levelRules.value.filter(rule => rule.enabled).map(rule => ({ value: rule.id, label: rule.name })),
+])
 watch(() => props.show, async (show) => {
   if (!show) return
   createdUserID.value = ''

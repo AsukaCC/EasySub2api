@@ -441,6 +441,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { scheduleIdle } from '@/utils/scheduleIdle'
 
 const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
@@ -771,7 +772,7 @@ const onDateRangeChange = (range: {
 }
 
 // Load data
-const loadDashboardSnapshot = async (includeStats: boolean) => {
+const loadDashboardSnapshot = async (includeStats: boolean, includeModelStats = false) => {
   const currentSeq = ++chartLoadSeq
   if (includeStats && !stats.value) {
     loading.value = true
@@ -785,7 +786,7 @@ const loadDashboardSnapshot = async (includeStats: boolean) => {
       granularity: granularity.value,
       include_stats: includeStats,
       include_trend: true,
-      include_model_stats: true,
+      include_model_stats: includeModelStats,
       include_group_stats: false,
       include_users_trend: false
     })
@@ -794,7 +795,9 @@ const loadDashboardSnapshot = async (includeStats: boolean) => {
       stats.value = response.stats
     }
     trendData.value = response.trend || []
-    modelStats.value = response.models || []
+    if (includeModelStats) {
+      modelStats.value = response.models || []
+    }
   } catch (error) {
     if (currentSeq !== chartLoadSeq) return
     appStore.showError(t('admin.dashboard.failedToLoad'))
@@ -871,10 +874,32 @@ const loadUserSpendingRanking = async () => {
 
 const loadDashboardStats = async () => {
   await Promise.all([
-    loadDashboardSnapshot(true),
+    loadDashboardSnapshot(true, false),
     loadUsersTrend(),
     loadUserSpendingRanking()
   ])
+  scheduleIdle(() => {
+    void loadModelDistribution()
+  })
+}
+
+const loadModelDistribution = async () => {
+  try {
+    const response = await adminAPI.dashboard.getSnapshotV2({
+      start_date: startDate.value,
+      end_date: endDate.value,
+      timezone: browserTimezone,
+      granularity: granularity.value,
+      include_stats: false,
+      include_trend: false,
+      include_model_stats: true,
+      include_group_stats: false,
+      include_users_trend: false
+    })
+    modelStats.value = response.models || []
+  } catch (error) {
+    console.error('Error loading dashboard model distribution:', error)
+  }
 }
 
 const loadRealtimeMetrics = async () => {
@@ -887,7 +912,7 @@ const loadRealtimeMetrics = async () => {
 
 const loadChartData = async () => {
   await Promise.all([
-    loadDashboardSnapshot(false),
+    loadDashboardSnapshot(false, true),
     loadUsersTrend(),
     loadUserSpendingRanking()
   ])

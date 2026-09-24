@@ -69,8 +69,10 @@ let apiKeyTrendRequestVersion = 0
 
 async function loadStats() {
   loading.value = true
+  void authStore.refreshUser().catch((error) => {
+    console.error('Failed to refresh user:', error)
+  })
   try {
-    await authStore.refreshUser()
     stats.value = await usageAPI.getDashboardStats()
   } catch (error) {
     console.error('Failed to load dashboard stats:', error)
@@ -81,7 +83,7 @@ async function loadStats() {
 
 async function loadApiKeys() {
   try {
-    const response = await keysAPI.list(1, 1000, {
+    const response = await keysAPI.list(1, 200, {
       sort_by: 'name',
       sort_order: 'asc',
     })

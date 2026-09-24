@@ -32,7 +32,7 @@
         <div
           v-if="isOpen"
           ref="menuRef"
-          class="locale-menu"
+          class="locale-menu dropdown dropdown--portal"
           :class="{ 'locale-menu-top': menuPlacement === 'top' }"
           :style="menuStyle"
           role="menu"
@@ -46,7 +46,7 @@
             type="button"
             :disabled="switching"
             @click="selectLocale(locale.code)"
-            class="locale-option"
+            class="locale-option dropdown-item"
             :class="{
               'locale-option-active':
                 locale.code === currentLocaleCode
@@ -254,48 +254,12 @@ onBeforeUnmount(() => {
 }
 
 .locale-menu {
-  position: fixed;
-  z-index: var(--z-dropdown);
   overflow-y: auto;
-  padding: 0.375rem;
-  border-radius: var(--radius-lg);
-  background-color: var(--glass-layer-floating-bg);
-  border: 1px solid var(--glass-border);
-  -webkit-backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-layer-floating-blur)) saturate(var(--glass-saturate));
-  box-shadow:
-    var(--glass-shadow-hover),
-    0 1px 0 var(--glass-highlight) inset;
   transform-origin: top right;
 }
 
 .locale-menu-top {
   transform-origin: bottom right;
-}
-
-.locale-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  text-align: left;
-  cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
-}
-
-.locale-option:hover:not(:disabled) {
-  color: var(--color-text-primary);
-  border-color: var(--glass-border);
-  background-color: var(--glass-bg-interactive-hover);
-  -webkit-backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
-  backdrop-filter: blur(var(--glass-layer-inset-blur-hover)) saturate(var(--glass-saturate-hover));
-  box-shadow: 0 1px 0 var(--glass-highlight) inset;
 }
 
 .locale-option-active {
@@ -337,21 +301,5 @@ onBeforeUnmount(() => {
   .locale-current-compact {
     display: inline-block;
   }
-}
-
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: opacity 0.16s ease, transform 0.16s ease;
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: scale(0.95) translateY(-4px);
-}
-
-.locale-menu-top.dropdown-enter-from,
-.locale-menu-top.dropdown-leave-to {
-  transform: scale(0.95) translateY(4px);
 }
 </style>

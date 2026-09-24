@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import { createTtlCache } from '@/utils/ttlCache'
 import type {
   AdminGroup,
   GroupPlatform,
@@ -70,16 +71,32 @@ export async function list(
   return data
 }
 
+const groupsAllCache = createTtlCache(async (platform?: GroupPlatform) => {
+  const { data } = await apiClient.get<AdminGroup[]>('/admin/groups/all', {
+    params: platform ? { platform } : undefined
+  })
+  return data
+})
+
+const groupsAllIncludingInactiveCache = createTtlCache(async () => {
+  const { data } = await apiClient.get<AdminGroup[]>('/admin/groups/all', {
+    params: { include_inactive: true }
+  })
+  return data
+})
+
+export function invalidateGroupListCache() {
+  groupsAllCache.clear()
+  groupsAllIncludingInactiveCache.clear()
+}
+
 /**
  * Get all active groups (without pagination)
  * @param platform - Optional platform filter
  * @returns List of all active groups
  */
 export async function getAll(platform?: GroupPlatform): Promise<AdminGroup[]> {
-  const { data } = await apiClient.get<AdminGroup[]>('/admin/groups/all', {
-    params: platform ? { platform } : undefined
-  })
-  return data
+  return groupsAllCache.fetch(platform)
 }
 
 /**
@@ -87,10 +104,7 @@ export async function getAll(platform?: GroupPlatform): Promise<AdminGroup[]> {
  * that admins can filter users whose keys are still bound to a now-disabled group.
  */
 export async function getAllIncludingInactive(): Promise<AdminGroup[]> {
-  const { data } = await apiClient.get<AdminGroup[]>('/admin/groups/all', {
-    params: { include_inactive: true }
-  })
-  return data
+  return groupsAllIncludingInactiveCache.fetch()
 }
 
 /**
@@ -152,6 +166,7 @@ export async function getModelsListCandidates(
  */
 export async function create(groupData: CreateGroupRequest): Promise<AdminGroup> {
   const { data } = await apiClient.post<AdminGroup>('/admin/groups', groupData)
+  invalidateGroupListCache()
   return data
 }
 
@@ -231,6 +246,7 @@ export async function duplicate(id: string): Promise<AdminGroup> {
     duplicateOperationKeys.delete(scope.key)
     storeDuplicateOperationKey(scope.key, null)
   }
+  invalidateGroupListCache()
   return data
 }
 
@@ -242,6 +258,7 @@ export async function duplicate(id: string): Promise<AdminGroup> {
  */
 export async function update(id: string, updates: UpdateGroupRequest): Promise<AdminGroup> {
   const { data } = await apiClient.put<AdminGroup>(`/admin/groups/${id}`, updates)
+  invalidateGroupListCache()
   return data
 }
 
@@ -252,6 +269,7 @@ export async function update(id: string, updates: UpdateGroupRequest): Promise<A
  */
 export async function deleteGroup(id: string): Promise<{ message: string }> {
   const { data } = await apiClient.delete<{ message: string }>(`/admin/groups/${id}`)
+  invalidateGroupListCache()
   return data
 }
 

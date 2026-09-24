@@ -541,16 +541,18 @@
             {{ t('admin.accounts.grokMediaEligibility.hint') }}
           </p>
         </div>
-        <select
+        <Select
           v-model="grokMediaEligibilityMode"
-          class="input grok-media-card__select"
+          class="grok-media-card__select"
           data-testid="grok-media-eligibility-mode"
           :disabled="grokMediaEligibilityLoading"
-        >
-          <option value="auto">{{ t('admin.accounts.grokMediaEligibility.auto') }}</option>
-          <option value="enabled">{{ t('admin.accounts.grokMediaEligibility.enabled') }}</option>
-          <option value="disabled">{{ t('admin.accounts.grokMediaEligibility.disabled') }}</option>
-        </select>
+          :searchable="false"
+          :options="[
+            { value: 'auto', label: t('admin.accounts.grokMediaEligibility.auto') },
+            { value: 'enabled', label: t('admin.accounts.grokMediaEligibility.enabled') },
+            { value: 'disabled', label: t('admin.accounts.grokMediaEligibility.disabled') },
+          ]"
+        />
         <p v-if="grokMediaEligibilityLoading" class="grok-media-card__hint">
           {{ t('admin.accounts.grokMediaEligibility.loading') }}
         </p>

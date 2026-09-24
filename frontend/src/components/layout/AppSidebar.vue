@@ -260,7 +260,11 @@ import { useFloatingPanel } from '@/composables/useFloatingPanel'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
-import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
+import { useAdminSettingsStore } from '@/stores/adminSettings'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
+import { useOnboardingStore } from '@/stores/onboarding'
+import { scheduleIdle } from '@/utils/scheduleIdle'
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
@@ -1457,7 +1461,7 @@ watch(collapsedFlyoutPath, () => {
 onMounted(() => {
   window.addEventListener('app:open-admin-menu', revealAdminMenu)
   window.addEventListener('support-tickets:updated', fetchSupportSummary)
-  void fetchSupportSummary()
+  scheduleIdle(() => { void fetchSupportSummary() })
   if (isAdmin.value) {
     adminSettingsStore.fetch()
   }

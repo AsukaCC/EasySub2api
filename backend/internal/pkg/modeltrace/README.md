@@ -11,7 +11,7 @@ including across server replicas. Closing the dialog does not stop the job.
 
 The Go scorer and bundled candidate bank are adapted from
 [xqy2006/ModelTrace](https://github.com/xqy2006/ModelTrace), pinned at
-`3f0dd2f4b451ad424f3b165a108a468efe4d4d81` (MIT). The original license is in
+`55a2e4a55170423b484d701e9a82ab62b268c811` (MIT). The original license is in
 `backend/internal/pkg/modeltrace/LICENSE`.
 
 Scoring retains upstream's nuisance-projected Hellinger features (75%), ordered
@@ -19,7 +19,7 @@ block features (25%), score averaging, and softmax. A golden test compares all
 candidate probabilities against upstream's JavaScript implementation using
 public GPT, Claude, and mixed reference samples.
 
-The bank contains 13 GPT/Claude candidates. Other model families can be sampled,
+The bank contains 16 GPT/Claude candidates. Other model families can be sampled,
 but cannot be identified reliably by this bank. Percentages are closed-set
 relative attribution, not proof of identity. In particular, this application's
 requested **single conversation** mode differs from upstream's three independent

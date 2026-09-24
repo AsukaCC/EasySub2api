@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountProtectionPanel from '../AccountProtectionPanel.vue'
+import Select from '@/components/common/Select.vue'
 import type { Account } from '@/types'
 
 const api = vi.hoisted(() => ({ strategies: vi.fn(), preview: vi.fn(), apply: vi.fn(), set: vi.fn(), integrity: vi.fn() }))
@@ -49,7 +50,7 @@ describe('AccountProtectionPanel', () => {
   it('saves integrity independently without submitting an account form', async () => {
     const wrapper = mount(AccountProtectionPanel, { ...options, props: { account } })
     await flushPromises()
-    await wrapper.findAll('select')[1].setValue('enforce')
+    await wrapper.findAllComponents(Select)[1]!.setValue('enforce')
     await flushPromises()
     expect(api.integrity).toHaveBeenCalledWith('a', 'enforce')
     expect(wrapper.emitted('updated')).toHaveLength(1)

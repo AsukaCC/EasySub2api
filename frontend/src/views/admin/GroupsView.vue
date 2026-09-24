@@ -1850,7 +1850,7 @@
                           accountSearchResults[getCreateRuleSearchKey(rule)]
                             ?.length > 0
                         "
-                        class="views-admin-groups-view__panel-77"
+                        class="views-admin-groups-view__panel-77 dropdown dropdown--menu"
                       >
                         <button
                           v-for="account in accountSearchResults[
@@ -1859,7 +1859,7 @@
                           :key="account.id"
                           type="button"
                           @click="selectAccount(rule, account)"
-                          class="views-admin-groups-view__action-16"
+                          class="views-admin-groups-view__action-16 dropdown-item"
                           :class="{
                             'views-admin-groups-view__action-30': rule.accounts.some(
                               (a) => a.id === account.id,
@@ -3235,7 +3235,7 @@
                           accountSearchResults[getEditRuleSearchKey(rule)]
                             ?.length > 0
                         "
-                        class="views-admin-groups-view__panel-77"
+                        class="views-admin-groups-view__panel-77 dropdown dropdown--menu"
                       >
                         <button
                           v-for="account in accountSearchResults[
@@ -3244,7 +3244,7 @@
                           :key="account.id"
                           type="button"
                           @click="selectAccount(rule, account, true)"
-                          class="views-admin-groups-view__action-16"
+                          class="views-admin-groups-view__action-16 dropdown-item"
                           :class="{
                             'views-admin-groups-view__action-30': rule.accounts.some(
                               (a) => a.id === account.id,

@@ -8,7 +8,7 @@
     <div v-if="draft" class="engine-settings__fields">
       <label>{{ t('upstreamUpdate.endpoint') }}<input v-model="draft.base_url" type="url" class="input" /></label>
       <label>{{ t('upstreamUpdate.model') }}<input v-model="draft.model" class="input" /></label>
-      <label>{{ t('upstreamUpdate.proxy') }}<select v-model="draft.proxy_id" class="input"><option :value="null">{{ t('upstreamUpdate.direct') }}</option><option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">{{ proxy.name }}</option></select></label>
+      <label>{{ t('upstreamUpdate.proxy') }}<Select v-model="draft.proxy_id" :options="proxyOptions" :searchable="false" /></label>
       <label>{{ t('upstreamUpdate.timeout') }}<input v-model.number="draft.timeout_ms" type="number" min="100" max="60000" class="input" /></label>
       <label>{{ t('upstreamUpdate.retries') }}<input v-model.number="draft.retry_count" type="number" min="0" max="5" class="input" /></label>
       <label>{{ t('upstreamUpdate.key') }}<input v-model="keys[selected]" type="password" autocomplete="new-password" class="input" :placeholder="t('upstreamUpdate.keyPlaceholder')" /></label>
@@ -26,6 +26,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import Select from '@/components/common/Select.vue'
 import { adminAPI } from '@/api/admin'
 import { getConfig, updateConfig, testAPIKeys, type ContentModerationConfig, type ModerationEngine } from '@/api/admin/riskControl'
 import type { Proxy } from '@/types'
@@ -36,6 +37,10 @@ const selected = ref<ModerationEngine>('openai'), activeEngine = ref('openai'), 
 const profiles = ref<Partial<Record<ModerationEngine, ContentModerationConfig>>>({}), proxies = ref<Proxy[]>([])
 const keys = reactive({ openai: '', typesafe: '' }), clearKeys = reactive({ openai: false, typesafe: false })
 const draft = computed(() => profiles.value[selected.value])
+const proxyOptions = computed(() => [
+  { value: null, label: t('upstreamUpdate.direct') },
+  ...proxies.value.map(proxy => ({ value: proxy.id, label: proxy.name })),
+])
 function apply(config: ContentModerationConfig) { activeEngine.value = config.engine || 'openai'; profiles.value = config.engine_configs || { openai: config }; keys.openai = ''; keys.typesafe = ''; clearKeys.openai = false; clearKeys.typesafe = false }
 async function load() { busy.value = true; message.value = ''; try { const config = await getConfig(); apply(config); selected.value = config.engine || 'openai'; proxies.value = await adminAPI.proxies.getAll() } catch { message.value = t('upstreamUpdate.loadFailed') } finally { busy.value = false } }
 async function save() {
@@ -55,6 +60,7 @@ onMounted(load)
 .engine-settings [aria-selected=true] { border-color: var(--color-primary); }
 .engine-settings__fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .engine-settings label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
-.engine-settings .input { width: 100%; min-width: 0; }
+.engine-settings .input,
+.engine-settings :deep(.app-select) { width: 100%; min-width: 0; }
 .engine-settings__thresholds { grid-column: 1 / -1; font-size: 12px; }
 </style>

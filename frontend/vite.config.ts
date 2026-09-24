@@ -125,8 +125,11 @@ export default defineConfig(({ mode }) => {
             }
 
             // UI 工具库（较大，单独分离）
-            if (id.includes('/@vueuse/') || id.includes('/xlsx/')) {
-              return 'vendor-ui'
+            if (id.includes('/xlsx/')) {
+              return 'vendor-xlsx'
+            }
+            if (id.includes('/@vueuse/')) {
+              return 'vendor-vueuse'
             }
 
             // D3 charting modules
@@ -142,6 +145,34 @@ export default defineConfig(({ mode }) => {
             // Stripe 仅在支付流程中按需加载，避免进入首页公共依赖。
             if (id.includes('/@stripe/stripe-js/')) {
               return 'vendor-stripe'
+            }
+
+            if (id.includes('/@airwallex/')) {
+              return 'vendor-airwallex'
+            }
+            if (id.includes('/marked/') || id.includes('/dompurify/')) {
+              return 'vendor-markdown'
+            }
+            if (id.includes('/gsap/')) {
+              return 'vendor-gsap'
+            }
+            if (id.includes('/driver.js') || id.includes('/driver.js/')) {
+              return 'vendor-driver'
+            }
+            if (id.includes('/qrcode/')) {
+              return 'vendor-qrcode'
+            }
+            if (id.includes('/file-saver/')) {
+              return 'vendor-filesaver'
+            }
+            if (id.includes('/vue-draggable-plus/') || id.includes('/sortablejs/')) {
+              return 'vendor-dnd'
+            }
+            if (id.includes('/axios/')) {
+              return 'vendor-axios'
+            }
+            if (id.includes('/dayjs/')) {
+              return 'vendor-dayjs'
             }
 
             // 其他小型第三方库合并

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { adminAPI } from '@/api'
+import { settingsAPI } from '@/api/admin/settings'
+import { adminPaymentAPI } from '@/api/admin/payment'
 import type { CustomMenuItem } from '@/types'
 
 export const useAdminSettingsStore = defineStore('adminSettings', () => {
@@ -64,8 +65,8 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
     loading.value = true
     try {
       const [settings, paymentConfigResp] = await Promise.all([
-        adminAPI.settings.getSettings(),
-        adminAPI.payment.getConfig()
+        settingsAPI.getSettings(),
+        adminPaymentAPI.getConfig()
       ])
       opsMonitoringEnabled.value = settings.ops_monitoring_enabled ?? true
       writeCachedBool('ops_monitoring_enabled_cached', opsMonitoringEnabled.value)

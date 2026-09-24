@@ -11,20 +11,14 @@
       <div class="protection-controls">
         <label>
           <span class="input-label">{{ t('admin.accounts.protection.strategy') }}</span>
-          <select v-model="selected" class="input">
-            <option v-for="strategy in eligibleStrategies" :key="strategy.id" :value="strategy.id">
-              {{ modeName(strategy.id) }}
-            </option>
-          </select>
+          <Select v-model="selected" :options="strategyOptions" :searchable="false" />
         </label>
         <button type="button" class="btn btn-secondary" @click="previewStrategy">
           <Icon name="shield" size="sm" />{{ t('admin.accounts.protection.preview') }}
         </button>
         <label v-if="current.platform === 'openai'">
           <span class="input-label">{{ t('admin.accounts.protection.integrity') }}</span>
-          <select :value="integrity" class="input" @change="saveIntegrity">
-            <option v-for="mode in integrityModes" :key="mode" :value="mode">{{ t('admin.accounts.protection.' + mode) }}</option>
-          </select>
+          <Select :model-value="integrity" :options="integrityOptions" :searchable="false" @update:model-value="saveIntegrity" />
         </label>
       </div>
       <label class="protection-toggle">
@@ -59,6 +53,7 @@ import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
 import { accountProtection, type IntegrityMode, type ProtectionPreview, type ProtectionStrategy } from '@/api/admin/accountProtection'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{ account: Account; compact?: boolean }>()
@@ -79,6 +74,14 @@ const eligibleStrategies = computed(() => strategies.value.filter(s =>
   s.apply_supported && (!s.diagnostic_only || diagnostics.value) &&
   (!s.requires_openai || (current.value.platform === 'openai' && ['oauth', 'setup-token'].includes(current.value.type)))
 ))
+const strategyOptions = computed(() => eligibleStrategies.value.map(strategy => ({
+  value: strategy.id,
+  label: modeName(strategy.id),
+})))
+const integrityOptions = computed(() => integrityModes.map(mode => ({
+  value: mode,
+  label: t('admin.accounts.protection.' + mode),
+})))
 const modeName = (mode: string) => t('admin.accounts.protection.modes.' + mode)
 const formatValue = (value: unknown) => value == null ? '-' : typeof value === 'object' ? JSON.stringify(value) : String(value)
 
@@ -127,17 +130,15 @@ async function commit() {
     if (!props.compact) await refresh()
   })
 }
-async function saveIntegrity(event: Event) {
-  const select = event.target as HTMLSelectElement
-  const mode = select.value as IntegrityMode
+async function saveIntegrity(mode: string | number | boolean | null) {
+  const next = String(mode ?? 'off') as IntegrityMode
   await run(async () => {
     const id = current.value.id
-    const updated = await accountProtection.integrity(id, mode)
+    const updated = await accountProtection.integrity(id, next)
     if (current.value.id === id) current.value = updated
     emit('updated', updated)
     await refresh()
   })
-  select.value = String(integrity.value)
 }
 </script>
 

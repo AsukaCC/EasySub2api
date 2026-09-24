@@ -24,7 +24,16 @@
       </div>
       <Pagination :page="page" :page-size="20" :total="total" :show-page-size-selector="false" @update:page="changePage" />
       <div class="level-members__toolbar">
-        <select v-if="mode === 'members'" v-model="target" class="input" :disabled="busy" :aria-label="t('admin.users.levels.targetRule')"><option value="" disabled>{{ t('admin.users.levels.targetRule') }}</option><option v-for="item in rules.filter(r => r.enabled && r.id !== rule?.id)" :key="item.id" :value="item.id">{{ item.name }}</option></select>
+        <Select
+          v-if="mode === 'members'"
+          v-model="target"
+          class="level-members__target"
+          :options="targetOptions"
+          :placeholder="t('admin.users.levels.targetRule')"
+          :disabled="busy"
+          :searchable="false"
+          :aria-label="t('admin.users.levels.targetRule')"
+        />
         <button type="button" class="btn btn-primary" :disabled="busy || loading || !selected.length || (mode === 'members' && !target)" @click="assign(selected, mode === 'add' ? rule!.id : target)"><Icon name="users" size="sm" />{{ t('admin.users.levels.applyMembers', { count: selected.length }) }}</button>
         <button v-if="mode === 'members' && !rule?.is_default" type="button" class="btn btn-secondary" :disabled="busy || loading || !selected.length" @click="assign(selected, '')">{{ t('admin.users.levels.resetDefault') }}</button>
       </div>
@@ -40,6 +49,7 @@ import type { UserLevelRule } from '@/api/admin/users'
 import type { AdminUser } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
@@ -48,6 +58,7 @@ const emit = defineEmits<{ close: []; changed: [] }>()
 const { t } = useI18n()
 const mode = ref<'members' | 'add'>('members')
 const modes = computed(() => [{ value: 'members' as const, label: t('admin.users.levels.members') }, { value: 'add' as const, label: t('admin.users.levels.addMember') }])
+const targetOptions = computed(() => props.rules.filter(r => r.enabled && r.id !== props.rule?.id).map(item => ({ value: item.id, label: item.name })))
 const search = ref(''), target = ref(''), error = ref('')
 const page = ref(1), total = ref(0)
 const rows = ref<AdminUser[]>([]), selected = ref<string[]>([])
@@ -90,7 +101,8 @@ watch(() => props.rule?.id, () => { mode.value = 'members'; page.value = 1; sear
 <style scoped>
 .level-members { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 .level-members__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
-.level-members__toolbar .input { flex: 1 1 180px; width: auto; min-width: 0; }
+.level-members__toolbar .input,
+.level-members__target { flex: 1 1 180px; width: auto; min-width: 0; }
 .level-members__table { overflow-x: auto; min-height: 160px; }
 table { border-collapse: collapse; width: 100%; min-width: 520px; }
 th, td { text-align: left; padding: .6rem; border-bottom: 1px solid var(--glass-border); overflow-wrap: anywhere; }

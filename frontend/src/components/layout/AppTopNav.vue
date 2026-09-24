@@ -68,7 +68,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
-import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
+import { useOnboardingStore } from '@/stores/onboarding'
+import { scheduleIdle } from '@/utils/scheduleIdle'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { sanitizeSvg } from '@/utils/sanitize'
@@ -352,7 +355,7 @@ onMounted(() => {
   }
   window.addEventListener('resize', updateActiveIndicatorOnResize)
   window.addEventListener('support-tickets:updated', fetchSupportSummary)
-  void fetchSupportSummary()
+  scheduleIdle(() => { void fetchSupportSummary() })
 })
 
 function updateActiveIndicatorOnResize(): void {

@@ -236,7 +236,7 @@ defineExpose({ focus: () => inputRef.value?.focus(), checkValidity: () => inputR
 .date-time-picker__tools button { width: 1.75rem; height: 1.75rem; }
 .date-time-picker button:hover, .date-time-panel button:hover:not(:disabled) { background: var(--glass-bg-interactive-hover); color: var(--color-text-primary); }
 .date-time-picker button:focus-visible, .date-time-panel button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.date-time-panel { overflow: auto; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; background: var(--glass-layer-floating-bg); backdrop-filter: blur(var(--glass-layer-floating-blur)); box-shadow: var(--glass-shadow-hover); color: var(--color-text-primary); font-size: var(--font-size-sm); }
+.date-time-panel { overflow: auto; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--glass-layer-floating-bg); backdrop-filter: blur(var(--glass-layer-floating-blur)); box-shadow: var(--glass-shadow-hover); color: var(--color-text-primary); font-size: var(--font-size-sm); }
 .date-time-panel__header { display: grid; grid-template-columns: 2rem minmax(0, 1fr) minmax(0, 1fr) 2rem; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
 .date-time-panel__header button { width: 2rem; height: 2rem; }
 .date-time-panel input, .date-time-panel select { min-width: 0; width: 100%; height: 2rem; padding: 0.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); background: var(--glass-field-bg); font-size: var(--font-size-sm); }

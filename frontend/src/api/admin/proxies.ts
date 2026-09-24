@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import { createTtlCache } from '@/utils/ttlCache'
 import type {
   Proxy,
   ProxyAccountSummary,
@@ -58,10 +59,18 @@ export async function list(
  * Get all active proxies (without pagination)
  * @returns List of all active proxies
  */
-export async function getAll(): Promise<Proxy[]> {
+const proxiesAllCache = createTtlCache(async () => {
   const { data } = await apiClient.get<Proxy[]>('/admin/proxies/all')
   assertProxyArray(data)
   return data
+})
+
+export function invalidateProxyListCache() {
+  proxiesAllCache.clear()
+}
+
+export async function getAll(): Promise<Proxy[]> {
+  return proxiesAllCache.fetch()
 }
 
 /**
@@ -93,6 +102,7 @@ export async function getById(id: string): Promise<Proxy> {
  */
 export async function create(proxyData: CreateProxyRequest): Promise<Proxy> {
   const { data } = await apiClient.post<Proxy>('/admin/proxies', proxyData)
+  invalidateProxyListCache()
   return data
 }
 
@@ -104,6 +114,7 @@ export async function create(proxyData: CreateProxyRequest): Promise<Proxy> {
  */
 export async function update(id: string, updates: UpdateProxyRequest): Promise<Proxy> {
   const { data } = await apiClient.put<Proxy>(`/admin/proxies/${id}`, updates)
+  invalidateProxyListCache()
   return data
 }
 
@@ -114,6 +125,7 @@ export async function update(id: string, updates: UpdateProxyRequest): Promise<P
  */
 export async function deleteProxy(id: string): Promise<{ message: string }> {
   const { data } = await apiClient.delete<{ message: string }>(`/admin/proxies/${id}`)
+  invalidateProxyListCache()
   return data
 }
 
@@ -218,6 +230,7 @@ export async function batchCreate(
     created: number
     skipped: number
   }>('/admin/proxies/batch', { proxies })
+  invalidateProxyListCache()
   return data
 }
 
@@ -229,6 +242,7 @@ export async function batchDelete(ids: string[]): Promise<{
     deleted_ids: string[]
     skipped: Array<{ id: string; reason: string }>
   }>('/admin/proxies/batch-delete', { ids })
+  invalidateProxyListCache()
   return data
 }
 
@@ -261,6 +275,7 @@ export async function importData(payload: {
   data: AdminDataPayload
 }): Promise<AdminDataImportResult> {
   const { data } = await apiClient.post<AdminDataImportResult>('/admin/proxies/data', payload)
+  invalidateProxyListCache()
   return data
 }
 
