@@ -68,13 +68,14 @@ type UserAnnouncement struct {
 }
 
 type AnnouncementUserReadStatus struct {
-	UserID   string     `json:"user_id"`
-	Email    string     `json:"email"`
-	Username string     `json:"username"`
-	Balance  float64    `json:"balance"`
-	Level    int        `json:"level"`
-	Eligible bool       `json:"eligible"`
-	ReadAt   *time.Time `json:"read_at,omitempty"`
+	UserID           string     `json:"user_id"`
+	Email            string     `json:"email"`
+	Username         string     `json:"username"`
+	Balance          float64    `json:"balance"`
+	AvailableBalance float64    `json:"available_balance"`
+	Level            int        `json:"level"`
+	Eligible         bool       `json:"eligible"`
+	ReadAt           *time.Time `json:"read_at,omitempty"`
 }
 
 func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncementInput) (*Announcement, error) {
@@ -461,12 +462,13 @@ func (s *AnnouncementService) ListUserReadStatus(
 		eligible := ann.NotifyMode == AnnouncementNotifyModeSilent ||
 			(ann.IsActiveAt(time.Now()) && ann.Targeting.MatchesForUserTiers(u.Balance, activeGroupIDs, u.ID, tiersByUser[u.ID]))
 		out = append(out, AnnouncementUserReadStatus{
-			UserID:   u.ID,
-			Email:    u.Email,
-			Username: u.Username,
-			Balance:  u.Balance,
-			Level:    levelByUser[u.ID],
-			Eligible: eligible,
+			UserID:           u.ID,
+			Email:            u.Email,
+			Username:         u.Username,
+			Balance:          u.Balance,
+			AvailableBalance: u.Balance,
+			Level:            levelByUser[u.ID],
+			Eligible:         eligible,
 			ReadAt:   ptr,
 		})
 	}

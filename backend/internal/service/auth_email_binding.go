@@ -258,10 +258,20 @@ func (s *AuthService) updateBoundEmailIdentityWithClient(
 	if err != nil {
 		return ErrServiceUnavailable
 	}
+	wallet := NewWalletSummary(
+		updatedUser.RechargeBalance,
+		updatedUser.BonusBalance,
+		updatedUser.FrozenRechargeBalance,
+		updatedUser.FrozenBonusBalance,
+	)
 	currentUser.Email = updatedUser.Email
 	currentUser.PasswordHash = updatedUser.PasswordHash
-	currentUser.RechargeBalance = updatedUser.RechargeBalance
-	currentUser.Balance = updatedUser.RechargeBalance
+	currentUser.RechargeBalance = wallet.RechargeBalance
+	currentUser.Balance = wallet.AvailableBalance
+	currentUser.BonusBalance = wallet.BonusBalance
+	currentUser.FrozenRechargeBalance = wallet.FrozenRecharge
+	currentUser.FrozenBonusBalance = wallet.FrozenBonus
+	currentUser.FrozenBalance = wallet.FrozenRecharge
 	currentUser.Concurrency = updatedUser.Concurrency
 	currentUser.UpdatedAt = updatedUser.UpdatedAt
 	return nil

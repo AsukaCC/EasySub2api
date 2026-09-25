@@ -49,13 +49,19 @@ func TestAPIContracts(t *testing.T) {
 				"code": 0,
 				"message": "success",
 				"data": {
-					"id": 1,
+					"id": "user-1",
 					"email": "alice@example.com",
 					"email_bound": true,
 					"username": "alice",
 						"role": "user",
-						"balance": 12.5,
-						"frozen_balance": 0,
+						"available_balance": 12.5,
+						"recharge_balance": 12.5,
+						"bonus_balance": 0,
+						"overdraft_amount": 0,
+						"frozen_recharge_balance": 0,
+						"frozen_bonus_balance": 0,
+						"total_balance": 12.5,
+						"next_expiring_bonus_amount": 0,
 						"concurrency": 5,
 					"rpm_limit": 0,
 					"status": "active",
@@ -290,8 +296,8 @@ func TestAPIContracts(t *testing.T) {
 			name: "GET /api/v1/groups/available",
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
-				// 普通用户可见的分组列表不应包含内部字段（如 model_routing/account_count），
-				// 也不得包含利润控制配置——它与同响应的 rate_multiplier 相乘即可反推上游成本上限。
+				// ????????????????????? model_routing/account_count??
+				// ???????????��?????? rate_multiplier ?????????????
 				deps.groupRepo.SetActive([]service.Group{
 					{
 						ID:                   "group-10",
@@ -381,14 +387,14 @@ func TestAPIContracts(t *testing.T) {
 			name: "GET /api/v1/subscriptions",
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
-				// 普通用户订阅接口不应包含 assigned_* / notes 等管理员字段。
+				// ???????????? assigned_* / notes ???????
 				deps.userSubRepo.SetByUserID("user-1", []service.UserSubscription{
 					{
 						ID:              "subscription-501",
 						UserID:          "user-1",
 						GroupID:         "group-10",
 						StartsAt:        deps.now,
-						ExpiresAt:       time.Date(2099, 1, 2, 3, 4, 5, 0, time.UTC), // 使用未来日期避免 normalizeSubscriptionStatus 标记为过期
+						ExpiresAt:       time.Date(2099, 1, 2, 3, 4, 5, 0, time.UTC), // ???????? normalizeSubscriptionStatus ?????
 						Status:          service.SubscriptionStatusActive,
 						DailyUsageUSD:   1.23,
 						WeeklyUsageUSD:  2.34,
@@ -431,7 +437,7 @@ func TestAPIContracts(t *testing.T) {
 			name: "GET /api/v1/redeem/history",
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
-				// 普通用户兑换历史不应包含 notes 等内部字段。
+				// ???????????? notes ??????
 				deps.redeemRepo.SetByUser("1", []service.RedeemCode{
 					{
 						ID:        "redeem-900",
@@ -709,10 +715,10 @@ func TestAPIContracts(t *testing.T) {
 						"login_agreement_mode": "modal",
 						"login_agreement_updated_at": "2026-03-31",
 						"login_agreement_documents": [
-							{"id": "terms", "title": "服务条款", "content_md": ""},
-							{"id": "usage-policy", "title": "使用政策", "content_md": ""},
-							{"id": "supported-regions", "title": "支持的国家和地区", "content_md": ""},
-							{"id": "service-specific-terms", "title": "服务特定条款", "content_md": ""}
+							{"id": "terms", "title": "????", "content_md": ""},
+							{"id": "usage-policy", "title": "????", "content_md": ""},
+							{"id": "supported-regions", "title": "????????", "content_md": ""},
+							{"id": "service-specific-terms", "title": "??????", "content_md": ""}
 						],
 						"smtp_host": "smtp.example.com",
 						"smtp_port": 587,
@@ -745,13 +751,13 @@ func TestAPIContracts(t *testing.T) {
 						"dingtalk_connect_corp_restriction_policy": "",
 						"dingtalk_connect_sync_corp_email": false,
 						"dingtalk_connect_sync_corp_email_attr_key": "dingtalk_email",
-						"dingtalk_connect_sync_corp_email_attr_name": "钉钉企业邮箱",
+						"dingtalk_connect_sync_corp_email_attr_name": "??????",
 						"dingtalk_connect_sync_dept": false,
 						"dingtalk_connect_sync_dept_attr_key": "dingtalk_department",
-						"dingtalk_connect_sync_dept_attr_name": "钉钉部门",
+						"dingtalk_connect_sync_dept_attr_name": "????",
 						"dingtalk_connect_sync_display_name": false,
 						"dingtalk_connect_sync_display_name_attr_key": "dingtalk_name",
-						"dingtalk_connect_sync_display_name_attr_name": "钉钉姓名",
+						"dingtalk_connect_sync_display_name_attr_name": "????",
 						"oidc_connect_enabled": false,
 						"oidc_connect_provider_name": "OIDC",
 						"oidc_connect_client_id": "",
@@ -1049,10 +1055,10 @@ func TestAPIContracts(t *testing.T) {
 						"login_agreement_mode": "modal",
 						"login_agreement_updated_at": "2026-03-31",
 						"login_agreement_documents": [
-							{"id": "terms", "title": "服务条款", "content_md": ""},
-							{"id": "usage-policy", "title": "使用政策", "content_md": ""},
-							{"id": "supported-regions", "title": "支持的国家和地区", "content_md": ""},
-							{"id": "service-specific-terms", "title": "服务特定条款", "content_md": ""}
+							{"id": "terms", "title": "????", "content_md": ""},
+							{"id": "usage-policy", "title": "????", "content_md": ""},
+							{"id": "supported-regions", "title": "????????", "content_md": ""},
+							{"id": "service-specific-terms", "title": "??????", "content_md": ""}
 						],
 						"smtp_host": "",
 						"smtp_port": 587,
@@ -1085,13 +1091,13 @@ func TestAPIContracts(t *testing.T) {
 					"dingtalk_connect_corp_restriction_policy": "",
 					"dingtalk_connect_sync_corp_email": false,
 					"dingtalk_connect_sync_corp_email_attr_key": "dingtalk_email",
-					"dingtalk_connect_sync_corp_email_attr_name": "钉钉企业邮箱",
+					"dingtalk_connect_sync_corp_email_attr_name": "??????",
 					"dingtalk_connect_sync_dept": false,
 					"dingtalk_connect_sync_dept_attr_key": "dingtalk_department",
-					"dingtalk_connect_sync_dept_attr_name": "钉钉部门",
+					"dingtalk_connect_sync_dept_attr_name": "????",
 					"dingtalk_connect_sync_display_name": false,
 					"dingtalk_connect_sync_display_name_attr_key": "dingtalk_name",
-					"dingtalk_connect_sync_display_name_attr_name": "钉钉姓名",
+					"dingtalk_connect_sync_display_name_attr_name": "????",
 					"oidc_connect_enabled": true,
 					"oidc_connect_provider_name": "ConfigOIDC",
 					"oidc_connect_client_id": "oidc-config-client",
@@ -1390,9 +1396,10 @@ func newContractDeps(t *testing.T) *contractDeps {
 				Email:         "alice@example.com",
 				Username:      "alice",
 				Notes:         "hello",
-				Role:          service.RoleUser,
-				Balance:       12.5,
-				Concurrency:   5,
+				Role:            service.RoleUser,
+				RechargeBalance: 12.5,
+				Balance:         12.5,
+				Concurrency:     5,
 				Status:        service.StatusActive,
 				AllowedGroups: nil,
 				CreatedAt:     now,

@@ -34,8 +34,8 @@
           <span class="components-admin-announcements-announcement-read-status-dialog__text">{{ value }}</span>
         </template>
 
-        <template #cell-balance="{ value }">
-          <span class="components-admin-announcements-announcement-read-status-dialog__text">{{ formatPoints(Number(value ?? 0)) }}</span>
+        <template #cell-balance="{ row }">
+          <span class="components-admin-announcements-announcement-read-status-dialog__text">{{ formatPoints(Number(row.available_balance ?? row.balance ?? 0)) }}</span>
         </template>
 
         <template #cell-level="{ value }">

@@ -55,7 +55,7 @@ function createUser(overrides: Partial<User> = {}): User {
     email: 'alice@example.com',
     avatar_url: null,
     role: 'user',
-    balance: 10,
+    available_balance: 10,
     concurrency: 2,
     status: 'active',
     allowed_groups: null,

@@ -697,6 +697,9 @@ func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) 
 	if sortBy == "last_used_at" {
 		return userLastUsedAtOrder(sortOrder)
 	}
+	if sortBy == "balance" {
+		return userAvailableBalanceOrder(sortOrder)
+	}
 	if usageOrder := userUsageOrder(sortBy, sortOrder); usageOrder != nil {
 		return usageOrder
 	}
@@ -713,9 +716,6 @@ func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) 
 		defaultField = false
 	case "role":
 		field = dbuser.FieldRole
-		defaultField = false
-	case "balance":
-		field = dbuser.FieldRechargeBalance
 		defaultField = false
 	case "concurrency":
 		field = dbuser.FieldConcurrency
@@ -760,6 +760,24 @@ func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) 
 		}
 	}
 	return []func(*entsql.Selector){dbent.Desc(field), dbent.Desc(dbuser.FieldID)}
+}
+
+func userAvailableBalanceOrder(sortOrder string) []func(*entsql.Selector) {
+	direction := "DESC"
+	tieOrder := entsql.Desc
+	if sortOrder == pagination.SortOrderAsc {
+		direction = "ASC"
+		tieOrder = entsql.Asc
+	}
+	return []func(*entsql.Selector){func(s *entsql.Selector) {
+		s.OrderExpr(entsql.Expr(fmt.Sprintf(
+			"(GREATEST(%s, 0) + %s) %s",
+			s.C(dbuser.FieldRechargeBalance),
+			s.C(dbuser.FieldBonusBalance),
+			direction,
+		)))
+		s.OrderBy(tieOrder(s.C(dbuser.FieldID)))
+	}}
 }
 
 // userUsageOrder keeps the admin users table's usage sorting aligned with the

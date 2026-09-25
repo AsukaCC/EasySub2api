@@ -33,7 +33,7 @@ const fakeUser = {
   username: 'testuser',
   email: 'test@example.com',
   role: 'user' as const,
-  balance: 100,
+  available_balance: 100,
   concurrency: 5,
   status: 'active' as const,
   allowed_groups: null,

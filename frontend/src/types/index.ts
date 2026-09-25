@@ -450,7 +450,8 @@ export interface AnnouncementUserReadStatus {
   user_id: string
   email: string
   username: string
-  balance: number
+  balance?: number
+  available_balance?: number
   level: number
   eligible: boolean
   read_at?: string

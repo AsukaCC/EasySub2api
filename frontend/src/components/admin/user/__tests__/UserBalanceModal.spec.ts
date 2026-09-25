@@ -17,7 +17,7 @@ const config = { data: { recharge_bonus_tiers: [
 
 function mountModal(operation: 'add' | 'subtract' = 'add') {
   return mount(UserBalanceModal, {
-    props: { show: true, operation, user: { id: 'user-1', email: 'user@example.com', balance: 10 } as AdminUser },
+    props: { show: true, operation, user: { id: 'user-1', email: 'user@example.com', available_balance: 10 } as AdminUser },
     global: { stubs: {
       BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
       Icon: true,

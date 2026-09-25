@@ -21,7 +21,7 @@ function deferred() {
 }
 async function openDialog() {
   const wrapper = mount(UserBalanceHistoryModal, {
-    props: { show: false, user: { id: 1, email: 'one@example.com', balance: 1 } as AdminUser },
+    props: { show: false, user: { id: 1, email: 'one@example.com', available_balance: 1 } as AdminUser },
     global: { stubs: { BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /></div>' }, Icon: true, Select: true } }
   })
   await wrapper.setProps({ show: true })
@@ -34,7 +34,7 @@ describe('UserBalanceHistoryModal request ordering', () => {
     mocks.getUserBalanceHistory.mockReturnValueOnce(old.promise).mockResolvedValueOnce(result(20))
     const wrapper = await openDialog()
     await wrapper.setProps({ show: false })
-    await wrapper.setProps({ show: true, user: { id: 2, email: 'two@example.com', balance: 2 } as AdminUser })
+    await wrapper.setProps({ show: true, user: { id: 2, email: 'two@example.com', available_balance: 2 } as AdminUser })
     await flushPromises()
     old.resolve(result(10))
     await flushPromises()

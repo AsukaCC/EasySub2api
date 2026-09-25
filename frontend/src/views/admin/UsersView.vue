@@ -442,14 +442,14 @@
             </span>
           </template>
 
-          <template #cell-balance="{ value, row }">
+          <template #cell-balance="{ row }">
             <div class="views-admin-users-view__panel-13">
               <div class="views-admin-users-view__panel-25">
                 <button
                   class="views-admin-users-view__action-4"
                   @click="handleBalanceHistory(row)"
                 >
-                  {{ formatPoints(value) }}
+                  {{ formatPoints(row.available_balance ?? 0) }}
                 </button>
                 <!-- Instant tooltip -->
                 <div class="views-admin-users-view__panel-26">
