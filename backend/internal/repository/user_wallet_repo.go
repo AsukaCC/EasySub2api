@@ -505,6 +505,29 @@ func (r *userRepository) SetWalletBalance(ctx context.Context, input service.Wal
 	return result, err
 }
 
+func walletFundedRecharge(row walletUserRow) float64 {
+	return walletMoney(math.Max(row.recharge, 0))
+}
+
+func walletFundedBonus(row walletUserRow) float64 {
+	return walletMoney(math.Max(row.bonus, 0))
+}
+
+// walletDebitCovered reports whether the wallet can pay amount.
+// rechargeOnly must come from funded recharge even when overdraft is allowed.
+// A negative recharge bucket is overdraft, not spendable funds; bonus may still
+// cover the remainder so historically overdrawn users are not billed as $0.
+func walletDebitCovered(row walletUserRow, amount, rechargeOnly float64, allowOverdraft bool) bool {
+	fundedRecharge := walletFundedRecharge(row)
+	if rechargeOnly > fundedRecharge {
+		return false
+	}
+	if allowOverdraft {
+		return true
+	}
+	return walletMoney(fundedRecharge+walletFundedBonus(row)) >= walletMoney(amount)
+}
+
 func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.WalletDebitInput, key string) (service.WalletMutationResult, error) {
 	amount := walletMoney(input.Amount)
 	rechargeOnly := walletMoney(input.RechargeOnlyAmount)
@@ -527,12 +550,7 @@ func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.Wal
 	if _, err := expireUserBonusTx(ctx, exec, input.UserID, &row); err != nil {
 		return result, err
 	}
-	bonusCapacity := math.Min(amount, math.Max(row.bonus, 0))
-	requiredRecharge := math.Max(amount-bonusCapacity, rechargeOnly)
-	if !input.AllowOverdraft && row.recharge < requiredRecharge {
-		return result, service.ErrInsufficientBalance
-	}
-	if rechargeOnly > walletMoney(math.Max(row.recharge, 0)) {
+	if !walletDebitCovered(row, amount, rechargeOnly, input.AllowOverdraft) {
 		return result, service.ErrInsufficientBalance
 	}
 	before := row
@@ -596,8 +614,7 @@ func (r *userRepository) HoldWallet(ctx context.Context, input service.WalletHol
 		if _, err := expireUserBonusTx(txCtx, exec, input.UserID, &row); err != nil {
 			return err
 		}
-		requiredRecharge := math.Max(amount-math.Min(amount, math.Max(row.bonus, 0)), 0)
-		if row.recharge < requiredRecharge {
+		if !walletDebitCovered(row, amount, 0, false) {
 			return service.ErrInsufficientBalance
 		}
 		before := row

@@ -125,7 +125,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 
 	if cmd.BalanceCost > 0 {
 		walletResult, err := debitWalletTx(ctx, tx, service.WalletDebitInput{
-			UserID: cmd.UserID, Amount: cmd.BalanceCost, AllowOverdraft: false,
+			UserID: cmd.UserID, Amount: cmd.BalanceCost, AllowOverdraft: true,
 			RechargeOnlyAmount: result.RechargeOnlyCost,
 			SourceType:         "api_usage", SourceID: cmd.RequestID,
 		}, "wallet-usage:"+cmd.APIKeyID+":"+cmd.RequestID)
@@ -134,7 +134,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		}
 		newBalance := walletResult.Summary.AvailableBalance
 		result.NewBalance = &newBalance
-		result.BalanceOverdrafted = newBalance < 0
+		result.BalanceOverdrafted = walletResult.Summary.OverdraftAmount > 0
 	}
 
 	if cmd.APIKeyQuotaCost > 0 {

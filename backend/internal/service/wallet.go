@@ -67,11 +67,13 @@ type WalletDebitInput struct {
 	Amount float64
 	// RechargeOnlyAmount reserves the discounted portion for funded recharge points.
 	RechargeOnlyAmount float64
-	AllowOverdraft     bool
-	SourceType         string
-	SourceID           string
-	IdempotencyKey     string
-	Notes              string
+	// AllowOverdraft records recharge debt when funded buckets cannot cover the
+	// remainder. Recharge-only amounts still cannot use bonus or debt.
+	AllowOverdraft   bool
+	SourceType       string
+	SourceID         string
+	IdempotencyKey   string
+	Notes            string
 }
 
 type WalletSetInput struct {

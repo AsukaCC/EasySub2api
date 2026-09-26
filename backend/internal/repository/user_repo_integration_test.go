@@ -485,14 +485,14 @@ func (s *UserRepoSuite) TestDeductBalance() {
 func (s *UserRepoSuite) TestDeductBalance_InsufficientFunds() {
 	user := s.mustCreateUser(&service.User{Email: "insuf@test.com", Balance: 5})
 
-	// 透支策略：允许扣除超过余额的金额
+	// 透支策略：允许扣除超过可用积分的金额，充值桶记负债，可用积分为 0
 	err := s.repo.DeductBalance(s.ctx, user.ID, 999)
 	s.Require().NoError(err, "DeductBalance should allow overdraft")
 
-	// 验证余额变为负数
 	got, err := s.repo.GetByID(s.ctx, user.ID)
 	s.Require().NoError(err)
-	s.Require().InDelta(-994.0, got.Balance, 1e-6, "Balance should be negative after overdraft")
+	s.Require().InDelta(0.0, got.Balance, 1e-6, "available balance should be zero after overdraft")
+	s.Require().InDelta(-994.0, got.RechargeBalance, 1e-6, "recharge bucket should record the debt")
 }
 
 func (s *UserRepoSuite) TestDeductBalance_ExactAmount() {
@@ -516,7 +516,8 @@ func (s *UserRepoSuite) TestDeductBalance_AllowsOverdraft() {
 	// 验证余额为负
 	got, err := s.repo.GetByID(s.ctx, user.ID)
 	s.Require().NoError(err)
-	s.Require().InDelta(-5.0, got.Balance, 1e-6, "Balance should be -5.0 after overdraft")
+	s.Require().InDelta(0.0, got.Balance, 1e-6, "available balance should be zero after overdraft")
+	s.Require().InDelta(-5.0, got.RechargeBalance, 1e-6, "recharge bucket should be -5.0 after overdraft")
 }
 
 func (s *UserRepoSuite) TestDeductAvailableBalance_ClampsToNonnegativeBalance() {
@@ -742,7 +743,8 @@ func (s *UserRepoSuite) TestCRUD_And_Filters_And_AtomicUpdates() {
 	s.Require().NoError(err, "DeductBalance should allow overdraft")
 	gotOverdraft, err := s.repo.GetByID(s.ctx, user1.ID)
 	s.Require().NoError(err, "GetByID after overdraft")
-	s.Require().Less(gotOverdraft.Balance, 0.0, "Balance should be negative after overdraft")
+	s.Require().InDelta(0.0, gotOverdraft.Balance, 1e-6, "available balance should be zero after overdraft")
+	s.Require().Less(gotOverdraft.RechargeBalance, 0.0, "recharge bucket should be negative after overdraft")
 
 	s.Require().NoError(s.repo.UpdateConcurrency(s.ctx, user1.ID, 3), "UpdateConcurrency")
 	got5, err := s.repo.GetByID(s.ctx, user1.ID)

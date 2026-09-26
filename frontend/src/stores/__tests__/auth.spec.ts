@@ -370,6 +370,39 @@ describe('useAuthStore', () => {
       const store = useAuthStore()
       await expect(store.refreshUser()).rejects.toThrow('Not authenticated')
     })
+
+    it('access token 即将过期时先换票再请求当前用户', async () => {
+      mockLogin.mockResolvedValue(fakeAuthResponse)
+      mockRefreshToken.mockResolvedValue({
+        access_token: 'rotated-token',
+        refresh_token: 'rotated-refresh',
+        expires_in: 3600,
+        token_type: 'Bearer',
+      })
+      mockGetCurrentUser.mockResolvedValue({ data: fakeUser })
+      const store = useAuthStore()
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      vi.setSystemTime(Date.now() + 3500_000)
+      await store.refreshUser()
+
+      expect(mockRefreshToken).toHaveBeenCalledTimes(1)
+      expect(mockGetCurrentUser).toHaveBeenCalledTimes(1)
+      expect(store.token).toBe('rotated-token')
+    })
+
+    it('access token 已过期且换票失败时不再请求 /auth/me', async () => {
+      mockLogin.mockResolvedValue(fakeAuthResponse)
+      mockRefreshToken.mockRejectedValue(Object.assign(new Error('expired'), { status: 401 }))
+      const store = useAuthStore()
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      vi.setSystemTime(Date.now() + 3600_000)
+      await expect(store.refreshUser()).rejects.toMatchObject({ status: 401 })
+
+      expect(mockGetCurrentUser).not.toHaveBeenCalled()
+      expect(store.isAuthenticated).toBe(false)
+    })
   })
 
   // --- isSimpleMode ---

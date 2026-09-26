@@ -123,6 +123,7 @@ export const useAuthStore = defineStore('auth', () => {
 
         // Immediately refresh user data from backend (async, don't block)
         refreshUser().catch((error) => {
+          if (isUnauthorizedError(error)) return
           console.error('Failed to refresh user on init:', error)
         })
 
@@ -152,6 +153,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshIntervalId = setInterval(() => {
       if (token.value) {
         refreshUser().catch((error) => {
+          if (isUnauthorizedError(error)) return
           console.error('Auto-refresh user failed:', error)
         })
       }
@@ -205,12 +207,28 @@ export const useAuthStore = defineStore('auth', () => {
     scheduleTokenRefreshAt(expiresAtMs)
   }
 
+  function isUnauthorizedError(error: unknown): boolean {
+    return (error as { status?: number }).status === 401
+  }
+
+  function isAccessTokenExpired(): boolean {
+    return tokenExpiresAt.value !== null && tokenExpiresAt.value <= Date.now()
+  }
+
+  function accessTokenNeedsRefresh(): boolean {
+    return tokenExpiresAt.value !== null && tokenExpiresAt.value - Date.now() <= TOKEN_REFRESH_BUFFER
+  }
+
+  function sessionExpiredError(): Error & { status: number } {
+    return Object.assign(new Error('Session expired'), { status: 401 })
+  }
+
   /**
    * Perform the actual token refresh
    */
-  async function performTokenRefresh(): Promise<void> {
+  async function performTokenRefresh(): Promise<boolean> {
     if (!refreshTokenValue.value) {
-      return
+      return false
     }
 
     try {
@@ -222,9 +240,11 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Schedule next refresh (this also updates tokenExpiresAt and localStorage)
       scheduleTokenRefresh(response.expires_in)
+      return true
     } catch (error) {
       console.error('Token refresh failed:', error)
       // Don't clear auth here - the interceptor will handle 401 errors
+      return false
     }
   }
 
@@ -452,6 +472,18 @@ export const useAuthStore = defineStore('auth', () => {
 
     refreshUserInFlight = (async () => {
       try {
+        if (isAccessTokenExpired() && !refreshTokenValue.value) {
+          clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+          throw sessionExpiredError()
+        }
+        if (accessTokenNeedsRefresh() && refreshTokenValue.value) {
+          const refreshed = await performTokenRefresh()
+          if (!refreshed && isAccessTokenExpired()) {
+            clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+            throw sessionExpiredError()
+          }
+        }
+
         const response = await authAPI.getCurrentUser()
         if (response.data.run_mode) {
           runMode.value = response.data.run_mode

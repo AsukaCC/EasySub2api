@@ -228,7 +228,7 @@ type UsageBillingApplyResult struct {
 	Applied              bool
 	APIKeyQuotaExhausted bool
 	NewBalance           *float64           // post-deduction balance (nil = no balance deduction)
-	BalanceOverdrafted   bool               // true when the sufficient-balance guard missed and debt was still recorded
+	BalanceOverdrafted   bool               // true when recharge debt was recorded for the in-flight request
 	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
 	FinalActualCost      *float64           // post dynamic-quota cost used by all user-facing deductions
 	FinalRateMultiplier  *float64           // weighted effective multiplier after quota splitting

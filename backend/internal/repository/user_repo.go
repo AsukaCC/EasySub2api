@@ -1120,11 +1120,11 @@ func (r *userRepository) ApplyRedeemBalanceAdjustment(ctx context.Context, id st
 }
 
 // DeductBalance 扣除用户余额
-// 透支策略：允许余额变为负数，确保当前请求能够完成
-// 中间件会阻止余额 <= 0 的用户发起后续请求
+// 透支策略：允许充值桶记负债，确保当前已完成的请求能够入账。
+// 可用积分归零后，预检会阻止后续请求。
 func (r *userRepository) DeductBalance(ctx context.Context, id string, amount float64) error {
 	_, err := r.DebitWallet(ctx, service.WalletDebitInput{
-		UserID: id, Amount: amount, AllowOverdraft: false,
+		UserID: id, Amount: amount, AllowOverdraft: true,
 		SourceType: "api_usage_fallback", SourceID: id,
 	})
 	return err
