@@ -469,7 +469,7 @@ func (s *AnnouncementService) ListUserReadStatus(
 			AvailableBalance: u.Balance,
 			Level:            levelByUser[u.ID],
 			Eligible:         eligible,
-			ReadAt:   ptr,
+			ReadAt:           ptr,
 		})
 	}
 
