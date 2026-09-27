@@ -208,7 +208,12 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 	//   - 失败仅记 ALERT log + counter，不阻断主扣费流程
 	if !p.IsSubscriptionBill && p.Platform != "" && cost.ActualCost > 0 && p.User != nil && deps.userPlatformQuotaRepo != nil {
 		if deps.billingCacheService.HasUserPlatformQuotaLimit(billingCtx, p.User.ID, p.Platform) {
-			deps.billingCacheService.IncrementUserPlatformQuotaUsage(p.User.ID, p.Platform, cost.ActualCost)
+			cacheErr := deps.billingCacheService.IncrementUserPlatformQuotaUsage(p.User.ID, p.Platform, cost.ActualCost)
+			if cacheErr != nil && deps.cfg != nil && deps.cfg.Database.UserPlatformQuotaFlusherEnabled {
+				if err := deps.userPlatformQuotaRepo.IncrementUsageWithReset(billingCtx, p.User.ID, p.Platform, cost.ActualCost, time.Now().UTC()); err != nil {
+					logger.LegacyPrintf("service.gateway", "ALERT: platform quota cache fallback failed user=%v platform=%s cost=%f: %v", p.User.ID, p.Platform, cost.ActualCost, err)
+				}
+			}
 			if deps.cfg == nil || !deps.cfg.Database.UserPlatformQuotaFlusherEnabled {
 				// 降级路径:flusher 未启用时保留原有同步直写 DB
 				if err := deps.userPlatformQuotaRepo.IncrementUsageWithReset(billingCtx, p.User.ID, p.Platform, cost.ActualCost, time.Now().UTC()); err != nil {
@@ -528,7 +533,12 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 	//   - flusher_enabled=true:不直写 DB,由 flusher 异步批量刷（markDirty 已在 IncrementUserPlatformQuotaUsage 内部完成）
 	if !p.IsSubscriptionBill && p.Platform != "" && p.Cost.ActualCost > 0 && p.User != nil && deps.userPlatformQuotaRepo != nil && deps.billingCacheService != nil {
 		if deps.billingCacheService.HasUserPlatformQuotaLimit(ctx, p.User.ID, p.Platform) {
-			deps.billingCacheService.IncrementUserPlatformQuotaUsage(p.User.ID, p.Platform, p.Cost.ActualCost)
+			cacheErr := deps.billingCacheService.IncrementUserPlatformQuotaUsage(p.User.ID, p.Platform, p.Cost.ActualCost)
+			if cacheErr != nil && deps.cfg != nil && deps.cfg.Database.UserPlatformQuotaFlusherEnabled {
+				if err := deps.userPlatformQuotaRepo.IncrementUsageWithReset(ctx, p.User.ID, p.Platform, p.Cost.ActualCost, time.Now().UTC()); err != nil {
+					logger.LegacyPrintf("service.gateway", "ALERT: platform quota cache fallback failed user=%v platform=%s cost=%f: %v", p.User.ID, p.Platform, p.Cost.ActualCost, err)
+				}
+			}
 			if deps.cfg == nil || !deps.cfg.Database.UserPlatformQuotaFlusherEnabled {
 				// 降级路径:flusher 未启用时保留原有异步直写 DB
 				dbCtx, dbCancel := detachUpstreamContext(ctx)

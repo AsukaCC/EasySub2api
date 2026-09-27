@@ -84,7 +84,8 @@ type BillingCache interface {
 	GetUserPlatformQuotaCache(ctx context.Context, userID string, platform string) (*UserPlatformQuotaCacheEntry, bool, error)
 	SetUserPlatformQuotaCache(ctx context.Context, userID string, platform string, entry *UserPlatformQuotaCacheEntry, ttl time.Duration) error
 	DeleteUserPlatformQuotaCache(ctx context.Context, userID string, platform string) error
-	// IncrUserPlatformQuotaUsageCache 在缓存命中时累加用量；缓存未命中（key 不存在）静默返回 nil。
+	// IncrUserPlatformQuotaUsageCache 在缓存命中时累加用量；缓存未命中返回错误，
+	// 由扣费路径回退到数据库，避免异步 flusher 丢失已提交的消费。
 	// markDirty=true 时将该 key 的 member 写入 Redis 脏集，供 flusher 批量回写 DB。
 	IncrUserPlatformQuotaUsageCache(ctx context.Context, userID string, platform string, cost float64, ttl time.Duration, markDirty bool) error
 

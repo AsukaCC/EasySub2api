@@ -118,7 +118,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
-		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
+		if err := incrementUsageBillingSubscription(ctx, tx, cmd.UserID, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
 			return err
 		}
 	}
@@ -323,7 +323,7 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 	return nil
 }
 
-func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID string, costUSD float64) error {
+func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, userID string, subscriptionID string, costUSD float64) error {
 	const updateSQL = `
 		UPDATE user_subscriptions us
 		SET
@@ -333,11 +333,14 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 			updated_at = NOW()
 		FROM groups g
 		WHERE us.id = $2
+			AND us.user_id = $3
 			AND us.deleted_at IS NULL
+			AND us.status = $4
+			AND (us.expires_at IS NULL OR us.expires_at > NOW())
 			AND us.group_id = g.id
 			AND g.deleted_at IS NULL
 	`
-	res, err := tx.ExecContext(ctx, updateSQL, costUSD, subscriptionID)
+	res, err := tx.ExecContext(ctx, updateSQL, costUSD, subscriptionID, userID, service.SubscriptionStatusActive)
 	if err != nil {
 		return err
 	}
