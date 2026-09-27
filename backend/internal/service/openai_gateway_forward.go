@@ -1332,6 +1332,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if err := applyMappedGPT55LiteCompatibility(req, account, body); err != nil {
 		return nil, err
 	}
+	if shouldSimulateCodexExecHeaders(account, isBridgeRequest) {
+		applySimulatedCodexExecHeaders(req.Header, body, isOpenAIResponsesCompactPath(c))
+	}
 	return req, nil
 }
 

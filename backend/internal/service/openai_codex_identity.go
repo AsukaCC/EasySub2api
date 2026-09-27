@@ -9,6 +9,7 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"github.com/google/uuid"
+	"github.com/tidwall/gjson"
 )
 
 // codexUpstreamMinVersion 上游 /backend-api/codex 接受的最低 version 头：
@@ -50,13 +51,13 @@ func AcceptCodexClientVersion(version string) string {
 	return version
 }
 
-// buildCodexCLIUserAgent 按版本号拼出规范 Codex TUI User-Agent。
-// UA 形态只在 codexCLIUserAgentSuffix 一处定义，避免多处拼装漂移。
+// buildCodexCLIUserAgent 按版本号拼出与本机 codex exec 一致的 User-Agent。
+// 形态是 {originator}/{version} (Windows ...; arch) terminal ({originator}; {version})。
 func buildCodexCLIUserAgent(version string) string {
 	if version = NormalizeCodexClientVersion(version); version == "" {
 		return codexCLIUserAgent
 	}
-	return openai.CodexDefaultOriginator + "/" + version + codexCLIUserAgentSuffix
+	return openai.CodexDefaultOriginator + "/" + version + codexCLIUserAgentSuffix + " (" + openai.CodexDefaultOriginator + "; " + version + ")"
 }
 
 // Deprecated: originator normalization is no longer applied.
@@ -288,4 +289,87 @@ func pairCodexIdentityHeaders(h http.Header) {
 	h.Set("user-agent", pairedUA)
 	h.Set("originator", originator)
 	h.Set("version", version)
+}
+
+func shouldSimulateCodexExecHeaders(account *Account, isBridge bool) bool {
+	if account == nil || isBridge || !account.UsesOpenAICodexProtocol() {
+		return false
+	}
+	switch account.Platform {
+	case "", PlatformOpenAI:
+		return true
+	default:
+		return false
+	}
+}
+
+// applySimulatedCodexExecHeaders 按本机 codex exec 0.157.1 的 POST /v1/responses
+// 补齐网关原先不会主动生成的出站头。已有指纹头不覆盖。
+// 不设置 Content-Encoding：真实客户端会压缩正文，只加头会让上游解压失败。
+func applySimulatedCodexExecHeaders(h http.Header, body []byte, compact bool) {
+	if h == nil || strings.TrimSpace(h.Get("originator")) == "" {
+		return
+	}
+	if !compact {
+		h.Del("version")
+	}
+	h.Del("OpenAI-Beta")
+	sessionID := codexExecSessionID(h)
+	if sessionID != "" {
+		setHeaderIfEmpty(h, "session-id", sessionID)
+		setHeaderIfEmpty(h, "thread-id", sessionID)
+		setHeaderIfEmpty(h, "x-client-request-id", sessionID)
+		setHeaderIfEmpty(h, "x-codex-window-id", sessionID+":0")
+		if strings.TrimSpace(h.Get("x-codex-turn-metadata")) == "" {
+			if raw := simulatedCodexTurnMetadata(sessionID, body); raw != "" {
+				h.Set("x-codex-turn-metadata", raw)
+			}
+		}
+	}
+	if !compact {
+		setHeaderIfEmpty(h, responsesLiteHeaderKey, "true")
+	}
+}
+
+func setHeaderIfEmpty(h http.Header, key, value string) {
+	if strings.TrimSpace(h.Get(key)) == "" && value != "" {
+		h.Set(key, value)
+	}
+}
+
+func codexExecSessionID(h http.Header) string {
+	for _, key := range []string{"session-id", "session_id"} {
+		raw := strings.TrimSpace(h.Get(key))
+		if raw == "" {
+			continue
+		}
+		if _, err := uuid.Parse(raw); err == nil {
+			return raw
+		}
+		if id := generateSessionUUID(raw); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+func simulatedCodexTurnMetadata(sessionID string, body []byte) string {
+	meta := map[string]any{
+		"session_id":    sessionID,
+		"thread_id":     sessionID,
+		"turn_id":       uuid.Must(uuid.NewV7()).String(),
+		"window_id":     sessionID + ":0",
+		"window_number": 0,
+		"request_kind":  "turn",
+		"thread_source": "user",
+		"turn_trigger":  "exec",
+	}
+	if model := strings.TrimSpace(gjson.GetBytes(body, "model").String()); model != "" {
+		meta["model"] = model
+	}
+	raw, err := marshalCodexTurnMetadata(meta)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }
