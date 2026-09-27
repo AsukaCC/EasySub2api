@@ -237,6 +237,9 @@ func (s *BillingCacheService) cacheWriteWorker(ch <-chan cacheWriteTask) {
 			if s.cache != nil {
 				if err := s.cache.UpdateAPIKeyRateLimitUsage(ctx, task.apiKeyID, task.amount); err != nil {
 					logger.LegacyPrintf("service.billing_cache", "Warning: update rate limit usage cache failed for api key %v: %v", task.apiKeyID, err)
+					invalidateCtx, invalidateCancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+					_ = s.cache.InvalidateAPIKeyRateLimit(invalidateCtx, task.apiKeyID)
+					invalidateCancel()
 				}
 			}
 		}
@@ -691,11 +694,21 @@ func (s *BillingCacheService) QueueUpdateAPIKeyRateLimitUsage(apiKeyID string, c
 	if s.cache == nil {
 		return
 	}
-	s.enqueueCacheWrite(cacheWriteTask{
+	if s.enqueueCacheWrite(cacheWriteTask{
 		kind:     cacheWriteUpdateRateLimitUsage,
 		apiKeyID: apiKeyID,
 		amount:   cost,
-	})
+	}) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+	defer cancel()
+	if err := s.cache.UpdateAPIKeyRateLimitUsage(ctx, apiKeyID, cost); err != nil {
+		logger.LegacyPrintf("service.billing_cache", "Warning: synchronous api key rate-limit cache fallback failed for key %v: %v", apiKeyID, err)
+		invalidateCtx, invalidateCancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+		_ = s.cache.InvalidateAPIKeyRateLimit(invalidateCtx, apiKeyID)
+		invalidateCancel()
+	}
 }
 
 // IncrementUserPlatformQuotaUsage 同步累加 user × platform usage 到 Redis 缓存。
@@ -705,12 +718,12 @@ func (s *BillingCacheService) QueueUpdateAPIKeyRateLimitUsage(apiKeyID string, c
 // 写延迟通常 < 1ms（本地 Redis），换取 quota 视图实时性的取舍合理。
 //
 // Redis 写失败用 ALERT 级 log；DB 持久化由 caller 单独 goroutine 兜底（gateway_service.go）。
-func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID string, platform string, cost float64) {
+func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID string, platform string, cost float64) error {
 	if s.cache == nil {
-		return
+		return errBillingCacheUnavailable
 	}
 	if platform == "" || cost <= 0 {
-		return
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
 	defer cancel()
@@ -720,7 +733,9 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID string, pla
 		logger.LegacyPrintf("service.billing_cache",
 			"ALERT: incr user platform quota cache failed user=%v platform=%s cost=%f: %v",
 			userID, platform, cost, err)
+		return err
 	}
+	return nil
 }
 
 // ============================================

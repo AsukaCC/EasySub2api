@@ -544,7 +544,7 @@ func (c *billingCache) IncrUserPlatformQuotaUsageCache(ctx context.Context, user
 	if markDirty {
 		member = userPlatformQuotaDirtyMember(userID, platform)
 	}
-	_, err := c.rdb.Eval(ctx, updateUserPlatformQuotaUsageScript,
+	result, err := c.rdb.Eval(ctx, updateUserPlatformQuotaUsageScript,
 		[]string{userPlatformQuotaCacheKey(userID, platform), userPlatformQuotaDirtySetKey()},
 		strconv.FormatFloat(cost, 'f', -1, 64),
 		int(ttl.Seconds()),
@@ -554,6 +554,9 @@ func (c *billingCache) IncrUserPlatformQuotaUsageCache(ctx context.Context, user
 	).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return err
+	}
+	if n, ok := result.(int64); ok && n == 0 {
+		return errors.New("user platform quota cache miss")
 	}
 	return nil
 }

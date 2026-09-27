@@ -86,10 +86,10 @@ func TestUserPlatformQuotaCache_NilLimitSetThenGet(t *testing.T) {
 	}
 }
 
-func TestUserPlatformQuotaCache_IncrMissIsNoop(t *testing.T) {
+func TestUserPlatformQuotaCache_IncrMissReturnsError(t *testing.T) {
 	c, _ := newMiniRedisCache(t)
-	if err := c.IncrUserPlatformQuotaUsageCache(context.Background(), "user-1", "openai", 0.5, time.Minute, false); err != nil {
-		t.Fatal(err)
+	if err := c.IncrUserPlatformQuotaUsageCache(context.Background(), "user-1", "openai", 0.5, time.Minute, false); err == nil {
+		t.Fatal("expected cache miss error")
 	}
 	_, ok, _ := c.GetUserPlatformQuotaCache(context.Background(), "user-1", "openai")
 	if ok {
