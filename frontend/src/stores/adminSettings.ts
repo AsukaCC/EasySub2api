@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { settingsAPI } from '@/api/admin/settings'
+import { clearAdminSettingsMemoryCache, settingsAPI, type SystemSettings } from '@/api/admin/settings'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import type { CustomMenuItem } from '@/types'
 
@@ -57,17 +57,54 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
   const affiliateEnabled = ref(readCachedBool('affiliate_enabled_admin_cached', false))
   const supportTicketsEnabled = ref(readCachedBool('support_tickets_enabled_admin_cached', false))
   const customMenuItems = ref<CustomMenuItem[]>([])
+  let fetchTask: Promise<void> | null = null
+  let fetchGeneration = 0
+
+  function loadSettings(force = false): Promise<SystemSettings> {
+    return settingsAPI.getSettings(force ? { force: true } : undefined)
+  }
+
+  function invalidate(): void {
+    fetchGeneration += 1
+    fetchTask = null
+    loaded.value = false
+    loading.value = false
+    clearAdminSettingsMemoryCache()
+  }
 
   async function fetch(force = false): Promise<void> {
     if (loaded.value && !force) return
-    if (loading.value) return
+    if (!force && fetchTask) return fetchTask
 
+    const generation = fetchGeneration
     loading.value = true
-    try {
+    const slot: { task?: Promise<void> } = {}
+    slot.task = (async () => {
+      try {
+        await loadAndApply(force, generation)
+        if (generation !== fetchGeneration) return
+        loaded.value = true
+      } catch (err) {
+        if (generation !== fetchGeneration) return
+        // Keep cached/default value: do not "flip" the UI based on a transient fetch failure.
+        console.error('[adminSettings] Failed to fetch settings:', err)
+      } finally {
+        if (fetchTask === slot.task) {
+          fetchTask = null
+          loading.value = false
+        }
+      }
+    })()
+    fetchTask = slot.task
+    return slot.task
+  }
+
+  async function loadAndApply(force: boolean, generation: number): Promise<void> {
       const [settings, paymentConfigResp] = await Promise.all([
-        settingsAPI.getSettings(),
+        loadSettings(force),
         adminPaymentAPI.getConfig()
       ])
+      if (generation !== fetchGeneration) return
       opsMonitoringEnabled.value = settings.ops_monitoring_enabled ?? true
       writeCachedBool('ops_monitoring_enabled_cached', opsMonitoringEnabled.value)
 
@@ -94,14 +131,6 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
       writeCachedBool('risk_control_enabled_admin_cached', riskControlEnabled.value)
       writeCachedBool('affiliate_enabled_admin_cached', affiliateEnabled.value)
       writeCachedBool('support_tickets_enabled_admin_cached', supportTicketsEnabled.value)
-
-      loaded.value = true
-    } catch (err) {
-      // Keep cached/default value: do not "flip" the UI based on a transient fetch failure.
-      console.error('[adminSettings] Failed to fetch settings:', err)
-    } finally {
-      loading.value = false
-    }
   }
 
   function setOpsMonitoringEnabledLocal(value: boolean) {
@@ -187,6 +216,8 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
     supportTicketsEnabled,
     customMenuItems,
     fetch,
+    loadSettings,
+    invalidate,
     setOpsMonitoringEnabledLocal,
     setOpsRealtimeMonitoringEnabledLocal,
     setPaymentEnabledLocal,

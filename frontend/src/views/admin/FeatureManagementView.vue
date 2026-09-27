@@ -210,7 +210,7 @@ const siteBillingModeHint = computed(() =>
 async function load() {
   loading.value = true
   try {
-    const settings = await adminAPI.settings.getSettings()
+    const settings = await adminSettingsStore.loadSettings()
     siteBillingMode.value = resolveSiteBillingMode(settings)
     for (const feature of features) {
       state[feature.enabledKey] = Boolean(settings[feature.enabledKey])

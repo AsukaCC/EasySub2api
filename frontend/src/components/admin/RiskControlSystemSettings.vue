@@ -24,10 +24,11 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Toggle from '@/components/common/Toggle.vue'
 import { adminAPI } from '@/api'
-import { useAppStore } from '@/stores'
+import { useAdminSettingsStore, useAppStore } from '@/stores'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const adminSettingsStore = useAdminSettingsStore()
 const loading = ref(true)
 const saving = ref(false)
 const form = reactive({ enabled: false, ttl: 3600 })
@@ -35,7 +36,7 @@ const form = reactive({ enabled: false, ttl: 3600 })
 async function load() {
   loading.value = true
   try {
-    const settings = await adminAPI.settings.getSettings()
+    const settings = await adminSettingsStore.loadSettings()
     form.enabled = Boolean(settings.cyber_session_block_enabled)
     form.ttl = settings.cyber_session_block_ttl_seconds || 3600
   } catch {
@@ -57,6 +58,7 @@ async function save() {
       cyber_session_block_enabled: form.enabled,
       cyber_session_block_ttl_seconds: ttl || 3600,
     })
+    await adminSettingsStore.fetch(true)
     appStore.showSuccess(t('common.saved'))
   } catch {
     appStore.showError(t('admin.settings.featureManagement.saveFailed'))

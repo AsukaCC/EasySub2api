@@ -19,7 +19,8 @@ vi.mock('vue-i18n', async () => {
 vi.mock('@/stores', () => ({
   useAppStore: () => ({
     showError: vi.fn(),
-    showSuccess: vi.fn()
+    showSuccess: vi.fn(),
+    fetchPublicSettings: (...args: unknown[]) => getPublicSettingsMock(...args)
   })
 }))
 

@@ -256,7 +256,6 @@ import {
   completeOIDCOAuthRegistration,
   exchangePendingOAuthCompletion,
   getOAuthCompletionKind,
-  getPublicSettings,
   isOAuthLoginCompletion,
   login2FA,
   persistOAuthTokenContext,
@@ -402,8 +401,8 @@ function sanitizeRedirectPath(path: string | null | undefined): string {
 
 async function loadProviderName() {
   try {
-    const settings = await getPublicSettings()
-    const name = settings.oidc_oauth_provider_name?.trim()
+    const settings = await appStore.fetchPublicSettings()
+    const name = settings?.oidc_oauth_provider_name?.trim()
     if (name) {
       providerName.value = name
     }

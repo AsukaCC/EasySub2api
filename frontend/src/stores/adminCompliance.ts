@@ -23,17 +23,29 @@ export const useAdminComplianceStore = defineStore('adminCompliance', () => {
     return status.value?.ack_phrase_en || FALLBACK_EN_PHRASE
   })
 
-  async function fetchStatus(): Promise<AdminComplianceStatus> {
+  let statusRequest: Promise<AdminComplianceStatus> | null = null
+
+  function fetchStatus(): Promise<AdminComplianceStatus> {
+    if (statusRequest) return statusRequest
     loading.value = true
-    try {
-      const nextStatus = await adminComplianceAPI.getStatus()
-      status.value = nextStatus
-      initialized.value = true
-      forceVisible.value = nextStatus.required
-      return nextStatus
-    } finally {
-      loading.value = false
-    }
+    const slot: { request?: Promise<AdminComplianceStatus> } = {}
+    slot.request = (async () => {
+      try {
+        const nextStatus = await adminComplianceAPI.getStatus()
+        if (statusRequest !== slot.request) return nextStatus
+        status.value = nextStatus
+        initialized.value = true
+        forceVisible.value = nextStatus.required
+        return nextStatus
+      } finally {
+        if (statusRequest === slot.request) {
+          statusRequest = null
+          loading.value = false
+        }
+      }
+    })()
+    statusRequest = slot.request
+    return slot.request
   }
 
   async function accept(phrase: string): Promise<AdminComplianceStatus> {
@@ -68,6 +80,7 @@ export const useAdminComplianceStore = defineStore('adminCompliance', () => {
   }
 
   function reset(): void {
+    statusRequest = null
     status.value = null
     loading.value = false
     submitting.value = false

@@ -33,7 +33,8 @@ vi.mock('@/api/auth', async () => {
 
 vi.mock('@/stores', () => ({
   useAppStore: () => ({
-    showError
+    showError,
+    fetchPublicSettings: (...args: unknown[]) => getPublicSettings(...args)
   })
 }))
 

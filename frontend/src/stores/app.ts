@@ -13,6 +13,7 @@ import {
   type ReleaseInfo
 } from '@/api/admin/system'
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
+import { clearPublicSettingsMemoryCache } from '@/api/settingsMemoryCache'
 import { applyResolvedThemeAccent } from '@/utils/themeAccent'
 
 export const useAppStore = defineStore('app', () => {
@@ -35,6 +36,7 @@ export const useAppStore = defineStore('app', () => {
   const docUrl = ref<string>('')
   const cachedPublicSettings = ref<PublicSettings | null>(null)
   let publicSettingsRequest: Promise<PublicSettings | null> | null = null
+  let publicSettingsGeneration = 0
 
   // Version cache state
   const versionLoaded = ref<boolean>(false)
@@ -384,9 +386,10 @@ export const useAppStore = defineStore('app', () => {
     }
 
     publicSettingsLoading.value = true
+    const generation = publicSettingsGeneration
     let apiRequest: Promise<PublicSettings>
     try {
-      apiRequest = fetchPublicSettingsAPI()
+      apiRequest = fetchPublicSettingsAPI(force ? { force: true } : undefined)
     } catch (error) {
       console.error('Failed to fetch public settings:', error)
       publicSettingsLoading.value = false
@@ -395,6 +398,7 @@ export const useAppStore = defineStore('app', () => {
 
     const request = apiRequest
       .then((data) => {
+        if (generation !== publicSettingsGeneration) return data
         applySettings(data)
         return data
       })
@@ -417,8 +421,12 @@ export const useAppStore = defineStore('app', () => {
    * Clear public settings cache
    */
   function clearPublicSettingsCache(): void {
+    publicSettingsGeneration += 1
+    publicSettingsRequest = null
     publicSettingsLoaded.value = false
+    publicSettingsLoading.value = false
     cachedPublicSettings.value = null
+    clearPublicSettingsMemoryCache()
   }
 
   /**

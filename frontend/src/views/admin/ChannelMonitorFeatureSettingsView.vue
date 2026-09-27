@@ -44,7 +44,7 @@ const saving = ref(false)
 async function load() {
   loading.value = true
   try {
-    const settings = await adminAPI.settings.getSettings()
+    const settings = await adminSettingsStore.loadSettings()
     hideThroughput.value = Boolean(settings.channel_monitor_hide_throughput)
   } catch {
     appStore.showError(t('admin.settings.featureManagement.loadFailed'))

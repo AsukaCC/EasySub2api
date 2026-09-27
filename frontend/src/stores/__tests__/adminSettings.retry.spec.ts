@@ -42,6 +42,26 @@ describe('admin settings fetch retry', () => {
     expect(localStorage.getItem('payment_enabled_cached')).toBe('true')
   })
 
+  it('shares one in-flight fetch across callers', async () => {
+    let resolveSettings: (value: unknown) => void = () => undefined
+    mocks.getSettings.mockReturnValue(new Promise((resolve) => {
+      resolveSettings = resolve
+    }))
+    const store = useAdminSettingsStore()
+    let secondFinished = false
+    const first = store.fetch()
+    const second = store.fetch().then(() => {
+      secondFinished = true
+    })
+    await Promise.resolve()
+    expect(secondFinished).toBe(false)
+    expect(mocks.getSettings).toHaveBeenCalledTimes(1)
+    expect(mocks.getConfig).toHaveBeenCalledTimes(1)
+    resolveSettings({ ops_monitoring_enabled: true, custom_menu_items: [] })
+    await Promise.all([first, second])
+    expect(store.loaded).toBe(true)
+  })
+
   it('still reuses successfully loaded settings', async () => {
     const store = useAdminSettingsStore()
     await store.fetch()
