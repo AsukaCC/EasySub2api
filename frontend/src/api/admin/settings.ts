@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from "../client";
+import { createSettingsMemoryCache } from "../settingsMemoryCache";
 import type {
   CustomEndpoint,
   CustomMenuItem,
@@ -1084,13 +1085,25 @@ export interface UpdateSettingsRequest {
   allow_user_view_error_requests?: boolean;
 }
 
+const adminSettingsMemoryCache = createSettingsMemoryCache<SystemSettings>();
+
+export function clearAdminSettingsMemoryCache(): void {
+  adminSettingsMemoryCache.clear();
+  webSearchEmulationMemoryCache.clear();
+}
+
 /**
- * Get all system settings
- * @returns System settings
+ * Get all system settings.
+ * Concurrent calls for the same login share one request, and a short memory
+ * cache covers the rest of page initialization. Pass force after a mutation.
  */
-export async function getSettings(): Promise<SystemSettings> {
-  const { data } = await apiClient.get<SystemSettings>("/admin/settings");
-  return data;
+export async function getSettings(options?: {
+  force?: boolean;
+}): Promise<SystemSettings> {
+  return adminSettingsMemoryCache.load(options?.force === true, async () => {
+    const { data } = await apiClient.get<SystemSettings>("/admin/settings");
+    return data;
+  });
 }
 
 /**
@@ -1105,6 +1118,7 @@ export async function updateSettings(
     "/admin/settings",
     settings,
   );
+  clearAdminSettingsMemoryCache();
   return data;
 }
 
@@ -1626,11 +1640,18 @@ export interface WebSearchTestResult {
   query: string;
 }
 
-export async function getWebSearchEmulationConfig(): Promise<WebSearchEmulationConfig> {
-  const { data } = await apiClient.get<WebSearchEmulationConfig>(
-    "/admin/settings/web-search-emulation",
-  );
-  return data;
+const webSearchEmulationMemoryCache =
+  createSettingsMemoryCache<WebSearchEmulationConfig>();
+
+export async function getWebSearchEmulationConfig(options?: {
+  force?: boolean;
+}): Promise<WebSearchEmulationConfig> {
+  return webSearchEmulationMemoryCache.load(options?.force === true, async () => {
+    const { data } = await apiClient.get<WebSearchEmulationConfig>(
+      "/admin/settings/web-search-emulation",
+    );
+    return data;
+  });
 }
 
 export async function updateWebSearchEmulationConfig(
@@ -1640,6 +1661,7 @@ export async function updateWebSearchEmulationConfig(
     "/admin/settings/web-search-emulation",
     config,
   );
+  webSearchEmulationMemoryCache.clear();
   return data;
 }
 
@@ -1660,6 +1682,7 @@ export async function resetWebSearchUsage(payload: {
     "/admin/settings/web-search-emulation/reset-usage",
     payload,
   );
+  webSearchEmulationMemoryCache.clear();
 }
 
 export const settingsAPI = {

@@ -3,7 +3,7 @@
  * Base client with interceptors for authentication, token refresh, and error handling
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse, AxiosHeaders, AxiosAdapter } from 'axios'
 import type { ApiResponse } from '@/types'
 import { getLocale } from '@/i18n'
 import {
@@ -69,12 +69,126 @@ apiClient.interceptors.request.use(
       }
     }
 
-    return config
+    return coalesceInFlightGet(config)
   },
   (error) => {
     return Promise.reject(error)
   }
 )
+
+// ==================== In-flight GET coalescing ====================
+// Same login, full URL, and query params share one request until it settles.
+// /settings/public and /admin/settings stay separate because the URL differs.
+
+const inFlightGetRequests = new Map<string, Promise<AxiosResponse>>()
+
+function headerString(headers: InternalAxiosRequestConfig['headers'], name: string): string {
+  if (!headers) return ''
+  if (typeof (headers as AxiosHeaders).get === 'function') {
+    const value = (headers as AxiosHeaders).get(name)
+    if (typeof value === 'string') return value
+    if (Array.isArray(value)) return value.join(',')
+    return ''
+  }
+  const record = headers as unknown as Record<string, unknown>
+  const direct = record[name] ?? record[name.toLowerCase()]
+  return typeof direct === 'string' ? direct : ''
+}
+
+function requestPathname(uri: string): string {
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+    return new URL(uri, origin).pathname
+  } catch {
+    return uri.split(/[?#]/, 1)[0]
+  }
+}
+
+function getCoalesceKey(config: InternalAxiosRequestConfig): string {
+  return [
+    headerString(config.headers, 'Authorization'),
+    headerString(config.headers, 'Accept-Language'),
+    headerString(config.headers, ADMIN_UI_REQUEST_HEADER),
+    headerString(config.headers, USER_UI_REQUEST_HEADER),
+    axios.getUri(config),
+  ].join('\n')
+}
+
+function canCoalesceGet(config: InternalAxiosRequestConfig): boolean {
+  const method = (config.method || 'get').toLowerCase()
+  if (method !== 'get') return false
+  if (config.signal || config.cancelToken) return false
+  const responseType = config.responseType
+  return !responseType || responseType === 'json'
+}
+
+function resolveAdapter(config: InternalAxiosRequestConfig): AxiosAdapter {
+  return axios.getAdapter((config.adapter ?? apiClient.defaults.adapter) as Parameters<typeof axios.getAdapter>[0])
+}
+
+function cloneAxiosResponse(response: AxiosResponse, config: InternalAxiosRequestConfig): AxiosResponse {
+  return {
+    data: response.data,
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+    config,
+    request: response.request,
+  }
+}
+
+function dropInFlightGetsForPath(pathname: string): void {
+  if (!pathname) return
+  for (const key of inFlightGetRequests.keys()) {
+    const uri = key.slice(key.lastIndexOf('\n') + 1)
+    if (requestPathname(uri) === pathname) {
+      inFlightGetRequests.delete(key)
+    }
+  }
+}
+
+function coalesceInFlightGet(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+  const method = (config.method || 'get').toLowerCase()
+  if (!canCoalesceGet(config)) {
+    if (method !== 'get') {
+      dropInFlightGetsForPath(requestPathname(axios.getUri({ ...config, params: {} })))
+    }
+    return config
+  }
+
+  const key = getCoalesceKey(config)
+  const existing = inFlightGetRequests.get(key)
+  if (existing) {
+    config.adapter = () => existing.then((response) => cloneAxiosResponse(response, config))
+    return config
+  }
+
+  const originalAdapter = resolveAdapter(config)
+  const slot: { current?: Promise<AxiosResponse> } = {}
+  const shared = new Promise<AxiosResponse>((resolve, reject) => {
+    config.adapter = async (requestConfig) => {
+      try {
+        const response = await originalAdapter(requestConfig)
+        resolve(response)
+        return cloneAxiosResponse(response, requestConfig)
+      } catch (error) {
+        reject(error)
+        throw error
+      } finally {
+        if (slot.current && inFlightGetRequests.get(key) === slot.current) {
+          inFlightGetRequests.delete(key)
+        }
+      }
+    }
+  })
+  slot.current = shared
+  shared.catch(() => {
+    // Callers observe the adapter rejection. This only prevents an unhandled
+    // rejection when no second request joined before the leader failed.
+  })
+  inFlightGetRequests.set(key, shared)
+  return config
+}
 
 // ==================== Response Interceptor ====================
 

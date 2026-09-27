@@ -3,9 +3,11 @@
  * Manages user authentication state, login/logout, token refresh, and token persistence
  */
 
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api/auth'
+import { useAdminSettingsStore } from './adminSettings'
+import { useAppStore } from './app'
 import { passkeyAPI } from '@/api/passkey'
 import type {
   User,
@@ -317,7 +319,18 @@ export const useAuthStore = defineStore('auth', () => {
    * Set auth state from an AuthResponse
    * Internal helper function
    */
+  function invalidateSharedSettingsState(): void {
+    try {
+      if (!getActivePinia()) return
+      useAppStore().clearPublicSettingsCache()
+      useAdminSettingsStore().invalidate()
+    } catch (error) {
+      console.error('[auth] Failed to invalidate settings cache:', error)
+    }
+  }
+
   function setAuthFromResponse(response: AuthResponse): void {
+    const previousUserId = user.value?.id
     // Store token and user
     token.value = response.access_token
 
@@ -333,6 +346,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
     const { run_mode: _run_mode, ...userData } = response.user
     user.value = userData
+    if (previousUserId != null && previousUserId !== userData.id) {
+      invalidateSharedSettingsState()
+    }
 
     // Persist to localStorage
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token)
@@ -376,6 +392,10 @@ export const useAuthStore = defineStore('auth', () => {
    * @param newToken - 后端签发的 JWT access token
    */
   async function setToken(newToken: string): Promise<User> {
+    const previousUserId = user.value?.id
+    if (previousUserId != null) {
+      invalidateSharedSettingsState()
+    }
     // Clear any previous state first (avoid mixing sessions)
     // Note: Don't clear localStorage here as OAuth callback may have set refresh_token
     stopAutoRefresh()
@@ -515,6 +535,7 @@ export const useAuthStore = defineStore('auth', () => {
    * Internal helper function
    */
   function clearAuth(options?: { preservePendingAuthSession?: boolean }): void {
+    const hadSession = user.value != null || token.value != null
     // Stop auto-refresh
     stopAutoRefresh()
     // Stop token refresh
@@ -530,6 +551,9 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(AUTH_USER_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(TOKEN_EXPIRES_AT_KEY)
+    if (hadSession) {
+      invalidateSharedSettingsState()
+    }
 
     if (options?.preservePendingAuthSession) {
       pendingAuthSession.value = getPersistedPendingAuthSession()

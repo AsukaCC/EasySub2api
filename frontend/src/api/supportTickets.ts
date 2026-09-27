@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { createSettingsMemoryCache } from './settingsMemoryCache'
 import type {
   SupportTicketCategory,
   SupportTicketDetail,
@@ -27,27 +28,57 @@ export interface CreateSupportTicketRequest {
 const userBase = '/tickets'
 const adminBase = '/admin/tickets'
 
+// The top nav and admin sidebar both show the badge and remount on every page.
+const userSummaryCache = createSettingsMemoryCache<SupportTicketSummary>()
+const adminSummaryCache = createSettingsMemoryCache<SupportTicketSummary>()
+
+export function clearSupportTicketSummaryCache(): void {
+  userSummaryCache.clear()
+  adminSummaryCache.clear()
+}
+
+if (typeof window !== 'undefined') {
+  // Registered at module load so it runs before component listeners refetch.
+  window.addEventListener('support-tickets:updated', clearSupportTicketSummaryCache)
+}
+
+async function loadSummary(
+  cache: ReturnType<typeof createSettingsMemoryCache<SupportTicketSummary>>,
+  url: string,
+): Promise<{ data: SupportTicketSummary }> {
+  const data = await cache.load(false, async () => (await apiClient.get<SupportTicketSummary>(url)).data)
+  return { data }
+}
+
+async function mutate<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request
+  } finally {
+    clearSupportTicketSummaryCache()
+  }
+}
+
 export const supportTicketsAPI = {
   list(params?: SupportTicketFilters) {
     return apiClient.get<SupportTicketPage>(userBase, { params })
   },
   summary() {
-    return apiClient.get<SupportTicketSummary>(`${userBase}/summary`)
+    return loadSummary(userSummaryCache, `${userBase}/summary`)
   },
   create(data: CreateSupportTicketRequest) {
-    return apiClient.post<SupportTicketDetail>(userBase, data)
+    return mutate(apiClient.post<SupportTicketDetail>(userBase, data))
   },
   detail(id: string) {
     return apiClient.get<SupportTicketDetail>(`${userBase}/${id}`)
   },
   reply(id: string, message: string) {
-    return apiClient.post<SupportTicketDetail>(`${userBase}/${id}/messages`, { message })
+    return mutate(apiClient.post<SupportTicketDetail>(`${userBase}/${id}/messages`, { message }))
   },
   markRead(id: string) {
-    return apiClient.post(`${userBase}/${id}/read`)
+    return mutate(apiClient.post(`${userBase}/${id}/read`))
   },
   action(id: string, action: 'cancel' | 'close' | 'reopen') {
-    return apiClient.post<SupportTicketDetail>(`${userBase}/${id}/${action}`)
+    return mutate(apiClient.post<SupportTicketDetail>(`${userBase}/${id}/${action}`))
   },
 }
 
@@ -56,24 +87,24 @@ export const adminSupportTicketsAPI = {
     return apiClient.get<SupportTicketPage>(adminBase, { params })
   },
   summary() {
-    return apiClient.get<SupportTicketSummary>(`${adminBase}/summary`)
+    return loadSummary(adminSummaryCache, `${adminBase}/summary`)
   },
   createRefund(data: { order_id: string; approved_principal_amount: number; message: string }) {
-    return apiClient.post(`${adminBase}`, data)
+    return mutate(apiClient.post(`${adminBase}`, data))
   },
   detail(id: string) {
     return apiClient.get<SupportTicketDetail>(`${adminBase}/${id}`)
   },
   reply(id: string, message: string) {
-    return apiClient.post<SupportTicketDetail>(`${adminBase}/${id}/messages`, { message })
+    return mutate(apiClient.post<SupportTicketDetail>(`${adminBase}/${id}/messages`, { message }))
   },
   markRead(id: string) {
-    return apiClient.post(`${adminBase}/${id}/read`)
+    return mutate(apiClient.post(`${adminBase}/${id}/read`))
   },
   setStatus(id: string, status: SupportTicketStatus, message?: string) {
-    return apiClient.post<SupportTicketDetail>(`${adminBase}/${id}/status`, { status, message })
+    return mutate(apiClient.post<SupportTicketDetail>(`${adminBase}/${id}/status`, { status, message }))
   },
   reviewRefund(id: string, data: { decision: 'APPROVE' | 'REJECT' | 'RETRY'; approved_principal_amount?: number; message?: string }) {
-    return apiClient.post(`${adminBase}/${id}/refund/review`, data)
+    return mutate(apiClient.post(`${adminBase}/${id}/refund/review`, data))
   },
 }

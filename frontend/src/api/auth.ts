@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import { publicSettingsMemoryCache } from './settingsMemoryCache'
 import { refreshAuthTokens, type RefreshTokenResponse } from './tokenRefresh'
 export type { RefreshTokenResponse } from './tokenRefresh'
 import type {
@@ -349,9 +350,15 @@ export function isAuthenticated(): boolean {
  * Get public settings (no auth required)
  * @returns Public settings including registration and Turnstile config
  */
-export async function getPublicSettings(): Promise<PublicSettings> {
-  const { data } = await apiClient.get<PublicSettings>('/settings/public')
-  return data
+export function clearPublicSettingsMemoryCache(): void {
+  publicSettingsMemoryCache.clear()
+}
+
+export async function getPublicSettings(options?: { force?: boolean }): Promise<PublicSettings> {
+  return publicSettingsMemoryCache.load(options?.force === true, async () => {
+    const { data } = await apiClient.get<PublicSettings>('/settings/public')
+    return data
+  }) as Promise<PublicSettings>
 }
 
 export type WeChatOAuthMode = 'open' | 'mp'

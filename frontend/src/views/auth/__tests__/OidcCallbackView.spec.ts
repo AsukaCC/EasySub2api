@@ -52,7 +52,8 @@ vi.mock('@/stores', () => ({
   }),
   useAppStore: () => ({
     showSuccess,
-    showError
+    showError,
+    fetchPublicSettings: (...args: unknown[]) => getPublicSettings(...args)
   })
 }))
 

@@ -43,10 +43,11 @@ import DOMPurify from 'dompurify'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import { adminAPI } from '@/api'
-import { useAppStore } from '@/stores'
+import { useAdminSettingsStore, useAppStore } from '@/stores'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const adminSettingsStore = useAdminSettingsStore()
 const content = ref('')
 const enabled = ref(false)
 const loading = ref(false)
@@ -58,7 +59,7 @@ const previewHtml = computed(() => DOMPurify.sanitize(marked.parse(content.value
 async function load() {
   loading.value = true
   try {
-    const settings = await adminAPI.settings.getSettings()
+    const settings = await adminSettingsStore.loadSettings()
     content.value = settings.usage_guide_content_md || ''
     enabled.value = settings.usage_guide_enabled === true
   } catch {
@@ -79,7 +80,7 @@ async function save() {
     content.value = updated.usage_guide_content_md || ''
     enabled.value = updated.usage_guide_enabled === true
     appStore.showSuccess(t('admin.settings.usageGuide.saved'))
-    await appStore.fetchPublicSettings(true)
+    await Promise.all([appStore.fetchPublicSettings(true), adminSettingsStore.fetch(true)])
   } catch {
     appStore.showError(t('admin.settings.usageGuide.saveFailed'))
   } finally {

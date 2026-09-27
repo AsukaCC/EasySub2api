@@ -86,7 +86,7 @@ const queryModeOptions = computed(() => [
 async function load() {
   loading.value = true
   try {
-    const settings = await adminAPI.settings.getSettings()
+    const settings = await adminSettingsStore.loadSettings()
     form.ops_realtime_monitoring_enabled = settings.ops_realtime_monitoring_enabled ?? true
     form.ops_query_mode_default = settings.ops_query_mode_default || 'auto'
     form.ops_metrics_interval_seconds = settings.ops_metrics_interval_seconds || 5

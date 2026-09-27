@@ -224,6 +224,86 @@ describe('API Client', () => {
     })
   })
 
+  describe('进行中的 GET 去重', () => {
+    function ok(data: unknown) {
+      return {
+        status: 200,
+        data: { code: 0, data, message: 'ok' },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      }
+    }
+
+    it('同一身份、完整 URL 和参数的并发 GET 只发一次，不同路径或参数不合并', async () => {
+      localStorage.setItem('auth_token', 'same-user')
+      let release: (value: unknown) => void = () => undefined
+      const gate = new Promise((resolve) => {
+        release = resolve
+      })
+      const adapter = vi.fn().mockImplementation((config) => gate.then(() => ok({ url: config.url })))
+      apiClient.defaults.adapter = adapter
+
+      const adminA = apiClient.get('/admin/settings')
+      const adminB = apiClient.get('/admin/settings')
+      const publicSettings = apiClient.get('/settings/public')
+      const adminFiltered = apiClient.get('/admin/settings', { params: { section: 'gateway' } })
+      release(undefined)
+
+      const [a, b, pub] = await Promise.all([adminA, adminB, publicSettings, adminFiltered])
+
+      expect(adapter).toHaveBeenCalledTimes(3)
+      expect(a.data).toEqual(b.data)
+      expect(pub.data).toEqual({ url: '/settings/public' })
+      const urls = adapter.mock.calls.map((call) => axios.getUri(call[0]))
+      expect(urls.filter((url) => url.includes('/admin/settings') && !url.includes('section=gateway'))).toHaveLength(1)
+      expect(urls.some((url) => url.includes('/settings/public'))).toBe(true)
+      expect(urls.some((url) => url.includes('section=gateway'))).toBe(true)
+    })
+
+    it('失败后清除进行中标记，下一次相同 GET 会重新发送', async () => {
+      const adapter = vi.fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce(ok({ ok: true }))
+      apiClient.defaults.adapter = adapter
+
+      await expect(apiClient.get('/admin/settings')).rejects.toBeTruthy()
+      await expect(apiClient.get('/admin/settings')).resolves.toMatchObject({ data: { ok: true } })
+      expect(adapter).toHaveBeenCalledTimes(2)
+    })
+
+    it('不同登录身份不合并', async () => {
+      let release: (value: unknown) => void = () => undefined
+      const gate = new Promise((resolve) => {
+        release = resolve
+      })
+      const adapter = vi.fn().mockImplementation(() => gate.then(() => ok({ ok: true })))
+      apiClient.defaults.adapter = adapter
+
+      localStorage.setItem('auth_token', 'user-a')
+      const first = apiClient.get('/admin/settings')
+      await vi.waitFor(() => expect(adapter).toHaveBeenCalledTimes(1))
+      localStorage.setItem('auth_token', 'user-b')
+      const second = apiClient.get('/admin/settings')
+      release(undefined)
+
+      await Promise.all([first, second])
+      expect(adapter).toHaveBeenCalledTimes(2)
+    })
+
+    it('带 AbortSignal 的 GET 不合并', async () => {
+      const adapter = vi.fn().mockResolvedValue(ok({ ok: true }))
+      apiClient.defaults.adapter = adapter
+
+      await Promise.all([
+        apiClient.get('/admin/settings', { signal: new AbortController().signal }),
+        apiClient.get('/admin/settings', { signal: new AbortController().signal }),
+      ])
+
+      expect(adapter).toHaveBeenCalledTimes(2)
+    })
+  })
+
   // --- 响应拦截器 ---
 
   describe('响应拦截器', () => {

@@ -100,7 +100,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
-import { getPublicSettings, sendPendingOAuthVerifyCode } from '@/api/auth'
+import { sendPendingOAuthVerifyCode } from '@/api/auth'
 import { useAppStore } from '@/stores'
 
 export type PendingOAuthCreateAccountPayload = {
@@ -345,7 +345,10 @@ function emitSwitchToBind() {
 
 onMounted(async () => {
   try {
-    const settings = await getPublicSettings()
+    const settings = await appStore.fetchPublicSettings()
+    if (!settings) {
+      throw new Error('Failed to load public settings')
+    }
     invitationCodeEnabled.value = settings.invitation_code_enabled === true
     emailVerifyEnabled.value = settings.email_verify_enabled !== false
     turnstileEnabled.value = settings.turnstile_enabled === true

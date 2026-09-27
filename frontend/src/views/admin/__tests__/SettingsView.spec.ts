@@ -160,6 +160,7 @@ vi.mock("@/stores", () => ({
 vi.mock("@/stores/adminSettings", () => ({
   useAdminSettingsStore: () => ({
     fetch: adminSettingsFetch,
+    loadSettings: (...args: unknown[]) => getSettings(...args),
   }),
 }));
 

@@ -1462,9 +1462,6 @@ onMounted(() => {
   window.addEventListener('app:open-admin-menu', revealAdminMenu)
   window.addEventListener('support-tickets:updated', fetchSupportSummary)
   scheduleIdle(() => { void fetchSupportSummary() })
-  if (isAdmin.value) {
-    adminSettingsStore.fetch()
-  }
   updateSidebarActiveIndicator()
   if (typeof ResizeObserver !== 'undefined') {
     sidebarResizeObserver = new ResizeObserver(() => updateSidebarActiveIndicator())

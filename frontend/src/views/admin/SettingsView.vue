@@ -10176,7 +10176,7 @@ async function testWebSearchProvider() {
 async function loadWebSearchConfig() {
   try {
     const [resp, proxiesResp] = await Promise.all([
-      adminAPI.settings.getWebSearchEmulationConfig(),
+      adminAPI.settings.getWebSearchEmulationConfig({ force: true }),
       adminAPI.proxies.list().catch(() => ({ items: [] as Proxy[] })),
     ]);
     if (resp) {
@@ -10835,7 +10835,7 @@ async function loadSettings() {
   loadFailed.value = false;
   void loadCodexOutboundDiagnostics();
   try {
-    const settings = await adminAPI.settings.getSettings();
+    const settings = await adminSettingsStore.loadSettings();
     settings.payment_load_balance_strategy =
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
