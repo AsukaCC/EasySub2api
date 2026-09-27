@@ -247,10 +247,9 @@ func canonicalizeCodexOriginator(name string) string {
 // CodexCLIOriginator 是 codex-rs 客户端的官方默认 originator，也是网关的健康出站身份。
 const CodexCLIOriginator = "codex_cli_rs"
 
-// CodexDefaultOriginator 是网关默认使用的官方 Codex CLI originator。
-// 保留该名称是为了兼容已有调用方；需要明确区分客户端类型时请使用
-// CodexCLIOriginator 或显式的 codex-tui 值。
-const CodexDefaultOriginator = "codex-tui"
+// CodexDefaultOriginator 是网关默认模拟的官方 Codex originator。
+// 取值对齐本机 codex exec 0.157.1 的实际出站：originator=codex_exec。
+const CodexDefaultOriginator = "codex_exec"
 
 // CodexUserAgentVersion 提取 Codex UA 的完整版本段，即 `{client}/{version} (...` 中的 version。
 // 与 ParseCodexEngineVersion 的区别：后者只取三段数字用于引擎版本比较（会丢掉 -alpha.4

@@ -260,7 +260,7 @@ func TestEnforceCodexIdentityHeaders_EnforcementDisabled(t *testing.T) {
 
 	enforceCodexIdentityHeaders(h)
 
-	require.Equal(t, openai.CodexDefaultOriginator, h.Get("originator"))
+	require.Equal(t, "codex-tui", h.Get("originator"))
 	require.Equal(t, "codex-tui/"+codexCLIVersion+" (Mac OS X 14.0; arm64) iTerm (codex-tui; "+codexCLIVersion+")", h.Get("user-agent"))
 	require.Equal(t, codexCLIVersion, h.Get("version"))
 }
@@ -280,7 +280,7 @@ func TestEnforceCodexIdentityHeaders_NormalizationDisabled(t *testing.T) {
 
 	enforceCodexIdentityHeaders(h)
 
-	require.Equal(t, "codex-tui", h.Get("originator"))
+	require.Equal(t, openai.CodexDefaultOriginator, h.Get("originator"))
 	require.Equal(t, codexCLIUserAgent, h.Get("user-agent"))
 	require.Equal(t, codexCLIVersion, h.Get("version"))
 }
@@ -359,7 +359,7 @@ func TestNormalizeCodexClientVersion(t *testing.T) {
 }
 
 func TestBuildCodexCLIUserAgent(t *testing.T) {
-	require.Equal(t, openai.CodexDefaultOriginator+"/0.200.1"+codexCLIUserAgentSuffix, buildCodexCLIUserAgent("0.200.1"))
+	require.Equal(t, openai.CodexDefaultOriginator+"/0.200.1"+codexCLIUserAgentSuffix+" ("+openai.CodexDefaultOriginator+"; 0.200.1)", buildCodexCLIUserAgent("0.200.1"))
 	// 非法版本号必须回退到内置 UA，不能拼出畸形身份。
 	require.Equal(t, codexCLIUserAgent, buildCodexCLIUserAgent("bogus version"))
 	require.Equal(t, codexCLIUserAgent, buildCodexCLIUserAgent(""))

@@ -25,6 +25,6 @@ func TestGetOpenAICodexClientVersionAcceptsPrerelease(t *testing.T) {
 	require.Equal(t, "0.154.0-alpha.3", svc.GetOpenAICodexClientVersion(context.Background()))
 }
 func TestBuiltinCodexVersionIsStableRelease(t *testing.T) {
-	require.Equal(t, "0.154.0", codexCLIVersion)
+	require.Equal(t, "0.157.1", codexCLIVersion)
 	require.False(t, IsCodexPrereleaseVersion(codexCLIVersion))
 }

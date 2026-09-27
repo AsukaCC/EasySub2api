@@ -138,7 +138,7 @@ func TestProtectionHTTPAndWSIdentityHeaders(t *testing.T) {
 	body := []byte(`{"model":"gpt-5.6-sol","input":[],"client_metadata":{"x-codex-installation-id":"device"}}`)
 	req, err := s.buildUpstreamRequest(context.Background(), c, a, body, "test", true, "session", true)
 	require.NoError(t, err)
-	require.Equal(t, "codex-tui", req.Header.Get("originator"))
+	require.Equal(t, "codex_exec", req.Header.Get("originator"))
 	require.Equal(t, scopeCodexAccountIdentityValue(a, "", "installation", "device"), req.Header.Get("x-codex-installation-id"))
 	ws, _, err := s.buildOpenAIWSHeaders(context.Background(), c, a, "test", OpenAIWSProtocolDecision{}, true, "", "", "session", "gpt-5.6-sol", "")
 	require.NoError(t, err)
@@ -156,10 +156,10 @@ func TestProtectionBridgeIdentityWithoutOriginator(t *testing.T) {
 		clientUA  string
 		product   string
 	}{
-		{name: "default", enforce: true, product: "codex-tui"},
+		{name: "default", enforce: true, product: "codex_exec"},
 		{name: "account override", enforce: true, accountUA: "codex_cli_rs/9.9.9 (Linux; arm64) xterm", product: "codex_cli_rs"},
 		{name: "client identity with enforcement disabled", clientUA: "codex_vscode/9.9.9 (Linux; arm64) vscode", product: "codex_vscode"},
-		{name: "default with enforcement disabled", product: "codex-tui"},
+		{name: "default with enforcement disabled", product: "codex_exec"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			SetCodexIdentityEnforcementEnabled(tc.enforce)

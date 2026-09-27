@@ -3,7 +3,7 @@ package openai
 import "testing"
 
 func TestCodexTUIDefaultPreservesExplicitClients(t *testing.T) {
-	if CodexDefaultOriginator != "codex-tui" {
+	if CodexDefaultOriginator != "codex_exec" {
 		t.Fatal("unexpected default")
 	}
 	for _, name := range []string{"codex-tui", "codex_cli_rs", "codex_vscode"} {

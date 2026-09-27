@@ -24,9 +24,9 @@ guarantee upstream model quality or account acceptance.
 
 ## Outbound Identity
 
-The default Codex UA/originator is `codex-tui`. Valid explicit client identities
+The default Codex UA/originator is `codex_exec` with the Windows exec fingerprint. Valid explicit client identities
 remain supported. Stable and prerelease versions share format and minimum-version
-validation. The compiled fallback remains 0.154.0.
+validation. The compiled fallback remains 0.157.1.
 
 `codex_allow_prerelease_version` and
 `disable_codex_originator_normalization` are deprecated compatibility keys and
