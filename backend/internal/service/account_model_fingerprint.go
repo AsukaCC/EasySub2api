@@ -24,6 +24,8 @@ const ModelFingerprintRetention = 24 * time.Hour
 const modelFingerprintMaxTokens = 1536
 
 type ModelFingerprintSnapshot struct {
+	APIKeyID         string             `json:"api_key_id,omitempty"`
+	GroupID          *string            `json:"group_id,omitempty"`
 	ResolvedProtocol string             `json:"resolved_protocol,omitempty"`
 	UserID           string             `json:"user_id,omitempty"`
 	Protocol         string             `json:"protocol,omitempty"`
@@ -122,10 +124,15 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	}
 	var option ModelFingerprintOptions
 	var preparationErr error
+	var selectedKey *APIKey
 	if len(options) > 0 {
 		option = options[0]
 		option.Model = model
-		if err := s.validateFingerprintOptions(ctx, a, &option); err != nil {
+		selectedKey, err = s.fingerprintKey(ctx, a, userID, option.APIKeyID)
+		if err == nil {
+			err = s.validateFingerprintOptions(ctx, a, &option)
+		}
+		if err != nil {
 			if option.Source != "scheduled" {
 				return nil, err
 			}
@@ -151,6 +158,12 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	now := time.Now().UTC()
 	snapshot := &ModelFingerprintSnapshot{ID: uuid.NewString(), Model: model, Status: "running", SamplingMode: "single_conversation", Total: modeltrace.QueryCount, StartedAt: now, ExpiresAt: now.Add(5 * time.Minute)}
 	snapshot.UserID = userID
+	if selectedKey != nil {
+		snapshot.APIKeyID, snapshot.GroupID = selectedKey.ID, selectedKey.GroupID
+	}
+	if option.Protocol == "" && len(options) > 0 {
+		option.Protocol = "auto"
+	}
 	if option.Protocol != "" {
 		snapshot.Protocol, snapshot.ReasoningEffort, snapshot.Source = option.Protocol, option.ReasoningEffort, option.Source
 		snapshot.SamplingMode = "independent"
@@ -221,6 +234,7 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		probeCtx, stop := context.WithTimeout(ctx, 90*time.Second)
 		probe := &modelFingerprintProbe{model: snapshot.Model, prompt: challenge.Prompt, expected: challenge.Expected, cancel: stop, conversation: conversation, startedAt: time.Now()}
 		probe.protocol, probe.effort = protocol, snapshot.ReasoningEffort
+		probe.apiKeyID, probe.userID = snapshot.APIKeyID, userID
 		probeCtx = context.WithValue(probeCtx, modelFingerprintContextKey{}, probe)
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest(http.MethodPost, "/model-fingerprint", nil).WithContext(probeCtx)
@@ -292,6 +306,8 @@ type modelFingerprintConversation struct {
 	turns        []modelFingerprintTurn
 }
 type modelFingerprintProbe struct {
+	apiKeyID       string
+	userID         string
 	protocol       string
 	effort         string
 	fatal          bool
@@ -354,6 +370,7 @@ type modelFingerprintUsageWriter interface {
 func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID string, snapshot *ModelFingerprintSnapshot, turn int, probe *modelFingerprintProbe) error {
 	log := probe.usage
 	log.UserID, log.AccountID = userID, accountID
+	log.APIKeyID, log.GroupID = snapshot.APIKeyID, snapshot.GroupID
 	log.RequestID = fmt.Sprintf("fingerprint:%s:%d", snapshot.ID, turn+1)
 	log.Model, log.RequestedModel = snapshot.Model, snapshot.Model
 	log.RequestType, log.Stream = RequestTypeTest, true

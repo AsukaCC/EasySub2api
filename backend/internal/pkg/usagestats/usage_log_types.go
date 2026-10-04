@@ -424,7 +424,7 @@ type AccountProfitResponse struct {
 	Week                   AccountProfitPeriod        `json:"week"`
 	Month                  AccountProfitPeriod        `json:"month"`
 	Period7d               AccountProfitPeriod        `json:"period_7d"`
-	Expiry30d              *AccountProfitPeriod       `json:"expiry_30d,omitempty"`
+	Period30d              AccountProfitPeriod        `json:"period_30d"`
 	Lifetime               AccountProfitPeriod        `json:"lifetime"`
 	History                []AccountProfitDailyRecord `json:"history"`
 	SubscriptionCostPoints *float64                   `json:"subscription_cost_points,omitempty"`
@@ -475,7 +475,7 @@ type AccountProfitListItem struct {
 	SubscriptionCostPoints *float64             `json:"subscription_cost_points,omitempty"`
 	Quota7d                AccountProfitQuota7d `json:"quota_7d"`
 	Period7d               AccountProfitPeriod  `json:"period_7d"`
-	Expiry30d              *AccountProfitPeriod `json:"expiry_30d,omitempty"`
+	Period30d              AccountProfitPeriod  `json:"period_30d"`
 	Lifetime               AccountProfitPeriod  `json:"lifetime"`
 }
 

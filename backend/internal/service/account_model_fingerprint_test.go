@@ -26,14 +26,34 @@ type fingerprintTestRepo struct {
 	snapshots map[string]*ModelFingerprintSnapshot
 	done      chan *ModelFingerprintSnapshot
 	mapping   map[string]any
+	extra     map[string]map[string]any
 }
 
 func (r *fingerprintTestRepo) GetByID(_ context.Context, id string) (*Account, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	extra := map[string]any{"openai_responses_mode": "force_chat_completions", ModelFingerprintExtraKey: r.snapshots[id]}
+	for key, value := range r.extra[id] {
+		extra[key] = value
+	}
 	return &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive,
+		GroupIDs:    []string{"fingerprint-group"},
 		Credentials: map[string]any{"api_key": "test-only", "base_url": "https://example.com", "model_mapping": r.mapping},
-		Extra:       map[string]any{"openai_responses_mode": "force_chat_completions", ModelFingerprintExtraKey: r.snapshots[id]}}, nil
+		Extra:       extra}, nil
+}
+func (r *fingerprintTestRepo) UpdateExtra(_ context.Context, id string, updates map[string]any) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.extra == nil {
+		r.extra = make(map[string]map[string]any)
+	}
+	if r.extra[id] == nil {
+		r.extra[id] = make(map[string]any)
+	}
+	for key, value := range updates {
+		r.extra[id][key] = value
+	}
+	return nil
 }
 func (r *fingerprintTestRepo) ClaimModelFingerprint(_ context.Context, id string, snapshot *ModelFingerprintSnapshot) (bool, error) {
 	r.mu.Lock()
@@ -99,7 +119,10 @@ func (u *fingerprintTestTransport) DoWithTLS(req *http.Request, _ string, accoun
 func newFingerprintTestService() (*AccountTestService, *fingerprintTestRepo, *fingerprintTestTransport) {
 	repo := &fingerprintTestRepo{snapshots: make(map[string]*ModelFingerprintSnapshot), done: make(chan *ModelFingerprintSnapshot, 8)}
 	upstream := &fingerprintTestTransport{requests: make(map[string][][]byte), sessions: make(map[string][]string)}
-	return &AccountTestService{accountRepo: repo, httpUpstream: upstream, cfg: &config.Config{}, modelFingerprintUsage: &fingerprintUsageStub{}}, repo, upstream
+	return &AccountTestService{accountRepo: repo, httpUpstream: upstream, cfg: &config.Config{}, modelFingerprintUsage: &fingerprintUsageStub{},
+		modelFingerprintKeys:   &fingerprintKeyRepo{keys: []APIKey{{ID: "local-key", Name: "My key", Key: "local-secret", UserID: "admin", Status: StatusActive, GroupIDs: []string{"fingerprint-group"}}}},
+		modelFingerprintGroups: &fingerprintGroupRepo{group: &Group{ID: "fingerprint-group", Platform: PlatformOpenAI, Status: StatusActive}},
+	}, repo, upstream
 }
 
 type fingerprintUsageStub struct {

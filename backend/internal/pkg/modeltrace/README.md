@@ -48,15 +48,34 @@ model mappings, billing multipliers, or scheduling based on these shares.
 Admin-authenticated routes:
 
 - `POST /api/v1/admin/accounts/:id/model-fingerprint`, body
-  `{"model_id":"...","protocol":"auto","reasoning_effort":"low"}`.
+  `{"api_key_id":"...","model_id":"...","protocol":"auto","reasoning_effort":"low"}`.
 - `GET /api/v1/admin/accounts/:id/model-fingerprint` returns the latest snapshot,
   or `null` before the first test.
 
-- `GET /api/v1/admin/accounts/:id/model-fingerprint/models`: live models and efforts.
+- `GET /api/v1/admin/accounts/:id/model-fingerprint/api-keys`: active keys owned by
+  the administrator, with a platform-compatible group containing this account.
+  Only key IDs and names are returned, never credential values.
+- `GET /api/v1/admin/accounts/:id/model-fingerprint/models?api_key_id=...`: account
+  models and efforts, after validating the selected key.
 - `GET /api/v1/admin/accounts/:id/model-fingerprint/history?page=1&page_size=10`.
 - `GET /api/v1/admin/accounts/:id/model-fingerprint/schedule`.
 - `PUT /api/v1/admin/accounts/:id/model-fingerprint/schedule`, body with `enabled`
   and `options` containing the same fields as a manual test.
+
+The selected local key controls access and identifies administrator usage records;
+the upstream request still uses the tested account's credentials. Each sample
+revalidates the key. Existing schedules without a valid key require selecting and
+saving one before they can run again.
+
+Successful account model sync stores the complete available model list and any
+capabilities in `extra.upstream_model_catalog`, independently of capability
+completeness. Ordinary discovery and fingerprint validation reuse this persisted
+catalog across restarts. A first query without a catalog discovers and saves it;
+concurrent first queries are coalesced within a service instance. Explicit model
+sync refreshes it. Failed sync preserves the last catalog. Platform, account type
+or credential changes invalidate it; model allowlist edits do not invalidate a
+live catalog. A configured-model fallback is invalidated by mapping changes.
+No database migration is required.
 
 Migration `283_model_fingerprint_history.sql` adds history and schedule tables.
 The account `extra.model_fingerprint` field still holds the latest result.

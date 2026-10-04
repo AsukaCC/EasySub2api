@@ -79,10 +79,13 @@ func newUpstreamModelSyncInternalError(message string, err error) error {
 	return &UpstreamModelSyncError{Kind: UpstreamModelSyncErrorInternal, Message: message, Err: err}
 }
 
-// FetchUpstreamSupportedModels fetches the live model list from the account's upstream API format.
+// FetchUpstreamSupportedModels reuses the saved catalog until an explicit sync.
 func (s *AccountTestService) FetchUpstreamSupportedModels(ctx context.Context, account *Account) ([]string, error) {
-	models, _, err := s.fetchUpstreamModelList(ctx, account)
-	return models, err
+	catalog, err := s.accountModelCatalog(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	return catalog.Models, nil
 }
 
 func (s *AccountTestService) buildUpstreamModelsRequest(ctx context.Context, account *Account) (*http.Request, error) {

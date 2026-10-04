@@ -20,14 +20,13 @@ var _ service.AccountProfitSettingsRepository = (*usageLogRepository)(nil)
 
 func (r *usageLogRepository) GetAccountProfit(ctx context.Context, accountID string, from, to time.Time, page, pageSize int) (*usagestats.AccountProfitResponse, error) {
 	var accountCreatedAt time.Time
-	var accountExpiresAt sql.NullTime
 	var subscriptionCost sql.NullFloat64
 	if err := scanSingleRow(ctx, r.sql, `
-		SELECT a.created_at, a.expires_at, aps.subscription_cost_points
+		SELECT a.created_at, aps.subscription_cost_points
 		FROM accounts a
 		LEFT JOIN account_profit_settings aps ON aps.account_id = a.id::text
 		WHERE a.id = $1
-	`, []any{accountID}, &accountCreatedAt, &accountExpiresAt, &subscriptionCost); err != nil {
+	`, []any{accountID}, &accountCreatedAt, &subscriptionCost); err != nil {
 		return nil, err
 	}
 	accountCreatedDate := timezone.StartOfDay(accountCreatedAt)
@@ -50,11 +49,9 @@ func (r *usageLogRepository) GetAccountProfit(ctx context.Context, accountID str
 	if accountCreatedDate.Before(ensureFrom) {
 		ensureFrom = accountCreatedDate
 	}
-	if accountExpiresAt.Valid {
-		expiryStart, _ := accountProfitExpiryWindow(accountExpiresAt.Time)
-		if expiryStart.Before(ensureFrom) {
-			ensureFrom = expiryStart
-		}
+	periodStart, periodEnd := accountProfit30DayWindow(today)
+	if periodStart.Before(ensureFrom) {
+		ensureFrom = periodStart
 	}
 	if month := timezone.StartOfMonth(today); month.Before(ensureFrom) {
 		ensureFrom = month
@@ -88,17 +85,12 @@ func (r *usageLogRepository) GetAccountProfit(ctx context.Context, accountID str
 	if result.Lifetime, err = r.sumAccountProfitPeriod(ctx, accountID, accountCreatedDate, tomorrow); err != nil {
 		return nil, err
 	}
-	if accountExpiresAt.Valid {
-		expiryStart, expiryEnd := accountProfitExpiryWindow(accountExpiresAt.Time)
-		expirySummary, summaryErr := r.sumAccountProfitPeriod(ctx, accountID, expiryStart, expiryEnd)
-		if summaryErr != nil {
-			return nil, summaryErr
-		}
-		if subscriptionCost.Valid {
-			expirySummary.SubscriptionCostPoints = nullableFloat64Pointer(subscriptionCost)
-			expirySummary.ProfitPoints = expirySummary.RevenuePoints - subscriptionCost.Float64
-		}
-		result.Expiry30d = &expirySummary
+	if result.Period30d, err = r.sumAccountProfitPeriod(ctx, accountID, periodStart, periodEnd); err != nil {
+		return nil, err
+	}
+	if subscriptionCost.Valid {
+		result.Period30d.SubscriptionCostPoints = nullableFloat64Pointer(subscriptionCost)
+		result.Period30d.ProfitPoints = result.Period30d.RevenuePoints - subscriptionCost.Float64
 	}
 
 	total, history, err := r.listAccountProfitHistory(ctx, accountID, from, to, page, pageSize)
@@ -125,7 +117,7 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 
 	where, filterArgs := buildAccountProfitListWhere(params)
 	accountRows, err := r.sql.QueryContext(ctx, `
-		SELECT a.id::text, a.created_at, a.expires_at
+		SELECT a.id::text, a.created_at
 		FROM accounts a
 		`+where, filterArgs...)
 	if err != nil {
@@ -133,24 +125,16 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 	}
 	accountIDs := make([]string, 0)
 	var earliestCreatedAt time.Time
-	var earliestExpiryStart time.Time
 	for accountRows.Next() {
 		var id string
 		var createdAt time.Time
-		var expiresAt sql.NullTime
-		if err := accountRows.Scan(&id, &createdAt, &expiresAt); err != nil {
+		if err := accountRows.Scan(&id, &createdAt); err != nil {
 			_ = accountRows.Close()
 			return nil, err
 		}
 		accountIDs = append(accountIDs, id)
 		if earliestCreatedAt.IsZero() || createdAt.Before(earliestCreatedAt) {
 			earliestCreatedAt = createdAt
-		}
-		if expiresAt.Valid {
-			expiryStart, _ := accountProfitExpiryWindow(expiresAt.Time)
-			if earliestExpiryStart.IsZero() || expiryStart.Before(earliestExpiryStart) {
-				earliestExpiryStart = expiryStart
-			}
 		}
 	}
 	if err := accountRows.Err(); err != nil {
@@ -174,8 +158,9 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 	today := timezone.Today()
 	tomorrow := today.AddDate(0, 0, 1)
 	ensureFrom := timezone.StartOfDay(earliestCreatedAt)
-	if !earliestExpiryStart.IsZero() && earliestExpiryStart.Before(ensureFrom) {
-		ensureFrom = earliestExpiryStart
+	periodStart, _ := accountProfit30DayWindow(today)
+	if periodStart.Before(ensureFrom) {
+		ensureFrom = periodStart
 	}
 	if err := r.ensureAccountProfitDailyRollups(ctx, accountIDs, ensureFrom, tomorrow); err != nil {
 		return nil, err
@@ -183,10 +168,6 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 
 	quotaExpression := accountProfitQuotaUtilizationSQL("a")
 	sortColumn := accountProfitSortColumn(params.SortBy, quotaExpression)
-	nullExpirySort := ""
-	if strings.HasPrefix(params.SortBy, "expiry_30d_") {
-		nullExpirySort = "a.expires_at IS NULL ASC, "
-	}
 	queryArgs := append([]any{}, filterArgs...)
 	tzArg := len(queryArgs) + 1
 	todayArg := tzArg + 1
@@ -234,39 +215,33 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
 		       ), 0) AS period_7d_tokens,
 		       COALESCE(SUM(r.revenue_points) FILTER (
-		           WHERE a.expires_at IS NOT NULL
-					AND r.bucket_date >= ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date - 29)
-					AND r.bucket_date < ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date + 1)
-		       ), 0) AS expiry_30d_revenue,
+		           WHERE r.bucket_date >= ($` + itoa(todayArg) + `::date - 29)
+		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
+		       ), 0) AS period_30d_revenue,
 		       COALESCE(SUM(r.cost_usd) FILTER (
-		           WHERE a.expires_at IS NOT NULL
-					AND r.bucket_date >= ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date - 29)
-					AND r.bucket_date < ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date + 1)
-		       ), 0) AS expiry_30d_cost,
+		           WHERE r.bucket_date >= ($` + itoa(todayArg) + `::date - 29)
+		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
+		       ), 0) AS period_30d_cost,
 		       CASE
 		           WHEN aps.subscription_cost_points IS NOT NULL THEN
 		               COALESCE(SUM(r.revenue_points) FILTER (
-		                   WHERE a.expires_at IS NOT NULL
-					        AND r.bucket_date >= ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date - 29)
-					        AND r.bucket_date < ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date + 1)
+		                   WHERE r.bucket_date >= ($` + itoa(todayArg) + `::date - 29)
+		                     AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
 		               ), 0) - aps.subscription_cost_points
 		           ELSE
 		               COALESCE(SUM(r.profit_points) FILTER (
-		                   WHERE a.expires_at IS NOT NULL
-					        AND r.bucket_date >= ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date - 29)
-					        AND r.bucket_date < ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date + 1)
+		                   WHERE r.bucket_date >= ($` + itoa(todayArg) + `::date - 29)
+		                     AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
 		               ), 0)
-		       END AS expiry_30d_profit,
+		       END AS period_30d_profit,
 		       COALESCE(SUM(r.request_count) FILTER (
-		           WHERE a.expires_at IS NOT NULL
-					AND r.bucket_date >= ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date - 29)
-					AND r.bucket_date < ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date + 1)
-		       ), 0) AS expiry_30d_requests,
+		           WHERE r.bucket_date >= ($` + itoa(todayArg) + `::date - 29)
+		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
+		       ), 0) AS period_30d_requests,
 		       COALESCE(SUM(r.total_tokens) FILTER (
-		           WHERE a.expires_at IS NOT NULL
-					AND r.bucket_date >= ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date - 29)
-					AND r.bucket_date < ((a.expires_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date + 1)
-		       ), 0) AS expiry_30d_tokens,
+		           WHERE r.bucket_date >= ($` + itoa(todayArg) + `::date - 29)
+		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
+		       ), 0) AS period_30d_tokens,
 		       COALESCE(SUM(r.revenue_points) FILTER (
 				   WHERE r.bucket_date >= (a.created_at AT TIME ZONE $` + itoa(tzArg) + `::text)::date
 		             AND r.bucket_date < $` + itoa(tomorrowArg) + `::date
@@ -294,7 +269,7 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 		GROUP BY a.id, a.name, a.platform, a.subscription_tier, a.status,
 		         a.created_at, a.expires_at, a.updated_at, a.extra,
 		         aps.subscription_cost_points
-		ORDER BY ` + nullExpirySort + sortColumn + ` ` + params.SortOrder + ` NULLS LAST, a.name ASC, a.id ASC
+		ORDER BY ` + sortColumn + ` ` + params.SortOrder + ` NULLS LAST, a.name ASC, a.id ASC
 		LIMIT $` + itoa(limitArg) + ` OFFSET $` + itoa(offsetArg)
 
 	rows, err := r.sql.QueryContext(ctx, query, queryArgs...)
@@ -311,13 +286,13 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 			extraRaw                                     []byte
 			subscriptionCost                             sql.NullFloat64
 			quotaUtilization                             sql.NullFloat64
-			period7d, expiry30d, lifetime                usagestats.AccountProfitPeriod
+			period7d, period30d, lifetime                usagestats.AccountProfitPeriod
 		)
 		if err := rows.Scan(
 			&id, &name, &platform, &subscriptionTier, &status,
 			&createdAt, &expiresAt, &updatedAt, &extraRaw, &subscriptionCost, &quotaUtilization,
 			&period7d.RevenuePoints, &period7d.CostUSD, &period7d.ProfitPoints, &period7d.Requests, &period7d.Tokens,
-			&expiry30d.RevenuePoints, &expiry30d.CostUSD, &expiry30d.ProfitPoints, &expiry30d.Requests, &expiry30d.Tokens,
+			&period30d.RevenuePoints, &period30d.CostUSD, &period30d.ProfitPoints, &period30d.Requests, &period30d.Tokens,
 			&lifetime.RevenuePoints, &lifetime.CostUSD, &lifetime.ProfitPoints, &lifetime.Requests, &lifetime.Tokens,
 		); err != nil {
 			return nil, err
@@ -344,6 +319,7 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 			CreatedAt:              createdAt,
 			SubscriptionCostPoints: nullableFloat64Pointer(subscriptionCost),
 			Period7d:               period7d,
+			Period30d:              period30d,
 			Lifetime:               lifetime,
 			Quota7d: usagestats.AccountProfitQuota7d{
 				Known:            quota.Known,
@@ -357,11 +333,8 @@ func (r *usageLogRepository) ListAccountProfit(ctx context.Context, params usage
 		if expiresAt.Valid {
 			expiresUnix := expiresAt.Time.Unix()
 			item.ExpiresAt = &expiresUnix
-			if subscriptionCost.Valid {
-				expiry30d.SubscriptionCostPoints = nullableFloat64Pointer(subscriptionCost)
-			}
-			item.Expiry30d = &expiry30d
 		}
+		item.Period30d.SubscriptionCostPoints = nullableFloat64Pointer(subscriptionCost)
 		result.Items = append(result.Items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -443,11 +416,11 @@ func accountProfitSortColumn(sortBy, quotaExpression string) string {
 		"period_7d_cost":               "period_7d_cost",
 		"period_7d_profit":             "period_7d_profit",
 		"period_7d_tokens":             "period_7d_tokens",
-		"expiry_30d_revenue":           "expiry_30d_revenue",
-		"expiry_30d_cost":              "expiry_30d_cost",
-		"expiry_30d_profit":            "expiry_30d_profit",
-		"expiry_30d_subscription_cost": "aps.subscription_cost_points",
-		"expiry_30d_tokens":            "expiry_30d_tokens",
+		"period_30d_revenue":           "period_30d_revenue",
+		"period_30d_cost":              "period_30d_cost",
+		"period_30d_profit":            "period_30d_profit",
+		"period_30d_subscription_cost": "aps.subscription_cost_points",
+		"period_30d_tokens":            "period_30d_tokens",
 		"lifetime_revenue":             "lifetime_revenue",
 		"lifetime_cost":                "lifetime_cost",
 		"lifetime_profit":              "lifetime_profit",
@@ -615,9 +588,9 @@ func dateOnlyUTC(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// accountProfitExpiryWindow returns the complete 30 calendar days ending on
-// the account's expiry date, using the configured application timezone.
-func accountProfitExpiryWindow(expiresAt time.Time) (time.Time, time.Time) {
-	expiryDay := timezone.StartOfDay(expiresAt)
-	return expiryDay.AddDate(0, 0, -29), expiryDay.AddDate(0, 0, 1)
+// accountProfit30DayWindow includes today and the previous 29 calendar days
+// in the configured application timezone, with an exclusive end boundary.
+func accountProfit30DayWindow(now time.Time) (time.Time, time.Time) {
+	today := timezone.StartOfDay(now)
+	return today.AddDate(0, 0, -29), today.AddDate(0, 0, 1)
 }
