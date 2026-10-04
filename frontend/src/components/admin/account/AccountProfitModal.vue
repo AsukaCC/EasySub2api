@@ -29,8 +29,8 @@
              <div><span>{{ t('admin.accounts.profit.tokens') }}</span><strong class="is-tokens">{{ formatNumber(period.value.tokens) }}</strong></div>
                <div><span>{{ t('admin.accounts.profit.requests') }}</span><strong>{{ formatNumber(period.value.requests) }}</strong></div>
              </div>
-              <p v-if="period.key === 'expiry_30d' && period.value.subscription_cost_points != null" class="account-profit-modal__formula">
-                {{ t('admin.accounts.profit.expiryProfitFormula', { cost: formatPoints(period.value.subscription_cost_points) }) }}
+              <p v-if="period.key === 'period_30d' && period.value.subscription_cost_points != null" class="account-profit-modal__formula">
+                {{ t('admin.accounts.profit.period30dProfitFormula', { cost: formatPoints(period.value.subscription_cost_points) }) }}
               </p>
            </section>
         </div>
@@ -165,18 +165,11 @@ const customRangeValid = computed(() => Boolean(customFrom.value && customTo.val
 const periods = computed<Array<{ key: string; label: string; value: AccountProfitPeriod }>>(() => {
   const current = stats.value
   if (!current) return []
-  const result: Array<{ key: string; label: string; value: AccountProfitPeriod }> = [
+  return [
     { key: 'period_7d', label: t('admin.accounts.profit.period7d'), value: current.period_7d },
+    { key: 'period_30d', label: t('admin.accounts.profit.period30d'), value: current.period_30d },
     { key: 'lifetime', label: t('admin.accounts.profit.lifetime'), value: current.lifetime }
   ]
-  if (current.expiry_30d) {
-    result.splice(1, 0, {
-      key: 'expiry_30d',
-      label: t('admin.accounts.profit.expiry30d'),
-      value: current.expiry_30d
-    })
-  }
-  return result
 })
 
 const chartRows = computed(() => [...historyRows.value].sort((a, b) => a.date.localeCompare(b.date)))
@@ -441,7 +434,7 @@ onBeforeUnmount(() => {
 }
 
 .account-profit-modal__period.is-period_7d { --period-accent: var(--color-success); }
-.account-profit-modal__period.is-expiry_30d { --period-accent: var(--color-warning); }
+.account-profit-modal__period.is-period_30d { --period-accent: var(--color-warning); }
 .account-profit-modal__period.is-lifetime { --period-accent: var(--theme-accent); }
 
 .account-profit-modal__period-title {

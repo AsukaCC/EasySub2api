@@ -80,7 +80,7 @@
                     </button>
                   </th>
                   <th v-if="visibleGroupCount('period')" :colspan="visibleGroupCount('period')" class="account-profit-view__group account-profit-view__group--period">{{ t('admin.accounts.profit.period7d') }}</th>
-                  <th v-if="visibleGroupCount('expiry')" :colspan="visibleGroupCount('expiry')" class="account-profit-view__group account-profit-view__group--expiry">{{ t('admin.accounts.profit.expiry30d') }}</th>
+                  <th v-if="visibleGroupCount('recent')" :colspan="visibleGroupCount('recent')" class="account-profit-view__group account-profit-view__group--recent">{{ t('admin.accounts.profit.period30d') }}</th>
                   <th v-if="visibleGroupCount('lifetime')" :colspan="visibleGroupCount('lifetime')" class="account-profit-view__group account-profit-view__group--lifetime">{{ t('admin.accounts.profit.lifetime') }}</th>
                   <th rowspan="2">{{ t('admin.accounts.columns.actions') }}</th>
                 </tr>
@@ -225,17 +225,17 @@ import { formatDateTime, formatNumber, formatPoints, formatUSD } from '@/utils/f
 import { accountPlatformOptions } from '@/utils/accountPlatforms'
 import type { AccountPlatform, AccountProfitListItem, SelectOption } from '@/types'
 
-type MetricGroup = 'period' | 'expiry' | 'lifetime'
+type MetricGroup = 'period' | 'recent' | 'lifetime'
 type MetricKey =
   | 'period_7d_revenue'
   | 'period_7d_cost'
   | 'period_7d_profit'
   | 'period_7d_tokens'
-  | 'expiry_30d_revenue'
-  | 'expiry_30d_cost'
-  | 'expiry_30d_subscription_cost'
-  | 'expiry_30d_profit'
-  | 'expiry_30d_tokens'
+  | 'period_30d_revenue'
+  | 'period_30d_cost'
+  | 'period_30d_subscription_cost'
+  | 'period_30d_profit'
+  | 'period_30d_tokens'
   | 'lifetime_revenue'
   | 'lifetime_cost'
   | 'lifetime_profit'
@@ -250,7 +250,7 @@ interface MetricColumn {
   value: 'revenue_points' | 'cost_usd' | 'profit_points' | 'tokens' | 'subscription_cost_points'
 }
 
-const metricGroups: MetricGroup[] = ['period', 'expiry', 'lifetime']
+const metricGroups: MetricGroup[] = ['period', 'recent', 'lifetime']
 
 const { t } = useI18n()
 const accounts = ref<AccountProfitListItem[]>([])
@@ -311,11 +311,11 @@ const metricColumns = computed<MetricColumn[]>(() => [
   { key: 'period_7d_cost', group: 'period', label: t('admin.accounts.profit.upstreamCost'), sortBy: 'period_7d_cost', value: 'cost_usd' },
   { key: 'period_7d_profit', group: 'period', label: t('admin.accounts.profit.profit'), sortBy: 'period_7d_profit', value: 'profit_points' },
   { key: 'period_7d_tokens', group: 'period', label: t('admin.accounts.profit.tokens'), sortBy: 'period_7d_tokens', value: 'tokens' },
-  { key: 'expiry_30d_revenue', group: 'expiry', label: t('admin.accounts.profit.revenuePoints'), sortBy: 'expiry_30d_revenue', value: 'revenue_points' },
-  { key: 'expiry_30d_cost', group: 'expiry', label: t('admin.accounts.profit.upstreamCost'), sortBy: 'expiry_30d_cost', value: 'cost_usd' },
-  { key: 'expiry_30d_subscription_cost', group: 'expiry', label: t('admin.accounts.profit.subscriptionCost'), sortBy: 'expiry_30d_subscription_cost', value: 'subscription_cost_points' },
-  { key: 'expiry_30d_profit', group: 'expiry', label: t('admin.accounts.profit.profit'), sortBy: 'expiry_30d_profit', value: 'profit_points' },
-  { key: 'expiry_30d_tokens', group: 'expiry', label: t('admin.accounts.profit.tokens'), sortBy: 'expiry_30d_tokens', value: 'tokens' },
+  { key: 'period_30d_revenue', group: 'recent', label: t('admin.accounts.profit.revenuePoints'), sortBy: 'period_30d_revenue', value: 'revenue_points' },
+  { key: 'period_30d_cost', group: 'recent', label: t('admin.accounts.profit.upstreamCost'), sortBy: 'period_30d_cost', value: 'cost_usd' },
+  { key: 'period_30d_subscription_cost', group: 'recent', label: t('admin.accounts.profit.subscriptionCost'), sortBy: 'period_30d_subscription_cost', value: 'subscription_cost_points' },
+  { key: 'period_30d_profit', group: 'recent', label: t('admin.accounts.profit.profit'), sortBy: 'period_30d_profit', value: 'profit_points' },
+  { key: 'period_30d_tokens', group: 'recent', label: t('admin.accounts.profit.tokens'), sortBy: 'period_30d_tokens', value: 'tokens' },
   { key: 'lifetime_revenue', group: 'lifetime', label: t('admin.accounts.profit.revenuePoints'), sortBy: 'lifetime_revenue', value: 'revenue_points' },
   { key: 'lifetime_cost', group: 'lifetime', label: t('admin.accounts.profit.upstreamCost'), sortBy: 'lifetime_cost', value: 'cost_usd' },
   { key: 'lifetime_profit', group: 'lifetime', label: t('admin.accounts.profit.profit'), sortBy: 'lifetime_profit', value: 'profit_points' },
@@ -328,11 +328,11 @@ const columnVisibility = reactive<Record<MetricKey, boolean>>({
   period_7d_cost: true,
   period_7d_profit: false,
   period_7d_tokens: true,
-  expiry_30d_revenue: true,
-  expiry_30d_cost: true,
-  expiry_30d_subscription_cost: true,
-  expiry_30d_profit: false,
-  expiry_30d_tokens: true,
+  period_30d_revenue: true,
+  period_30d_cost: true,
+  period_30d_subscription_cost: true,
+  period_30d_profit: false,
+  period_30d_tokens: true,
   lifetime_revenue: true,
   lifetime_cost: true,
   lifetime_profit: false,
@@ -469,13 +469,13 @@ function quotaTitle(account: AccountProfitListItem) {
 
 function metricPeriod(account: AccountProfitListItem, column: MetricColumn) {
   if (column.group === 'period') return account.period_7d
-  if (column.group === 'expiry') return account.expiry_30d
+  if (column.group === 'recent') return account.period_30d
   return account.lifetime
 }
 
 function formatMetric(account: AccountProfitListItem, column: MetricColumn) {
   if (column.value === 'subscription_cost_points') {
-    if (!account.expiry_30d) return '-'
+    if (!account.period_30d) return '-'
     return account.subscription_cost_points == null
       ? t('admin.accounts.profit.subscriptionCostUnset')
       : formatPoints(account.subscription_cost_points)
@@ -498,7 +498,7 @@ function metricClass(column: MetricColumn) {
 
 function metricGroupLabel(group: MetricGroup) {
   if (group === 'period') return t('admin.accounts.profit.period7d')
-  if (group === 'expiry') return t('admin.accounts.profit.expiry30d')
+  if (group === 'recent') return t('admin.accounts.profit.period30d')
   return t('admin.accounts.profit.lifetime')
 }
 
@@ -792,7 +792,7 @@ onMounted(() => void load())
   background: color-mix(in srgb, var(--color-success) 8%, var(--glass-layer-floating-bg)) !important;
 }
 
-.account-profit-view__group--expiry {
+.account-profit-view__group--recent {
   --group-accent: var(--color-warning);
   background: color-mix(in srgb, var(--color-warning) 9%, var(--glass-layer-floating-bg)) !important;
 }
@@ -879,7 +879,7 @@ onMounted(() => void load())
   min-width: 9.5rem;
 }
 
-.account-profit-view__table .is-group-expiry,
+.account-profit-view__table .is-group-recent,
 .account-profit-view__table .is-group-lifetime {
   border-left: 1px solid var(--color-border);
 }

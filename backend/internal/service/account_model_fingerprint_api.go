@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 )
 
 type ModelFingerprintOptions struct {
+	APIKeyID        string `json:"api_key_id"`
 	Model           string `json:"model_id"`
 	Protocol        string `json:"protocol"`
 	ReasoningEffort string `json:"reasoning_effort"`
@@ -48,18 +50,16 @@ func (s *AccountTestService) fingerprintModels(ctx context.Context, a *Account) 
 	if !fingerprintAPIAccount(a) {
 		return nil, apperrors.BadRequest("UNSUPPORTED_FINGERPRINT_ACCOUNT", "Select an API key account with an OpenAI or Anthropic compatible endpoint")
 	}
-	// Discovery is read-only: testing must not rewrite the account's allowlist or metadata.
-	catalogAccount := a
-	if a.IsCNProvider() && strings.TrimSpace(a.GetCredential("base_url")) != "" {
-		// Custom relay credentials must stay on their configured host during discovery.
-		catalogAccount = DirectModelTestAccount(a)
-		catalogAccount.Credentials["api_protocol"] = APIProtocolChatCompletions
-	}
-	ids, body, err := s.fetchUpstreamModelList(ctx, catalogAccount)
+	catalog, err := s.accountModelCatalog(ctx, a)
 	if err != nil {
-		return nil, apperrors.New(http.StatusBadGateway, "FINGERPRINT_MODELS_UNAVAILABLE", "Could not fetch the upstream model list")
+		message := "Could not fetch the upstream model list"
+		var syncErr *UpstreamModelSyncError
+		if errors.As(err, &syncErr) {
+			message = syncErr.SafeMessage()
+		}
+		return nil, apperrors.New(http.StatusBadGateway, "FINGERPRINT_MODELS_UNAVAILABLE", message)
 	}
-	_, metadata, _ := extractUpstreamModelCatalog(body, a.IsGrok())
+	ids, metadata := catalog.Models, catalog.Metadata
 	models := make([]ModelFingerprintModel, 0, len(ids))
 	for _, id := range ids {
 		if !IsModelFingerprintTextModel(id) {
@@ -124,7 +124,7 @@ func (s *AccountTestService) validateFingerprintOptions(ctx context.Context, a *
 		}
 		return nil
 	}
-	return apperrors.BadRequest("INVALID_MODEL", "Select a model currently advertised by this upstream")
+	return apperrors.BadRequest("INVALID_MODEL", "Select a model from the account's synchronized upstream catalog")
 }
 
 func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account) error {

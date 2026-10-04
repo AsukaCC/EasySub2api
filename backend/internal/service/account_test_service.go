@@ -36,6 +36,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
+	"golang.org/x/sync/singleflight"
 )
 
 // sseDataPrefix matches SSE data lines with optional whitespace after colon.
@@ -148,6 +149,7 @@ type AccountTestService struct {
 	cfg                       *config.Config
 	settingService            *SettingService
 	tlsFPProfileService       *TLSFingerprintProfileService
+	upstreamModelCatalogLoads singleflight.Group
 	modelMetadataRegistryMu   sync.Mutex
 	modelMetadataRegistry     map[string]modelsDevProvider
 	modelMetadataRegistryAt   time.Time
@@ -155,6 +157,8 @@ type AccountTestService struct {
 	modelFingerprintMu        sync.Mutex
 	modelFingerprintActive    int
 	modelFingerprintUsage     modelFingerprintUsageWriter
+	modelFingerprintKeys      APIKeyRepository
+	modelFingerprintGroups    GroupRepository
 	agentIdentityWS           agentIdentityWSConnectionInvalidator
 	// grokWSDialer is optional; realtime account tests use the default OpenAI-style
 	// WS dialer when nil (supports proxy + coder/websocket handshake).
@@ -167,7 +171,7 @@ func (s *AccountTestService) SetSettingService(settingService *SettingService) {
 	}
 }
 
-// FetchOpenAIAccountModels 通过账号上游 live 模型目录（OAuth 走 Codex manifest，
+// FetchOpenAIAccountModels 通过账号持久化模型目录（首次查询时 OAuth 走 Codex manifest，
 // API Key 走 /v1/models）为连接测试下拉提供模型列表。标准目录不带管理端选择器
 // 需要的 display_name/type 字段，这里统一回填，避免下拉显示为空白。
 func (s *AccountTestService) FetchOpenAIAccountModels(ctx context.Context, account *Account) ([]openai.Model, error) {
@@ -177,10 +181,11 @@ func (s *AccountTestService) FetchOpenAIAccountModels(ctx context.Context, accou
 	if account == nil || !account.IsOpenAI() {
 		return nil, errors.New("OpenAI account is required")
 	}
-	modelIDs, _, err := s.fetchUpstreamModelList(ctx, account)
+	catalog, err := s.accountModelCatalog(ctx, account)
 	if err != nil {
 		return nil, err
 	}
+	modelIDs := catalog.Models
 	models := make([]openai.Model, 0, len(modelIDs))
 	seen := make(map[string]struct{}, len(modelIDs))
 	for _, id := range modelIDs {
@@ -340,6 +345,13 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 		return s.sendErrorAndEnd(c, err.Error())
 	}
 	if fingerprintProbe(ctx) != nil {
+		probe := fingerprintProbe(ctx)
+		if probe.apiKeyID != "" {
+			if _, err := s.fingerprintKey(ctx, account, probe.userID, probe.apiKeyID); err != nil {
+				probe.fatal = true
+				return err
+			}
+		}
 		account = DirectModelTestAccount(account)
 		if fingerprintProbe(ctx).protocol != "" {
 			return s.testFingerprintAPI(c, account)

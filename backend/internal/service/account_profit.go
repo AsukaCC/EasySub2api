@@ -19,7 +19,7 @@ type AccountProfitListRepository interface {
 }
 
 // AccountProfitSettingsRepository stores the optional account-level
-// subscription cost used by the pre-expiry profit calculation.
+// subscription cost used by the trailing 30-day profit calculation.
 type AccountProfitSettingsRepository interface {
 	GetAccountProfitSettings(ctx context.Context, accountID string) (*usagestats.AccountProfitSettings, error)
 	SetAccountProfitSubscriptionCost(ctx context.Context, accountID string, costPoints *float64) (*usagestats.AccountProfitSettings, error)

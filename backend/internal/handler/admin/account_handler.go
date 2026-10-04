@@ -2399,11 +2399,11 @@ var accountProfitSortFields = map[string]struct{}{
 	"period_7d_cost":               {},
 	"period_7d_profit":             {},
 	"period_7d_tokens":             {},
-	"expiry_30d_revenue":           {},
-	"expiry_30d_cost":              {},
-	"expiry_30d_profit":            {},
-	"expiry_30d_subscription_cost": {},
-	"expiry_30d_tokens":            {},
+	"period_30d_revenue":           {},
+	"period_30d_cost":              {},
+	"period_30d_profit":            {},
+	"period_30d_subscription_cost": {},
+	"period_30d_tokens":            {},
 	"lifetime_revenue":             {},
 	"lifetime_cost":                {},
 	"lifetime_profit":              {},
@@ -2527,7 +2527,7 @@ func (h *AccountHandler) GetProfit(c *gin.Context) {
 }
 
 // UpdateProfitSettings updates the optional subscription-cycle cost used by
-// the account's 30-day pre-expiry profit summary. Passing null clears it.
+// the account's trailing 30-day profit summary. Passing null clears it.
 // PUT /api/v1/admin/accounts/:id/profit-settings
 func (h *AccountHandler) UpdateProfitSettings(c *gin.Context) {
 	accountID, err := parseEntityID(c.Param("id"))

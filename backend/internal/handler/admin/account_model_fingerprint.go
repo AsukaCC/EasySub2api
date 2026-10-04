@@ -18,6 +18,7 @@ func (h *AccountHandler) StartModelFingerprint(c *gin.Context) {
 		Model           string `json:"model_id" binding:"required,max=100"`
 		Protocol        string `json:"protocol"`
 		ReasoningEffort string `json:"reasoning_effort"`
+		APIKeyID        string `json:"api_key_id"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		response.BadRequest(c, "Invalid model selection")
@@ -32,7 +33,7 @@ func (h *AccountHandler) StartModelFingerprint(c *gin.Context) {
 		response.Unauthorized(c, "Admin not authenticated")
 		return
 	}
-	snapshot, err := h.accountTestService.StartModelFingerprint(c.Request.Context(), id, request.Model, subject.UserID, service.ModelFingerprintOptions{Protocol: request.Protocol, ReasoningEffort: request.ReasoningEffort})
+	snapshot, err := h.accountTestService.StartModelFingerprint(c.Request.Context(), id, request.Model, subject.UserID, service.ModelFingerprintOptions{APIKeyID: request.APIKeyID, Protocol: request.Protocol, ReasoningEffort: request.ReasoningEffort})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -46,16 +47,36 @@ func (h *AccountHandler) GetFingerprintModels(c *gin.Context) {
 		response.BadRequest(c, "Invalid account ID")
 		return
 	}
-	if _, ok := middleware.GetAuthSubjectFromContext(c); !ok {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
 		response.Unauthorized(c, "Admin not authenticated")
 		return
 	}
-	models, err := h.accountTestService.GetFingerprintModels(c.Request.Context(), id)
+	models, err := h.accountTestService.GetFingerprintModelsForKey(c.Request.Context(), id, subject.UserID, c.Query("api_key_id"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, models)
+}
+
+func (h *AccountHandler) ListFingerprintKeys(c *gin.Context) {
+	id, err := parseEntityID(c.Param("id"))
+	if err != nil || id == "" {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "Admin not authenticated")
+		return
+	}
+	keys, err := h.accountTestService.ListFingerprintKeys(c.Request.Context(), id, subject.UserID, c.Query("search"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, keys)
 }
 
 func (h *AccountHandler) GetFingerprintHistory(c *gin.Context) {

@@ -1390,7 +1390,7 @@ export interface AccountProfitResponse {
   week: AccountProfitPeriod
   month: AccountProfitPeriod
   period_7d: AccountProfitPeriod
-  expiry_30d?: AccountProfitPeriod | null
+  period_30d: AccountProfitPeriod
   lifetime: AccountProfitPeriod
   subscription_cost_points?: number | null
   history: AccountProfitDailyRecord[]
@@ -1425,7 +1425,7 @@ export interface AccountProfitListItem {
   subscription_cost_points?: number | null
   quota_7d: AccountProfitQuota7d
   period_7d: AccountProfitPeriod
-  expiry_30d?: AccountProfitPeriod | null
+  period_30d: AccountProfitPeriod
   lifetime: AccountProfitPeriod
 }
 

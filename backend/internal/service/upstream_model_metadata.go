@@ -242,16 +242,13 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 		}
 	}
 	persistedCapabilities := false
+	var capabilitySnapshot *UpstreamModelMetadataSnapshot
 	if len(completeMetadata) > 0 && account != nil && strings.TrimSpace(account.ID) != "" && s.accountRepo != nil {
-		snapshot := UpstreamModelMetadataSnapshot{
+		capabilitySnapshot = &UpstreamModelMetadataSnapshot{
 			Source:   source,
 			SyncedAt: time.Now().UTC().Format(time.RFC3339),
 			Models:   completeMetadata,
 		}
-		if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{UpstreamModelMetadataExtraKey: snapshot}); err != nil {
-			return nil, newUpstreamModelSyncInternalError("Failed to save upstream model metadata", err)
-		}
-		account.SetUpstreamModelMetadataSnapshot(snapshot)
 		persistedCapabilities = true
 	}
 	if upstreamCatalogNeedsRegistry(capabilityIDs, catalog.Metadata) {
@@ -265,8 +262,11 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 		}
 		catalog.Warnings = append(catalog.Warnings, warning)
 	}
-	if len(catalog.Metadata) == 0 || account == nil || strings.TrimSpace(account.ID) == "" || s.accountRepo == nil {
-		return catalog, nil
+	if err := s.saveUpstreamModelCatalog(ctx, account, catalog, !liveListAvailable, capabilitySnapshot); err != nil {
+		return nil, err
+	}
+	if capabilitySnapshot != nil {
+		account.SetUpstreamModelMetadataSnapshot(*capabilitySnapshot)
 	}
 	return catalog, nil
 }

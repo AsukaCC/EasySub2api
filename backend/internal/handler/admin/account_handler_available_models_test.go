@@ -288,10 +288,11 @@ func TestAccountHandlerGetAvailableModels_OpenAISparkShadowReturnsMappingModels(
 }
 
 func TestAccountHandlerSyncUpstreamModels_ConfigErrorReturnsBadRequest(t *testing.T) {
+	const accountID = "01995000-0000-7000-8000-000000000044"
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       "44",
+			ID:       accountID,
 			Name:     "openai-apikey-missing-key",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeAPIKey,
@@ -304,7 +305,7 @@ func TestAccountHandlerSyncUpstreamModels_ConfigErrorReturnsBadRequest(t *testin
 	router := setupSyncUpstreamModelsRouter(svc, &syncUpstreamHTTPUpstream{})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/44/models/sync-upstream", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+accountID+"/models/sync-upstream", nil)
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -312,10 +313,11 @@ func TestAccountHandlerSyncUpstreamModels_ConfigErrorReturnsBadRequest(t *testin
 }
 
 func TestAccountHandlerSyncUpstreamModels_UpstreamErrorDoesNotExposeBody(t *testing.T) {
+	const accountID = "01995000-0000-7000-8000-000000000045"
 	svc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
 		account: service.Account{
-			ID:       "45",
+			ID:       accountID,
 			Name:     "openai-apikey-upstream-error",
 			Platform: service.PlatformOpenAI,
 			Type:     service.AccountTypeAPIKey,
@@ -334,7 +336,7 @@ func TestAccountHandlerSyncUpstreamModels_UpstreamErrorDoesNotExposeBody(t *test
 	router := setupSyncUpstreamModelsRouter(svc, upstream)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/45/models/sync-upstream", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/"+accountID+"/models/sync-upstream", nil)
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadGateway, rec.Code)
