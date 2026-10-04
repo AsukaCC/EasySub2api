@@ -524,9 +524,7 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 			if err != nil {
 				return nil, fmt.Errorf("load admin recharge settings: %w", err)
 			}
-			if tier := selectRechargeBonusTier(balance, parseRechargeBonusTiers(settings[SettingRechargeBonusTiers])); tier != nil {
-				bonusPoints = tier.BonusPoints
-			}
+			bonusPoints = buildRechargeOrderPricing(balance, parseRechargeBonusTiers(settings[SettingRechargeBonusTiers])).BonusPoints
 			accrueRebate = settings[SettingKeyAffiliateEnabled] == "true" && settings[SettingKeyAffiliateAdminRechargeEnabled] == "true"
 		}
 		if accrueRebate && s.affiliateService == nil {
@@ -550,25 +548,16 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 		return nil, err
 	}
 	operationID := fmt.Sprintf("admin-wallet:%s:%d", userID, time.Now().UnixNano())
-	var expiresAt *time.Time
-	if balanceType == WalletKindBonus {
-		if bonusValidityDays <= 0 {
-			bonusValidityDays = defaultBonusValidityDays
-		}
-		value := time.Now().UTC().Add(time.Duration(bonusValidityDays) * 24 * time.Hour)
-		expiresAt = &value
-	}
 	switch operation {
 	case "add":
 		var credit WalletMutationResult
 		credit, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
-			UserID: userID, Amount: balance, Kind: balanceType, ExpiresAt: expiresAt,
+			UserID: userID, Amount: balance, Kind: balanceType,
 			SourceType: "admin_adjustment", SourceID: operationID, IdempotencyKey: operationID, Notes: notes,
 		})
 		if err == nil && credit.Applied && bonusPoints > 0 {
-			bonusExpiresAt := time.Now().UTC().Add(rechargeBonusValidity)
 			_, err = s.userRepo.CreditWallet(opCtx, WalletCreditInput{
-				UserID: userID, Amount: bonusPoints, Kind: WalletKindBonus, ExpiresAt: &bonusExpiresAt,
+				UserID: userID, Amount: bonusPoints, Kind: WalletKindBonus,
 				SourceType: "admin_adjustment", SourceID: operationID,
 				IdempotencyKey: operationID + ":bonus", Notes: notes,
 			})
@@ -581,11 +570,11 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 		}
 	case "subtract":
 		_, err = s.userRepo.DebitWallet(ctx, WalletDebitInput{
-			UserID: userID, Amount: balance, SourceType: "admin_adjustment", SourceID: operationID,
+			UserID: userID, Amount: balance, Kind: balanceType, SourceType: "admin_adjustment", SourceID: operationID,
 			IdempotencyKey: operationID, Notes: notes,
 		})
 	case "set":
-		input := WalletSetInput{UserID: userID, BonusExpiresAt: expiresAt, SourceType: "admin_adjustment", SourceID: operationID, IdempotencyKey: operationID, Notes: notes}
+		input := WalletSetInput{UserID: userID, SourceType: "admin_adjustment", SourceID: operationID, IdempotencyKey: operationID, Notes: notes}
 		if balanceType == WalletKindBonus {
 			input.BonusAmount = balance
 		} else {
@@ -611,8 +600,9 @@ func (s *adminServiceImpl) UpdateUserWalletBalance(ctx context.Context, userID s
 			return nil, err
 		}
 	}
-	balanceDiff := after.AvailableBalance - before.AvailableBalance
-	if s.authCacheInvalidator != nil && balanceDiff != 0 {
+	balanceDiff := (after.RechargeBalance - before.RechargeBalance) + (after.BonusBalance - before.BonusBalance)
+	walletChanged := after.RechargeBalance != before.RechargeBalance || after.BonusBalance != before.BonusBalance
+	if s.authCacheInvalidator != nil && walletChanged {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 	}
 	if s.billingCacheService != nil {
@@ -754,6 +744,9 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID str
 	}
 	codes := make([]RedeemCode, 0, len(pageResult.Items))
 	for _, item := range pageResult.Items {
+		if item.Action == "capture" {
+			item.Amount = 0
+		}
 		createdAt := item.CreatedAt
 		code := item.SourceID
 		if code == "" {

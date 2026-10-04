@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"net/http"
 	"strings"
 
@@ -92,6 +93,13 @@ func openAIRequestBodyUsesGPT6Astra(account *Account, body []byte) bool {
 // Compatible third-party Responses endpoints generally interpret that value as
 // invalid rather than as omission, while official OpenAI accepts it natively.
 func filterOpenAIResponsesNoneReasoningEffortForAccount(account *Account, body []byte) ([]byte, error) {
+	mappedModel := ""
+	if account != nil {
+		mappedModel = account.GetMappedModel(gjson.GetBytes(body, "model").String())
+	}
+	if err := validateGPT61SolReasoningEffort(body, mappedModel); err != nil {
+		return nil, err
+	}
 	if len(body) == 0 || (shouldPreserveOpenAIResponsesNoneReasoningEffort(account) && !openAIRequestBodyUsesGPT6Astra(account, body)) {
 		return body, nil
 	}
@@ -1708,6 +1716,9 @@ func normalizeOpenAIReasoningEffort(raw string) string {
 }
 
 func normalizeOpenAIReasoningEffortForModel(raw, model string) string {
+	if strings.EqualFold(strings.TrimSpace(raw), "ultra") && (openai.IsGPT61SolModelSpelling(model) || isOpenAIGPT56Model(model)) {
+		return "ultra"
+	}
 	if strings.EqualFold(strings.TrimSpace(raw), "max") && (isOpenAIGPT56Model(model) || isOpenAIGPT6Model(model)) {
 		return "max"
 	}

@@ -126,13 +126,8 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID string, code s
 		return ErrPromoCodeAlreadyUsed
 	}
 
-	validityDays := promoCode.BonusValidityDays
-	if validityDays <= 0 {
-		validityDays = s.bonusValidityDays(txCtx)
-	}
-	expiresAt := time.Now().UTC().Add(time.Duration(validityDays) * 24 * time.Hour)
 	if _, err := s.userRepo.CreditWallet(txCtx, WalletCreditInput{
-		UserID: userID, Amount: promoCode.BonusAmount, Kind: WalletKindBonus, ExpiresAt: &expiresAt,
+		UserID: userID, Amount: promoCode.BonusAmount, Kind: WalletKindBonus,
 		SourceType: "promo_code", SourceID: promoCode.ID,
 		IdempotencyKey: "wallet-promo:" + promoCode.ID + ":" + userID,
 		Notes:          promoCode.Notes,

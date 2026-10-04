@@ -3,7 +3,10 @@ package openai
 
 import (
 	_ "embed"
+	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 )
 
 // Model represents an OpenAI model
@@ -19,6 +22,7 @@ type Model struct {
 // DefaultModels OpenAI models list
 var DefaultModels = []Model{
 	{ID: "gpt-5.6-sol", Object: "model", Created: 1780876800, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.6 Sol"},
+	{ID: "gpt-6.1-sol", Object: "model", Created: 1790640000, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6.1 Sol"},
 	{ID: "gpt-6-astra", Object: "model", Created: 1788480000, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6 Astra"},
 	{ID: "gpt-6-sol", Object: "model", Created: 1790035200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6 Sol"},
 	{ID: "gpt-6-luna", Object: "model", Created: 1790035200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6 Luna"},
@@ -70,6 +74,12 @@ var instructionsGPT52 string
 //go:embed instructions_gpt5_5.txt
 var instructionsGPT55 string
 
+// CodexGPT61SolMetadata is the official descriptor bundled by upstream v0.2.11
+// from openai/codex b1e72963c3b71a9265a551e54beff078384efed9.
+//
+//go:embed codex_gpt61_sol.json
+var CodexGPT61SolMetadata []byte
+
 // latestCodexInstructions 返回当前已知最新版本的 Codex base instructions，
 // 当前为 GPT-5.5；若 5.5 prompt 意外为空则回退到 DefaultInstructions 保证非空。
 func latestCodexInstructions() string {
@@ -90,6 +100,16 @@ func latestCodexInstructions() string {
 func CodexBaseInstructionsForModel(model string) string {
 	m := strings.ToLower(strings.TrimSpace(model))
 	switch {
+	case IsGPT61SolModelSpelling(model):
+		var metadata struct {
+			ModelMessages struct {
+				InstructionsTemplate string `json:"instructions_template"`
+			} `json:"model_messages"`
+		}
+		if err := json.Unmarshal(CodexGPT61SolMetadata, &metadata); err != nil {
+			panic(err)
+		}
+		return metadata.ModelMessages.InstructionsTemplate
 	case strings.Contains(m, "codex"):
 		return DefaultInstructions
 	case strings.HasPrefix(m, "gpt-5.2"):
@@ -125,4 +145,50 @@ func IsGPT6SolOrLunaModelSpelling(model string) bool {
 		}
 	}
 	return false
+}
+
+// IsGPT61SolModelSpelling recognizes GPT-6.1 Sol and its local effort aliases.
+func IsGPT61SolModelSpelling(model string) bool {
+	canonical := strings.ToLower(strings.TrimSpace(model))
+	if i := strings.LastIndex(canonical, "/"); i >= 0 {
+		canonical = canonical[i+1:]
+	}
+	canonical = strings.ReplaceAll(canonical, "gpt61", "gpt-6.1")
+	canonical = strings.ReplaceAll(canonical, "gpt6.1", "gpt-6.1")
+	canonical = strings.ReplaceAll(canonical, "gpt 6.1", "gpt-6.1")
+	if canonical == "gpt-6.1-sol" {
+		return true
+	}
+	suffix, ok := strings.CutPrefix(canonical, "gpt-6.1-sol-")
+	if !ok {
+		return false
+	}
+	switch suffix {
+	case "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra", "openai-compact":
+		return true
+	default:
+		_, err := time.Parse("2006-01-02", suffix)
+		return err == nil
+	}
+}
+
+// ValidateGPT61SolReasoningEffort rejects disabled reasoning aliases instead
+// of silently upgrading them during protocol conversion.
+func ValidateGPT61SolReasoningEffort(model, effort string) error {
+	if !IsGPT61SolModelSpelling(model) {
+		return nil
+	}
+	if effort == "" {
+		for _, suffix := range []string{"none", "minimal"} {
+			if strings.HasSuffix(strings.ToLower(strings.TrimSpace(model)), "-"+suffix) {
+				effort = suffix
+			}
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(effort)) {
+	case "none", "minimal":
+		return fmt.Errorf("gpt-6.1-sol does not support reasoning effort %q; use low, medium, high, xhigh, max or ultra", effort)
+	default:
+		return nil
+	}
 }

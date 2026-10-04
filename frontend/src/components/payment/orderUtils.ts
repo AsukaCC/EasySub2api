@@ -85,16 +85,8 @@ export function canDirectRefund(order: DirectRefundOrder, now: Date | number = D
   if (order.order_type !== 'balance' || !canRefund(order.status)) return false
   const nowMs = typeof now === 'number' ? now : now.getTime()
   const completedAtMs = order.completed_at ? Date.parse(order.completed_at) : Number.NaN
-  const explicitDeadlineMs = order.refund_deadline ? Date.parse(order.refund_deadline) : Number.NaN
-  const deadlineMs = Number.isFinite(explicitDeadlineMs)
-    ? explicitDeadlineMs
-    : Number.isFinite(completedAtMs)
-      ? completedAtMs + 168 * 60 * 60 * 1000
-      : Number.NaN
   return Number.isFinite(completedAtMs)
-    && Number.isFinite(deadlineMs)
     && nowMs >= completedAtMs
-    && nowMs < deadlineMs
 }
 
 export function formatOrderDateTime(dateStr: string): string {

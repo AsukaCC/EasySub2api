@@ -22,6 +22,7 @@ type OpenAIOAuthHandler struct {
 	quotaService       openAIQuotaService
 	referralService    openAIReferralService
 	rateLimitService   openAIAccountStateRecoverer
+	claudeResetService *service.ClaudeResetCreditService
 }
 
 type openAIQuotaService interface {
@@ -88,6 +89,7 @@ func NewOpenAIOAuthHandler(
 	adminService service.AdminService,
 	quotaService *service.OpenAIQuotaService,
 	rateLimitService *service.RateLimitService,
+	claudeResetServices ...*service.ClaudeResetCreditService,
 ) *OpenAIOAuthHandler {
 	h := &OpenAIOAuthHandler{
 		openaiOAuthService: openaiOAuthService,
@@ -103,7 +105,62 @@ func NewOpenAIOAuthHandler(
 	if rateLimitService != nil {
 		h.rateLimitService = rateLimitService
 	}
+	if len(claudeResetServices) > 0 {
+		h.claudeResetService = claudeResetServices[0]
+	}
 	return h
+}
+
+// ProvideOpenAIOAuthHandler is the Wire-facing constructor. The variadic
+// argument on NewOpenAIOAuthHandler is kept for existing tests and extensions,
+// while production wiring always supplies the Claude reset service explicitly.
+func ProvideOpenAIOAuthHandler(
+	openaiOAuthService *service.OpenAIOAuthService,
+	adminService service.AdminService,
+	quotaService *service.OpenAIQuotaService,
+	rateLimitService *service.RateLimitService,
+	claudeResetService *service.ClaudeResetCreditService,
+) *OpenAIOAuthHandler {
+	return NewOpenAIOAuthHandler(openaiOAuthService, adminService, quotaService, rateLimitService, claudeResetService)
+}
+
+func (h *OpenAIOAuthHandler) SetClaudeResetService(svc *service.ClaudeResetCreditService) {
+	if h != nil {
+		h.claudeResetService = svc
+	}
+}
+
+// QueryClaudeResetCredits returns the sanitized native Claude reset status.
+// GET /api/v1/admin/openai/accounts/:id/claude/reset-credits
+func (h *OpenAIOAuthHandler) QueryClaudeResetCredits(c *gin.Context) {
+	if h.claudeResetService == nil {
+		response.BadRequest(c, "claude reset service is not enabled")
+		return
+	}
+	credits, err := h.claudeResetService.Query(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, credits)
+}
+
+// RedeemClaudeResetCredit consumes the next native Claude reset grant. The
+// idempotency key is the operator confirmation boundary and is never sent to
+// the client or upstream as a raw value.
+// POST /api/v1/admin/openai/accounts/:id/claude/reset-credits/redeem
+func (h *OpenAIOAuthHandler) RedeemClaudeResetCredit(c *gin.Context) {
+	if h.claudeResetService == nil {
+		response.BadRequest(c, "claude reset service is not enabled")
+		return
+	}
+	key := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+	result, err := h.claudeResetService.Redeem(c.Request.Context(), c.Param("id"), key)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 // OpenAIGenerateAuthURLRequest represents the request for generating OpenAI auth URL

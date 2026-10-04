@@ -32,6 +32,11 @@ func canonicalizeOpenAIModelAliasSpelling(model string) string {
 	if strings.HasPrefix(normalized, "gpt5") {
 		normalized = "gpt-5" + strings.TrimPrefix(normalized, "gpt5")
 	}
+	if strings.HasPrefix(normalized, "gpt61") {
+		normalized = "gpt-6.1" + strings.TrimPrefix(normalized, "gpt61")
+	} else if strings.HasPrefix(normalized, "gpt6") {
+		normalized = "gpt-6" + strings.TrimPrefix(normalized, "gpt6")
+	}
 	if !strings.HasPrefix(normalized, "gpt-") && !strings.Contains(normalized, "codex") {
 		return ""
 	}
@@ -63,6 +68,9 @@ func normalizeKnownOpenAICodexModel(model string) string {
 
 	if mapped := getNormalizedCodexModel(normalized); mapped != "" {
 		return mapped
+	}
+	if openai.IsGPT61SolModelSpelling(normalized) {
+		return "gpt-6.1-sol"
 	}
 	if strings.HasSuffix(normalized, "-openai-compact") {
 		if mapped := getNormalizedCodexModel(strings.TrimSuffix(normalized, "-openai-compact")); mapped != "" {
@@ -125,7 +133,7 @@ func openAIGPT6SolLunaBaseModel(model string) string {
 }
 
 func isOpenAIGPT6Model(model string) bool {
-	return isOpenAIGPT6AstraModel(model) || openAIGPT6SolLunaBaseModel(model) != ""
+	return isOpenAIGPT6AstraModel(model) || openAIGPT6SolLunaBaseModel(model) != "" || openai.IsGPT61SolModelSpelling(model)
 }
 
 // isOpenAIGPT56Model 判断是否 GPT-5.6 系列模型；入参可为原始模型名

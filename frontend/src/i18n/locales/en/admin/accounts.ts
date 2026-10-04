@@ -2,12 +2,18 @@ export default {
     accounts: {
       fingerprint: {
         title: 'Model Fingerprint Test', attribution: 'Model Attribution', start: 'Start Test', notTested: 'Not tested',
-        samples: '3 fingerprint samples', serial: 'One conversation, sequential turns', inBackground: 'Testing in background',
+        samples: '3 valid fingerprint samples', serial: 'Independent samples', inBackground: 'Testing in background',
+        account: 'API Key Account', protocol: 'Request Format', effort: 'Reasoning Effort', defaultEffort: 'Upstream default',
+        autoProtocol: 'Detect format automatically', schedule: 'Test every half hour', nextRun: 'Next test:',
+        scheduleSaved: 'Schedule saved', scheduleFailed: 'Could not load or save schedule',
+        history: 'Test History (24 hours)', usageRecords: 'View usage records', historyFailed: 'Could not load test history',
+        accountsFailed: 'Could not load accounts', time: 'Time', protocolEffort: 'Format / Effort', source: 'Source', manual: 'Manual', scheduled: 'Scheduled',
         progress: 'Sampling {count}/{total}', allCandidates: 'All candidates',
-        scope: 'Single-conversation samples are correlated. Shares are relative GPT / Claude candidate attribution, not calibrated confidence or proof of identity.',
+        scope: 'Shares are relative attribution within the GPT / Claude candidate bank, not proof of identity. Unlisted models are assigned to the closest candidate.',
         noModels: 'No text models available', loadFailed: 'Could not load models. Reopen to retry.',
         pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not start. A test may already exist or all test slots may be occupied.',
         errors: {
+          preparation_failed: 'Upstream model or parameter validation failed',
           interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out', upstream_failed: 'Upstream request failed',
           insufficient_samples: 'Fewer than 3 valid samples', analysis_failed: 'Attribution failed', internal_error: 'Test failed', save_failed: 'Could not save results'
         }
@@ -113,6 +119,12 @@ export default {
       schedulableEnabled: 'Scheduling enabled',
       schedulableDisabled: 'Scheduling disabled',
       failedToToggleSchedulable: 'Failed to toggle scheduling status',
+      priorityQuick: {
+        raise: 'Raise priority (value -1)',
+        lower: 'Lower priority (value +1)',
+        editHint: 'Click to type a value; lower is used first',
+        failed: 'Failed to update priority'
+      },
       groupCountTotal: '{count} groups total',
       allSubscriptionTiers: 'All subscription tiers',
       subscriptionTierUnrecognized: 'Unrecognized tier',
@@ -128,6 +140,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        typesafe: 'TypeSafe / Jev',
       },
       reasoningEffort: 'Reasoning effort',
       reasoningEffortFollowRequest: 'Follow request',
@@ -770,7 +783,6 @@ export default {
       targetNoWildcard: 'Target model cannot contain wildcard *',
       searchModels: 'Search models...',
       noMatchingModels: 'No matching models',
-      fillRelatedModels: 'Sync latest supported models',
       syncUpstreamModels: 'Sync upstream supported models',
       syncUpstreamModelsLoading: 'Syncing upstream...',
       syncUpstreamModelsSuccess: 'Synced {count} new model(s) from upstream ({total} upstream total)',
@@ -799,7 +811,7 @@ export default {
       customErrorCodes: 'Custom Error Codes',
       customErrorCodesHint: 'Only stop scheduling for selected error codes',
       customErrorCodesWarning:
-        'Only selected error codes will stop scheduling. Other errors will return 500.',
+        'Custom error codes only filter normal account-error handling (such as stopping scheduling or marking rate limits). They do not decide whether a request is retried or switched to another account. Unselected errors may still trigger a retry or an account switch, and the status returned to the client depends on the gateway path and error-passthrough rules; it is not always 500. An empty list applies no filtering.',
       customErrorCodes429Warning:
         '429 already has built-in rate limit handling. Adding it to custom error codes will disable the account instead of temporary rate limiting. Are you sure?',
       customErrorCodes529Warning:
@@ -1417,6 +1429,23 @@ export default {
         refreshCachePersistFailed: 'Showing the live count, but its expiration details were unavailable, so the cached details were kept.',
         confirmTitle: 'Confirm Weekly Limit Reset',
         confirmMessage: 'This will consume 1 reset credit to immediately restore the current window ({count} remaining). This action cannot be undone. Continue?'
+      },
+      claudeReset: {
+        query: 'Check native reset credits',
+        outcomes: {
+          reset: 'Claude limits reset',
+          already_used: 'This credit has already been used',
+          not_limited: 'No resettable limit is currently reached',
+          cooldown: 'Reset is still on cooldown',
+          ineligible: 'This account is not eligible for native resets',
+          unknown: 'The upstream result is unconfirmed. Check credits before continuing; retries reuse the same redemption.'
+        },
+        loading: 'Checking Claude reset credits...',
+        unavailable: 'Claude reset unavailable',
+        count: 'Native reset credits: {count}',
+        reset: 'Reset limits',
+        redeeming: 'Resetting...',
+        confirm: 'Consume one Claude native reset credit now? This cannot be undone.'
       },
       tier: {
         free: 'Free',

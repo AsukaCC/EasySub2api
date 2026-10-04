@@ -749,12 +749,22 @@ export default {
       deposit: 'Deposit',
       withdraw: 'Withdraw',
       depositAmount: 'Deposit Amount',
-	  balanceType: 'Point type',
-	  rechargeBalance: 'Recharge points',
-	  bonusBalance: 'Bonus points',
+	  balanceType: 'Point source',
+	  rechargeBalance: 'Recharge',
+	  bonusBalance: 'Bonus',
       bonusValidityDays: 'Bonus validity (days)',
       rechargeTierBonus: 'Recharge bonus points',
-      rechargeTierBonusValidity: 'Valid for 7 days',
+      rechargeTierBonusValidity: 'Never expires',
+      pointChanges: {
+        title: 'Point Changes', keyword: 'User email / username', direction: 'Direction',
+        increase: 'Increase', decrease: 'Deduction', date: 'Change date', user: 'User', amount: 'Point change',
+        balance: 'Transaction balance: before → after', reason: 'Reason', source: 'Reference / notes', frozen: 'Frozen change',
+        selectedUser: 'Selected user', allUsers: 'All users', snapshotUnavailable: 'Historical balance snapshot unavailable',
+        refundRecovery: 'Refund recovery', refundRestore: 'Failed refund restored', recharge: 'Recharge credited',
+        affiliateRecovery: 'Order referral rebate recovery',
+        redeem: 'Redemption', promotion: 'Promotional bonus', affiliate: 'Affiliate transfer',
+        loadFailed: 'Failed to load point changes. Please retry.', invalidDate: 'Select a valid date range'
+      },
       rechargeBonusLoadFailed: 'Failed to load recharge bonus tiers. Please retry.',
 	  walletActions: {
 		credit: 'Point credit', bonus: 'Bonus point credit', debit: 'Point debit', hold: 'Point hold',
@@ -971,7 +981,7 @@ export default {
       rateLabel: 'rate',
       levelRates: {
         action: 'Time-window discounts', title: 'Time-window discounts',
-        hint: 'Match an offer coefficient by time window; 1 means original price. Overlapping rules use the lowest coefficient. Offers use recharge points first; bonus points use only group rate × user level rate.',
+        hint: 'Match an offer coefficient by time window; 1 means original price. Overlapping rules use the lowest coefficient. Offers apply to all available points.',
         independentQuotaHint: 'Discount quota is tracked independently per user and rule. After quota is exhausted, billing returns to group rate × level rate.',
         dynamicRules: 'Time-window discounts', addRule: 'Add rule', noRules: 'No discount rules',
         name: 'Rule name', start: 'Start', end: 'End', startAt: 'Start time', endAt: 'End time', discountCoefficient: 'Discount coefficient',
@@ -1122,6 +1132,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        typesafe: 'TypeSafe / Jev',
         composite: 'Composite',
       },
       deleteConfirm:

@@ -150,6 +150,23 @@ func ProvideClaudeTokenProvider(
 	return p
 }
 
+// ProvideClaudeResetCreditService wires the native Claude reset workflow with
+// the same idempotency and organization lock stores used by other admin
+// operations. Keeping this provider here prevents generated Wire code from
+// silently omitting redemption coordination after regeneration.
+func ProvideClaudeResetCreditService(
+	accountRepo AccountRepository,
+	tokenProvider *ClaudeTokenProvider,
+	proxyRepo ProxyRepository,
+	settingService *SettingService,
+	idempotency *IdempotencyCoordinator,
+	locks LeaderLockCache,
+) *ClaudeResetCreditService {
+	svc := NewClaudeResetCreditService(accountRepo, tokenProvider, proxyRepo, settingService)
+	svc.ConfigureRedemption(idempotency, locks)
+	return svc
+}
+
 // ProvideOpenAITokenProvider creates OpenAITokenProvider with OAuthRefreshAPI injection
 func ProvideOpenAITokenProvider(
 	accountRepo AccountRepository,
@@ -777,7 +794,45 @@ func ProvideAPIKeyService(
 	return svc
 }
 
-// ProviderSet is the Wire provider set for all services
+// ProvideGatewayService preserves proxy timezone propagation across Wire regeneration.
+func ProvideGatewayService(
+	accountRepo AccountRepository,
+	groupRepo GroupRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	identityService *IdentityService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	claudeTokenProvider *ClaudeTokenProvider,
+	sessionLimitCache SessionLimitCache,
+	rpmCache RPMCache,
+	digestStore *DigestSessionStore,
+	settingService *SettingService,
+	tlsFPProfileService *TLSFingerprintProfileService,
+	channelService *ChannelService,
+	resolver *ModelPricingResolver,
+	compositeResolver *CompositeRouteResolver,
+	balanceNotifyService *BalanceNotifyService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	userLevelService *UserLevelService,
+	proxyTimezoneResolver ProxyTimezoneResolver,
+) *GatewayService {
+	svc := NewGatewayServiceWithUserLevel(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestStore, settingService, tlsFPProfileService, channelService, resolver, compositeResolver, balanceNotifyService, userPlatformQuotaRepo, userLevelService)
+	svc.SetProxyTimezoneResolver(proxyTimezoneResolver)
+	return svc
+}
+
+// ProviderSet is the Wire provider set for all services.
 var ProviderSet = wire.NewSet(
 	// Core services
 	ProvideAuthService,
@@ -801,7 +856,7 @@ var ProviderSet = wire.NewSet(
 	ProvideBillingCacheService,
 	NewAnnouncementService,
 	NewAdminService,
-	NewGatewayServiceWithUserLevel,
+	ProvideGatewayService,
 	NewOpenAIGatewayServiceWithUserLevel,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
@@ -826,6 +881,7 @@ var ProviderSet = wire.NewSet(
 	ProvideCNProviderBalanceService,
 	ProvideCNProviderBalanceCheckService,
 	ProvideClaudeTokenProvider,
+	ProvideClaudeResetCreditService,
 	NewGeminiQuotaService,
 	NewAntigravityQuotaFetcher,
 	NewAntigravityGatewayService,

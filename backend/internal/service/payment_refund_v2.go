@@ -35,7 +35,6 @@ const (
 	RefundSourceTicket      = "TICKET"
 	RefundSourceAdmin       = "ADMIN"
 
-	selfServiceRefundWindow    = 168 * time.Hour
 	refundSubmittingRetryAfter = 2 * time.Minute
 	refundSettlementTimeout    = 15 * time.Second
 	affiliateRefundHoldPurpose = "affiliate_refund"
@@ -143,7 +142,7 @@ func (s *PaymentService) GetRefundQuote(ctx context.Context, orderID, userID str
 		return nil, infraerrors.Forbidden("REFUND_DISABLED", "refund is not available for this payment provider")
 	}
 	directEligible := instance.AllowUserRefund && refundSelfServiceEligible(order, time.Now())
-	calculation, err := s.calculateRefundQuote(ctx, s.entClient, order, principal, directEligible)
+	calculation, err := s.calculateRefundQuote(ctx, s.entClient, order, principal, true)
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +181,8 @@ func (s *PaymentService) CreateAdminPaymentRefund(ctx context.Context, input Cre
 	}
 	if !refundSelfServiceEligible(order, time.Now()) {
 		return nil, infraerrors.BadRequest(
-			"REFUND_TICKET_REQUIRED",
-			"the direct refund window has expired; review an approved refund ticket instead",
+			"ORDER_NOT_COMPLETED",
+			"order completion is required before refunding",
 		)
 	}
 	input = normalizeAdminRefundInput(input)
@@ -209,6 +208,8 @@ func normalizeAdminRefundInput(input CreatePaymentRefundInput) CreatePaymentRefu
 }
 
 func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreatePaymentRefundInput) (_ *dbent.PaymentRefund, existing bool, err error) {
+	// Every new refund recovers its order-linked rebate, including ticket refunds.
+	input.AutoAffiliate = true
 	key := strings.TrimSpace(input.IdempotencyKey)
 	if key == "" || len(key) > 160 {
 		return nil, false, infraerrors.BadRequest("INVALID_IDEMPOTENCY_KEY", "Idempotency-Key is required and must be at most 160 characters")
@@ -289,7 +290,7 @@ func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreateP
 		return nil, false, err
 	}
 	if selfService && !calculation.quote.SelfServiceEligible {
-		return nil, false, infraerrors.BadRequest("REFUND_TICKET_REQUIRED", "self-service refund window has expired; submit a refund ticket")
+		return nil, false, infraerrors.BadRequest("ORDER_NOT_COMPLETED", "order completion is required before refunding")
 	}
 	if calculation.amounts.PrincipalDelta.LessThan(decimal.New(1, -refundMoneyScale)) {
 		return nil, false, infraerrors.BadRequest("NO_REFUNDABLE_AMOUNT", "no refundable principal is available for the current point balance")
@@ -360,6 +361,7 @@ func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreateP
 		}
 		return nil, false, fmt.Errorf("reserve refund points: %w", err)
 	}
+	inviterID := ""
 	if input.AutoAffiliate && refund.AffiliateRebatePoints > 0 {
 		reservation, reserveErr := reserveAffiliateReversal(txCtx, tx.Client(), order.ID, refund.AffiliateRebatePoints)
 		if reserveErr != nil {
@@ -368,6 +370,7 @@ func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreateP
 		if _, holdErr := holdAffiliateWalletReservation(txCtx, s.userRepo, reservation, refund.ID, fingerprint); holdErr != nil {
 			return nil, false, fmt.Errorf("hold transferred affiliate rebate: %w", holdErr)
 		}
+		inviterID = reservation.InviterID
 	}
 	update := tx.PaymentRefund.UpdateOneID(refund.ID).SetStatus(RefundStatusReserved)
 	if hold.HoldID != "" {
@@ -387,6 +390,10 @@ func (s *PaymentService) preparePaymentRefund(ctx context.Context, input CreateP
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, false, fmt.Errorf("commit refund reservation: %w", err)
+	}
+	s.invalidateRefundWalletCaches(ctx, order.UserID)
+	if inviterID != "" && inviterID != order.UserID {
+		s.invalidateRefundWalletCaches(ctx, inviterID)
 	}
 	return refund, false, nil
 }
@@ -459,18 +466,10 @@ func (s *PaymentService) calculateRefundQuote(ctx context.Context, client *dbent
 	if errors.Is(err, ErrWalletBonusGrantNotFound) {
 		capacity = RefundPointCapacity{RechargeAvailable: walletRechargeBalance(ctx, s.userRepo, order.UserID)}
 	}
-	expiredUsed, err := successfulRefundExpiredOffset(ctx, client, order.ID)
-	if err != nil {
-		return nil, fmt.Errorf("query prior expired bonus offsets: %w", err)
-	}
-	expiredAvailable := decimal.NewFromFloat(math.Max(capacity.SourceBonusExpired-expiredUsed, 0)).Round(refundPointsScale)
-	sourceAvailable := decimal.NewFromFloat(capacity.SourceBonusAvailable).Round(refundPointsScale)
 	rechargeAvailable := decimal.NewFromFloat(capacity.RechargeAvailable).Round(refundPointsScale)
 
-	// remaining_amount already excludes the frozen part of the source grant.
-	// A partial freeze therefore reduces sourceAvailable, while recharge points
-	// may still cover the bonus shortfall.
-	maxPrincipal := maxAffordableRefundPrincipal(input, remaining, rechargeAvailable, sourceAvailable, expiredAvailable, true)
+	// Principal needs available points; additional reward recovery may create net debt.
+	maxPrincipal := maxAffordableRefundPrincipal(input, remaining, rechargeAvailable)
 	actual := requestedAmount
 	if actual.GreaterThan(maxPrincipal) {
 		actual = maxPrincipal
@@ -490,7 +489,7 @@ func (s *PaymentService) calculateRefundQuote(ctx context.Context, client *dbent
 	if err != nil {
 		return nil, infraerrors.BadRequest("INVALID_REFUND_STATE", err.Error())
 	}
-	expiredOffset := decimal.Min(amounts.BonusPointsDelta, expiredAvailable).Round(refundPointsScale)
+	expiredOffset := decimal.Zero
 	pointsToHold := amounts.PointsDelta.Sub(expiredOffset).Round(refundPointsScale)
 	previousAffiliate := decimal.NewFromFloat(order.ReversedAffiliatePoints).Round(refundPointsScale)
 	affTarget := previousAffiliate
@@ -560,41 +559,15 @@ func cumulativeRefundInputForOrder(order *dbent.PaymentOrder) (CumulativeRefundI
 	}, nil
 }
 
-func successfulRefundExpiredOffset(ctx context.Context, client *dbent.Client, orderID string) (float64, error) {
-	refunds, err := client.PaymentRefund.Query().Where(
-		paymentrefund.OrderIDEQ(orderID), paymentrefund.StatusEQ(RefundStatusSucceeded),
-	).All(ctx)
-	if err != nil {
-		return 0, err
-	}
-	var total decimal.Decimal
-	for _, refund := range refunds {
-		total = total.Add(decimal.NewFromFloat(refund.BonusExpiredOffset))
-	}
-	return decimalFloat(total, refundPointsScale), nil
-}
-
 func refundDeadline(order *dbent.PaymentOrder) *time.Time {
-	if order == nil {
-		return nil
-	}
-	if order.RefundDeadline != nil {
-		deadline := order.RefundDeadline.UTC()
-		return &deadline
-	}
-	if order.CompletedAt == nil {
-		return nil
-	}
-	deadline := order.CompletedAt.UTC().Add(selfServiceRefundWindow)
-	return &deadline
+	return nil
 }
 
 func refundSelfServiceEligible(order *dbent.PaymentOrder, now time.Time) bool {
 	if order == nil || order.CompletedAt == nil {
 		return false
 	}
-	deadline := refundDeadline(order)
-	return deadline != nil && withinSelfServiceRefundWindow(order.CompletedAt.UTC(), *deadline, now.UTC())
+	return !now.UTC().Before(order.CompletedAt.UTC())
 }
 
 func refundRequestFingerprint(input CreatePaymentRefundInput) string {
@@ -628,7 +601,7 @@ func walletRechargeBalance(ctx context.Context, repo UserRepository, userID stri
 	if err != nil {
 		return 0
 	}
-	return summary.RechargeBalance
+	return summary.AvailableBalance
 }
 
 func affiliateRebateForOrder(ctx context.Context, client *dbent.Client, order *dbent.PaymentOrder) float64 {

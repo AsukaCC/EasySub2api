@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -59,7 +58,7 @@ func (s *balanceUserRepoStub) GetByID(ctx context.Context, _ string) (*User, err
 
 func (s *balanceUserRepoStub) GetWalletSummary(ctx context.Context, _ string) (WalletSummary, error) {
 	u := s.walletUser(ctx)
-	return NewWalletSummary(u.Balance, u.BonusBalance, 0, 0), nil
+	return NewWalletSummary(u.Balance-u.BonusBalance, u.BonusBalance, 0, 0), nil
 }
 
 func (s *balanceUserRepoStub) CreditWallet(ctx context.Context, input WalletCreditInput) (WalletMutationResult, error) {
@@ -340,7 +339,7 @@ func TestAdminService_UpdateUserBalance_AffiliateRebatePolicy(t *testing.T) {
 			redeemRepo := &balanceRedeemRepoStub{redeemRepoStub: &redeemRepoStub{}}
 			affiliate := &adminRechargeAffiliateAccruerStub{rebate: 1}
 			settings := adminRechargeSettingService(tt.enabled)
-			settings.settingRepo.(*settingRepoStub).values[SettingRechargeBonusTiers] = `[{"threshold_cny":50,"bonus_points":3}]`
+			settings.settingRepo.(*settingRepoStub).values[SettingRechargeBonusTiers] = `[{"threshold_cny":50,"bonus_percent":6}]`
 			if tt.globalDisabled {
 				settings.settingRepo.(*settingRepoStub).values[SettingKeyAffiliateEnabled] = "false"
 			}
@@ -390,8 +389,8 @@ func TestAdminService_RechargeBonusTiers(t *testing.T) {
 	}{
 		{"below threshold", "add", WalletKindRecharge, 49.99, 0},
 		{"at threshold", "add", WalletKindRecharge, 50, 3},
-		{"highest threshold only", "add", WalletKindRecharge, 200, 12.12345678},
-		{"above threshold", "add", WalletKindRecharge, 500, 12.12345678},
+		{"highest threshold only", "add", WalletKindRecharge, 200, 24.68},
+		{"above threshold", "add", WalletKindRecharge, 500, 61.7},
 		{"manual bonus", "add", WalletKindBonus, 200, 0},
 		{"set balance", "set", WalletKindRecharge, 200, 0},
 		{"subtract", "subtract", WalletKindRecharge, 50, 0},
@@ -405,12 +404,11 @@ func TestAdminService_RechargeBonusTiers(t *testing.T) {
 			audit := &balanceRedeemRepoStub{}
 			invalidator := &authCacheInvalidatorStub{}
 			svc := &adminServiceImpl{userRepo: repo, redeemCodeRepo: audit, entClient: client, authCacheInvalidator: invalidator,
-				settingService: NewSettingService(&settingRepoStub{values: map[string]string{SettingRechargeBonusTiers: `[{"threshold_cny":200,"bonus_points":12.12345678},{"threshold_cny":50,"bonus_points":3}]`}}, nil)}
+				settingService: NewSettingService(&settingRepoStub{values: map[string]string{SettingRechargeBonusTiers: `[{"threshold_cny":200,"bonus_percent":12.34},{"threshold_cny":50,"bonus_percent":6}]`}}, nil)}
 			if tc.operation == "add" && tc.kind == WalletKindRecharge {
 				mock.ExpectBegin()
 				mock.ExpectCommit()
 			}
-			started := time.Now().UTC()
 			user, err := svc.UpdateUserWalletBalance(context.Background(), "7", tc.amount, tc.operation, tc.kind, 30, "admin test")
 			require.NoError(t, err)
 			if tc.operation == "add" {
@@ -422,7 +420,7 @@ func TestAdminService_RechargeBonusTiers(t *testing.T) {
 					require.Equal(t, WalletKindBonus, bonus.Kind)
 					require.Equal(t, base.SourceID, bonus.SourceID)
 					require.NotEqual(t, base.IdempotencyKey, bonus.IdempotencyKey)
-					require.WithinDuration(t, started.Add(rechargeBonusValidity), *bonus.ExpiresAt, time.Second)
+					require.Nil(t, bonus.ExpiresAt)
 					require.InDelta(t, tc.amount+tc.bonus, audit.created[0].Value, 1e-8)
 				} else {
 					require.Len(t, repo.credits, 1)
@@ -456,7 +454,7 @@ func TestAdminService_RechargeRewardsRollBackBeforeRetry(t *testing.T) {
 			audit := &balanceRedeemRepoStub{}
 			invalidator := &authCacheInvalidatorStub{}
 			settings := adminRechargeSettingService(true)
-			settings.settingRepo.(*settingRepoStub).values[SettingRechargeBonusTiers] = `[{"threshold_cny":50,"bonus_points":3}]`
+			settings.settingRepo.(*settingRepoStub).values[SettingRechargeBonusTiers] = `[{"threshold_cny":50,"bonus_percent":6}]`
 			svc := &adminServiceImpl{userRepo: repo, redeemCodeRepo: audit, entClient: client, authCacheInvalidator: invalidator,
 				settingService: settings, affiliateService: affiliate}
 			mock.ExpectBegin()

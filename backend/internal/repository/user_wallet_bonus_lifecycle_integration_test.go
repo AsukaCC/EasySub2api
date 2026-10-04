@@ -72,9 +72,10 @@ func TestUserWalletBonusLifecycle_CreditAgainstDebtAndAdminSetAreClassified(t *t
 	client := tx.Client()
 	repo := newUserRepositoryWithSQL(client, integrationDB)
 	user := mustCreateUser(t, client, &service.User{
-		Email:   fmt.Sprintf("wallet-debt-%d@example.com", time.Now().UnixNano()),
-		Balance: -4,
+		Email: fmt.Sprintf("wallet-debt-%d@example.com", time.Now().UnixNano()),
 	})
+	_, err := client.ExecContext(ctx, "UPDATE users SET bonus_balance = -4 WHERE id = $1", user.ID)
+	require.NoError(t, err)
 	expiresAt := time.Now().UTC().Add(24 * time.Hour)
 
 	credit, err := repo.CreditWallet(ctx, service.WalletCreditInput{
@@ -86,7 +87,7 @@ func TestUserWalletBonusLifecycle_CreditAgainstDebtAndAdminSetAreClassified(t *t
 	require.InDelta(t, 6, credit.Summary.Balance, 1e-8)
 	require.InDelta(t, 6, credit.Summary.BonusBalance, 1e-8)
 	grant := loadWalletBonusGrantLifecycle(t, ctx, client, *credit.BonusGrantID)
-	requireGrantBuckets(t, grant, 6, 0, 4, 0, 0)
+	requireGrantBuckets(t, grant, 10, 0, 0, 0, 0)
 
 	_, err = repo.SetWalletBalance(ctx, service.WalletSetInput{
 		UserID: user.ID, RechargeAmount: 2, BonusAmount: 3, BonusExpiresAt: &expiresAt,
@@ -94,7 +95,7 @@ func TestUserWalletBonusLifecycle_CreditAgainstDebtAndAdminSetAreClassified(t *t
 	})
 	require.NoError(t, err)
 	grant = loadWalletBonusGrantLifecycle(t, ctx, client, *credit.BonusGrantID)
-	requireGrantBuckets(t, grant, 0, 0, 4, 0, 6)
+	requireGrantBuckets(t, grant, 0, 0, 0, 0, 10)
 	require.Equal(t, "adjusted", grant.status)
 }
 
@@ -129,16 +130,16 @@ func TestUserWalletBonusLifecycle_CaptureAndRefundMoveSpentBackToRemaining(t *te
 	requireGrantBuckets(t, loadWalletBonusGrantLifecycle(t, ctx, client, *credit.BonusGrantID), 6, 0, 4, 0, 0)
 }
 
-func TestUserWalletBonusLifecycle_ExpiredHoldReleaseAndRefundStayExpired(t *testing.T) {
+func TestUserWalletBonusLifecycle_LegacyExpiryDoesNotExpireReleasedOrRefundedPoints(t *testing.T) {
 	tests := []struct {
-		name         string
-		captureFirst bool
-		refundAfter  float64
-		wantSpent    float64
-		wantExpired  float64
+		name          string
+		captureFirst  bool
+		refundAfter   float64
+		wantSpent     float64
+		wantRemaining float64
 	}{
-		{name: "release", wantExpired: 10},
-		{name: "capture_then_refund", captureFirst: true, refundAfter: 2, wantSpent: 4, wantExpired: 6},
+		{name: "release", wantRemaining: 10},
+		{name: "capture_then_refund", captureFirst: true, refundAfter: 2, wantSpent: 4, wantRemaining: 6},
 	}
 
 	for _, tt := range tests {
@@ -175,8 +176,8 @@ func TestUserWalletBonusLifecycle_ExpiredHoldReleaseAndRefundStayExpired(t *test
 			}
 
 			grant := loadWalletBonusGrantLifecycle(t, ctx, client, *credit.BonusGrantID)
-			requireGrantBuckets(t, grant, 0, 0, tt.wantSpent, tt.wantExpired, 0)
-			require.Equal(t, "expired", grant.status)
+			requireGrantBuckets(t, grant, tt.wantRemaining, 0, tt.wantSpent, 0, 0)
+			require.Equal(t, "active", grant.status)
 		})
 	}
 }

@@ -92,6 +92,7 @@ const sortedBreakdown = computed<BreakdownRow[]>(() => {
 const hasBreakdown = computed(() => sortedBreakdown.value.length > 0)
 
 const PLATFORM_LABELS: Record<string, string> = {
+  typesafe: 'TypeSafe / Jev',
   anthropic: 'Claude',
   openai: 'OpenAI'
 }

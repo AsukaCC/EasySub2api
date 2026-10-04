@@ -72,6 +72,7 @@ import type { AccountPlatform, AccountType } from '@/types'
 import GrokFreeIcon from './GrokFreeIcon.vue'
 import PlatformIcon from './PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { normalizePlanType, openAIPlanTypeLabel } from '@/utils/planType'
 
 const { t } = useI18n()
 
@@ -102,6 +103,7 @@ const platformLabel = computed(() => {
   if (props.platform === 'deepseek') return 'DeepSeek'
   if (props.platform === 'minimax') return 'MiniMax'
   if (props.platform === 'opencode_go') return 'OpenCode'
+  if (props.platform === 'typesafe') return 'TypeSafe / Jev'
   return props.platform
 })
 
@@ -130,12 +132,14 @@ const typeLabel = computed(() => {
   }
 })
 
-const normalizedPlanType = computed(() =>
-  (props.planType || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
-)
+const normalizedPlanType = computed(() => normalizePlanType(props.planType))
 
 const planLabel = computed(() => {
   if (!normalizedPlanType.value) return ''
+  if (props.platform === 'openai') {
+    const label = openAIPlanTypeLabel(props.planType)
+    if (label) return label
+  }
   switch (normalizedPlanType.value) {
     case 'plus':
       return 'Plus'
@@ -265,10 +269,10 @@ const planBadgeClass = computed(() => {
   if (normalizedPlanType.value === 'plus') {
     return 'components-common-platform-type-badge__state-21'
   }
-  if (normalizedPlanType.value === 'team') {
+  if (normalizedPlanType.value === 'team' || normalizedPlanType.value === 'selfservebusinessusagebased' || normalizedPlanType.value === 'selfservebusinessprolite' || (props.platform === 'openai' && ['business', 'enterprise', 'ent26', 'enterprisecbpautomation', 'enterprisecbpusagebased', 'edu', 'eduplus', 'edupro'].includes(normalizedPlanType.value))) {
     return 'components-common-platform-type-badge__state-22'
   }
-  if (normalizedPlanType.value === 'pro' || normalizedPlanType.value === 'chatgptpro') {
+  if (normalizedPlanType.value === 'pro' || normalizedPlanType.value === 'chatgptpro' || normalizedPlanType.value === 'prolite' || normalizedPlanType.value === 'promax') {
     return 'components-common-platform-type-badge__state-23'
   }
   return typeClass.value

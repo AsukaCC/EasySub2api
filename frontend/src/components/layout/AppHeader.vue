@@ -132,7 +132,7 @@
               <!-- Balance (mobile only) -->
               <div class="components-layout-app-header__panel-16">
                 <div class="components-layout-app-header__description">
-                  {{ t('common.availableBalance') }}
+                  {{ t('common.balance') }}
                 </div>
                 <div class="components-layout-app-header__panel-17">
                   {{ formatPoints(availableBalance) }}
@@ -278,7 +278,7 @@ const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRela
 const homePath = computed(() => (authStore.isAdmin ? '/admin/dashboard' : '/dashboard'))
 const isDark = ref(document.documentElement.classList.contains('dark'))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
-const availableBalance = computed(() => Number(user.value?.available_balance ?? 0))
+const availableBalance = computed(() => Number(user.value?.available_balance ?? 0) - Number(user.value?.overdraft_amount ?? 0))
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {

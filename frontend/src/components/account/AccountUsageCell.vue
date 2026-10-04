@@ -115,6 +115,10 @@
       <div v-else class="components-account-account-usage-cell__panel-6">
         <div class="components-account-account-usage-cell__panel-9">-</div>
       </div>
+
+      <div>
+        <ClaudeResetCreditsCell :account="account" />
+      </div>
     </template>
 
     <!-- OpenAI OAuth accounts: single source from /usage API -->
@@ -447,6 +451,7 @@ import CNProviderQuotaCell from './CNProviderQuotaCell.vue'
 import CNProviderBalanceCell from './CNProviderBalanceCell.vue'
 import OllamaCloudUsageCell from './OllamaCloudUsageCell.vue'
 import OpenCodeGoUsageCell from './OpenCodeGoUsageCell.vue'
+import ClaudeResetCreditsCell from './ClaudeResetCreditsCell.vue'
 import { cnQuotaCellVisible as cnQuotaCellVisibleFn, cnBalanceCellVisible as cnBalanceCellVisibleFn } from './credentialsBuilder'
 
 // Module-level cache shared across all AccountUsageCell instances

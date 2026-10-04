@@ -210,7 +210,7 @@ func TestVerifyOrderByOutTradeNoBackfillsTradeNoFromPaidQuery(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID: "1",
+				ID:     "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -312,7 +312,7 @@ func TestVerifyOrderByOutTradeNoRetriesZeroAmountPaidQueryOnce(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID: "1",
+				ID:     "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -404,7 +404,7 @@ func TestVerifyOrderByOutTradeNoRejectsPaidQueryWithZeroAmount(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID: "1",
+				ID:     "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -618,7 +618,7 @@ func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID: "1",
+				ID:     "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -721,7 +721,7 @@ func TestVerifyOrderByOutTradeNoUsesOutTradeNoWhenPaymentTradeNoAlreadyExistsFor
 	redeemRepo := &paymentOrderLifecycleRedeemRepo{
 		codesByCode: map[string]*RedeemCode{
 			order.RechargeCode: {
-				ID: "1",
+				ID:     "1",
 				Code:   order.RechargeCode,
 				Type:   RedeemTypeBalance,
 				Value:  order.Amount,
@@ -758,10 +758,14 @@ func TestVerifyOrderByOutTradeNoUsesOutTradeNoWhenPaymentTradeNoAlreadyExistsFor
 		providersLoaded: true,
 	}
 
+	wallet := &rechargeWalletCreditSpy{UserRepository: userRepo}
+	svc.userRepo = wallet
 	got, err := svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, user.ID)
 	require.NoError(t, err)
 	require.Equal(t, order.OutTradeNo, provider.lastQueryTradeNo)
 	require.Equal(t, "upstream-trade-existing", got.PaymentTradeNo)
+	require.Len(t, wallet.inputs, 1)
+	require.Equal(t, 88.0, wallet.inputs[0].Amount)
 }
 
 func TestPaymentOrderAllowsRegistryFallbackOnlyForLegacyOrdersWithoutPinnedProviderState(t *testing.T) {

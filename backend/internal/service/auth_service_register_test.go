@@ -635,7 +635,7 @@ func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 
 	// 创建用户并生成 token
 	user := &User{
-		ID: "1",
+		ID:           "1",
 		Email:        "test@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -666,7 +666,7 @@ func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 
 func TestAuthService_RefreshToken_ExpiredTokenNoPanic(t *testing.T) {
 	user := &User{
-		ID: "1",
+		ID:           "1",
 		Email:        "test@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -711,7 +711,7 @@ func TestAuthService_GenerateToken_UsesExpireHourWhenMinutesZero(t *testing.T) {
 	service.cfg.JWT.AccessTokenExpireMinutes = 0
 
 	user := &User{
-		ID: "1",
+		ID:           "1",
 		Email:        "test@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -736,7 +736,7 @@ func TestAuthService_GenerateToken_UsesMinutesWhenConfigured(t *testing.T) {
 	service.cfg.JWT.AccessTokenExpireMinutes = 90
 
 	user := &User{
-		ID: "2",
+		ID:           "2",
 		Email:        "test2@test.com",
 		Role:         RoleUser,
 		Status:       StatusActive,
@@ -874,7 +874,7 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefa
 
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantAgain(t *testing.T) {
 	existing := &User{
-		ID: "88",
+		ID:           "88",
 		Email:        "linuxdo-123@linuxdo-connect.invalid",
 		Username:     "existing-linuxdo",
 		Role:         RoleUser,
@@ -999,4 +999,20 @@ func TestCanBypassRegistrationDisabledForOAuth(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func (s *emailCacheStub) IncrVerificationCodeAttempts(context.Context, string) (int, error) {
+	if s.data == nil {
+		return 0, errors.New("verification code not found")
+	}
+	s.data.Attempts++
+	return s.data.Attempts, nil
+}
+
+func (s *emailCacheStub) IncrNotifyVerifyCodeAttempts(context.Context, string) (int, error) {
+	return 0, errors.New("notify verification code not found")
+}
+
+func (s *emailCacheStub) ConsumePasswordResetToken(context.Context, string, string) (bool, error) {
+	return false, nil
 }

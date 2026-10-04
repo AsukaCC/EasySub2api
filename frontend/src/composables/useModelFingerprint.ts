@@ -2,11 +2,11 @@ import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { getModelFingerprint, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 
-const retentionMs = 2 * 60 * 60 * 1000
+const retentionMs = 24 * 60 * 60 * 1000
 
 function retainedUntil(value: ModelFingerprintSnapshot) {
   // expires_at is the worker lease, used only for interrupted/legacy results.
-  const finished = Date.parse(value.finished_at || value.expires_at || value.started_at)
+  const finished = Date.parse(value.sampling_mode === 'independent' ? value.started_at : value.finished_at || value.expires_at || value.started_at)
   return Number.isFinite(finished) ? finished + retentionMs : 0
 }
 

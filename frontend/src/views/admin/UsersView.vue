@@ -449,15 +449,8 @@
                   class="views-admin-users-view__action-4"
                   @click="handleBalanceHistory(row)"
                 >
-                  {{ formatPoints(row.available_balance ?? 0) }}
+                  {{ formatPoints((row.available_balance ?? 0) - (row.overdraft_amount ?? 0)) }}
                 </button>
-                <!-- Instant tooltip -->
-                <div class="views-admin-users-view__panel-26">
-				  <div>{{ t('common.rechargeBalance') }}: {{ formatPoints(Number(row.recharge_balance ?? 0)) }}</div>
-				  <div>{{ t('common.bonusBalance') }}: {{ formatPoints(Number(row.bonus_balance ?? 0)) }}</div>
-				  <div v-if="row.next_bonus_expires_at">{{ formatDateTime(row.next_bonus_expires_at) }}</div>
-                  <div class="views-admin-users-view__panel-27"></div>
-                </div>
               </div>
               <button
                 @click.stop="handleDeposit(row)"
@@ -791,7 +784,6 @@
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
-    <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
   </AppLayout>
@@ -804,9 +796,11 @@ import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { formatDateTime, formatPoints } from '@/utils/format'
+import { useRouter } from 'vue-router'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
@@ -835,7 +829,6 @@ import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaMod
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
-import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
@@ -1544,10 +1537,6 @@ const showBalanceModal = ref(false)
 const balanceUser = ref<AdminUser | null>(null)
 const balanceOperation = ref<'add' | 'subtract'>('add')
 
-// Balance History modal state
-const showBalanceHistoryModal = ref(false)
-const balanceHistoryUser = ref<AdminUser | null>(null)
-
 // 计算剩余天数
 const getDaysRemaining = (expiresAt: string): number => {
   const now = new Date()
@@ -1868,27 +1857,7 @@ const closeBalanceModal = () => {
 }
 
 const handleBalanceHistory = (user: AdminUser) => {
-  balanceHistoryUser.value = user
-  showBalanceHistoryModal.value = true
-}
-
-const closeBalanceHistoryModal = () => {
-  showBalanceHistoryModal.value = false
-  balanceHistoryUser.value = null
-}
-
-// Handle deposit from balance history modal
-const handleDepositFromHistory = () => {
-  if (balanceHistoryUser.value) {
-    handleDeposit(balanceHistoryUser.value)
-  }
-}
-
-// Handle withdraw from balance history modal
-const handleWithdrawFromHistory = () => {
-  if (balanceHistoryUser.value) {
-    handleWithdraw(balanceHistoryUser.value)
-  }
+  void router.push({ path: '/admin/users/point-changes', query: { user_id: user.id } })
 }
 
 // 滚动时关闭菜单

@@ -403,8 +403,8 @@
               @probe="handleProbeUpstreamBilling(row)"
             />
           </template>
-          <template #cell-priority="{ value }">
-            <span class="views-admin-accounts-view__text-16">{{ value }}</span>
+          <template #cell-priority="{ row }">
+            <AccountPriorityCell :account="row" @updated="handleAccountUpdated" @error="appStore.showError" />
           </template>
           <template #header-scheduler_score="{ column }">
             <div class="views-admin-accounts-view__panel-19">
@@ -532,6 +532,7 @@ import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.
 import type { SelectOption } from '@/components/common/Select.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
+import AccountPriorityCell from '@/components/account/AccountPriorityCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'

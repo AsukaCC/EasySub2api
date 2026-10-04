@@ -20,22 +20,27 @@ import (
 )
 
 const ModelFingerprintExtraKey = "model_fingerprint"
-const ModelFingerprintRetention = 2 * time.Hour
+const ModelFingerprintRetention = 24 * time.Hour
 const modelFingerprintMaxTokens = 1536
 
 type ModelFingerprintSnapshot struct {
-	ID           string             `json:"id"`
-	Model        string             `json:"model"`
-	Status       string             `json:"status"`
-	SamplingMode string             `json:"sampling_mode"`
-	Completed    int                `json:"completed"`
-	Valid        int                `json:"valid"`
-	Total        int                `json:"total"`
-	StartedAt    time.Time          `json:"started_at"`
-	ExpiresAt    time.Time          `json:"expires_at"`
-	FinishedAt   *time.Time         `json:"finished_at,omitempty"`
-	Error        string             `json:"error,omitempty"`
-	Result       *modeltrace.Result `json:"result,omitempty"`
+	ResolvedProtocol string             `json:"resolved_protocol,omitempty"`
+	UserID           string             `json:"user_id,omitempty"`
+	Protocol         string             `json:"protocol,omitempty"`
+	ReasoningEffort  string             `json:"reasoning_effort,omitempty"`
+	Source           string             `json:"source,omitempty"`
+	ID               string             `json:"id"`
+	Model            string             `json:"model"`
+	Status           string             `json:"status"`
+	SamplingMode     string             `json:"sampling_mode"`
+	Completed        int                `json:"completed"`
+	Valid            int                `json:"valid"`
+	Total            int                `json:"total"`
+	StartedAt        time.Time          `json:"started_at"`
+	ExpiresAt        time.Time          `json:"expires_at"`
+	FinishedAt       *time.Time         `json:"finished_at,omitempty"`
+	Error            string             `json:"error,omitempty"`
+	Result           *modeltrace.Result `json:"result,omitempty"`
 }
 
 // Separate capability keeps the general account repository contract unchanged.
@@ -72,7 +77,11 @@ func ParseModelFingerprintSnapshot(raw any, now time.Time) (*ModelFingerprintSna
 	if snapshot.FinishedAt != nil {
 		finished = *snapshot.FinishedAt
 	}
-	if !now.Before(finished.Add(ModelFingerprintRetention)) {
+	retentionStart := finished
+	if snapshot.SamplingMode == "independent" {
+		retentionStart = snapshot.StartedAt
+	}
+	if !now.Before(retentionStart.Add(ModelFingerprintRetention)) {
 		return nil, nil
 	}
 	if snapshot.Status == "running" && !now.Before(snapshot.ExpiresAt) {
@@ -93,7 +102,7 @@ func DirectModelTestAccount(account *Account) *Account {
 	return &copy
 }
 
-func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, model, userID string) (*ModelFingerprintSnapshot, error) {
+func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, model, userID string, options ...ModelFingerprintOptions) (*ModelFingerprintSnapshot, error) {
 	model = strings.TrimSpace(model)
 	a, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
@@ -110,6 +119,18 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	}
 	if err := ValidateAccountProtectionConfiguration(a); err != nil {
 		return nil, err
+	}
+	var option ModelFingerprintOptions
+	var preparationErr error
+	if len(options) > 0 {
+		option = options[0]
+		option.Model = model
+		if err := s.validateFingerprintOptions(ctx, a, &option); err != nil {
+			if option.Source != "scheduled" {
+				return nil, err
+			}
+			preparationErr = err
+		}
 	}
 	if userID == "" || s.modelFingerprintUsage == nil {
 		return nil, errors.New("model fingerprint usage logging unavailable")
@@ -129,6 +150,12 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	release := func() { s.modelFingerprintMu.Lock(); s.modelFingerprintActive--; s.modelFingerprintMu.Unlock() }
 	now := time.Now().UTC()
 	snapshot := &ModelFingerprintSnapshot{ID: uuid.NewString(), Model: model, Status: "running", SamplingMode: "single_conversation", Total: modeltrace.QueryCount, StartedAt: now, ExpiresAt: now.Add(5 * time.Minute)}
+	snapshot.UserID = userID
+	if option.Protocol != "" {
+		snapshot.Protocol, snapshot.ReasoningEffort, snapshot.Source = option.Protocol, option.ReasoningEffort, option.Source
+		snapshot.SamplingMode = "independent"
+		snapshot.ExpiresAt = now.Add(10 * time.Minute)
+	}
 	claimed, err := store.ClaimModelFingerprint(ctx, id, snapshot)
 	if err != nil {
 		release()
@@ -137,6 +164,14 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	if !claimed {
 		release()
 		return nil, apperrors.New(409, "MODEL_FINGERPRINT_RUNNING", "An account fingerprint test is already running")
+	}
+	if preparationErr != nil {
+		defer release()
+		snapshot.Status, snapshot.Error, snapshot.FinishedAt = "failed", "preparation_failed", &now
+		if err := store.SaveModelFingerprint(ctx, id, snapshot); err != nil {
+			return nil, err
+		}
+		return snapshot, nil
 	}
 	initial := *snapshot
 	go func() { defer release(); s.runModelFingerprint(id, userID, snapshot, store) }()
@@ -154,7 +189,7 @@ func IsModelFingerprintTextModel(model string) bool {
 }
 
 func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *ModelFingerprintSnapshot, store modelFingerprintStore) {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Until(snapshot.ExpiresAt.Add(-15*time.Second)))
 	defer cancel()
 	defer func() {
 		if recover() != nil {
@@ -171,9 +206,21 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 	}()
 	outputs := make([][]int, 0, modeltrace.QueryCount)
 	conversation := &modelFingerprintConversation{id: snapshot.ID}
-	for turn, challenge := range modeltrace.Challenges() {
-		probeCtx, stop := context.WithTimeout(ctx, 70*time.Second)
+	challenges := modeltrace.Challenges()
+	if snapshot.SamplingMode == "independent" {
+		challenges = append(challenges, modeltrace.Challenges()...)
+	}
+	protocol := snapshot.Protocol
+	if protocol == "auto" {
+		protocol = "chat"
+	}
+	for turn, challenge := range challenges {
+		if snapshot.SamplingMode == "independent" {
+			conversation = &modelFingerprintConversation{id: uuid.NewString()}
+		}
+		probeCtx, stop := context.WithTimeout(ctx, 90*time.Second)
 		probe := &modelFingerprintProbe{model: snapshot.Model, prompt: challenge.Prompt, expected: challenge.Expected, cancel: stop, conversation: conversation, startedAt: time.Now()}
+		probe.protocol, probe.effort = protocol, snapshot.ReasoningEffort
 		probeCtx = context.WithValue(probeCtx, modelFingerprintContextKey{}, probe)
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest(http.MethodPost, "/model-fingerprint", nil).WithContext(probeCtx)
@@ -193,18 +240,33 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 			if timedOut {
 				snapshot.Error = "timeout"
 			}
-			return
+			if snapshot.SamplingMode != "independent" || ctx.Err() != nil || probe.fatal {
+				return
+			}
+			if snapshot.Protocol == "auto" && snapshot.Valid == 0 && probe.formatRejected {
+				if protocol == "chat" {
+					protocol = "anthropic"
+				} else {
+					protocol = "chat"
+				}
+			}
+			snapshot.Status, snapshot.Error = "running", ""
+			continue
 		}
 		numbers := modeltrace.ParseNumbers(probe.text.String())
 		conversation.turns = append(conversation.turns, modelFingerprintTurn{role: "user", text: challenge.Prompt}, modelFingerprintTurn{role: "assistant", text: probe.text.String()})
 		if len(numbers) >= modeltrace.MinimumNumbers(challenge.Expected) {
 			outputs = append(outputs, numbers)
 			snapshot.Valid++
+			snapshot.ResolvedProtocol = protocol
 		}
 		if err := store.SaveModelFingerprint(ctx, id, snapshot); err != nil {
 			snapshot.Status = "failed"
 			snapshot.Error = "save_failed"
 			return
+		}
+		if len(outputs) == modeltrace.QueryCount {
+			break
 		}
 	}
 	if len(outputs) != modeltrace.QueryCount {
@@ -230,19 +292,23 @@ type modelFingerprintConversation struct {
 	turns        []modelFingerprintTurn
 }
 type modelFingerprintProbe struct {
-	conversation  *modelFingerprintConversation
-	model         string
-	prompt        string
-	expected      int
-	text          strings.Builder
-	cancel        context.CancelFunc
-	enough        bool
-	complete      bool
-	failed        bool
-	startedAt     time.Time
-	firstTokenMs  *int
-	upstreamModel string
-	usage         UsageLog
+	protocol       string
+	effort         string
+	fatal          bool
+	formatRejected bool
+	conversation   *modelFingerprintConversation
+	model          string
+	prompt         string
+	expected       int
+	text           strings.Builder
+	cancel         context.CancelFunc
+	enough         bool
+	complete       bool
+	failed         bool
+	startedAt      time.Time
+	firstTokenMs   *int
+	upstreamModel  string
+	usage          UsageLog
 }
 
 func fingerprintProbe(ctx context.Context) *modelFingerprintProbe {
@@ -291,6 +357,9 @@ func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID strin
 	log.RequestID = fmt.Sprintf("fingerprint:%s:%d", snapshot.ID, turn+1)
 	log.Model, log.RequestedModel = snapshot.Model, snapshot.Model
 	log.RequestType, log.Stream = RequestTypeTest, true
+	if snapshot.SamplingMode == "independent" {
+		log.Stream = false
+	}
 	log.SessionID = &snapshot.ID
 	log.CreatedAt = probe.startedAt
 	ms := int(time.Since(probe.startedAt).Milliseconds())
@@ -300,6 +369,15 @@ func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID strin
 	}
 	endpoint := "/admin/accounts/:id/model-fingerprint"
 	log.InboundEndpoint = &endpoint
+	upstreamEndpoint := ""
+	if probe.protocol == "chat" {
+		upstreamEndpoint = "/v1/chat/completions"
+		log.UpstreamEndpoint = &upstreamEndpoint
+	}
+	if probe.protocol == "anthropic" {
+		upstreamEndpoint = "/v1/messages"
+		log.UpstreamEndpoint = &upstreamEndpoint
+	}
 	// Persist even when sampling canceled upstream early. Tests never debit a wallet/key.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -375,6 +453,12 @@ func applyModelFingerprintEffort(probe *modelFingerprintProbe, payload map[strin
 	}
 	model = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(model), "models/"))
 	effort := "low"
+	if probe.protocol != "" {
+		effort = probe.effort
+		if effort == "" {
+			return
+		}
+	}
 	switch protocol {
 	case "chat":
 		if !modelFingerprintReasoningModel(model) && !grokSupportsReasoningEffort(model) && payload["reasoning_effort"] == nil {

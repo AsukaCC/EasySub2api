@@ -14,12 +14,9 @@ func expectDynamicRechargeWallet(mock sqlmock.Sqlmock, userID string, balance, b
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
 		WithArgs(userID).
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(balance, bonus, 0, 0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs(userID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
 }
 
-func TestDynamicRateBillingRechargeOnly(t *testing.T) {
+func TestDynamicRateBillingUnifiedPoints(t *testing.T) {
 	for _, tc := range []struct {
 		name                                      string
 		recharge, bonus, limit, legacyLimit, used float64
@@ -27,8 +24,8 @@ func TestDynamicRateBillingRechargeOnly(t *testing.T) {
 		wantCost, wantRecharge, wantQuota         float64
 	}{
 		{name: "discounted amount uses recharge bucket", recharge: 10, bonus: 10, wantCost: 1, wantRecharge: 1, wantQuota: 20},
-		{name: "recharge exhausted then normal bonus", recharge: .4, bonus: 10, wantCost: 1.6, wantRecharge: .4, wantQuota: 8},
-		{name: "bonus only", bonus: 10, wantCost: 2},
+		{name: "combined balance gets discount", recharge: .4, bonus: 10, wantCost: 1, wantRecharge: 1, wantQuota: 20},
+		{name: "bonus only gets discount", bonus: 10, wantCost: 1, wantRecharge: 1, wantQuota: 20},
 		{name: "no funded balance", wantCost: 2},
 		{name: "debt gets no discount", recharge: -.5, wantCost: 2},
 		{name: "partial personal quota", recharge: 10, bonus: 10, limit: 10, used: 5, wantCost: 1.75, wantRecharge: .25, wantQuota: 5},
@@ -46,7 +43,7 @@ func TestDynamicRateBillingRechargeOnly(t *testing.T) {
 			if !tc.subscription {
 				expectDynamicRechargeWallet(mock, "user", tc.recharge, tc.bonus)
 			}
-			if tc.recharge > 0 && !tc.subscription {
+			if tc.recharge+tc.bonus > 0 && !tc.subscription {
 				mock.ExpectExec("INSERT INTO user_dynamic_rate_usage").WithArgs("user", "group", "discount", "window").WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectQuery("(?s)SELECT used_amount.*FROM user_dynamic_rate_usage.*FOR UPDATE").
 					WithArgs("user", "group", "discount", "window").WillReturnRows(sqlmock.NewRows([]string{"used_amount"}).AddRow(tc.used))
@@ -110,7 +107,7 @@ func TestDynamicRateBillingPreservesSmallRechargeBoundary(t *testing.T) {
 	mock.ExpectBegin()
 	tx, err := db.BeginTx(context.Background(), nil)
 	require.NoError(t, err)
-	expectDynamicRechargeWallet(mock, "user", 1.00000001, 1)
+	expectDynamicRechargeWallet(mock, "user", -1, 1.00000001)
 	mock.ExpectExec("INSERT INTO user_dynamic_rate_usage").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)SELECT used_amount.*FOR UPDATE").WillReturnRows(sqlmock.NewRows([]string{"used_amount"}).AddRow(0))
 	mock.ExpectExec("UPDATE user_dynamic_rate_usage").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -133,7 +130,7 @@ func TestDynamicRateBillingRegularCostSurvivesRoundedDiscountEstimate(t *testing
 	mock.ExpectBegin()
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	expectDynamicRechargeWallet(mock, "user", 1, 1)
+	expectDynamicRechargeWallet(mock, "user", -1, 1)
 	cmd := rechargeBillingCommand()
 	cmd.BalanceCost, cmd.APIKeyQuotaCost, cmd.APIKeyRateLimitCost = 1e-9, 1e-9, 1e-9
 	cmd.DynamicRatePlan.StandardCost = 1e-8

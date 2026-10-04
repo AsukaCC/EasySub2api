@@ -87,6 +87,7 @@ type Config struct {
 	Pricing                       PricingConfig                 `mapstructure:"pricing"`
 	Gateway                       GatewayConfig                 `mapstructure:"gateway"`
 	APIKeyAuth                    APIKeyAuthCacheConfig         `mapstructure:"api_key_auth_cache"`
+	APIKeyCreate                  APIKeyCreateConfig            `mapstructure:"api_key_create"`
 	SubscriptionCache             SubscriptionCacheConfig       `mapstructure:"subscription_cache"`
 	SubscriptionMaintenance       SubscriptionMaintenanceConfig `mapstructure:"subscription_maintenance"`
 	Dashboard                     DashboardCacheConfig          `mapstructure:"dashboard_cache"`
@@ -771,7 +772,8 @@ type BillingConfig struct {
 	// MinimumBalanceReserve is the conservative preflight floor for balance billing.
 	// Requests in balance mode are rejected when the cached balance is below this
 	// amount, even if it is still positive. Set to 0 to keep the legacy balance > 0 gate.
-	MinimumBalanceReserve float64 `mapstructure:"minimum_balance_reserve"`
+	MinimumBalanceReserve float64                   `mapstructure:"minimum_balance_reserve"`
+	InflightReservation   InflightReservationConfig `mapstructure:"inflight_reservation"`
 	// UserPlatformQuotaCacheTTLSeconds 用户 × 平台 quota 缓存 TTL（秒），默认 86400=1天，覆盖典型 daily 窗口。
 	// 消费点：
 	//   - billing_cache_service.cacheWriteWorker 异步累加
@@ -781,6 +783,23 @@ type BillingConfig struct {
 	// UserPlatformQuotaSentinelTTLSeconds sentinel(无 limit 占位)entry 的 TTL,
 	// 显著短于 quota cache 默认 86400s 以控 Redis 内存;默认 3600=1h。
 	UserPlatformQuotaSentinelTTLSeconds int `mapstructure:"user_platform_quota_sentinel_ttl_seconds"`
+}
+
+type InflightReservationConfig struct {
+	Enabled              bool    `mapstructure:"enabled"`
+	TTLSeconds           int     `mapstructure:"ttl_seconds"`
+	MaxReservationUSD    float64 `mapstructure:"max_reservation_usd"`
+	DefaultMaxTokens     int     `mapstructure:"default_max_tokens"`
+	MaxInputTokens       int     `mapstructure:"max_input_tokens"`
+	MaxOutputTokens      int     `mapstructure:"max_output_tokens"`
+	FailClosedOnUnpriced bool    `mapstructure:"fail_closed_on_unpriced"`
+}
+
+// APIKeyCreateConfig limits API key creation abuse. A zero value disables the
+// corresponding limit so existing deployments can opt out explicitly.
+type APIKeyCreateConfig struct {
+	MaxActivePerUser  int `mapstructure:"max_active_per_user"`
+	MaxPerUserPerHour int `mapstructure:"max_per_user_per_hour"`
 }
 
 type CircuitBreakerConfig struct {
@@ -1872,6 +1891,8 @@ func setDefaults() {
 	viper.SetDefault("server.h2c.max_read_frame_size", 1<<20)              // 1MB（够用）
 	viper.SetDefault("server.h2c.max_upload_buffer_per_connection", 2<<20) // 2MB
 	viper.SetDefault("server.h2c.max_upload_buffer_per_stream", 512<<10)   // 512KB
+	viper.SetDefault("api_key_create.max_active_per_user", 200)
+	viper.SetDefault("api_key_create.max_per_user_per_hour", 60)
 
 	// Log
 	viper.SetDefault("log.level", "info")
@@ -1941,6 +1962,13 @@ func setDefaults() {
 	viper.SetDefault("billing.circuit_breaker.reset_timeout_seconds", 30)
 	viper.SetDefault("billing.circuit_breaker.half_open_requests", 3)
 	viper.SetDefault("billing.minimum_balance_reserve", 0.000001)
+	viper.SetDefault("billing.inflight_reservation.enabled", true)
+	viper.SetDefault("billing.inflight_reservation.ttl_seconds", 900)
+	viper.SetDefault("billing.inflight_reservation.max_reservation_usd", 0.0)
+	viper.SetDefault("billing.inflight_reservation.default_max_tokens", 8192)
+	viper.SetDefault("billing.inflight_reservation.max_input_tokens", 0)
+	viper.SetDefault("billing.inflight_reservation.max_output_tokens", 0)
+	viper.SetDefault("billing.inflight_reservation.fail_closed_on_unpriced", false)
 	viper.SetDefault("billing.user_platform_quota_cache_ttl_seconds", 86400)
 	viper.SetDefault("billing.user_platform_quota_sentinel_ttl_seconds", 3600)
 
@@ -2432,6 +2460,12 @@ func setEnvReachableDefaults() {
 }
 
 func (c *Config) Validate() error {
+	if c.APIKeyCreate.MaxActivePerUser < 0 {
+		return fmt.Errorf("api_key_create.max_active_per_user must be non-negative")
+	}
+	if c.APIKeyCreate.MaxPerUserPerHour < 0 {
+		return fmt.Errorf("api_key_create.max_per_user_per_hour must be non-negative")
+	}
 	forwardedClientIPHeaders, err := NormalizeForwardedClientIPHeaders(c.Security.ForwardedClientIPHeaders)
 	if err != nil {
 		return fmt.Errorf("security.forwarded_client_ip_headers: %w", err)
@@ -2757,6 +2791,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Billing.MinimumBalanceReserve < 0 {
 		return fmt.Errorf("billing.minimum_balance_reserve must be non-negative")
+	}
+	if c.Billing.InflightReservation.TTLSeconds < 0 || c.Billing.InflightReservation.MaxReservationUSD < 0 || c.Billing.InflightReservation.DefaultMaxTokens < 0 || c.Billing.InflightReservation.MaxInputTokens < 0 || c.Billing.InflightReservation.MaxOutputTokens < 0 {
+		return fmt.Errorf("billing.inflight_reservation values must be non-negative")
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("database.max_open_conns must be positive")

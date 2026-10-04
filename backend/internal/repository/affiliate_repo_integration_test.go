@@ -39,7 +39,7 @@ func querySingleInt(t *testing.T, ctx context.Context, client *dbent.Client, que
 	return value
 }
 
-func TestAffiliateRepository_TransferValidityOnlyAffectsNewGrants(t *testing.T) {
+func TestAffiliateRepository_TransferBonusIsPermanent(t *testing.T) {
 	ctx := context.Background()
 	tx := testEntTx(t)
 	txCtx := dbent.NewTxContext(ctx, tx)
@@ -65,11 +65,11 @@ VALUES ($1, $2, 10, NOW(), NOW())`, u.ID, fmt.Sprintf("AFF%09d", time.Now().Unix
 WHERE user_id = $1 AND source_type = 'affiliate_transfer' ORDER BY expires_at`, u.ID)
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
-	for _, days := range []int{30, 60} {
+	for range []int{30, 60} {
 		require.True(t, rows.Next())
-		var expiresAt time.Time
+		var expiresAt *time.Time
 		require.NoError(t, rows.Scan(&expiresAt))
-		require.WithinDuration(t, time.Now().Add(time.Duration(days)*24*time.Hour), expiresAt, time.Minute)
+		require.Nil(t, expiresAt)
 	}
 	require.False(t, rows.Next())
 	require.NoError(t, rows.Err())
@@ -111,7 +111,7 @@ VALUES ($1, $2, $3, $3, NOW(), NOW())`, u.ID, affCode, 12.34)
 	require.InDelta(t, 0.0, affQuota, 1e-9)
 
 	persistedBalance := querySingleFloat(t, txCtx, client,
-		"SELECT balance::double precision FROM users WHERE id = $1", u.ID)
+		"SELECT (GREATEST(recharge_balance, 0) + GREATEST(bonus_balance, 0))::double precision FROM users WHERE id = $1", u.ID)
 	require.InDelta(t, 17.84, persistedBalance, 1e-9)
 
 	ledgerCount := querySingleInt(t, txCtx, client,

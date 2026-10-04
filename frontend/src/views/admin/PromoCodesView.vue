@@ -36,10 +36,6 @@
             </button>
           </div>
         </div>
-		<div>
-		  <label class="input-label">{{ t('admin.promo.bonusValidityDays') }}</label>
-		  <input v-model.number="createForm.bonus_validity_days" type="number" min="1" max="3650" required class="input" />
-		</div>
       </template>
 
       <template #table>
@@ -180,10 +176,6 @@
             :placeholder="t('admin.promo.codePlaceholder')"
           />
         </div>
-		<div>
-		  <label class="input-label">{{ t('admin.promo.bonusValidityDays') }}</label>
-		  <input v-model.number="editForm.bonus_validity_days" type="number" min="1" max="3650" required class="input" />
-		</div>
         <div>
           <label class="input-label">{{ t('admin.promo.bonusAmount') }}</label>
           <input

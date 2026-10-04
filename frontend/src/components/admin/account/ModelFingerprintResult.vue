@@ -3,7 +3,7 @@
     <div v-if="!compact" class="fingerprint-model" :title="snapshot.model">{{ snapshot.model }}</div>
     <div v-if="snapshot.status === 'running'" class="fingerprint-status" role="status">
       <Icon name="refresh" size="sm" class="fingerprint-spin" />
-      {{ t('admin.accounts.fingerprint.progress', { count: snapshot.completed, total: snapshot.total }) }}
+      {{ t('admin.accounts.fingerprint.progress', { count: snapshot.sampling_mode === 'independent' ? snapshot.valid : snapshot.completed, total: snapshot.total }) }}
     </div>
     <div v-else-if="snapshot.status === 'failed'" class="fingerprint-error" role="status" :title="t(`admin.accounts.fingerprint.errors.${snapshot.error || 'upstream_failed'}`)">
       {{ t(`admin.accounts.fingerprint.errors.${snapshot.error || 'upstream_failed'}`) }}

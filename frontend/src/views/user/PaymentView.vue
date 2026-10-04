@@ -44,26 +44,15 @@
                 </div>
                 <div class="wallet-summary__available">
                   <span>{{ t('payment.wallet.availablePoints') }}</span>
-                  <strong>{{ formatWalletAmount(checkout.wallet.available_balance) }}</strong>
+                  <strong>{{ formatWalletAmount(checkout.wallet.available_balance - checkout.wallet.overdraft_amount) }}</strong>
                 </div>
               </div>
               <div class="wallet-summary__rows">
-                <div class="wallet-summary__row">
-                  <span>{{ t('payment.wallet.rechargePoints') }}</span>
-                  <strong>{{ formatWalletAmount(checkout.wallet.recharge_balance) }}</strong>
-                </div>
-                <div class="wallet-summary__row">
-                  <span>{{ t('payment.wallet.bonusPoints') }}</span>
-                  <strong>{{ formatWalletAmount(checkout.wallet.bonus_balance) }}</strong>
-                </div>
                 <div v-if="checkout.wallet.overdraft_amount > 0" class="wallet-summary__row wallet-summary__row--warning">
                   <span>{{ t('payment.overdraftAmount') }}</span>
                   <strong>{{ formatWalletAmount(checkout.wallet.overdraft_amount) }}</strong>
                 </div>
               </div>
-              <p v-if="checkout.wallet.next_bonus_expires_at && checkout.wallet.bonus_balance > 0" class="wallet-summary__expiry">
-                {{ t('payment.wallet.expiresAt', { date: formatWalletExpiry(checkout.wallet.next_bonus_expires_at) }) }}
-              </p>
             </div>
             <div v-if="checkout.balance_disabled || enabledMethods.length === 0" class="views-user-payment-view__panel-6 card">
               <p class="views-user-payment-view__description-4">{{ t('payment.notAvailable') }}</p>
@@ -367,7 +356,6 @@
 </template>
 
 <script setup lang="ts">
-import { formatDateWithOptions } from '@/utils/datetime'
 import LoadingState from '@/components/common/LoadingState.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -757,10 +745,6 @@ const localeCode = computed(() => {
 
 function formatWalletAmount(value: number): string {
   return formatPoints(value, localeCode.value)
-}
-
-function formatWalletExpiry(value: string): string {
-  return formatDateWithOptions(new Date(value), { dateStyle: 'medium', timeStyle: 'short' }, localeCode.value || undefined)
 }
 
 const methodOptions = computed<PaymentMethodOption[]>(() =>

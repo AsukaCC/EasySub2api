@@ -4,6 +4,31 @@
  */
 
 import { apiClient } from '../client'
+
+export interface ClaudeResetCredit {
+  label: string
+  resets_left: number
+  redeemable: boolean
+  clears: string[]
+  percent_used: Record<string, number>
+}
+
+export interface ClaudeResetCredits {
+  eligible: boolean
+  available_count: number
+  credits: ClaudeResetCredit[]
+  cooldown_until?: string
+  fetched_at: string
+}
+
+export interface ClaudeResetOutcome {
+  outcome: string
+  reason?: string
+  cleared?: string[]
+  cooldown_until?: string
+  credits?: ClaudeResetCredits
+  replayed: boolean
+}
 import type {
   Account,
   CreateAccountRequest,
@@ -65,6 +90,18 @@ export async function list(
       ...filters
     },
     signal: options?.signal
+  })
+  return data
+}
+
+export async function queryClaudeResetCredits(id: string): Promise<ClaudeResetCredits> {
+  const { data } = await apiClient.get<ClaudeResetCredits>(`/admin/openai/accounts/${id}/claude/reset-credits`)
+  return data
+}
+
+export async function redeemClaudeResetCredit(id: string, idempotencyKey: string): Promise<ClaudeResetOutcome> {
+  const { data } = await apiClient.post<ClaudeResetOutcome>(`/admin/openai/accounts/${id}/claude/reset-credits/redeem`, undefined, {
+    headers: { 'Idempotency-Key': idempotencyKey }
   })
   return data
 }
@@ -1143,6 +1180,8 @@ export const accountsAPI = {
   revertProxyFallback,
   refreshOpenAIQuota,
   resetOpenAIQuota,
+  queryClaudeResetCredits,
+  redeemClaudeResetCredit,
   createSparkShadow,
   getUpstreamBillingProbeSettings,
   updateUpstreamBillingProbeSettings,

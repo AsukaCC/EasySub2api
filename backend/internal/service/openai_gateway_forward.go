@@ -33,6 +33,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	clearOpenAIResponsesNamespaceNames(c)
 	filteredBody, err := filterOpenAIResponsesNoneReasoningEffortForAccount(account, body)
 	if err != nil {
+		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return nil, err
 	}
 	body = filteredBody

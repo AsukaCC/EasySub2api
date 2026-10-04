@@ -29,6 +29,7 @@ const (
 	PlatformDeepseek   = "deepseek" // DeepSeek
 	PlatformMiniMax    = "minimax"  // MiniMax (M 系列)
 	PlatformOpenCodeGo = "opencode_go"
+	PlatformTypeSafe   = "typesafe"
 	PlatformComposite  = "composite"
 )
 
@@ -46,6 +47,7 @@ var AccountPlatforms = []string{
 	PlatformDeepseek,
 	PlatformMiniMax,
 	PlatformOpenCodeGo,
+	PlatformTypeSafe,
 }
 
 // IsAccountPlatform reports whether platform is supported for an account.

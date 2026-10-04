@@ -55,6 +55,15 @@ jobs:
           -run 'Test(Retired|Protection|LocalTLS|StickyEscape|GatewayPlatformIsolation)'
           -count=1 -timeout=10m
 
+      - name: Wallet, fingerprint, and upstream compatibility regressions
+        working-directory: backend
+        run: >-
+          go test -tags=unit ./internal/service ./internal/repository ./internal/handler
+          ./internal/handler/admin ./internal/server/routes ./internal/pkg/modeltrace
+          ./internal/pkg/typesafe ./internal/securityaudit ./migrations
+          -run 'Test.*(Wallet|Refund|Payment|PointChange|ModelFingerprint|UpstreamParity|TypeSafe|SystemOne|Inflight|Release0211|GPT61|UpstreamBillingProbe|UsageBilling|DynamicRateBilling|Email.*Token|Reset.*Token|GrokChat|Grok.*Header|PromptSnapshot)'
+          -count=1 -timeout=10m
+
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -92,6 +101,20 @@ jobs:
           src/utils/__tests__/siteBillingMode.spec.ts
           src/utils/__tests__/ccswitchImport.spec.ts
           src/composables/__tests__/useModelWhitelist.spec.ts
+      - name: Wallet and model testing regressions
+        working-directory: frontend
+        run: >-
+          pnpm exec vitest run src/components/payment/__tests__
+          src/components/admin/account/__tests__/ModelFingerprintModal.spec.ts
+          src/components/admin/user/__tests__/UserBalanceModal.spec.ts
+          src/components/admin/user/__tests__/UserPlatformQuotaModal.spec.ts
+          src/components/account/__tests__/credentialsBuilder.spec.ts
+          src/components/account/__tests__/AccountPriorityCell.spec.ts
+          src/components/account/__tests__/ClaudeResetCreditsCell.spec.ts
+          src/components/keys/__tests__/UseKeyModal.typesafe.spec.ts
+          src/components/keys/__tests__/UseKeyModal.catalog.spec.ts
+          src/views/admin/__tests__/UsageView.spec.ts
+          src/api/__tests__/codex.spec.ts
 
   golangci-lint:
     runs-on: ubuntu-latest

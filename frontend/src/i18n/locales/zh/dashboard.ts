@@ -240,6 +240,10 @@ export default {
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
     useKeyModal: {
+      typesafe: {
+        description: '通过 TypeSafe 原生 System One 端点调用 Jev。',
+        note: 'System One 不支持流式请求，不兼容 Chat Completions、Responses、Claude Code 或 Codex 客户端。'
+      },
       title: '使用 API 密钥',
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
       copy: '复制',
@@ -261,11 +265,22 @@ export default {
         noteWindows:
           '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'
       },
+      codexModelCatalog: {
+        loading: '正在获取当前 Key 可用的模型目录…',
+        error: '目录获取失败，请检查 Key、分组和服务地址。',
+        retry: '重试',
+        title: 'Codex 模型目录',
+        description: 'Codex 0.156.0 及以上可使用实时 /models 目录；旧客户端可选择本地目录并保存下方 models.json。',
+        remote: '远程目录',
+        local: '本地目录',
+        localHint: '生成的配置使用 ~/.codex/models.json，模型变化后请及时更新文件。'
+      },
       cliTabs: {
         claudeCode: 'Claude Code',
         codexCli: 'Codex CLI',
         codexCliWs: 'Codex CLI (WebSocket)',
         grokCli: 'Grok CLI',
+        systemOne: 'System One',
         opencode: 'OpenCode'
       },
       grok: {

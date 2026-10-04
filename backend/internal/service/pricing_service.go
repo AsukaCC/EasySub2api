@@ -71,6 +71,15 @@ var (
 		Mode:                                "chat",
 		SupportsPromptCaching:               true,
 	}
+	openAIGPT61SolFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken: 2e-6, InputCostPerTokenPriority: 4e-6,
+		OutputCostPerToken: 10e-6, OutputCostPerTokenPriority: 20e-6,
+		CacheCreationInputTokenCost: 2.5e-6, CacheCreationInputTokenCostPriority: 5e-6,
+		CacheReadInputTokenCost: 0.1e-6, CacheReadInputTokenCostPriority: 0.2e-6,
+		LongContextInputTokenThreshold: 272000, LongContextInputCostMultiplier: 2,
+		LongContextOutputCostMultiplier: 1.5, SupportsServiceTier: true,
+		LiteLLMProvider: "openai", Mode: "chat", SupportsPromptCaching: true,
+	}
 	// GPT-6 Sol/Luna official rates, verified 2026-09-23:
 	// https://developers.openai.com/api/docs/pricing
 	openAIGPT6SolFallbackPricing = &LiteLLMModelPricing{
@@ -1461,6 +1470,12 @@ func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
 // 5. gpt-5.4* -> 业务静态兜底价
 // 6. 最终回退到 DefaultTestModel (gpt-5.1-codex)
 func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
+	if openai.IsGPT61SolModelSpelling(model) {
+		if pricing, ok := s.pricingData["gpt-6.1-sol"]; ok {
+			return pricing
+		}
+		return openAIGPT61SolFallbackPricing
+	}
 	// Sol/Luna must never fall through to the generic gpt-6 (Astra) rate.
 	if base := openAIGPT6SolLunaBaseModel(model); base != "" {
 		if pricing, ok := s.pricingData[base]; ok {

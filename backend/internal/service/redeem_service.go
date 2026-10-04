@@ -476,17 +476,8 @@ func (s *RedeemService) Redeem(ctx context.Context, userID string, code string) 
 				return nil, fmt.Errorf("debit redeem balance: %w", err)
 			}
 		} else {
-			validityDays := redeemCode.BonusValidityDays
-			if validityDays <= 0 {
-				if s.settingService != nil {
-					validityDays = s.settingService.GetBonusBalanceDefaultValidityDays(txCtx)
-				} else {
-					validityDays = defaultBonusValidityDays
-				}
-			}
-			expiresAt := time.Now().UTC().Add(time.Duration(validityDays) * 24 * time.Hour)
 			if _, err := s.userRepo.CreditWallet(txCtx, WalletCreditInput{
-				UserID: userID, Amount: amount, Kind: WalletKindBonus, ExpiresAt: &expiresAt,
+				UserID: userID, Amount: amount, Kind: WalletKindBonus,
 				SourceType: "redeem_code", SourceID: redeemCode.ID,
 				IdempotencyKey: "wallet-redeem:" + redeemCode.ID,
 				Notes:          redeemCode.Notes,

@@ -8,9 +8,10 @@ export function rechargeBonusPointsForAmount(
 
   const qualifying = (tiers ?? [])
     .filter((tier) => Number.isFinite(tier.threshold_cny)
-      && Number.isFinite(tier.bonus_points)
+      && Number.isFinite(tier.bonus_percent)
+      && tier.bonus_percent >= 0 && tier.bonus_percent <= 100
       && tier.threshold_cny <= amountCNY)
     .sort((a, b) => b.threshold_cny - a.threshold_cny)
 
-  return Math.max(qualifying[0]?.bonus_points ?? 0, 0)
+  return Math.round(amountCNY * (qualifying[0]?.bonus_percent ?? 0) * 1e6) / 1e8
 }

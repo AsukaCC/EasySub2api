@@ -16,6 +16,7 @@ export type Platform =
   | 'deepseek'
   | 'minimax'
   | 'opencode_go'
+  | 'typesafe'
   | 'composite'
 
 // ── Badge (bg + text + border, for inline badges with border) ───────
@@ -26,6 +27,7 @@ const BADGE: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-7',
   grok: 'utils-platform-colors__state-5',
   opencode_go: 'utils-platform-colors__state-5',
+  typesafe: 'utils-platform-colors__state-5',
   kimi: 'utils-platform-colors__state-6',
   zhipu: 'utils-platform-colors__state-7',
   deepseek: 'utils-platform-colors__state-8',
@@ -42,6 +44,7 @@ const BADGE_LIGHT: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-17',
   grok: 'utils-platform-colors__state-15',
   opencode_go: 'utils-platform-colors__state-15',
+  typesafe: 'utils-platform-colors__state-15',
   kimi: 'utils-platform-colors__state-16',
   zhipu: 'utils-platform-colors__state-17',
   deepseek: 'utils-platform-colors__state-18',
@@ -57,6 +60,7 @@ const BORDER: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-26',
   grok: 'utils-platform-colors__state-24',
   opencode_go: 'utils-platform-colors__state-24',
+  typesafe: 'utils-platform-colors__state-24',
   kimi: 'utils-platform-colors__state-25',
   zhipu: 'utils-platform-colors__state-26',
   deepseek: 'utils-platform-colors__state-27',
@@ -73,6 +77,7 @@ const BORDER_STRONG: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-36',
   grok: 'utils-platform-colors__state-34',
   opencode_go: 'utils-platform-colors__state-34',
+  typesafe: 'utils-platform-colors__state-34',
   kimi: 'utils-platform-colors__state-35',
   zhipu: 'utils-platform-colors__state-36',
   deepseek: 'utils-platform-colors__state-37',
@@ -90,6 +95,7 @@ const ACCENT: Record<Platform, string> = {
   antigravity: '#8b5cf6', // violet-500
   grok: '#71717a', // zinc-500
   opencode_go: '#71717a', // zinc-500
+  typesafe: '#71717a', // zinc-500
   kimi: '#ec4899', // pink-500
   zhipu: '#6366f1', // indigo-500
   deepseek: '#14b8a6', // teal-500
@@ -106,6 +112,7 @@ const ACCENT_BAR: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-46',
   grok: 'utils-platform-colors__state-44',
   opencode_go: 'utils-platform-colors__state-44',
+  typesafe: 'utils-platform-colors__state-44',
   kimi: 'utils-platform-colors__state-45',
   zhipu: 'utils-platform-colors__state-46',
   deepseek: 'utils-platform-colors__state-47',
@@ -122,6 +129,7 @@ const TEXT: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-56',
   grok: 'utils-platform-colors__state-54',
   opencode_go: 'utils-platform-colors__state-54',
+  typesafe: 'utils-platform-colors__state-54',
   kimi: 'utils-platform-colors__state-55',
   zhipu: 'utils-platform-colors__state-56',
   deepseek: 'utils-platform-colors__state-57',
@@ -138,6 +146,7 @@ const ICON: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-65',
   grok: 'utils-platform-colors__state-54',
   opencode_go: 'utils-platform-colors__state-54',
+  typesafe: 'utils-platform-colors__state-54',
   kimi: 'utils-platform-colors__state-64',
   zhipu: 'utils-platform-colors__state-65',
   deepseek: 'utils-platform-colors__state-66',
@@ -154,6 +163,7 @@ const BUTTON: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-75',
   grok: 'utils-platform-colors__state-73',
   opencode_go: 'utils-platform-colors__state-73',
+  typesafe: 'utils-platform-colors__state-73',
   kimi: 'utils-platform-colors__state-74',
   zhipu: 'utils-platform-colors__state-75',
   deepseek: 'utils-platform-colors__state-76',
@@ -170,6 +180,7 @@ const DISCOUNT: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-85',
   grok: 'utils-platform-colors__state-83',
   opencode_go: 'utils-platform-colors__state-83',
+  typesafe: 'utils-platform-colors__state-83',
   kimi: 'utils-platform-colors__state-84',
   zhipu: 'utils-platform-colors__state-85',
   deepseek: 'utils-platform-colors__state-86',
@@ -186,6 +197,7 @@ const GRADIENT: Record<Platform, string> = {
   antigravity: 'utils-platform-colors__state-95',
   grok: 'utils-platform-colors__state-93',
   opencode_go: 'utils-platform-colors__state-93',
+  typesafe: 'utils-platform-colors__state-93',
   kimi: 'utils-platform-colors__state-94',
   zhipu: 'utils-platform-colors__state-95',
   deepseek: 'utils-platform-colors__state-96',
@@ -202,6 +214,7 @@ const GRADIENT_TEXT: Record<Platform, string> = {
   antigravity: 'status-text--accent',
   grok: 'status-text--neutral',
   opencode_go: 'status-text--neutral',
+  typesafe: 'status-text--neutral',
   kimi: 'status-text--accent',
   zhipu: 'status-text--info',
   deepseek: 'status-text--success',
@@ -217,6 +230,7 @@ const GRADIENT_SUBTEXT: Record<Platform, string> = {
   antigravity: 'status-text--accent',
   grok: 'status-text--neutral',
   opencode_go: 'status-text--neutral',
+  typesafe: 'status-text--neutral',
   kimi: 'status-text--accent',
   zhipu: 'status-text--info',
   deepseek: 'status-text--success',
@@ -239,6 +253,7 @@ function isPlatform(p: string): p is Platform {
     p === 'deepseek' ||
     p === 'minimax' ||
     p === 'opencode_go' ||
+    p === 'typesafe' ||
     p === 'composite'
   )
 }
@@ -306,6 +321,7 @@ export function platformLabel(p: string): string {
     case 'zhipu': return 'Zhipu GLM'
     case 'deepseek': return 'DeepSeek'
     case 'opencode_go': return 'OpenCode'
+    case 'typesafe': return 'TypeSafe / Jev'
     case 'minimax': return 'MiniMax'
     case 'composite': return 'Composite'
     default: return p || 'API'

@@ -15,6 +15,7 @@ import (
 // ──────────────────────────────────────────────────────────
 
 const (
+	EndpointSystemOne                  = "/v1/systemone"
 	EndpointMessages                   = "/v1/messages"
 	EndpointChatCompletions            = "/v1/chat/completions"
 	EndpointEmbeddings                 = "/v1/embeddings"
@@ -85,6 +86,8 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointChatCompletions
 	case strings.Contains(path, EndpointMessages):
 		return EndpointMessages
+	case strings.Contains(path, EndpointSystemOne):
+		return EndpointSystemOne
 	case strings.Contains(path, EndpointGeminiModels):
 		return EndpointGeminiModels
 	case strings.Contains(path, EndpointImagesGenerations) || strings.Contains(path, "/images/generations"):
@@ -200,6 +203,8 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	case service.PlatformAnthropic:
 		return EndpointMessages
+	case service.PlatformTypeSafe:
+		return EndpointSystemOne
 
 	case service.PlatformGemini, service.PlatformAntigravity:
 		return inbound

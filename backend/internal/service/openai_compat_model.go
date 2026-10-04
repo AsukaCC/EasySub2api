@@ -4,9 +4,13 @@ import (
 	"strings"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/apicompat"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 )
 
 func NormalizeOpenAICompatRequestedModel(model string) string {
+	if openai.IsGPT61SolModelSpelling(model) {
+		return "gpt-6.1-sol"
+	}
 	trimmed := strings.TrimSpace(model)
 	if trimmed == "" {
 		return ""
@@ -21,6 +25,22 @@ func NormalizeOpenAICompatRequestedModel(model string) string {
 
 func applyOpenAICompatModelNormalization(req *apicompat.AnthropicRequest) {
 	if req == nil {
+		return
+	}
+	if openai.IsGPT61SolModelSpelling(req.Model) {
+		original := strings.ToLower(strings.TrimSpace(req.Model))
+		req.Model = "gpt-6.1-sol"
+		if req.OutputConfig == nil || strings.TrimSpace(req.OutputConfig.Effort) == "" {
+			for _, effort := range []string{"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"} {
+				if strings.HasSuffix(original, "-"+effort) {
+					if req.OutputConfig == nil {
+						req.OutputConfig = &apicompat.AnthropicOutputConfig{}
+					}
+					req.OutputConfig.Effort = effort
+					break
+				}
+			}
+		}
 		return
 	}
 

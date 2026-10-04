@@ -3588,11 +3588,6 @@
                     {{ t("admin.settings.defaults.defaultBalanceHint") }}
                   </p>
                 </div>
-				<div>
-				  <label class="views-admin-settings-view__label-3">{{ t("admin.settings.defaults.bonusValidityDays") }}</label>
-				  <input v-model.number="form.bonus_balance_default_validity_days" type="number" min="1" max="3650" class="input" />
-				  <p class="views-admin-settings-view__description-6">{{ t("admin.settings.defaults.bonusValidityDaysHint") }}</p>
-				</div>
                 <div>
                   <label
                     class="views-admin-settings-view__label-3"
@@ -3958,11 +3953,6 @@
                           placeholder="0.00"
                         />
                       </div>
-					  <div>
-						<label class="views-admin-settings-view__label-3">{{ t("admin.settings.defaults.bonusValidityDays") }}</label>
-						<input v-model.number="authSourceDefaults[authSource.source].bonus_validity_days" type="number" min="0" max="3650" class="input" placeholder="0" />
-						<p class="views-admin-settings-view__description-6">{{ t("admin.settings.authSourceDefaults.bonusValidityOverrideHint") }}</p>
-					  </div>
                       <div>
                         <label
                           class="views-admin-settings-view__label-3"
@@ -7018,63 +7008,7 @@
                 </div>
 
                 <div class="affiliate-settings__reward-grid">
-                  <div class="affiliate-settings__reward-group">
-                    <h4 class="affiliate-settings__subtitle">
-                      {{ t('admin.settings.features.affiliate.bindingRewards.inviterTitle') }}
-                    </h4>
-                    <label class="input-label">
-                      {{ t('admin.settings.features.affiliate.bindingRewards.points') }}
-                    </label>
-                    <input
-                      v-model.number="form.affiliate_inviter_binding_reward_points"
-                      type="number"
-                      step="0.00000001"
-                      min="0"
-                      max="1000000000"
-                      class="input"
-                    />
-                    <label class="input-label">
-                      {{ t('admin.settings.features.affiliate.bindingRewards.validityDays') }}
-                    </label>
-                    <input
-                      v-model.number="form.affiliate_inviter_binding_reward_validity_days"
-                      type="number"
-                      step="1"
-                      min="1"
-                      max="3650"
-                      class="input"
-                      :disabled="form.affiliate_inviter_binding_reward_points <= 0"
-                    />
-                  </div>
 
-                  <div class="affiliate-settings__reward-group">
-                    <h4 class="affiliate-settings__subtitle">
-                      {{ t('admin.settings.features.affiliate.bindingRewards.inviteeTitle') }}
-                    </h4>
-                    <label class="input-label">
-                      {{ t('admin.settings.features.affiliate.bindingRewards.points') }}
-                    </label>
-                    <input
-                      v-model.number="form.affiliate_invitee_binding_reward_points"
-                      type="number"
-                      step="0.00000001"
-                      min="0"
-                      max="1000000000"
-                      class="input"
-                    />
-                    <label class="input-label">
-                      {{ t('admin.settings.features.affiliate.bindingRewards.validityDays') }}
-                    </label>
-                    <input
-                      v-model.number="form.affiliate_invitee_binding_reward_validity_days"
-                      type="number"
-                      step="1"
-                      min="1"
-                      max="3650"
-                      class="input"
-                      :disabled="form.affiliate_invitee_binding_reward_points <= 0"
-                    />
-                  </div>
                 </div>
                 <p class="views-admin-settings-view__description-31">
                   {{ t('admin.settings.features.affiliate.bindingRewards.hint') }}
@@ -7141,24 +7075,6 @@
                 </p>
               </div>
 
-              <div>
-                <label for="affiliate-transfer-validity-days" class="input-label">
-                  {{ t('admin.settings.features.affiliate.transferValidityDays') }}
-                </label>
-                <input
-                  id="affiliate-transfer-validity-days"
-                  v-model.number="form.affiliate_transfer_validity_days"
-                  type="number"
-                  step="1"
-                  min="1"
-                  max="3650"
-                  required
-                  class="input"
-                />
-                <p class="views-admin-settings-view__description-31">
-                  {{ t('admin.settings.features.affiliate.transferValidityDaysDesc') }}
-                </p>
-              </div>
 
               <div>
                 <label class="input-label">
@@ -7724,14 +7640,15 @@
                         <label>
                           <span>{{ t("admin.settings.payment.bonusPoints") }}</span>
                           <input
-                            :value="tier.bonus_points"
-                            :data-testid="`recharge-bonus-points-${index}`"
+                            :value="tier.bonus_percent"
+                            :data-testid="`recharge-bonus-percent-${index}`"
                             type="number"
                             inputmode="decimal"
                             min="0"
-                            step="0.00000001"
+                            max="100"
+                            step="0.01"
                             class="input"
-                            @input="tier.bonus_points = ($event.target as HTMLInputElement).value"
+                            @input="tier.bonus_percent = ($event.target as HTMLInputElement).value"
                           />
                         </label>
                         <button type="button" class="btn btn-secondary payment-bonus-tiers__remove" :title="t('common.delete')" @click="removeRechargeBonusTier(index)">
@@ -9400,7 +9317,7 @@ interface DefaultSubscriptionGroupOption {
 
 interface EditableRechargeBonusTier {
   threshold_cny: string;
-  bonus_points: string;
+  bonus_percent: string;
 }
 
 type SettingsForm = Omit<
@@ -9790,7 +9707,7 @@ function editableRechargeBonusTiers(value: unknown): EditableRechargeBonusTier[]
       const row = tier as Partial<RechargeBonusTier>;
       return {
         threshold_cny: canonicalDecimalText(row.threshold_cny, 2) ?? "0",
-        bonus_points: canonicalDecimalText(row.bonus_points, 8) ?? "0",
+        bonus_percent: canonicalDecimalText(row.bonus_percent, 2) ?? "0",
       };
     })
     .sort((a, b) => compareCanonicalDecimals(a.threshold_cny, b.threshold_cny));
@@ -9799,22 +9716,22 @@ function editableRechargeBonusTiers(value: unknown): EditableRechargeBonusTier[]
 function parseRechargeBonusTiers(value: EditableRechargeBonusTier[]): RechargeBonusTier[] | null {
   const normalized = value.map((tier) => ({
     threshold: canonicalDecimalText(tier.threshold_cny, 2),
-    bonus: canonicalDecimalText(tier.bonus_points, 8),
+    bonus: canonicalDecimalText(tier.bonus_percent, 2),
   }));
-  if (normalized.some((tier) => tier.threshold == null || tier.bonus == null)) return null;
+  if (normalized.some((tier) => tier.threshold == null || tier.bonus == null || Number(tier.bonus) > 100)) return null;
 
   return normalized
     .sort((a, b) => compareCanonicalDecimals(a.threshold!, b.threshold!))
     .map((tier) => ({
       threshold_cny: Number(tier.threshold),
-      bonus_points: Number(tier.bonus),
+      bonus_percent: Number(tier.bonus),
     }));
 }
 
 const invalidRechargeBonusTierRow = computed<number | null>(() => {
   const index = form.payment_recharge_bonus_tiers.findIndex((tier) =>
     canonicalDecimalText(tier.threshold_cny, 2) == null
-    || canonicalDecimalText(tier.bonus_points, 8) == null,
+    || canonicalDecimalText(tier.bonus_percent, 2) == null || Number(tier.bonus_percent) > 100,
   );
   return index === -1 ? null : index + 1;
 });
@@ -9838,7 +9755,7 @@ function addRechargeBonusTier(): void {
   const maximum = thresholds[thresholds.length - 1] ?? "0";
   const [integer] = maximum.split(".");
   const nextThreshold = String(BigInt(integer) + 100n);
-  form.payment_recharge_bonus_tiers.push({ threshold_cny: nextThreshold, bonus_points: "0" });
+  form.payment_recharge_bonus_tiers.push({ threshold_cny: nextThreshold, bonus_percent: "0" });
 }
 
 function removeRechargeBonusTier(index: number): void {

@@ -96,13 +96,12 @@ describe('UserPlatformQuotaModal', () => {
     })
     const w = await mountAndOpen()
     const inputs = w.findAll('input[type=number]')
-    // 3 platforms x 3 windows = 9 inputs
-    expect(inputs.length).toBe(9)
+    expect(inputs.length).toBe(18)
     // 第一个 input 是 anthropic.daily = 10
     expect((inputs[0].element as HTMLInputElement).value).toBe('10')
   })
 
-  it('保存提交完整 3 platform payload', async () => {
+  it('保存提交所有平台的限额，包括 TypeSafe', async () => {
     apiMocks.getPlatformQuotas.mockResolvedValueOnce({
       platform_quotas: [
         { platform: 'openai', daily_limit_usd: null, weekly_limit_usd: 20, monthly_limit_usd: null,
@@ -119,9 +118,12 @@ describe('UserPlatformQuotaModal', () => {
     expect(apiMocks.updatePlatformQuotas).toHaveBeenCalledTimes(1)
     const [uid, payload] = apiMocks.updatePlatformQuotas.mock.calls[0]
     expect(uid).toBe(99)
-    expect(payload).toHaveLength(3) // 3 platforms always submitted
+    expect(payload).toHaveLength(6)
+    expect(payload.find((p: any) => p.platform === 'typesafe')).toMatchObject({
+      daily_limit_points: null, weekly_limit_points: null, monthly_limit_points: null
+    })
     const openai = payload.find((p: any) => p.platform === 'openai')
-    expect(openai.weekly_limit_usd).toBe(20)
+    expect(openai.weekly_limit_points).toBe(20)
   })
 
   it('全部清空把所有 limit 置 null（确认通过）', async () => {

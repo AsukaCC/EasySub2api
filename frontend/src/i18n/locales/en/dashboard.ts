@@ -240,6 +240,10 @@ export default {
     lastUsedIP: 'Last Used IP',
     useKey: 'Use Key',
     useKeyModal: {
+      typesafe: {
+        description: 'Call Jev through the native TypeSafe System One endpoint.',
+        note: 'System One is non-streaming and is not compatible with Chat Completions, Responses, Claude Code or Codex clients.'
+      },
       title: 'Use API Key',
       description:
         'Add the following environment variables to your terminal profile or run directly in terminal to configure API access.',
@@ -260,11 +264,22 @@ export default {
         note: 'Make sure the config directory exists. macOS/Linux users can run mkdir -p ~/.codex to create it.',
         noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Create it manually if it does not exist.',
       },
+      codexModelCatalog: {
+        loading: 'Loading the model catalog available to this key…',
+        error: 'Could not load the catalog. Check the key, group and server URL.',
+        retry: 'Retry',
+        title: 'Codex model catalog',
+        description: 'Codex 0.156.0+ supports the live /models catalog. Older clients can use the local catalog and save models.json below.',
+        remote: 'Remote catalog',
+        local: 'Local catalog',
+        localHint: 'The generated config expects ~/.codex/models.json. Keep it updated when models change.'
+      },
       cliTabs: {
         claudeCode: 'Claude Code',
         codexCli: 'Codex CLI',
         codexCliWs: 'Codex CLI (WebSocket)',
         grokCli: 'Grok CLI',
+        systemOne: 'System One',
         opencode: 'OpenCode',
       },
       grok: {

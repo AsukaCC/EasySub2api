@@ -136,6 +136,13 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		return
 	}
 
+	done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(reqModel, body))
+	if reserveErr != nil {
+		status, code, message, _ := billingErrorDetails(reserveErr)
+		h.handleStreamingAwareError(c, status, code, message, streamStarted)
+		return
+	}
+	defer done()
 	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
 	promptCacheKey := h.gatewayService.ExtractSessionID(c, body)
 

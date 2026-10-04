@@ -88,7 +88,6 @@ func NewGatewayHandler(
 			maxAccountSwitchesGemini = cfg.Gateway.MaxAccountSwitchesGemini
 		}
 	}
-
 	// 初始化用户消息串行队列 helper
 	var umqHelper *UserMsgQueueHelper
 	if userMsgQueueService != nil && cfg != nil {
@@ -211,6 +210,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by composite groups")
 		return
 	}
+	if rejectSystemOneOnlyPlatform(c, apiKey, h.errorResponse) {
+		return
+	}
 
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, reqModel, body); decision != nil && !decision.AllowNextStage {
 		h.anthropicSecurityAuditError(c, decision)
@@ -250,6 +252,18 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 		h.handleStreamingAwareError(c, status, code, message, streamStarted)
 		return
+	}
+	{
+		done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(parsedReq.Model, body))
+		if reserveErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(reserveErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
+		}
+		defer done()
 	}
 
 	// 设置请求所属分组 ID（用于渠道级功能判断，如 WebSearch 模拟）
@@ -904,12 +918,15 @@ func (h *GatewayHandler) modelIDsForGroup(ctx context.Context, group *service.Gr
 	if platform == "" {
 		platform = group.Platform
 	}
+	if forCodex && platform == service.PlatformTypeSafe {
+		return nil
+	}
 	fallback := defaultModelIDsForPlatform(platform)
 	if forCodex {
 		fallback = defaultCodexModelIDsForPlatform(platform)
 	}
 	if platform == service.PlatformComposite {
-		available := h.compositeAvailableModels(ctx, groupID)
+		available := h.compositeAvailableModels(ctx, groupID, !forCodex)
 		if group.CustomModelsListEnabled() {
 			return filterModelsByCustomList(available, fallback, group.ModelsListConfig.Models)
 		}
@@ -936,7 +953,7 @@ func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
 	})
 }
 
-func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *string) []string {
+func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *string, includeSystemOne ...bool) []string {
 	if h == nil || h.gatewayService == nil {
 		return nil
 	}
@@ -946,8 +963,11 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 	for _, platform := range []string{
 		service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI,
 		service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi,
-		service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax, service.PlatformOpenCodeGo,
+		service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax, service.PlatformOpenCodeGo, service.PlatformTypeSafe,
 	} {
+		if platform == service.PlatformTypeSafe && (len(includeSystemOne) == 0 || !includeSystemOne[0]) {
+			continue
+		}
 		platformModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
 		if len(platformModels) == 0 {
 			if _, ok := schedulablePlatforms[platform]; ok && !service.IsCNProvider(platform) {
@@ -1166,6 +1186,8 @@ func defaultModelIDsForPlatform(platform string) []string {
 		return xai.DefaultModelIDs()
 	case service.PlatformOpenCodeGo:
 		return service.DefaultOpenCodeGoModelIDs()
+	case service.PlatformTypeSafe:
+		return []string{"jev-latest"}
 	case service.PlatformComposite:
 		ids := make([]string, 0)
 		seen := make(map[string]struct{})
@@ -1850,6 +1872,9 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by composite groups")
 		return
 	}
+	if rejectSystemOneOnlyPlatform(c, apiKey, h.errorResponse) {
+		return
+	}
 
 	setOpsRequestContext(c, parsedReq.Model, parsedReq.Stream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(parsedReq.Stream, false)))
@@ -2211,6 +2236,10 @@ func (h *GatewayHandler) maybeLogCompatibilityFallbackMetrics(reqLog *zap.Logger
 
 func (h *GatewayHandler) submitUsageRecordTask(parent context.Context, task service.UsageRecordTask) {
 	if task == nil {
+		return
+	}
+	if service.InflightReservationFromContext(parent) != nil {
+		h.submitMandatoryUsageRecordTask(parent, task)
 		return
 	}
 	task = wrapUsageRecordTaskContext(parent, task)

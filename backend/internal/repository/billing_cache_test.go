@@ -18,22 +18,22 @@ func TestBillingBalanceKey(t *testing.T) {
 		{
 			name:     "normal_user_id",
 			userID:   "123",
-			expected: "billing:balance:123",
+			expected: "billing:balance:unified:123",
 		},
 		{
 			name:     "zero_user_id",
 			userID:   "0",
-			expected: "billing:balance:0",
+			expected: "billing:balance:unified:0",
 		},
 		{
 			name:     "negative_user_id",
 			userID:   "-1",
-			expected: "billing:balance:-1",
+			expected: "billing:balance:unified:-1",
 		},
 		{
 			name:     "max_int64",
 			userID:   "9223372036854775807",
-			expected: "billing:balance:9223372036854775807",
+			expected: "billing:balance:unified:9223372036854775807",
 		},
 	}
 

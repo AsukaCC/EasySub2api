@@ -21,7 +21,7 @@ const (
 	ReasoningEffortOverLimitDeny = "deny"
 )
 
-var openAIReasoningEffortValues = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
+var openAIReasoningEffortValues = []string{"minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
 
 // normalizeReasoningEffortMappingSource keeps the legacy "none" value
 // available as an input-only mapping source. It must never expand the set of
@@ -88,6 +88,8 @@ func NormalizeMaxReasoningEffort(raw string) string {
 		return "xhigh"
 	case "max":
 		return "max"
+	case "ultra":
+		return "ultra"
 	default:
 		return ""
 	}
@@ -179,6 +181,8 @@ func reasoningEffortRank(raw string) (int, bool) {
 		return 5, true
 	case "max":
 		return 6, true
+	case "ultra":
+		return 7, true
 	default:
 		return 0, false
 	}
@@ -552,6 +556,9 @@ func applyOpenAIWSReasoningEffortPolicy(payload []byte, hooks *OpenAIWSIngressHo
 }
 
 func applyOpenAIWSReasoningEffortPolicyForModel(payload []byte, hooks *OpenAIWSIngressHooks, requestModel string) ([]byte, error) {
+	if err := validateGPT61SolReasoningEffort(payload, requestModel); err != nil {
+		return nil, err
+	}
 	if hooks == nil {
 		return payload, nil
 	}

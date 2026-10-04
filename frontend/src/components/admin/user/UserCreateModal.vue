@@ -49,10 +49,6 @@
 		  { value: 'recharge', label: t('admin.users.rechargeBalance') }
 		]" />
 	  </div>
-	  <div v-if="form.balance !== '' && form.balance_type === 'bonus'">
-		<label class="input-label">{{ t('admin.users.bonusValidityDays') }}</label>
-		<input v-model.number="form.bonus_validity_days" type="number" min="1" max="3650" class="input" />
-	  </div>
       <div>
         <label class="input-label">{{ t('admin.users.form.rpmLimit') }}</label>
         <input

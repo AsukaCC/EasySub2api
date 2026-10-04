@@ -9,8 +9,6 @@ import (
 )
 
 const defaultBalanceRechargeMultiplier = 1.0
-const rechargeBonusValidity = 168 * time.Hour
-const rechargeRefundWindow = 168 * time.Hour
 
 type rechargeOrderPricing struct {
 	PrincipalAmount float64
@@ -35,7 +33,7 @@ func buildRechargeOrderPricing(principal float64, tiers []RechargeBonusTier) *re
 	selected := selectRechargeBonusTier(basePoints, tiers)
 	bonusPoints := 0.0
 	if selected != nil {
-		bonusPoints = selected.BonusPoints
+		bonusPoints = decimal.NewFromFloat(basePoints).Mul(decimal.NewFromFloat(selected.BonusPercent)).Div(decimal.NewFromInt(100)).Round(8).InexactFloat64()
 	}
 	creditedPoints := decimal.NewFromFloat(basePoints).
 		Add(decimal.NewFromFloat(bonusPoints)).

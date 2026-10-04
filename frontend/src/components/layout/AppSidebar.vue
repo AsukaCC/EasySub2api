@@ -963,6 +963,7 @@ const adminNavSections = computed((): NavSection[] => {
           children: [
             { path: '/admin/users', label: t('nav.userList'), icon: UsersIcon },
             { path: '/admin/users/levels', label: t('nav.userLevels'), icon: ChartIcon },
+            { path: '/admin/users/point-changes', label: t('admin.users.pointChanges.title'), icon: ChartIcon },
           ],
         },
         { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },

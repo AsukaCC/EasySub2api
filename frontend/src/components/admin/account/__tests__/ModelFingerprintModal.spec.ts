@@ -6,12 +6,14 @@ import ModelFingerprintCell from '../ModelFingerprintCell.vue'
 import type { Account } from '@/types'
 import type { ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 
-const { getAvailableModels, getModelFingerprint, startModelFingerprint } = vi.hoisted(() => ({
-  getAvailableModels: vi.fn(), getModelFingerprint: vi.fn(), startModelFingerprint: vi.fn()
+const { getFingerprintModels, getModelFingerprint, startModelFingerprint, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory, list } = vi.hoisted(() => ({
+  getFingerprintModels: vi.fn(), getModelFingerprint: vi.fn(), startModelFingerprint: vi.fn(),
+  getFingerprintSchedule: vi.fn(), setFingerprintSchedule: vi.fn(), getFingerprintHistory: vi.fn(), list: vi.fn()
 }))
-vi.mock('@/api/admin', () => ({ adminAPI: { accounts: { getAvailableModels } } }))
+vi.mock('@/api/admin', () => ({ adminAPI: { accounts: { list } } }))
 vi.mock('@/api/admin/modelFingerprint', async importOriginal => ({
-  ...await importOriginal<typeof import('@/api/admin/modelFingerprint')>(), getModelFingerprint, startModelFingerprint
+  ...await importOriginal<typeof import('@/api/admin/modelFingerprint')>(), getModelFingerprint, startModelFingerprint,
+  getFingerprintModels, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory
 }))
 vi.mock('vue-i18n', async importOriginal => ({ ...await importOriginal<typeof import('vue-i18n')>(), useI18n: () => ({ t: (key: string) => key }) }))
 
@@ -19,7 +21,7 @@ const running: ModelFingerprintSnapshot = {
   id: 'job-one', model: 'gpt-6-astra', status: 'running', sampling_mode: 'single_conversation',
   total: 3, completed: 0, valid: 0, started_at: '2026-09-21T00:00:00Z', expires_at: '2026-09-21T00:05:00Z'
 }
-const account = (id: string) => ({ id, name: `Account ${id}`, extra: {} }) as Account
+const account = (id: string) => ({ id, name: `Account ${id}`, type: 'apikey', platform: 'openai', extra: {} }) as Account
 const completed: ModelFingerprintSnapshot = {
   ...running, status: 'completed', finished_at: '2026-09-21T00:00:00Z',
   result: {
@@ -34,7 +36,8 @@ const mountModal = () => {
     props: { show: true, account: account('one') },
     global: { stubs: {
       BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-      Select: { props: ['options', 'modelValue'], template: '<select><option v-for="item in options" :key="item.id">{{ item.id }}</option></select>' },
+      Select: { props: ['options', 'modelValue', 'valueKey'], emits: ['update:modelValue'], template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in options" :key="item.id || item.value" :value="item[valueKey || \'value\']">{{ item.id || item.value }}</option></select>' },
+      RouterLink: { template: '<a><slot /></a>' }, DataTable: true, Pagination: true,
       Icon: true
     } }
   })
@@ -47,7 +50,11 @@ describe('Model fingerprint workflow', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(running.started_at))
     vi.clearAllMocks()
-    getAvailableModels.mockResolvedValue([{ id: 'gpt-6-astra' }, { id: 'gpt-image-2' }])
+    getFingerprintModels.mockResolvedValue([{ id: 'gpt-6-astra', reasoning_levels: ['low', 'high'] }])
+    list.mockResolvedValue({ items: [account('one'), account('two')] })
+    getFingerprintSchedule.mockResolvedValue({ enabled: false, options: {} })
+    setFingerprintSchedule.mockResolvedValue({ enabled: true, next_run_at: '2026-09-21T00:30:00Z' })
+    getFingerprintHistory.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 10 })
     getModelFingerprint.mockResolvedValue(null)
     startModelFingerprint.mockResolvedValue(running)
   })
@@ -56,14 +63,14 @@ describe('Model fingerprint workflow', () => {
   it('selects text models and starts exactly once, then polls without generating more samples', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    expect(getAvailableModels).toHaveBeenCalledWith('one', true)
-    expect(wrapper.findAll('option').map(item => item.text())).toEqual(['gpt-6-astra'])
+    expect(getFingerprintModels).toHaveBeenCalledWith('one')
+    expect(wrapper.findAll('select')[2].findAll('option').map(item => item.text())).toEqual(['gpt-6-astra'])
     const start = wrapper.get('.btn-primary')
     await start.trigger('click')
     await flushPromises()
     await start.trigger('click')
     expect(startModelFingerprint).toHaveBeenCalledTimes(1)
-    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra')
+    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { protocol: 'auto', reasoning_effort: '' })
     expect(start.attributes('disabled')).toBeDefined()
     getModelFingerprint.mockResolvedValue({ ...running, status: 'failed', completed: 3, error: 'insufficient_samples' })
     await vi.advanceTimersByTimeAsync(1600)
@@ -113,8 +120,8 @@ describe('Model fingerprint workflow', () => {
     expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe('GPT 30.0%, Claude 70.0%')
   })
 
-  it('shows only the highest share and expires saved list results exactly after two hours', async () => {
-    vi.setSystemTime(new Date('2026-09-21T01:59:59Z'))
+  it('shows only the highest share and expires saved list results exactly after 24 hours', async () => {
+    vi.setSystemTime(new Date('2026-09-21T23:59:59Z'))
     const wrapper = mount(ModelFingerprintCell, {
       props: { account: { ...account('one'), extra: { model_fingerprint: completed } } },
       global: { stubs: { Icon: true } }
@@ -134,7 +141,7 @@ describe('Model fingerprint workflow', () => {
   })
 
   it('replaces the expiry timer when a newer result arrives', async () => {
-    vi.setSystemTime(new Date('2026-09-21T01:59:59Z'))
+    vi.setSystemTime(new Date('2026-09-21T23:59:59Z'))
     const wrapper = mount(ModelFingerprintCell, {
       props: { account: { ...account('one'), extra: { model_fingerprint: completed } } },
       global: { stubs: { Icon: true } }
@@ -145,12 +152,12 @@ describe('Model fingerprint workflow', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(wrapper.text()).toContain('70.0%')
     expect(wrapper.emitted('update')).toBeUndefined()
-    await vi.advanceTimersByTimeAsync(2 * 60 * 60 * 1000 - 1000)
+    await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000 - 1000)
     expect(wrapper.emitted('update')).toEqual([['one', null]])
   })
 
   it('expires dialog results without polling or rerunning model tests', async () => {
-    vi.setSystemTime(new Date('2026-09-21T01:59:59Z'))
+    vi.setSystemTime(new Date('2026-09-21T23:59:59Z'))
     getModelFingerprint.mockResolvedValue(completed)
     const wrapper = mountModal()
     await flushPromises()
@@ -163,7 +170,7 @@ describe('Model fingerprint workflow', () => {
   })
 
   it('hides already expired API results and rechecks saved results after tab suspension', async () => {
-    vi.setSystemTime(new Date('2026-09-21T02:00:00Z'))
+    vi.setSystemTime(new Date('2026-09-22T00:00:00Z'))
     getModelFingerprint.mockResolvedValue(completed)
     const modal = mountModal()
     await flushPromises()
@@ -176,10 +183,39 @@ describe('Model fingerprint workflow', () => {
       global: { stubs: { Icon: true } }
     })
     mounts.push(cell)
-    vi.setSystemTime(new Date('2026-09-21T03:00:00Z'))
+    vi.setSystemTime(new Date('2026-09-22T01:00:00Z'))
     document.dispatchEvent(new Event('visibilitychange'))
     await flushPromises()
     expect(cell.find('.fingerprint-result').exists()).toBe(false)
     expect(cell.emitted('update')).toEqual([['two', null]])
+  })
+
+  it('uses the selected account, protocol and effort for manual and scheduled tests', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    await wrapper.findAll('select')[0].setValue('two')
+    await flushPromises()
+    expect(getFingerprintModels).toHaveBeenLastCalledWith('two')
+    await wrapper.findAll('select')[1].setValue('anthropic')
+    await wrapper.findAll('select')[3].setValue('high')
+    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await wrapper.get('.fingerprint-schedule button').trigger('click')
+    await flushPromises()
+    expect(setFingerprintSchedule).toHaveBeenCalledWith('two', { enabled: true, options: { model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
+    await wrapper.get('.btn-primary').trigger('click')
+    await flushPromises()
+    expect(startModelFingerprint).toHaveBeenCalledWith('two', 'gpt-6-astra', { protocol: 'anthropic', reasoning_effort: 'high' })
+  })
+
+  it('restores saved parameters and cannot start when upstream models fail to load', async () => {
+    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
+    const wrapper = mountModal()
+    await flushPromises()
+    expect((wrapper.findAll('select')[3].element as HTMLSelectElement).value).toBe('high')
+    getFingerprintModels.mockRejectedValueOnce(new Error('offline'))
+    await wrapper.findAll('select')[0].setValue('two')
+    await flushPromises()
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
+    expect(startModelFingerprint).not.toHaveBeenCalled()
   })
 })

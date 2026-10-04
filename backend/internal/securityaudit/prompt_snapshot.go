@@ -104,6 +104,10 @@ func extractProtocolSegments(protocol string, document any) []promptSegment {
 		return append(extractInstructions(root["instructions"]), extractResponses(root["input"])...)
 	case "openai_images", "grok_media", "media", "images":
 		return userPromptSegments(extractMediaPrompts(root))
+	case "typesafe_systemone":
+		return extractSystemOneSegments(root)
+	case "gemini", "gemini_generate_content", "gemini_v1beta":
+		return extractGeminiPromptSegments(root)
 	default:
 		if segments := extractChatLikeSegments(root); len(segments) > 0 {
 			return segments
@@ -113,6 +117,120 @@ func extractProtocolSegments(protocol string, document any) []promptSegment {
 		}
 		return userPromptSegments(extractMediaPrompts(root))
 	}
+}
+
+func extractGeminiPromptSegments(root map[string]any) []promptSegment {
+	var result []promptSegment
+	appendContent := func(value any, defaultRole string) {
+		content, ok := value.(map[string]any)
+		if !ok {
+			return
+		}
+		role := stringValue(content["role"])
+		if role == "" {
+			role = defaultRole
+		}
+		for _, text := range contentTexts(content["parts"]) {
+			result = append(result, promptSegment{text: text, user: role == "user", role: role})
+		}
+	}
+	appendContent(root["systemInstruction"], "system")
+	appendContent(root["system_instruction"], "system")
+	if contents, ok := root["contents"].([]any); ok {
+		for _, content := range contents {
+			appendContent(content, "user")
+		}
+	} else {
+		appendContent(root["contents"], "user")
+	}
+	if instances, ok := root["instances"].([]any); ok {
+		for _, instance := range instances {
+			if object, ok := instance.(map[string]any); ok {
+				result = append(result, userPromptSegments(extractMediaPrompts(object))...)
+			}
+		}
+	}
+	if requests, ok := root["requests"].([]any); ok {
+		for _, request := range requests {
+			if object, ok := request.(map[string]any); ok {
+				result = append(result, extractGeminiPromptSegments(object)...)
+			}
+		}
+	}
+	return result
+}
+
+// extractSystemOneSegments collects every client-controlled text of a TypeSafe
+// System One request: question IDs, every question field except the validated
+// type, unknown top-level extension fields, and the evaluated state. Object keys
+// are text too (Jev reads the whole JSON), so they are collected with values.
+// The state comes last so it is the prioritized segment, and keys are visited
+// in sorted order to keep the prompt hash stable across requests.
+func extractSystemOneSegments(root map[string]any) []promptSegment {
+	if root == nil {
+		return nil
+	}
+	texts := make([]string, 0, 4)
+	questions, isObject := root["questions"].(map[string]any)
+	if !isObject {
+		texts = appendJSONStringLeaves(texts, root["questions"])
+	}
+	for _, id := range sortedJSONKeys(questions) {
+		texts = appendJSONStringLeaves(texts, id)
+		question, ok := questions[id].(map[string]any)
+		if !ok {
+			texts = appendJSONStringLeaves(texts, questions[id])
+			continue
+		}
+		for _, field := range sortedJSONKeys(question) {
+			switch field {
+			case "type":
+				continue
+			case "instructions", "criteria":
+			default:
+				texts = appendJSONStringLeaves(texts, field)
+			}
+			texts = appendJSONStringLeaves(texts, question[field])
+		}
+	}
+	for _, field := range sortedJSONKeys(root) {
+		switch field {
+		case "model", "stream", "state", "questions":
+			continue
+		}
+		texts = appendJSONStringLeaves(texts, field)
+		texts = appendJSONStringLeaves(texts, root[field])
+	}
+	texts = appendJSONStringLeaves(texts, root["state"])
+	return userPromptSegments(texts)
+}
+
+func appendJSONStringLeaves(texts []string, value any) []string {
+	switch typed := value.(type) {
+	case string:
+		if text := strings.TrimSpace(typed); text != "" {
+			texts = append(texts, text)
+		}
+	case []any:
+		for _, item := range typed {
+			texts = appendJSONStringLeaves(texts, item)
+		}
+	case map[string]any:
+		for _, key := range sortedJSONKeys(typed) {
+			texts = appendJSONStringLeaves(texts, key)
+			texts = appendJSONStringLeaves(texts, typed[key])
+		}
+	}
+	return texts
+}
+
+func sortedJSONKeys(values map[string]any) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // clientInstructionRoles are roles a client may freely populate. Attackers can
