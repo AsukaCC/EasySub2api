@@ -212,7 +212,7 @@ func (s *AccountTestService) buildGrokUpstreamModelsRequest(ctx context.Context,
 		isOAuth           = account.IsGrokOAuth()
 	)
 	switch account.Type {
-	case AccountTypeAPIKey:
+	case AccountTypeAPIKey, AccountTypeUpstream:
 		authToken = strings.TrimSpace(account.GetCredential("api_key"))
 		if authToken == "" {
 			return nil, newUpstreamModelSyncConfigError("No Grok API key is available", nil)
@@ -311,7 +311,7 @@ func (s *AccountTestService) buildAnthropicUpstreamModelsRequest(ctx context.Con
 		authHeaderName = "Authorization"
 		authHeaderValue = "Bearer " + accessToken
 		betaHeader = claude.DefaultBetaHeader
-	} else if account.Type == AccountTypeAPIKey {
+	} else if fingerprintAPIAccountType(account.Type) {
 		apiKey := strings.TrimSpace(account.GetCredential("api_key"))
 		if apiKey == "" {
 			return nil, newUpstreamModelSyncConfigError("No Anthropic API key is available", nil)
@@ -355,7 +355,7 @@ func (s *AccountTestService) buildAnthropicUpstreamModelsRequest(ctx context.Con
 }
 
 func (s *AccountTestService) buildOpenAIUpstreamModelsRequest(ctx context.Context, account *Account) (*http.Request, error) {
-	if account.Type != AccountTypeAPIKey {
+	if !fingerprintAPIAccountType(account.Type) {
 		return nil, newUpstreamModelSyncUnsupportedError(
 			fmt.Sprintf("Unsupported OpenAI account type for upstream model sync: %s", account.Type), nil,
 		)
