@@ -205,7 +205,7 @@ func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account
 	if err != nil {
 		return fmt.Errorf("fingerprint upstream unavailable")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		p.fatal = resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 429
 		p.formatRejected = slices.Contains([]int{400, 404, 405, 422}, resp.StatusCode)
@@ -229,7 +229,7 @@ func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account
 		for _, block := range blocks {
 			if item, ok := block.(map[string]any); ok && item["type"] == "text" {
 				text, _ := item["text"].(string)
-				output.WriteString(text)
+				_, _ = output.WriteString(text)
 			}
 		}
 	} else {
@@ -243,13 +243,13 @@ func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account
 		}
 		message, _ := choice["message"].(map[string]any)
 		if text, ok := message["content"].(string); ok {
-			output.WriteString(text)
+			_, _ = output.WriteString(text)
 		} else {
 			blocks, _ := message["content"].([]any)
 			for _, block := range blocks {
 				if item, ok := block.(map[string]any); ok && item["type"] == "text" {
 					text, _ := item["text"].(string)
-					output.WriteString(text)
+					_, _ = output.WriteString(text)
 				}
 			}
 		}

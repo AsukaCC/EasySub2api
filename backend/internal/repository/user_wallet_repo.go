@@ -381,9 +381,10 @@ func (r *userRepository) SetWalletBalance(ctx context.Context, input service.Wal
 			return err
 		}
 		before := row
-		if input.Kind == service.WalletKindRecharge {
+		switch input.Kind {
+		case service.WalletKindRecharge:
 			bonus = row.bonus
-		} else if input.Kind == service.WalletKindBonus {
+		case service.WalletKindBonus:
 			recharge = row.recharge
 		}
 		if input.Kind != service.WalletKindRecharge {

@@ -20,7 +20,7 @@ func (r *accountRepository) ListModelFingerprintHistory(ctx context.Context, id 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var body []byte
 		if err := rows.Scan(&result.Total, &body); err != nil {
@@ -56,7 +56,7 @@ func (r *accountRepository) GetModelFingerprintSchedule(ctx context.Context, id 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		return result, rows.Err()
 	}
@@ -87,7 +87,7 @@ func (r *accountRepository) ListDueModelFingerprints(ctx context.Context, now ti
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	plans := []service.ModelFingerprintSchedule{}
 	for rows.Next() {
 		plan := service.ModelFingerprintSchedule{Enabled: true}
