@@ -75,7 +75,7 @@ func TestModelFingerprintAPIProtocols(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, models, 1)
 			require.Equal(t, []string{"low", "high"}, models[0].ReasoningLevels)
-			_, err = svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: protocol, ReasoningEffort: "high"})
+			_, err = svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{Protocol: protocol, ReasoningEffort: "high"})
 			require.NoError(t, err)
 			result := waitFingerprint(t, repo.done)
 			require.Equal(t, "completed", result.Status)
@@ -106,8 +106,7 @@ func TestModelFingerprintAPIProtocols(t *testing.T) {
 			for _, log := range usage.logs {
 				require.Equal(t, RequestTypeTest, log.RequestType)
 				require.Equal(t, "admin", log.UserID)
-				require.Equal(t, "local-key", log.APIKeyID)
-				require.Equal(t, "fingerprint-group", *log.GroupID)
+				require.Equal(t, "", log.APIKeyID)
 				require.NotNil(t, log.UpstreamEndpoint)
 				require.Equal(t, "/admin/accounts/:id/model-fingerprint", *log.InboundEndpoint)
 				require.Equal(t, 0.0, log.ActualCost)
@@ -121,15 +120,15 @@ func TestModelFingerprintAPIValidationAndRetryBound(t *testing.T) {
 	transport := &fingerprintAPITransport{invalid: true}
 	svc.httpUpstream = transport
 	for _, option := range []ModelFingerprintOptions{
-		{APIKeyID: "local-key", Protocol: "responses"}, {APIKeyID: "local-key", Protocol: "chat", ReasoningEffort: "unsupported"},
+		{Protocol: "responses"}, {Protocol: "chat", ReasoningEffort: "unsupported"},
 	} {
 		_, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", option)
 		require.Error(t, err)
 	}
-	_, err := svc.StartModelFingerprint(context.Background(), "one", "unadvertised", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "chat"})
+	_, err := svc.StartModelFingerprint(context.Background(), "one", "unadvertised", "admin", ModelFingerprintOptions{Protocol: "chat"})
 	require.Error(t, err)
 	require.Empty(t, transport.payloads)
-	_, err = svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "chat"})
+	_, err = svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{Protocol: "chat"})
 	require.NoError(t, err)
 	result := waitFingerprint(t, repo.done)
 	require.Equal(t, "insufficient_samples", result.Error)
@@ -139,7 +138,7 @@ func TestModelFingerprintAPIValidationAndRetryBound(t *testing.T) {
 func TestModelFingerprintAPIAuthFailureDoesNotRetry(t *testing.T) {
 	svc, repo, _ := newFingerprintTestService()
 	svc.httpUpstream = &fingerprintAPITransport{status: 401}
-	_, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "auto"})
+	_, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{Protocol: "auto"})
 	require.NoError(t, err)
 	result := waitFingerprint(t, repo.done)
 	require.Equal(t, "upstream_failed", result.Error)

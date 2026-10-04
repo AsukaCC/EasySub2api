@@ -1,7 +1,6 @@
 import apiClient from '../client'
 
 export interface ModelFingerprintSnapshot {
-	api_key_id?: string
   id: string
   model: string
   status: 'running' | 'completed' | 'failed'
@@ -25,8 +24,7 @@ export interface ModelFingerprintSnapshot {
 }
 
 export type FingerprintProtocol = 'auto' | 'chat' | 'anthropic'
-export interface FingerprintOptions { api_key_id: string; model_id: string; protocol: FingerprintProtocol; reasoning_effort: string }
-export interface FingerprintKey { id: string; name: string }
+export interface FingerprintOptions { model_id: string; protocol: FingerprintProtocol; reasoning_effort: string }
 export interface FingerprintModel { id: string; display_name: string; reasoning_levels: string[] | null }
 export interface FingerprintSchedule { enabled: boolean; options: FingerprintOptions; next_run_at?: string }
 export interface FingerprintHistory { items: ModelFingerprintSnapshot[]; total: number; page: number; page_size: number }
@@ -36,13 +34,8 @@ export async function startModelFingerprint(id: string, model: string, options?:
   return data
 }
 
-export async function getFingerprintKeys(id: string, search = '') {
-  const { data } = await apiClient.get<FingerprintKey[]>(`/admin/accounts/${id}/model-fingerprint/api-keys`, { params: { search } })
-  return data
-}
-
-export async function getFingerprintModels(id: string, apiKeyId: string, signal?: AbortSignal) {
-  const { data } = await apiClient.get<FingerprintModel[]>(`/admin/accounts/${id}/model-fingerprint/models`, { params: { api_key_id: apiKeyId }, signal })
+export async function getFingerprintModels(id: string, signal?: AbortSignal) {
+  const { data } = await apiClient.get<FingerprintModel[]>(`/admin/accounts/${id}/model-fingerprint/models`, { signal })
   return data
 }
 export async function getFingerprintHistory(id: string, page = 1) {

@@ -2,13 +2,6 @@
   <BaseDialog :show="show" :title="t('admin.accounts.fingerprint.title')" width="wide" @close="emit('close')">
     <div class="fingerprint-dialog">
       <div class="fingerprint-account">{{ account?.name }}</div>
-      <label class="fingerprint-label">{{ t('admin.accounts.fingerprint.apiKey') }}</label>
-      <Select v-model="selectedKeyId" :options="keys" value-key="id" label-key="name" searchable
-        :disabled="busy || starting || savingSchedule || loadingKeys" />
-      <p v-if="keyError" class="fingerprint-error" role="alert">{{ t('admin.accounts.fingerprint.keysFailed') }}</p>
-      <p v-else-if="!loadingKeys && !keys.length" class="fingerprint-note">{{ t('admin.accounts.fingerprint.noKeys') }}</p>
-      <label class="fingerprint-label">{{ t('admin.accounts.fingerprint.protocol') }}</label>
-      <Select v-model="protocol" :options="protocolOptions" :disabled="busy || starting" />
       <label class="fingerprint-label">{{ t('admin.accounts.selectTestModel') }}</label>
       <Select v-model="selectedModel" :options="models" value-key="id" label-key="display_name"
         searchable
@@ -16,11 +9,13 @@
         :placeholder="loadingModels ? t('common.loading') : t('admin.accounts.selectTestModel')" />
       <p v-if="loadError" class="fingerprint-error" role="alert">{{ t('admin.accounts.fingerprint.loadFailed') }}</p>
       <p v-else-if="!loadingModels && !models.length" class="fingerprint-note">{{ t('admin.accounts.fingerprint.noModels') }}</p>
+      <label class="fingerprint-label">{{ t('admin.accounts.fingerprint.protocol') }}</label>
+      <Select v-model="protocol" :options="protocolOptions" :disabled="busy || starting" />
       <label class="fingerprint-label">{{ t('admin.accounts.fingerprint.effort') }}</label>
       <Select v-model="effort" :options="effortOptions" :disabled="busy || starting || loadingModels" />
       <div class="fingerprint-schedule">
         <label><input v-model="scheduleEnabled" type="checkbox" :disabled="savingSchedule || loadingSchedule" /> {{ t('admin.accounts.fingerprint.schedule') }}</label>
-        <button type="button" class="btn btn-secondary btn-sm" :disabled="savingSchedule || loadingSchedule || !accountId || (scheduleEnabled && (!selectedKeyId || !selectedModel || loadError || loadingModels || keyError))" @click="saveSchedule">
+        <button type="button" class="btn btn-secondary btn-sm" :disabled="savingSchedule || loadingSchedule || !accountId || (scheduleEnabled && (!selectedModel || loadError || loadingModels))" @click="saveSchedule">
           <Icon name="check" size="sm" />{{ t('common.save') }}
         </button>
       </div>
@@ -46,7 +41,7 @@
     </div>
     <template #footer>
       <button class="btn btn-secondary" @click="emit('close')">{{ t('common.close') }}</button>
-      <button class="btn btn-primary" :disabled="!selectedKeyId || keyError || !selectedModel || loadingModels || busy || starting || pollingError" @click="start">
+      <button class="btn btn-primary" :disabled="!selectedModel || loadError || loadingModels || busy || starting || pollingError" @click="start">
         <Icon :name="busy || starting ? 'clock' : 'play'" size="sm" />
         {{ busy ? t('admin.accounts.fingerprint.inBackground') : t('admin.accounts.fingerprint.start') }}
       </button>
@@ -63,7 +58,7 @@ import Select from '@/components/common/Select.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { Icon } from '@/components/icons'
-import { getFingerprintKeys, getFingerprintModels, getFingerprintHistory, getFingerprintSchedule, setFingerprintSchedule, startModelFingerprint, type FingerprintKey, type FingerprintOptions, type FingerprintProtocol, type FingerprintModel, type FingerprintHistory, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
+import { getFingerprintModels, getFingerprintHistory, getFingerprintSchedule, setFingerprintSchedule, startModelFingerprint, type FingerprintProtocol, type FingerprintModel, type FingerprintHistory, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 import { useModelFingerprint } from '@/composables/useModelFingerprint'
 import type { Account } from '@/types'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -72,16 +67,11 @@ import ModelFingerprintResult from './ModelFingerprintResult.vue'
 const props = defineProps<{ show: boolean; account: Account | null }>()
 const emit = defineEmits<{ close: []; update: [accountId: string, snapshot: ModelFingerprintSnapshot | null] }>()
 const { t } = useI18n()
-const selectedKeyId = ref('')
 const accountId = computed(() => props.show ? props.account?.id || null : null)
 const { snapshot, pollingError, track, refresh } = useModelFingerprint(accountId, value => {
   if (accountId.value) emit('update', accountId.value, value)
 })
 const models = ref<FingerprintModel[]>([])
-const keys = ref<FingerprintKey[]>([])
-const keyError = ref(false)
-const loadingKeys = ref(false)
-const savedOptions = ref<FingerprintOptions | null>(null)
 const protocol = ref<FingerprintProtocol>('auto')
 const effort = ref('')
 const protocolOptions = computed(() => [
@@ -141,11 +131,11 @@ async function loadHistory(page = 1) {
 
 async function saveSchedule() {
   const id = accountId.value
-  if (!id || savingSchedule.value || (scheduleEnabled.value && (!selectedKeyId.value || !selectedModel.value || loadingModels.value || loadError.value || keyError.value))) return
+  if (!id || savingSchedule.value || (scheduleEnabled.value && (!selectedModel.value || loadingModels.value || loadError.value))) return
   savingSchedule.value = true
   scheduleMessage.value = ''
   try {
-    const result = await setFingerprintSchedule(id, { enabled: scheduleEnabled.value, options: { api_key_id: selectedKeyId.value, model_id: selectedModel.value, protocol: protocol.value, reasoning_effort: effort.value } })
+    const result = await setFingerprintSchedule(id, { enabled: scheduleEnabled.value, options: { model_id: selectedModel.value, protocol: protocol.value, reasoning_effort: effort.value } })
     if (id !== accountId.value) return
     nextRunAt.value = result.enabled ? result.next_run_at || '' : ''
     scheduleFailed.value = false
@@ -161,10 +151,6 @@ watch(accountId, async (id, _, onCleanup) => {
   let stale = false
   onCleanup(() => { stale = true })
   models.value = []
-  keys.value = []
-  selectedKeyId.value = ''
-  savedOptions.value = null
-  keyError.value = false
   viewedSnapshot.value = null
   selectedModel.value = ''
   loadError.value = false
@@ -176,50 +162,26 @@ watch(accountId, async (id, _, onCleanup) => {
   scheduleMessage.value = ''
   historyGeneration++
   history.value = { items: [], total: 0, page: 1, page_size: 10 }
-  loadingKeys.value = Boolean(id)
+  loadingModels.value = Boolean(id)
   loadingSchedule.value = Boolean(id)
   if (!id) return
-  loadingSchedule.value = true
   const schedulePromise = getFingerprintSchedule(id).then(value => {
     if (stale) return
     scheduleEnabled.value = value.enabled
     nextRunAt.value = value.enabled ? value.next_run_at || '' : ''
-    savedOptions.value = value.options
     return value
   }).catch(() => {
     if (!stale) { scheduleFailed.value = true; scheduleMessage.value = t('admin.accounts.fingerprint.scheduleFailed') }
   }).finally(() => { if (!stale) loadingSchedule.value = false })
   void loadHistory()
   try {
-    const [items, schedule] = await Promise.all([getFingerprintKeys(id), schedulePromise])
-    if (stale) return
-    keys.value = items
-    const savedKey = schedule?.options?.api_key_id
-    selectedKeyId.value = savedKey ? items.find(item => item.id === savedKey)?.id || '' : schedule?.enabled ? '' : items[0]?.id || ''
-    if (schedule?.enabled && !selectedKeyId.value) {
-      scheduleFailed.value = true
-      scheduleMessage.value = t('admin.accounts.fingerprint.scheduleKeyRequired')
-    }
-  } catch { if (!stale) keyError.value = true }
-  finally { if (!stale) loadingKeys.value = false }
-}, { immediate: true })
-
-watch([accountId, selectedKeyId], async ([id, keyID], _, onCleanup) => {
-  let stale = false
-  onCleanup(() => { stale = true })
-  models.value = []
-  selectedModel.value = ''
-  loadError.value = false
-  loadingModels.value = Boolean(id && keyID)
-  if (!id || !keyID) return
-  try {
-    const items = await getFingerprintModels(id, keyID)
+    const [items, schedule] = await Promise.all([getFingerprintModels(id), schedulePromise])
     if (stale) return
     models.value = items
     const previous = (props.account?.extra?.model_fingerprint as ModelFingerprintSnapshot | undefined)?.model
     selectedModel.value = models.value.find(item => item.id === previous)?.id || models.value[0]?.id || ''
-    const options = savedOptions.value
-    if (options?.api_key_id === keyID && options.model_id) {
+    const options = schedule?.options
+    if (options?.model_id) {
       selectedModel.value = models.value.find(item => item.id === options.model_id)?.id || selectedModel.value
       protocol.value = options.protocol || 'auto'
       effort.value = effortOptions.value.some(item => item.value === options.reasoning_effort) ? options.reasoning_effort : ''
@@ -230,12 +192,12 @@ watch([accountId, selectedKeyId], async ([id, keyID], _, onCleanup) => {
 
 async function start() {
   const id = accountId.value
-  if (!id || !selectedKeyId.value || keyError.value || loadingModels.value || busy.value || starting.value || !selectedModel.value) return
+  if (!id || loadError.value || loadingModels.value || busy.value || starting.value || !selectedModel.value) return
   starting.value = true
   viewedSnapshot.value = null
   submitError.value = ''
   try {
-    const value = await startModelFingerprint(id, selectedModel.value, { api_key_id: selectedKeyId.value, protocol: protocol.value, reasoning_effort: effort.value })
+    const value = await startModelFingerprint(id, selectedModel.value, { protocol: protocol.value, reasoning_effort: effort.value })
     if (accountId.value === id) track(value)
     else emit('update', id, value)
     if (accountId.value === id) void loadHistory()

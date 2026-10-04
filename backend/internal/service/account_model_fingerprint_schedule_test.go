@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -36,7 +37,7 @@ func TestModelFingerprintScheduleConfigAndRun(t *testing.T) {
 	repo := &fingerprintScheduleTestRepo{fingerprintTestRepo: base}
 	svc.accountRepo = repo
 	svc.httpUpstream = &fingerprintAPITransport{}
-	plan := &ModelFingerprintSchedule{AccountID: "one", UserID: "admin", Enabled: true, Options: ModelFingerprintOptions{APIKeyID: "local-key", Model: "gpt-6-astra", Protocol: "chat", ReasoningEffort: "low"}}
+	plan := &ModelFingerprintSchedule{AccountID: "one", UserID: "admin", Enabled: true, Options: ModelFingerprintOptions{Model: "gpt-6-astra", Protocol: "chat", ReasoningEffort: "low"}}
 	require.NoError(t, svc.SetFingerprintSchedule(context.Background(), plan))
 	require.True(t, repo.saved.NextRunAt.After(time.Now()))
 	require.Equal(t, 0, repo.saved.NextRunAt.Second())
@@ -48,13 +49,12 @@ func TestModelFingerprintScheduleConfigAndRun(t *testing.T) {
 	require.Equal(t, "scheduled", result.Source)
 	require.Equal(t, "completed", result.Status)
 	require.Equal(t, "admin", result.UserID)
-	require.Equal(t, "local-key", result.APIKeyID)
 }
 
 func TestModelFingerprintSchedulePreparationFailureIsRecorded(t *testing.T) {
 	svc, repo, _ := newFingerprintTestService()
 	svc.httpUpstream = &fingerprintAPITransport{}
-	result, err := svc.StartModelFingerprint(context.Background(), "one", "removed-model", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "chat", Source: "scheduled"})
+	result, err := svc.StartModelFingerprint(context.Background(), "one", "removed-model", "admin", ModelFingerprintOptions{Protocol: "chat", Source: "scheduled"})
 	require.NoError(t, err)
 	require.Equal(t, "failed", result.Status)
 	require.Equal(t, "preparation_failed", result.Error)
@@ -71,4 +71,30 @@ func TestModelFingerprintScheduleBusyWorkersStillCleanHistory(t *testing.T) {
 	svc.RunDueModelFingerprints(context.Background())
 	require.True(t, repo.cleaned)
 	require.Empty(t, base.snapshots)
+}
+
+func TestModelFingerprintScheduleIgnoresLegacyAPIKey(t *testing.T) {
+	svc, base, _ := newFingerprintTestService()
+	repo := &fingerprintScheduleTestRepo{fingerprintTestRepo: base}
+	svc.accountRepo = repo
+	svc.httpUpstream = &fingerprintAPITransport{}
+	var plan ModelFingerprintSchedule
+	require.NoError(t, json.Unmarshal([]byte(`{"enabled":true,"options":{"api_key_id":"deleted-key","model_id":"gpt-6-astra","protocol":"chat","reasoning_effort":"low"}}`), &plan))
+	plan.AccountID, plan.UserID = "one", "admin"
+	require.NoError(t, svc.SetFingerprintSchedule(context.Background(), &plan))
+	repo.plans = []ModelFingerprintSchedule{*repo.saved}
+	svc.RunDueModelFingerprints(context.Background())
+	result := waitFingerprint(t, base.done)
+	require.Equal(t, "completed", result.Status)
+	encoded, err := json.Marshal(repo.saved.Options)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "api_key_id")
+	usage := svc.modelFingerprintUsage.(*fingerprintUsageStub)
+	usage.mu.Lock()
+	defer usage.mu.Unlock()
+	require.NotEmpty(t, usage.logs)
+	for _, log := range usage.logs {
+		require.Empty(t, log.APIKeyID)
+		require.Equal(t, "admin", log.UserID)
+	}
 }
