@@ -95,7 +95,7 @@ func (r *userRepository) ListPointChanges(ctx context.Context, f service.PointCh
 	if err != nil {
 		return result, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var item service.PointChange
 		if err := rows.Scan(&item.TransactionID, &item.UserID, &item.Email, &item.Username,
