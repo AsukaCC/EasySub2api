@@ -36,7 +36,7 @@ func TestModelFingerprintScheduleConfigAndRun(t *testing.T) {
 	repo := &fingerprintScheduleTestRepo{fingerprintTestRepo: base}
 	svc.accountRepo = repo
 	svc.httpUpstream = &fingerprintAPITransport{}
-	plan := &ModelFingerprintSchedule{AccountID: "one", UserID: "admin", Enabled: true, Options: ModelFingerprintOptions{Model: "gpt-6-astra", Protocol: "chat", ReasoningEffort: "low"}}
+	plan := &ModelFingerprintSchedule{AccountID: "one", UserID: "admin", Enabled: true, Options: ModelFingerprintOptions{APIKeyID: "local-key", Model: "gpt-6-astra", Protocol: "chat", ReasoningEffort: "low"}}
 	require.NoError(t, svc.SetFingerprintSchedule(context.Background(), plan))
 	require.True(t, repo.saved.NextRunAt.After(time.Now()))
 	require.Equal(t, 0, repo.saved.NextRunAt.Second())
@@ -48,12 +48,13 @@ func TestModelFingerprintScheduleConfigAndRun(t *testing.T) {
 	require.Equal(t, "scheduled", result.Source)
 	require.Equal(t, "completed", result.Status)
 	require.Equal(t, "admin", result.UserID)
+	require.Equal(t, "local-key", result.APIKeyID)
 }
 
 func TestModelFingerprintSchedulePreparationFailureIsRecorded(t *testing.T) {
 	svc, repo, _ := newFingerprintTestService()
 	svc.httpUpstream = &fingerprintAPITransport{}
-	result, err := svc.StartModelFingerprint(context.Background(), "one", "removed-model", "admin", ModelFingerprintOptions{Protocol: "chat", Source: "scheduled"})
+	result, err := svc.StartModelFingerprint(context.Background(), "one", "removed-model", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "chat", Source: "scheduled"})
 	require.NoError(t, err)
 	require.Equal(t, "failed", result.Status)
 	require.Equal(t, "preparation_failed", result.Error)

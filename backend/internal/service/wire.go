@@ -269,6 +269,8 @@ func ProvideAccountTestService(
 	openAIGatewayService *OpenAIGatewayService,
 	settingService *SettingService,
 	usageLogRepo UsageLogRepository,
+	apiKeyRepo APIKeyRepository,
+	groupRepo GroupRepository,
 ) *AccountTestService {
 	service := NewAccountTestService(
 		accountRepo,
@@ -283,6 +285,8 @@ func ProvideAccountTestService(
 	service.openAIGatewayService = openAIGatewayService
 	service.agentIdentityWS = openAIGatewayService
 	service.modelFingerprintUsage = usageLogRepo
+	service.modelFingerprintKeys = apiKeyRepo
+	service.modelFingerprintGroups = groupRepo
 	service.SetSettingService(settingService)
 	return service
 }

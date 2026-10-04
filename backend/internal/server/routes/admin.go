@@ -435,6 +435,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/model-fingerprint", h.Admin.Account.StartModelFingerprint)
 		accounts.GET("/:id/model-fingerprint", h.Admin.Account.GetModelFingerprint)
 		accounts.GET("/:id/model-fingerprint/models", h.Admin.Account.GetFingerprintModels)
+		accounts.GET("/:id/model-fingerprint/api-keys", h.Admin.Account.ListFingerprintKeys)
 		accounts.GET("/:id/model-fingerprint/history", h.Admin.Account.GetFingerprintHistory)
 		accounts.GET("/:id/model-fingerprint/schedule", h.Admin.Account.GetFingerprintSchedule)
 		accounts.PUT("/:id/model-fingerprint/schedule", h.Admin.Account.SetFingerprintSchedule)

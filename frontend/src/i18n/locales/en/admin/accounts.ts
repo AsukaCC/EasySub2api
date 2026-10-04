@@ -3,17 +3,19 @@ export default {
       fingerprint: {
         title: 'Model Fingerprint Test', attribution: 'Model Attribution', start: 'Start Test', notTested: 'Not tested',
         samples: '3 valid fingerprint samples', serial: 'Independent samples', inBackground: 'Testing in background',
-        account: 'API Key Account', protocol: 'Request Format', effort: 'Reasoning Effort', defaultEffort: 'Upstream default',
+        apiKey: 'API Key', protocol: 'Request Format', effort: 'Reasoning Effort', defaultEffort: 'Upstream default',
+        keysFailed: 'Could not load API keys', noKeys: 'No active API keys support this account platform and group',
+        scheduleKeyRequired: 'The scheduled API key is unavailable. Select a key and save again.',
         autoProtocol: 'Detect format automatically', schedule: 'Test every half hour', nextRun: 'Next test:',
         scheduleSaved: 'Schedule saved', scheduleFailed: 'Could not load or save schedule',
         history: 'Test History (24 hours)', usageRecords: 'View usage records', historyFailed: 'Could not load test history',
-        accountsFailed: 'Could not load accounts', time: 'Time', protocolEffort: 'Format / Effort', source: 'Source', manual: 'Manual', scheduled: 'Scheduled',
+        time: 'Time', protocolEffort: 'Format / Effort', source: 'Source', manual: 'Manual', scheduled: 'Scheduled',
         progress: 'Sampling {count}/{total}', allCandidates: 'All candidates',
         scope: 'Shares are relative attribution within the GPT / Claude candidate bank, not proof of identity. Unlisted models are assigned to the closest candidate.',
         noModels: 'No text models available', loadFailed: 'Could not load models. Reopen to retry.',
         pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not start. A test may already exist or all test slots may be occupied.',
         errors: {
-          preparation_failed: 'Upstream model or parameter validation failed',
+          preparation_failed: 'API key, upstream model or parameter validation failed',
           interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out', upstream_failed: 'Upstream request failed',
           insufficient_samples: 'Fewer than 3 valid samples', analysis_failed: 'Attribution failed', internal_error: 'Test failed', save_failed: 'Could not save results'
         }
