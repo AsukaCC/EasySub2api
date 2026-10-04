@@ -26,12 +26,12 @@ func TestModelFingerprintCleanup(t *testing.T) {
 		for _, id := range ids {
 			rows.AddRow(id)
 		}
-		mock.ExpectQuery(query).WithArgs(now.Add(-2 * time.Hour)).WillReturnRows(rows).RowsWillBeClosed()
+		mock.ExpectQuery(query).WithArgs(now.Add(-24 * time.Hour)).WillReturnRows(rows).RowsWillBeClosed()
 		removed, err := repo.DeleteExpiredModelFingerprints(context.Background(), now)
 		require.NoError(t, err)
 		require.Equal(t, int64(len(ids)), removed)
 	}
-	mock.ExpectQuery(query).WithArgs(now.Add(-2 * time.Hour)).WillReturnError(errors.New("database unavailable"))
+	mock.ExpectQuery(query).WithArgs(now.Add(-24 * time.Hour)).WillReturnError(errors.New("database unavailable"))
 	_, err = repo.DeleteExpiredModelFingerprints(context.Background(), now)
 	require.Error(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())

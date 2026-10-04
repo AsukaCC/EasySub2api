@@ -206,6 +206,15 @@ describe('admin UsageView route filters', () => {
     vi.useRealTimers()
   })
 
+  it('applies the account and test filters from fingerprint history', async () => {
+    routeQuery.account_id = '01995000-0000-7000-8000-000000000001'
+    routeQuery.request_type = 'test'
+    const wrapper = mountRouteFilteredUsageView()
+    await flushPromises()
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ account_id: routeQuery.account_id, request_type: 'test' }), expect.anything())
+    wrapper.unmount()
+  })
+
   it('shows the routed user while applying user_id to usage requests', async () => {
     routeQuery.user_id = '42'
     getById.mockResolvedValue({ id: 42, email: 'route-user@test.com' })

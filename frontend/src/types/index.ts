@@ -594,6 +594,7 @@ export type GroupPlatform =
   | 'deepseek'
   | 'minimax'
   | 'opencode_go'
+  | 'typesafe'
   | 'composite'
 
 export type VideoModelPrices = Record<string, Record<string, number>>
@@ -1039,6 +1040,7 @@ export type AccountPlatform =
   | 'deepseek'
   | 'minimax'
   | 'opencode_go'
+  | 'typesafe'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'

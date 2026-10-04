@@ -79,13 +79,14 @@ func TestPreparePaymentRefundValidatesPrincipalBeforeFingerprinting(t *testing.T
 	}
 }
 
-func TestAdminDirectRefundUsesSameSevenDayWindowAsSelfService(t *testing.T) {
+func TestAdminDirectRefundHasNoTimeLimit(t *testing.T) {
 	now := time.Now().UTC()
 	withinWindow := now.Add(-time.Hour)
-	expired := now.Add(-selfServiceRefundWindow - time.Minute)
+	expired := now.Add(-168*time.Hour - time.Minute)
 
 	require.True(t, refundSelfServiceEligible(&dbent.PaymentOrder{CompletedAt: &withinWindow}, now))
-	require.False(t, refundSelfServiceEligible(&dbent.PaymentOrder{CompletedAt: &expired}, now))
+	require.True(t, refundSelfServiceEligible(&dbent.PaymentOrder{CompletedAt: &expired, RefundDeadline: &expired}, now))
+	require.Nil(t, refundDeadline(&dbent.PaymentOrder{CompletedAt: &expired, RefundDeadline: &expired}))
 }
 
 func TestNormalizeAdminRefundInputRecoversAffiliateAndUsesOrderOwner(t *testing.T) {
@@ -119,7 +120,7 @@ func TestPrepareAdminRefundIdempotencyDoesNotCompareEmptyCallerUserID(t *testing
 	require.Equal(t, existing.ID, refund.ID)
 }
 
-func TestCreateAdminPaymentRefundRequiresTicketAfterSevenDays(t *testing.T) {
+func TestCreateAdminPaymentRefundContinuesValidationAfterSevenDays(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	user, err := client.User.Create().
@@ -128,7 +129,7 @@ func TestCreateAdminPaymentRefundRequiresTicketAfterSevenDays(t *testing.T) {
 		SetUsername("expired-admin-refund").
 		Save(ctx)
 	require.NoError(t, err)
-	completedAt := time.Now().UTC().Add(-selfServiceRefundWindow - time.Minute)
+	completedAt := time.Now().UTC().Add(-168*time.Hour - time.Minute)
 	order, err := client.PaymentOrder.Create().
 		SetUserID(user.ID).
 		SetUserEmail(user.Email).
@@ -152,7 +153,7 @@ func TestCreateAdminPaymentRefundRequiresTicketAfterSevenDays(t *testing.T) {
 		OrderID: order.ID, IdempotencyKey: "expired-admin-refund",
 	})
 	require.Error(t, err)
-	require.Equal(t, "REFUND_TICKET_REQUIRED", infraerrors.Reason(err))
+	require.NotEqual(t, "REFUND_TICKET_REQUIRED", infraerrors.Reason(err))
 }
 
 type affiliateWalletHoldSpy struct {
@@ -174,11 +175,11 @@ func (*partialFrozenRefundCapacityRepo) HoldRefundPoints(context.Context, Refund
 	return WalletHoldResult{}, nil
 }
 
-func TestPartialFrozenSourceBonusUsesRechargePointsForShortfall(t *testing.T) {
+func TestPartialFrozenSourceBonusDoesNotUseRechargeForShortfall(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	repo := &partialFrozenRefundCapacityRepo{capacity: RefundPointCapacity{
-		RechargeAvailable: 110, SourceBonusAvailable: 10, SourceBonusFrozen: 5,
+		RechargeAvailable: 100, SourceBonusAvailable: 10, SourceBonusFrozen: 5, SourceBonusExpired: 5,
 	}}
 	completedAt := time.Now().UTC().Add(-time.Hour)
 	order := &dbent.PaymentOrder{
@@ -192,6 +193,7 @@ func TestPartialFrozenSourceBonusUsesRechargePointsForShortfall(t *testing.T) {
 	require.Equal(t, 100.0, calculation.quote.MaxRefundablePrincipalAmount)
 	require.Equal(t, 100.0, calculation.quote.PrincipalAmount)
 	require.Equal(t, 120.0, calculation.quote.PointsToHold)
+	require.Zero(t, calculation.quote.BonusExpiredOffset)
 	require.Empty(t, calculation.quote.BlockedReason)
 }
 
@@ -268,4 +270,18 @@ func TestAffiliateRefundFreezesTransferredWalletPointsBeforeProviderCall(t *test
 	require.Equal(t, 2.0, settlement.Wallet)
 	_, err = affiliateReversalSettlement(10, 11, 0, 0)
 	require.Error(t, err)
+}
+
+func TestAffiliateRefundOnlyCountsAccrualsForThisOrder(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	_, err := client.ExecContext(ctx, `CREATE TABLE user_affiliate_ledger (source_order_id TEXT, action TEXT, amount REAL)`)
+	require.NoError(t, err)
+	_, err = client.ExecContext(ctx, `INSERT INTO user_affiliate_ledger VALUES
+		('order-a', 'accrue', 5), ('order-a', 'accrue', 2),
+		('order-b', 'accrue', 20), ('order-a', 'binding_reward', 99),
+		(NULL, 'accrue', 50), ('order-a', 'reverse', 3)`)
+	require.NoError(t, err)
+	require.Equal(t, 7.0, affiliateRebateForOrder(ctx, client, &dbent.PaymentOrder{ID: "order-a"}))
+	require.Equal(t, 20.0, affiliateRebateForOrder(ctx, client, &dbent.PaymentOrder{ID: "order-b"}))
 }

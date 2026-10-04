@@ -28,6 +28,20 @@ type grokAccountTestRateLimitRepo struct {
 	resetAt          time.Time
 }
 
+func (r *grokAccountTestRateLimitRepo) UpdateExtra(_ context.Context, id string, extra map[string]any) error {
+	account := r.accountsByID[id]
+	if account == nil {
+		return ErrAccountNotFound
+	}
+	if account.Extra == nil {
+		account.Extra = make(map[string]any)
+	}
+	for key, value := range extra {
+		account.Extra[key] = value
+	}
+	return nil
+}
+
 func TestObserveGrokTestResponseClassifiesBodyOnlyQuotaErrors(t *testing.T) {
 	account := &Account{ID: "1901", Platform: PlatformGrok, Type: AccountTypeOAuth}
 	repo := &grokQuotaAccountRepo{mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
@@ -92,7 +106,7 @@ func TestAccountTestService_TestAccountConnection_GrokUsesXAIResponses(t *testin
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID: "13",
+		ID:          "13",
 		Name:        "grok-oauth",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -150,7 +164,7 @@ func TestAccountTestService_TestAccountConnection_GrokDefaultsEmptyModelTo45(t *
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID: "16",
+		ID:          "16",
 		Name:        "grok-oauth-default-model",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,
@@ -192,7 +206,7 @@ func TestAccountTestService_Grok429PersistsRateLimitReset(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	account := &Account{
-		ID: "14",
+		ID:          "14",
 		Name:        "grok-oauth-limited",
 		Platform:    PlatformGrok,
 		Type:        AccountTypeOAuth,

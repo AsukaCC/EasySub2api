@@ -98,6 +98,7 @@ type UsageLogFilters = usagestats.UsageLogFilters
 // ListWithFilters lists usage logs with optional filters (for admin)
 func (r *usageLogRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
 	conditions := make([]string, 0, 9)
+	conditions = append(conditions, "(request_type <> 6 OR request_id NOT LIKE 'fingerprint:%' OR created_at > NOW() - INTERVAL '24 hours')")
 	args := make([]any, 0, 9)
 
 	if filters.UserID != "" {

@@ -283,6 +283,7 @@ func TestCalculateGatewayRefundAmountUsesCurrencyPrecision(t *testing.T) {
 
 func TestFormatGatewayRefundAmountUsesOrderCurrency(t *testing.T) {
 	order := &dbent.PaymentOrder{
+		OrderType: payment.OrderTypeBalance,
 		ProviderSnapshot: map[string]any{
 			"currency": "KWD",
 		},

@@ -32,21 +32,20 @@ type WalletSummary struct {
 }
 
 func NewWalletSummary(recharge, bonus, frozenRecharge, frozenBonus float64) WalletSummary {
-	if bonus < 0 {
-		bonus = 0
-	}
-	available := math.Max(recharge, 0) + bonus
-	overdraft := math.Max(-recharge, 0)
+	// Source buckets remain for audit and pending holds; spending uses their net sum.
+	net := QuantizeUsageBillingAmount(recharge + bonus)
+	available := math.Max(net, 0)
+	overdraft := math.Max(-net, 0)
 	if frozenRecharge < 0 {
 		frozenRecharge = 0
 	}
 	frozenRecharge = math.Max(frozenRecharge, 0)
 	return WalletSummary{
-		Balance:          available,
+		Balance:          net,
 		AvailableBalance: available,
 		RechargeBalance:  recharge, BonusBalance: bonus, OverdraftAmount: overdraft,
 		FrozenRecharge: frozenRecharge, FrozenBonus: frozenBonus,
-		TotalBalance: available + frozenRecharge + frozenBonus,
+		TotalBalance: net + frozenRecharge + frozenBonus,
 	}
 }
 
@@ -54,7 +53,7 @@ type WalletCreditInput struct {
 	UserID           string
 	Amount           float64
 	Kind             string
-	ExpiresAt        *time.Time
+	ExpiresAt        *time.Time // Deprecated: accepted for compatibility; bonus never expires.
 	SourceType       string
 	SourceID         string
 	IdempotencyKey   string
@@ -65,10 +64,11 @@ type WalletCreditInput struct {
 type WalletDebitInput struct {
 	UserID string
 	Amount float64
-	// RechargeOnlyAmount reserves the discounted portion for funded recharge points.
+	Kind   string // Legacy source hint; all debits spend the unified balance.
+	// RechargeOnlyAmount is the legacy name for the funded discounted portion.
 	RechargeOnlyAmount float64
-	// AllowOverdraft records recharge debt when funded buckets cannot cover the
-	// remainder. Recharge-only amounts still cannot use bonus or debt.
+	// AllowOverdraft settles completed usage or reward recovery beyond available points.
+	// The discounted portion still requires positive net points.
 	AllowOverdraft bool
 	SourceType     string
 	SourceID       string
@@ -78,9 +78,10 @@ type WalletDebitInput struct {
 
 type WalletSetInput struct {
 	UserID         string
+	Kind           string // Empty replaces both buckets; otherwise preserve the other bucket under lock.
 	RechargeAmount float64
 	BonusAmount    float64
-	BonusExpiresAt *time.Time
+	BonusExpiresAt *time.Time // Deprecated: accepted for compatibility; bonus never expires.
 	SourceType     string
 	SourceID       string
 	IdempotencyKey string
@@ -115,8 +116,8 @@ type WalletHoldResult struct {
 	Summary        WalletSummary `json:"summary"`
 }
 
-// RefundPointCapacity is the wallet value that can safely be recovered for a
-// recharge refund without consuming bonus grants from unrelated sources.
+// RefundPointCapacity retains source grant information for audit. The legacy
+// RechargeAvailable field contains the unified spendable balance.
 type RefundPointCapacity struct {
 	RechargeAvailable    float64 `json:"recharge_available"`
 	SourceBonusAvailable float64 `json:"source_bonus_available"`

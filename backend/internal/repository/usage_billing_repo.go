@@ -137,16 +137,17 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		result.BalanceOverdrafted = walletResult.Summary.OverdraftAmount > 0
 	}
 
+	// Deleting a key during an in-flight request must not cancel its other charges.
 	if cmd.APIKeyQuotaCost > 0 {
 		exhausted, err := incrementUsageBillingAPIKeyQuota(ctx, tx, cmd.APIKeyID, cmd.APIKeyQuotaCost)
-		if err != nil {
+		if err != nil && !errors.Is(err, service.ErrAPIKeyNotFound) {
 			return err
 		}
 		result.APIKeyQuotaExhausted = exhausted
 	}
 
 	if cmd.APIKeyRateLimitCost > 0 {
-		if err := incrementUsageBillingAPIKeyRateLimit(ctx, tx, cmd.APIKeyID, cmd.APIKeyRateLimitCost); err != nil {
+		if err := incrementUsageBillingAPIKeyRateLimit(ctx, tx, cmd.APIKeyID, cmd.APIKeyRateLimitCost); err != nil && !errors.Is(err, service.ErrAPIKeyNotFound) {
 			return err
 		}
 	}
@@ -185,7 +186,7 @@ func applyDynamicRateBilling(ctx context.Context, tx *sql.Tx, cmd *service.Usage
 		if _, err := expireUserBonusTx(ctx, tx, cmd.UserID, &row); err != nil {
 			return err
 		}
-		rechargeAvailable = walletMoney(math.Max(row.recharge, 0))
+		rechargeAvailable = walletAvailablePoints(row)
 	}
 	accountCostPerStandard := plan.AccountCost / plan.StandardCost
 	rules := append([]service.UsageDynamicRateRule(nil), plan.Rules...)

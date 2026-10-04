@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -160,12 +159,9 @@ func proportionalRefundTarget(total, targetPrincipal, principal decimal.Decimal,
 }
 
 // maxAffordableRefundPrincipal returns the largest whole-cent principal whose
-// point recovery fits the currently available source bonus and recharge
-// points. It is monotonic, so a binary search avoids float-based estimates.
-func maxAffordableRefundPrincipal(input CumulativeRefundInput, remaining, rechargeAvailable, sourceBonusAvailable, expiredAvailable decimal.Decimal, sourceUsable bool) decimal.Decimal {
-	if !sourceUsable {
-		return decimal.Zero
-	}
+// principal point recovery fits the unified available balance. The additional
+// order bonus recovery may create debt in that same wallet.
+func maxAffordableRefundPrincipal(input CumulativeRefundInput, remaining, rechargeAvailable decimal.Decimal) decimal.Decimal {
 	high := remaining.Mul(decimal.NewFromInt(100)).IntPart()
 	low := int64(0)
 	for low < high {
@@ -178,8 +174,7 @@ func maxAffordableRefundPrincipal(input CumulativeRefundInput, remaining, rechar
 			high = mid - 1
 			continue
 		}
-		bonusCovered := decimal.Min(amounts.BonusPointsDelta, expiredAvailable.Add(sourceBonusAvailable))
-		rechargeNeeded := amounts.RechargePointsDelta.Add(amounts.BonusPointsDelta.Sub(bonusCovered)).Round(refundPointsScale)
+		rechargeNeeded := amounts.RechargePointsDelta
 		if rechargeNeeded.LessThanOrEqual(rechargeAvailable) {
 			low = mid
 		} else {
@@ -187,10 +182,6 @@ func maxAffordableRefundPrincipal(input CumulativeRefundInput, remaining, rechar
 		}
 	}
 	return decimal.New(low, -refundMoneyScale)
-}
-
-func withinSelfServiceRefundWindow(completedAt, deadline, now time.Time) bool {
-	return !now.Before(completedAt) && now.Before(deadline)
 }
 
 func hasAtMostScale(value decimal.Decimal, scale int32) bool {

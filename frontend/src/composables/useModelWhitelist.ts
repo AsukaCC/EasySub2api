@@ -8,7 +8,7 @@ const openaiModels = [
   'gpt-5.2', 'gpt-5.2-2025-12-11', 'gpt-5.2-chat-latest',
   'gpt-5.2-pro', 'gpt-5.2-pro-2025-12-11',
   // GPT-6 系列（Astra）
-  'gpt-6', 'gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna',
+  'gpt-6', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna',
   // GPT-5.6 系列
   'gpt-5.6', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
   // GPT-5.3 / Codex 系列
@@ -293,6 +293,7 @@ const openaiPresetMappings = [
   { label: 'GPT-5.2', from: 'gpt-5.2', to: 'gpt-5.2', color: 'composables-use-model-whitelist__state-9' },
   { label: 'GPT-6', from: 'gpt-6', to: 'gpt-6', color: 'composables-use-model-whitelist__state-6' },
   { label: 'GPT-6 Astra', from: 'gpt-6-astra', to: 'gpt-6-astra', color: 'composables-use-model-whitelist__state-11' },
+  { label: 'GPT-6.1 Sol', from: 'gpt-6.1-sol', to: 'gpt-6.1-sol', color: 'composables-use-model-whitelist__state-10' },
   { label: 'GPT-6 Sol', from: 'gpt-6-sol', to: 'gpt-6-sol', color: 'composables-use-model-whitelist__state-10' },
   { label: 'GPT-6 Luna', from: 'gpt-6-luna', to: 'gpt-6-luna', color: 'composables-use-model-whitelist__state-12' },
   { label: 'GPT-5.6', from: 'gpt-5.6', to: 'gpt-5.6', color: 'composables-use-model-whitelist__state-7' },
@@ -389,6 +390,7 @@ export function getModelsByPlatform(platform: string): string[] {
     case 'kimi': return moonshotModels
     case 'doubao': return doubaoModels
     case 'minimax': return minimaxModels
+    case 'typesafe': return ['jev-latest']
     case 'opencode_go': return ['grok-4.6', 'gpt-5.6-luna', 'glm-5.3', 'kimi-k3', 'deepseek-v4-pro', 'deepseek-v4-flash', 'minimax-m3', 'qwen3.8-max', 'claude-opus-4-6']
     case 'baidu': return baiduModels
     case 'spark': return sparkModels

@@ -213,14 +213,16 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	if requestID, _ := parent.Value(ctxkey.RequestID).(string); strings.TrimSpace(requestID) != "" {
 		base = context.WithValue(base, ctxkey.RequestID, strings.TrimSpace(requestID))
 	}
-	return base
+	return service.WithInflightReservation(base, service.InflightReservationFromContext(parent))
 }
 
 func wrapUsageRecordTaskContext(parent context.Context, task service.UsageRecordTask) service.UsageRecordTask {
 	if task == nil {
 		return nil
 	}
+	done := service.InflightReservationFromContext(parent).Acquire()
 	return func(ctx context.Context) {
+		defer done()
 		task(usageRecordContext(parent, ctx))
 	}
 }
@@ -513,6 +515,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		}
 		h.handleStreamingAwareError(c, status, code, message, streamStarted)
 		return
+	}
+	{
+		done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(reqModel, body))
+		if reserveErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(reserveErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
+		}
+		defer done()
 	}
 
 	// Generate session hash (header first; fallback to prompt_cache_key)
@@ -1143,6 +1157,18 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		}
 		h.anthropicStreamingAwareError(c, status, code, message, streamStarted)
 		return
+	}
+	{
+		done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(reqModel, body))
+		if reserveErr != nil {
+			status, code, message, retryAfter := billingErrorDetails(reserveErr)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.anthropicStreamingAwareError(c, status, code, message, streamStarted)
+			return
+		}
+		defer done()
 	}
 
 	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
@@ -2011,6 +2037,14 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		return
 	}
 
+	inflightCtx, inflightDone, inflightErr := reserveInflightBalanceCtx(ctx, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(reqModel, firstMessage))
+	if inflightErr != nil {
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
+		return
+	}
+	defer inflightDone()
+	ctx = inflightCtx
+
 	// A WebSocket may outlive a key's remaining spending window. Recheck
 	// after acquiring turn slots, including the first account-selection wait.
 	// Restrict this extra check to the opt-in mode so standard-mode RPM checks
@@ -2647,6 +2681,10 @@ func getContextInt64(c *gin.Context, key string) (int64, bool) {
 
 func (h *OpenAIGatewayHandler) submitUsageRecordTask(parent context.Context, task service.UsageRecordTask) {
 	if task == nil {
+		return
+	}
+	if service.InflightReservationFromContext(parent) != nil {
+		h.submitMandatoryUsageRecordTask(parent, task)
 		return
 	}
 	task = wrapUsageRecordTaskContext(parent, task)

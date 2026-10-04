@@ -110,6 +110,20 @@
           </div>
         </div>
 
+        <div v-if="showCodexAuthMode" class="components-keys-use-key-modal__panel-4">
+          <div class="components-keys-use-key-modal__panel-5">
+            <p class="components-keys-use-key-modal__description-4">{{ t('keys.useKeyModal.codexModelCatalog.title') }}</p>
+            <p class="components-keys-use-key-modal__description-5">{{ t('keys.useKeyModal.codexModelCatalog.description') }}</p>
+          </div>
+          <div class="components-keys-use-key-modal__panel-6" role="radiogroup" :aria-label="t('keys.useKeyModal.codexModelCatalog.title')">
+            <button type="button" role="radio" data-testid="codex-model-catalog-remote" :aria-checked="codexModelCatalogMode === 'remote'" :class="['components-keys-use-key-modal__action-5', codexModelCatalogMode === 'remote' ? 'components-keys-use-key-modal__action-6' : 'components-keys-use-key-modal__action-7']" @click="codexModelCatalogMode = 'remote'">{{ t('keys.useKeyModal.codexModelCatalog.remote') }}</button>
+            <button type="button" role="radio" data-testid="codex-model-catalog-local" :aria-checked="codexModelCatalogMode === 'local'" :class="['components-keys-use-key-modal__action-5', codexModelCatalogMode === 'local' ? 'components-keys-use-key-modal__action-6' : 'components-keys-use-key-modal__action-7']" @click="codexModelCatalogMode = 'local'">{{ t('keys.useKeyModal.codexModelCatalog.local') }}</button>
+          </div>
+          <p class="components-keys-use-key-modal__description-5">{{ codexModelCatalogMode === 'remote' ? buildCodexCatalogUrl : t('keys.useKeyModal.codexModelCatalog.localHint') }}</p>
+          <p v-if="catalogLoading" role="status">{{ t('keys.useKeyModal.codexModelCatalog.loading') }}</p>
+          <p v-if="catalogError" role="alert">{{ t('keys.useKeyModal.codexModelCatalog.error') }} <button type="button" class="btn btn-secondary" @click="loadCatalog">{{ t('keys.useKeyModal.codexModelCatalog.retry') }}</button></p>
+        </div>
+
         <!-- OS/Shell Tabs -->
         <div v-if="showShellTabs" class="components-keys-use-key-modal__panel-3">
           <nav class="components-keys-use-key-modal__navigation-2" aria-label="Tabs">
@@ -196,11 +210,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h, watch, type Component } from 'vue'
+import { ref, computed, h, watch, onBeforeUnmount, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
+import { buildCodexModelCatalogUrl, fetchCodexModelsManifest } from '@/api/codex'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
@@ -239,9 +254,50 @@ const activeTab = ref<string>('unix')
 const activeClientTab = ref<string>('claude')
 type CodexAuthMode = 'legacy' | 'api-key'
 const codexAuthMode = ref<CodexAuthMode>('legacy')
+const codexModelCatalogMode = ref<'remote' | 'local'>('remote')
+const buildCodexCatalogUrl = computed(() => buildCodexModelCatalogUrl(props.baseUrl))
+const catalogContent = ref('')
+const catalogLoading = ref(false)
+const catalogError = ref(false)
+let catalogController: AbortController | undefined
+
+async function loadCatalog() {
+  catalogController?.abort()
+  const controller = new AbortController()
+  catalogController = controller
+  catalogLoading.value = true
+  catalogError.value = false
+  catalogContent.value = ''
+  try {
+    const result = await fetchCodexModelsManifest(props.baseUrl, props.apiKey, controller.signal)
+    if (!controller.signal.aborted) catalogContent.value = result.content
+  } catch {
+    if (!controller.signal.aborted) catalogError.value = true
+  } finally {
+    if (!controller.signal.aborted) catalogLoading.value = false
+  }
+}
+
+watch([() => props.show, () => props.baseUrl, () => props.apiKey, () => props.platform, codexModelCatalogMode, activeClientTab], () => {
+  catalogController?.abort()
+  catalogContent.value = ''
+  catalogError.value = false
+  catalogLoading.value = false
+  if (props.show && props.platform === 'openai' && codexModelCatalogMode.value === 'local' && ['codex', 'codex-ws'].includes(activeClientTab.value)) void loadCatalog()
+})
+onBeforeUnmount(() => catalogController?.abort())
+
+function withLocalCatalog(files: FileConfig[]): FileConfig[] {
+  if (codexModelCatalogMode.value === 'local' && catalogContent.value) {
+    const dir = activeTab.value === 'windows' ? '%userprofile%\\.codex' : '~/.codex'
+    return [...files, { path: `${dir}/models.json`, content: catalogContent.value }]
+  }
+  return files
+}
 
 // Reset tabs when platform changes
 const defaultClientTab = computed(() => {
+  if (props.platform === 'typesafe') return 'systemone'
   switch (props.platform) {
     case 'openai':
       return 'codex'
@@ -256,11 +312,13 @@ watch(() => props.platform, () => {
   activeTab.value = 'unix'
   activeClientTab.value = defaultClientTab.value
   codexAuthMode.value = 'legacy'
+  codexModelCatalogMode.value = 'remote'
 }, { immediate: true })
 
 watch(() => props.show, (show) => {
   if (show) {
     codexAuthMode.value = 'legacy'
+    codexModelCatalogMode.value = 'remote'
   }
 })
 
@@ -314,6 +372,7 @@ const TerminalIcon = {
 }
 
 const clientTabs = computed((): TabConfig[] => {
+  if (props.platform === 'typesafe') return [{ id: 'systemone', label: t('keys.useKeyModal.cliTabs.systemOne'), icon: TerminalIcon }]
   if (!props.platform) return []
   switch (props.platform) {
     case 'openai': {
@@ -371,6 +430,7 @@ const currentTabs = computed(() => {
 })
 
 const platformDescription = computed(() => {
+  if (props.platform === 'typesafe') return t('keys.useKeyModal.typesafe.description')
   switch (props.platform) {
     case 'openai':
       if (activeClientTab.value === 'claude') {
@@ -391,6 +451,7 @@ const platformDescription = computed(() => {
 })
 
 const platformNote = computed(() => {
+  if (props.platform === 'typesafe') return t('keys.useKeyModal.typesafe.note')
   switch (props.platform) {
     case 'openai':
       if (activeClientTab.value === 'claude') {
@@ -428,6 +489,7 @@ const currentFiles = computed((): FileConfig[] => {
   const baseUrl = props.baseUrl || window.location.origin
   const apiKey = props.apiKey
   const baseRoot = baseUrl.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
+  if (props.platform === 'typesafe') return [generateSystemOneCurl(baseRoot, apiKey)]
   const ensureV1 = (value: string) => {
     const trimmed = value.replace(/\/+$/, '')
     return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`
@@ -455,10 +517,10 @@ const currentFiles = computed((): FileConfig[] => {
         return generateAnthropicFiles(baseRoot, apiKey)
       }
       if (activeClientTab.value === 'codex-ws') {
-        return generateOpenAIWsFiles(apiBase, apiKey)
+        return withLocalCatalog(generateOpenAIWsFiles(apiBase, apiKey))
       }
       // Codex appends /responses directly and does not add /v1.
-      return generateOpenAIFiles(apiBase, apiKey)
+      return withLocalCatalog(generateOpenAIFiles(apiBase, apiKey))
     case 'grok':
       if (activeClientTab.value === 'claude') {
         return generateGrokClaudeFiles(baseRoot, apiKey)
@@ -471,6 +533,46 @@ const currentFiles = computed((): FileConfig[] => {
       return generateAnthropicFiles(baseUrl, apiKey)
   }
 })
+
+function generateSystemOneCurl(baseUrl: string, apiKey: string): FileConfig {
+  const endpoint = `${baseUrl}/v1/systemone`
+  const payload = `{
+  "model": "jev-latest",
+  "state": "Text to evaluate",
+  "questions": {
+    "safety": {
+      "type": "noul",
+      "instructions": "Evaluate whether the text is unsafe"
+    }
+  }
+}`
+  if (activeTab.value === 'powershell') {
+    return {
+      path: 'PowerShell',
+      content: `$headers = @{ Authorization = "Bearer ${apiKey}" }
+$body = @'
+${payload}
+'@
+Invoke-RestMethod -Method Post -Uri "${endpoint}" -Headers $headers -ContentType "application/json" -Body $body`
+    }
+  }
+  if (activeTab.value === 'cmd') {
+    return {
+      path: 'Command Prompt',
+      content: `curl -X POST "${endpoint}" ^
+  -H "Authorization: Bearer ${apiKey}" ^
+  -H "Content-Type: application/json" ^
+  --data "${JSON.stringify(JSON.parse(payload)).replace(/"/g, '\\"')}"`
+    }
+  }
+  return {
+    path: 'Terminal',
+    content: `curl -X POST "${endpoint}" \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  --data '${payload}'`
+  }
+}
 
 function generateAnthropicFiles(baseUrl: string, apiKey: string): FileConfig[] {
   let path: string
@@ -589,13 +691,13 @@ model = "gpt-5.6-sol"
 review_model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
-network_access = "enabled"
+${codexModelCatalogConfig()}network_access = "enabled"
 windows_wsl_setup_acknowledged = true
 
 [model_providers.OpenAI]
 name = "OpenAI"
 base_url = "${baseUrl}"
-wire_api = "responses"
+${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${buildCodexModelCatalogUrl(baseUrl)}"\n` : ''}wire_api = "responses"
 ${generateCodexProviderAuthConfig()}
 
 [features]
@@ -626,6 +728,12 @@ http_headers = { "x-openai-actor-authorization" = "local-image-extension" }`
   }
 
   return 'requires_openai_auth = true'
+}
+
+function codexModelCatalogConfig(): string {
+  return codexModelCatalogMode.value === 'remote'
+    ? ''
+    : 'model_catalog_json = "~/.codex/models.json"\n'
 }
 
 function joinConfigPath(dir: string, file: string, windows: boolean): string {
@@ -852,13 +960,13 @@ model = "gpt-5.6-sol"
 review_model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
-network_access = "enabled"
+${codexModelCatalogConfig()}network_access = "enabled"
 windows_wsl_setup_acknowledged = true
 
 [model_providers.OpenAI]
 name = "OpenAI"
 base_url = "${baseUrl}"
-wire_api = "responses"
+${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${buildCodexModelCatalogUrl(baseUrl)}"\n` : ''}wire_api = "responses"
 supports_websockets = true
 ${generateCodexProviderAuthConfig()}
 
@@ -914,6 +1022,24 @@ function generateOpenCodeConfig(
         medium: {},
         high: {},
         xhigh: {}
+      }
+    },
+    'gpt-6.1-sol': {
+      name: 'GPT-6.1 Sol',
+      limit: {
+        context: 872000,
+        output: 128000
+      },
+      options: {
+        store: false
+      },
+      variants: {
+        low: {},
+        medium: {},
+        high: {},
+        xhigh: {},
+        max: {},
+        ultra: {}
       }
     },
     'gpt-6': {

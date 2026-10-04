@@ -1,5 +1,5 @@
 // Package modeltrace ports ModelTrace's MIT-licensed global fingerprint scorer.
-// Source: xqy2006/ModelTrace, revision 55a2e4a55170423b484d701e9a82ab62b268c811.
+// Source: xqy2006/ModelTrace, revision d4131b30243dfa05e70180b5eedde742103f1d73.
 package modeltrace
 
 import (
@@ -16,7 +16,7 @@ import (
 	"unicode"
 )
 
-const Revision = "55a2e4a55170423b484d701e9a82ab62b268c811"
+const Revision = "d4131b30243dfa05e70180b5eedde742103f1d73"
 const QueryCount = 3
 const dimension = 355
 

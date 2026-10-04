@@ -775,7 +775,7 @@ func (s *SupportTicketService) ReviewRefund(ctx context.Context, input ReviewSup
 	refund, _, err := s.paymentService.preparePaymentRefund(ctx, CreatePaymentRefundInput{
 		OrderID: *ticket.OrderID, UserID: ticket.UserID, RequestedBy: input.ReviewerID,
 		IdempotencyKey: fmt.Sprintf("support-ticket:%s:%d", ticket.ID, attempt+1), Principal: input.Amount,
-		Reason: reason, Source: RefundSourceTicket, TicketID: ticket.ID, AutoAffiliate: false,
+		Reason: reason, Source: RefundSourceTicket, TicketID: ticket.ID, AutoAffiliate: true,
 	})
 	if err != nil {
 		_, _ = s.client.SupportTicket.UpdateOneID(ticket.ID).SetStatus(SupportTicketStatusPendingAdmin).Save(ctx)

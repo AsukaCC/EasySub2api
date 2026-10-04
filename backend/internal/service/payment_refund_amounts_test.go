@@ -4,7 +4,6 @@ package service
 
 import (
 	"testing"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -128,24 +127,14 @@ func TestMaxAffordableRefundPrincipalClampsToPointCapacity(t *testing.T) {
 	remaining := refundDecimal(t, "100")
 
 	require.Equal(t, "50", maxAffordableRefundPrincipal(
-		input, remaining, refundDecimal(t, "50"), refundDecimal(t, "5"), decimal.Zero, true,
+		input, remaining, refundDecimal(t, "50"),
 	).String())
 	require.Equal(t, "20", maxAffordableRefundPrincipal(
-		input, remaining, refundDecimal(t, "20"), refundDecimal(t, "10"), decimal.Zero, true,
+		input, remaining, refundDecimal(t, "20"),
 	).String())
-	require.Equal(t, "0", maxAffordableRefundPrincipal(
-		input, remaining, refundDecimal(t, "100"), refundDecimal(t, "10"), decimal.Zero, false,
+	require.Equal(t, "100", maxAffordableRefundPrincipal(
+		input, remaining, refundDecimal(t, "100"),
 	).String())
-}
-
-func TestWithinSelfServiceRefundWindowUsesHalfOpenBoundary(t *testing.T) {
-	completed := time.Date(2026, time.August, 1, 12, 0, 0, 0, time.UTC)
-	deadline := completed.Add(168 * time.Hour)
-
-	require.False(t, withinSelfServiceRefundWindow(completed, deadline, completed.Add(-time.Nanosecond)))
-	require.True(t, withinSelfServiceRefundWindow(completed, deadline, completed))
-	require.True(t, withinSelfServiceRefundWindow(completed, deadline, deadline.Add(-time.Nanosecond)))
-	require.False(t, withinSelfServiceRefundWindow(completed, deadline, deadline))
 }
 
 func withRefundPrincipal(input CumulativeRefundInput, requested string, t *testing.T) CumulativeRefundInput {

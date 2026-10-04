@@ -64,7 +64,7 @@ export interface MethodLimitsResponse {
 
 export interface RechargeBonusTier {
   threshold_cny: number
-  bonus_points: number
+  bonus_percent: number
 }
 
 export type RefundStatus =
@@ -208,7 +208,7 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: string
   provider_instance_id?: string
-  bonus_tier_snapshot?: { threshold_cny?: number; bonus_points?: number }
+  bonus_tier_snapshot?: { threshold_cny?: number; bonus_percent?: number; bonus_points?: number }
   bonus_expires_at?: string
   bonus_grant_id?: string
   /** Snapshot of the subscription entitlement captured when the order was created. */

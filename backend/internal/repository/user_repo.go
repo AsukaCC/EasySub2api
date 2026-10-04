@@ -172,17 +172,8 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		if kind == "" {
 			kind = service.WalletKindBonus
 		}
-		var expiresAt *time.Time
-		if kind == service.WalletKindBonus {
-			validityDays := userIn.InitialBonusValidityDays
-			if validityDays <= 0 {
-				validityDays = 90
-			}
-			value := time.Now().UTC().Add(time.Duration(validityDays) * 24 * time.Hour)
-			expiresAt = &value
-		}
 		result, creditErr := r.CreditWallet(txCtx, service.WalletCreditInput{
-			UserID: created.ID, Amount: initialBalance, Kind: kind, ExpiresAt: expiresAt,
+			UserID: created.ID, Amount: initialBalance, Kind: kind,
 			SourceType: "user_initial_balance", SourceID: created.ID,
 			IdempotencyKey: "wallet-user-initial:" + created.ID,
 		})
@@ -771,7 +762,7 @@ func userAvailableBalanceOrder(sortOrder string) []func(*entsql.Selector) {
 	}
 	return []func(*entsql.Selector){func(s *entsql.Selector) {
 		s.OrderExpr(entsql.Expr(fmt.Sprintf(
-			"(GREATEST(%s, 0) + %s) %s",
+			"(%s + %s) %s",
 			s.C(dbuser.FieldRechargeBalance),
 			s.C(dbuser.FieldBonusBalance),
 			direction,
@@ -1139,13 +1130,13 @@ func (r *userRepository) DeductAvailableBalance(ctx context.Context, id string, 
 	}
 	const updateSQL = `
 		WITH target AS (
-			SELECT id, recharge_balance
+			SELECT id, recharge_balance, bonus_balance
 			FROM users
 			WHERE id = $2 AND deleted_at IS NULL
 			FOR UPDATE
 		), updated AS (
 			UPDATE users AS u
-			SET recharge_balance = target.recharge_balance - LEAST($1, GREATEST(target.recharge_balance, 0)), updated_at = NOW()
+			SET recharge_balance = target.recharge_balance - LEAST($1, GREATEST(target.recharge_balance + target.bonus_balance, 0)), updated_at = NOW()
 			FROM target
 			WHERE u.id = target.id AND u.deleted_at IS NULL
 			RETURNING target.recharge_balance - u.recharge_balance AS deducted

@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -322,33 +321,26 @@ func (r *affiliateRepository) TransferQuotaToBalance(ctx context.Context, userID
 		if _, err := expireUserBonusTx(txCtx, txClient, userID, &walletBefore); err != nil {
 			return err
 		}
-		debtPaid := math.Min(transferred, math.Max(-walletBefore.recharge, 0))
-		bonusAmount := walletMoney(transferred - debtPaid)
+		bonusAmount := walletMoney(transferred)
 		if bonusAmount > 0 {
-			validityDays, err := affiliateTransferValidityDays(txCtx, txClient)
-			if err != nil {
-				return fmt.Errorf("read affiliate transfer validity: %w", err)
-			}
-			expiresAt := time.Now().UTC().Add(time.Duration(validityDays) * 24 * time.Hour)
 			grantID := newWalletUUID()
 			if _, err := txClient.ExecContext(txCtx, `
 INSERT INTO wallet_bonus_grants
     (id, user_id, original_amount, remaining_amount, frozen_amount, source_type, source_id, status, expires_at, created_at, updated_at)
 VALUES ($1, $2, $3, $3, 0, 'affiliate_transfer', $4, 'active', $5, NOW(), NOW())
-`, grantID, userID, bonusAmount, grantID, expiresAt); err != nil {
+`, grantID, userID, bonusAmount, grantID, nil); err != nil {
 				return fmt.Errorf("create affiliate bonus grant: %w", err)
 			}
 		}
 		if _, err := txClient.ExecContext(txCtx, `
-UPDATE users SET balance = balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW()
+UPDATE users SET recharge_balance = recharge_balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW()
 WHERE id = $3 AND deleted_at IS NULL
-`, transferred, bonusAmount, userID); err != nil {
+`, 0.0, bonusAmount, userID); err != nil {
 			return fmt.Errorf("credit user bonus by affiliate quota: %w", err)
 		}
 		walletAfter := walletBefore
-		walletAfter.recharge = walletMoney(walletAfter.recharge + transferred)
 		walletAfter.bonus = walletMoney(walletAfter.bonus + bonusAmount)
-		if err := insertWalletTransaction(txCtx, txClient, userID, "bonus", transferred, bonusAmount, debtPaid, 0,
+		if err := insertWalletTransaction(txCtx, txClient, userID, "bonus", transferred, bonusAmount, 0, 0,
 			walletBefore, walletAfter, "affiliate_transfer", userID, "wallet-affiliate-transfer:"+newWalletUUID(), "affiliate quota transfer"); err != nil {
 			return err
 		}
@@ -1017,7 +1009,7 @@ LIMIT 1`, strings.ToUpper(strings.TrimSpace(code)))
 
 func queryUserBalance(ctx context.Context, client affiliateQueryExecer, userID string) (float64, error) {
 	rows, err := client.QueryContext(ctx,
-		"SELECT balance::double precision FROM users WHERE id = $1 LIMIT 1",
+		"SELECT GREATEST(recharge_balance + bonus_balance, 0)::double precision FROM users WHERE id = $1 LIMIT 1",
 		userID,
 	)
 	if err != nil {
@@ -1046,7 +1038,7 @@ type affiliateTransferSnapshot struct {
 
 func queryAffiliateTransferSnapshot(ctx context.Context, client affiliateQueryExecer, userID string) (*affiliateTransferSnapshot, error) {
 	rows, err := client.QueryContext(ctx, `
-SELECT u.balance::double precision,
+SELECT GREATEST(u.recharge_balance + u.bonus_balance, 0)::double precision,
        ua.aff_quota::double precision,
        ua.aff_frozen_quota::double precision,
        ua.aff_history_quota::double precision

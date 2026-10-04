@@ -17,7 +17,7 @@ describe('payment unit display boundaries', () => {
 
   it('keeps the recharge conversion and all amount components visible at zero', () => {
     const source = read('views/user/PaymentView.vue')
-    expect(source).toContain("t('payment.rechargeRatePreview')")
+    expect(source).toContain("t('payment.rechargeRatePreview', { currency: selectedCurrency })")
     expect(source).toContain("t('payment.rechargePrincipal')")
     expect(source).toContain("t('payment.basePoints')")
     expect(source).toContain("t('payment.bonusPoints')")

@@ -75,6 +75,7 @@ func TestPaymentDashboardBreakdownsGroupAmountsAndRankingsByCurrency(t *testing.
 
 func paymentStatsTestOrder(userID string, email, currency string, amount float64, paidAt *time.Time) *dbent.PaymentOrder {
 	return &dbent.PaymentOrder{
+		OrderType:        "balance",
 		UserID:           userID,
 		UserEmail:        email,
 		PayAmount:        amount,

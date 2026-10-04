@@ -97,6 +97,9 @@ type BillingCache interface {
 
 // ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
 type ModelPricing struct {
+	// UltrafastMultiplier is an explicit model-owned multiplier. It is kept
+	// separate from the operator-configured fast/priority pricing policy.
+	UltrafastMultiplier                float64
 	InputPricePerToken                 float64            // 每token输入价格 (USD)
 	InputPricePerTokenPriority         float64            // priority service tier 下每token输入价格 (USD)
 	ImageInputPricePerToken            float64            // 图片输入 token 价格 (USD)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
@@ -148,6 +151,13 @@ func serviceTierCostMultiplier(serviceTier string) float64 {
 	default:
 		return 1.0
 	}
+}
+
+func configuredServiceTierMultiplier(serviceTier string, pricing *ModelPricing) float64 {
+	if pricing != nil && normalizeBillingServiceTier(serviceTier) == OpenAIFastTierUltrafast && pricing.UltrafastMultiplier > 0 {
+		return pricing.UltrafastMultiplier
+	}
+	return serviceTierCostMultiplier(serviceTier)
 }
 
 func isClaudeFable51Model(model string) bool {
@@ -416,6 +426,14 @@ func (s *BillingService) initFallbackPricing() {
 	}
 
 	// GPT-6 Sol/Luna official USD/token rates (2026-09-23).
+	s.fallbackPrices["gpt-6.1-sol"] = &ModelPricing{
+		InputPricePerToken: 2e-6, InputPricePerTokenPriority: 4e-6,
+		OutputPricePerToken: 10e-6, OutputPricePerTokenPriority: 20e-6,
+		CacheCreationPricePerToken: 2.5e-6, CacheCreationPricePerTokenPriority: 5e-6,
+		CacheReadPricePerToken: 0.1e-6, CacheReadPricePerTokenPriority: 0.2e-6,
+		CacheCreationPriceExplicit: true, LongContextInputThreshold: 272000,
+		LongContextInputMultiplier: 2, LongContextOutputMultiplier: 1.5,
+	}
 	s.fallbackPrices["gpt-6-sol"] = &ModelPricing{
 		InputPricePerToken:                 2e-6,
 		InputPricePerTokenPriority:         4e-6,
@@ -537,6 +555,12 @@ func (s *BillingService) initFallbackPricing() {
 		OutputPricePerToken:    deepseekFlashOffPeakOutputPrice,
 		CacheReadPricePerToken: deepseekFlashOffPeakCacheRead,
 		SupportsCacheBreakdown: false,
+	}
+
+	// TypeSafe Jev bills input tokens only: $0.042 per million tokens.
+	s.fallbackPrices["jev-latest"] = &ModelPricing{
+		InputPricePerToken:  0.042 / 1_000_000,
+		OutputPricePerToken: 0,
 	}
 
 	// ---- 智谱 GLM（Z.AI）----
@@ -781,6 +805,9 @@ func (s *BillingService) initFallbackPricing() {
 // getFallbackPricing 根据模型系列获取回退价格
 func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	modelLower := strings.ToLower(model)
+	if modelLower == "jev-latest" {
+		return s.fallbackPrices["jev-latest"]
+	}
 	if openai.IsRetiredModel(model) {
 		return s.fallbackPrices[historicalOpenAIBillingModel(model)]
 	}
@@ -952,7 +979,7 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	// OpenAI（GPT-5 / Codex 族）：仅匹配已知型号，避免未知 OpenAI 型号误计价。
 	if normalized := normalizeKnownOpenAICodexModel(modelLower); normalized != "" {
 		switch normalized {
-		case "gpt-6-sol", "gpt-6-luna":
+		case "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna":
 			return s.fallbackPrices[normalized]
 		case "gpt-5.6-sol":
 			return s.fallbackPrices["gpt-5.6-sol"]
@@ -1302,7 +1329,9 @@ func (s *BillingService) computeTokenBreakdown(
 	cacheCreationMultiplier := 1.0
 	tierMultiplier := 1.0
 
-	if usePriorityServiceTierPricing(serviceTier, pricing) {
+	if normalizeBillingServiceTier(serviceTier) == OpenAIFastTierUltrafast && pricing.UltrafastMultiplier > 0 {
+		tierMultiplier = pricing.UltrafastMultiplier
+	} else if usePriorityServiceTierPricing(serviceTier, pricing) {
 		if pricing.InputPricePerTokenPriority > 0 {
 			inputPrice = pricing.InputPricePerTokenPriority
 		}
@@ -1316,7 +1345,7 @@ func (s *BillingService) computeTokenBreakdown(
 			cacheCreationPrice = pricing.CacheCreationPricePerTokenPriority
 		}
 	} else {
-		tierMultiplier = serviceTierCostMultiplier(serviceTier)
+		tierMultiplier = configuredServiceTierMultiplier(serviceTier, pricing)
 	}
 
 	longContextPricingEligible := applyLongCtx && s.shouldApplySessionLongContextPricing(tokens, pricing)
@@ -1555,7 +1584,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 		return &cloned
 	}
 	normalized := historicalOpenAIBillingModel(model)
-	hasCacheWritePremium := isOpenAIGPT56Model(normalized) || openAIGPT6SolLunaBaseModel(normalized) != ""
+	hasCacheWritePremium := isOpenAIGPT56Model(normalized) || openAIGPT6SolLunaBaseModel(normalized) != "" || openai.IsGPT61SolModelSpelling(normalized)
 	needsCacheCreationPolicy := hasCacheWritePremium && !pricing.CacheCreationPriceExplicit && (pricing.CacheCreationPricePerToken <= 0 ||
 		(pricing.InputPricePerTokenPriority > 0 && pricing.CacheCreationPricePerTokenPriority <= 0))
 	needsReasoningPolicy := pricing.ReasoningEffortMultipliers == nil && defaultReasoningEffortMultipliers(model) != nil
@@ -1564,6 +1593,9 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 		return pricing
 	}
 	cloned := *pricing
+	if isOpenAIGPT6AstraModel(normalized) {
+		cloned.UltrafastMultiplier = 6
+	}
 	if needsReasoningPolicy {
 		cloned.ReasoningEffortMultipliers = defaultReasoningEffortMultipliers(model)
 	}
@@ -1577,7 +1609,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 	}
 	if fastRatio > 0 {
 		enforceOpenAIFastPricingRatio(&cloned, fastRatio)
-		if openai.IsGPT6SolOrLunaModelSpelling(normalized) && cloned.CacheCreationPriceExplicit {
+		if (openai.IsGPT6SolOrLunaModelSpelling(normalized) || openai.IsGPT61SolModelSpelling(normalized)) && cloned.CacheCreationPriceExplicit {
 			cloned.CacheCreationPricePerTokenPriority = cloned.CacheCreationPricePerToken * fastRatio
 		}
 	}
@@ -1586,7 +1618,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 
 func openAIModelFastPricingRatio(normalized string) float64 {
 	switch normalized {
-	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna":
+	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna":
 		return 2
 	case "gpt-5.5":
 		return 2.5

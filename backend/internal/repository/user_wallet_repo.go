@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"time"
 
 	dbent "github.com/AsukaCC/EasySub2api/ent"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/google/uuid"
 )
-
-const defaultBonusValidityDays = 90
 
 type walletUserRow struct {
 	recharge       float64
@@ -117,26 +114,7 @@ func loadWalletSummary(ctx context.Context, exec sqlQueryExecutor, userID string
 		return service.WalletSummary{}, err
 	}
 	summary := service.NewWalletSummary(recharge, bonus, frozenRecharge, frozenBonus)
-	expiryRows, err := exec.QueryContext(ctx, `
-		SELECT expires_at, SUM(remaining_amount)
-		FROM wallet_bonus_grants
-		WHERE user_id = $1 AND remaining_amount > 0 AND expires_at > NOW()
-		GROUP BY expires_at
-		ORDER BY expires_at ASC
-		LIMIT 1
-	`, userID)
-	if err != nil {
-		return service.WalletSummary{}, err
-	}
-	defer expiryRows.Close() //nolint:errcheck
-	if expiryRows.Next() {
-		var expiresAt time.Time
-		if err := expiryRows.Scan(&expiresAt, &summary.NextExpiringBonus); err != nil {
-			return service.WalletSummary{}, err
-		}
-		summary.NextBonusExpiresAt = &expiresAt
-	}
-	return summary, expiryRows.Err()
+	return summary, nil
 }
 
 func walletTransactionExists(ctx context.Context, exec sqlQueryExecutor, key string) (bool, error) {
@@ -162,68 +140,16 @@ func insertWalletTransaction(ctx context.Context, exec sqlQueryExecutor, userID,
 }
 
 func expireUserBonusTx(ctx context.Context, exec sqlQueryExecutor, userID string, row *walletUserRow) (float64, error) {
-	rows, err := exec.QueryContext(ctx, `
-		SELECT id, remaining_amount
-		FROM wallet_bonus_grants
-		WHERE user_id = $1 AND remaining_amount > 0 AND expires_at <= NOW()
-		ORDER BY expires_at ASC, created_at ASC, id ASC
-		FOR UPDATE
-	`, userID)
-	if err != nil {
-		return 0, err
-	}
-	type expiredGrant struct {
-		id     string
-		amount float64
-	}
-	grants := make([]expiredGrant, 0)
-	var total float64
-	for rows.Next() {
-		var grant expiredGrant
-		if err := rows.Scan(&grant.id, &grant.amount); err != nil {
-			_ = rows.Close()
-			return 0, err
-		}
-		grant.amount = walletMoney(grant.amount)
-		total = walletMoney(total + grant.amount)
-		grants = append(grants, grant)
-	}
-	if err := rows.Close(); err != nil {
-		return 0, err
-	}
-	if total <= 0 {
-		return 0, nil
-	}
-	before := *row
-	for _, grant := range grants {
-		if _, err := exec.ExecContext(ctx, `
-			UPDATE wallet_bonus_grants
-			SET remaining_amount = 0,
-				expired_amount = expired_amount + $2,
-				status = CASE WHEN frozen_amount > 0 THEN 'held_expired' ELSE 'expired' END,
-				updated_at = NOW()
-			WHERE id = $1
-		`, grant.id, grant.amount); err != nil {
-			return 0, err
-		}
-	}
-	if _, err := exec.ExecContext(ctx, `
-		UPDATE users
-		SET bonus_balance = bonus_balance - $1, updated_at = NOW()
-		WHERE id = $2
-	`, total, userID); err != nil {
-		return 0, err
-	}
-	row.bonus = walletMoney(row.bonus - total)
-	return total, insertWalletTransaction(ctx, exec, userID, "expire", -total, -total, 0, 0, before, *row, "bonus_expiry", "", "bonus-expiry:"+newWalletUUID(), "expired bonus balance")
+	// Kept as a no-op for callers and legacy integrations; bonus is permanent.
+	return 0, nil
 }
 
 func consumeBonusTx(ctx context.Context, exec sqlQueryExecutor, userID string, amount float64, freeze bool) (float64, map[string]float64, error) {
 	rows, err := exec.QueryContext(ctx, `
 		SELECT id, remaining_amount
 		FROM wallet_bonus_grants
-		WHERE user_id = $1 AND remaining_amount > 0 AND expires_at > NOW()
-		ORDER BY expires_at ASC, created_at ASC, id ASC
+		WHERE user_id = $1 AND remaining_amount > 0
+		ORDER BY created_at ASC, id ASC
 		FOR UPDATE
 	`, userID)
 	if err != nil {
@@ -316,16 +242,6 @@ func (r *userRepository) CreditWallet(ctx context.Context, input service.WalletC
 	if kind != service.WalletKindRecharge && kind != service.WalletKindBonus {
 		return service.WalletMutationResult{}, fmt.Errorf("unsupported wallet credit kind %q", kind)
 	}
-	expiresAt := input.ExpiresAt
-	if kind == service.WalletKindBonus {
-		if expiresAt == nil {
-			value := time.Now().UTC().Add(defaultBonusValidityDays * 24 * time.Hour)
-			expiresAt = &value
-		}
-		if !expiresAt.After(time.Now().UTC()) {
-			return service.WalletMutationResult{}, fmt.Errorf("bonus balance expiration must be in the future")
-		}
-	}
 	key := walletIdempotencyKey("wallet-credit", input.IdempotencyKey)
 	result := service.WalletMutationResult{Amount: amount}
 	err := r.withWalletTx(ctx, func(txCtx context.Context, exec sqlQueryExecutor) error {
@@ -387,7 +303,7 @@ func (r *userRepository) CreditWallet(ctx context.Context, input service.WalletC
 				INSERT INTO wallet_bonus_grants (
 					id, user_id, original_amount, remaining_amount, spent_amount, expires_at, source_type, source_id, status
 				) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-			`, grantID, input.UserID, amount, bonusAvailable, spentAmount, expiresAt.UTC(), input.SourceType, input.SourceID, status); err != nil {
+			`, grantID, input.UserID, amount, bonusAvailable, spentAmount, nil, input.SourceType, input.SourceID, status); err != nil {
 				return err
 			}
 			result.BonusGrantID = &grantID
@@ -443,11 +359,8 @@ func (r *userRepository) DebitWallet(ctx context.Context, input service.WalletDe
 func (r *userRepository) SetWalletBalance(ctx context.Context, input service.WalletSetInput) (service.WalletMutationResult, error) {
 	recharge := walletMoney(input.RechargeAmount)
 	bonus := walletMoney(input.BonusAmount)
-	if recharge < 0 || bonus < 0 {
-		return service.WalletMutationResult{}, fmt.Errorf("wallet bucket amounts cannot be negative")
-	}
-	if bonus > 0 && (input.BonusExpiresAt == nil || !input.BonusExpiresAt.After(time.Now().UTC())) {
-		return service.WalletMutationResult{}, fmt.Errorf("bonus balance expiration must be in the future")
+	if math.IsNaN(recharge) || math.IsInf(recharge, 0) || math.IsNaN(bonus) || math.IsInf(bonus, 0) {
+		return service.WalletMutationResult{}, fmt.Errorf("wallet bucket amounts must be finite")
 	}
 	key := walletIdempotencyKey("wallet-set", input.IdempotencyKey)
 	result := service.WalletMutationResult{Amount: walletMoney(recharge + bonus), RechargeAmount: recharge, BonusAmount: bonus}
@@ -468,33 +381,40 @@ func (r *userRepository) SetWalletBalance(ctx context.Context, input service.Wal
 			return err
 		}
 		before := row
-		if _, err := exec.ExecContext(txCtx, `
-			UPDATE wallet_bonus_grants SET reversed_amount = reversed_amount + remaining_amount,
-				remaining_amount = 0,
-				status = CASE WHEN frozen_amount > 0 THEN 'held_adjusted' ELSE 'adjusted' END, updated_at = NOW()
-			WHERE user_id = $1 AND remaining_amount > 0
-		`, input.UserID); err != nil {
-			return err
+		if input.Kind == service.WalletKindRecharge {
+			bonus = row.bonus
+		} else if input.Kind == service.WalletKindBonus {
+			recharge = row.recharge
 		}
-		if bonus > 0 {
-			grantID := newWalletUUID()
+		if input.Kind != service.WalletKindRecharge {
 			if _, err := exec.ExecContext(txCtx, `
-				INSERT INTO wallet_bonus_grants
-					(id, user_id, original_amount, remaining_amount, frozen_amount, source_type, source_id, status, expires_at, created_at, updated_at)
-				VALUES ($1, $2, $3, $3, 0, $4, $5, 'active', $6, NOW(), NOW())
-			`, grantID, input.UserID, bonus, input.SourceType, input.SourceID, *input.BonusExpiresAt); err != nil {
+				UPDATE wallet_bonus_grants SET reversed_amount = reversed_amount + remaining_amount,
+					remaining_amount = 0,
+					status = CASE WHEN frozen_amount > 0 THEN 'held_adjusted' ELSE 'adjusted' END, updated_at = NOW()
+				WHERE user_id = $1 AND remaining_amount > 0
+			`, input.UserID); err != nil {
 				return err
+			}
+			if bonus > 0 {
+				grantID := newWalletUUID()
+				if _, err := exec.ExecContext(txCtx, `
+					INSERT INTO wallet_bonus_grants
+						(id, user_id, original_amount, remaining_amount, frozen_amount, source_type, source_id, status, expires_at, created_at, updated_at)
+					VALUES ($1, $2, $3, $3, 0, $4, $5, 'active', $6, NOW(), NOW())
+				`, grantID, input.UserID, bonus, input.SourceType, input.SourceID, nil); err != nil {
+					return err
+				}
 			}
 		}
 		if _, err := exec.ExecContext(txCtx, `
 			UPDATE users SET recharge_balance = $1, bonus_balance = $2, updated_at = NOW() WHERE id = $3
-		`, recharge+bonus, bonus, input.UserID); err != nil {
+		`, recharge, bonus, input.UserID); err != nil {
 			return err
 		}
-		row.recharge = recharge + bonus
+		row.recharge = recharge
 		row.bonus = bonus
-		if err := insertWalletTransaction(txCtx, exec, input.UserID, "adjust", row.recharge-before.recharge,
-			row.bonus-before.bonus, recharge-math.Max(before.recharge-before.bonus, 0), 0,
+		if err := insertWalletTransaction(txCtx, exec, input.UserID, "adjust", recharge-before.recharge+bonus-before.bonus,
+			bonus-before.bonus, recharge-before.recharge, 0,
 			before, row, input.SourceType, input.SourceID, key, input.Notes); err != nil {
 			return err
 		}
@@ -505,8 +425,8 @@ func (r *userRepository) SetWalletBalance(ctx context.Context, input service.Wal
 	return result, err
 }
 
-func walletFundedRecharge(row walletUserRow) float64 {
-	return walletMoney(math.Max(row.recharge, 0))
+func walletAvailablePoints(row walletUserRow) float64 {
+	return walletMoney(math.Max(row.recharge+row.bonus, 0))
 }
 
 func walletFundedBonus(row walletUserRow) float64 {
@@ -518,14 +438,14 @@ func walletFundedBonus(row walletUserRow) float64 {
 // A negative recharge bucket is overdraft, not spendable funds; bonus may still
 // cover the remainder so historically overdrawn users are not billed as $0.
 func walletDebitCovered(row walletUserRow, amount, rechargeOnly float64, allowOverdraft bool) bool {
-	fundedRecharge := walletFundedRecharge(row)
+	fundedRecharge := walletAvailablePoints(row)
 	if rechargeOnly > fundedRecharge {
 		return false
 	}
 	if allowOverdraft {
 		return true
 	}
-	return walletMoney(fundedRecharge+walletFundedBonus(row)) >= walletMoney(amount)
+	return fundedRecharge >= walletMoney(amount)
 }
 
 func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.WalletDebitInput, key string) (service.WalletMutationResult, error) {
@@ -554,7 +474,7 @@ func debitWalletTx(ctx context.Context, exec sqlQueryExecutor, input service.Wal
 		return result, service.ErrInsufficientBalance
 	}
 	before := row
-	bonusUsed, _, err := consumeBonusTx(ctx, exec, input.UserID, math.Min(walletMoney(amount-rechargeOnly), math.Max(row.bonus, 0)), false)
+	bonusUsed, _, err := consumeBonusTx(ctx, exec, input.UserID, math.Min(amount, math.Max(row.bonus, 0)), false)
 	if err != nil {
 		return result, err
 	}
@@ -618,7 +538,7 @@ func (r *userRepository) HoldWallet(ctx context.Context, input service.WalletHol
 			return service.ErrInsufficientBalance
 		}
 		before := row
-		bonusUsed, allocations, err := consumeBonusTx(txCtx, exec, input.UserID, math.Min(amount, row.bonus), true)
+		bonusUsed, allocations, err := consumeBonusTx(txCtx, exec, input.UserID, math.Min(amount, walletFundedBonus(row)), true)
 		if err != nil {
 			return err
 		}
@@ -675,7 +595,7 @@ func (r *userRepository) GetRefundPointCapacity(ctx context.Context, userID, bon
 		if _, err := expireUserBonusTx(txCtx, exec, userID, &row); err != nil {
 			return err
 		}
-		capacity.RechargeAvailable = walletMoney(math.Max(row.recharge, 0))
+		capacity.RechargeAvailable = walletAvailablePoints(row)
 		bonusGrantID = strings.TrimSpace(bonusGrantID)
 		if bonusGrantID == "" {
 			return nil
@@ -769,26 +689,27 @@ func (r *userRepository) HoldRefundPoints(ctx context.Context, input service.Ref
 			if err != nil {
 				return err
 			}
-			if !grantRows.Next() {
-				_ = grantRows.Close()
-				return service.ErrWalletBonusGrantNotFound
-			}
 			var remaining float64
-			if err := grantRows.Scan(&remaining); err != nil {
+			if grantRows.Next() {
+				if err := grantRows.Scan(&remaining); err != nil {
+					_ = grantRows.Close()
+					return err
+				}
+			}
+			if err := grantRows.Err(); err != nil {
 				_ = grantRows.Close()
 				return err
 			}
 			if err := grantRows.Close(); err != nil {
 				return err
 			}
-			// remaining_amount excludes points already frozen by other holds. Use
-			// the available portion and recover any bonus shortfall from recharge
-			// points below instead of blocking the entire refund.
+			// Only existing source points have grant allocations. Any shortfall
+			// still contributes to the unified wallet's signed balance.
 			sourceBonus = walletMoney(math.Min(walletMoney(remaining), bonusToHold))
 		}
 
-		rechargePoints := walletMoney(basePoints + bonusToHold - sourceBonus)
-		availableRecharge := walletMoney(math.Max(row.recharge, 0))
+		rechargePoints := basePoints
+		availableRecharge := walletAvailablePoints(row)
 		if rechargePoints > availableRecharge {
 			return service.ErrInsufficientBalance
 		}
@@ -798,7 +719,7 @@ func (r *userRepository) HoldRefundPoints(ctx context.Context, input service.Ref
 		if _, err := exec.ExecContext(txCtx, `
 			INSERT INTO wallet_holds (id, user_id, purpose, reference_id, amount, bonus_amount, recharge_amount, request_fingerprint)
 			VALUES ($1,$2,'payment_refund',$3,$4,$5,$6,$7)
-		`, holdID, input.UserID, input.RefundID, amount, sourceBonus, rechargePoints, input.RequestFingerprint); err != nil {
+		`, holdID, input.UserID, input.RefundID, amount, bonusToHold, rechargePoints, input.RequestFingerprint); err != nil {
 			return err
 		}
 		if sourceBonus > 0 {
@@ -824,21 +745,21 @@ func (r *userRepository) HoldRefundPoints(ctx context.Context, input service.Ref
 				frozen_recharge_balance = frozen_recharge_balance + $1, frozen_bonus_balance = frozen_bonus_balance + $2,
 				updated_at = NOW()
 			WHERE id = $3
-		`, rechargePoints, sourceBonus, input.UserID); err != nil {
+		`, rechargePoints, bonusToHold, input.UserID); err != nil {
 			return err
 		}
-		row.recharge = walletMoney(row.recharge - amount)
-		row.bonus = walletMoney(row.bonus - sourceBonus)
+		row.recharge = walletMoney(row.recharge - rechargePoints)
+		row.bonus = walletMoney(row.bonus - bonusToHold)
 		row.frozenRecharge = walletMoney(row.frozenRecharge + rechargePoints)
-		row.frozenBonus = walletMoney(row.frozenBonus + sourceBonus)
-		if err := insertWalletTransaction(txCtx, exec, input.UserID, "hold", -amount, -sourceBonus, -rechargePoints, amount,
+		row.frozenBonus = walletMoney(row.frozenBonus + bonusToHold)
+		if err := insertWalletTransaction(txCtx, exec, input.UserID, "hold", -amount, -bonusToHold, -rechargePoints, amount,
 			before, row, "payment_refund", input.RefundID, "wallet-hold:payment_refund:"+input.RefundID, input.Notes); err != nil {
 			return err
 		}
 		result.Applied = true
 		result.HoldID = holdID
 		result.Status = "held"
-		result.BonusAmount = sourceBonus
+		result.BonusAmount = bonusToHold
 		result.RechargeAmount = rechargePoints
 		result.Summary, err = loadWalletSummary(txCtx, exec, input.UserID)
 		return err
@@ -960,7 +881,7 @@ func (r *userRepository) ReleaseWalletHold(ctx context.Context, holdID, idempote
 		}
 		before := row
 		allocRows, err := exec.QueryContext(txCtx, `
-			SELECT a.bonus_grant_id, a.amount, g.expires_at > NOW()
+			SELECT a.bonus_grant_id, a.amount, TRUE
 			FROM wallet_hold_allocations a JOIN wallet_bonus_grants g ON g.id = a.bonus_grant_id
 			WHERE a.hold_id = $1 FOR UPDATE OF a, g
 		`, hold.id)
@@ -1011,6 +932,8 @@ func (r *userRepository) ReleaseWalletHold(ctx context.Context, holdID, idempote
 				return err
 			}
 		}
+		// A refund may reserve bonus debt without a grant allocation.
+		restoredBonus = hold.bonus
 		restored := walletMoney(hold.recharge + restoredBonus)
 		if _, err := exec.ExecContext(txCtx, `
 			UPDATE users SET
@@ -1092,7 +1015,7 @@ func (r *userRepository) RefundWalletHold(ctx context.Context, holdID string, am
 			bonusShare = walletMoney(amount - rechargeShare)
 		}
 		allocRows, err := exec.QueryContext(txCtx, `
-			SELECT a.id, a.bonus_grant_id, a.amount - a.refunded_amount, g.expires_at > NOW()
+			SELECT a.id, a.bonus_grant_id, a.amount - a.refunded_amount, TRUE
 			FROM wallet_hold_allocations a JOIN wallet_bonus_grants g ON g.id = a.bonus_grant_id
 			WHERE a.hold_id = $1 AND a.amount > a.refunded_amount
 			ORDER BY g.expires_at ASC, a.created_at ASC FOR UPDATE OF a, g
@@ -1233,51 +1156,7 @@ func (r *userRepository) ListWalletTransactions(ctx context.Context, userID stri
 }
 
 func (r *userRepository) ExpireBonusBalances(ctx context.Context, limit int) ([]string, error) {
-	if limit <= 0 {
-		limit = 200
-	}
-	exec := txAwareSQLExecutor(ctx, r.sql, r.client)
-	if exec == nil {
-		return nil, errors.New("wallet SQL executor is not configured")
-	}
-	rows, err := exec.QueryContext(ctx, `
-		SELECT DISTINCT user_id FROM wallet_bonus_grants
-		WHERE remaining_amount > 0 AND expires_at <= NOW()
-		ORDER BY user_id LIMIT $1
-	`, limit)
-	if err != nil {
-		return nil, err
-	}
-	userIDs := make([]string, 0)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			_ = rows.Close()
-			return nil, err
-		}
-		userIDs = append(userIDs, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	processed := make([]string, 0, len(userIDs))
-	for _, userID := range userIDs {
-		err := r.withWalletTx(ctx, func(txCtx context.Context, txExec sqlQueryExecutor) error {
-			row, err := lockWalletUser(txCtx, txExec, userID)
-			if err != nil {
-				return err
-			}
-			expired, err := expireUserBonusTx(txCtx, txExec, userID, &row)
-			if expired > 0 {
-				processed = append(processed, userID)
-			}
-			return err
-		})
-		if err != nil {
-			return processed, err
-		}
-	}
-	return processed, nil
+	return nil, nil
 }
 
 var _ service.WalletRepository = (*userRepository)(nil)

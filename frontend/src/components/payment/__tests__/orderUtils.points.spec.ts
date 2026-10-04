@@ -47,7 +47,7 @@ describe('direct recharge refund window', () => {
   const completedAt = '2026-08-20T00:00:00Z'
   const refundDeadline = '2026-08-27T00:00:00Z'
 
-  it('allows a recharge refund only inside the half-open seven-day window', () => {
+  it('allows a recharge refund beyond the historical seven-day deadline', () => {
     const order = {
       status: 'COMPLETED',
       order_type: 'balance',
@@ -55,7 +55,8 @@ describe('direct recharge refund window', () => {
       refund_deadline: refundDeadline,
     }
     expect(canDirectRefund(order, new Date('2026-08-26T23:59:59Z'))).toBe(true)
-    expect(canDirectRefund(order, new Date(refundDeadline))).toBe(false)
+    expect(canDirectRefund(order, new Date(refundDeadline))).toBe(true)
+    expect(canDirectRefund(order, new Date('2027-08-27T00:00:00Z'))).toBe(true)
   })
 
   it('rejects subscription and missing-completion orders', () => {

@@ -436,6 +436,9 @@ func hasModelRoutingCredentials(credentials map[string]any) bool {
 // Grok media eligibility helpers live in account_grok_media_eligibility.go.
 
 func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]any) (*Account, error) {
+	if input.Platform == PlatformTypeSafe && input.Type != AccountTypeAPIKey {
+		return nil, errors.New("typesafe accounts only support apikey credentials")
+	}
 	if err := ValidateOpenCodeAccount(&Account{Platform: input.Platform, Type: input.Type, Credentials: input.Credentials}); err != nil {
 		return nil, err
 	}
@@ -588,6 +591,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if account.Platform == PlatformTypeSafe && input.Type != "" && input.Type != AccountTypeAPIKey {
+		return nil, errors.New("typesafe accounts only support apikey credentials")
 	}
 	var normalizedExtra map[string]any
 	if input.Extra != nil {

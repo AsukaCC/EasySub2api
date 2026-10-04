@@ -386,7 +386,7 @@ func TestWeChatPaymentOAuthCallbackRedirectsWithOpaqueResumeToken(t *testing.T) 
 	req.Host = "api.example.com"
 	req.AddCookie(encodedCookie(wechatPaymentOAuthStateName, "state-123"))
 	req.AddCookie(encodedCookie(wechatPaymentOAuthRedirect, "/purchase?from=wechat"))
-	req.AddCookie(encodedCookie(wechatPaymentOAuthContextName, `{"payment_type":"wxpay","amount":"12.5","order_type":"subscription","plan_id":7}`))
+	req.AddCookie(encodedCookie(wechatPaymentOAuthContextName, `{"payment_type":"wxpay","amount":"12.5","order_type":"subscription","plan_id":"7"}`))
 	req.AddCookie(encodedCookie(wechatPaymentOAuthScope, "snsapi_base"))
 	c.Request = req
 
@@ -412,7 +412,7 @@ func TestWeChatPaymentOAuthCallbackRedirectsWithOpaqueResumeToken(t *testing.T) 
 	require.Equal(t, payment.TypeWxpay, claims.PaymentType)
 	require.Equal(t, "12.5", claims.Amount)
 	require.Equal(t, payment.OrderTypeSubscription, claims.OrderType)
-	require.EqualValues(t, 7, claims.PlanID)
+	require.Equal(t, "7", claims.PlanID)
 	require.Equal(t, "/purchase?from=wechat", claims.RedirectTo)
 }
 
@@ -448,7 +448,7 @@ func TestWeChatPaymentOAuthCallbackUsesExplicitPaymentResumeSigningKeyWhenMixedK
 	req.Host = "api.example.com"
 	req.AddCookie(encodedCookie(wechatPaymentOAuthStateName, "state-mixed"))
 	req.AddCookie(encodedCookie(wechatPaymentOAuthRedirect, "/purchase?from=wechat"))
-	req.AddCookie(encodedCookie(wechatPaymentOAuthContextName, `{"payment_type":"wxpay","amount":"18.8","order_type":"subscription","plan_id":9}`))
+	req.AddCookie(encodedCookie(wechatPaymentOAuthContextName, `{"payment_type":"wxpay","amount":"18.8","order_type":"subscription","plan_id":"9"}`))
 	req.AddCookie(encodedCookie(wechatPaymentOAuthScope, "snsapi_base"))
 	c.Request = req
 
@@ -470,7 +470,7 @@ func TestWeChatPaymentOAuthCallbackUsesExplicitPaymentResumeSigningKeyWhenMixedK
 	require.Equal(t, payment.TypeWxpay, claims.PaymentType)
 	require.Equal(t, "18.8", claims.Amount)
 	require.Equal(t, payment.OrderTypeSubscription, claims.OrderType)
-	require.EqualValues(t, 9, claims.PlanID)
+	require.Equal(t, "9", claims.PlanID)
 	require.Equal(t, "/purchase?from=wechat", claims.RedirectTo)
 
 	_, err = service.NewPaymentResumeService([]byte("0123456789abcdef0123456789abcdef")).ParseWeChatPaymentResumeToken(token)

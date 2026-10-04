@@ -29,7 +29,7 @@ const (
 	SettingLoadBalanceStrategy = "LOAD_BALANCE_STRATEGY"
 	SettingBalancePayDisabled  = "BALANCE_PAYMENT_DISABLED"
 	SettingBalanceRechargeMult = "BALANCE_RECHARGE_MULTIPLIER"
-	SettingRechargeBonusTiers  = "recharge_bonus_tiers"
+	SettingRechargeBonusTiers  = "recharge_bonus_percent_tiers"
 	// SettingSubscriptionUSDToCNYRate is retained as a read/write compatibility
 	// setting. Subscription checkout is points-only and never reads this rate.
 	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
@@ -92,12 +92,10 @@ type PaymentConfig struct {
 	AlipayMobilePrecreateDeepLink bool `json:"alipay_mobile_precreate_deep_link"`
 }
 
-// RechargeBonusTier grants a fixed number of points when the CNY principal
-// reaches MinAmount. Eligible tiers are not cumulative; only the highest tier
-// is applied to an order.
+// RechargeBonusTier applies a percentage to principal at the highest eligible threshold.
 type RechargeBonusTier struct {
-	MinAmount   float64 `json:"threshold_cny"`
-	BonusPoints float64 `json:"bonus_points"`
+	MinAmount    float64 `json:"threshold_cny"`
+	BonusPercent float64 `json:"bonus_percent"`
 }
 
 func (t *RechargeBonusTier) UnmarshalJSON(data []byte) error {
@@ -105,6 +103,7 @@ func (t *RechargeBonusTier) UnmarshalJSON(data []byte) error {
 		ThresholdCNY *json.Number `json:"threshold_cny"`
 		LegacyAmount *json.Number `json:"min_amount"`
 		BonusPoints  *json.Number `json:"bonus_points"`
+		BonusPercent *json.Number `json:"bonus_percent"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -117,7 +116,10 @@ func (t *RechargeBonusTier) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	bonus, err := parseRechargeBonusTierNumber(raw.BonusPoints, "bonus_points", 8)
+	if raw.BonusPoints != nil || raw.BonusPercent == nil {
+		return fmt.Errorf("bonus_percent is required; fixed bonus_points tiers are no longer supported")
+	}
+	bonus, err := parseRechargeBonusTierNumber(raw.BonusPercent, "bonus_percent", 2)
 	if err != nil {
 		return err
 	}
@@ -128,7 +130,7 @@ func (t *RechargeBonusTier) UnmarshalJSON(data []byte) error {
 		threshold = legacyThreshold
 	}
 	t.MinAmount = threshold.InexactFloat64()
-	t.BonusPoints = bonus.InexactFloat64()
+	t.BonusPercent = bonus.InexactFloat64()
 	return nil
 }
 
@@ -559,19 +561,19 @@ func normalizeRechargeBonusTiers(tiers []RechargeBonusTier) ([]RechargeBonusTier
 		if math.IsNaN(tier.MinAmount) || math.IsInf(tier.MinAmount, 0) || tier.MinAmount < 0 {
 			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier threshold_cny must be non-negative")
 		}
-		if math.IsNaN(tier.BonusPoints) || math.IsInf(tier.BonusPoints, 0) || tier.BonusPoints < 0 {
-			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier bonus_points must be non-negative")
+		if math.IsNaN(tier.BonusPercent) || math.IsInf(tier.BonusPercent, 0) || tier.BonusPercent < 0 || tier.BonusPercent > 100 {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "bonus_percent must be between 0 and 100; fixed bonus points are unsupported")
 		}
 		if !hasAtMostDecimalPlaces(tier.MinAmount, 2) {
 			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier threshold_cny allows at most 2 decimal places")
 		}
-		if !hasAtMostDecimalPlaces(tier.BonusPoints, 8) {
-			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier bonus_points allows at most 8 decimal places")
+		if !hasAtMostDecimalPlaces(tier.BonusPercent, 2) {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "bonus_percent allows at most 2 decimal places")
 		}
 		threshold := decimal.NewFromFloat(tier.MinAmount).Round(2)
-		bonus := decimal.NewFromFloat(tier.BonusPoints).Round(8)
+		bonus := decimal.NewFromFloat(tier.BonusPercent).Round(2)
 		tier.MinAmount = threshold.InexactFloat64()
-		tier.BonusPoints = bonus.InexactFloat64()
+		tier.BonusPercent = bonus.InexactFloat64()
 		thresholdKey := threshold.StringFixed(2)
 		if _, exists := seenThresholds[thresholdKey]; exists {
 			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", "recharge bonus tier threshold_cny values must be unique")

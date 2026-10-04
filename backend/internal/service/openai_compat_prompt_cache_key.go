@@ -7,11 +7,15 @@ import (
 	"strings"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/apicompat"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 )
 
 const compatPromptCacheKeyPrefix = "compat_cc_"
 
 func shouldAutoInjectPromptCacheKeyForCompat(model string) bool {
+	if openai.IsGPT61SolModelSpelling(model) {
+		return true
+	}
 	trimmed := strings.TrimSpace(strings.ToLower(model))
 	// GPT-6 是 Astra 的公开别名。此处刻意只覆盖 Astra，避免其它 GPT-6 族
 	// 意外继承 Messages 兼容状态。

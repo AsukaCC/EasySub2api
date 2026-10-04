@@ -101,13 +101,6 @@
     <!-- Quick Actions -->
     <div class="components-account-model-whitelist-selector__panel-10">
       <button
-        type="button"
-        @click="fillRelated"
-        class="components-account-model-whitelist-selector__action-4"
-      >
-        {{ t('admin.accounts.fillRelatedModels') }}
-      </button>
-      <button
         v-if="canSyncUpstream"
         type="button"
         data-testid="sync-upstream-models"
@@ -333,18 +326,6 @@ const addCustom = () => {
 
 const handleEnter = () => {
   if (!isComposing.value) addCustom()
-}
-
-const fillRelated = () => {
-  const newModels = [...props.modelValue]
-  for (const platform of normalizedPlatforms.value) {
-    for (const model of getModelsByPlatform(platform)) {
-      if (!newModels.includes(model)) {
-        newModels.push(model)
-      }
-    }
-  }
-  emit('update:modelValue', newModels)
 }
 
 const syncUpstreamModels = async () => {

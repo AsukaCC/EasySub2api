@@ -249,11 +249,13 @@ type configuredCodexModelMessages struct {
 }
 
 type configuredCodexModelDescriptor struct {
+	officialMetadata                  json.RawMessage
 	Slug                              string                          `json:"slug"`
 	DisplayName                       string                          `json:"display_name"`
 	Description                       string                          `json:"description"`
 	DefaultReasoningLevel             *string                         `json:"default_reasoning_level,omitempty"`
 	SupportedReasoningLevels          []configuredCodexReasoningLevel `json:"supported_reasoning_levels"`
+	MultiAgentReasoningEffort         *string                         `json:"multi_agent_reasoning_effort,omitempty"`
 	ShellType                         string                          `json:"shell_type"`
 	Visibility                        string                          `json:"visibility"`
 	SupportedInAPI                    bool                            `json:"supported_in_api"`
@@ -354,6 +356,9 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 			if getNormalizedCodexModel(modelID) == "gpt-5.6-sol" {
 				level = "low"
 			}
+			if openai.IsGPT61SolModelSpelling(modelID) {
+				level = "low"
+			}
 			d.DefaultReasoningLevel = &level
 			d.SupportedReasoningLevels = configuredCodexGPTReasoningLevels(modelID)
 			d.DefaultReasoningSummary = "none"
@@ -373,7 +378,53 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 		}
 	}
 	enforceGPT6AstraCodexDescriptor(&d, modelID)
+	if openai.IsGPT61SolModelSpelling(modelID) {
+		if err := json.Unmarshal(openai.CodexGPT61SolMetadata, &d); err != nil {
+			panic(err)
+		}
+		d.Slug = modelID
+		d.officialMetadata = openai.CodexGPT61SolMetadata
+	}
 	return d
+}
+
+// Preserve official fields unknown to this server while allowing routing and
+// account capability overrides to control the fields we explicitly model.
+func (d configuredCodexModelDescriptor) MarshalJSON() ([]byte, error) {
+	type descriptor configuredCodexModelDescriptor
+	encoded, err := json.Marshal(descriptor(d))
+	if err != nil || len(d.officialMetadata) == 0 {
+		return encoded, err
+	}
+	var fields, official map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(d.officialMetadata, &official); err != nil {
+		return nil, err
+	}
+	for key, value := range official {
+		if _, exists := fields[key]; !exists {
+			fields[key] = value
+		}
+	}
+	var messages, officialMessages map[string]json.RawMessage
+	if err := json.Unmarshal(fields["model_messages"], &messages); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(official["model_messages"], &officialMessages); err != nil {
+		return nil, err
+	}
+	for key, value := range officialMessages {
+		if _, exists := messages[key]; !exists {
+			messages[key] = value
+		}
+	}
+	fields["model_messages"], err = json.Marshal(messages)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(fields)
 }
 
 func configuredCodexServiceTiersForModel(modelID string) []configuredCodexServiceTier {
@@ -410,7 +461,7 @@ func configuredCodexSupportsPriorityServiceTier(modelID string) bool {
 }
 
 func configuredCodexSupportsUltrafastServiceTier(modelID string) bool {
-	return normalizeKnownOpenAICodexModel(modelID) == "gpt-5.6-sol"
+	return normalizeKnownOpenAICodexModel(modelID) == "gpt-5.6-sol" || isOpenAIGPT6AstraModel(modelID)
 }
 
 func configuredCodexGrokReasoningLevels(modelID string) []configuredCodexReasoningLevel {
@@ -440,6 +491,9 @@ func claudeCodexDefaultReasoningLevel(levels []configuredCodexReasoningLevel) st
 }
 
 func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasoningLevel {
+	if openai.IsGPT61SolModelSpelling(modelID) {
+		return reasoningLevels("low", "medium", "high", "xhigh", "max", "ultra")
+	}
 	if openAIGPT6SolLunaBaseModel(modelID) != "" {
 		return reasoningLevels("none", "low", "medium", "high", "xhigh", "max")
 	}

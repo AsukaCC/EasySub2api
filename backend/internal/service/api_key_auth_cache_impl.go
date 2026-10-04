@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 25 // v25: include bonus/frozen wallet buckets in auth user select
+const apiKeyAuthSnapshotVersion = 26 // v26: source balances share one signed spending balance
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int

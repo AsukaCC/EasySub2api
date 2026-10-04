@@ -820,6 +820,17 @@ api_key_auth_cache:
     capacity: 16384
 
 # =============================================================================
+# API Key Creation Limits
+# 用户创建 API Key 的防滥用限制（0 表示不限制）
+# =============================================================================
+api_key_create:
+  # Maximum non-deleted API keys per user.
+  max_active_per_user: 200
+  # Maximum creations per user in a fixed one-hour window. Deleting a key does
+  # not refund the counter, which prevents delete/recreate loops.
+  max_per_user_per_hour: 60
+
+# =============================================================================
 # Dashboard Cache Configuration
 # 仪表盘缓存配置
 # =============================================================================
@@ -1180,6 +1191,15 @@ billing:
   # Set to 0 to only require balance > 0.
   # 余额计费请求转发前要求的保守最小余额；设为 0 则仅要求余额 > 0。
   minimum_balance_reserve: 0.000001
+  inflight_reservation:
+    enabled: true
+    ttl_seconds: 900
+    default_max_tokens: 8192
+    # 0 means no estimation cap. These caps do not limit upstream generation.
+    max_input_tokens: 0
+    max_output_tokens: 0
+    max_reservation_usd: 0
+    fail_closed_on_unpriced: false
   # Cache TTL (seconds) for per-user × per-platform quota records
   # 用户 × 平台 quota 缓存 TTL（秒），默认 86400=1天，覆盖典型 daily 窗口
   user_platform_quota_cache_ttl_seconds: 86400

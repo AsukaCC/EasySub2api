@@ -9,67 +9,88 @@
     "expected": [
       {
         "model": "gpt-5.4",
-        "probability": 0.9999997898233897
+        "family": "gpt",
+        "probability": 0.9999999104581674
       },
       {
         "model": "gpt-6-sol",
-        "probability": 2.101194752717e-7
+        "family": "gpt",
+        "probability": 8.952075701406598e-8
       },
       {
         "model": "gpt-6-luna",
-        "probability": 1.75406469608459e-11
+        "family": "gpt",
+        "probability": 6.835895799455403e-12
       },
       {
         "model": "gpt-6-astra",
-        "probability": 1.447410692128913e-11
+        "family": "gpt",
+        "probability": 6.393304739260532e-12
       },
       {
         "model": "gpt-5.5",
-        "probability": 1.1192360815903885e-11
+        "family": "gpt",
+        "probability": 2.947798283867081e-12
       },
       {
         "model": "claude-sonnet-4-6",
-        "probability": 7.232352248144247e-12
+        "family": "claude",
+        "probability": 2.452283397740146e-12
       },
       {
         "model": "gpt-5.6-terra",
-        "probability": 2.746810240386597e-12
+        "family": "gpt",
+        "probability": 1.2930563261350556e-12
       },
       {
         "model": "claude-opus-4-6",
-        "probability": 2.4393851116200763e-12
+        "family": "claude",
+        "probability": 8.001340253966278e-13
       },
       {
         "model": "gpt-5.6-sol",
-        "probability": 1.1415200748758658e-12
+        "family": "gpt",
+        "probability": 2.3177752300832754e-13
       },
       {
         "model": "claude-opus-5-5",
-        "probability": 2.6299797280463305e-13
+        "family": "claude",
+        "probability": 7.537546308484716e-14
       },
       {
         "model": "gpt-5.6-luna",
-        "probability": 1.0469541494900702e-13
+        "family": "gpt",
+        "probability": 4.6222165703874534e-14
       },
       {
         "model": "claude-haiku-4-5-20251001",
-        "probability": 1.0598815214254681e-16
+        "family": "claude",
+        "probability": 5.56622225747711e-17
       },
       {
         "model": "claude-opus-4-8",
-        "probability": 3.485814099277079e-17
+        "family": "claude",
+        "probability": 2.3834801054585856e-17
+      },
+      {
+        "model": "claude-sonnet-5-5",
+        "family": "claude",
+        "probability": 9.21405988665835e-18
       },
       {
         "model": "claude-opus-5",
-        "probability": 1.1516238606418795e-17
+        "family": "claude",
+        "probability": 3.788090213007897e-18
       },
       {
         "model": "claude-sonnet-5",
-        "probability": 5.698857572357598e-18
+        "family": "claude",
+        "probability": 1.8172007590882214e-18
       },
       {
         "model": "claude-opus-4-7",
-        "probability": 1.1527044323710169e-19
+        "family": "claude",
+        "probability": 6.753150246777391e-20
       }
     ]
   },
@@ -83,67 +104,88 @@
     "expected": [
       {
         "model": "claude-haiku-4-5-20251001",
+        "family": "claude",
         "probability": 0.9999999999999998
       },
       {
         "model": "claude-opus-5",
-        "probability": 2.356678804131479e-16
+        "family": "claude",
+        "probability": 1.8629691250138576e-16
       },
       {
         "model": "claude-opus-4-7",
-        "probability": 8.206151401401948e-17
+        "family": "claude",
+        "probability": 8.669596523627272e-17
       },
       {
         "model": "claude-sonnet-4-6",
-        "probability": 5.458362621682926e-17
+        "family": "claude",
+        "probability": 3.9402396309461565e-17
       },
       {
         "model": "claude-opus-4-8",
-        "probability": 1.0562915681743392e-17
+        "family": "claude",
+        "probability": 1.2544257814016206e-17
       },
       {
         "model": "claude-opus-4-6",
-        "probability": 7.860377811488618e-18
+        "family": "claude",
+        "probability": 4.197522511429295e-18
       },
       {
         "model": "gpt-5.4",
-        "probability": 5.019120028045181e-18
+        "family": "gpt",
+        "probability": 2.797406511025972e-18
       },
       {
         "model": "claude-sonnet-5",
-        "probability": 1.5872920619905071e-18
+        "family": "claude",
+        "probability": 1.4886105584501188e-18
       },
       {
-        "model": "gpt-5.5",
-        "probability": 3.258668634058361e-19
-      },
-      {
-        "model": "claude-opus-5-5",
-        "probability": 2.6748987690915654e-19
+        "model": "claude-sonnet-5-5",
+        "family": "claude",
+        "probability": 4.353274472147723e-19
       },
       {
         "model": "gpt-6-luna",
-        "probability": 2.3044755059389976e-19
+        "family": "gpt",
+        "probability": 1.1436856542400713e-19
+      },
+      {
+        "model": "gpt-5.5",
+        "family": "gpt",
+        "probability": 9.944410135121502e-20
       },
       {
         "model": "gpt-5.6-terra",
-        "probability": 1.5232422555704132e-19
+        "family": "gpt",
+        "probability": 9.002753468677489e-20
       },
       {
-        "model": "gpt-6-astra",
-        "probability": 7.064325483282976e-20
+        "model": "claude-opus-5-5",
+        "family": "claude",
+        "probability": 7.370382937465521e-20
       },
       {
         "model": "gpt-5.6-luna",
-        "probability": 5.1852763638528963e-20
+        "family": "gpt",
+        "probability": 2.6331790730451294e-20
+      },
+      {
+        "model": "gpt-6-astra",
+        "family": "gpt",
+        "probability": 2.186307110120746e-20
       },
       {
         "model": "gpt-5.6-sol",
-        "probability": 3.753475630907985e-20
+        "family": "gpt",
+        "probability": 1.046281791557201e-20
       },
       {
         "model": "gpt-6-sol",
-        "probability": 2.0837138349066884e-21
+        "family": "gpt",
+        "probability": 6.728974482592258e-22
       }
     ]
   },
@@ -157,67 +199,88 @@
     "expected": [
       {
         "model": "gpt-5.4",
-        "probability": 0.9992760956487504
+        "family": "gpt",
+        "probability": 0.999433681044339
       },
       {
         "model": "claude-haiku-4-5-20251001",
-        "probability": 0.0007059893305114099
+        "family": "claude",
+        "probability": 0.0005593566319163675
       },
       {
         "model": "gpt-6-astra",
-        "probability": 0.000013930140227926082
+        "family": "gpt",
+        "probability": 0.000005220157013062243
       },
       {
         "model": "gpt-5.6-terra",
-        "probability": 0.0000014885727107157514
+        "family": "gpt",
+        "probability": 8.136642992295975e-7
       },
       {
         "model": "gpt-6-sol",
-        "probability": 0.0000011436038456633706
+        "family": "gpt",
+        "probability": 4.072728771144491e-7
       },
       {
         "model": "claude-opus-5-5",
-        "probability": 8.615964064521021e-7
+        "family": "claude",
+        "probability": 3.519739407107569e-7
       },
       {
         "model": "gpt-5.6-sol",
-        "probability": 4.403680690422961e-7
+        "family": "gpt",
+        "probability": 1.327397545088931e-7
       },
       {
         "model": "claude-sonnet-4-6",
-        "probability": 3.008404736871171e-8
+        "family": "claude",
+        "probability": 1.813171157785065e-8
+      },
+      {
+        "model": "claude-sonnet-5-5",
+        "family": "claude",
+        "probability": 9.14162201240182e-9
       },
       {
         "model": "gpt-6-luna",
-        "probability": 6.7573878284878704e-9
+        "family": "gpt",
+        "probability": 3.311732355532425e-9
       },
       {
         "model": "gpt-5.6-luna",
-        "probability": 6.523113906053313e-9
+        "family": "gpt",
+        "probability": 2.6736120666722997e-9
       },
       {
         "model": "claude-opus-4-6",
-        "probability": 4.332290412708573e-9
+        "family": "claude",
+        "probability": 2.4152462753615527e-9
       },
       {
         "model": "gpt-5.5",
-        "probability": 3.0423694517785743e-9
+        "family": "gpt",
+        "probability": 8.417942950046152e-10
       },
       {
         "model": "claude-opus-5",
-        "probability": 1.103255288481468e-13
+        "family": "claude",
+        "probability": 5.5299351953157646e-14
       },
       {
         "model": "claude-opus-4-7",
-        "probability": 9.115521693425207e-14
+        "family": "claude",
+        "probability": 5.3838629509605617e-14
       },
       {
         "model": "claude-sonnet-5",
-        "probability": 6.254217309912266e-14
+        "family": "claude",
+        "probability": 2.756891719767005e-14
       },
       {
         "model": "claude-opus-4-8",
-        "probability": 5.369654862607269e-15
+        "family": "claude",
+        "probability": 4.625770913519967e-15
       }
     ]
   }

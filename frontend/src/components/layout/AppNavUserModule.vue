@@ -300,12 +300,8 @@ const currentAccent = ref(resolveThemeAccent(appStore.cachedPublicSettings?.them
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
-const availableBalance = computed(() => Number(user.value?.available_balance ?? 0))
-const balanceAvailableText = computed(() =>
-  t('common.availableBalance') === 'common.availableBalance'
-    ? '可用余额'
-    : t('common.availableBalance')
-)
+const availableBalance = computed(() => Number(user.value?.available_balance ?? 0) - Number(user.value?.overdraft_amount ?? 0))
+const balanceAvailableText = computed(() => t('common.balance'))
 const showOnboardingButton = computed(
   () => !authStore.isSimpleMode && user.value?.role === 'admin'
 )

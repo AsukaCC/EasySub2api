@@ -13,6 +13,18 @@ import (
 // Chat Completions intermediary round-trip (e.g. thinking, cache_control,
 // structured system prompts).
 func AnthropicToResponses(req *AnthropicRequest) (*ResponsesRequest, error) {
+	if openai.IsGPT61SolModelSpelling(req.Model) {
+		effort := ""
+		if req.OutputConfig != nil {
+			effort = req.OutputConfig.Effort
+		}
+		if req.Thinking != nil && req.Thinking.Type == "disabled" {
+			effort = "none"
+		}
+		if err := openai.ValidateGPT61SolReasoningEffort(req.Model, effort); err != nil {
+			return nil, err
+		}
+	}
 	input, err := convertAnthropicToResponsesInput(req.System, req.Messages)
 	if err != nil {
 		return nil, err
@@ -68,6 +80,9 @@ func AnthropicToResponses(req *AnthropicRequest) (*ResponsesRequest, error) {
 	out.Reasoning = &ResponsesReasoning{
 		Effort:  mapAnthropicEffortToResponses(effort),
 		Summary: "auto",
+	}
+	if openai.IsGPT61SolModelSpelling(req.Model) {
+		out.Reasoning.Effort = effort
 	}
 
 	// Convert tool_choice

@@ -45,7 +45,7 @@ func expectRechargeBillingDebit(mock sqlmock.Sqlmock, balance, bonus, cost, bonu
 	mock.ExpectQuery("SELECT 1 FROM wallet_transactions").
 		WithArgs("wallet-usage:key:request").WillReturnRows(sqlmock.NewRows([]string{"exists"}))
 	expectDynamicRechargeWallet(mock, "user", balance, bonus)
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at > NOW.*FOR UPDATE").
+	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*remaining_amount > 0.*FOR UPDATE").
 		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}).AddRow("grant", bonus))
 	if bonusUsed > 0 {
 		mock.ExpectExec("UPDATE wallet_bonus_grants").WithArgs(bonusUsed, "grant").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -64,8 +64,6 @@ func expectRechargeBillingDebit(mock sqlmock.Sqlmock, balance, bonus, cost, bonu
 	ledger.WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users WHERE").
 		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(afterBalance, afterBonus, 0, 0))
-	mock.ExpectQuery("SELECT expires_at, SUM").WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"expires_at", "remaining_amount"}))
 }
 
 func TestUsageBillingRechargeSettlementAndDedup(t *testing.T) {
@@ -73,10 +71,10 @@ func TestUsageBillingRechargeSettlementAndDedup(t *testing.T) {
 		name                                                        string
 		recharge, bonus, cost, bonusUsed, discountedRecharge, quota float64
 	}{
-		{"discounted amount uses recharge bucket", 10, 10, 1, 0, 1, 20},
-		{"mixed payment", .4, 10, 1.6, .4, 1.2, 8},
-		{"bonus only pays regular rate", 0, 10, 2, 2, 0, 0},
-		{"recharge covers remainder without overdraft", 2, .2, 1.6, .2, .4, 8},
+		{"discount consumes unified points", 10, 10, 1, 1, 1, 20},
+		{"mixed sources", .4, 10, 1, 1, 1, 20},
+		{"bonus also receives discount", 0, 10, 1, 1, 1, 20},
+		{"recharge covers remainder", 2, .2, 1, .2, 1, 20},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
@@ -96,7 +94,7 @@ func TestUsageBillingRechargeSettlementAndDedup(t *testing.T) {
 			require.True(t, result.Applied)
 			require.Equal(t, tc.cost, *result.FinalActualCost)
 			require.Equal(t, tc.discountedRecharge, result.RechargeOnlyCost)
-			require.Equal(t, walletMoney(math.Max(balance-(tc.cost-tc.bonusUsed), 0)+tc.bonus-tc.bonusUsed), *result.NewBalance)
+			require.Equal(t, walletMoney(math.Max(balance+tc.bonus-tc.cost, 0)), *result.NewBalance)
 			require.False(t, result.BalanceOverdrafted)
 
 			// A duplicate claims no quota and performs no wallet mutation.
@@ -123,8 +121,8 @@ func TestUsageBillingRechargeRollbackAndRetry(t *testing.T) {
 	for _, fail := range []bool{true, false} {
 		expectRechargeBillingClaim(mock)
 		expectDynamicRechargeWallet(mock, "user", 10.4, 10)
-		expectRechargeBillingQuota(mock, 8)
-		expectRechargeBillingDebit(mock, 10.4, 10, 1.6, 1.2, fail)
+		expectRechargeBillingQuota(mock, 20)
+		expectRechargeBillingDebit(mock, 10.4, 10, 1, 1, fail)
 		if fail {
 			mock.ExpectRollback()
 		} else {
@@ -142,12 +140,12 @@ func TestUsageBillingRechargeRollbackAndRetry(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestWalletRechargeReservationCannotUseBonusOrDebt(t *testing.T) {
+func TestWalletDiscountReservationCannotUseNetDebt(t *testing.T) {
 	for _, balance := range []float64{0, -1} {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
 		mock.ExpectQuery("SELECT 1 FROM wallet_transactions").WillReturnRows(sqlmock.NewRows([]string{"exists"}))
-		expectDynamicRechargeWallet(mock, "user", balance, 10)
+		expectDynamicRechargeWallet(mock, "user", balance-10, 10)
 		_, err = debitWalletTx(context.Background(), db, service.WalletDebitInput{
 			UserID: "user", Amount: 1, RechargeOnlyAmount: 1, AllowOverdraft: true,
 		}, "reservation")
@@ -166,9 +164,7 @@ func TestDynamicRateBillingExcludesFrozenRecharge(t *testing.T) {
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
-		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(0, 10, 100, 0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
+		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(-10, 10, 100, 0))
 	result := &service.UsageBillingApplyResult{}
 	require.NoError(t, applyDynamicRateBilling(context.Background(), tx, rechargeBillingCommand(), result))
 	require.Equal(t, 2.0, *result.FinalActualCost)
@@ -178,7 +174,7 @@ func TestDynamicRateBillingExcludesFrozenRecharge(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestDynamicRateBillingExpiresBonusBeforePricing(t *testing.T) {
+func TestDynamicRateBillingKeepsPermanentBonus(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
@@ -187,18 +183,11 @@ func TestDynamicRateBillingExpiresBonusBeforePricing(t *testing.T) {
 	require.NoError(t, err)
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
 		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(10.4, 10, 0, 0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}).AddRow("expired", 3))
-	mock.ExpectExec("UPDATE wallet_bonus_grants").WithArgs("expired", 3.0).WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("UPDATE users").WithArgs(3.0, "user").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("INSERT INTO wallet_transactions").
-		WithArgs("user", "expire", -3.0, -3.0, 0.0, 0.0, 10.4, 7.4, 10.0, 7.0,
-			"bonus_expiry", "", sqlmock.AnyArg(), "expired bonus balance").WillReturnResult(sqlmock.NewResult(0, 1))
-	expectRechargeBillingQuota(mock, 8)
+	expectRechargeBillingQuota(mock, 20)
 	result := &service.UsageBillingApplyResult{}
 	require.NoError(t, applyDynamicRateBilling(context.Background(), tx, rechargeBillingCommand(), result))
-	require.Equal(t, 1.6, *result.FinalActualCost)
-	require.Equal(t, .4, result.RechargeOnlyCost)
+	require.Equal(t, 1.0, *result.FinalActualCost)
+	require.Equal(t, 1.0, result.RechargeOnlyCost)
 	mock.ExpectCommit()
 	require.NoError(t, tx.Commit())
 	require.NoError(t, mock.ExpectationsWereMet())

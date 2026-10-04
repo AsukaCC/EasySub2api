@@ -36,11 +36,12 @@ const (
 	PlatformOpenAI     = "openai"
 	PlatformGrok       = "grok"
 	PlatformOpenCodeGo = "opencode_go"
+	PlatformTypeSafe   = "typesafe"
 )
 
 // AllPlatforms 返回所有支持的平台列表
 func AllPlatforms() []string {
-	return []string{PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo}
+	return []string{PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo, PlatformTypeSafe}
 }
 
 // Validate 验证规则配置的有效性

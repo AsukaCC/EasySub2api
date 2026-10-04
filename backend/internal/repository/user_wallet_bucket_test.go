@@ -23,7 +23,9 @@ func TestWalletDebitCovered(t *testing.T) {
 		{name: "overdrawn recharge without bonus cannot pay", recharge: -5, amount: 1, want: false},
 		{name: "usage overdraft may deepen recharge debt", recharge: 1, amount: 5, allowOverdraft: true, want: true},
 		{name: "funded buckets cannot cover remainder", recharge: 1, bonus: 2, amount: 5, want: false},
-		{name: "recharge-only discount cannot use bonus or debt", recharge: 0, bonus: 10, amount: 1, rechargeOnly: 1, allowOverdraft: true, want: false},
+		{name: "discount uses unified balance", recharge: 0, bonus: 10, amount: 1, rechargeOnly: 1, allowOverdraft: true, want: true},
+		{name: "bonus debt reduces spending power", recharge: 100, bonus: -20, amount: 81, want: false},
+		{name: "recharge debt offsets bonus", recharge: -10, bonus: 10, amount: 1, want: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -44,10 +46,7 @@ func TestDebitWalletConsumesBonusThenRecharge(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(2.0, 3.0, 0.0, 0.0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at > NOW.*FOR UPDATE").
+	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*remaining_amount > 0.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}).AddRow("grant-1", 3.0))
 	mock.ExpectExec("UPDATE wallet_bonus_grants").
@@ -62,9 +61,6 @@ func TestDebitWalletConsumesBonusThenRecharge(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users WHERE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(0.0, 0.0, 0.0, 0.0))
-	mock.ExpectQuery("SELECT expires_at, SUM").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"expires_at", "remaining_amount"}))
 
 	result, err := debitWalletTx(context.Background(), db, service.WalletDebitInput{
 		UserID: "user", Amount: 5, AllowOverdraft: false,
@@ -88,9 +84,6 @@ func TestDebitWalletRejectsWhenRechargeBucketCannotCoverRemainder(t *testing.T) 
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(1.0, 2.0, 0.0, 0.0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
 
 	_, err = debitWalletTx(context.Background(), db, service.WalletDebitInput{
 		UserID: "user", Amount: 5, AllowOverdraft: false,
@@ -110,10 +103,7 @@ func TestDebitWalletAllowsOverdraftOnRechargeRemainder(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(1.0, 0.0, 0.0, 0.0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at > NOW.*FOR UPDATE").
+	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*remaining_amount > 0.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
 	mock.ExpectExec("UPDATE users SET recharge_balance = recharge_balance -").
@@ -125,9 +115,6 @@ func TestDebitWalletAllowsOverdraftOnRechargeRemainder(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users WHERE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(-4.0, 0.0, 0.0, 0.0))
-	mock.ExpectQuery("SELECT expires_at, SUM").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"expires_at", "remaining_amount"}))
 
 	result, err := debitWalletTx(context.Background(), db, service.WalletDebitInput{
 		UserID: "user", Amount: 5, AllowOverdraft: true,
@@ -151,10 +138,7 @@ func TestDebitWalletUsesBonusWhenRechargeBucketIsNegative(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(-5.0, 10.0, 0.0, 0.0))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at <= NOW.*FOR UPDATE").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}))
-	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*expires_at > NOW.*FOR UPDATE").
+	mock.ExpectQuery("(?s)SELECT id, remaining_amount.*remaining_amount > 0.*FOR UPDATE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount"}).AddRow("grant-1", 10.0))
 	mock.ExpectExec("UPDATE wallet_bonus_grants").
@@ -169,9 +153,6 @@ func TestDebitWalletUsesBonusWhenRechargeBucketIsNegative(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT recharge_balance, bonus_balance, frozen_recharge_balance, frozen_bonus_balance.*FROM users WHERE").
 		WithArgs("user").
 		WillReturnRows(sqlmock.NewRows([]string{"recharge_balance", "bonus_balance", "frozen_recharge_balance", "frozen_bonus_balance"}).AddRow(-5.0, 9.0, 0.0, 0.0))
-	mock.ExpectQuery("SELECT expires_at, SUM").
-		WithArgs("user").
-		WillReturnRows(sqlmock.NewRows([]string{"expires_at", "remaining_amount"}))
 
 	result, err := debitWalletTx(context.Background(), db, service.WalletDebitInput{
 		UserID: "user", Amount: 1, AllowOverdraft: false,
@@ -179,7 +160,7 @@ func TestDebitWalletUsesBonusWhenRechargeBucketIsNegative(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1.0, result.BonusAmount)
 	require.Equal(t, 0.0, result.RechargeAmount)
-	require.Equal(t, 9.0, result.Summary.AvailableBalance)
-	require.Equal(t, 5.0, result.Summary.OverdraftAmount)
+	require.Equal(t, 4.0, result.Summary.AvailableBalance)
+	require.Zero(t, result.Summary.OverdraftAmount)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

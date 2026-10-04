@@ -1681,7 +1681,7 @@ const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const modelMappings = ref<ModelMapping[]>([])
 const reasoningEffortOptions = computed(() =>
-  ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(value => ({ value, label: value }))
+  ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'].map(value => ({ value, label: value }))
 )
 const selectedErrorCodes = ref<number[]>([])
 const customErrorCodeInput = ref<number | null>(null)

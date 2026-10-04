@@ -341,6 +341,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 	}
 	if fingerprintProbe(ctx) != nil {
 		account = DirectModelTestAccount(account)
+		if fingerprintProbe(ctx).protocol != "" {
+			return s.testFingerprintAPI(c, account)
+		}
 	}
 
 	// Synthetic UI load-test accounts exercise the real SSE parsing and modal
@@ -377,6 +380,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 		return s.routeAntigravityTest(c, account, modelID, prompt)
 	}
 
+	if account.IsTypeSafe() {
+		return s.testTypeSafeAccountConnection(c, account, prompt)
+	}
 	return s.testClaudeAccountConnection(c, account, modelID)
 }
 

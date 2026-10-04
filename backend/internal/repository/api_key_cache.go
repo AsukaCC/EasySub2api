@@ -15,6 +15,7 @@ import (
 const (
 	apiKeyRateLimitKeyPrefix   = "apikey:ratelimit:"
 	apiKeyRateLimitDuration    = 24 * time.Hour
+	apiKeyCreateCountKeyPrefix = "apikey:create_count:"
 	apiKeyAuthCachePrefix      = "apikey:auth:"
 	authCacheInvalidateChannel = "auth:cache:invalidate"
 )
@@ -22,6 +23,10 @@ const (
 // apiKeyRateLimitKey generates the Redis key for API key creation rate limiting.
 func apiKeyRateLimitKey(userID string) string {
 	return fmt.Sprintf("%s%s", apiKeyRateLimitKeyPrefix, userID)
+}
+
+func apiKeyCreateCountKey(userID string) string {
+	return fmt.Sprintf("%s%s", apiKeyCreateCountKeyPrefix, userID)
 }
 
 func apiKeyAuthCacheKey(key string) string {
@@ -57,6 +62,20 @@ func (c *apiKeyCache) IncrementCreateAttemptCount(ctx context.Context, userID st
 func (c *apiKeyCache) DeleteCreateAttemptCount(ctx context.Context, userID string) error {
 	key := apiKeyRateLimitKey(userID)
 	return c.rdb.Del(ctx, key).Err()
+}
+
+// IncrementCreateCount counts admitted creation attempts without
+// extending its expiry on every request. The caller decides whether the limit
+// is enabled and whether the returned count exceeds it.
+func (c *apiKeyCache) IncrementCreateCount(ctx context.Context, userID string, window time.Duration) (int64, error) {
+	key := apiKeyCreateCountKey(userID)
+	pipe := c.rdb.TxPipeline()
+	incr := pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, window)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+	return incr.Val(), nil
 }
 
 func (c *apiKeyCache) IncrementDailyUsage(ctx context.Context, apiKey string) error {

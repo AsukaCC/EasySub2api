@@ -206,6 +206,9 @@
             <PlatformIcon platform="minimax" size="sm" />
             MiniMax
           </button>
+          <button type="button" class="components-account-create-account-modal__action-14" :aria-pressed="form.platform === 'typesafe'" @click="selectTypeSafePlatform">
+            <PlatformIcon platform="typesafe" size="sm" />TypeSafe / Jev
+          </button>
           <button type="button" class="components-account-create-account-modal__action-14" :aria-pressed="form.platform === 'opencode_go'" @click="selectOpenCodePlatform">
             <PlatformIcon platform="opencode_go" size="sm" />OpenCode
           </button>
@@ -3015,18 +3018,19 @@ const withUpstreamRequestIdHeader = (extra?: Record<string, unknown>): Record<st
 
 const baseUrlHint = computed(() => {
   if (form.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
-  if (form.platform === 'grok') return ''
+  if (form.platform === 'grok' || form.platform === 'typesafe') return ''
   return t('admin.accounts.baseUrlHint')
 })
 
 const apiKeyHint = computed(() => {
   if (form.platform === 'openai') return t('admin.accounts.openai.apiKeyHint')
-  if (form.platform === 'grok') return ''
+  if (form.platform === 'grok' || form.platform === 'typesafe') return ''
   return t('admin.accounts.apiKeyHint')
 })
 
 // Base URL / API Key 占位符：国产供应商随账号类型变化。
 const apiKeyBaseUrlPlaceholder = computed(() => {
+  if (form.platform === 'typesafe') return 'https://api.typesafe.ai'
   if (isCNPlatform.value) {
     return defaultCNBaseUrl(form.platform, accountMode.value, apiProtocol.value) || 'https://api.example.com'
   }
@@ -3046,6 +3050,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
 
 const apiKeyValuePlaceholder = computed(() => {
   switch (form.platform) {
+    case 'typesafe':
+      return 'ts-...'
     case 'openai':
       return 'sk-proj-...'
     case 'gemini':
@@ -3152,6 +3158,11 @@ const accountMode = ref<CnAccountMode>('payg')
 const openCodeSettings = ref(readOpenCodeSettings())
 function selectOpenCodePlatform() {
   form.platform = 'opencode_go'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+}
+function selectTypeSafePlatform() {
+  form.platform = 'typesafe'
   form.type = 'apikey'
   accountCategory.value = 'apikey'
 }
@@ -3672,7 +3683,10 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (newPlatform === 'opencode_go') {
+    if (newPlatform === 'typesafe') {
+      apiKeyBaseUrl.value = 'https://api.typesafe.ai'
+      accountCategory.value = 'apikey'
+    } else if (newPlatform === 'opencode_go') {
       apiKeyBaseUrl.value = openCodeBaseUrl(openCodeSettings.value.account_mode)
     } else if (isCNProviderPlatform(newPlatform)) {
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, accountMode.value, apiProtocol.value)
@@ -3691,6 +3705,10 @@ watch(
     // Clear model-related settings
     allowedModels.value = []
     modelMappings.value = []
+    if (newPlatform === 'typesafe') {
+      modelRestrictionMode.value = 'whitelist'
+      allowedModels.value = ['jev-latest']
+    }
     if (newPlatform === 'grok') {
       accountCategory.value = 'oauth-based'
       addMethod.value = 'oauth'
@@ -4400,6 +4418,7 @@ const handleSubmit = async () => {
 
   // Determine default base URL based on platform
   const defaultBaseUrl =
+    form.platform === 'typesafe' ? 'https://api.typesafe.ai' :
     form.platform === 'openai'
       ? 'https://api.openai.com'
       : form.platform === 'gemini'

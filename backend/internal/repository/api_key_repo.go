@@ -43,6 +43,31 @@ func (r *apiKeyRepository) activeQuery() *dbent.APIKeyQuery {
 	return r.client.APIKey.Query().Where(apikey.DeletedAtIsNil())
 }
 
+// Serialize count and insert per user across application instances.
+func (r *apiKeyRepository) CreateWithLimit(ctx context.Context, key *service.APIKey, maxActive int) error {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	client := tx.Client()
+	if _, err := client.ExecContext(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "apikey-create:"+key.UserID); err != nil {
+		return err
+	}
+	txRepo := &apiKeyRepository{client: client, sql: client}
+	count, err := txRepo.CountByUserID(ctx, key.UserID)
+	if err != nil {
+		return err
+	}
+	if maxActive > 0 && count >= int64(maxActive) {
+		return service.ErrAPIKeyCountExceeded
+	}
+	if err := txRepo.Create(ctx, key); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) error {
 	builder := r.client.APIKey.Create().
 		SetUserID(key.UserID).
@@ -678,6 +703,17 @@ func (r *apiKeyRepository) ListByGroupID(ctx context.Context, groupID string, pa
 func apiKeyListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
 	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
 	sortOrder := params.NormalizedSortOrder(pagination.SortOrderDesc)
+
+	if sortBy == "group" {
+		// Sort before pagination, keeping ungrouped keys last in either direction.
+		opts := []entsql.OrderTermOption{entsql.OrderNullsLast()}
+		tieOrder := dbent.Asc(apikey.FieldID)
+		if sortOrder == pagination.SortOrderDesc {
+			opts = append(opts, entsql.OrderDesc())
+			tieOrder = dbent.Desc(apikey.FieldID)
+		}
+		return []func(*entsql.Selector){apikey.ByGroupField(group.FieldName, opts...), tieOrder}
+	}
 
 	var field string
 	switch sortBy {

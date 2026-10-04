@@ -22,8 +22,10 @@ func PaymentOrderCurrency(order *dbent.PaymentOrder) string {
 	if order == nil || order.OrderType != payment.OrderTypeBalance {
 		return ""
 	}
-	if currency, err := payment.NormalizePaymentCurrency(order.Currency); err == nil {
-		return currency
+	if strings.TrimSpace(order.Currency) != "" {
+		if currency, err := payment.NormalizePaymentCurrency(order.Currency); err == nil {
+			return currency
+		}
 	}
 	if snapshot := psOrderProviderSnapshot(order); snapshot != nil {
 		if currency, err := payment.NormalizePaymentCurrency(snapshot.Currency); err == nil {

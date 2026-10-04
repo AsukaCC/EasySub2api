@@ -108,6 +108,14 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 		return
 	}
 
+	done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(requestedModel, body))
+	if reserveErr != nil {
+		status, code, message, _ := billingErrorDetails(reserveErr)
+		h.errorResponse(c, status, code, message)
+		return
+	}
+	defer done()
+
 	searchID := strings.TrimSpace(gjson.GetBytes(body, "id").String())
 	sessionHash := h.gatewayService.GenerateSessionHashWithFallback(c, nil, searchID)
 	profitVetoCount := 0

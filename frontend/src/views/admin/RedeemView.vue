@@ -350,10 +350,6 @@
                 />
               </div>
             </template>
-			<div v-if="generateForm.type === 'balance'">
-			  <label class="input-label">{{ t('admin.redeem.bonusValidityDays') }}</label>
-			  <input v-model.number="generateForm.bonus_validity_days" type="number" min="1" max="3650" required class="input" />
-			</div>
             <div>
               <label class="input-label">{{ t('admin.redeem.codeExpiry') }}</label>
               <div class="views-admin-redeem-view__panel-12">

@@ -15,7 +15,8 @@ export const ACCOUNT_PLATFORMS: readonly AccountPlatform[] = [
   'zhipu',
   'deepseek',
   'minimax',
-  'opencode_go'
+  'opencode_go',
+  'typesafe'
 ] as const
 
 export type AccountPlatformOption = {

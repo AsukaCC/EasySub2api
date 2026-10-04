@@ -111,6 +111,14 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		return
 	}
 
+	done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, service.InflightEstimateRequest{Model: reqModel, BodyBytes: len(body), MaxTokens: 1, Kind: service.InflightEstimateToken})
+	if reserveErr != nil {
+		status, code, message, _ := billingErrorDetails(reserveErr)
+		h.errorResponse(c, status, code, message)
+		return
+	}
+	defer done()
+
 	profitVetoCount := 0
 	failedAccountIDs := make(map[string]struct{})
 	sameAccountRetryCount := make(map[string]int)

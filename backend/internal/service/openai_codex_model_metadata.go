@@ -8,6 +8,7 @@ import (
 )
 
 var codexToolCapabilityFields = []string{
+	"service_tiers",
 	"supports_search_tool", "apply_patch_tool_type", "comp_hash", "tool_mode", "use_responses_lite",
 }
 
@@ -19,7 +20,12 @@ func applyCodexToolCapabilities(dst, src map[string]json.RawMessage, overwrite b
 			continue
 		}
 		if !bytes.Equal(value, []byte("null")) {
-			if field == "supports_search_tool" || field == "use_responses_lite" {
+			if field == "service_tiers" {
+				var tiers []configuredCodexServiceTier
+				if json.Unmarshal(value, &tiers) != nil {
+					continue
+				}
+			} else if field == "supports_search_tool" || field == "use_responses_lite" {
 				if !bytes.Equal(value, []byte("true")) && !bytes.Equal(value, []byte("false")) {
 					continue
 				}
@@ -73,13 +79,21 @@ func accountCodexToolCapabilities(account *Account, modelID string) map[string]j
 		applyCodexToolCapabilities(capabilities, defaults, false)
 	}
 	if account.IsOpenAIApiKey() {
+		if isOfficialOpenAIModelsBaseURL(baseURL) && isOpenAIGPT6AstraModel(modelID) {
+			tiers := configuredCodexServiceTiersForModel(modelID)
+			if encoded, marshalErr := json.Marshal(tiers); marshalErr == nil {
+				applyCodexToolCapabilities(capabilities, map[string]json.RawMessage{"service_tiers": encoded}, false)
+			}
+		}
 		target := modelID
 		if isOpenAIGPT6AstraModel(target) {
 			target = "gpt-6-astra"
+		} else if normalizeKnownOpenAICodexModel(target) == "gpt-6.1-sol" {
+			target = "gpt-6.1-sol"
 		} else if base := openAIGPT6SolLunaBaseModel(target); base != "" {
 			target = base
 		}
-		if _, disabled := apiKeyCodexModelsWithoutResponsesLite[target]; disabled && bytes.Equal(capabilities["use_responses_lite"], []byte("true")) {
+		if _, disabled := apiKeyCodexModelsWithoutResponsesLite[target]; disabled {
 			capabilities["use_responses_lite"] = json.RawMessage("false")
 		}
 	}
@@ -406,6 +420,15 @@ func applyUpstreamModelMetadataToCodexDescriptor(descriptor *configuredCodexMode
 		}
 	}
 	enforceGPT6AstraCodexDescriptor(descriptor, metadata.ID)
+	if normalizeKnownOpenAICodexModel(metadata.ID) == "gpt-6.1-sol" || normalizeKnownOpenAICodexModel(descriptor.Slug) == "gpt-6.1-sol" {
+		// Generic upstream metadata must not advertise disabled reasoning for Sol.
+		baseline := newConfiguredCodexModelDescriptor("gpt-6.1-sol")
+		descriptor.DefaultReasoningLevel = baseline.DefaultReasoningLevel
+		descriptor.SupportedReasoningLevels = baseline.SupportedReasoningLevels
+		descriptor.ContextWindow = baseline.ContextWindow
+		descriptor.MaxContextWindow = baseline.MaxContextWindow
+		descriptor.InputModalities = baseline.InputModalities
+	}
 }
 
 // enforceGPT6AstraCodexDescriptor keeps Astra's fixed public contract intact

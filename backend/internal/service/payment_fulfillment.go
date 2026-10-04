@@ -371,7 +371,7 @@ func (s *PaymentService) creditBalanceRechargePoints(ctx context.Context, o *dbe
 	if bonusPoints > 0 {
 		bonusResult, err := s.userRepo.CreditWallet(ctx, WalletCreditInput{
 			UserID: o.UserID, Amount: bonusPoints, Kind: WalletKindBonus,
-			ExpiresAt: o.BonusExpiresAt, SourceType: "payment_order", SourceID: o.ID,
+			SourceType: "payment_order", SourceID: o.ID,
 			IdempotencyKey: "wallet-payment-bonus:" + o.ID,
 			Notes:          "balance recharge bonus points", CountAsRecharged: true,
 		})
@@ -448,11 +448,7 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 }
 
 func completedRechargeRefundDeadline(order *dbent.PaymentOrder, completedAt time.Time) *time.Time {
-	if order == nil || order.OrderType != payment.OrderTypeBalance {
-		return nil
-	}
-	deadline := completedAt.UTC().Add(rechargeRefundWindow)
-	return &deadline
+	return nil
 }
 
 func (s *PaymentService) dispatchPaymentFulfillmentNotification(o *dbent.PaymentOrder, auditAction string) {

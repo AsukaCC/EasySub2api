@@ -2,12 +2,18 @@ export default {
     accounts: {
       fingerprint: {
         title: '模型指纹测试', attribution: '模型归因', start: '开始测试', notTested: '未测试',
-        samples: '3 组指纹样本', serial: '单会话串行采样', inBackground: '后台测试中',
+        samples: '3 组有效指纹样本', serial: '独立采样', inBackground: '后台测试中',
+        account: 'API Key 账号', protocol: '请求格式', effort: '思考强度', defaultEffort: '上游默认',
+        autoProtocol: '自动识别格式', schedule: '每半小时定时测试', nextRun: '下次测试：',
+        scheduleSaved: '定时配置已保存', scheduleFailed: '定时配置加载或保存失败',
+        history: '测试历史（24 小时）', usageRecords: '查看用量记录', historyFailed: '测试历史加载失败',
+        accountsFailed: '账号列表加载失败', time: '时间', protocolEffort: '格式 / 思考强度', source: '来源', manual: '手动测试', scheduled: '定时测试',
         progress: '采样 {count}/{total}', allCandidates: '全部候选模型',
-        scope: '单会话样本相关，占比仅为 GPT / Claude 候选库内的相对归因，未经独立样本校准，并非模型身份证明。',
+        scope: '占比为 GPT / Claude 候选库内的相对归因，并非模型身份证明。未收录模型也会被归入最相似的候选。',
         noModels: '没有可测试的文本模型', loadFailed: '模型列表加载失败，请重新打开。',
         pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能启动，请检查是否已有测试或测试名额已满。',
         errors: {
+          preparation_failed: '上游模型或参数校验失败',
           interrupted: '测试中断，请重新测试', timeout: '测试超时', upstream_failed: '上游调用失败',
           insufficient_samples: '有效样本不足 3 组', analysis_failed: '归因失败', internal_error: '测试异常', save_failed: '结果保存失败'
         }
@@ -111,6 +117,12 @@ export default {
       schedulableEnabled: '调度已开启',
       schedulableDisabled: '调度已关闭',
       failedToToggleSchedulable: '切换调度状态失败',
+      priorityQuick: {
+        raise: '提高优先级（数值 -1）',
+        lower: '降低优先级（数值 +1）',
+        editHint: '点击直接输入；数值越小越优先',
+        failed: '更新优先级失败'
+      },
       groupCountTotal: '共 {count} 个分组',
       columns: {
         name: '名称',
@@ -333,6 +345,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        typesafe: 'TypeSafe / Jev',
       },
       reasoningEffort: '推理强度',
       reasoningEffortFollowRequest: '跟随请求',
@@ -505,6 +518,23 @@ export default {
         refreshCachePersistFailed: '已显示实时次数，但到期明细获取失败，仍保留原有缓存明细。',
         confirmTitle: '确认重置周限',
         confirmMessage: '将消耗 1 次重置次数立即恢复当前窗口，剩余 {count} 次。此操作不可撤销，确定继续吗？'
+      },
+      claudeReset: {
+        query: '查询原生重置额度',
+        outcomes: {
+          reset: 'Claude 限额已重置',
+          already_used: '该额度已使用',
+          not_limited: '当前未触发可重置限额',
+          cooldown: '重置仍在冷却中',
+          ineligible: '当前账号不支持原生重置',
+          unknown: '上游结果尚未确认，请查询额度后再操作；重试会复用同一次兑换。'
+        },
+        loading: '正在查询 Claude 原生重置额度...',
+        unavailable: 'Claude 重置不可用',
+        count: '原生重置额度：{count}',
+        reset: '重置限额',
+        redeeming: '重置中...',
+        confirm: '现在消耗一次 Claude 原生重置额度？此操作不可撤销。'
       },
       tier: {
         free: 'Free',
@@ -831,7 +861,6 @@ export default {
       targetNoWildcard: '目标模型不能包含通配符 *',
       searchModels: '搜索模型...',
       noMatchingModels: '没有匹配的模型',
-      fillRelatedModels: '同步最新支持模型',
       syncUpstreamModels: '同步上游支持的模型',
       syncUpstreamModelsLoading: '同步上游中...',
       syncUpstreamModelsSuccess: '已从上游同步 {count} 个新模型（上游共 {total} 个）',
@@ -856,7 +885,8 @@ export default {
       poolModeRetryStatusCodesHint: '仅在池模式下生效。以英文逗号分隔的 HTTP 状态码（100-599），命中时触发同账号重试。留空使用默认值（{default}）。',
       customErrorCodes: '自定义错误码',
       customErrorCodesHint: '仅对选中的错误码停止调度',
-      customErrorCodesWarning: '仅选中的错误码会停止调度，其他错误将返回 500。',
+      customErrorCodesWarning:
+        '自定义错误码仅用于筛选常规的账号错误处理（如停止调度、限流标记），不决定请求是否重试或切换账号。未选中的错误仍可能触发重试或切换账号，最终返回给客户端的状态码取决于网关路径和错误透传规则，并非统一返回 500。列表为空时不做筛选。',
       customErrorCodes429Warning:
         '429 已有内置的限流处理机制。添加到自定义错误码后，将直接停止调度而非临时限流。确定要添加吗？',
       customErrorCodes529Warning:

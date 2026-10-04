@@ -331,6 +331,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 		users.POST("/:id/balance", h.Admin.User.UpdateBalance)
 		users.GET("/:id/api-keys", h.Admin.User.GetUserAPIKeys)
 		users.GET("/:id/usage", h.Admin.User.GetUserUsage)
+		users.GET("/point-changes", h.Admin.User.ListPointChanges)
 		users.GET("/:id/balance-history", h.Admin.User.GetBalanceHistory)
 		users.POST("/:id/replace-group", h.Admin.User.ReplaceGroup)
 		users.GET("/:id/level-rules", h.Admin.User.GetUserLevelRules)
@@ -433,6 +434,10 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/test", h.Admin.Account.Test)
 		accounts.POST("/:id/model-fingerprint", h.Admin.Account.StartModelFingerprint)
 		accounts.GET("/:id/model-fingerprint", h.Admin.Account.GetModelFingerprint)
+		accounts.GET("/:id/model-fingerprint/models", h.Admin.Account.GetFingerprintModels)
+		accounts.GET("/:id/model-fingerprint/history", h.Admin.Account.GetFingerprintHistory)
+		accounts.GET("/:id/model-fingerprint/schedule", h.Admin.Account.GetFingerprintSchedule)
+		accounts.PUT("/:id/model-fingerprint/schedule", h.Admin.Account.SetFingerprintSchedule)
 		accounts.POST("/:id/recover-state", h.Admin.Account.RecoverState)
 		accounts.POST("/:id/refresh", h.Admin.Account.Refresh)
 		accounts.POST("/:id/apply-oauth-credentials", h.Admin.Account.ApplyOAuthCredentials)
@@ -504,6 +509,8 @@ func registerOpenAIOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		openai.POST("/accounts/:id/reset-quota", h.Admin.OpenAIOAuth.ResetQuota)
 		openai.POST("/accounts/:id/referrals/refresh", h.Admin.OpenAIOAuth.RefreshReferrals)
 		openai.POST("/accounts/:id/referrals/invite", h.Admin.OpenAIOAuth.SendReferralInvite)
+		openai.GET("/accounts/:id/claude/reset-credits", h.Admin.OpenAIOAuth.QueryClaudeResetCredits)
+		openai.POST("/accounts/:id/claude/reset-credits/redeem", h.Admin.OpenAIOAuth.RedeemClaudeResetCredit)
 	}
 }
 

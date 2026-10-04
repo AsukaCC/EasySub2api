@@ -43,7 +43,7 @@
                   ? 'https://generativelanguage.googleapis.com'
                   : account.platform === 'antigravity'
                     ? 'https://cloudcode-pa.googleapis.com'
-                : account.platform === 'grok'
+                : account.platform === 'typesafe' ? 'https://api.typesafe.ai' : account.platform === 'grok'
                   ? 'https://api.x.ai/v1'
                   : 'https://api.anthropic.com'
             "
@@ -149,7 +149,9 @@
                     ? 'API Key'
                 : account.platform === 'grok'
                   ? 'xai-...'
-                  : 'sk-ant-...'
+                  : account.platform === 'typesafe'
+                    ? 'ts-...'
+                    : 'sk-ant-...'
             "
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
@@ -2817,7 +2819,7 @@ const handleOllamaCloudUsageUpdated = (state: OllamaCloudUsageState) => {
 const baseUrlHint = computed(() => {
   if (!props.account) return t('admin.accounts.baseUrlHint')
   if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
-  if (props.account.platform === 'grok') return ''
+  if (props.account.platform === 'grok' || props.account.platform === 'typesafe') return ''
   return t('admin.accounts.baseUrlHint')
 })
 
@@ -3384,6 +3386,7 @@ const tempUnschedPresets = computed(() => [
 
 // Computed: default base URL based on platform
 const defaultBaseUrl = computed(() => {
+  if (props.account?.platform === 'typesafe') return 'https://api.typesafe.ai'
   if (props.account?.platform === 'opencode_go') return openCodeBaseUrl(openCodeSettings.value.account_mode)
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
@@ -3744,7 +3747,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     const platformDefaultUrl =
       newAccount.platform === 'openai'
         ? 'https://api.openai.com'
-        : newAccount.platform === 'grok'
+        : newAccount.platform === 'typesafe' ? 'https://api.typesafe.ai' : newAccount.platform === 'grok'
           ? 'https://api.x.ai/v1'
           : isCNProviderPlatform(newAccount.platform)
             ? defaultCNBaseUrl(newAccount.platform, editAccountMode.value, editApiProtocol.value)
@@ -3818,7 +3821,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     const platformDefaultUrl =
       newAccount.platform === 'openai'
         ? 'https://api.openai.com'
-        : newAccount.platform === 'grok'
+        : newAccount.platform === 'typesafe' ? 'https://api.typesafe.ai' : newAccount.platform === 'grok'
           ? 'https://api.x.ai/v1'
           : 'https://api.anthropic.com'
     editBaseUrl.value = platformDefaultUrl

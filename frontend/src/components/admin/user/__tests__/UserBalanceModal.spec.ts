@@ -11,8 +11,8 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/utils/format', () => ({ formatPoints: (value: number) => `${value.toFixed(2)} points` }))
 
 const config = { data: { recharge_bonus_tiers: [
-  { threshold_cny: 50, bonus_points: 3 },
-  { threshold_cny: 200, bonus_points: 20 },
+  { threshold_cny: 50, bonus_percent: 6 },
+  { threshold_cny: 200, bonus_percent: 10 },
 ] } }
 
 function mountModal(operation: 'add' | 'subtract' = 'add') {

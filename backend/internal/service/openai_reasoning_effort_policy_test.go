@@ -62,9 +62,12 @@ func TestNormalizeReasoningEffortMappings(t *testing.T) {
 		}
 
 		_, err := NormalizeReasoningEffortMappings(PlatformOpenAI, []ReasoningEffortMapping{{From: "none", To: "low"}})
-		require.ErrorContains(t, err, "empty or unknown")
+		require.NoError(t, err, "legacy none remains valid as an input-only mapping source")
 
 		_, err = NormalizeReasoningEffortMappings(PlatformOpenAI, []ReasoningEffortMapping{{From: "ultra", To: "high"}})
+		require.NoError(t, err, "GPT-6.1 ultra supports group effort mapping")
+
+		_, err = NormalizeReasoningEffortMappings(PlatformOpenAI, []ReasoningEffortMapping{{From: "low", To: "none"}})
 		require.ErrorContains(t, err, "empty or unknown")
 	})
 }

@@ -1144,8 +1144,8 @@ describe("admin SettingsView payment visible method controls", () => {
       payment_balance_recharge_multiplier: 7.5,
       payment_subscription_usd_to_cny_rate: 6.8,
       payment_recharge_bonus_tiers: [
-        { threshold_cny: 500, bonus_points: 25 },
-        { threshold_cny: 100, bonus_points: 2.5 },
+        { threshold_cny: 500, bonus_percent: 25 },
+        { threshold_cny: 100, bonus_percent: 2.5 },
       ],
     });
     const wrapper = mountView("payment");
@@ -1159,17 +1159,17 @@ describe("admin SettingsView payment visible method controls", () => {
     expect((wrapper.get('[data-testid="recharge-bonus-threshold-1"]').element as HTMLInputElement).value).toBe("500");
 
     await wrapper.get('[data-testid="recharge-bonus-threshold-0"]').setValue("700.25");
-    await wrapper.get('[data-testid="recharge-bonus-points-0"]').setValue("2.12345678");
+    await wrapper.get('[data-testid="recharge-bonus-percent-0"]').setValue("2.12");
     await wrapper.get('[data-testid="recharge-bonus-threshold-1"]').setValue("50");
-    await wrapper.get('[data-testid="recharge-bonus-points-1"]').setValue("5");
+    await wrapper.get('[data-testid="recharge-bonus-percent-1"]').setValue("5");
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
 
     const payload = updateSettings.mock.calls[0]?.[0];
     expect(payload).toEqual(expect.objectContaining({
       payment_recharge_bonus_tiers: [
-        { threshold_cny: 50, bonus_points: 5 },
-        { threshold_cny: 700.25, bonus_points: 2.12345678 },
+        { threshold_cny: 50, bonus_percent: 5 },
+        { threshold_cny: 700.25, bonus_percent: 2.12 },
       ],
     }));
     expect(payload).not.toHaveProperty("payment_balance_recharge_multiplier");
@@ -1188,7 +1188,7 @@ describe("admin SettingsView payment visible method controls", () => {
   it("rejects recharge bonus precision instead of rounding the input", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
-      payment_recharge_bonus_tiers: [{ threshold_cny: 100, bonus_points: 5 }],
+      payment_recharge_bonus_tiers: [{ threshold_cny: 100, bonus_percent: 5 }],
     });
     const wrapper = mountView("payment");
     await flushPromises();
@@ -1219,7 +1219,7 @@ describe("admin SettingsView payment visible method controls", () => {
     }));
   });
 
-  it("loads and saves the transferred rebate validity independently of other validity settings", async () => {
+  it("keeps transferred rebates permanent and preserves the earning duration setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
       affiliate_transfer_validity_days: 45,
@@ -1229,16 +1229,11 @@ describe("admin SettingsView payment visible method controls", () => {
     const wrapper = mountView("feature-affiliate");
     await flushPromises();
 
-    const input = wrapper.get<HTMLInputElement>("#affiliate-transfer-validity-days");
-    expect(input.element.value).toBe("45");
-    expect(input.attributes("min")).toBe("1");
-    expect(input.attributes("max")).toBe("3650");
-    await input.setValue("30");
+    expect(wrapper.find("#affiliate-transfer-validity-days").exists()).toBe(false);
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
 
     expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      affiliate_transfer_validity_days: 30,
       affiliate_rebate_duration_days: 180,
     }));
     expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty("bonus_balance_default_validity_days");

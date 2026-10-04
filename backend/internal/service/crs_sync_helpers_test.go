@@ -175,7 +175,7 @@ func TestReconcileCRSUpstreamBillingProbeExtra(t *testing.T) {
 		platform string
 	}{
 		{name: "anthropic api key", platform: PlatformAnthropic},
-		{name: "gemini api key", platform: PlatformGemini},
+		{name: "typesafe api key", platform: PlatformTypeSafe},
 	} {
 		t.Run(target.name+" keeps enabled and clears snapshot", func(t *testing.T) {
 			extra := mergeMap(existing.Extra, remote)

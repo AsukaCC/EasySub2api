@@ -89,6 +89,13 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 	}
 
 	subject, _ := middleware2.GetAuthSubjectFromContext(c)
+	done, reserveErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, service.InflightEstimateRequest{Model: searchModel, Kind: service.InflightEstimatePerRequest, Units: 1, SearchCalls: 1})
+	if reserveErr != nil {
+		status, code, message, _ := billingErrorDetails(reserveErr)
+		c.JSON(status, gin.H{"error": gin.H{"type": code, "message": message}})
+		return
+	}
+	defer done()
 	reqLog := requestLogger(c, "handler.gateway.web_search")
 	// Audit user search query before upstream Grok web_search traffic.
 	auditBody, _ := json.Marshal(map[string]any{

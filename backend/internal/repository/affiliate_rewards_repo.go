@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
-	"time"
 
 	dbent "github.com/AsukaCC/EasySub2api/ent"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
@@ -140,15 +138,13 @@ func creditAffiliateBindingRewardTx(ctx context.Context, exec sqlQueryExecutor, 
 	if amount <= 0 {
 		return service.AffiliateBindingReward{}, nil
 	}
-	validityDays = service.ClampAffiliateBindingRewardValidity(validityDays)
-	expiresAt := time.Now().UTC().Add(time.Duration(validityDays) * 24 * time.Hour)
 	key := "wallet-credit:" + sourceType + ":" + sourceID
 	exists, err := walletTransactionExists(ctx, exec, key)
 	if err != nil {
 		return service.AffiliateBindingReward{}, err
 	}
 	if exists {
-		return service.AffiliateBindingReward{Points: amount, ExpiresAt: &expiresAt, Applied: false}, nil
+		return service.AffiliateBindingReward{Points: amount, Applied: false}, nil
 	}
 	row, err := lockWalletUser(ctx, exec, userID)
 	if err != nil {
@@ -158,14 +154,13 @@ func creditAffiliateBindingRewardTx(ctx context.Context, exec sqlQueryExecutor, 
 		return service.AffiliateBindingReward{}, err
 	}
 	before := row
-	bonusAvailable := walletMoney(math.Min(amount, math.Max(row.recharge+amount, 0)))
+	bonusAvailable := walletMoney(amount)
 	if _, err := exec.ExecContext(ctx, `
 UPDATE users
-SET balance = balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW()
-WHERE id = $3 AND deleted_at IS NULL`, amount, bonusAvailable, userID); err != nil {
+SET recharge_balance = recharge_balance + $1, bonus_balance = bonus_balance + $2, updated_at = NOW()
+WHERE id = $3 AND deleted_at IS NULL`, 0.0, bonusAvailable, userID); err != nil {
 		return service.AffiliateBindingReward{}, err
 	}
-	row.recharge = walletMoney(row.recharge + amount)
 	row.bonus = walletMoney(row.bonus + bonusAvailable)
 	status := "active"
 	if bonusAvailable <= 0 {
@@ -177,7 +172,7 @@ INSERT INTO wallet_bonus_grants (
     id, user_id, original_amount, remaining_amount, spent_amount, expires_at,
     source_type, source_id, status
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		grantID, userID, amount, bonusAvailable, walletMoney(amount-bonusAvailable), expiresAt,
+		grantID, userID, amount, bonusAvailable, walletMoney(amount-bonusAvailable), nil,
 		sourceType, sourceID, status); err != nil {
 		return service.AffiliateBindingReward{}, err
 	}
@@ -185,7 +180,7 @@ INSERT INTO wallet_bonus_grants (
 		before, row, sourceType, sourceID, key, "affiliate invitation binding reward"); err != nil {
 		return service.AffiliateBindingReward{}, err
 	}
-	return service.AffiliateBindingReward{Points: amount, ExpiresAt: &expiresAt, Applied: true}, nil
+	return service.AffiliateBindingReward{Points: amount, Applied: true}, nil
 }
 
 func (r *affiliateRepository) LegacyBindingRewardScope(ctx context.Context) (int, string, error) {

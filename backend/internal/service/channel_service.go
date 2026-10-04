@@ -368,7 +368,7 @@ func isPlatformPricingMatch(groupPlatform, pricingPlatform string) bool {
 // fallback used before a request target has been resolved.
 func matchingPlatforms(groupPlatform string) []string {
 	if groupPlatform == PlatformComposite {
-		return []string{PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo}
+		return []string{PlatformAnthropic, PlatformOpenAI, PlatformGrok, PlatformOpenCodeGo, PlatformTypeSafe}
 	}
 	return []string{groupPlatform}
 }

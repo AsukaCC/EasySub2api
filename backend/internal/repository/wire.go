@@ -131,6 +131,8 @@ var ProviderSet = wire.NewSet(
 	NewSchedulerOutboxRepository,
 	NewAuthCacheInvalidationOutboxRepository,
 	NewProxyLatencyCache,
+	wire.Bind(new(service.ProxyLatencyCache), new(*proxyLatencyCache)),
+	wire.Bind(new(service.ProxyTimezoneResolver), new(*proxyLatencyCache)),
 	NewTotpCache,
 	NewRefreshTokenCache,
 	NewErrorPassthroughCache,

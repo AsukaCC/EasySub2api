@@ -373,7 +373,7 @@ func TestForwardGrokChatViaResponsesCodeBuddyUsesStableConversationHeader(t *tes
 			}
 
 			result, err := svc.ForwardAsChatCompletions(context.Background(), c, account, tt.body, "", "")
-			require.NoError(t, err)
+			require.NoError(t, err, "upstream endpoint: %s; request: %s", upstream.lastReq.URL, upstream.lastBody)
 			require.NotNil(t, result)
 			require.Equal(t, xai.DefaultCLIBaseURL+"/responses", upstream.lastReq.URL.String())
 			require.Equal(t, grokChatResponsesEndpoint, result.UpstreamEndpoint)
@@ -481,7 +481,7 @@ func TestForwardGrokChatViaResponsesTraeCompatibilityFieldsKeepCacheRoute(t *tes
 	require.Equal(t, "priority", gjson.GetBytes(upstream.lastBody, "service_tier").String())
 	require.False(t, gjson.GetBytes(upstream.lastBody, "stop").Exists())
 	require.False(t, gjson.GetBytes(upstream.lastBody, "reasoning").Exists())
-	require.Contains(t, gjson.GetBytes(upstream.lastBody, "input.1.content.0.text").String(), "<thinking>I should use lookup</thinking>")
+	require.Contains(t, gjson.GetBytes(upstream.lastBody, "input.1.content").String(), "<thinking>I should use lookup</thinking>")
 	require.Equal(t, "function_call", gjson.GetBytes(upstream.lastBody, "input.2.type").String())
 	require.Equal(t, "function_call_output", gjson.GetBytes(upstream.lastBody, "input.3.type").String())
 

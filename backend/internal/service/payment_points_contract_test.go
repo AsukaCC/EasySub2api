@@ -82,7 +82,7 @@ func (s *rechargeWalletCreditSpy) CreditWallet(_ context.Context, input WalletCr
 
 func TestCreditBalanceRechargePointsCountsBaseAndBonusAsRecharged(t *testing.T) {
 	t.Parallel()
-	expiresAt := time.Now().Add(rechargeBonusValidity)
+	expiresAt := time.Now().Add(168 * time.Hour)
 	repo := &rechargeWalletCreditSpy{}
 	svc := &PaymentService{userRepo: repo}
 	order := &dbent.PaymentOrder{
@@ -98,7 +98,7 @@ func TestCreditBalanceRechargePointsCountsBaseAndBonusAsRecharged(t *testing.T) 
 	require.True(t, repo.inputs[1].CountAsRecharged)
 	require.Equal(t, "wallet-payment-base:"+order.ID, repo.inputs[0].IdempotencyKey)
 	require.Equal(t, "wallet-payment-bonus:"+order.ID, repo.inputs[1].IdempotencyKey)
-	require.Equal(t, &expiresAt, repo.inputs[1].ExpiresAt)
+	require.Nil(t, repo.inputs[1].ExpiresAt)
 
 	totalRecharged := 0.0
 	for _, input := range repo.inputs {
@@ -172,9 +172,9 @@ func TestRechargeBonusWritebackAdvancesLeaseAndAllowsCompletion(t *testing.T) {
 func TestBuildRechargeOrderPricingSelectsOnlyHighestEligibleTier(t *testing.T) {
 	t.Parallel()
 	pricing := buildRechargeOrderPricing(100, []RechargeBonusTier{
-		{MinAmount: 50, BonusPoints: 5},
-		{MinAmount: 100, BonusPoints: 12},
-		{MinAmount: 200, BonusPoints: 30},
+		{MinAmount: 50, BonusPercent: 5},
+		{MinAmount: 100, BonusPercent: 12},
+		{MinAmount: 200, BonusPercent: 30},
 	})
 
 	require.Equal(t, 100.0, pricing.BasePoints)
@@ -184,9 +184,17 @@ func TestBuildRechargeOrderPricingSelectsOnlyHighestEligibleTier(t *testing.T) {
 	require.Equal(t, 100.0, pricing.BonusTier.MinAmount)
 }
 
+func TestBuildRechargeOrderPricingScalesBonusWithPrincipal(t *testing.T) {
+	for _, tc := range []struct{ principal, bonus float64 }{{99.99, 0}, {100, 10}, {150, 15}, {199.99, 19.999}} {
+		pricing := buildRechargeOrderPricing(tc.principal, []RechargeBonusTier{{MinAmount: 100, BonusPercent: 10}})
+		require.Equal(t, tc.bonus, pricing.BonusPoints)
+		require.InDelta(t, tc.principal+tc.bonus, pricing.CreditedPoints, 1e-8)
+	}
+}
+
 func TestRechargeFeeNeverProducesPlatformPoints(t *testing.T) {
 	t.Parallel()
-	pricing := buildRechargeOrderPricing(100, []RechargeBonusTier{{MinAmount: 100, BonusPoints: 10}})
+	pricing := buildRechargeOrderPricing(100, []RechargeBonusTier{{MinAmount: 100, BonusPercent: 10}})
 	payAmountText, payAmount, err := calculateCreateOrderPayAmount(100, 3, payment.DefaultPaymentCurrency)
 	require.NoError(t, err)
 	require.Equal(t, "103.00", payAmountText)
@@ -375,7 +383,7 @@ func TestPaymentDashboardUsesNetSuccessfulGatewayRevenueAcrossRefundStates(t *te
 func TestRechargeBonusTierUsesThresholdCNYAndDecimalPrecision(t *testing.T) {
 	t.Parallel()
 	tiers, err := normalizeRechargeBonusTiers([]RechargeBonusTier{
-		{MinAmount: 0.29, BonusPoints: 0.12345678},
+		{MinAmount: 0.29, BonusPercent: 12.34},
 	})
 	require.NoError(t, err)
 	require.Equal(t, 0.29, tiers[0].MinAmount)
@@ -386,8 +394,7 @@ func TestRechargeBonusTierUsesThresholdCNYAndDecimalPrecision(t *testing.T) {
 	require.False(t, strings.Contains(string(body), `"min_amount"`))
 
 	legacy := parseRechargeBonusTiers(`[{"min_amount":10,"bonus_points":1.25}]`)
-	require.Len(t, legacy, 1)
-	require.Equal(t, 10.0, legacy[0].MinAmount)
+	require.Empty(t, legacy, "fixed tiers must not silently become percentage tiers")
 }
 
 func TestRechargeBonusTierRejectsJSONPrecisionBeforeFloatConversion(t *testing.T) {
@@ -396,9 +403,10 @@ func TestRechargeBonusTierRejectsJSONPrecisionBeforeFloatConversion(t *testing.T
 		name string
 		body string
 	}{
-		{name: "threshold exceeds CNY precision", body: `{"threshold_cny":0.001,"bonus_points":1}`},
-		{name: "bonus exceeds points precision", body: `{"threshold_cny":1,"bonus_points":0.000000001}`},
-		{name: "legacy threshold exceeds CNY precision", body: `{"min_amount":10.001,"bonus_points":1}`},
+		{name: "threshold exceeds CNY precision", body: `{"threshold_cny":0.001,"bonus_percent":1}`},
+		{name: "percentage exceeds precision", body: `{"threshold_cny":1,"bonus_percent":0.001}`},
+		{name: "legacy threshold exceeds CNY precision", body: `{"min_amount":10.001,"bonus_percent":1}`},
+		{name: "fixed bonus rejected", body: `{"threshold_cny":100,"bonus_points":10}`},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			var tier RechargeBonusTier
@@ -407,12 +415,11 @@ func TestRechargeBonusTierRejectsJSONPrecisionBeforeFloatConversion(t *testing.T
 	}
 }
 
-func TestCompletedRechargeRefundDeadlineIsFixedAtSevenDays(t *testing.T) {
+func TestCompletedRechargeRefundHasNoDeadline(t *testing.T) {
 	t.Parallel()
 	completedAt := time.Date(2026, time.August, 28, 12, 0, 0, 0, time.UTC)
 	deadline := completedRechargeRefundDeadline(&dbent.PaymentOrder{OrderType: "balance"}, completedAt)
-	require.NotNil(t, deadline)
-	require.Equal(t, completedAt.Add(168*time.Hour), *deadline)
+	require.Nil(t, deadline)
 	require.Nil(t, completedRechargeRefundDeadline(&dbent.PaymentOrder{OrderType: "subscription"}, completedAt))
 }
 

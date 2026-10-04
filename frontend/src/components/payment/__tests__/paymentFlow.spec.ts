@@ -23,7 +23,7 @@ function methodLimit(overrides: Partial<MethodLimit> = {}): MethodLimit {
 
 function createOrderResult(overrides: Partial<CreateOrderResult> = {}): CreateOrderResult {
   return {
-    order_id: 101,
+    order_id: '101',
     amount: 88,
     pay_amount: 88,
     fee_rate: 0,
@@ -316,7 +316,7 @@ describe('buildCreateOrderPayload', () => {
       amount: 128,
       paymentType: 'wxpay',
       orderType: 'subscription',
-      planId: 7,
+      planId: '7',
       origin: 'https://app.example.com',
       isMobile: false,
       isWechatBrowser: true,
@@ -324,7 +324,8 @@ describe('buildCreateOrderPayload', () => {
       amount: 128,
       payment_type: 'wxpay',
       order_type: 'subscription',
-      plan_id: 7,
+      plan_id: '7',
+      use_balance: true,
       return_url: 'https://app.example.com/payment/result',
       is_mobile: false,
       payment_source: 'wechat_in_app_resume',
@@ -378,7 +379,7 @@ describe('buildCreateOrderPayload', () => {
 describe('readPaymentRecoverySnapshot', () => {
   it('restores an unexpired snapshot when the resume token matches', () => {
     const snapshot: PaymentRecoverySnapshot = {
-      orderId: 33,
+      orderId: '33',
       amount: 18,
       qrCode: '',
       expiresAt: '2099-01-01T00:10:00.000Z',
@@ -402,12 +403,12 @@ describe('readPaymentRecoverySnapshot', () => {
       resumeToken: 'resume-33',
     })
 
-    expect(restored?.orderId).toBe(33)
+    expect(restored?.orderId).toBe('33')
   })
 
   it('drops expired or mismatched recovery snapshots', () => {
     const expiredSnapshot: PaymentRecoverySnapshot = {
-      orderId: 55,
+      orderId: '55',
       amount: 18,
       qrCode: '',
       expiresAt: '2024-01-01T00:10:00.000Z',
@@ -443,7 +444,7 @@ describe('readPaymentRecoverySnapshot', () => {
 
   it('keeps backward compatibility with snapshots written before outTradeNo existed', () => {
     const restored = readPaymentRecoverySnapshot(JSON.stringify({
-      orderId: 44,
+      orderId: '44',
       amount: 18,
       qrCode: '',
       expiresAt: '2099-01-01T00:10:00.000Z',
@@ -460,13 +461,13 @@ describe('readPaymentRecoverySnapshot', () => {
       resumeToken: 'resume-44',
     })
 
-    expect(restored?.orderId).toBe(44)
+    expect(restored?.orderId).toBe('44')
     expect(restored?.outTradeNo).toBe('')
   })
 
   it('keeps backward compatibility with snapshots written before Airwallex fields existed', () => {
     const restored = readPaymentRecoverySnapshot(JSON.stringify({
-      orderId: 45,
+      orderId: '45',
       amount: 28,
       qrCode: '',
       expiresAt: '2099-01-01T00:10:00.000Z',
@@ -484,7 +485,7 @@ describe('readPaymentRecoverySnapshot', () => {
       resumeToken: 'resume-45',
     })
 
-    expect(restored?.orderId).toBe(45)
+    expect(restored?.orderId).toBe('45')
     expect(restored?.intentId).toBe('')
     expect(restored?.currency).toBe('')
     expect(restored?.countryCode).toBe('')

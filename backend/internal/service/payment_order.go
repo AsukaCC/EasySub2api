@@ -343,12 +343,11 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 			SetBonusPoints(rechargePricing.BonusPoints).
 			SetCreditedPoints(rechargePricing.CreditedPoints)
 		if rechargePricing.BonusTier != nil && rechargePricing.BonusPoints > 0 {
-			bonusExpiresAt := createdAt.Add(rechargeBonusValidity)
-			rechargePricing.BonusExpiresAt = &bonusExpiresAt
 			b.SetBonusTierSnapshot(map[string]any{
 				"threshold_cny": rechargePricing.BonusTier.MinAmount,
-				"bonus_points":  rechargePricing.BonusTier.BonusPoints,
-			}).SetBonusExpiresAt(bonusExpiresAt)
+				"bonus_percent": rechargePricing.BonusTier.BonusPercent,
+				"bonus_points":  rechargePricing.BonusPoints,
+			})
 		}
 	}
 	if req.SrcURL != "" {
@@ -909,7 +908,8 @@ func applyRechargePricingToCreateOrderResponse(resp *CreateOrderResponse, pricin
 	if pricing.BonusTier != nil && pricing.BonusPoints > 0 {
 		resp.BonusTierSnapshot = map[string]any{
 			"threshold_cny": pricing.BonusTier.MinAmount,
-			"bonus_points":  pricing.BonusTier.BonusPoints,
+			"bonus_percent": pricing.BonusTier.BonusPercent,
+			"bonus_points":  pricing.BonusPoints,
 		}
 	}
 }

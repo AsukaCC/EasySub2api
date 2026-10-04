@@ -27,6 +27,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/typesafe"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/usagestats"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -2816,6 +2817,12 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 			})
 		}
 		response.Success(c, models)
+		return
+	}
+
+	// TypeSafe accounts serve only the native System One model.
+	if account.IsTypeSafe() {
+		response.Success(c, []claude.Model{{ID: typesafe.JevLatestModel, Type: "model", DisplayName: typesafe.JevLatestModel}})
 		return
 	}
 

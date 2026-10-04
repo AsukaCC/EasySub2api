@@ -20,7 +20,7 @@ func TestSanitizeAdminPaymentOrderForResponseAddsCurrency(t *testing.T) {
 		FeeRate:     8,
 		OutTradeNo:  "sub2_202606250001",
 		PaymentType: "stripe",
-		OrderType:   "subscription",
+		OrderType:   "balance",
 		Status:      "COMPLETED",
 		ExpiresAt:   now,
 		CreatedAt:   now,
