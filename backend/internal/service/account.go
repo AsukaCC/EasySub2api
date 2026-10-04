@@ -1622,16 +1622,19 @@ func (a *Account) GetOpenAIApiKey() string {
 // 供转发鉴权、模型列表同步等协议族共用路径使用。注意 IsOpenAIApiKey 语义上
 // 仅指 openai 平台账号，调度倍率/WS 能力门控继续以其为准，不受本方法影响。
 func (a *Account) GetOpenAIProtocolAPIKey() string {
-	if a.IsOpenCodeGo() && a.Type == AccountTypeAPIKey {
+	if a.IsOpenCodeGo() && fingerprintAPIAccountType(a.Type) {
 		return a.GetCredential("api_key")
 	}
 	if a == nil {
 		return ""
 	}
 	if a.IsCNProvider() {
-		if a.Type != AccountTypeAPIKey {
+		if !fingerprintAPIAccountType(a.Type) {
 			return ""
 		}
+		return a.GetCredential("api_key")
+	}
+	if a.IsOpenAI() && fingerprintAPIAccountType(a.Type) {
 		return a.GetCredential("api_key")
 	}
 	return a.GetOpenAIApiKey()

@@ -116,6 +116,22 @@ func TestModelFingerprintAPIProtocols(t *testing.T) {
 	}
 }
 
+func TestModelFingerprintAcceptsUpstreamAPIKeyAccounts(t *testing.T) {
+	for _, platform := range []string{PlatformOpenAI, PlatformAnthropic, PlatformKimi, PlatformGrok} {
+		t.Run(platform, func(t *testing.T) {
+			account := &Account{
+				Platform:    platform,
+				Type:        AccountTypeUpstream,
+				Credentials: map[string]any{"api_key": "upstream-test-key", "base_url": "https://relay.example.com"},
+			}
+			require.True(t, fingerprintAPIAccount(account))
+			if platform != PlatformAnthropic && platform != PlatformGrok {
+				require.Equal(t, "upstream-test-key", account.GetOpenAIProtocolAPIKey())
+			}
+		})
+	}
+}
+
 func TestModelFingerprintAPIValidationAndRetryBound(t *testing.T) {
 	svc, repo, _ := newFingerprintTestService()
 	transport := &fingerprintAPITransport{invalid: true}
