@@ -6,13 +6,13 @@ import ModelFingerprintCell from '../ModelFingerprintCell.vue'
 import type { Account } from '@/types'
 import type { ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 
-const { getFingerprintModels, getModelFingerprint, startModelFingerprint, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory, getFingerprintKeys } = vi.hoisted(() => ({
+const { getFingerprintModels, getModelFingerprint, startModelFingerprint, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory } = vi.hoisted(() => ({
   getFingerprintModels: vi.fn(), getModelFingerprint: vi.fn(), startModelFingerprint: vi.fn(),
-  getFingerprintSchedule: vi.fn(), setFingerprintSchedule: vi.fn(), getFingerprintHistory: vi.fn(), getFingerprintKeys: vi.fn()
+  getFingerprintSchedule: vi.fn(), setFingerprintSchedule: vi.fn(), getFingerprintHistory: vi.fn()
 }))
 vi.mock('@/api/admin/modelFingerprint', async importOriginal => ({
   ...await importOriginal<typeof import('@/api/admin/modelFingerprint')>(), getModelFingerprint, startModelFingerprint,
-  getFingerprintModels, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory, getFingerprintKeys
+  getFingerprintModels, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory
 }))
 vi.mock('vue-i18n', async importOriginal => ({ ...await importOriginal<typeof import('vue-i18n')>(), useI18n: () => ({ t: (key: string) => key }) }))
 
@@ -50,7 +50,6 @@ describe('Model fingerprint workflow', () => {
     vi.setSystemTime(new Date(running.started_at))
     vi.clearAllMocks()
     getFingerprintModels.mockResolvedValue([{ id: 'gpt-6-astra', reasoning_levels: ['low', 'high'] }])
-    getFingerprintKeys.mockResolvedValue([{ id: 'key-one', name: 'First key' }, { id: 'key-two', name: 'Second key' }])
     getFingerprintSchedule.mockResolvedValue({ enabled: false, options: {} })
     setFingerprintSchedule.mockResolvedValue({ enabled: true, next_run_at: '2026-09-21T00:30:00Z' })
     getFingerprintHistory.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 10 })
@@ -62,16 +61,16 @@ describe('Model fingerprint workflow', () => {
   it('selects text models and starts exactly once, then polls without generating more samples', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    expect(getFingerprintKeys).toHaveBeenCalledWith('one')
-    expect(getFingerprintModels).toHaveBeenCalledWith('one', 'key-one')
-    expect(wrapper.findAll('select')[0].findAll('option').map(item => item.text())).toEqual(['key-one', 'key-two'])
-    expect(wrapper.findAll('select')[2].findAll('option').map(item => item.text())).toEqual(['gpt-6-astra'])
+    expect(getFingerprintModels).toHaveBeenCalledWith('one')
+    expect(wrapper.findAll('select')).toHaveLength(3)
+    expect(wrapper.findAll('select')[0].findAll('option').map(item => item.text())).toEqual(['gpt-6-astra'])
+    expect(wrapper.text()).not.toContain('fingerprint.apiKey')
     const start = wrapper.get('.btn-primary')
     await start.trigger('click')
     await flushPromises()
     await start.trigger('click')
     expect(startModelFingerprint).toHaveBeenCalledTimes(1)
-    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { api_key_id: 'key-one', protocol: 'auto', reasoning_effort: '' })
+    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { protocol: 'auto', reasoning_effort: '' })
     expect(start.attributes('disabled')).toBeDefined()
     getModelFingerprint.mockResolvedValue({ ...running, status: 'failed', completed: 3, error: 'insufficient_samples' })
     await vi.advanceTimersByTimeAsync(1600)
@@ -191,68 +190,64 @@ describe('Model fingerprint workflow', () => {
     expect(cell.emitted('update')).toEqual([['two', null]])
   })
 
-  it('keeps the current account and uses the selected API key for manual and scheduled tests', async () => {
+  it('uses the current account and upstream model for manual and scheduled tests without an API key', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    await wrapper.findAll('select')[0].setValue('key-two')
-    await flushPromises()
-    expect(getFingerprintModels).toHaveBeenLastCalledWith('one', 'key-two')
+    expect(getFingerprintModels).toHaveBeenLastCalledWith('one')
     await wrapper.findAll('select')[1].setValue('anthropic')
-    await wrapper.findAll('select')[3].setValue('high')
+    await wrapper.findAll('select')[2].setValue('high')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('.fingerprint-schedule button').trigger('click')
     await flushPromises()
-    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, options: { api_key_id: 'key-two', model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
+    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, options: { model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
     await wrapper.get('.btn-primary').trigger('click')
     await flushPromises()
-    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { api_key_id: 'key-two', protocol: 'anthropic', reasoning_effort: 'high' })
+    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { protocol: 'anthropic', reasoning_effort: 'high' })
   })
 
   it('restores saved parameters and cannot start when upstream models fail to load', async () => {
-    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { api_key_id: 'key-one', model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
+    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
     const wrapper = mountModal()
     await flushPromises()
-    expect((wrapper.findAll('select')[3].element as HTMLSelectElement).value).toBe('high')
+    expect((wrapper.findAll('select')[2].element as HTMLSelectElement).value).toBe('high')
     getFingerprintModels.mockRejectedValueOnce(new Error('offline'))
-    await wrapper.findAll('select')[0].setValue('key-two')
+    await wrapper.setProps({ account: account('two') })
     await flushPromises()
     expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
     expect(startModelFingerprint).not.toHaveBeenCalled()
   })
 
-  it('cannot run or enable a schedule without a supported API key', async () => {
-    getFingerprintKeys.mockResolvedValue([])
+  it('cannot run or enable a schedule without an upstream model', async () => {
+    getFingerprintModels.mockResolvedValue([])
     const wrapper = mountModal()
     await flushPromises()
-    expect(wrapper.text()).toContain('admin.accounts.fingerprint.noKeys')
+    expect(wrapper.text()).toContain('admin.accounts.fingerprint.noModels')
     expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
     await wrapper.get('input[type="checkbox"]').setValue(true)
     expect(wrapper.get('.fingerprint-schedule button').attributes('disabled')).toBeDefined()
-    expect(getFingerprintModels).not.toHaveBeenCalled()
+    expect(startModelFingerprint).not.toHaveBeenCalled()
   })
 
-  it.each(['deleted-key', ''])('requires an explicit selection for missing scheduled key %s', async apiKeyId => {
-    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { api_key_id: apiKeyId, model_id: 'gpt-6-astra', protocol: 'chat' } })
+  it.each(['deleted-key', ''])('ignores obsolete scheduled key %s', async apiKeyId => {
+    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { api_key_id: apiKeyId, model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
     const wrapper = mountModal()
     await flushPromises()
-    expect(wrapper.text()).toContain('admin.accounts.fingerprint.scheduleKeyRequired')
-    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
-    expect(getFingerprintModels).not.toHaveBeenCalled()
-    await wrapper.get('input[type="checkbox"]').setValue(false)
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeUndefined()
+    expect(getFingerprintModels).toHaveBeenCalledWith('one')
     await wrapper.get('.fingerprint-schedule button').trigger('click')
     await flushPromises()
-    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', expect.objectContaining({ enabled: false }))
+    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, options: { model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
   })
 
-  it('discards model lists from the previous API key', async () => {
+  it('discards model lists from the previous account', async () => {
     let resolveOld!: (value: unknown[]) => void
     getFingerprintModels.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
     const wrapper = mountModal()
     await flushPromises()
-    await wrapper.findAll('select')[0].setValue('key-two')
+    await wrapper.setProps({ account: account('two') })
     await flushPromises()
     resolveOld([{ id: 'stale-model' }])
     await flushPromises()
-    expect(wrapper.findAll('select')[2].findAll('option').map(item => item.text())).toEqual(['gpt-6-astra'])
+    expect(wrapper.findAll('select')[0].findAll('option').map(item => item.text())).toEqual(['gpt-6-astra'])
   })
 })

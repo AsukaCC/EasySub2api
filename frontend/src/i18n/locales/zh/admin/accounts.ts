@@ -3,9 +3,7 @@ export default {
       fingerprint: {
         title: '模型指纹测试', attribution: '模型归因', start: '开始测试', notTested: '未测试',
         samples: '3 组有效指纹样本', serial: '独立采样', inBackground: '后台测试中',
-        apiKey: 'API 密钥', protocol: '请求格式', effort: '思考强度', defaultEffort: '上游默认',
-        keysFailed: 'API 密钥加载失败', noKeys: '没有支持此账号平台及分组的有效 API 密钥',
-        scheduleKeyRequired: '定时测试的 API 密钥已不可用，请重新选择并保存',
+        protocol: '请求格式', effort: '思考强度', defaultEffort: '上游默认',
         autoProtocol: '自动识别格式', schedule: '每半小时定时测试', nextRun: '下次测试：',
         scheduleSaved: '定时配置已保存', scheduleFailed: '定时配置加载或保存失败',
         history: '测试历史（24 小时）', usageRecords: '查看用量记录', historyFailed: '测试历史加载失败',
@@ -15,7 +13,7 @@ export default {
         noModels: '没有可测试的文本模型', loadFailed: '模型列表加载失败，请重新打开。',
         pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能启动，请检查是否已有测试或测试名额已满。',
         errors: {
-          preparation_failed: 'API 密钥、上游模型或参数校验失败',
+          preparation_failed: '上游模型或参数校验失败',
           interrupted: '测试中断，请重新测试', timeout: '测试超时', upstream_failed: '上游调用失败',
           insufficient_samples: '有效样本不足 3 组', analysis_failed: '归因失败', internal_error: '测试异常', save_failed: '结果保存失败'
         }
