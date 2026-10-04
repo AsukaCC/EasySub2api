@@ -155,6 +155,8 @@ type AccountTestService struct {
 	modelFingerprintMu        sync.Mutex
 	modelFingerprintActive    int
 	modelFingerprintUsage     modelFingerprintUsageWriter
+	modelFingerprintKeys      APIKeyRepository
+	modelFingerprintGroups    GroupRepository
 	agentIdentityWS           agentIdentityWSConnectionInvalidator
 	// grokWSDialer is optional; realtime account tests use the default OpenAI-style
 	// WS dialer when nil (supports proxy + coder/websocket handshake).
@@ -340,6 +342,13 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 		return s.sendErrorAndEnd(c, err.Error())
 	}
 	if fingerprintProbe(ctx) != nil {
+		probe := fingerprintProbe(ctx)
+		if probe.apiKeyID != "" {
+			if _, err := s.fingerprintKey(ctx, account, probe.userID, probe.apiKeyID); err != nil {
+				probe.fatal = true
+				return err
+			}
+		}
 		account = DirectModelTestAccount(account)
 		if fingerprintProbe(ctx).protocol != "" {
 			return s.testFingerprintAPI(c, account)

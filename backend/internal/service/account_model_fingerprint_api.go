@@ -17,6 +17,7 @@ import (
 )
 
 type ModelFingerprintOptions struct {
+	APIKeyID        string `json:"api_key_id"`
 	Model           string `json:"model_id"`
 	Protocol        string `json:"protocol"`
 	ReasoningEffort string `json:"reasoning_effort"`

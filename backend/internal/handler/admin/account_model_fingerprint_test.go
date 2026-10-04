@@ -73,3 +73,16 @@ func TestModelFingerprintUsageFilter(t *testing.T) {
 	require.Equal(t, int16(service.RequestTypeTest), *repo.listFilters.RequestType)
 	require.Nil(t, repo.listFilters.Stream)
 }
+
+func TestModelFingerprintKeyAndModelSelectionRequiresAuditActor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := &AccountHandler{accountTestService: &service.AccountTestService{}}
+	router.GET("/accounts/:id/model-fingerprint/api-keys", handler.ListFingerprintKeys)
+	router.GET("/accounts/:id/model-fingerprint/models", handler.GetFingerprintModels)
+	for _, suffix := range []string{"api-keys", "models"} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/accounts/01995000-0000-7000-8000-000000000001/model-fingerprint/"+suffix, nil))
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+	}
+}

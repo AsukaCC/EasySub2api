@@ -52,6 +52,9 @@ func (s *AccountTestService) SetFingerprintSchedule(ctx context.Context, schedul
 		return err
 	}
 	if schedule.Enabled {
+		if _, err := s.fingerprintKey(ctx, a, schedule.UserID, schedule.Options.APIKeyID); err != nil {
+			return err
+		}
 		if err := ValidateAccountProtectionConfiguration(a); err != nil {
 			return err
 		}
