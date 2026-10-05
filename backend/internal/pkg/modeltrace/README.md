@@ -1,9 +1,13 @@
 # Account Model Fingerprinting
 
-The account list's **Model Fingerprint Test** action selects an API-key account,
-a live upstream text model, a protocol, and a supported reasoning effort.
-New tests collect three independent responses without previous assistant turns
-or injected system prompts. Credentials remain on the server.
+The account list's **Model Fingerprint Test** action works for OpenAI and Anthropic
+accounts. It selects a local API key, a live upstream text model, a protocol, and a
+supported reasoning effort. API-key and upstream accounts send buffered Chat
+Completions / Messages JSON probes; OAuth, setup-token, Bedrock and Vertex
+credentials use the `native` protocol, which samples through the account's own
+connectivity-test transport (Codex Responses, Claude Messages) and therefore keeps
+that account's real upstream identity. New tests collect three independent
+responses without previous assistant turns. Credentials remain on the server.
 Different accounts can run concurrently (up to four jobs per server process).
 There is never more than one active fingerprint job for the same account,
 including across server replicas. Closing the dialog does not stop the job.

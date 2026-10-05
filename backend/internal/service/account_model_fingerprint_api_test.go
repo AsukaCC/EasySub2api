@@ -13,10 +13,31 @@ import (
 	"testing"
 	"time"
 
+	apperrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/tlsfingerprint"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
+
+// nativeFingerprintRepo turns the API-key fixture into an OpenAI OAuth account with a
+// persisted model catalog, so discovery does not need the Codex manifest service.
+type nativeFingerprintRepo struct{ *fingerprintTestRepo }
+
+func (r *nativeFingerprintRepo) GetByID(ctx context.Context, id string) (*Account, error) {
+	account, err := r.fingerprintTestRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	account.Type = AccountTypeOAuth
+	account.Credentials = map[string]any{"access_token": "test-only"}
+	account.Extra[UpstreamModelCatalogExtraKey] = upstreamModelCatalogSnapshot{
+		ConfigHash: upstreamModelCatalogConfigHash(account),
+		SyncedAt:   time.Now().UTC(),
+		Catalog:    UpstreamModelCatalog{Models: []string{"gpt-6-astra", "gpt-image-2"}},
+	}
+	return account, nil
+}
 
 type fingerprintAPITransport struct {
 	HTTPUpstream
@@ -142,6 +163,86 @@ func TestModelFingerprintRejectsNonOpenAIOrAnthropicAccounts(t *testing.T) {
 			}
 			require.False(t, fingerprintAPIAccount(account))
 		})
+	}
+}
+
+func TestModelFingerprintNativeAccountsUseAccountTransport(t *testing.T) {
+	for _, tc := range []struct {
+		platform, accountType string
+		native                bool
+	}{
+		{PlatformOpenAI, AccountTypeOAuth, true},
+		{PlatformOpenAI, AccountTypeSetupToken, true},
+		{PlatformAnthropic, AccountTypeOAuth, true},
+		{PlatformOpenAI, AccountTypeAPIKey, false},
+		{PlatformOpenAI, AccountTypeUpstream, false},
+		{PlatformGemini, AccountTypeOAuth, false},
+		{PlatformGrok, AccountTypeOAuth, false},
+	} {
+		account := &Account{Platform: tc.platform, Type: tc.accountType}
+		require.Equal(t, tc.native, fingerprintNativeAccount(account), "%s/%s", tc.platform, tc.accountType)
+	}
+
+	svc, repo, upstream := newFingerprintTestService()
+	svc.accountRepo = &nativeFingerprintRepo{repo}
+	upstream.responses = true
+	ctx := context.Background()
+	models, err := svc.GetFingerprintModelsForKey(ctx, "one", "admin", "local-key")
+	require.NoError(t, err)
+	require.Len(t, models, 1)
+	require.Equal(t, "gpt-6-astra", models[0].ID)
+
+	account, err := svc.accountRepo.GetByID(ctx, "one")
+	require.NoError(t, err)
+	option := ModelFingerprintOptions{APIKeyID: "local-key", Model: "gpt-6-astra", Protocol: "chat"}
+	require.Equal(t, "INVALID_PROTOCOL", apperrors.Reason(svc.validateFingerprintOptions(ctx, account, &option)))
+	option.Protocol = "auto"
+	require.NoError(t, svc.validateFingerprintOptions(ctx, account, &option))
+	require.Equal(t, fingerprintProtocolNative, option.Protocol)
+
+	job, err := svc.StartModelFingerprint(ctx, "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "auto"})
+	require.NoError(t, err)
+	require.Equal(t, fingerprintProtocolNative, job.Protocol)
+	require.Equal(t, "independent", job.SamplingMode)
+	result := waitFingerprint(t, repo.done)
+	require.Equal(t, "completed", result.Status)
+	require.Equal(t, 3, result.Valid)
+	require.Equal(t, fingerprintProtocolNative, result.ResolvedProtocol)
+
+	// Samples go through the Codex OAuth transport with the account's own token,
+	// one fresh conversation per attempt and no forced reasoning effort.
+	upstream.mu.Lock()
+	require.Len(t, upstream.requests["one"], 3)
+	for i, body := range upstream.requests["one"] {
+		require.Equal(t, "chatgpt.com", upstream.hosts[i])
+		require.Equal(t, "Bearer test-only", upstream.auths[i])
+		require.Len(t, gjson.GetBytes(body, "input").Array(), 1)
+		require.False(t, gjson.GetBytes(body, "reasoning.effort").Exists())
+		require.False(t, gjson.GetBytes(body, "max_output_tokens").Exists())
+	}
+	upstream.mu.Unlock()
+	usage := svc.modelFingerprintUsage.(*fingerprintUsageStub)
+	usage.mu.Lock()
+	require.Len(t, usage.logs, 3)
+	for _, log := range usage.logs {
+		require.True(t, log.Stream)
+		require.Nil(t, log.UpstreamEndpoint)
+		require.Equal(t, "local-key", log.APIKeyID)
+		require.Equal(t, 40, log.InputTokens)
+		require.Equal(t, 80, log.OutputTokens)
+	}
+	usage.mu.Unlock()
+
+	for _, tc := range []struct {
+		effort string
+		want   any
+	}{{"high", "high"}, {"", nil}} {
+		probe := &modelFingerprintProbe{model: "gpt-6-astra", native: true, effort: tc.effort, conversation: &modelFingerprintConversation{}, prompt: "numbers"}
+		probeCtx := context.WithValue(context.Background(), modelFingerprintContextKey{}, probe)
+		payload := map[string]any{"model": "gpt-6-astra"}
+		applyModelFingerprintPayload(probeCtx, payload, "responses", true)
+		reasoning, _ := payload["reasoning"].(map[string]any)
+		require.Equal(t, tc.want, reasoning["effort"])
 	}
 }
 

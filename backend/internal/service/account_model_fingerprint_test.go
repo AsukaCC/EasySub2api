@@ -78,13 +78,16 @@ func (r *fingerprintTestRepo) SaveModelFingerprint(_ context.Context, id string,
 
 type fingerprintTestTransport struct {
 	HTTPUpstream
-	mu       sync.Mutex
-	requests map[string][][]byte
-	sessions map[string][]string
-	entered  chan string
-	release  chan struct{}
-	invalid  bool
-	fail     bool
+	mu        sync.Mutex
+	requests  map[string][][]byte
+	sessions  map[string][]string
+	hosts     []string
+	auths     []string
+	entered   chan string
+	release   chan struct{}
+	invalid   bool
+	fail      bool
+	responses bool
 }
 
 func (u *fingerprintTestTransport) DoWithTLS(req *http.Request, _ string, accountID string, _ int, _ *tlsfingerprint.Profile) (*http.Response, error) {
@@ -95,6 +98,8 @@ func (u *fingerprintTestTransport) DoWithTLS(req *http.Request, _ string, accoun
 	u.mu.Lock()
 	u.requests[accountID] = append(u.requests[accountID], body)
 	u.sessions[accountID] = append(u.sessions[accountID], req.Header.Get("Session_ID"))
+	u.hosts = append(u.hosts, req.URL.Hostname())
+	u.auths = append(u.auths, req.Header.Get("Authorization"))
 	first := len(u.requests[accountID]) == 1
 	u.mu.Unlock()
 	if u.fail {
@@ -111,6 +116,12 @@ func (u *fingerprintTestTransport) DoWithTLS(req *http.Request, _ string, accoun
 	text := strings.Repeat("17,42,138,251,", 60)
 	if u.invalid {
 		text = "I cannot provide numbers"
+	}
+	if u.responses {
+		// Codex / Responses SSE as seen by the native OAuth test transport.
+		delta, _ := json.Marshal(map[string]any{"type": "response.output_text.delta", "delta": text})
+		completed, _ := json.Marshal(map[string]any{"type": "response.completed", "response": map[string]any{"usage": map[string]int{"input_tokens": 40, "output_tokens": 80}}})
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(fmt.Sprintf("data: %s\n\ndata: %s\n\n", delta, completed)))}, nil
 	}
 	delta, _ := json.Marshal(map[string]any{"usage": map[string]int{"prompt_tokens": 40, "completion_tokens": 80}, "choices": []any{map[string]any{"delta": map[string]string{"content": text}}}})
 	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(fmt.Sprintf("data: %s\n\ndata: [DONE]\n\n", delta)))}, nil

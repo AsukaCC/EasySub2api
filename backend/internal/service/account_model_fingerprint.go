@@ -224,6 +224,7 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		challenges = append(challenges, modeltrace.Challenges()...)
 	}
 	protocol := snapshot.Protocol
+	native := protocol == fingerprintProtocolNative
 	if protocol == "auto" {
 		protocol = "chat"
 	}
@@ -233,7 +234,12 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		}
 		probeCtx, stop := context.WithTimeout(ctx, 90*time.Second)
 		probe := &modelFingerprintProbe{model: snapshot.Model, prompt: challenge.Prompt, expected: challenge.Expected, cancel: stop, conversation: conversation, startedAt: time.Now()}
-		probe.protocol, probe.effort = protocol, snapshot.ReasoningEffort
+		probe.protocol, probe.effort, probe.native = protocol, snapshot.ReasoningEffort, native
+		if native {
+			// An empty probe protocol routes TestAccountConnection to the account's
+			// own transport instead of the JSON API probe.
+			probe.protocol = ""
+		}
 		probe.apiKeyID, probe.userID = snapshot.APIKeyID, userID
 		probeCtx = context.WithValue(probeCtx, modelFingerprintContextKey{}, probe)
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -310,6 +316,7 @@ type modelFingerprintProbe struct {
 	userID         string
 	protocol       string
 	effort         string
+	native         bool
 	fatal          bool
 	formatRejected bool
 	conversation   *modelFingerprintConversation
@@ -373,10 +380,8 @@ func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID strin
 	log.APIKeyID, log.GroupID = snapshot.APIKeyID, snapshot.GroupID
 	log.RequestID = fmt.Sprintf("fingerprint:%s:%d", snapshot.ID, turn+1)
 	log.Model, log.RequestedModel = snapshot.Model, snapshot.Model
-	log.RequestType, log.Stream = RequestTypeTest, true
-	if snapshot.SamplingMode == "independent" {
-		log.Stream = false
-	}
+	// Native transports stream SSE; the JSON API probe (chat/anthropic) is buffered.
+	log.RequestType, log.Stream = RequestTypeTest, probe.protocol == ""
 	log.SessionID = &snapshot.ID
 	log.CreatedAt = probe.startedAt
 	ms := int(time.Since(probe.startedAt).Milliseconds())
@@ -469,8 +474,11 @@ func applyModelFingerprintEffort(probe *modelFingerprintProbe, payload map[strin
 		model = probe.model
 	}
 	model = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(model), "models/"))
+	// Legacy single-conversation jobs pin low effort; option-driven jobs (API probe
+	// or native transport) send the administrator's choice and otherwise leave the
+	// upstream default untouched.
 	effort := "low"
-	if probe.protocol != "" {
+	if probe.protocol != "" || probe.native {
 		effort = probe.effort
 		if effort == "" {
 			return

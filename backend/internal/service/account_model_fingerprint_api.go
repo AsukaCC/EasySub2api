@@ -31,9 +31,25 @@ type ModelFingerprintModel struct {
 	ReasoningLevels []string `json:"reasoning_levels"`
 }
 
+// fingerprintProtocolNative marks tests that reuse the account's own test
+// transport (Codex Responses, Claude Messages) instead of the JSON API probe.
+const fingerprintProtocolNative = "native"
+
+// fingerprintAPIAccount reports API key / upstream accounts that run the JSON API probe path.
 func fingerprintAPIAccount(a *Account) bool {
 	return a != nil && !a.IsSyntheticUITest() && fingerprintAPIAccountType(a.Type) &&
 		strings.TrimSpace(a.GetCredential("api_key")) != "" && (a.IsOpenAI() || a.IsAnthropic())
+}
+
+// fingerprintNativeAccount reports OpenAI / Anthropic credentials that have no plain
+// API key (OAuth, setup token, Bedrock, Vertex). They sample through the account's
+// native connectivity-test transport, so the upstream identity stays the real one.
+func fingerprintNativeAccount(a *Account) bool {
+	return a != nil && !a.IsSyntheticUITest() && !fingerprintAPIAccountType(a.Type) && (a.IsOpenAI() || a.IsAnthropic())
+}
+
+func fingerprintAccount(a *Account) bool {
+	return fingerprintAPIAccount(a) || fingerprintNativeAccount(a)
 }
 
 func fingerprintAPIAccountType(accountType string) bool {
@@ -51,8 +67,8 @@ func (s *AccountTestService) GetFingerprintModels(ctx context.Context, id string
 func (s *AccountTestService) fingerprintModels(ctx context.Context, a *Account) ([]ModelFingerprintModel, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	if !fingerprintAPIAccount(a) {
-		return nil, apperrors.BadRequest("UNSUPPORTED_FINGERPRINT_ACCOUNT", "Select an API key or upstream account with an OpenAI or Anthropic compatible endpoint and API key")
+	if !fingerprintAccount(a) {
+		return nil, apperrors.BadRequest("UNSUPPORTED_FINGERPRINT_ACCOUNT", "Model fingerprinting supports OpenAI and Anthropic accounts; API key and upstream accounts also need an API key")
 	}
 	catalog, err := s.accountModelCatalog(ctx, a)
 	if err != nil {
@@ -60,8 +76,17 @@ func (s *AccountTestService) fingerprintModels(ctx context.Context, a *Account) 
 		var syncErr *UpstreamModelSyncError
 		if errors.As(err, &syncErr) {
 			message = syncErr.SafeMessage()
+			// Credentials without a model list endpoint (setup token, Bedrock, Vertex)
+			// still expose the models the administrator mapped for them.
+			if syncErr.Kind == UpstreamModelSyncErrorUnsupported && fingerprintNativeAccount(a) {
+				if ids := configuredUpstreamModelsForCapabilitySync(a); len(ids) > 0 {
+					catalog, err = &UpstreamModelCatalog{Models: ids}, nil
+				}
+			}
 		}
-		return nil, apperrors.New(http.StatusBadGateway, "FINGERPRINT_MODELS_UNAVAILABLE", message)
+		if err != nil {
+			return nil, apperrors.New(http.StatusBadGateway, "FINGERPRINT_MODELS_UNAVAILABLE", message)
+		}
 	}
 	ids, metadata := catalog.Models, catalog.Metadata
 	models := make([]ModelFingerprintModel, 0, len(ids))
@@ -109,7 +134,14 @@ func (s *AccountTestService) validateFingerprintOptions(ctx context.Context, a *
 	if option.Protocol == "" {
 		option.Protocol = "auto"
 	}
-	if !slices.Contains([]string{"auto", "chat", "anthropic"}, option.Protocol) {
+	if fingerprintNativeAccount(a) {
+		// The account's own transport decides the wire format; a forced Chat
+		// Completions / Messages probe would need an API key this account lacks.
+		if option.Protocol != "auto" && option.Protocol != fingerprintProtocolNative {
+			return apperrors.BadRequest("INVALID_PROTOCOL", "This account tests through its native protocol; select automatic detection")
+		}
+		option.Protocol = fingerprintProtocolNative
+	} else if !slices.Contains([]string{"auto", "chat", "anthropic"}, option.Protocol) {
 		return apperrors.BadRequest("INVALID_PROTOCOL", "Invalid test protocol")
 	}
 	models, err := s.fingerprintModels(ctx, a)
