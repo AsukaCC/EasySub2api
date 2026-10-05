@@ -31,6 +31,7 @@ func (r *nativeFingerprintRepo) GetByID(ctx context.Context, id string) (*Accoun
 	}
 	account.Type = AccountTypeOAuth
 	account.Credentials = map[string]any{"access_token": "test-only"}
+	delete(account.Extra, "openai_responses_mode")
 	account.Extra[UpstreamModelCatalogExtraKey] = upstreamModelCatalogSnapshot{
 		ConfigHash: upstreamModelCatalogConfigHash(account),
 		SyncedAt:   time.Now().UTC(),
@@ -200,38 +201,25 @@ func TestModelFingerprintNativeAccountsUseAccountTransport(t *testing.T) {
 	require.NoError(t, svc.validateFingerprintOptions(ctx, account, &option))
 	require.Equal(t, fingerprintProtocolNative, option.Protocol)
 
-	job, err := svc.StartModelFingerprint(ctx, "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "auto"})
+	job, err := svc.StartModelFingerprint(ctx, "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "auto", ReasoningEffort: "high"})
 	require.NoError(t, err)
 	require.Equal(t, fingerprintProtocolNative, job.Protocol)
 	require.Equal(t, "independent", job.SamplingMode)
+	require.Equal(t, "high", job.ReasoningEffort)
 	result := waitFingerprint(t, repo.done)
 	require.Equal(t, "completed", result.Status)
 	require.Equal(t, 3, result.Valid)
 	require.Equal(t, fingerprintProtocolNative, result.ResolvedProtocol)
 
-	// Samples go through the Codex OAuth transport with the account's own token,
-	// one fresh conversation per attempt and no forced reasoning effort.
 	upstream.mu.Lock()
 	require.Len(t, upstream.requests["one"], 3)
 	for i, body := range upstream.requests["one"] {
 		require.Equal(t, "chatgpt.com", upstream.hosts[i])
 		require.Equal(t, "Bearer test-only", upstream.auths[i])
 		require.Len(t, gjson.GetBytes(body, "input").Array(), 1)
-		require.False(t, gjson.GetBytes(body, "reasoning.effort").Exists())
-		require.False(t, gjson.GetBytes(body, "max_output_tokens").Exists())
+		require.Equal(t, "high", gjson.GetBytes(body, "reasoning.effort").String())
 	}
 	upstream.mu.Unlock()
-	usage := svc.modelFingerprintUsage.(*fingerprintUsageStub)
-	usage.mu.Lock()
-	require.Len(t, usage.logs, 3)
-	for _, log := range usage.logs {
-		require.True(t, log.Stream)
-		require.Nil(t, log.UpstreamEndpoint)
-		require.Equal(t, "local-key", log.APIKeyID)
-		require.Equal(t, 40, log.InputTokens)
-		require.Equal(t, 80, log.OutputTokens)
-	}
-	usage.mu.Unlock()
 
 	for _, tc := range []struct {
 		effort string

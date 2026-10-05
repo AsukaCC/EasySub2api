@@ -227,11 +227,15 @@ describe('Model fingerprint workflow', () => {
     await wrapper.get('.btn-primary').trigger('click')
     await flushPromises()
     expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { api_key_id: 'key-one', protocol: 'native', reasoning_effort: 'high' })
+  })
 
+  it('localizes unsupported fingerprint accounts when model listing fails', async () => {
+    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { api_key_id: 'key-one', model_id: 'gpt-6-astra', protocol: 'auto' } })
     getFingerprintModels.mockRejectedValueOnce({ reason: 'UNSUPPORTED_FINGERPRINT_ACCOUNT', message: 'Model fingerprinting supports OpenAI and Anthropic accounts' })
-    await wrapper.findAll('select')[0].setValue('key-two')
+    const wrapper = mountModal()
     await flushPromises()
     expect(wrapper.text()).toContain('admin.accounts.fingerprint.unsupportedAccount')
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
   })
 
   it('restores saved parameters and cannot start when upstream models fail to load', async () => {
