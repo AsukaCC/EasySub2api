@@ -137,7 +137,9 @@ const modelRetry = ref(0)
 const starting = ref(false)
 const submitError = ref('')
 const busy = computed(() => snapshot.value?.status === 'running')
-watch(selectedModel, () => { effort.value = '' }, { flush: 'sync' })
+watch(selectedModel, (_value, previous) => {
+  if (previous) effort.value = ''
+}, { flush: 'sync' })
 
 let historyGeneration = 0
 async function loadHistory(page = 1) {
