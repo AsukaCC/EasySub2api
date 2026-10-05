@@ -117,7 +117,7 @@ func TestModelFingerprintAPIProtocols(t *testing.T) {
 }
 
 func TestModelFingerprintAcceptsUpstreamAPIKeyAccounts(t *testing.T) {
-	for _, platform := range []string{PlatformOpenAI, PlatformAnthropic, PlatformKimi, PlatformGrok} {
+	for _, platform := range []string{PlatformOpenAI, PlatformAnthropic} {
 		t.Run(platform, func(t *testing.T) {
 			account := &Account{
 				Platform:    platform,
@@ -125,9 +125,22 @@ func TestModelFingerprintAcceptsUpstreamAPIKeyAccounts(t *testing.T) {
 				Credentials: map[string]any{"api_key": "upstream-test-key", "base_url": "https://relay.example.com"},
 			}
 			require.True(t, fingerprintAPIAccount(account))
-			if platform != PlatformAnthropic && platform != PlatformGrok {
+			if platform != PlatformAnthropic {
 				require.Equal(t, "upstream-test-key", account.GetOpenAIProtocolAPIKey())
 			}
+		})
+	}
+}
+
+func TestModelFingerprintRejectsNonOpenAIOrAnthropicAccounts(t *testing.T) {
+	for _, platform := range []string{PlatformGemini, PlatformTypeSafe, PlatformGrok, PlatformKimi, PlatformAntigravity} {
+		t.Run(platform, func(t *testing.T) {
+			account := &Account{
+				Platform:    platform,
+				Type:        AccountTypeAPIKey,
+				Credentials: map[string]any{"api_key": "native-key", "base_url": "https://relay.example.com"},
+			}
+			require.False(t, fingerprintAPIAccount(account))
 		})
 	}
 }
@@ -166,8 +179,6 @@ func TestModelFingerprintAPIDefaultHostsAndCustomRelay(t *testing.T) {
 	for _, tc := range []struct{ platform, base, host string }{
 		{PlatformOpenAI, "", "api.openai.com"},
 		{PlatformAnthropic, "", "api.anthropic.com"},
-		{PlatformGrok, "", "api.x.ai"},
-		{PlatformZhipu, "https://relay.example.com/v1", "relay.example.com"},
 	} {
 		t.Run(tc.platform, func(t *testing.T) {
 			svc, _, _ := newFingerprintTestService()

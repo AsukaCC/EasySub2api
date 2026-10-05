@@ -32,8 +32,8 @@ type ModelFingerprintModel struct {
 }
 
 func fingerprintAPIAccount(a *Account) bool {
-	return a != nil && !a.IsSyntheticUITest() && fingerprintAPIAccountType(a.Type) && a.GetCredential("api_key") != "" &&
-		(a.IsOpenAI() || a.IsAnthropic() || a.IsCNProvider() || a.IsOpenCodeGo() || a.IsGrok())
+	return a != nil && !a.IsSyntheticUITest() && fingerprintAPIAccountType(a.Type) &&
+		strings.TrimSpace(a.GetCredential("api_key")) != "" && (a.IsOpenAI() || a.IsAnthropic())
 }
 
 func fingerprintAPIAccountType(accountType string) bool {
@@ -52,7 +52,7 @@ func (s *AccountTestService) fingerprintModels(ctx context.Context, a *Account) 
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if !fingerprintAPIAccount(a) {
-		return nil, apperrors.BadRequest("UNSUPPORTED_FINGERPRINT_ACCOUNT", "Select an API key or upstream account with an OpenAI or Anthropic compatible endpoint")
+		return nil, apperrors.BadRequest("UNSUPPORTED_FINGERPRINT_ACCOUNT", "Select an API key or upstream account with an OpenAI or Anthropic compatible endpoint and API key")
 	}
 	catalog, err := s.accountModelCatalog(ctx, a)
 	if err != nil {
