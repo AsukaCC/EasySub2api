@@ -17,7 +17,6 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/pkg/tlsfingerprint"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-	"github.com/tidwall/gjson"
 )
 
 // nativeFingerprintRepo turns the API-key fixture into an OpenAI OAuth account with a
