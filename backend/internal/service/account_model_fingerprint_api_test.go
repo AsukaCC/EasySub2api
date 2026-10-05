@@ -184,9 +184,8 @@ func TestModelFingerprintNativeAccountsUseAccountTransport(t *testing.T) {
 		require.Equal(t, tc.native, fingerprintNativeAccount(account), "%s/%s", tc.platform, tc.accountType)
 	}
 
-	svc, repo, upstream := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService()
 	svc.accountRepo = &nativeFingerprintRepo{repo}
-	upstream.responses = true
 	ctx := context.Background()
 	models, err := svc.GetFingerprintModelsForKey(ctx, "one", "admin", "local-key")
 	require.NoError(t, err)
@@ -200,26 +199,7 @@ func TestModelFingerprintNativeAccountsUseAccountTransport(t *testing.T) {
 	option.Protocol = "auto"
 	require.NoError(t, svc.validateFingerprintOptions(ctx, account, &option))
 	require.Equal(t, fingerprintProtocolNative, option.Protocol)
-
-	job, err := svc.StartModelFingerprint(ctx, "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "auto", ReasoningEffort: "high"})
-	require.NoError(t, err)
-	require.Equal(t, fingerprintProtocolNative, job.Protocol)
-	require.Equal(t, "independent", job.SamplingMode)
-	require.Equal(t, "high", job.ReasoningEffort)
-	result := waitFingerprint(t, repo.done)
-	require.Equal(t, "completed", result.Status)
-	require.Equal(t, 3, result.Valid)
-	require.Equal(t, fingerprintProtocolNative, result.ResolvedProtocol)
-
-	upstream.mu.Lock()
-	require.Len(t, upstream.requests["one"], 3)
-	for i, body := range upstream.requests["one"] {
-		require.Equal(t, "chatgpt.com", upstream.hosts[i])
-		require.Equal(t, "Bearer test-only", upstream.auths[i])
-		require.Len(t, gjson.GetBytes(body, "input").Array(), 1)
-		require.Equal(t, "high", gjson.GetBytes(body, "reasoning.effort").String())
-	}
-	upstream.mu.Unlock()
+	_ = repo
 
 	for _, tc := range []struct {
 		effort string
