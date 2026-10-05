@@ -208,6 +208,32 @@ describe('Model fingerprint workflow', () => {
     expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { api_key_id: 'key-two', protocol: 'anthropic', reasoning_effort: 'high' })
   })
 
+  it('locks OAuth accounts to the native protocol and localizes unsupported accounts', async () => {
+    getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { api_key_id: 'key-one', model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
+    const wrapper = mount(ModelFingerprintModal, {
+      props: { show: true, account: { ...account('one'), type: 'oauth' } },
+      global: { stubs: {
+        BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+        Select: { props: ['options', 'modelValue', 'valueKey', 'disabled'], emits: ['update:modelValue'], template: '<select :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in options" :key="item.id || item.value" :value="item[valueKey || \'value\']">{{ item.id || item.value }}</option></select>' },
+        RouterLink: { template: '<a><slot /></a>' }, DataTable: true, Pagination: true, Icon: true
+      } }
+    })
+    mounts.push(wrapper)
+    await flushPromises()
+    const protocolSelect = wrapper.findAll('select')[1]
+    expect(protocolSelect.findAll('option').map(item => item.text())).toEqual(['native'])
+    expect(protocolSelect.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('admin.accounts.fingerprint.nativeProtocolHint')
+    await wrapper.get('.btn-primary').trigger('click')
+    await flushPromises()
+    expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { api_key_id: 'key-one', protocol: 'native', reasoning_effort: 'high' })
+
+    getFingerprintModels.mockRejectedValueOnce({ reason: 'UNSUPPORTED_FINGERPRINT_ACCOUNT', message: 'Model fingerprinting supports OpenAI and Anthropic accounts' })
+    await wrapper.findAll('select')[0].setValue('key-two')
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.accounts.fingerprint.unsupportedAccount')
+  })
+
   it('restores saved parameters and cannot start when upstream models fail to load', async () => {
     getFingerprintSchedule.mockResolvedValue({ enabled: true, options: { api_key_id: 'key-one', model_id: 'gpt-6-astra', protocol: 'chat', reasoning_effort: 'high' } })
     const wrapper = mountModal()

@@ -24,7 +24,9 @@ export interface ModelFingerprintSnapshot {
   }
 }
 
-export type FingerprintProtocol = 'auto' | 'chat' | 'anthropic'
+// 'native' is assigned by the backend for OAuth / setup-token / Bedrock / Vertex
+// accounts: they sample through the account's own transport instead of a JSON probe.
+export type FingerprintProtocol = 'auto' | 'chat' | 'anthropic' | 'native'
 export interface FingerprintOptions { api_key_id: string; model_id: string; protocol: FingerprintProtocol; reasoning_effort: string }
 export interface FingerprintKey { id: string; name: string }
 export interface FingerprintModel { id: string; display_name: string; reasoning_levels: string[] | null }

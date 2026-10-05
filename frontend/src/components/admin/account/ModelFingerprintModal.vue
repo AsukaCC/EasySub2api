@@ -8,7 +8,8 @@
       <p v-if="keyError" class="fingerprint-error" role="alert">{{ t('admin.accounts.fingerprint.keysFailed') }}</p>
       <p v-else-if="!loadingKeys && !keys.length" class="fingerprint-note">{{ t('admin.accounts.fingerprint.noKeys') }}</p>
       <label class="fingerprint-label">{{ t('admin.accounts.fingerprint.protocol') }}</label>
-      <Select v-model="protocol" :options="protocolOptions" :disabled="busy || starting" />
+      <Select v-model="protocol" :options="protocolOptions" :disabled="busy || starting || nativeAccount" />
+      <p v-if="nativeAccount" class="fingerprint-note">{{ t('admin.accounts.fingerprint.nativeProtocolHint') }}</p>
       <label class="fingerprint-label">{{ t('admin.accounts.selectTestModel') }}</label>
       <Select v-model="selectedModel" :options="models" value-key="id" label-key="display_name"
         searchable
@@ -85,14 +86,24 @@ const keys = ref<FingerprintKey[]>([])
 const keyError = ref(false)
 const loadingKeys = ref(false)
 const savedOptions = ref<FingerprintOptions | null>(null)
-const protocol = ref<FingerprintProtocol>('auto')
+// API key / upstream accounts choose the JSON probe format; every other credential
+// type (OAuth, setup token, Bedrock, Vertex) is sampled through its native transport.
+const nativeAccount = computed(() => !!props.account && props.account.type !== 'apikey' && props.account.type !== 'upstream')
+const defaultProtocol = (): FingerprintProtocol => nativeAccount.value ? 'native' : 'auto'
+const protocol = ref<FingerprintProtocol>(defaultProtocol())
 const effort = ref('')
-const protocolOptions = computed(() => [
-  { value: 'auto', label: t('admin.accounts.fingerprint.autoProtocol') },
-  { value: 'chat', label: 'OpenAI Chat Completions' },
-  { value: 'anthropic', label: 'Anthropic Messages' }
-])
-const protocolLabel = (value?: string) => protocolOptions.value.find(item => item.value === value)?.label || '-'
+const protocolLabels = computed<Record<string, string>>(() => ({
+  auto: t('admin.accounts.fingerprint.autoProtocol'),
+  chat: 'OpenAI Chat Completions',
+  anthropic: 'Anthropic Messages',
+  native: t('admin.accounts.fingerprint.nativeProtocol')
+}))
+const protocolOptions = computed(() => (nativeAccount.value ? ['native'] : ['auto', 'chat', 'anthropic'])
+  .map(value => ({ value, label: protocolLabels.value[value] })))
+const protocolLabel = (value?: string) => (value && protocolLabels.value[value]) || '-'
+const modelErrorMessages = computed<Record<string, string>>(() => ({
+  UNSUPPORTED_FINGERPRINT_ACCOUNT: t('admin.accounts.fingerprint.unsupportedAccount')
+}))
 const effortOptions = computed(() => [
   { value: '', label: t('admin.accounts.fingerprint.defaultEffort') },
   ...(models.value.find(item => item.id === selectedModel.value)?.reasoning_levels || []).map(value => ({ value, label: value }))
@@ -173,7 +184,7 @@ watch(accountId, async (id, _, onCleanup) => {
   selectedModel.value = ''
   loadError.value = ''
   submitError.value = ''
-  protocol.value = 'auto'
+  protocol.value = defaultProtocol()
   effort.value = ''
   scheduleEnabled.value = false
   nextRunAt.value = ''
@@ -226,10 +237,10 @@ watch([accountId, selectedKeyId, modelRetry], async ([id, keyID], _, onCleanup) 
     const options = savedOptions.value
     if (options && (!options.api_key_id || options.api_key_id === keyID) && options.model_id) {
       selectedModel.value = models.value.find(item => item.id === options.model_id)?.id || selectedModel.value
-      protocol.value = options.protocol || 'auto'
+      protocol.value = nativeAccount.value ? 'native' : (options.protocol && options.protocol !== 'native' ? options.protocol : 'auto')
       effort.value = effortOptions.value.some(item => item.value === options.reasoning_effort) ? options.reasoning_effort : ''
     }
-  } catch (error) { if (!stale) loadError.value = extractApiErrorMessage(error, t('admin.accounts.fingerprint.loadFailed')) }
+  } catch (error) { if (!stale) loadError.value = extractApiErrorMessage(error, t('admin.accounts.fingerprint.loadFailed'), modelErrorMessages.value) }
   finally { if (!stale) loadingModels.value = false }
 }, { immediate: true })
 
