@@ -34,6 +34,28 @@ func TestModelFingerprintHistoryPaginationAndExpiry(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestModelFingerprintSchedulePersistsWindow(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo := &accountRepository{sql: db}
+	plan := &service.ModelFingerprintSchedule{
+		AccountID: "account", UserID: "admin", Enabled: true, NextRunAt: time.Now().UTC(),
+		Options: service.ModelFingerprintOptions{APIKeyID: "key", Model: "model", Protocol: "chat"},
+		Window:  &service.ModelFingerprintTimeWindow{StartHour: 9, EndHour: 18, Timezone: "Asia/Shanghai"},
+	}
+	body := `{"api_key_id":"key","model_id":"model","protocol":"chat","reasoning_effort":"","time_window":{"start_hour":9,"end_hour":18,"timezone":"Asia/Shanghai"}}`
+	mock.ExpectExec(`(?s)INSERT INTO model_fingerprint_schedules.*options=EXCLUDED.options`).
+		WithArgs(plan.AccountID, plan.UserID, plan.Enabled, body, plan.NextRunAt).WillReturnResult(sqlmock.NewResult(0, 1))
+	require.NoError(t, repo.SetModelFingerprintSchedule(context.Background(), plan))
+	mock.ExpectQuery(`SELECT user_id, enabled, options, next_run_at FROM model_fingerprint_schedules`).WithArgs("account").
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "enabled", "options", "next_run_at"}).AddRow("admin", true, []byte(body), plan.NextRunAt))
+	loaded, err := repo.GetModelFingerprintSchedule(context.Background(), "account")
+	require.NoError(t, err)
+	require.Equal(t, plan, loaded)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestModelFingerprintHistoryCleanupOnlyTargetsFingerprintRecords(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

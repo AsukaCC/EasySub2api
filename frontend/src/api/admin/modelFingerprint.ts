@@ -30,7 +30,8 @@ export type FingerprintProtocol = 'auto' | 'chat' | 'anthropic' | 'native'
 export interface FingerprintOptions { api_key_id: string; model_id: string; protocol: FingerprintProtocol; reasoning_effort: string }
 export interface FingerprintKey { id: string; name: string }
 export interface FingerprintModel { id: string; display_name: string; reasoning_levels: string[] | null }
-export interface FingerprintSchedule { enabled: boolean; options: FingerprintOptions; next_run_at?: string }
+export interface FingerprintTimeWindow { start_hour: number; end_hour: number; timezone: string }
+export interface FingerprintSchedule { enabled: boolean; options: FingerprintOptions; time_window?: FingerprintTimeWindow; next_run_at?: string }
 export interface FingerprintHistory { items: ModelFingerprintSnapshot[]; total: number; page: number; page_size: number }
 
 export async function startModelFingerprint(id: string, model: string, options?: Omit<FingerprintOptions, 'model_id'>) {

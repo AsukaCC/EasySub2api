@@ -5,14 +5,71 @@ import (
 	"errors"
 	"log/slog"
 	"time"
+
+	apperrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 )
 
 type ModelFingerprintSchedule struct {
-	AccountID string                  `json:"account_id"`
-	UserID    string                  `json:"-"`
-	Enabled   bool                    `json:"enabled"`
-	Options   ModelFingerprintOptions `json:"options"`
-	NextRunAt time.Time               `json:"next_run_at"`
+	AccountID string                      `json:"account_id"`
+	UserID    string                      `json:"-"`
+	Enabled   bool                        `json:"enabled"`
+	Options   ModelFingerprintOptions     `json:"options"`
+	NextRunAt time.Time                   `json:"next_run_at"`
+	Window    *ModelFingerprintTimeWindow `json:"time_window,omitempty"`
+}
+
+// The end hour is exclusive; 0-24 represents the entire day.
+type ModelFingerprintTimeWindow struct {
+	StartHour int    `json:"start_hour"`
+	EndHour   int    `json:"end_hour"`
+	Timezone  string `json:"timezone"`
+}
+
+func (w ModelFingerprintTimeWindow) location() (*time.Location, error) {
+	if w.StartHour < 0 || w.StartHour > 23 || w.EndHour < 1 || w.EndHour > 24 || w.StartHour >= w.EndHour {
+		return nil, apperrors.BadRequest("INVALID_FINGERPRINT_WINDOW", "Test window must have 0 <= start_hour < end_hour <= 24")
+	}
+	if w.Timezone == "" || w.Timezone == "Local" {
+		return nil, apperrors.BadRequest("INVALID_FINGERPRINT_WINDOW", "Select a valid test timezone")
+	}
+	loc, err := time.LoadLocation(w.Timezone)
+	if err != nil {
+		return nil, apperrors.BadRequest("INVALID_FINGERPRINT_WINDOW", "Select a valid test timezone")
+	}
+	return loc, nil
+}
+
+func (w ModelFingerprintTimeWindow) Contains(now time.Time) bool {
+	loc, err := w.location()
+	return err == nil && now.In(loc).Hour() >= w.StartHour && now.In(loc).Hour() < w.EndHour
+}
+
+func (w ModelFingerprintTimeWindow) NextRun(now time.Time) (time.Time, error) {
+	loc, err := w.location()
+	if err != nil {
+		return time.Time{}, err
+	}
+	// Iterate real minutes so half-hour offsets and daylight-saving transitions
+	// still land on a valid local whole hour, strictly after now.
+	for next, limit := now.Truncate(time.Minute).Add(time.Minute), now.Add(72*time.Hour); next.Before(limit); next = next.Add(time.Minute) {
+		local := next.In(loc)
+		if local.Minute() == 0 && local.Hour() >= w.StartHour && local.Hour() < w.EndHour {
+			return next.UTC(), nil
+		}
+	}
+	return time.Time{}, errors.New("no fingerprint test slot available")
+}
+
+func (s *AccountTestService) normalizeFingerprintWindow(schedule *ModelFingerprintSchedule) {
+	if schedule.Window == nil {
+		schedule.Window = &ModelFingerprintTimeWindow{EndHour: 24}
+	}
+	if schedule.Window.Timezone == "" {
+		schedule.Window.Timezone = "Asia/Shanghai"
+		if s.cfg != nil && s.cfg.Timezone != "" {
+			schedule.Window.Timezone = s.cfg.Timezone
+		}
+	}
 }
 
 type ModelFingerprintHistory struct {
@@ -43,10 +100,33 @@ func (s *AccountTestService) GetFingerprintSchedule(ctx context.Context, id stri
 	if !ok {
 		return nil, errors.New("fingerprint schedules unavailable")
 	}
-	return store.GetModelFingerprintSchedule(ctx, id)
+	schedule, err := store.GetModelFingerprintSchedule(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	legacy := schedule.Window == nil
+	s.normalizeFingerprintWindow(schedule)
+	// Round old half-hour plans to the first eligible hourly slot.
+	if schedule.Enabled {
+		window := schedule.Window
+		if legacy {
+			// Existing plans stay UTC-aligned until the displayed local window is saved.
+			window = &ModelFingerprintTimeWindow{EndHour: 24, Timezone: "UTC"}
+		}
+		at := schedule.NextRunAt.Add(-time.Nanosecond)
+		if now := time.Now().UTC(); at.Before(now) && !window.Contains(now) {
+			at = now
+		}
+		schedule.NextRunAt, err = window.NextRun(at)
+	}
+	return schedule, err
 }
 
 func (s *AccountTestService) SetFingerprintSchedule(ctx context.Context, schedule *ModelFingerprintSchedule) error {
+	s.normalizeFingerprintWindow(schedule)
+	if _, err := schedule.Window.location(); err != nil {
+		return err
+	}
 	a, err := s.accountRepo.GetByID(ctx, schedule.AccountID)
 	if err != nil {
 		return err
@@ -69,11 +149,14 @@ func (s *AccountTestService) SetFingerprintSchedule(ctx context.Context, schedul
 	if !ok {
 		return errors.New("fingerprint schedules unavailable")
 	}
-	schedule.NextRunAt = time.Now().UTC().Truncate(30 * time.Minute).Add(30 * time.Minute)
+	schedule.NextRunAt, err = schedule.Window.NextRun(time.Now().UTC())
+	if err != nil {
+		return err
+	}
 	return store.SetModelFingerprintSchedule(ctx, schedule)
 }
 
-// Existing minute scheduler owns the lifecycle. Claims advance the half-hour slot
+// Existing minute scheduler owns the lifecycle. Claims advance the hourly slot
 // atomically with the account lease, so multiple replicas cannot duplicate a run.
 func (s *AccountTestService) RunDueModelFingerprints(ctx context.Context) {
 	if s == nil {

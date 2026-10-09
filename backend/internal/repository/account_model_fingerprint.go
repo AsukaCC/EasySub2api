@@ -11,6 +11,37 @@ import (
 
 // Claims are atomic across server replicas and expire after a crashed worker.
 func (r *accountRepository) ClaimModelFingerprint(ctx context.Context, id string, snapshot *service.ModelFingerprintSnapshot) (bool, error) {
+	var expectedOptions any
+	var nextRun any
+	if snapshot.Source == "scheduled" {
+		plan, raw, err := r.loadModelFingerprintSchedule(ctx, id)
+		if err != nil {
+			return false, err
+		}
+		if !plan.Enabled || plan.UserID != snapshot.UserID || plan.NextRunAt.After(snapshot.StartedAt) {
+			return false, nil
+		}
+		window := plan.Window
+		if window == nil {
+			window = &service.ModelFingerprintTimeWindow{EndHour: 24, Timezone: "UTC"}
+		}
+		if !window.Contains(snapshot.StartedAt) {
+			return false, nil
+		}
+		// Recheck the hourly boundary here as well as in the due-plan query.
+		earliest, err := window.NextRun(plan.NextRunAt.Add(-time.Nanosecond))
+		if err != nil {
+			return false, err
+		}
+		if earliest.After(snapshot.StartedAt) {
+			return false, nil
+		}
+		next, err := window.NextRun(snapshot.StartedAt)
+		if err != nil {
+			return false, err
+		}
+		expectedOptions, nextRun = string(raw), next
+	}
 	body, err := json.Marshal(snapshot)
 	if err != nil {
 		return false, err
@@ -23,6 +54,7 @@ func (r *accountRepository) ClaimModelFingerprint(ctx context.Context, id string
 		) AND ($1::jsonb->>'source' IS DISTINCT FROM 'scheduled' OR EXISTS (
 			SELECT 1 FROM model_fingerprint_schedules s JOIN users u ON u.id = s.user_id
 			WHERE s.account_id = accounts.id AND s.enabled AND s.next_run_at <= $3
+			AND s.options = $4::jsonb
 			AND s.user_id::text = $1::jsonb->>'user_id'
 			AND s.options->>'model_id' = $1::jsonb->>'model'
 			AND s.options->>'protocol' = $1::jsonb->>'protocol'
@@ -30,12 +62,11 @@ func (r *accountRepository) ClaimModelFingerprint(ctx context.Context, id string
 			AND u.role = 'admin' AND u.status = 'active' AND u.deleted_at IS NULL
 			FOR UPDATE OF s
 		)) RETURNING id), advanced AS (
-		UPDATE model_fingerprint_schedules SET next_run_at = date_trunc('hour', $3::timestamptz)
-			+ (floor(extract(minute from $3::timestamptz) / 30) + 1) * interval '30 minutes'
+		UPDATE model_fingerprint_schedules SET next_run_at = $5::timestamptz
 		WHERE account_id IN (SELECT id FROM claimed) AND $1::jsonb->>'source' = 'scheduled'
 		RETURNING account_id
 		) INSERT INTO model_fingerprint_runs (id, account_id, started_at, snapshot)
-		SELECT ($1::jsonb->>'id')::uuid, id, $3, $1::jsonb FROM claimed`, string(body), id, snapshot.StartedAt)
+		SELECT ($1::jsonb->>'id')::uuid, id, $3, $1::jsonb FROM claimed`, string(body), id, snapshot.StartedAt, expectedOptions, nextRun)
 	if err != nil {
 		return false, err
 	}

@@ -28,6 +28,19 @@
           <Icon name="check" size="sm" />{{ t('common.save') }}
         </button>
       </div>
+      <fieldset v-if="scheduleEnabled" class="fingerprint-window" :disabled="savingSchedule || loadingSchedule">
+        <legend class="fingerprint-label">{{ t('admin.accounts.fingerprint.dailyWindow', { timezone: scheduleTimezone }) }}</legend>
+        <div class="fingerprint-window-fields">
+          <div>
+            <label for="fingerprint-start-hour" class="fingerprint-label">{{ t('admin.accounts.fingerprint.startHour') }}</label>
+            <Select id="fingerprint-start-hour" v-model="startHour" :options="startHourOptions" :disabled="savingSchedule || loadingSchedule" />
+          </div>
+          <div>
+            <label for="fingerprint-end-hour" class="fingerprint-label">{{ t('admin.accounts.fingerprint.endHour') }}</label>
+            <Select id="fingerprint-end-hour" v-model="endHour" :options="endHourOptions" :disabled="savingSchedule || loadingSchedule" />
+          </div>
+        </div>
+      </fieldset>
       <p v-if="nextRunAt" class="fingerprint-note">{{ t('admin.accounts.fingerprint.nextRun') }} {{ new Date(nextRunAt).toLocaleString() }}</p>
       <p v-if="scheduleMessage" :class="scheduleFailed ? 'fingerprint-error' : 'fingerprint-note'" role="status">{{ scheduleMessage }}</p>
       <div class="fingerprint-meta"><span>{{ t('admin.accounts.fingerprint.samples') }}</span><span>{{ t('admin.accounts.fingerprint.serial') }}</span></div>
@@ -109,6 +122,15 @@ const effortOptions = computed(() => [
   ...(models.value.find(item => item.id === selectedModel.value)?.reasoning_levels || []).map(value => ({ value, label: value }))
 ])
 const scheduleEnabled = ref(false)
+const startHour = ref('0')
+const endHour = ref('24')
+const scheduleTimezone = ref('Asia/Shanghai')
+const hourOption = (hour: number) => ({ value: String(hour), label: `${String(hour).padStart(2, '0')}:00` })
+const startHourOptions = Array.from({ length: 24 }, (_, hour) => hourOption(hour))
+const endHourOptions = computed(() => Array.from({ length: 24 - Number(startHour.value) }, (_, index) => hourOption(Number(startHour.value) + index + 1)))
+watch(startHour, value => {
+  if (Number(endHour.value) <= Number(value)) endHour.value = String(Number(value) + 1)
+}, { flush: 'sync' })
 const loadingSchedule = ref(false)
 const savingSchedule = ref(false)
 const nextRunAt = ref('')
@@ -162,7 +184,11 @@ async function saveSchedule() {
   savingSchedule.value = true
   scheduleMessage.value = ''
   try {
-    const result = await setFingerprintSchedule(id, { enabled: scheduleEnabled.value, options: { api_key_id: selectedKeyId.value, model_id: selectedModel.value, protocol: protocol.value, reasoning_effort: effort.value } })
+    const result = await setFingerprintSchedule(id, {
+      enabled: scheduleEnabled.value,
+      time_window: { start_hour: Number(startHour.value), end_hour: Number(endHour.value), timezone: scheduleTimezone.value },
+      options: { api_key_id: selectedKeyId.value, model_id: selectedModel.value, protocol: protocol.value, reasoning_effort: effort.value }
+    })
     if (id !== accountId.value) return
     nextRunAt.value = result.enabled ? result.next_run_at || '' : ''
     scheduleFailed.value = false
@@ -189,6 +215,9 @@ watch(accountId, async (id, _, onCleanup) => {
   protocol.value = defaultProtocol()
   effort.value = ''
   scheduleEnabled.value = false
+  startHour.value = '0'
+  endHour.value = '24'
+  scheduleTimezone.value = 'Asia/Shanghai'
   nextRunAt.value = ''
   scheduleMessage.value = ''
   historyGeneration++
@@ -201,6 +230,9 @@ watch(accountId, async (id, _, onCleanup) => {
   const schedulePromise = getFingerprintSchedule(id).then(value => {
     if (stale) return
     scheduleEnabled.value = value.enabled
+    startHour.value = String(value.time_window?.start_hour ?? 0)
+    endHour.value = String(value.time_window?.end_hour ?? 24)
+    scheduleTimezone.value = value.time_window?.timezone || 'Asia/Shanghai'
     nextRunAt.value = value.enabled ? value.next_run_at || '' : ''
     savedOptions.value = value.options
     return value
@@ -281,5 +313,9 @@ onUnmounted(() => { clearInterval(historyTimer); historyGeneration++ })
 .fingerprint-model-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .fingerprint-schedule, .fingerprint-history-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .fingerprint-schedule label { display: flex; align-items: center; gap: 8px; }
+.fingerprint-window { border: 0; padding: 0; margin: 0; min-width: 0; }
+.fingerprint-window legend { margin-bottom: 8px; overflow-wrap: anywhere; }
+.fingerprint-window-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fingerprint-window-fields > div { display: grid; gap: 8px; min-width: 0; }
 .fingerprint-history-heading { border-top: 1px solid var(--color-border); padding-top: 16px; }
 </style>
