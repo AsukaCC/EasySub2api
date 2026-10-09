@@ -8,6 +8,22 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/service"
 )
 
+// Keep scheduling metadata in the existing options JSON without exposing it
+// as an option for manual fingerprint requests.
+type modelFingerprintStoredOptions struct {
+	service.ModelFingerprintOptions
+	Window *service.ModelFingerprintTimeWindow `json:"time_window,omitempty"`
+}
+
+func decodeModelFingerprintOptions(body []byte, plan *service.ModelFingerprintSchedule) error {
+	var options modelFingerprintStoredOptions
+	if err := json.Unmarshal(body, &options); err != nil {
+		return err
+	}
+	plan.Options, plan.Window = options.ModelFingerprintOptions, options.Window
+	return nil
+}
+
 func (r *accountRepository) ListModelFingerprintHistory(ctx context.Context, id string, page, size int) (*service.ModelFingerprintHistory, error) {
 	page = max(1, page)
 	size = min(100, max(1, size))
@@ -50,24 +66,29 @@ func (r *accountRepository) ListModelFingerprintHistory(ctx context.Context, id 
 }
 
 func (r *accountRepository) GetModelFingerprintSchedule(ctx context.Context, id string) (*service.ModelFingerprintSchedule, error) {
+	plan, _, err := r.loadModelFingerprintSchedule(ctx, id)
+	return plan, err
+}
+
+func (r *accountRepository) loadModelFingerprintSchedule(ctx context.Context, id string) (*service.ModelFingerprintSchedule, []byte, error) {
 	result := &service.ModelFingerprintSchedule{AccountID: id}
 	var body []byte
 	rows, err := r.sql.QueryContext(ctx, `SELECT user_id, enabled, options, next_run_at FROM model_fingerprint_schedules WHERE account_id = $1`, id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
-		return result, rows.Err()
+		return result, nil, rows.Err()
 	}
 	if err := rows.Scan(&result.UserID, &result.Enabled, &body, &result.NextRunAt); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return result, json.Unmarshal(body, &result.Options)
+	return result, body, decodeModelFingerprintOptions(body, result)
 }
 
 func (r *accountRepository) SetModelFingerprintSchedule(ctx context.Context, plan *service.ModelFingerprintSchedule) error {
-	body, err := json.Marshal(plan.Options)
+	body, err := json.Marshal(modelFingerprintStoredOptions{ModelFingerprintOptions: plan.Options, Window: plan.Window})
 	if err != nil {
 		return err
 	}
@@ -81,6 +102,12 @@ func (r *accountRepository) ListDueModelFingerprints(ctx context.Context, now ti
 	rows, err := r.sql.QueryContext(ctx, `SELECT s.account_id, s.user_id, s.options, s.next_run_at FROM model_fingerprint_schedules s
  JOIN accounts a ON a.id=s.account_id JOIN users u ON u.id=s.user_id
  WHERE s.enabled AND s.next_run_at <= $1 AND a.deleted_at IS NULL AND a.status='active'
+ AND date_trunc('hour', $1::timestamptz AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC'))
+     >= s.next_run_at AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC')
+ AND extract(hour from $1::timestamptz AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC'))
+     >= COALESCE((s.options->'time_window'->>'start_hour')::int, 0)
+ AND extract(hour from $1::timestamptz AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC'))
+     < COALESCE((s.options->'time_window'->>'end_hour')::int, 24)
  AND (a.expires_at IS NULL OR a.expires_at > $1)
  AND u.deleted_at IS NULL AND u.status='active' AND u.role='admin'
  ORDER BY s.next_run_at, s.account_id LIMIT 100`, now)
@@ -95,7 +122,7 @@ func (r *accountRepository) ListDueModelFingerprints(ctx context.Context, now ti
 		if err := rows.Scan(&plan.AccountID, &plan.UserID, &body, &plan.NextRunAt); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal(body, &plan.Options); err != nil {
+		if err := decodeModelFingerprintOptions(body, &plan); err != nil {
 			return nil, err
 		}
 		plans = append(plans, plan)
