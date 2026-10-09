@@ -12,6 +12,15 @@ linters:
     # Tests are excluded in CI; many compatibility helpers are referenced only by tests.
     # Keep production checks enabled without reporting those helpers as dead code.
 
+  exclusions:
+    rules:
+      # x/net v0.60 deprecates these APIs. Keep the patched compatibility paths
+      # for upstream keepalive, H2C tuning, and legacy GOAWAY error handling.
+      - path: internal/(repository/http_upstream|server/http|service/openai_codex_models_service)\.go
+        linters:
+          - staticcheck
+        text: 'SA1019: .*golang\.org/x/net/http2'
+
   settings:
     depguard:
       rules:
