@@ -2472,7 +2472,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
 				turnSelection := selection
 				if snapshot, ok := turnBillingSelections.Load(turn); ok {
-					turnSelection = snapshot.(*service.AccountSelectionResult)
+					if currentSelection, valid := snapshot.(*service.AccountSelectionResult); valid && currentSelection != nil {
+						turnSelection = currentSelection
+					}
 				}
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
 				h.submitOpenAIUsageRecordTask(attemptCtx, result, func(taskCtx context.Context) {

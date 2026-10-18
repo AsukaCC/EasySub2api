@@ -153,3 +153,12 @@ are not rewritten. Refund business rules and retired models remain unchanged.
 - No live Vertex request, database migration test, browser layout check or
   production operation was performed. Cline/Command Code, Argon, Vertex model
   discovery/quota completion and all explicit-cache operations remain open.
+
+## Release follow-up
+
+The v0.0.74 candidate did not pass CI and was not tagged or published.
+The v0.0.75 follow-up checks the WebSocket billing snapshot type assertion,
+updates Codex configuration/default-context regression expectations, preserves
+explicit upstream Sol context metadata, and restores Retry-After values longer
+than the local 24-hour probe backoff ceiling. The original refund and wallet
+rules are unchanged.
