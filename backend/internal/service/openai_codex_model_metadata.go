@@ -431,8 +431,10 @@ func applyUpstreamModelMetadataToCodexDescriptor(descriptor *configuredCodexMode
 		baseline := newConfiguredCodexModelDescriptor("gpt-6.1-sol")
 		descriptor.DefaultReasoningLevel = baseline.DefaultReasoningLevel
 		descriptor.SupportedReasoningLevels = baseline.SupportedReasoningLevels
-		descriptor.ContextWindow = baseline.ContextWindow
-		descriptor.MaxContextWindow = baseline.MaxContextWindow
+		if metadata.ContextWindow <= 0 && metadata.MaxContextWindow <= 0 {
+			descriptor.ContextWindow = baseline.ContextWindow
+			descriptor.MaxContextWindow = baseline.MaxContextWindow
+		}
 		descriptor.InputModalities = baseline.InputModalities
 	}
 }

@@ -61,6 +61,10 @@ func TestGPT61OfficialDescriptorPreservesMetadataAndOverrides(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &actual))
 	require.NoError(t, json.Unmarshal(openai.CodexGPT61SolMetadata, &official))
 	for key, expected := range official {
+		if key == "context_window" {
+			require.JSONEq(t, "500000", string(actual[key]))
+			continue
+		}
 		t.Run(key, func(t *testing.T) { require.JSONEq(t, string(expected), string(actual[key])) })
 	}
 	require.Equal(t, d.ModelMessages.InstructionsTemplate, openai.CodexBaseInstructionsForModel("gpt-6.1-sol"))
@@ -77,6 +81,11 @@ func TestGPT61OfficialDescriptorPreservesMetadataAndOverrides(t *testing.T) {
 	require.False(t, gjson.GetBytes(raw, "use_responses_lite").Bool())
 	require.Equal(t, "xhigh", gjson.GetBytes(raw, "multi_agent_reasoning_effort").String())
 	require.True(t, gjson.GetBytes(raw, "model_messages.tools").Exists())
+	applyUpstreamModelMetadataToCodexDescriptor(&d, codexModelMetadataOverride{UpstreamModelMetadata: UpstreamModelMetadata{
+		ID: "gpt-6.1-sol", ContextWindow: 272000, MaxContextWindow: 872000,
+	}})
+	require.Equal(t, int64(272000), d.ContextWindow, "explicit upstream context overrides the generated default")
+	require.Equal(t, int64(872000), d.MaxContextWindow)
 }
 
 func TestGPT61ChatOnlyGuardsAfterModelMapping(t *testing.T) {

@@ -82,7 +82,7 @@ func TestRelease0211Pricing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 272000, p.LongContextInputThreshold)
 	d := newConfiguredCodexModelDescriptor("gpt-6.1-sol")
-	require.Equal(t, int64(272000), d.ContextWindow)
+	require.Equal(t, int64(500000), d.ContextWindow)
 	require.Equal(t, int64(872000), d.MaxContextWindow)
 	require.Len(t, d.SupportedReasoningLevels, 6)
 	disabled := false
