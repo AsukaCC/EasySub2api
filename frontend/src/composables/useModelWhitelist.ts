@@ -34,6 +34,7 @@ export const claudeModels = [
   'claude-opus-5-5',
   'claude-sonnet-4-6',
   'claude-sonnet-5',
+  'claude-haiku-5-5',
   'claude-fable-5-1',
   'claude-fable-5'
 ]
@@ -280,6 +281,7 @@ const anthropicPresetMappings = [
   { label: 'Opus 5.5', from: 'claude-opus-5-5', to: 'claude-opus-5-5', color: 'composables-use-model-whitelist__state-4' },
   { label: 'Haiku 3.5', from: 'claude-3-5-haiku-20241022', to: 'claude-3-5-haiku-20241022', color: 'composables-use-model-whitelist__state-5' },
   { label: 'Haiku 4.5', from: 'claude-haiku-4-5-20251001', to: 'claude-haiku-4-5-20251001', color: 'composables-use-model-whitelist__state-6' },
+  { label: 'Haiku 5.5', from: 'claude-haiku-5-5', to: 'claude-haiku-5-5', color: 'composables-use-model-whitelist__state-6' },
   { label: 'Opus->Sonnet', from: 'claude-opus-4-6', to: 'claude-sonnet-4-5-20250929', color: 'composables-use-model-whitelist__state-7' }
 ]
 

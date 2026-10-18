@@ -16,6 +16,9 @@ func applyCodexToolCapabilities(dst, src map[string]json.RawMessage, overwrite b
 	changed := false
 	for _, field := range codexToolCapabilityFields {
 		value := bytes.TrimSpace(src[field])
+		if field == "service_tiers" && bytes.Equal(value, []byte("null")) {
+			value = []byte("[]")
+		}
 		if len(value) == 0 {
 			continue
 		}
@@ -244,6 +247,9 @@ func intersectUpstreamModelMetadata(modelID string, candidates []UpstreamModelMe
 			result.CodexToolCapabilities[field] = append(json.RawMessage(nil), value...)
 		} else if declared {
 			fallback := json.RawMessage("null")
+			if field == "service_tiers" {
+				fallback = json.RawMessage("[]")
+			}
 			if field == "supports_search_tool" || field == "use_responses_lite" {
 				fallback = json.RawMessage("false")
 			}

@@ -1736,6 +1736,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	documentScanner := newOpenAISSEJSONDocumentScanner(scanner)
 
 	needModelReplace := strings.TrimSpace(originalModel) != "" && strings.TrimSpace(mappedModel) != "" && strings.TrimSpace(originalModel) != strings.TrimSpace(mappedModel)
+	var createdAtStamper responsesCreatedAtStamper
 	resultWithUsage := func() *openaiStreamingResultPassthrough {
 		return &openaiStreamingResultPassthrough{
 			usage:            usage,
@@ -1784,6 +1785,11 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				}
 			}
 			eventType := strings.TrimSpace(gjson.Get(trimmedData, "type").String())
+			if stamped, changed := createdAtStamper.Stamp(dataBytes, eventType); changed {
+				dataBytes = stamped
+				trimmedData = string(stamped)
+				line = "data: " + trimmedData
+			}
 			if !capacityFailoverSuppressedLogged && account != nil && account.Platform == PlatformOpenAI &&
 				(eventType == "error" || eventType == "response.failed") &&
 				openAIStreamClientOutputStarted(c, clientOutputStarted) &&
@@ -2077,7 +2083,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 		}
 	}
 	if !writeOpenAICompactSSEBridge(c, resp.StatusCode, body) {
-		c.Data(resp.StatusCode, contentType, body)
+		c.Data(resp.StatusCode, contentType, ensureOpenAIResponseObjectCreatedAt(body))
 	}
 	return &openaiNonStreamingResultPassthrough{
 		OpenAIUsage:      usage,
@@ -2155,7 +2161,7 @@ func (s *OpenAIGatewayService) handlePassthroughSSEToJSON(resp *http.Response, c
 		}
 	}
 	if !writeOpenAICompactSSEBridge(c, resp.StatusCode, body) {
-		c.Data(resp.StatusCode, contentType, body)
+		c.Data(resp.StatusCode, contentType, ensureOpenAIResponseObjectCreatedAt(body))
 	}
 
 	return &openaiNonStreamingResultPassthrough{

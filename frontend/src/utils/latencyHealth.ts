@@ -1,3 +1,13 @@
+import type { UsageLog } from '@/types'
+
+export function formatUsageOutputRate(row: Pick<UsageLog, 'output_tokens' | 'duration_ms' | 'image_count' | 'image_output_tokens' | 'billing_mode' | 'request_type'>): string {
+  if (row.image_count > 0 || row.image_output_tokens > 0 || row.billing_mode === 'image'
+    || (row.request_type && !['sync', 'stream', 'ws_v2', 'cyber'].includes(row.request_type))
+    || !Number.isFinite(row.output_tokens) || row.output_tokens <= 0
+    || row.duration_ms == null || !Number.isFinite(row.duration_ms) || row.duration_ms <= 0) return '-'
+  return `${(row.output_tokens * 1000 / row.duration_ms).toFixed(1)} tok/s`
+}
+
 /**
  * 请求延迟健康度分档（用于用量明细"延迟"列的纵向健康扫视）。
  *

@@ -11,6 +11,8 @@ export default {
       },
       // Dashboard
       systemHealth: 'System Health',
+      outputTps: 'Per-request output TPS',
+      outputTpsSamples: 'Valid samples: {count}',
       overview: 'Overview',
       noSystemMetrics: 'No system metrics collected yet.',
       collectedAt: 'Collected at:',
@@ -783,6 +785,7 @@ export default {
         accountError: 'Error'
       },
       tooltips: {
+        outputTps: 'Output tokens divided by total duration for each request. P50 is the median; P5/P10 reflect slower requests. Images, Live and records without positive output or duration are excluded.',
         totalRequests: 'Total number of requests (including both successful and failed requests) in the selected time window.',
         throughputTrend: 'Requests/QPS + Tokens/TPS in the selected window.',
         switchRateTrend: 'Trend of account switches / total requests over the last 5 hours (avg switches).',

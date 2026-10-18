@@ -828,6 +828,11 @@
 
       <!-- Vertex Service Account -->
       <div v-if="(account.platform === 'anthropic' || account.platform === 'gemini') && account.type === 'service_account'" class="components-account-edit-account-modal__panel">
+        <div v-if="isVertexAPIKeyMode">
+          <label class="input-label">API Key</label>
+          <input v-model="editApiKey" type="password" class="input" autocomplete="new-password" placeholder="AIza... / AQ.Ab..." />
+          <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
+        </div>
         <div class="components-account-edit-account-modal__panel-19">
           <div>
             <label class="input-label">Project ID</label>
@@ -835,10 +840,10 @@
               v-model="editVertexProjectId"
               type="text"
               class="components-account-edit-account-modal__field input"
-              readonly
+              :readonly="!isVertexAPIKeyMode"
               :placeholder="t('admin.accounts.vertexProjectIdPlaceholder')"
             />
-            <p class="input-hint">{{ t('admin.accounts.vertexSaJsonEditHint') }}</p>
+            <p v-if="!isVertexAPIKeyMode" class="input-hint">{{ t('admin.accounts.vertexSaJsonEditHint') }}</p>
           </div>
           <div>
             <label class="input-label">Location</label>
@@ -1351,6 +1356,14 @@
                     class="input"
                     :placeholder="t('admin.accounts.tempUnschedulable.durationPlaceholder')"
                   />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.accounts.tempUnschedulable.scope') }}</label>
+                  <Select v-model="rule.scope" :options="[
+                    { value: '', label: t('admin.accounts.tempUnschedulable.scopeLegacy') },
+                    { value: 'account', label: t('admin.accounts.tempUnschedulable.scopeAccount') },
+                    { value: 'model', label: t('admin.accounts.tempUnschedulable.scopeModel') }
+                  ]" />
                 </div>
                 <div class="components-account-edit-account-modal__panel-26">
                   <label class="input-label">{{ t('admin.accounts.tempUnschedulable.keywords') }}</label>
@@ -2833,6 +2846,7 @@ interface ModelMapping {
 }
 
 interface TempUnschedRuleForm {
+  scope?: '' | 'account' | 'model'
   error_code: number | null
   keywords: string
   duration_minutes: number | null
@@ -2922,6 +2936,7 @@ const editBedrockRegion = ref('')
 const editBedrockForceGlobal = ref(false)
 const editBedrockApiKeyValue = ref('')
 const editVertexProjectId = ref('')
+const isVertexAPIKeyMode = computed(() => props.account?.platform === 'gemini' && props.account?.type === 'service_account' && props.account.credentials?.auth_mode === 'apikey')
 const editVertexClientEmail = ref('')
 const editVertexLocation = ref('us-central1')
 const isBedrockAPIKeyMode = computed(() =>
@@ -3957,10 +3972,11 @@ const removeErrorCode = (code: number) => {
 
 const addTempUnschedRule = (preset?: TempUnschedRuleForm) => {
   if (preset) {
-    tempUnschedRules.value.push({ ...preset })
+    tempUnschedRules.value.push({ scope: '', ...preset })
     return
   }
   tempUnschedRules.value.push({
+    scope: '',
     error_code: null,
     keywords: '',
     duration_minutes: 30,
@@ -3987,6 +4003,7 @@ const buildTempUnschedRules = (rules: TempUnschedRuleForm[]) => {
     keywords: string[]
     duration_minutes: number
     description: string
+    scope?: '' | 'account' | 'model'
   }> = []
 
   for (const rule of rules) {
@@ -4006,7 +4023,8 @@ const buildTempUnschedRules = (rules: TempUnschedRuleForm[]) => {
       error_code: Math.trunc(errorCode),
       keywords,
       duration_minutes: Math.trunc(duration),
-      description: rule.description.trim()
+      description: rule.description.trim(),
+      scope: rule.scope || undefined
     })
   }
 
@@ -4108,7 +4126,8 @@ function loadTempUnschedRules(credentials?: Record<string, unknown>) {
       error_code: toPositiveNumber(entry.error_code),
       keywords: formatTempUnschedKeywords(entry.keywords),
       duration_minutes: toPositiveNumber(entry.duration_minutes),
-      description: typeof entry.description === 'string' ? entry.description : ''
+      description: typeof entry.description === 'string' ? entry.description : '',
+      scope: entry.scope === 'account' || entry.scope === 'model' ? entry.scope : ''
     }
   })
 }
@@ -4445,11 +4464,11 @@ const handleSubmit = async () => {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
 
-      if (!editVertexProjectId.value.trim()) {
+      if (!isVertexAPIKeyMode.value && !editVertexProjectId.value.trim()) {
         appStore.showError(t('admin.accounts.vertexSaJsonMissingProjectId'))
         return
       }
-      if (!editVertexClientEmail.value.trim()) {
+      if (!isVertexAPIKeyMode.value && !editVertexClientEmail.value.trim()) {
         appStore.showError(t('admin.accounts.vertexSaJsonMissingClientEmail'))
         return
       }
@@ -4466,11 +4485,14 @@ const handleSubmit = async () => {
             credentialsStatus.has_service_account_json || credentialsStatus.has_service_account
           )
         : Boolean(currentCredentials.service_account_json || currentCredentials.service_account)
-      if (!hasExistingServiceAccountJson) {
+      if (!isVertexAPIKeyMode.value && !hasExistingServiceAccountJson) {
         appStore.showError(t('admin.accounts.vertexSaJsonRequired'))
         return
       }
       newCredentials.project_id = editVertexProjectId.value.trim()
+      if (isVertexAPIKeyMode.value && editApiKey.value.trim()) {
+        newCredentials.api_key = editApiKey.value.trim()
+      }
       newCredentials.client_email = editVertexClientEmail.value.trim()
       newCredentials.location = editVertexLocation.value.trim()
       newCredentials.tier_id = 'vertex'

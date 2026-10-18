@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -9,6 +9,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 import { opsAPI, type OpsRequestDetailsParams, type OpsRequestDetail } from '@/api/admin/ops'
 import { parseTimeRangeMinutes, formatDateTime } from '../utils/opsFormatters'
+import { accountsAPI } from '@/api/admin/accounts'
 
 export interface OpsRequestDetailsPreset {
   title: string
@@ -44,6 +45,21 @@ const items = ref<OpsRequestDetail[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+const accountNames = ref(new Map<string, string>())
+let requestVersion = 0
+onBeforeUnmount(() => { requestVersion++ })
+const accountLabel = (id: string | null | undefined) => id ? accountNames.value.get(id) || id : '-'
+
+async function loadAccountNames(version: number) {
+  const names = new Map<string, string>()
+  for (let accountPage = 1; ; accountPage++) {
+    const res = await accountsAPI.list(accountPage, 1000, { lite: '1', include_scheduler_score: '0' })
+    if (version !== requestVersion || !props.modelValue) return
+    for (const item of res.items || []) names.set(item.id, item.name)
+    if (!res.items?.length || accountPage * 1000 >= res.total) break
+  }
+  accountNames.value = names
+}
 
 const close = () => emit('update:modelValue', false)
 
@@ -65,6 +81,8 @@ function buildTimeParams(): Pick<OpsRequestDetailsParams, 'start_time' | 'end_ti
 
 const fetchData = async () => {
   if (!props.modelValue) return
+  const version = ++requestVersion
+  void loadAccountNames(version).catch(() => { /* IDs remain available when names cannot load. */ })
   loading.value = true
   try {
     const params: OpsRequestDetailsParams = {
@@ -83,15 +101,17 @@ const fetchData = async () => {
     if (typeof props.preset.max_duration_ms === 'number') params.max_duration_ms = props.preset.max_duration_ms
 
     const res = await opsAPI.listRequestDetails(params)
+    if (version !== requestVersion || !props.modelValue) return
     items.value = res.items || []
     total.value = res.total || 0
   } catch (e: any) {
+    if (version !== requestVersion || !props.modelValue) return
     console.error('[OpsRequestDetailsModal] Failed to fetch request details', e)
     appStore.showError(e?.message || t('admin.ops.requestDetails.failedToLoad'))
     items.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
@@ -102,6 +122,9 @@ watch(
       page.value = 1
       pageSize.value = 10
       fetchData()
+    } else {
+      requestVersion++
+      accountNames.value = new Map()
     }
   }
 )
@@ -197,6 +220,7 @@ const kindBadgeClass = (kind: string) => {
                     <span class="views-admin-ops-components-ops-request-details-modal__text-4">{{ formatDateTime(row.created_at) }}</span>
                   </div>
                   <div class="views-admin-ops-components-ops-request-details-modal__panel-15">{{ row.model || '-' }}</div>
+                  <div class="views-admin-ops-components-ops-request-details-modal__panel-15" :title="row.account_id || ''">{{ accountLabel(row.account_id) }}</div>
                   <div class="views-admin-ops-components-ops-request-details-modal__panel-16">
                     <span>{{ typeof row.duration_ms === 'number' ? `${row.duration_ms} ms` : '-' }}</span>
                     <span>{{ row.status_code ?? '-' }}</span>
@@ -265,6 +289,7 @@ const kindBadgeClass = (kind: string) => {
                   </td>
                   <td class="views-admin-ops-components-ops-request-details-modal__cell-4" :title="row.model || ''">
                     {{ row.model || '-' }}
+                    <div :title="row.account_id || ''">{{ accountLabel(row.account_id) }}</div>
                   </td>
                   <td class="views-admin-ops-components-ops-request-details-modal__cell">
                     {{ typeof row.duration_ms === 'number' ? `${row.duration_ms} ms` : '-' }}

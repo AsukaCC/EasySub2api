@@ -236,7 +236,7 @@
 <script setup lang="ts">
 import LoadingState from '@/components/common/LoadingState.vue'
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
@@ -315,18 +315,25 @@ const cloneEntries = (entries: GroupRateMultiplierEntry[]): LocalEntry[] => {
 
 const loadEntries = async () => {
   if (!props.group) return
+  const requestId = ++loadRequestId
+  serverEntries.value = []
+  localEntries.value = []
+  const groupId = props.group.id
+  const isCurrent = () => requestId === loadRequestId && props.show && props.group?.id === groupId
   loading.value = true
   try {
-    const raw = await adminAPI.groups.getGroupRateMultipliers(props.group.id)
+    const raw = await adminAPI.groups.getGroupRateMultipliers(groupId)
+    if (!isCurrent()) return
     // 仅显示已设置 rate_multiplier 的条目；rpm_override 在另一个弹窗管理，保留不动
     serverEntries.value = raw.filter(e => e.rate_multiplier != null)
     localEntries.value = cloneEntries(serverEntries.value)
     adjustPage()
   } catch (error) {
+    if (!isCurrent()) return
     appStore.showError(t('admin.groups.failedToLoad'))
     console.error('Error loading group rate multipliers:', error)
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
@@ -337,7 +344,9 @@ const adjustPage = () => {
   }
 }
 
-watch(() => props.show, (val) => {
+let loadRequestId = 0
+watch(() => [props.show, props.group?.id] as const, ([val]) => {
+  loadRequestId++
   if (val && props.group) {
     currentPage.value = 1
     batchFactor.value = null
@@ -414,7 +423,7 @@ const updateLocalRate = (userId: string, value: string) => {
     return
   }
   const num = parseFloat(value)
-  if (isNaN(num)) return
+  if (!Number.isFinite(num) || num <= 0) return
   entry.rate_multiplier = num
 }
 
@@ -486,6 +495,11 @@ const handleClickOutside = () => {
 if (typeof document !== 'undefined') {
   document.addEventListener('click', handleClickOutside)
 }
+onUnmounted(() => {
+  loadRequestId++
+  clearTimeout(searchTimeout)
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>

@@ -39,7 +39,7 @@ vi.mock('@airwallex/components-sdk', () => ({
 
 function airwallexSnapshot(overrides: Partial<PaymentRecoverySnapshot> = {}): PaymentRecoverySnapshot {
   return {
-    orderId: 101,
+    orderId: '101',
     amount: 88,
     qrCode: '',
     expiresAt: '2099-01-01T00:10:00.000Z',

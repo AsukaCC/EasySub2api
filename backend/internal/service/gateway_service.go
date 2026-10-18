@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
+	"github.com/AsukaCC/EasySub2api/internal/domain"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 	"github.com/AsukaCC/EasySub2api/internal/util/responseheaders"
@@ -1559,11 +1560,12 @@ func (s *GatewayService) resolveCompositeModelOwnership(ctx context.Context, gro
 		}
 	}
 
-	accounts, err := s.accountRepo.ListSchedulableByGroupID(ctx, groupID)
+	accounts, err := s.accountRepo.ListModelAvailabilityCandidates(ctx, &groupID, domain.AccountPlatforms, false)
 	if err != nil {
 		return CompositeModelOwnership{}, err
 	}
 
+	ownership := CompositeModelOwnership{}
 	platforms := make(map[string]struct{})
 	for i := range accounts {
 		account := &accounts[i]
@@ -1572,9 +1574,11 @@ func (s *GatewayService) resolveCompositeModelOwnership(ctx context.Context, gro
 			continue
 		}
 		platforms[platform] = struct{}{}
+		if account.IsOAuth() && platform != PlatformAnthropic && platform != PlatformGemini && platform != PlatformAntigravity {
+			ownership.OpenAIGatewayOAuthClaimed = true
+		}
 	}
 
-	ownership := CompositeModelOwnership{}
 	if len(platforms) == 1 {
 		for platform := range platforms {
 			ownership.TargetPlatform = platform

@@ -676,7 +676,15 @@
 
       <!-- Vertex Service Account -->
       <div v-if="(form.platform === 'anthropic' || form.platform === 'gemini') && accountCategory === 'service_account'" class="components-account-create-account-modal__panel-23">
-        <div>
+        <div v-if="form.platform === 'gemini'">
+          <label class="input-label">{{ t('admin.accounts.vertexAuthMode') }}</label>
+          <Select v-model="vertexAuthMode" :options="[{ value: 'service_account', label: 'Service Account JSON' }, { value: 'apikey', label: 'API Key' }]" />
+        </div>
+        <div v-if="form.platform === 'gemini' && vertexAuthMode === 'apikey'">
+          <label class="input-label">API Key</label>
+          <input v-model="vertexApiKey" type="password" class="input" autocomplete="new-password" placeholder="AIza... / AQ.Ab..." />
+        </div>
+        <div v-else>
           <label class="input-label">Service Account JSON</label>
           <input
             ref="vertexServiceAccountFileInput"
@@ -734,7 +742,7 @@
               v-model="vertexProjectId"
               type="text"
               class="components-account-create-account-modal__field input"
-              readonly
+              :readonly="form.platform !== 'gemini' || vertexAuthMode !== 'apikey'"
               :placeholder="t('admin.accounts.vertexProjectIdPlaceholder')"
             />
           </div>
@@ -1892,6 +1900,14 @@
                     :placeholder="t('admin.accounts.tempUnschedulable.durationPlaceholder')"
                   />
                 </div>
+                  <div>
+                    <label class="input-label">{{ t('admin.accounts.tempUnschedulable.scope') }}</label>
+                    <Select v-model="rule.scope" :options="[
+                      { value: '', label: t('admin.accounts.tempUnschedulable.scopeLegacy') },
+                      { value: 'account', label: t('admin.accounts.tempUnschedulable.scopeAccount') },
+                      { value: 'model', label: t('admin.accounts.tempUnschedulable.scopeModel') }
+                    ]" />
+                  </div>
                 <div class="components-account-create-account-modal__panel-50">
                   <label class="input-label">{{ t('admin.accounts.tempUnschedulable.keywords') }}</label>
                   <input
@@ -3138,6 +3154,7 @@ interface ModelMapping {
 }
 
 interface TempUnschedRuleForm {
+  scope?: '' | 'account' | 'model'
   error_code: number | null
   keywords: string
   duration_minutes: number | null
@@ -3410,6 +3427,8 @@ const bedrockForceGlobal = ref(false)
 const bedrockApiKeyValue = ref('')
 const vertexServiceAccountFileInput = ref<HTMLInputElement | null>(null)
 const vertexServiceAccountJson = ref('')
+const vertexAuthMode = ref('service_account')
+const vertexApiKey = ref('')
 const vertexProjectId = ref('')
 const vertexClientEmail = ref('')
 const vertexLocation = ref('global')
@@ -3731,6 +3750,8 @@ watch(
     bedrockAuthMode.value = 'sigv4'
     bedrockApiKeyValue.value = ''
     vertexServiceAccountJson.value = ''
+    vertexAuthMode.value = 'service_account'
+    vertexApiKey.value = ''
     vertexProjectId.value = ''
     vertexClientEmail.value = ''
     vertexLocation.value = 'global'
@@ -3915,10 +3936,11 @@ const removeErrorCode = (code: number) => {
 
 const addTempUnschedRule = (preset?: TempUnschedRuleForm) => {
   if (preset) {
-    tempUnschedRules.value.push({ ...preset })
+    tempUnschedRules.value.push({ scope: '', ...preset })
     return
   }
   tempUnschedRules.value.push({
+    scope: '',
     error_code: null,
     keywords: '',
     duration_minutes: 30,
@@ -3945,6 +3967,7 @@ const buildTempUnschedRules = (rules: TempUnschedRuleForm[]) => {
     keywords: string[]
     duration_minutes: number
     description: string
+    scope?: '' | 'account' | 'model'
   }> = []
 
   for (const rule of rules) {
@@ -3964,7 +3987,8 @@ const buildTempUnschedRules = (rules: TempUnschedRuleForm[]) => {
       error_code: Math.trunc(errorCode),
       keywords,
       duration_minutes: Math.trunc(duration),
-      description: rule.description.trim()
+      description: rule.description.trim(),
+      scope: rule.scope || undefined
     })
   }
 
@@ -4119,6 +4143,8 @@ const resetForm = () => {
   customBaseUrlEnabled.value = false
   customBaseUrl.value = ''
   vertexServiceAccountJson.value = ''
+  vertexAuthMode.value = 'service_account'
+  vertexApiKey.value = ''
   vertexProjectId.value = ''
   vertexClientEmail.value = ''
   vertexLocation.value = 'global'
@@ -4392,7 +4418,12 @@ const handleSubmit = async () => {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
       return
     }
-    if (!parseVertexServiceAccountJson()) {
+    const useAPIKey = form.platform === 'gemini' && vertexAuthMode.value === 'apikey'
+    if (useAPIKey && !vertexApiKey.value.trim()) {
+      appStore.showError(t('admin.accounts.pleaseEnterApiKey'))
+      return
+    }
+    if (!useAPIKey && !parseVertexServiceAccountJson()) {
       return
     }
     if (!vertexLocation.value.trim()) {
@@ -4400,9 +4431,11 @@ const handleSubmit = async () => {
       return
     }
     const credentials: Record<string, unknown> = {
-      service_account_json: vertexServiceAccountJson.value.trim(),
+      ...(useAPIKey ? { auth_mode: 'apikey', api_key: vertexApiKey.value.trim() } : {
+        service_account_json: vertexServiceAccountJson.value.trim(),
+        client_email: vertexClientEmail.value.trim()
+      }),
       project_id: vertexProjectId.value.trim(),
-      client_email: vertexClientEmail.value.trim(),
       location: vertexLocation.value.trim(),
       tier_id: 'vertex'
     }

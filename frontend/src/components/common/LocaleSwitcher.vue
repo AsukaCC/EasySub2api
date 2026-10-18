@@ -148,6 +148,7 @@ async function selectLocale(code: string) {
   switching.value = true
   try {
     await setLocale(code)
+    window.location.reload()
   } finally {
     switching.value = false
     closeDropdown(true)

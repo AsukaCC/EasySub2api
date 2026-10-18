@@ -1425,6 +1425,22 @@ function handleToolbarRefresh() {
       </div>
     </div>
 
+    <div v-if="overview && !props.compact" class="views-admin-ops-components-ops-dashboard-header__panel-33" data-testid="output-tps-card">
+      <div class="views-admin-ops-components-ops-dashboard-header__panel-35">
+        <span class="views-admin-ops-components-ops-dashboard-header__text-9">{{ t('admin.ops.outputTps') }}</span>
+        <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.tooltips.outputTps')" />
+      </div>
+      <div class="views-admin-ops-components-ops-dashboard-header__panel-47">
+        <div v-for="metric in ['p5', 'p10', 'p50', 'avg'] as const" :key="metric" class="views-admin-ops-components-ops-dashboard-header__panel-37">
+          <span class="views-admin-ops-components-ops-dashboard-header__text-10">{{ metric.toUpperCase() }}</span>
+          <span class="views-admin-ops-components-ops-dashboard-header__text-11" :data-testid="`output-tps-${metric}`">{{ overview.output_tps?.[metric]?.toFixed(1) ?? '-' }} tok/s</span>
+        </div>
+      </div>
+      <div class="views-admin-ops-components-ops-dashboard-header__text-10" data-testid="output-tps-samples">
+        {{ t('admin.ops.outputTpsSamples', { count: overview.output_tps == null ? '-' : formatNumber(overview.output_tps.sample_count) }) }}
+      </div>
+    </div>
+
     <!-- Integrated: System health (cards) -->
     <div v-if="overview && !props.compact" class="views-admin-ops-components-ops-dashboard-header__panel-48">
       <div class="views-admin-ops-components-ops-dashboard-header__panel-49">

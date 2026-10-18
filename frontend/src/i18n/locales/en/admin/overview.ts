@@ -916,6 +916,7 @@ export default {
 
     // Groups
     groups: {
+      translations: 'Name and description translations',
       title: 'Group Management',
       description: 'Manage API key groups and rate multipliers',
       searchGroups: 'Search groups...',

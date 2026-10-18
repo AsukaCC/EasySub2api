@@ -372,14 +372,17 @@ function closeDetail() {
 
 async function markAsRead(id: string) {
   try {
-    await announcementStore.markAsRead(id)
+    const success = await announcementStore.markAsRead(id)
+    if (!success) appStore.showError(t('common.unknownError'))
+    return success
   } catch (err: any) {
     appStore.showError(err?.message || t('common.unknownError'))
+    return false
   }
 }
 
 async function markAsReadAndClose(id: string) {
-  await markAsRead(id)
+  if (!await markAsRead(id)) return
   appStore.showSuccess(t('announcements.markedAsRead'))
   closeDetail()
 }

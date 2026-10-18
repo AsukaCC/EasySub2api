@@ -294,6 +294,10 @@ func sanitizeGroupOpenAIFast(group *Group) {
 }
 
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
+	i18n, err := normalizeGroupI18n(input.I18n)
+	if err != nil {
+		return nil, err
+	}
 	if input.RateMultiplier < 0 {
 		return nil, errors.New("rate_multiplier must be >= 0")
 	}
@@ -443,6 +447,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	group := &Group{
 		Name:                            input.Name,
 		Description:                     input.Description,
+		I18n:                            i18n,
 		Platform:                        platform,
 		RateMultiplier:                  input.RateMultiplier,
 		LevelRateMultipliers:            levelRates,
@@ -641,6 +646,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id string, input *Up
 	}
 	if input.Description != nil {
 		group.Description = *input.Description
+	}
+	if input.I18n != nil {
+		i18n, err := normalizeGroupI18n(*input.I18n)
+		if err != nil {
+			return nil, err
+		}
+		group.I18n = i18n
 	}
 	if input.Platform != "" {
 		group.Platform = input.Platform

@@ -338,6 +338,10 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 		}
 	}
 	if isClaudeCodexModel(modelID) {
+		if claude.IsHaiku55(modelID) {
+			d.ContextWindow = 1_000_000
+			d.MaxContextWindow = 1_000_000
+		}
 		d.DisplayName = claudeCodexDisplayName(modelID)
 		d.Description = "Claude coding and reasoning model routed through EasySub2api."
 		d.SupportsParallelToolCalls = true
@@ -384,6 +388,7 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 		}
 		d.Slug = modelID
 		d.officialMetadata = openai.CodexGPT61SolMetadata
+		d.ContextWindow = 500_000
 	}
 	return d
 }

@@ -145,7 +145,7 @@
 
 <script setup lang="ts">
 import LoadingSpinner from './LoadingSpinner.vue'
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import Icon from '@/components/icons/Icon.vue'
@@ -297,6 +297,10 @@ const handleEscape = (event: KeyboardEvent) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscape)
+})
+
+watch(() => props.disabled, (disabled) => {
+  if (disabled) isOpen.value = false
 })
 
 onUnmounted(() => {

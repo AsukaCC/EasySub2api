@@ -701,7 +701,7 @@ ${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${buildCodexM
 ${generateCodexProviderAuthConfig()}
 
 [features]
-goals = true`
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}goals = true`
 
   // auth.json content
   const authContent = `{
@@ -971,7 +971,7 @@ supports_websockets = true
 ${generateCodexProviderAuthConfig()}
 
 [features]
-responses_websockets_v2 = true
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}responses_websockets_v2 = true
 goals = true`
 
   // auth.json content

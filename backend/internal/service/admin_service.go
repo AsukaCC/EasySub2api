@@ -224,6 +224,7 @@ type AdminBoundAuthIdentityChannel struct {
 }
 
 type CreateGroupInput struct {
+	I18n                      GroupI18n
 	Name                      string
 	Description               string
 	Platform                  string
@@ -300,6 +301,7 @@ type CreateGroupInput struct {
 }
 
 type UpdateGroupInput struct {
+	I18n                 *GroupI18n
 	Name                 string
 	Description          *string
 	Platform             string

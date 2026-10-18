@@ -577,6 +577,7 @@ var monitorAPIKeyPatterns = []struct {
 	{regexp.MustCompile(`sk-[A-Za-z0-9-]{20,}`), "sk-***REDACTED***"},
 	// xAI API Key：xai-xxxxxxx
 	{regexp.MustCompile(`xai-[A-Za-z0-9_-]{6,}`), "xai-***REDACTED***"},
+	{regexp.MustCompile(`AQ\.Ab[0-9A-Za-z_-]{40,}`), "AQ.***REDACTED***"},
 	// JWT 三段式（Bearer 后常出现）：eyJxxx.eyJxxx.signature
 	{regexp.MustCompile(`eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`), "eyJ***REDACTED.JWT***"},
 }

@@ -26,6 +26,7 @@ var effortFamilies = []struct {
 	{family: "claude-opus-4-5", levels: effortLowMediumHigh},
 	{family: "claude-opus-5-5", levels: effortLowMediumHighXHighMax},
 	{family: "claude-opus-5", levels: effortLowMediumHighXHighMax},
+	{family: "claude-haiku-5-5", levels: effortLowMediumHighXHighMax},
 }
 
 // EffortLevelsForModel returns accepted output_config.effort values, ordered
@@ -45,6 +46,14 @@ func IsOpus55(model string) bool {
 	return normalizeEffortModelID(model) == "claude-opus-5-5"
 }
 
+func IsHaiku55(model string) bool {
+	return normalizeEffortModelID(model) == "claude-haiku-5-5"
+}
+
+func IsSonnet55(model string) bool {
+	return normalizeEffortModelID(model) == "claude-sonnet-5-5"
+}
+
 func normalizeEffortModelID(model string) string {
 	id := strings.ToLower(strings.TrimSpace(model))
 	id = strings.TrimPrefix(id, "models/")
@@ -53,6 +62,9 @@ func normalizeEffortModelID(model string) string {
 	}
 	id = strings.TrimPrefix(id, "anthropic.")
 	id = strings.TrimSuffix(id, "-thinking")
+	if id == "claude-haiku-5.5" {
+		id = "claude-haiku-5-5"
+	}
 	if mapped, ok := ModelIDReverseOverrides[id]; ok {
 		id = mapped
 	}

@@ -298,6 +298,18 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 // initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）
 // 价格单位：USD per token（与LiteLLM格式一致）
 func (s *BillingService) initFallbackPricing() {
+	s.fallbackPrices["claude-haiku-5-5"] = &ModelPricing{
+		InputPricePerToken:          0.1e-6,
+		OutputPricePerToken:         0.5e-6,
+		CacheCreationPricePerToken:  0.125e-6,
+		CacheReadPricePerToken:      0.01e-6,
+		CacheCreation5mPrice:        0.125e-6,
+		CacheCreation1hPrice:        0.2e-6,
+		SupportsCacheBreakdown:      true,
+		LongContextInputThreshold:   100000,
+		LongContextInputMultiplier:  5,
+		LongContextOutputMultiplier: 5,
+	}
 	s.fallbackPrices["claude-opus-5-5"] = &ModelPricing{
 		InputPricePerToken: 4e-6, OutputPricePerToken: 20e-6,
 		CacheCreationPricePerToken: 5e-6, CacheReadPricePerToken: 0.2e-6,
@@ -849,6 +861,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 		return s.fallbackPrices["claude-3-5-sonnet"]
 	}
 	if strings.Contains(modelLower, "haiku") {
+		if claude.IsHaiku55(modelLower) {
+			return s.fallbackPrices["claude-haiku-5-5"]
+		}
 		if strings.Contains(modelLower, "3-5") || strings.Contains(modelLower, "3.5") {
 			return s.fallbackPrices["claude-3-5-haiku"]
 		}

@@ -72,7 +72,7 @@ func (h *SubscriptionHandler) List(c *gin.Context) {
 
 	out := make([]dto.UserSubscription, 0, len(subscriptions))
 	for i := range subscriptions {
-		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]))
+		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]).Localized(c.GetHeader("Accept-Language")))
 	}
 	response.Success(c, out)
 }
@@ -94,7 +94,7 @@ func (h *SubscriptionHandler) GetActive(c *gin.Context) {
 
 	out := make([]dto.UserSubscription, 0, len(subscriptions))
 	for i := range subscriptions {
-		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]))
+		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]).Localized(c.GetHeader("Accept-Language")))
 	}
 	response.Success(c, out)
 }
@@ -159,7 +159,7 @@ func (h *SubscriptionHandler) GetProgress(c *gin.Context) {
 			continue
 		}
 		result = append(result, SubscriptionProgressInfo{
-			Subscription: dto.UserSubscriptionFromService(sub),
+			Subscription: dto.UserSubscriptionFromService(sub).Localized(c.GetHeader("Accept-Language")),
 			Progress:     progress,
 		})
 	}
@@ -219,7 +219,7 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 
 		// Add group info if preloaded
 		if sub.Group != nil {
-			item.GroupName = sub.Group.Name
+			item.GroupName, _ = sub.Group.I18n.Localize(c.GetHeader("Accept-Language"), sub.Group.Name, sub.Group.Description)
 			if sub.Group.DailyLimitUSD != nil {
 				item.DailyLimitUSD = *sub.Group.DailyLimitUSD
 				item.DailyLimitPoints = *sub.Group.DailyLimitUSD

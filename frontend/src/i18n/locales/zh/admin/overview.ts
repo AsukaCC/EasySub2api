@@ -913,6 +913,7 @@ export default {
 
     // Groups Management
     groups: {
+      translations: '名称与描述译文',
       title: '分组管理',
       description: '管理 API 密钥分组和费率配置',
       searchGroups: '搜索分组...',

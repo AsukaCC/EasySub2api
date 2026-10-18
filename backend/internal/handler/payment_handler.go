@@ -97,6 +97,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 	result := make([]planWithPlatform, 0, len(plans))
 	for _, p := range plans {
 		gi := groupInfo[p.GroupID]
+		gi.Name, _ = gi.I18n.Localize(c.GetHeader("Accept-Language"), gi.Name, "")
 		var stockAvailable *int
 		if p.StockQuantity != nil {
 			available := *p.StockQuantity - p.StockFrozen
@@ -166,7 +167,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		return
 	}
 	groupInfo := h.configService.GetGroupInfoMap(ctx, plans)
-	planList := checkoutPlansForResponse(plans, groupInfo)
+	planList := checkoutPlansForResponse(plans, groupInfo, c.GetHeader("Accept-Language"))
 
 	response.Success(c, checkoutInfoResponse{
 		Methods:                       limitsResp.Methods,
@@ -240,13 +241,16 @@ type checkoutPlan struct {
 	StockAvailable        *int     `json:"stock_available"`
 }
 
-func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[string]service.PlanGroupInfo) []checkoutPlan {
+func checkoutPlansForResponse(plans []*dbent.SubscriptionPlan, groupInfo map[string]service.PlanGroupInfo, acceptLanguage ...string) []checkoutPlan {
 	result := make([]checkoutPlan, 0, len(plans))
 	for _, p := range plans {
 		if p == nil {
 			continue
 		}
 		gi := groupInfo[p.GroupID]
+		if len(acceptLanguage) > 0 {
+			gi.Name, _ = gi.I18n.Localize(acceptLanguage[0], gi.Name, "")
+		}
 		var stockAvailable *int
 		if p.StockQuantity != nil {
 			available := *p.StockQuantity - p.StockFrozen

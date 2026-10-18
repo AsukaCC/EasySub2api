@@ -662,7 +662,10 @@ export interface GroupDynamicRateRule {
 	quota_amount?: number
 }
 
+export type GroupI18n = Record<string, { name?: string; description?: string }>
+
 export interface Group {
+  i18n?: GroupI18n
   id: string
   name: string
   description: string | null
@@ -890,6 +893,7 @@ export interface UpdateApiKeyRequest {
 }
 
 export interface CreateGroupRequest {
+  i18n?: GroupI18n
   name: string
   description?: string | null
   platform?: GroupPlatform
@@ -959,6 +963,7 @@ export interface CreateGroupRequest {
 }
 
 export interface UpdateGroupRequest {
+  i18n?: GroupI18n
   name?: string
   description?: string | null
   platform?: GroupPlatform
@@ -1119,6 +1124,7 @@ export interface ProxyQualityCheckResult {
 }
 
 export interface TempUnschedulableRule {
+  scope?: '' | 'account' | 'model'
   error_code: number
   keywords: string[]
   duration_minutes: number
@@ -1126,6 +1132,8 @@ export interface TempUnschedulableRule {
 }
 
 export interface TempUnschedulableState {
+  scope?: 'account' | 'model'
+  model?: string
   until_unix: number
   triggered_at_unix: number
   status_code: number

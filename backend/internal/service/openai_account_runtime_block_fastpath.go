@@ -142,8 +142,12 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	// Isolate a custom temporary-unschedulable match to the known upstream
 	// model before entering the generic account error path. This keeps the
 	// account available to other models and avoids the account runtime blocker.
-	if s.rateLimitService != nil && statusCode != http.StatusUnauthorized && len(canonicalModel) > 0 && strings.TrimSpace(canonicalModel[0]) != "" &&
+	if s.rateLimitService != nil && len(canonicalModel) > 0 && tempUnschedRulesApply(account, statusCode, responseBody, canonicalModel[0]) &&
 		s.rateLimitService.HandleTempUnschedulable(stateCtx, account, statusCode, responseBody, canonicalModel[0]) {
+		hits := matchTempUnschedulableRules(account, statusCode, responseBody)
+		if len(hits) > 0 && !tempUnschedHitUsesModelScope(account, hits[0].rule, canonicalModel[0], statusCode, responseBody) {
+			s.BlockAccountScheduling(account, time.Time{}, "upstream_disable")
+		}
 		return true
 	}
 	if statusCode == http.StatusTooManyRequests {
@@ -153,8 +157,8 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 		return false
 	}
 	shouldDisable := s.rateLimitService.HandleUpstreamError(stateCtx, account, statusCode, headers, responseBody)
-	modelTempMatched := statusCode != http.StatusUnauthorized && tempUnschedulableModel(stateCtx, nil) != "" &&
-		len(matchTempUnschedulableRules(account, statusCode, responseBody)) > 0
+	hits := matchTempUnschedulableRules(account, statusCode, responseBody)
+	modelTempMatched := len(hits) > 0 && tempUnschedHitUsesModelScope(account, hits[0].rule, tempUnschedulableModel(stateCtx, nil), statusCode, responseBody)
 	if shouldDisable && !modelTempMatched {
 		s.BlockAccountScheduling(account, time.Time{}, "upstream_disable")
 	}

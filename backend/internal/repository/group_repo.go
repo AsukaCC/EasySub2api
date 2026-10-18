@@ -138,6 +138,9 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		builder = builder.SetModelRouting(groupIn.ModelRouting)
 	}
 
+	if groupIn.I18n != nil {
+		builder.SetI18n(groupIn.I18n)
+	}
 	created, err := builder.Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, nil, service.ErrGroupExists)
@@ -406,6 +409,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.ClearModelRouting()
 	}
 
+	i18n := groupIn.I18n
+	if i18n == nil {
+		i18n = service.GroupI18n{}
+	}
+	builder.SetI18n(i18n)
 	updated, err := builder.Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, service.ErrGroupNotFound, service.ErrGroupExists)
