@@ -203,7 +203,7 @@
 <script setup lang="ts">
 import LoadingState from '@/components/common/LoadingState.vue'
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
@@ -268,16 +268,24 @@ const cloneEntries = (entries: GroupRPMOverrideEntry[]): LocalEntry[] => {
 
 const loadEntries = async () => {
   if (!props.group) return
+  const requestId = ++loadRequestId
+  serverEntries.value = []
+  localEntries.value = []
+  const groupId = props.group.id
+  const isCurrent = () => requestId === loadRequestId && props.show && props.group?.id === groupId
   loading.value = true
   try {
-    serverEntries.value = await adminAPI.groups.getGroupRPMOverrides(props.group.id)
+    const entries = await adminAPI.groups.getGroupRPMOverrides(groupId)
+    if (!isCurrent()) return
+    serverEntries.value = entries
     localEntries.value = cloneEntries(serverEntries.value)
     adjustPage()
   } catch (error) {
+    if (!isCurrent()) return
     appStore.showError(t('admin.groups.failedToLoad'))
     console.error('Error loading RPM overrides:', error)
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
@@ -286,7 +294,9 @@ const adjustPage = () => {
   if (currentPage.value > totalPages) currentPage.value = totalPages
 }
 
-watch(() => props.show, (val) => {
+let loadRequestId = 0
+watch(() => [props.show, props.group?.id] as const, ([val]) => {
+  loadRequestId++
   if (val && props.group) {
     currentPage.value = 1
     searchQuery.value = ''
@@ -351,8 +361,8 @@ const handleAddLocal = () => {
   adjustPage()
 }
 
-const updateLocalRpm = (userId: string, value: string) => {
-  const num = parseInt(value, 10)
+const updateLocalRpm = (userId: string, value: string | number) => {
+  const num = typeof value === 'number' ? value : parseInt(value, 10)
   if (isNaN(num) || num < 0) return
   const entry = localEntries.value.find(e => e.user_id === userId)
   if (entry) entry.rpm_override = num
@@ -416,6 +426,11 @@ const handleClickOutside = () => { showDropdown.value = false }
 if (typeof document !== 'undefined') {
   document.addEventListener('click', handleClickOutside)
 }
+onUnmounted(() => {
+  loadRequestId++
+  clearTimeout(searchTimeout)
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>

@@ -21,6 +21,7 @@ type Group struct {
 	ID             string
 	Name           string
 	Description    string
+	I18n           GroupI18n
 	Platform       string
 	RateMultiplier float64
 	// LevelRateMultipliers 按用户等级提供独立倍率候选，key 为 user level tier UUID。

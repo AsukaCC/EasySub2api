@@ -254,6 +254,8 @@
               <span v-else class="components-admin-usage-usage-table__text-24">-</span>
               <span class="components-admin-usage-usage-table__text-24">{{ t('usage.latencyDuration') }}</span>
               <span class="components-admin-usage-usage-table__text-25" :class="LATENCY_TEXT_CLASSES[durationSeverity(row.duration_ms ?? 0)]">{{ formatDuration(row.duration_ms) }}</span>
+              <span class="components-admin-usage-usage-table__text-24" :title="t('usage.outputTpsHint')">{{ t('usage.outputTps') }}</span>
+              <span data-testid="output-tps" class="components-admin-usage-usage-table__text-25">{{ formatUsageOutputRate(row) }}</span>
             </div>
           </div>
         </template>
@@ -562,6 +564,7 @@ import {
   LATENCY_BAR_TO_CLASSES,
   LATENCY_TEXT_CLASSES,
   durationSeverity,
+  formatUsageOutputRate,
   firstTokenSeverity,
 } from '@/utils/latencyHealth'
 import {

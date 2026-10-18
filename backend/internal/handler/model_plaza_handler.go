@@ -126,9 +126,12 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 
 	visible := filterPlazaVisibleGroups(groups, allowedExclusive)
 
+	c.Writer.Header().Add("Vary", "Accept-Language")
 	out := make([]modelPlazaGroup, 0, len(visible))
 	for i := range visible {
-		out = append(out, toModelPlazaGroupDTO(&visible[i], userRates))
+		item := toModelPlazaGroupDTO(&visible[i], userRates)
+		item.Name, item.Description = visible[i].I18n.Localize(c.GetHeader("Accept-Language"), item.Name, item.Description)
+		out = append(out, item)
 	}
 	response.Success(c, modelPlazaResponse{
 		Description: rt.Description,

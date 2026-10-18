@@ -834,7 +834,8 @@ const (
 
 // GatewayConfig API网关相关配置
 type GatewayConfig struct {
-	ImageTaskQueue ImageTaskQueueConfig `mapstructure:"image_task_queue"`
+	MinOutputTokens int                  `mapstructure:"min_output_tokens"`
+	ImageTaskQueue  ImageTaskQueueConfig `mapstructure:"image_task_queue"`
 	// Antigravity 429 fallback cooldown when the upstream omits a reset time.
 	AntigravityFallbackCooldownMinutes int   `mapstructure:"antigravity_fallback_cooldown_minutes"`
 	ModelsListReadMaxBytes             int64 `mapstructure:"models_list_read_max_bytes"`
@@ -1930,6 +1931,7 @@ func setDefaults() {
 		"api.openai.com",
 		"api.anthropic.com",
 		"api.kimi.com",
+		"api.kimi.ai",
 		"api.moonshot.ai",
 		"api.moonshot.cn",
 		"open.bigmodel.cn",
@@ -2182,6 +2184,7 @@ func setDefaults() {
 	viper.SetDefault("idempotency.cleanup_batch_size", 500)
 
 	// Gateway
+	viper.SetDefault("gateway.min_output_tokens", 128)
 	viper.SetDefault("gateway.response_header_timeout", 600) // 600秒(10分钟)等待上游响应头，LLM高负载时可能排队较久
 	viper.SetDefault("gateway.openai_response_header_timeout", 0)
 	viper.SetDefault("gateway.openai_first_output_timeout_seconds", 0)
@@ -2460,6 +2463,12 @@ func setEnvReachableDefaults() {
 }
 
 func (c *Config) Validate() error {
+	if c.Gateway.MinOutputTokens == 0 {
+		c.Gateway.MinOutputTokens = 128
+	}
+	if c.Gateway.MinOutputTokens < 16 {
+		return fmt.Errorf("gateway.min_output_tokens must be at least 16")
+	}
 	if c.APIKeyCreate.MaxActivePerUser < 0 {
 		return fmt.Errorf("api_key_create.max_active_per_user must be non-negative")
 	}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -40,6 +41,9 @@ func ensureCompositeTargetPlatformWithResolver(
 	decision, err := resolver.Resolve(ctx, apiKey.Group.ID, model, endpoint)
 	if err != nil {
 		return false, err
+	}
+	if decision.OAuthAmbiguous() {
+		return false, fmt.Errorf("%s", decision.AmbiguousMessage())
 	}
 	if !decision.Matched {
 		return false, nil

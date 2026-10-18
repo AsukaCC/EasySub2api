@@ -14,6 +14,7 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/timezone"
 	"go.uber.org/zap"
 )
@@ -298,6 +299,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		}
 	}
 	longContextBillingGate := openAILongContextBillingGate(billingAccount)
+	if openAISubscriptionLongContextExempt(billingAccount, result) {
+		disabled := false
+		longContextBillingGate = &disabled
+	}
 	cost, err = s.calculateOpenAIRecordUsageCost(
 		ctx,
 		result,
@@ -619,6 +624,17 @@ func (s *OpenAIGatewayService) hasIdentifiedOpenAIResponsePricing(ctx context.Co
 // nil — "no per-account gate" — and are governed by the group toggle alone.
 // Returning a hardcoded false for them would veto the official model ladders
 // (e.g. the Grok >=200k 2x card) that no account setting can ever re-enable.
+func openAISubscriptionLongContextExempt(account *Account, result *OpenAIForwardResult) bool {
+	if account == nil || !account.IsOpenAIOAuthLike() || result == nil {
+		return false
+	}
+	model := strings.TrimSpace(result.UpstreamModel)
+	if model == "" {
+		model = result.Model
+	}
+	return openai.IsGPT61SolModelSpelling(model)
+}
+
 func openAILongContextBillingGate(account *Account) *bool {
 	if account == nil || !account.IsOpenAI() {
 		return nil

@@ -2049,11 +2049,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	// after acquiring turn slots, including the first account-selection wait.
 	// Restrict this extra check to the opt-in mode so standard-mode RPM checks
 	// are not charged a second time for the same request.
-	checkSimpleModeTurnBilling := func() error {
+	checkSimpleModeTurnBilling := func(billingCtx context.Context, billingKey *service.APIKey, billingSubscription *service.UserSubscription) error {
 		if h.cfg == nil || h.cfg.RunMode != config.RunModeSimple || !h.cfg.SimpleModeKeyRateLimitEnabled {
 			return nil
 		}
-		if err := h.billingCacheService.CheckBillingEligibility(ctx, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(ctx, apiKey)); err != nil {
+		if err := h.billingCacheService.CheckBillingEligibility(billingCtx, billingKey.User, billingKey, billingKey.Group, billingSubscription, service.QuotaPlatform(billingCtx, billingKey)); err != nil {
 			return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "billing check failed", err)
 		}
 		return nil
@@ -2292,7 +2292,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// turn 级定价：BeforeTurn 重新冻结 pricingAt 并按最新门复核当前账号；
 		// passthrough 没有 BeforeTurn 时，AfterTurn 回退到 TurnStarted 的所属 turn 时刻。
 		var turnPricing openAIWSTurnPricing
-		if err := checkSimpleModeTurnBilling(); err != nil {
+		var turnBillingSelections sync.Map
+		if err := checkSimpleModeTurnBilling(attemptCtx, selectedAPIKey, selection.BillingSubscription); err != nil {
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
 			return
 		}
@@ -2350,7 +2351,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				// 长连接跨峰谷/倍率刷新防护：每个 turn 按当前时刻重装门并复核
 				// 当前账号，越线即要求客户端重连重选（连接绑定单一上游账号，
 				// 无法中途换号）。本 turn 的准入与计费共用同一 pricingAt。
-				turnCtx, turnAt := h.gatewayService.WithOpenAITurnPricingContext(attemptCtx, selectedAPIKey.GroupID)
+				turnCtx, turnSelection, turnAt, billingErr := h.gatewayService.RefreshWSTurnBilling(attemptCtx, selectedAPIKey, selection)
+				if billingErr != nil {
+					return service.NewOpenAIWSClientCloseError(coderws.StatusTryAgainLater, "billing configuration changed or unavailable, please reconnect", billingErr)
+				}
+				turnBillingSelections.Store(turn, turnSelection)
+				turnBillingSelections.Delete(turn - 2)
 				if _, vetoed, reason := h.gatewayService.ProfitControlVetoLatest(turnCtx, account); vetoed {
 					reqLog.Info("openai.websocket_turn_profit_vetoed",
 						zap.Int("turn", turn),
@@ -2360,7 +2366,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				}
 				turnPricing.freeze(turnAt)
 				if turn == 1 {
-					return nil
+					return checkSimpleModeTurnBilling(turnCtx, service.APIKeyForAccountSelection(apiKey, turnSelection), turnSelection.BillingSubscription)
 				}
 				// 防御式清理：避免异常路径下旧槽位覆盖导致泄漏。
 				releaseTurnSlots()
@@ -2387,7 +2393,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				}
 				currentUserRelease = wrapReleaseOnDone(attemptCtx, userReleaseFunc)
 				currentAccountRelease = wrapReleaseOnDone(attemptCtx, accountReleaseFunc)
-				return checkSimpleModeTurnBilling()
+				return checkSimpleModeTurnBilling(turnCtx, service.APIKeyForAccountSelection(apiKey, turnSelection), turnSelection.BillingSubscription)
 			},
 			AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
 				turnStart := getTurnStart(turn)
@@ -2464,6 +2470,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 				sessionID := service.ExtractClientSessionID(c)
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
+				turnSelection := selection
+				if snapshot, ok := turnBillingSelections.Load(turn); ok {
+					turnSelection = snapshot.(*service.AccountSelectionResult)
+				}
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
 				h.submitOpenAIUsageRecordTask(attemptCtx, result, func(taskCtx context.Context) {
 					if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
@@ -2472,7 +2482,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 						User:               apiKey.User,
 						Account:            account,
 						Subscription:       subscription,
-						Selection:          selection,
+						Selection:          turnSelection,
 						InboundEndpoint:    inboundEndpoint,
 						UpstreamEndpoint:   upstreamEndpoint,
 						UserAgent:          userAgent,

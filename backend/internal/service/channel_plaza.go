@@ -31,6 +31,7 @@ type PlazaModel struct {
 // 支持模型（普通分组按分组平台隔离，Composite 分组展开关联渠道已配置的
 // 具体平台），与「可用渠道」页口径一致。
 type PlazaGroup struct {
+	I18n               GroupI18n
 	ID                 string
 	Name               string
 	Description        string
@@ -85,6 +86,7 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 			ID:                   g.ID,
 			Name:                 g.Name,
 			Description:          g.Description,
+			I18n:                 g.I18n,
 			Platform:             g.Platform,
 			SubscriptionType:     g.SubscriptionType,
 			RateMultiplier:       g.RateMultiplier,

@@ -490,6 +490,7 @@
             :placeholder="t('admin.groups.optionalDescription')"
           ></textarea>
         </div>
+        <GroupTranslationsFields v-model="createForm.i18n" />
         <div>
           <label class="input-label">{{
             t("admin.groups.form.platform")
@@ -1962,6 +1963,7 @@
             class="input"
           ></textarea>
         </div>
+        <GroupTranslationsFields v-model="editForm.i18n" />
         <div>
           <label class="input-label">{{
             t("admin.groups.form.platform")
@@ -3844,6 +3846,8 @@ import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import GroupLevelRatesModal from "@/components/admin/group/GroupLevelRatesModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
+import GroupTranslationsFields from "@/components/admin/group/GroupTranslationsFields.vue";
+import type { GroupI18n } from "@/types";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import CodexManifestAccountsField from "@/components/admin/group/CodexManifestAccountsField.vue";
@@ -4499,6 +4503,7 @@ const editModelsListSelectedCount = computed(
 );
 
 const createForm = reactive({
+  i18n: {} as GroupI18n,
   name: "",
   description: "",
   platform: "anthropic" as GroupPlatform,
@@ -4836,6 +4841,7 @@ const convertApiFormatToRoutingRules = async (
 };
 
 const editForm = reactive({
+  i18n: {} as GroupI18n,
   name: "",
   description: "",
   platform: "anthropic" as GroupPlatform,
@@ -5276,6 +5282,7 @@ const closeCreateModal = () => {
   });
   clearAllAccountSearchState();
   createForm.name = "";
+  createForm.i18n = {};
   createForm.description = "";
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
@@ -5530,6 +5537,7 @@ const handleCreateGroup = async () => {
 const handleEdit = async (group: AdminGroup) => {
   editingGroup.value = group;
   editForm.name = group.name;
+  editForm.i18n = Object.fromEntries(Object.entries(group.i18n || {}).map(([locale, text]) => [locale, { ...text }]));
   editForm.description = group.description || "";
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;

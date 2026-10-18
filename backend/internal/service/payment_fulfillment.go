@@ -61,6 +61,18 @@ func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payme
 	return s.confirmPayment(ctx, order.ID, n.TradeNo, n.Amount, pk, n.Metadata)
 }
 
+// ConfirmNotificationUpstream uses the exact merchant instance that verified the callback.
+func (s *PaymentService) ConfirmNotificationUpstream(ctx context.Context, provider payment.Provider, notification *payment.PaymentNotification) error {
+	confirmer, ok := provider.(payment.NotificationConfirmer)
+	if !ok || notification == nil || notification.Status != payment.NotificationStatusSuccess {
+		return nil
+	}
+	if err := confirmer.ConfirmNotification(ctx, notification); err != nil {
+		return fmt.Errorf("confirm payment upstream: %w", err)
+	}
+	return nil
+}
+
 func (s *PaymentService) confirmPayment(ctx context.Context, oid string, tradeNo string, paid float64, pk string, metadata map[string]string) error {
 	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
 	if err != nil {
