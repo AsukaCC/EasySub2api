@@ -12,6 +12,7 @@ import (
 
 	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/handler/quotaview"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/adminaccess"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -467,12 +468,25 @@ func (h *UserHandler) List(c *gin.Context) {
 		filters.IncludeSubscriptions = &includeSubscriptions
 	}
 
+	principal := adminaccess.FromContext(c.Request.Context())
+	if principal != nil {
+		include := false
+		filters.IncludeSubscriptions = &include
+	}
 	users, total, loadInfo, err := h.listUsersWithRuntimeSort(c.Request.Context(), page, pageSize, filters, sortBy, sortOrder)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
+	if principal != nil {
+		out := make([]any, len(users))
+		for i := range users {
+			out[i] = adminUserResponse(c, &users[i])
+		}
+		response.Paginated(c, out, total, page, pageSize)
+		return
+	}
 	// Batch get current concurrency (nil map if unavailable)
 	if loadInfo == nil && len(users) > 0 && h.concurrencyService != nil {
 		usersConcurrency := make([]service.UserWithConcurrency, len(users))
@@ -659,7 +673,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.UserFromServiceAdmin(user))
+	response.Success(c, adminUserResponse(c, user))
 }
 
 // BindAuthIdentity manually binds a canonical auth identity to a user.
@@ -858,12 +872,17 @@ func (h *UserHandler) UpdateBalance(c *gin.Context) {
 		UserID: userID,
 		Body:   req,
 	}
-	executeAdminIdempotentJSON(c, "admin.users.balance.update", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+	executeAdminIdempotentJSONWithResponse(c, "admin.users.balance.update", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		user, execErr := h.adminService.UpdateUserWalletBalance(ctx, userID, req.Balance, req.Operation, req.BalanceType, req.BonusValidityDays, req.Notes)
 		if execErr != nil {
 			return nil, execErr
 		}
 		return dto.UserFromServiceAdmin(user), nil
+	}, func(data any) any {
+		if adminaccess.FromContext(c.Request.Context()) != nil {
+			return gin.H{"id": userID}
+		}
+		return data
 	})
 }
 
@@ -1343,6 +1362,10 @@ func (h *UserHandler) UpdateUserPlatformQuotas(c *gin.Context) {
 	}
 
 	// 返回最新状态
+	if scopedAdminWriteOnly(c, "users.quotas.read") {
+		response.Success(c, gin.H{"id": userID})
+		return
+	}
 	now := time.Now().UTC()
 	records2, err := h.userPlatformQuotaRepo.ListByUser(ctx, userID)
 	if err != nil {
@@ -1423,6 +1446,11 @@ func (h *UserHandler) ResetUserPlatformQuotaWindow(c *gin.Context) {
 		if err := h.billingCache.DeleteUserPlatformQuotaCache(ctx, userID, req.Platform); err != nil {
 			slog.Error("ALERT: quota cache invalidation failed after ResetExpiredWindow; 窗口重置可能延迟至 sentinel TTL(最长 1h)", "user_id", userID, "platform", req.Platform, "err", err)
 		}
+	}
+
+	if scopedAdminWriteOnly(c, "users.quotas.read") {
+		response.Success(c, gin.H{"id": userID})
+		return
 	}
 
 	records, err := h.userPlatformQuotaRepo.ListByUser(ctx, userID)

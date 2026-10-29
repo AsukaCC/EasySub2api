@@ -59,6 +59,20 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		return
 	}
 
+	declared, err := h.geminiCompatService.DeclaredModelIDs(c.Request.Context(), apiKey.GroupID)
+	if err != nil {
+		googleError(c, http.StatusServiceUnavailable, "Failed to query Gemini models")
+		return
+	}
+	if len(declared) > 0 {
+		models := make([]gemini.Model, 0, len(declared))
+		for _, id := range declared {
+			models = append(models, gemini.FallbackModel(id))
+		}
+		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: models})
+		return
+	}
+
 	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
 	if err != nil {
 		// 没有 gemini 账户，检查是否有 antigravity 账户可用
@@ -129,6 +143,28 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 	// 强制 antigravity 模式：返回 antigravity 模型信息
 	if forcePlatform == service.PlatformAntigravity {
 		c.JSON(http.StatusOK, antigravity.FallbackGeminiModel(modelName))
+		return
+	}
+
+	if models, custom := customGeminiModelsList(apiKey.Group); custom {
+		for _, model := range models.Models {
+			if model.Name == "models/"+modelName || model.Name == modelName {
+				c.JSON(http.StatusOK, model)
+				return
+			}
+		}
+	}
+	declared, err := h.geminiCompatService.DeclaredModelIDs(c.Request.Context(), apiKey.GroupID)
+	if err != nil {
+		googleError(c, http.StatusServiceUnavailable, "Failed to query Gemini models")
+		return
+	}
+	if len(declared) > 0 {
+		if !service.DeclaredModelsCover(declared, modelName) {
+			googleError(c, http.StatusNotFound, "Model not found")
+			return
+		}
+		c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
 		return
 	}
 

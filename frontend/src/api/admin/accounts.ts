@@ -31,6 +31,7 @@ export interface ClaudeResetOutcome {
 }
 import type {
   Account,
+  GrokModelDiagnostics,
   CreateAccountRequest,
   UpdateAccountRequest,
   PaginatedResponse,
@@ -653,6 +654,8 @@ export async function getAvailableModels(id: string, direct = false): Promise<Cl
 }
 
 export interface SyncUpstreamModelsResult {
+  discovery_source?: "upstream" | "configured_fallback"
+  grok_model_diagnostics?: GrokModelDiagnostics
   models: string[]
   metadata?: Record<string, UpstreamModelMetadata>
   warnings?: UpstreamModelSyncWarning[]

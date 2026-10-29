@@ -89,7 +89,7 @@ func (r *grokQuotaAccountRepo) SetTempUnschedulable(_ context.Context, id string
 
 func TestSyncGrokObservedModelsRejectsOAuthCustomURLOutsideOperatorPolicy(t *testing.T) {
 	account := &Account{
-		ID: "901",
+		ID:       "901",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -113,7 +113,7 @@ func TestSyncGrokObservedModelsRejectsOAuthCustomURLOutsideOperatorPolicy(t *tes
 
 func TestSyncGrokObservedModelsUsesCLIIdentityAndAccountHeaders(t *testing.T) {
 	account := &Account{
-		ID: "902",
+		ID:       "902",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
@@ -122,9 +122,7 @@ func TestSyncGrokObservedModelsUsesCLIIdentityAndAccountHeaders(t *testing.T) {
 			"email":        "user902@example.test",
 		},
 	}
-	repo := &grokQuotaAccountRepo{mockAccountRepoForPlatform: &mockAccountRepoForPlatform{
-		accountsByID: map[string]*Account{account.ID: account},
-	}}
+	repo := newGrokCatalogMemoryRepo(account)
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader(`{"data":[{"id":"grok-4.5"}]}`)),
@@ -138,7 +136,9 @@ func TestSyncGrokObservedModelsUsesCLIIdentityAndAccountHeaders(t *testing.T) {
 	require.Equal(t, "interactive", upstream.lastReq.Header.Get("X-Grok-Client-Mode"))
 	require.Equal(t, "user-902", upstream.lastReq.Header.Get("X-UserID"))
 	require.Equal(t, "user902@example.test", upstream.lastReq.Header.Get("X-Email"))
-	require.Contains(t, repo.updates[account.ID], grokObservedModelsExtraKey)
+	stored, err := repo.GetByID(context.Background(), account.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"grok-4.5"}, parseGrokObservedModels(stored.Extra).Models)
 }
 
 type grokQuotaProxyRepo struct {
@@ -1189,7 +1189,7 @@ func TestGrokQuotaServiceResetQuotaUnsupported(t *testing.T) {
 	t.Parallel()
 
 	account := &Account{
-		ID: "44",
+		ID:       "44",
 		Platform: PlatformGrok,
 		Type:     AccountTypeOAuth,
 	}

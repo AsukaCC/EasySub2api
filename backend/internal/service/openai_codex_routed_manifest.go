@@ -496,6 +496,9 @@ func claudeCodexDefaultReasoningLevel(levels []configuredCodexReasoningLevel) st
 }
 
 func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasoningLevel {
+	if openai.IsGPT61TerraModelSpelling(modelID) {
+		return reasoningLevels("none", "low", "medium", "high", "xhigh", "max")
+	}
 	if openai.IsGPT61SolModelSpelling(modelID) {
 		return reasoningLevels("low", "medium", "high", "xhigh", "max", "ultra")
 	}

@@ -12,8 +12,8 @@ func validateGPT61SolChatOnlyRequest(body []byte, upstreamModel string, hasTools
 	if err := validateGPT61SolReasoningEffort(body, upstreamModel); err != nil {
 		return err
 	}
-	if openai.IsGPT61SolModelSpelling(upstreamModel) && hasTools {
-		return fmt.Errorf("gpt-6.1-sol requires Responses for tool calls; this account only supports Chat Completions")
+	if openai.RequiresResponsesForToolCalls(upstreamModel) && hasTools {
+		return fmt.Errorf("%s requires Responses for tool calls; this account only supports Chat Completions", normalizeKnownOpenAICodexModel(upstreamModel))
 	}
 	return nil
 }

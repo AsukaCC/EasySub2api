@@ -610,7 +610,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_Schedulability(t *test
 func TestGatewayService_SelectAccountForModelWithPlatform_StickySession(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("粘性会话命中-同平台", func(t *testing.T) {
+	t.Run("账号优先级先于同平台粘性", func(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{ID: "1", Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true},
@@ -635,7 +635,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_StickySession(t *testi
 		acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "session-123", "claude-3-5-sonnet-20241022", nil, PlatformAnthropic)
 		require.NoError(t, err)
 		require.NotNil(t, acc)
-		require.Equal(t, "1", acc.ID, "应返回粘性会话绑定的账户")
+		require.Equal(t, "2", acc.ID, "应先按账号优先级选择，再应用粘性")
 	})
 
 	t.Run("粘性会话不匹配平台-降级选择", func(t *testing.T) {
@@ -1624,7 +1624,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NotNil(t, result.Account)
 		require.Equal(t, "1", result.Account.ID)
 		require.Equal(t, 0, repo.getByIDCalls, "粘性命中不应调用GetByID")
-		require.Equal(t, 0, concurrencyCache.loadBatchCalls, "粘性命中应在负载批量查询前返回")
+		require.Equal(t, 1, concurrencyCache.loadBatchCalls, "先查询负载确定候选池，再应用粘性")
 	})
 
 	t.Run("粘性账号不在候选集-回退负载感知选择", func(t *testing.T) {
@@ -1831,7 +1831,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.WaitPlan)
 		require.Equal(t, "1", result.Account.ID)
-		require.Equal(t, 0, concurrencyCache.loadBatchCalls)
+		require.Equal(t, 1, concurrencyCache.loadBatchCalls)
 	})
 
 	t.Run("负载批量查询失败-降级旧顺序选择", func(t *testing.T) {
@@ -1870,7 +1870,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.Equal(t, "2", cache.sessionBindings["legacy"])
 	})
 
-	t.Run("模型路由-粘性账号等待计划", func(t *testing.T) {
+	t.Run("模型路由-先尝试可用账号再排队", func(t *testing.T) {
 		groupID := "20"
 		sessionHash := "route-sticky"
 
@@ -1924,8 +1924,10 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		result, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, sessionHash, "claude-3-5-sonnet-20241022", nil, "", "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		require.NotNil(t, result.WaitPlan)
-		require.Equal(t, "1", result.Account.ID)
+		require.Nil(t, result.WaitPlan)
+		require.True(t, result.Acquired)
+		require.Equal(t, "2", result.Account.ID)
+		result.ReleaseFunc()
 	})
 
 	t.Run("模型路由-粘性账号命中", func(t *testing.T) {
@@ -1980,7 +1982,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
 		require.Equal(t, "1", result.Account.ID)
-		require.Equal(t, 0, concurrencyCache.loadBatchCalls)
+		require.Equal(t, 1, concurrencyCache.loadBatchCalls)
 	})
 
 	t.Run("模型路由-粘性账号缺失-清理并回退", func(t *testing.T) {

@@ -204,6 +204,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		MonthlyLimitPoints:              g.MonthlyLimitUSD,
 		LongContextPricingEnabled:       g.LongContextPricingEnabled,
 		AllowImageGeneration:            g.AllowImageGeneration,
+		ImageCountBilling:               g.ImageCountBilling,
 		ImageRateIndependent:            g.ImageRateIndependent,
 		ImageRateMultiplier:             g.ImageRateMultiplier,
 		VideoRateIndependent:            g.VideoRateIndependent,

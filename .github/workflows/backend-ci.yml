@@ -55,6 +55,30 @@ jobs:
           -run 'Test(Retired|Protection|LocalTLS|StickyEscape|GatewayPlatformIsolation)'
           -count=1 -timeout=10m
 
+      - name: Release 0.2.19 adaptation regressions
+        working-directory: backend
+        run: |
+          release_tests='TestRelease0219|TestScopedAdmin|TestLegacyAdminKey|TestGrok(Catalog|ModelDiagnostics|ResponseAudit)|TestGetGrokModelDiagnostics|TestGPT61Terra'
+          release_tests+='|TestGeminiForward_SameAccountRetriesFollowConfig|TestGeminiClaudeCompat_SignatureDowngradeDoesNotConsumeSameAccountRetries'
+          release_tests+='|Test.*ImageCountBilling|TestResolveBillableImageCount|TestResolveGeminiImageCount|Test.*GeminiImageOutput|Test.*FileDataImageBilling|TestHandleNativeNonStreamingResponse_FeedsImageCounter'
+          release_tests+='|TestCalculateRecordUsageCost_ChannelPerRequestContextTierUsesTokens|TestCountOpenAIImageOutputs_OfficialMultiImageResponse|Test.*Multipart.*(PartLimit|Above20MB)'
+          release_tests+='|TestCNProvider(QuotaSnapshotNearExhausted|ResponseIndicatesFrequencyLimit)|TestHandleUpstreamError_Zhipu(Frequency429|InsufficientBalance429|QuotaWorded429)'
+          release_tests+='|Test.*(DeepSeekPromptCache|StrictChatDeveloper|StrictDeveloperRole|WebSearchEmulation|MalformedFunctionCall|JavaScriptUTF16)|TestPaginationParamsOffsetDoesNotOverflow|TestParsePaginationBoundariesAndResponse'
+          release_tests+='|TestDefaultModels_Contains|TestGoogleOneModels_ExcludeUnsupportedNewAndImageModels|TestHasFallbackModel_RecognizesCustomtoolsModel|TestExtractUpstreamModelIDsIgnoresGrokCatalogRules'
+          release_tests+='|TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys|TestSyncGrokObservedModelsUsesCLIIdentityAndAccountHeaders|TestUpstreamModelCatalog(PersistsAcrossServicesAndKeyChanges|SyncRefreshesIncompleteModelsAndPreservesOnFailure)'
+          go test -tags=unit ./internal/service ./internal/repository \
+            ./internal/handler/admin ./internal/server/middleware \
+            ./internal/pkg/adminaccess ./internal/pkg/pagination ./internal/pkg/response \
+            ./internal/pkg/antigravity ./internal/pkg/gemini ./internal/pkg/geminicli \
+            -run "$release_tests" -count=1 -timeout=10m
+
+      - name: Account scheduling before conversation affinity
+        working-directory: backend
+        run: >-
+          go test -tags=unit ./internal/service
+          -run 'Test(GatewaySchedulingBeforeAffinity|OpenAILegacySchedulingBeforeAffinity|OpenAIAdvancedSchedulingBeforeAffinity|GeminiCompatSchedulingBeforeAffinity|OpenAIBaseSchedulingUnaffectedByAffinity|OpenAISubscriptionPoolBeforeAffinity|OpenAISchedulerScoreReportsAffinityWithinTier)'
+          -count=1 -timeout=5m
+
       - name: Wallet, fingerprint, and upstream compatibility regressions
         working-directory: backend
         run: >-
@@ -63,6 +87,22 @@ jobs:
           ./internal/pkg/typesafe ./internal/securityaudit ./migrations
           -run 'Test.*(Wallet|Refund|Payment|PointChange|ModelFingerprint|UpstreamParity|TypeSafe|SystemOne|Inflight|Release0211|GPT61|UpstreamBillingProbe|UsageBilling|DynamicRateBilling|Email.*Token|Reset.*Token|GrokChat|Grok.*Header|PromptSnapshot)'
           -count=1 -timeout=10m
+
+  release0219-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Release 0.2.19 migrations and wallet regressions
+        working-directory: backend
+        env:
+          SUB2API_TEST_POSTGRES_IMAGE: postgres:16-alpine
+        run: python3 scripts/test-release0219-integration.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -115,6 +155,14 @@ jobs:
           src/components/keys/__tests__/UseKeyModal.catalog.spec.ts
           src/views/admin/__tests__/UsageView.spec.ts
           src/api/__tests__/codex.spec.ts
+
+      - name: Release 0.2.19 admin feature regressions
+        working-directory: frontend
+        run: >-
+          pnpm exec vitest run
+          src/components/admin/settings/__tests__/AdminAccessKeysSettings.spec.ts
+          src/components/account/__tests__/GrokModelDiagnosticsPanel.spec.ts
+          src/views/admin/__tests__/ChannelsView.webSearchEmulation.spec.ts
 
   golangci-lint:
     runs-on: ubuntu-latest

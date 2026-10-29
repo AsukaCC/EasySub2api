@@ -17,7 +17,7 @@ func AnthropicToResponses(req *AnthropicRequest) (*ResponsesRequest, error) {
 }
 
 func AnthropicToResponsesWithMinOutputTokens(req *AnthropicRequest, minOutputTokens int) (*ResponsesRequest, error) {
-	if openai.IsGPT61SolModelSpelling(req.Model) {
+	if openai.IsGPT61SolModelSpelling(req.Model) || openai.IsGPT61TerraModelSpelling(req.Model) {
 		effort := ""
 		if req.OutputConfig != nil {
 			effort = req.OutputConfig.Effort
@@ -85,7 +85,7 @@ func AnthropicToResponsesWithMinOutputTokens(req *AnthropicRequest, minOutputTok
 		Effort:  mapAnthropicEffortToResponses(effort),
 		Summary: "auto",
 	}
-	if openai.IsGPT61SolModelSpelling(req.Model) {
+	if openai.IsGPT61SolModelSpelling(req.Model) || openai.IsGPT61TerraModelSpelling(req.Model) {
 		out.Reasoning.Effort = effort
 	}
 

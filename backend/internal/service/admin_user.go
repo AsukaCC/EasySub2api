@@ -113,7 +113,7 @@ func normalizeUserRole(role, fallback string) (string, error) {
 		return fallback, nil
 	}
 	if role != RoleAdmin && role != RoleUser {
-		return "", fmt.Errorf("invalid role: %q (must be %s or %s)", role, RoleAdmin, RoleUser)
+		return "", infraerrors.BadRequest("INVALID_USER_ROLE", fmt.Sprintf("invalid role: %q (must be %s or %s)", role, RoleAdmin, RoleUser))
 	}
 	return role, nil
 }
@@ -176,7 +176,7 @@ func (s *adminServiceImpl) ensureNotLastAdmin(ctx context.Context) error {
 		return fmt.Errorf("count admin users: %w", err)
 	}
 	if result == nil || result.Total <= 1 {
-		return errors.New("cannot demote the last admin user")
+		return infraerrors.BadRequest("LAST_ADMIN_PROTECTED", "cannot demote the last admin user")
 	}
 	return nil
 }
@@ -221,7 +221,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id string, input *Upd
 
 	// Protect admin users: cannot disable admin accounts
 	if user.Role == "admin" && input.Status == "disabled" {
-		return nil, errors.New("cannot disable admin user")
+		return nil, infraerrors.BadRequest("ADMIN_DISABLE_FORBIDDEN", "cannot disable admin user; change the role to user first")
 	}
 
 	oldConcurrency := user.Concurrency
@@ -359,7 +359,7 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id string) error {
 		return err
 	}
 	if user.Role == "admin" {
-		return errors.New("cannot delete admin user")
+		return infraerrors.BadRequest("ADMIN_DELETE_FORBIDDEN", "cannot delete admin user; change the role to user first")
 	}
 
 	deletionRepo, ok := s.userRepo.(UserDeletionRepository)
