@@ -1,6 +1,6 @@
 module github.com/AsukaCC/EasySub2api
 
-go 1.27.2
+go 1.27.3
 
 require (
 	entgo.io/ent v0.14.5

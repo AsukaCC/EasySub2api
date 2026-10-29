@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
         run: |
-          go version | grep -q 'go1.27.2'
+          go version | grep -q 'go1.27.3'
       - name: Build backend
         working-directory: backend
         run: go build ./...
@@ -115,7 +115,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install frontend dependencies
@@ -176,7 +176,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
         run: |
-          go version | grep -q 'go1.27.2'
+          go version | grep -q 'go1.27.3'
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
