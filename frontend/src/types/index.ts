@@ -689,6 +689,7 @@ export interface Group {
   monthly_limit_points?: number | null
   long_context_pricing_enabled: boolean
   // 图片生成计费配置
+  image_count_billing: boolean
   allow_image_generation: boolean
   image_rate_independent: boolean
   image_rate_multiplier: number
@@ -913,6 +914,7 @@ export interface CreateGroupRequest {
   monthly_limit_usd?: number | null
   long_context_pricing_enabled?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
+  image_count_billing?: boolean
   allow_image_generation?: boolean
   image_rate_independent?: boolean
   image_rate_multiplier?: number
@@ -984,6 +986,7 @@ export interface UpdateGroupRequest {
   monthly_limit_usd?: number | null
   long_context_pricing_enabled?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
+  image_count_billing?: boolean
   allow_image_generation?: boolean
   image_rate_independent?: boolean
   image_rate_multiplier?: number
@@ -1245,7 +1248,12 @@ export interface OllamaCloudUsageSettings {
   debounce_minutes: number
 }
 
+export interface GrokCatalogScope { account_id: string; account_type: string; endpoint: string; fingerprint: string }
+export interface GrokCatalogAttempt { started_at: string; finished_at: string; status: string; error_code?: string; scope?: GrokCatalogScope }
+export interface GrokModelDiagnosticItem { requested: string; upstream?: string; status: string }
+export interface GrokModelDiagnostics { state: string; endpoint?: string; fetched_at?: string; expires_at?: string; models: string[]; last_attempt?: GrokCatalogAttempt; mappings: GrokModelDiagnosticItem[] }
 export interface Account {
+  grok_model_diagnostics?: GrokModelDiagnostics
   anti_degradation?: boolean
   protection_scope?: string
   protection_mode?: string

@@ -2,9 +2,13 @@ package admin
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"strconv"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/pkg/adminaccess"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
@@ -54,9 +58,17 @@ func executeAdminIdempotentWithTimeout(
 		return &service.IdempotencyExecuteResult{Data: data}, nil
 	}
 
+	actor := adminActorScope(c)
+	storageScope := scope
+	if adminaccess.FromContext(c.Request.Context()) != nil {
+		// ActorScope participates only in the request fingerprint. Namespace the
+		// record too, so different keys or policies cannot collide or replay it.
+		digest := sha256.Sum256([]byte(scope + "\x00" + actor))
+		storageScope = "scoped-admin:" + hex.EncodeToString(digest[:])
+	}
 	return coordinator.Execute(c.Request.Context(), service.IdempotencyExecuteOptions{
-		Scope:            scope,
-		ActorScope:       adminActorScope(c),
+		Scope:            storageScope,
+		ActorScope:       actor,
 		Method:           c.Request.Method,
 		Route:            c.FullPath(),
 		IdempotencyKey:   c.GetHeader("Idempotency-Key"),
@@ -68,6 +80,11 @@ func executeAdminIdempotentWithTimeout(
 }
 
 func adminActorScope(c *gin.Context) string {
+	if p := adminaccess.FromContext(c.Request.Context()); p != nil {
+		raw, _ := json.Marshal(p.Policy)
+		digest := sha256.Sum256(raw)
+		return "admin-key:" + p.KeyID + ":" + hex.EncodeToString(digest[:])
+	}
 	actorScope := "admin:0"
 	if subject, ok := middleware2.GetAuthSubjectFromContext(c); ok {
 		actorScope = "admin:" + subject.UserID
@@ -115,6 +132,18 @@ func executeAdminIdempotentJSONWithMode(
 	mode idempotencyStoreUnavailableMode,
 	execute func(context.Context) (any, error),
 ) {
+	executeAdminIdempotentJSONWithProjection(c, scope, payload, ttl, executionTimeout, mode, execute, nil)
+}
+
+// executeAdminIdempotentJSONWithResponse 在实际执行及缓存重放之后统一约束响应。
+func executeAdminIdempotentJSONWithResponse(c *gin.Context, scope string, payload any, ttl time.Duration, execute func(context.Context) (any, error), present func(any) any) {
+	executeAdminIdempotentJSONWithProjection(c, scope, payload, ttl, 0, idempotencyStoreUnavailableFailClose, execute, present)
+}
+
+func executeAdminIdempotentJSONWithProjection(c *gin.Context, scope string, payload any, ttl time.Duration, executionTimeout time.Duration, mode idempotencyStoreUnavailableMode, execute func(context.Context) (any, error), present func(any) any) {
+	if present == nil {
+		present = func(data any) any { return data }
+	}
 	result, err := executeAdminIdempotentWithTimeout(c, scope, payload, ttl, executionTimeout, execute)
 	if err != nil {
 		if infraerrors.Code(err) == infraerrors.Code(service.ErrIdempotencyStoreUnavail) {
@@ -131,7 +160,7 @@ func executeAdminIdempotentJSONWithMode(
 					return
 				}
 				c.Header("X-Idempotency-Degraded", "store-unavailable")
-				response.Success(c, data)
+				response.Success(c, present(data))
 				return
 			}
 		}
@@ -144,5 +173,5 @@ func executeAdminIdempotentJSONWithMode(
 	if result != nil && result.Replayed {
 		c.Header("X-Idempotency-Replayed", "true")
 	}
-	response.Success(c, result.Data)
+	response.Success(c, present(result.Data))
 }

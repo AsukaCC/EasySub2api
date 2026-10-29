@@ -105,7 +105,8 @@ try {
         }
     }
 
-    Invoke-Checked -Command gh -Arguments @('auth', 'status') | Out-Null
+    # Validate authenticated API access without requiring unrelated read:org scopes.
+    Invoke-Checked -Command gh -Arguments @('api', 'user', '--jq', '.login') | Out-Null
 
     $branch = Invoke-Checked -Command git -Arguments @('branch', '--show-current')
     if ($branch -ne 'main') {

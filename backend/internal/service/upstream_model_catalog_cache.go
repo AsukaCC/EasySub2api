@@ -72,6 +72,24 @@ func (s *AccountTestService) saveUpstreamModelCatalog(ctx context.Context, accou
 	if metadata != nil {
 		updates[UpstreamModelMetadataExtraKey] = *metadata
 	}
+	if account.IsGrok() && account.Extra[grokObservedModelsExtraKey] != nil {
+		if guarded, ok := s.accountRepo.(interface {
+			UpdateGrokCatalogExtraIfObserved(context.Context, string, json.RawMessage, map[string]any) (bool, error)
+		}); ok {
+			expected, err := json.Marshal(account.Extra[grokObservedModelsExtraKey])
+			if err != nil {
+				return newUpstreamModelSyncInternalError("Invalid model catalog observation", err)
+			}
+			applied, err := guarded.UpdateGrokCatalogExtraIfObserved(ctx, account.ID, expected, updates)
+			if err != nil {
+				return newUpstreamModelSyncInternalError("Failed to save upstream model list", err)
+			}
+			if !applied {
+				return newUpstreamModelSyncConfigError("Model catalog changed during sync; reload the model list", nil)
+			}
+			return nil
+		}
+	}
 	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
 		return newUpstreamModelSyncInternalError("Failed to save upstream model list", err)
 	}

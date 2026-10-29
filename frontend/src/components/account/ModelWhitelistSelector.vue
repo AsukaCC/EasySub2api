@@ -101,7 +101,7 @@
     <!-- Quick Actions -->
     <div class="components-account-model-whitelist-selector__panel-10">
       <button
-        v-if="canSyncUpstream"
+        v-if="canSyncUpstream && showSyncButton"
         type="button"
         data-testid="sync-upstream-models"
         @click="syncUpstreamModels"
@@ -159,7 +159,8 @@ import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  showSyncButton?: boolean
   modelValue: string[]
   platform?: string
   platforms?: string[]
@@ -173,11 +174,12 @@ const props = defineProps<{
     api_key: string
     model_mapping?: Record<string, string>
   }
-}>()
+}>(), { showSyncButton: true })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string[]]
   'upstream-synced': []
+  'upstream-sync-finished': []
 }>()
 
 const appStore = useAppStore()
@@ -195,6 +197,7 @@ const searchQuery = ref('')
 const customModel = ref('')
 const isComposing = ref(false)
 const isSyncingUpstream = ref(false)
+let upstreamSyncVersion = 0
 const syncedModels = ref<string[]>([])
 const normalizedPlatforms = computed(() => {
   const rawPlatforms =
@@ -332,6 +335,9 @@ const syncUpstreamModels = async () => {
   if (isSyncingUpstream.value) return
   if (!props.accountId && !props.syncCredentials) return
 
+  const syncVersion = upstreamSyncVersion
+  const accountId = props.accountId
+  const isCurrentSync = () => syncVersion === upstreamSyncVersion
   isSyncingUpstream.value = true
   try {
     let result
@@ -343,6 +349,8 @@ const syncUpstreamModels = async () => {
       return
     }
 
+    if (!isCurrentSync()) return
+    if (result.discovery_source === "configured_fallback") { appStore.showWarning(t("admin.accounts.grokModelDiagnostics.configuredFallback")); return }
     const upstreamModels = result.models.map(model => model.trim()).filter(Boolean)
     if (upstreamModels.length === 0) {
       appStore.showInfo(t('admin.accounts.syncUpstreamModelsEmpty'))
@@ -371,14 +379,19 @@ const syncUpstreamModels = async () => {
       appStore.showInfo(t('admin.accounts.syncUpstreamModelsNoChanges', { count: upstreamModels.length }))
     }
   } catch (error) {
+    if (!isCurrentSync()) return
     const message = extractApiErrorMessage(error, t('admin.accounts.syncUpstreamModelsFailed'))
     appStore.showError(t('admin.accounts.syncUpstreamModelsError', { message }))
   } finally {
-    isSyncingUpstream.value = false
+    if (isCurrentSync()) { isSyncingUpstream.value = false; if (accountId) emit("upstream-sync-finished") }
   }
 }
 
+defineExpose({ syncUpstreamModels, isSyncingUpstream })
+
 watch(() => props.accountId, () => {
+  upstreamSyncVersion += 1
+  isSyncingUpstream.value = false
   syncedModels.value = []
 })
 
@@ -392,6 +405,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  upstreamSyncVersion += 1
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleEscape)
 })

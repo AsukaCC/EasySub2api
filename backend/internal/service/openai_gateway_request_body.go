@@ -1716,6 +1716,12 @@ func normalizeOpenAIReasoningEffort(raw string) string {
 }
 
 func normalizeOpenAIReasoningEffortForModel(raw, model string) string {
+	if openai.IsGPT61TerraModelSpelling(model) {
+		switch effort := strings.ToLower(strings.TrimSpace(raw)); effort {
+		case "none", "low", "medium", "high", "xhigh", "max":
+			return effort
+		}
+	}
 	if strings.EqualFold(strings.TrimSpace(raw), "ultra") && (openai.IsGPT61SolModelSpelling(model) || isOpenAIGPT56Model(model)) {
 		return "ultra"
 	}

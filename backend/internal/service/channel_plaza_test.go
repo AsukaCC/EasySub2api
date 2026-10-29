@@ -350,3 +350,17 @@ func TestListPlazaGroups_RepoErrorsPropagate(t *testing.T) {
 	require.Nil(t, out2)
 	require.ErrorIs(t, err2, sentinel)
 }
+
+func TestRelease0219PlazaGroupModelPricingWinsOverImageFallback(t *testing.T) {
+	channelPrice, groupFallback, modelPrice := 0.2, 0.1, 0.9
+	channels := []Channel{{ID: "channel", Name: "images", Status: StatusActive, GroupIDs: []string{"group"}, ModelPricing: []ChannelModelPricing{{Platform: PlatformOpenAI, Models: []string{"gpt-image-2"}, BillingMode: BillingModeImage, PerRequestPrice: &channelPrice}}}}
+	groups := []Group{{ID: "group", Name: "group", Platform: PlatformOpenAI, RateMultiplier: 1, ImagePrice1K: &groupFallback, ModelPricing: []ChannelModelPricing{{Models: []string{"gpt-image-2"}, BillingMode: BillingModePerRequest, PerRequestPrice: &modelPrice}}}}
+	out, err := newPlazaChannelService(channels, groups, nil).ListPlazaGroups(context.Background())
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	require.Len(t, out[0].Models, 1)
+	pricing := out[0].Models[0].Pricing
+	require.Equal(t, BillingModePerRequest, pricing.BillingMode)
+	require.InDelta(t, modelPrice, *pricing.PerRequestPrice, 1e-12)
+	require.Empty(t, pricing.Intervals)
+}

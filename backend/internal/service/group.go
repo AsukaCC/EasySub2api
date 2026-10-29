@@ -48,6 +48,7 @@ type Group struct {
 	DefaultValidityDays int
 
 	AllowImageGeneration bool
+	ImageCountBilling    bool
 	ImageRateIndependent bool
 	ImageRateMultiplier  float64
 	ImagePrice1K         *float64

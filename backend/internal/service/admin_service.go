@@ -239,6 +239,7 @@ type CreateGroupInput struct {
 	LongContextPricingEnabled bool
 	ModelPricing              []ChannelModelPricing
 	AllowImageGeneration      bool
+	ImageCountBilling         bool
 	ImageRateIndependent      bool
 	ImageRateMultiplier       *float64
 	VideoRateIndependent      bool
@@ -321,6 +322,7 @@ type UpdateGroupInput struct {
 	LongContextPricingEnabled *bool
 	ModelPricing              *[]ChannelModelPricing
 	AllowImageGeneration      *bool
+	ImageCountBilling         *bool
 	ImageRateIndependent      *bool
 	ImageRateMultiplier       *float64
 	VideoRateIndependent      *bool
@@ -383,6 +385,7 @@ type UpdateGroupInput struct {
 }
 
 type CreateAccountInput struct {
+	ProxyMode          string
 	Name               string
 	Notes              *string
 	Platform           string
@@ -412,6 +415,7 @@ type ShadowOptions struct {
 }
 
 type UpdateAccountInput struct {
+	ProxyMode          string
 	Name               string
 	Notes              *string
 	Type               string // Account type: oauth, setup-token, apikey

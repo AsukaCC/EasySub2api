@@ -904,6 +904,10 @@
               />
               {{ t(imagePricingI18nKey(createForm.platform, "allowImageGeneration")) }}
             </label>
+            <label v-if="createForm.allow_image_generation && ['openai', 'composite'].includes(createForm.platform)" class="flex items-center gap-2 text-sm">
+              <input v-model="createForm.image_count_billing" type="checkbox" class="rounded border-gray-300 text-blue-600" />
+              {{ t("admin.groups.imagePricing.perImageBilling") }}
+            </label>
           </div>
           <div class="views-admin-groups-view__panel-34">
             <div>
@@ -2338,6 +2342,10 @@
                 class="views-admin-groups-view__field-5"
               />
               {{ t(imagePricingI18nKey(editForm.platform, "allowImageGeneration")) }}
+            </label>
+            <label v-if="editForm.allow_image_generation && ['openai', 'composite'].includes(editForm.platform)" class="flex items-center gap-2 text-sm">
+              <input v-model="editForm.image_count_billing" type="checkbox" class="rounded border-gray-300 text-blue-600" />
+              {{ t("admin.groups.imagePricing.perImageBilling") }}
             </label>
           </div>
           <div class="views-admin-groups-view__panel-34">
@@ -4516,6 +4524,7 @@ const createForm = reactive({
   long_context_pricing_enabled: true,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
+  image_count_billing: false,
   allow_image_generation: false,
   image_rate_independent: false,
   image_rate_multiplier: 1,
@@ -4855,6 +4864,7 @@ const editForm = reactive({
   long_context_pricing_enabled: true,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
+  image_count_billing: false,
   allow_image_generation: false,
   image_rate_independent: false,
   image_rate_multiplier: 1,
@@ -4912,8 +4922,22 @@ const editForm = reactive({
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
 
+watch(
+  [() => createForm.platform, () => createForm.allow_image_generation],
+  ([platform, enabled]) => {
+    if (!enabled || !['openai', 'composite'].includes(platform)) createForm.image_count_billing = false;
+  },
+);
+watch(
+  [() => editForm.platform, () => editForm.allow_image_generation],
+  ([platform, enabled]) => {
+    if (!enabled || !['openai', 'composite'].includes(platform)) editForm.image_count_billing = false;
+  },
+);
+
 type ImagePricingFormState = {
   platform: GroupPlatform;
+  image_count_billing: boolean;
   allow_image_generation: boolean;
   rate_multiplier: number;
   image_rate_independent: boolean;
@@ -5291,6 +5315,7 @@ const closeCreateModal = () => {
   createForm.daily_limit_points = null;
   createForm.weekly_limit_points = null;
   createForm.monthly_limit_points = null;
+  createForm.image_count_billing = false;
   createForm.allow_image_generation = false;
   createForm.image_rate_independent = false;
   createForm.image_rate_multiplier = 1;
@@ -5551,6 +5576,7 @@ const handleEdit = async (group: AdminGroup) => {
     group.long_context_pricing_enabled ?? true;
   editForm.model_pricing = groupPricingFromAPI(group.model_pricing);
   editForm.allow_image_generation = group.allow_image_generation ?? false;
+  editForm.image_count_billing = group.image_count_billing ?? false;
   editForm.image_rate_independent = group.image_rate_independent ?? false;
   editForm.image_rate_multiplier = group.image_rate_multiplier ?? 1;
   editForm.image_price_1k = group.image_price_1k;

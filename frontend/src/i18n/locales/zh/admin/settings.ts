@@ -1482,7 +1482,7 @@ export default {
         oauthRatePriorityDescription: '同一分组同时包含 API Key 和 OAuth 账号时，OAuth 账号按此倍率与已探测的 API Key 计费倍率一起排序。',
         oauthRateWeightedDescription: '同一分组同时包含 API Key 和 OAuth 账号时，计算“计费倍率”得分时，OAuth 账号按此倍率参与计算。',
         stickyWeightedTitle: '粘性加权',
-        stickyWeightedDescription: '开启后 previous_response_id 和 session_hash 粘性进入高级调度打分；关闭时仍按旧逻辑硬命中粘性账号。',
+        stickyWeightedDescription: '先按账号调度规则确定候选池，仅在基础得分、优先级和负载等条件相同时应用粘性。开启后按粘性权值选择；关闭时同等条件优先续接会话。',
         subscriptionPriorityTitle: '订阅优先',
         subscriptionPriorityDescription: '开启后先在 ChatGPT 订阅账号池中按权值选取；订阅池拿不到席位时再回退到非订阅账号池。',
         weightsTitle: '调度权值覆盖',

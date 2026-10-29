@@ -255,6 +255,9 @@ func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, ac
 	if account == nil {
 		return item
 	}
+	if account.IsGrok() && h.accountTestService != nil {
+		item.GrokModelDiagnostics = h.accountTestService.GetGrokModelDiagnostics(ctx, account)
+	}
 
 	if h.concurrencyService != nil {
 		if counts, err := h.concurrencyService.GetAccountConcurrencyBatch(ctx, []string{account.ID}); err == nil {
@@ -1223,7 +1226,7 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 		tokenInfo, err := h.openaiOAuthService.RefreshAccountToken(ctx, account)
 		if err != nil {
 			// 刷新失败但 access_token 可能仍有效，尝试设置隐私
-			h.adminService.EnsureOpenAIPrivacy(ctx, account)
+			service.AfterAccountCommit(ctx, func(committed context.Context) { h.adminService.EnsureOpenAIPrivacy(committed, account) })
 			return nil, "", err
 		}
 
@@ -1255,7 +1258,7 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 			if updateErr != nil {
 				return nil, "", fmt.Errorf("failed to update credentials: %w", updateErr)
 			}
-			h.adminService.EnsureAntigravityPrivacy(ctx, updatedAccount)
+			service.AfterAccountCommit(ctx, func(committed context.Context) { h.adminService.EnsureAntigravityPrivacy(committed, updatedAccount) })
 			return updatedAccount, "missing_project_id_temporary", nil
 		}
 	} else if account.Platform == service.PlatformGrok {
@@ -1305,17 +1308,19 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 	}
 
 	// 刷新成功后，清除 token 缓存，确保下次请求使用新 token
-	if h.tokenCacheInvalidator != nil {
-		if invalidateErr := h.tokenCacheInvalidator.InvalidateToken(ctx, updatedAccount); invalidateErr != nil {
-			log.Printf("[WARN] Failed to invalidate token cache for account %v: %v", updatedAccount.ID, invalidateErr)
+	service.AfterAccountCommit(ctx, func(committed context.Context) {
+		if h.tokenCacheInvalidator != nil {
+			if invalidateErr := h.tokenCacheInvalidator.InvalidateToken(committed, updatedAccount); invalidateErr != nil {
+				log.Printf("[WARN] Failed to invalidate token cache for account %v: %v", updatedAccount.ID, invalidateErr)
+			}
 		}
-	}
+	})
 
 	switch updatedAccount.Platform {
 	case service.PlatformOpenAI:
-		h.adminService.EnsureOpenAIPrivacy(ctx, updatedAccount)
+		service.AfterAccountCommit(ctx, func(committed context.Context) { h.adminService.EnsureOpenAIPrivacy(committed, updatedAccount) })
 	case service.PlatformAntigravity:
-		h.adminService.EnsureAntigravityPrivacy(ctx, updatedAccount)
+		service.AfterAccountCommit(ctx, func(committed context.Context) { h.adminService.EnsureAntigravityPrivacy(committed, updatedAccount) })
 	}
 	return updatedAccount, "", nil
 }
@@ -2918,6 +2923,11 @@ func (h *AccountHandler) SyncUpstreamModels(c *gin.Context) {
 		return
 	}
 
+	if account.IsGrok() {
+		if latest, err := h.adminService.GetAccount(c.Request.Context(), account.ID); err == nil {
+			catalog.GrokModelDiagnostics = h.accountTestService.GetGrokModelDiagnostics(c.Request.Context(), latest)
+		}
+	}
 	response.Success(c, catalog)
 }
 

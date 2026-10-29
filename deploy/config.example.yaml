@@ -199,6 +199,8 @@ security:
 # 网关配置
 # =============================================================================
 gateway:
+  # Gemini 同账号重试次数（0–10，首次尝试不计入）
+  max_same_account_retries_gemini: 4
   image_task_queue:
     worker_count: 2
     max_attempts: 3
