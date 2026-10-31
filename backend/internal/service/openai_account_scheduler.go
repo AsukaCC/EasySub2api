@@ -76,6 +76,7 @@ type OpenAIAccountScheduleRequest struct {
 	StickyWeighted          bool
 	SubscriptionPriority    bool
 	PreserveStickyBinding   bool
+	sessionPriorityID       string
 	affinityState           *openAISchedulingAffinityState
 	PreviousResponseID      string
 	PreviousResponseCanMove bool
@@ -425,6 +426,10 @@ func (s *defaultOpenAIAccountScheduler) Select(
 			decision.SelectedAccountType = selection.Account.Type
 			if req.SessionHash != "" {
 				_ = s.service.bindOpenAIStickySessionDuringSelection(ctx, req.GroupID, req.SessionHash, selection.Account.ID)
+				if selection.Acquired {
+					affinityCtx := withSessionSchedulingAffinity(ctx, s.service.cache, req.GroupID, s.service.openAISessionCacheKey(req.SessionHash), "")
+					renewSessionSchedulingAffinity(affinityCtx, selection.Account.ID)
+				}
 			}
 			return selection, decision, nil
 		}
@@ -438,6 +443,10 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	}
 	if account != nil {
 		req.StickyAccountID = account.ID
+	}
+	ctx = withSessionSchedulingAffinity(ctx, s.service.cache, req.GroupID, s.service.openAISessionCacheKey(req.SessionHash), req.StickyAccountID)
+	if account != nil {
+		req.sessionPriorityID = sessionSchedulingPriorityID(ctx)
 	}
 	if escapedStickyID != "" {
 		req.PreserveStickyBinding = true
@@ -1040,9 +1049,10 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 		ranked := selectTopKOpenAICandidates(pool, groupTopK)
 		keyCtx := context.WithValue(context.Background(), keySchedulingContextKey{}, plan.keyScheduling)
 		accountOf := func(c openAIAccountCandidateScore) *Account { return c.account }
-		if plan.keyScheduling != nil {
+		if plan.keyScheduling != nil || req.sessionPriorityID != "" {
 			ranked = selectTopKOpenAICandidates(pool, len(pool))
 			applyKeySchedulingOrder(keyCtx, ranked, accountOf, sameAccountPriority)
+			preferActiveSession(ranked, req.sessionPriorityID, accountOf)
 			ranked = ranked[:groupTopK]
 		}
 		primary := buildOpenAIWeightedSelectionOrder(ranked, req)
@@ -1056,7 +1066,8 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 			}
 		}
 		applyKeySchedulingOrder(keyCtx, primary, accountOf, sameAccountPriority)
-		if (!plan.includeOverflowFallback && plan.keyScheduling == nil) || groupTopK >= len(pool) {
+		preferActiveSession(primary, req.sessionPriorityID, accountOf)
+		if (!plan.includeOverflowFallback && plan.keyScheduling == nil && req.sessionPriorityID == "") || groupTopK >= len(pool) {
 			return primary
 		}
 
@@ -1223,6 +1234,7 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 		if req.SessionHash != "" && !req.preserveStickyBinding() {
 			_ = s.service.bindOpenAIStickySessionDuringSelection(ctx, req.GroupID, req.SessionHash, fresh.ID)
 		}
+		renewSessionSchedulingAffinity(ctx, fresh.ID)
 		return attachSelectionProfitGate(ctx, &AccountSelectionResult{
 			Account:     fresh,
 			Acquired:    true,

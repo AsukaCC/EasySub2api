@@ -9,7 +9,8 @@ export default {
         autoProtocol: 'Detect format automatically', nativeProtocol: 'Account native protocol',
         nativeProtocolHint: 'OAuth / setup-token accounts sample through their own test transport (Codex Responses / Claude Messages); no separate upstream API key is needed.',
         unsupportedAccount: 'Only OpenAI and Anthropic accounts are supported; API key / upstream accounts also need an upstream API key.',
-        schedule: 'Test every hour', nextRun: 'Next test:',
+        schedule: 'Scheduled tests', nextRun: 'Next test:',
+        testsPerDay: 'Tests per day', invalidFrequency: 'Tests per day must be an integer between 1 and {max}',
         dailyWindow: 'Daily test window ({timezone})', startHour: 'Start time (inclusive)', endHour: 'End time (exclusive)',
         scheduleSaved: 'Schedule saved', scheduleFailed: 'Could not load or save schedule',
         history: 'Test History (24 hours)', usageRecords: 'View usage records', historyFailed: 'Could not load test history',
@@ -20,7 +21,7 @@ export default {
         pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not start. A test may already exist or all test slots may be occupied.',
         errors: {
           preparation_failed: 'API key, upstream model or parameter validation failed',
-          interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out', upstream_failed: 'Upstream request failed',
+          interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out. The upstream request was canceled. Try again later.', upstream_failed: 'Upstream request failed',
           insufficient_samples: 'Fewer than 3 valid samples', analysis_failed: 'Attribution failed', internal_error: 'Test failed', save_failed: 'Could not save results'
         }
       },
@@ -250,7 +251,7 @@ export default {
         baseShort: 'Base',
         stickyShort: 'Sticky',
         ungrouped: 'Ungrouped',
-        hint: 'Displayed as "group / base score / affinity weight". The base score is computed within the current filtered candidate set and includes priority, load, queue depth, error rate, first-token latency, reset window, quota headroom, billing rate, and related factors. Higher base scores are preferred and determine the scheduling pool. Affinity weights for previous_response_id or session_hash apply only when base score, priority and load are equal; they are excluded from the base score.'
+        hint: 'Displayed as "group / base score / affinity weight". The base score includes priority, load, queue depth, error rate, first-token latency, reset window, quota headroom and billing rate; higher scores are preferred. For 30 minutes after successful session scheduling, prefer the bound account when eligible and available; each successful selection renews the window. After expiry, normal scheduling applies, with previous_response_id or session_hash affinity breaking equivalent scheduling ties. Affinity is excluded from the base score.'
       },
       usageWindowsHint: '"5h / 7d" are the upstream account\'s official rolling usage windows (e.g. OpenAI ChatGPT, Claude). They are imposed by the upstream provider on the account itself — not configured by EasySub2api, and unrelated to the models you map. Usage resets automatically once each window rolls over, and the limit cannot be lifted from within EasySub2api.',
       ollamaCloud: {
@@ -1340,7 +1341,11 @@ export default {
       testAccountTypeLabel: 'Account type: {type}',
       selectTestModel: 'Select Test Model',
       testModel: 'Test model',
-      testPrompt: 'Prompt: "hi"',
+      testPrompt: 'Text test',
+      connectionTestPrompt: 'Test prompt',
+      connectionTestPromptPlaceholder: 'hi',
+      testTimedOut: 'Test timed out. The request was canceled. Try again later.',
+      testStreamInterrupted: 'The test connection closed without a completion result. Please retry.',
       imagePromptLabel: 'Image prompt',
       imagePromptPlaceholder: 'Example: Generate an orange cat astronaut sticker in pixel-art style on a solid background.',
       imagePromptDefault: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',

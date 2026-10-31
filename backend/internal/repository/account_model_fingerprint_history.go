@@ -12,7 +12,8 @@ import (
 // as an option for manual fingerprint requests.
 type modelFingerprintStoredOptions struct {
 	service.ModelFingerprintOptions
-	Window *service.ModelFingerprintTimeWindow `json:"time_window,omitempty"`
+	Window      *service.ModelFingerprintTimeWindow `json:"time_window,omitempty"`
+	TestsPerDay int                                 `json:"tests_per_day,omitempty"`
 }
 
 func decodeModelFingerprintOptions(body []byte, plan *service.ModelFingerprintSchedule) error {
@@ -21,6 +22,7 @@ func decodeModelFingerprintOptions(body []byte, plan *service.ModelFingerprintSc
 		return err
 	}
 	plan.Options, plan.Window = options.ModelFingerprintOptions, options.Window
+	plan.TestsPerDay = options.TestsPerDay
 	return nil
 }
 
@@ -88,7 +90,7 @@ func (r *accountRepository) loadModelFingerprintSchedule(ctx context.Context, id
 }
 
 func (r *accountRepository) SetModelFingerprintSchedule(ctx context.Context, plan *service.ModelFingerprintSchedule) error {
-	body, err := json.Marshal(modelFingerprintStoredOptions{ModelFingerprintOptions: plan.Options, Window: plan.Window})
+	body, err := json.Marshal(modelFingerprintStoredOptions{ModelFingerprintOptions: plan.Options, Window: plan.Window, TestsPerDay: plan.TestsPerDay})
 	if err != nil {
 		return err
 	}
@@ -102,8 +104,6 @@ func (r *accountRepository) ListDueModelFingerprints(ctx context.Context, now ti
 	rows, err := r.sql.QueryContext(ctx, `SELECT s.account_id, s.user_id, s.options, s.next_run_at FROM model_fingerprint_schedules s
  JOIN accounts a ON a.id=s.account_id JOIN users u ON u.id=s.user_id
  WHERE s.enabled AND s.next_run_at <= $1 AND a.deleted_at IS NULL AND a.status='active'
- AND date_trunc('hour', $1::timestamptz AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC'))
-     >= s.next_run_at AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC')
  AND extract(hour from $1::timestamptz AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC'))
      >= COALESCE((s.options->'time_window'->>'start_hour')::int, 0)
  AND extract(hour from $1::timestamptz AT TIME ZONE COALESCE(s.options->'time_window'->>'timezone', 'UTC'))

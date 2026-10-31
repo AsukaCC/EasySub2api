@@ -380,9 +380,9 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 	// 构建请求体
 	var requestBody []byte
 	if strings.HasPrefix(modelID, "gemini-") {
-		requestBody, err = s.buildGeminiTestRequest(projectID, mappedModel)
+		requestBody, err = s.buildGeminiTestRequest(projectID, mappedModel, accountTestPrompt(ctx))
 	} else {
-		requestBody, err = s.buildClaudeTestRequest(projectID, mappedModel)
+		requestBody, err = s.buildClaudeTestRequest(projectID, mappedModel, accountTestPrompt(ctx))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("构建请求失败: %w", err)
@@ -455,7 +455,7 @@ func testConnectionHandleError(
 
 // buildGeminiTestRequest 构建 Gemini 格式测试请求
 // 使用最小 token 消耗：输入 "." + maxOutputTokens: 1
-func (s *AntigravityGatewayService) buildGeminiTestRequest(projectID, model string) ([]byte, error) {
+func (s *AntigravityGatewayService) buildGeminiTestRequest(projectID, model string, prompts ...string) ([]byte, error) {
 	payload := map[string]any{
 		"contents": []map[string]any{
 			{
@@ -475,13 +475,17 @@ func (s *AntigravityGatewayService) buildGeminiTestRequest(projectID, model stri
 			"maxOutputTokens": 1,
 		},
 	}
+	if len(prompts) > 0 && strings.TrimSpace(prompts[0]) != "" {
+		payload["contents"] = []map[string]any{{"role": "user", "parts": []map[string]any{{"text": prompts[0]}}}}
+		payload["generationConfig"] = map[string]any{"maxOutputTokens": 256}
+	}
 	payloadBytes, _ := json.Marshal(payload)
 	return s.wrapV1InternalRequest(projectID, model, payloadBytes)
 }
 
 // buildClaudeTestRequest 构建 Claude 格式测试请求并转换为 Gemini 格式
 // 使用最小 token 消耗：输入 "." + MaxTokens: 1
-func (s *AntigravityGatewayService) buildClaudeTestRequest(projectID, mappedModel string) ([]byte, error) {
+func (s *AntigravityGatewayService) buildClaudeTestRequest(projectID, mappedModel string, prompts ...string) ([]byte, error) {
 	claudeReq := &antigravity.ClaudeRequest{
 		Model: mappedModel,
 		Messages: []antigravity.ClaudeMessage{
@@ -492,6 +496,10 @@ func (s *AntigravityGatewayService) buildClaudeTestRequest(projectID, mappedMode
 		},
 		MaxTokens: 1,
 		Stream:    false,
+	}
+	if len(prompts) > 0 && strings.TrimSpace(prompts[0]) != "" {
+		claudeReq.Messages[0].Content, _ = json.Marshal(prompts[0])
+		claudeReq.MaxTokens = 256
 	}
 	return antigravity.TransformClaudeToGemini(claudeReq, projectID, mappedModel)
 }

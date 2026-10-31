@@ -10,12 +10,49 @@ import (
 )
 
 type ModelFingerprintSchedule struct {
-	AccountID string                      `json:"account_id"`
-	UserID    string                      `json:"-"`
-	Enabled   bool                        `json:"enabled"`
-	Options   ModelFingerprintOptions     `json:"options"`
-	NextRunAt time.Time                   `json:"next_run_at"`
-	Window    *ModelFingerprintTimeWindow `json:"time_window,omitempty"`
+	AccountID   string                      `json:"account_id"`
+	UserID      string                      `json:"-"`
+	Enabled     bool                        `json:"enabled"`
+	Options     ModelFingerprintOptions     `json:"options"`
+	NextRunAt   time.Time                   `json:"next_run_at"`
+	Window      *ModelFingerprintTimeWindow `json:"time_window,omitempty"`
+	TestsPerDay int                         `json:"tests_per_day,omitempty"`
+}
+
+// Zero retains the hourly cadence of schedules created before daily counts.
+func (s ModelFingerprintSchedule) NextRun(now time.Time) (time.Time, error) {
+	w := s.Window
+	if w == nil {
+		w = &ModelFingerprintTimeWindow{EndHour: 24, Timezone: "UTC"}
+	}
+	if s.TestsPerDay == 0 {
+		return w.NextRun(now)
+	}
+	loc, err := w.location()
+	if err != nil {
+		return time.Time{}, err
+	}
+	if s.TestsPerDay < 1 || s.TestsPerDay > min(144, (w.EndHour-w.StartHour)*60) {
+		return time.Time{}, apperrors.BadRequest("INVALID_FINGERPRINT_FREQUENCY", "Tests per day must be between 1 and 144, with at least one minute between tests")
+	}
+	local := now.In(loc)
+	for day := 0; day < 4; day++ {
+		date := time.Date(local.Year(), local.Month(), local.Day()+day, 12, 0, 0, 0, loc)
+		start := time.Date(date.Year(), date.Month(), date.Day(), w.StartHour, 0, 0, 0, loc)
+		end := time.Date(date.Year(), date.Month(), date.Day(), w.EndHour, 0, 0, 0, loc)
+		// A nonexistent opening hour on a DST transition has no slots that day.
+		if start.Hour() != w.StartHour || !end.After(start) {
+			continue
+		}
+		minutes := int(end.Sub(start) / time.Minute)
+		for i := 0; i < s.TestsPerDay; i++ {
+			next := start.Add(time.Duration(i*minutes/s.TestsPerDay) * time.Minute)
+			if next.After(now) && w.Contains(next) {
+				return next.UTC(), nil
+			}
+		}
+	}
+	return time.Time{}, errors.New("no fingerprint test slot available")
 }
 
 // The end hour is exclusive; 0-24 represents the entire day.
@@ -117,7 +154,12 @@ func (s *AccountTestService) GetFingerprintSchedule(ctx context.Context, id stri
 		if now := time.Now().UTC(); at.Before(now) && !window.Contains(now) {
 			at = now
 		}
-		schedule.NextRunAt, err = window.NextRun(at)
+		calculation := *schedule
+		calculation.Window = window
+		schedule.NextRunAt, err = calculation.NextRun(at)
+	}
+	if schedule.TestsPerDay == 0 {
+		schedule.TestsPerDay = schedule.Window.EndHour - schedule.Window.StartHour
 	}
 	return schedule, err
 }
@@ -125,6 +167,13 @@ func (s *AccountTestService) GetFingerprintSchedule(ctx context.Context, id stri
 func (s *AccountTestService) SetFingerprintSchedule(ctx context.Context, schedule *ModelFingerprintSchedule) error {
 	s.normalizeFingerprintWindow(schedule)
 	if _, err := schedule.Window.location(); err != nil {
+		return err
+	}
+	if schedule.TestsPerDay == 0 {
+		schedule.TestsPerDay = schedule.Window.EndHour - schedule.Window.StartHour
+	}
+	next, err := schedule.NextRun(time.Now().UTC())
+	if err != nil {
 		return err
 	}
 	a, err := s.accountRepo.GetByID(ctx, schedule.AccountID)
@@ -149,14 +198,11 @@ func (s *AccountTestService) SetFingerprintSchedule(ctx context.Context, schedul
 	if !ok {
 		return errors.New("fingerprint schedules unavailable")
 	}
-	schedule.NextRunAt, err = schedule.Window.NextRun(time.Now().UTC())
-	if err != nil {
-		return err
-	}
+	schedule.NextRunAt = next
 	return store.SetModelFingerprintSchedule(ctx, schedule)
 }
 
-// Existing minute scheduler owns the lifecycle. Claims advance the hourly slot
+// Existing minute scheduler owns the lifecycle. Claims advance the next slot
 // atomically with the account lease, so multiple replicas cannot duplicate a run.
 func (s *AccountTestService) RunDueModelFingerprints(ctx context.Context) {
 	if s == nil {

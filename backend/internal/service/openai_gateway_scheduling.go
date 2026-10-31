@@ -227,6 +227,9 @@ func (s *OpenAIGatewayService) BindStickySession(ctx context.Context, groupID *s
 	if s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.StickySessionTTLSeconds > 0 {
 		ttl = time.Duration(s.cfg.Gateway.OpenAIWS.StickySessionTTLSeconds) * time.Second
 	}
+	if ttl < sessionSchedulingPriorityTTL {
+		ttl = sessionSchedulingPriorityTTL
+	}
 	return s.setStickySessionAccountID(ctx, groupID, sessionHash, accountID, ttl)
 }
 
@@ -761,6 +764,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 	}
 
 	stickyAccountID = s.clearInvalidOpenAIStickySession(ctx, groupID, platform, sessionHash, stickyAccountID, requestedModel, excludedIDs, accounts, requireCompact)
+	ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, s.openAISessionCacheKey(sessionHash), stickyAccountID)
 
 	// 3. 按优先级 + LRU 选择最佳账号
 	// Select by priority + LRU
@@ -780,6 +784,9 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 	// Set sticky session binding (deferred until terminal admission under a profit gate)
 	if sessionHash != "" && !gatewayProfitControlGateActive(ctx) && !deferKeySchedulingAffinity(ctx) {
 		_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, selected.ID, openaiStickySessionTTL)
+	}
+	if ctx.Value(keySchedulingCaptureKey{}) == nil {
+		renewSessionSchedulingAffinity(ctx, hydrated.ID)
 	}
 
 	return hydrated, nil
@@ -900,6 +907,9 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *s
 	setKeySchedulingPeers(ctx, eligible, schedulingAccount, func(a, b *Account) bool {
 		return a.Priority == b.Priority && (!requireCompact || compactTiers[a.ID] == compactTiers[b.ID])
 	})
+	preferSchedulingAffinity(eligible, sessionSchedulingPriorityID(ctx), schedulingAccount, func(a, b *Account) bool {
+		return !requireCompact || compactTiers[a.ID] == compactTiers[b.ID]
+	})
 	return eligible[0], compactBlocked, filterStats
 }
 
@@ -1006,6 +1016,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			stickyAccountID = accountID
 		}
 	}
+	ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, s.openAISessionCacheKey(sessionHash), stickyAccountID)
 	if s.concurrencyService == nil || !cfg.LoadBatchEnabled {
 		var keyCapture *keySchedulingCapture
 		ctx, keyCapture = captureKeyScheduling(ctx)
@@ -1138,6 +1149,9 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	sameKeyPool := func(a, b *Account) bool {
 		return a.Priority == b.Priority && (!requireCompact || openAICompactSupportTier(a) == openAICompactSupportTier(b))
 	}
+	sameSessionPool := func(a, b *Account) bool {
+		return !requireCompact || openAICompactSupportTier(a) == openAICompactSupportTier(b)
+	}
 
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
 	for _, acc := range candidates {
@@ -1219,6 +1233,9 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 		})
 		applyKeySchedulingOrder(ctx, selectionOrder, schedulingLoadAccount, sameKeyPool)
 		setKeySchedulingPeers(ctx, selectionOrder, schedulingLoadAccount, sameKeyPool)
+		preferSchedulingAffinity(selectionOrder, sessionSchedulingPriorityID(ctx), schedulingLoadAccount, func(a, b accountWithLoad) bool {
+			return sameSessionPool(a.account, b.account)
+		})
 
 		for _, item := range selectionOrder {
 			fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, item.account, platform, requestedModel, false, requiredCapability)
@@ -1268,6 +1285,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 		preferSchedulingAffinity(ordered, stickyAccountID, schedulingAccount, sameTier)
 		applyKeySchedulingOrder(ctx, ordered, schedulingAccount, sameKeyPool)
 		setKeySchedulingPeers(ctx, ordered, schedulingAccount, sameKeyPool)
+		preferSchedulingAffinity(ordered, sessionSchedulingPriorityID(ctx), schedulingAccount, sameSessionPool)
 		for _, acc := range ordered {
 			fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, platform, requestedModel, false, requiredCapability)
 			if fresh == nil {
@@ -1326,6 +1344,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	}
 	preferSchedulingAffinity(candidates, stickyAccountID, schedulingAccount, sameTier)
 	applyKeySchedulingOrder(ctx, candidates, schedulingAccount, sameKeyPool)
+	preferSchedulingAffinity(candidates, sessionSchedulingPriorityID(ctx), schedulingAccount, sameSessionPool)
 	for _, acc := range candidates {
 		fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, platform, requestedModel, false, requiredCapability)
 		if fresh == nil {
@@ -1600,6 +1619,9 @@ func (s *OpenAIGatewayService) newSelectionResult(ctx context.Context, account *
 	hydrated, err := s.hydrateSelectedAccount(ctx, account)
 	if err != nil {
 		return nil, err
+	}
+	if acquired && hydrated != nil {
+		renewSessionSchedulingAffinity(ctx, hydrated.ID)
 	}
 	return attachSelectionProfitGate(ctx, &AccountSelectionResult{
 		Account:     hydrated,

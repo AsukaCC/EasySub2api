@@ -729,7 +729,7 @@ func TestGatewayHotpathHelpers_CacheTTLAndStickyContext(t *testing.T) {
 		ctx2 = context.WithValue(ctx2, ctxkey.PrefetchedStickyGroupID, groupID)
 		require.Equal(t, "account-456", prefetchedStickyAccountIDFromContext(ctx2, &groupID))
 
-		ctx3 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, "invalid")
+		ctx3 := context.WithValue(context.Background(), ctxkey.PrefetchedStickyAccountID, 123)
 		ctx3 = context.WithValue(ctx3, ctxkey.PrefetchedStickyGroupID, groupID)
 		require.Equal(t, "", prefetchedStickyAccountIDFromContext(ctx3, &groupID))
 
@@ -833,7 +833,7 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 
 	baseCtx := context.WithValue(context.Background(), ctxkey.ForcePlatform, PlatformAnthropic)
 
-	t.Run("without_prefetch_reads_cache_once", func(t *testing.T) {
+	t.Run("without_prefetch_reads_binding_priority_and_admission", func(t *testing.T) {
 		cache := &stickyGatewayCacheHotpathStub{stickyID: account.ID}
 		svc := &GatewayService{
 			accountRepo:        repo,
@@ -850,10 +850,10 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
 		require.Equal(t, account.ID, result.Account.ID)
-		require.Equal(t, int64(1), cache.getCalls.Load())
+		require.Equal(t, int64(3), cache.getCalls.Load())
 	})
 
-	t.Run("with_prefetch_skips_cache_read", func(t *testing.T) {
+	t.Run("with_prefetch_skips_initial_binding_read", func(t *testing.T) {
 		cache := &stickyGatewayCacheHotpathStub{stickyID: account.ID}
 		svc := &GatewayService{
 			accountRepo:        repo,
@@ -872,7 +872,7 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
 		require.Equal(t, account.ID, result.Account.ID)
-		require.Equal(t, int64(0), cache.getCalls.Load())
+		require.Equal(t, int64(2), cache.getCalls.Load())
 	})
 
 	t.Run("with_prefetch_group_mismatch_reads_cache", func(t *testing.T) {
@@ -894,6 +894,6 @@ func TestSelectAccountWithLoadAwareness_StickyReadReuse(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
 		require.Equal(t, account.ID, result.Account.ID)
-		require.Equal(t, int64(1), cache.getCalls.Load())
+		require.Equal(t, int64(3), cache.getCalls.Load())
 	})
 }

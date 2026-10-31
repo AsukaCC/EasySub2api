@@ -239,7 +239,7 @@ func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account
 	p.upstreamModel = p.model
 	resp, err := s.doAccountTestWithProtection(req, proxy, account, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
-		return fmt.Errorf("fingerprint upstream unavailable")
+		return fmt.Errorf("fingerprint upstream unavailable: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
@@ -248,7 +248,10 @@ func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account
 		return fmt.Errorf("fingerprint upstream HTTP %d", resp.StatusCode)
 	}
 	body, err = io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
-	if err != nil || len(body) > 1<<20 {
+	if err != nil {
+		return fmt.Errorf("invalid fingerprint response: %w", err)
+	}
+	if len(body) > 1<<20 {
 		return fmt.Errorf("invalid fingerprint response")
 	}
 	var data map[string]any

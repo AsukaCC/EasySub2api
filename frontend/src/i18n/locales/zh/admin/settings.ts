@@ -1482,7 +1482,7 @@ export default {
         oauthRatePriorityDescription: '同一分组同时包含 API Key 和 OAuth 账号时，OAuth 账号按此倍率与已探测的 API Key 计费倍率一起排序。',
         oauthRateWeightedDescription: '同一分组同时包含 API Key 和 OAuth 账号时，计算“计费倍率”得分时，OAuth 账号按此倍率参与计算。',
         stickyWeightedTitle: '粘性加权',
-        stickyWeightedDescription: '先按账号调度规则确定候选池，仅在基础得分、优先级和负载等条件相同时应用粘性。开启后按粘性权值选择；关闭时同等条件优先续接会话。',
+        stickyWeightedDescription: '会话最近一次成功调度后的 30 分钟内，优先复用符合业务准入且可调用的绑定账号，每次成功调度续期 30 分钟。窗口过期后恢复账号调度优先；此开关仅控制同等调度条件下的粘性权值。',
         subscriptionPriorityTitle: '订阅优先',
         subscriptionPriorityDescription: '开启后先在 ChatGPT 订阅账号池中按权值选取；订阅池拿不到席位时再回退到非订阅账号池。',
         weightsTitle: '调度权值覆盖',

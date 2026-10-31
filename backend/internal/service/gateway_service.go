@@ -1070,8 +1070,15 @@ func (s *GatewayService) BindStickySessionAfterProfitAdmission(ctx context.Conte
 	if sessionHash == "" || accountID == "" || s.cache == nil {
 		return nil
 	}
+	bind := func() error {
+		if err := s.BindStickySession(ctx, groupID, sessionHash, accountID); err != nil {
+			return err
+		}
+		markSessionSchedulingSuccess(ctx, s.cache, derefGroupID(groupID), sessionHash, accountID)
+		return nil
+	}
 	if !gatewayProfitControlGateActive(ctx) {
-		return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+		return bind()
 	}
 	existingAccountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
 	if err != nil && !errors.Is(err, ErrStickySessionNotFound) {
@@ -1082,7 +1089,7 @@ func (s *GatewayService) BindStickySessionAfterProfitAdmission(ctx context.Conte
 	if existingAccountID != "" && existingAccountID != accountID {
 		return nil
 	}
-	return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+	return bind()
 }
 
 // GetCachedSessionAccountID retrieves the account ID bound to a sticky session.

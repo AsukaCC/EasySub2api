@@ -267,6 +267,10 @@ func acquireKeySchedulingLease(ctx context.Context, cache any, accountID, reques
 			expected = -1
 		}
 	}
+	if accountID == sessionSchedulingPriorityID(ctx) {
+		// Affinity bypasses only owner balancing, never the per-request slot limit.
+		expected, peers = -1, nil
+	}
 	acquired, err := store.AcquireAccountKeyLease(ctx, accountID, keyID, requestID, expected, peers)
 	if err != nil || !acquired {
 		return false, nil, err

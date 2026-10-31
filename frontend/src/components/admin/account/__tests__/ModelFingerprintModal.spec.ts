@@ -202,7 +202,7 @@ describe('Model fingerprint workflow', () => {
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('.fingerprint-schedule button').trigger('click')
     await flushPromises()
-    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, time_window: { start_hour: 0, end_hour: 24, timezone: 'Asia/Shanghai' }, options: { api_key_id: 'key-two', model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
+    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, tests_per_day: 24, time_window: { start_hour: 0, end_hour: 24, timezone: 'Asia/Shanghai' }, options: { api_key_id: 'key-two', model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
     await wrapper.get('.btn-primary').trigger('click')
     await flushPromises()
     expect(startModelFingerprint).toHaveBeenCalledWith('one', 'gpt-6-astra', { api_key_id: 'key-two', protocol: 'anthropic', reasoning_effort: 'high' })
@@ -309,7 +309,7 @@ describe('Model fingerprint workflow', () => {
     expect((wrapper.findAll('select')[3].element as HTMLSelectElement).value).toBe('high')
     await wrapper.get('.fingerprint-schedule button').trigger('click')
     await flushPromises()
-    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, time_window: { start_hour: 0, end_hour: 24, timezone: 'Asia/Shanghai' }, options: { api_key_id: 'key-two', model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
+    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', { enabled: true, tests_per_day: 24, time_window: { start_hour: 0, end_hour: 24, timezone: 'Asia/Shanghai' }, options: { api_key_id: 'key-two', model_id: 'gpt-6-astra', protocol: 'anthropic', reasoning_effort: 'high' } })
   })
 
   it('discards model lists from the previous API key', async () => {
@@ -364,5 +364,33 @@ describe('Model fingerprint workflow', () => {
     expect(setFingerprintSchedule).toHaveBeenCalledWith('one', expect.objectContaining({
       time_window: { start_hour: 23, end_hour: 24, timezone: 'UTC' }
     }))
+  })
+
+  it('restores and saves daily counts and rejects invalid frequency', async () => {
+    getFingerprintSchedule.mockResolvedValueOnce({ enabled: true, tests_per_day: 4, options: { api_key_id: 'key-one' } })
+    const wrapper = mountModal()
+    await flushPromises()
+    const input = wrapper.get('#fingerprint-tests-per-day')
+    expect((input.element as HTMLInputElement).value).toBe('4')
+    for (const value of ['0', '1.5', '145', '']) {
+      await input.setValue(value)
+      await wrapper.get('.fingerprint-schedule button').trigger('click')
+      expect(setFingerprintSchedule).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('admin.accounts.fingerprint.invalidFrequency')
+    }
+    await input.setValue('7')
+    await wrapper.get('.fingerprint-schedule button').trigger('click')
+    await flushPromises()
+    expect(setFingerprintSchedule).toHaveBeenCalledWith('one', expect.objectContaining({ tests_per_day: 7 }))
+  })
+
+  it('renders a timeout error and enables another test after polling finishes', async () => {
+    getModelFingerprint.mockResolvedValueOnce(running).mockResolvedValue({ ...running, status: 'failed', error: 'timeout' })
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(wrapper.text()).toContain('admin.accounts.fingerprint.errors.timeout')
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeUndefined()
   })
 })
