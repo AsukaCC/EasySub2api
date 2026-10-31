@@ -159,6 +159,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID)
+		ctx = context.WithValue(ctx, ctxkey.APIKeyID, apiKey.ID)
 		ctx = context.WithValue(ctx, ctxkey.APIKeyGroupIDs, apiKey.BoundGroupIDs())
 		c.Request = c.Request.WithContext(ctx)
 		billingInfoRequest := c.Request.URL.Path == "/v1/easysub2api/billing" || c.Request.URL.Path == "/v1/sub2api/billing"

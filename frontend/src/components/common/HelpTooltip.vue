@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   content?: string
@@ -150,7 +153,7 @@ onBeforeUnmount(() => {
           v-if="props.trigger === 'click'"
           type="button"
           class="help-tooltip-popover__close"
-          aria-label="Close"
+          :aria-label="t('common.close')"
           @click.stop="closeTooltip"
         >
           <svg class="help-tooltip-popover__close-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

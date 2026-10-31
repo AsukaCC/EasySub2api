@@ -1308,12 +1308,12 @@ function handleToolbarRefresh() {
               <span class="views-admin-ops-components-ops-dashboard-header__text-14">ms</span>
             </div>
             <div class="views-admin-ops-components-ops-dashboard-header__panel-45">
-              <span class="views-admin-ops-components-ops-dashboard-header__text-10">Avg:</span>
+              <span class="views-admin-ops-components-ops-dashboard-header__text-10">{{ t('admin.ops.avg') }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-11">{{ durationAvgMs ?? '-' }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-14">ms</span>
             </div>
             <div class="views-admin-ops-components-ops-dashboard-header__panel-45">
-              <span class="views-admin-ops-components-ops-dashboard-header__text-10">Max:</span>
+              <span class="views-admin-ops-components-ops-dashboard-header__text-10">{{ t('admin.ops.max') }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-11">{{ durationMaxMs ?? '-' }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-14">ms</span>
             </div>
@@ -1359,12 +1359,12 @@ function handleToolbarRefresh() {
               <span class="views-admin-ops-components-ops-dashboard-header__text-14">ms</span>
             </div>
             <div class="views-admin-ops-components-ops-dashboard-header__panel-45">
-              <span class="views-admin-ops-components-ops-dashboard-header__text-10">Avg:</span>
+              <span class="views-admin-ops-components-ops-dashboard-header__text-10">{{ t('admin.ops.avg') }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-15" :class="getThresholdColorClass(getTTFTThresholdLevel(ttftAvgMs))">{{ ttftAvgMs ?? '-' }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-14">ms</span>
             </div>
             <div class="views-admin-ops-components-ops-dashboard-header__panel-45">
-              <span class="views-admin-ops-components-ops-dashboard-header__text-10">Max:</span>
+              <span class="views-admin-ops-components-ops-dashboard-header__text-10">{{ t('admin.ops.max') }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-15" :class="getThresholdColorClass(getTTFTThresholdLevel(ttftMaxMs))">{{ ttftMaxMs ?? '-' }}</span>
               <span class="views-admin-ops-components-ops-dashboard-header__text-14">ms</span>
             </div>

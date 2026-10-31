@@ -83,7 +83,7 @@
           <template v-if="setupData">
             <div class="components-user-profile-totp-setup-modal__panel-12">
               <div class="components-user-profile-totp-setup-modal__panel-13">
-                <img :src="qrCodeDataUrl" alt="QR Code" class="components-user-profile-totp-setup-modal__image" />
+                <img :src="qrCodeDataUrl" :alt="t('common.qrCode')" class="components-user-profile-totp-setup-modal__image" />
               </div>
             </div>
 

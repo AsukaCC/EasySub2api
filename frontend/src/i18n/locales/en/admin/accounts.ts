@@ -614,7 +614,7 @@ export default {
           'Disabled by default. Enable to allow responses_websockets_v2 capability (still gated by global and account-type switches).',
         wsMode: 'WS mode',
         wsModeDesc:
-          'Applies only to the current OpenAI account type. Off disables WebSocket routing. Other modes use the selected transport when gateway.openai_ws.mode_router_v2_enabled=true; otherwise the gateway keeps legacy context-pool behavior.',
+          'Applies only to the current OpenAI account type. Off disables WebSocket routing. Other modes, including HTTP Bridge (http_bridge), use the selected transport when gateway.openai_ws.mode_router_v2_enabled=true; otherwise the gateway keeps legacy context-pool behavior.',
         wsModeOff: 'Off (off)',
         wsModeCtxPool: 'Context Pool (ctx_pool)',
         wsModePassthrough: 'Passthrough (passthrough)',
@@ -781,6 +781,13 @@ export default {
       modelRestriction: 'Model Restriction (Optional)',
       modelWhitelist: 'Model Whitelist',
       modelMapping: 'Model Mapping',
+      fromModel: 'Source model',
+      vertexProjectId: 'Project ID',
+      vertexClientEmail: 'Service account email',
+      vertexLocation: 'Location',
+      oauthProvider: 'OAuth provider',
+      tierLabel: 'Tier',
+      toModel: 'Target model',
       selectAllowedModels: 'Select allowed models. Leave empty to support all models.',
       mapRequestModels:
         'Map request models to actual models. Left is the requested model, right is the actual model sent to API.',

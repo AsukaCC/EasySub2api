@@ -1,11 +1,13 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/ctxkey"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/googleapi"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/ip"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -130,6 +132,9 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 403, "API Key 所属专属分组不再允许当前用户使用")
 			return
 		}
+
+		ctx := context.WithValue(c.Request.Context(), ctxkey.APIKeyID, apiKey.ID)
+		c.Request = c.Request.WithContext(ctx)
 
 		// 简易模式：跳过余额和订阅检查
 		if cfg.RunMode == config.RunModeSimple {

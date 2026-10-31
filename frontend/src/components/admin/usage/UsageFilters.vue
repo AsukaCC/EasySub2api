@@ -20,7 +20,7 @@
             type="button"
             @click="clearUser"
             class="components-admin-usage-usage-filters__action"
-            aria-label="Clear user filter"
+            :aria-label="t('common.clearFilter', { name: t('admin.usage.userFilter') })"
           >
             ✕
           </button>
@@ -64,7 +64,7 @@
             type="button"
             @click="onClearApiKey"
             class="components-admin-usage-usage-filters__action"
-            aria-label="Clear API key filter"
+            :aria-label="t('common.clearFilter', { name: t('usage.apiKeyFilter') })"
           >
             ✕
           </button>
@@ -114,7 +114,7 @@
             type="button"
             @click="clearAccount"
             class="components-admin-usage-usage-filters__action"
-            aria-label="Clear account filter"
+            :aria-label="t('common.clearFilter', { name: t('admin.usage.account') })"
           >
             ✕
           </button>

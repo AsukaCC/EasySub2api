@@ -21,7 +21,7 @@
               v-if="showCloseButton"
               @click="emit('close')"
               class="base-dialog__close"
-              aria-label="Close modal"
+              :aria-label="t('common.close')"
             >
               <Icon name="x" size="md" />
             </button>
@@ -49,8 +49,10 @@ const openDialogs = new Set<string>()
 
 <script setup lang="ts">
 import { computed, watch, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
 import Icon from '@/components/icons/Icon.vue'
+const { t } = useI18n()
 
 // GSAP 进出场:overlay 淡入 + 内容轻微上浮缩放。
 // 减弱动态偏好时不接管,回退到 _feedback.scss 的 .modal CSS Transition。

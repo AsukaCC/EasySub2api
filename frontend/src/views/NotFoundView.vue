@@ -47,7 +47,7 @@
           {{ t('errors.pageNotFound') }}
         </h1>
         <p class="views-not-found-view__description">
-          The page you are looking for doesn't exist or has been moved.
+          {{ t('common.pageNotFoundDescription') }}
         </p>
       </div>
 
@@ -55,22 +55,22 @@
       <div class="views-not-found-view__panel-10">
         <button @click="goBack" class="btn btn-secondary">
           <Icon name="arrowLeft" size="md" class="views-not-found-view__icon-2" />
-          Go Back
+          {{ t('common.back') }}
         </button>
         <router-link to="/dashboard" class="btn btn-primary">
           <Icon name="home" size="md" class="views-not-found-view__icon-2" />
-          Go to Dashboard
+          {{ t('home.goToDashboard') }}
         </router-link>
       </div>
 
       <!-- Help Link -->
       <p class="views-not-found-view__description-2">
-        Need help?
+        {{ t('common.needHelp') }}
         <a
           href="#"
           class="views-not-found-view__link"
         >
-          Contact support
+          {{ t('common.contactSupport') }}
         </a>
       </p>
     </div>

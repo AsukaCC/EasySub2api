@@ -574,7 +574,7 @@
                     <button
                       type="button"
                       class="components-account-oauth-authorization-flow__action-4 btn btn-secondary"
-                      title="Copy URL"
+                  :title="t('common.copy')"
                       @click="handleCopyUrl"
                     >
                       <svg

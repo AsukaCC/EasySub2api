@@ -311,6 +311,7 @@ func (s *GeminiMessagesCompatService) selectBestGeminiAccount(
 	}
 	var selected *Account
 	precheckResult := s.buildPreCheckUsageResultMap(ctx, accounts, requestedModel)
+	ctx = withKeySchedulingAccounts(ctx, s.cache, accounts)
 
 	for i := range accounts {
 		acc := &accounts[i]
@@ -332,6 +333,12 @@ func (s *GeminiMessagesCompatService) selectBestGeminiAccount(
 		}
 
 		if acc.Priority == selected.Priority {
+			if cmp := keySchedulingFromContext(ctx).compare(acc, selected); cmp != 0 {
+				if cmp < 0 {
+					selected = acc
+				}
+				continue
+			}
 			if acc.ID == stickyAccountID {
 				selected = acc
 				continue

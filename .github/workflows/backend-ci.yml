@@ -45,7 +45,7 @@ jobs:
         working-directory: backend
         run: >-
           go test -tags=unit ./internal/service ./internal/handler/admin
-          -run 'TestOpenAISetupToken|TestAdminStats|TestRedeemExport|TestForwardAsAnthropic_|TestForwardAsChatCompletions_|TestResolveAndSetOpenAIChatGPTAccountHeaders|TestMergeOpenAIUsage|Test.*(ForwardImages|OpenAIImage|CodexDirectImages)'
+          -run 'TestOpenAISetupToken|TestAdminStats|TestRedeemExport|TestForwardAsAnthropic_|TestForwardAsChatCompletions_|TestResolveAndSetOpenAIChatGPTAccountHeaders|TestMergeOpenAIUsage|Test.*(ForwardImages|OpenAIImage|CodexDirectImages)|TestContentModeration.*Proxy'
           -count=1 -timeout=10m
       - name: Account protection and retired model regression tests
         working-directory: backend
@@ -75,8 +75,8 @@ jobs:
       - name: Account scheduling before conversation affinity
         working-directory: backend
         run: >-
-          go test -tags=unit ./internal/service
-          -run 'Test(GatewaySchedulingBeforeAffinity|OpenAILegacySchedulingBeforeAffinity|OpenAIAdvancedSchedulingBeforeAffinity|GeminiCompatSchedulingBeforeAffinity|OpenAIBaseSchedulingUnaffectedByAffinity|OpenAISubscriptionPoolBeforeAffinity|OpenAISchedulerScoreReportsAffinityWithinTier)'
+          go test -tags=unit ./internal/service ./internal/repository ./internal/server/middleware
+          -run 'Test(KeyScheduling|LiveLease|GatewaySchedulingBeforeAffinity|OpenAILegacySchedulingBeforeAffinity|OpenAIAdvancedSchedulingBeforeAffinity|GeminiCompatSchedulingBeforeAffinity|OpenAIBaseSchedulingUnaffectedByAffinity|OpenAISubscriptionPoolBeforeAffinity|OpenAISchedulerScoreReportsAffinityWithinTier)'
           -count=1 -timeout=5m
 
       - name: Wallet, fingerprint, and upstream compatibility regressions

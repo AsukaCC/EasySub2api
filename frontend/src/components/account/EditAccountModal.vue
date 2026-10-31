@@ -836,7 +836,7 @@
         </div>
         <div class="components-account-edit-account-modal__panel-19">
           <div>
-            <label class="input-label">Project ID</label>
+            <label class="input-label">{{ t('admin.accounts.vertexProjectId') }}</label>
             <input
               v-model="editVertexProjectId"
               type="text"
@@ -847,7 +847,7 @@
             <p v-if="!isVertexAPIKeyMode" class="input-hint">{{ t('admin.accounts.vertexSaJsonEditHint') }}</p>
           </div>
           <div>
-            <label class="input-label">Location</label>
+            <label class="input-label">{{ t('admin.accounts.vertexLocation') }}</label>
             <Select
               v-model="editVertexLocation"
               class="components-account-edit-account-modal__field input"
@@ -3096,7 +3096,7 @@ const syncGrokDiagnostics = async () => {
     if (hasIncompleteMetadata) {
       appStore.showWarning(t('admin.accounts.syncUpstreamModelsMetadataIncomplete'))
     } else if (hasPartialMetadata) {
-      appStore.showWarning(t('admin.accounts.syncUpstreamModelsMetadataPartial'))
+      appStore.showWarning(t('admin.accounts.syncUpstreamModelsMetadataIncomplete'))
     }
   } catch (error) {
     if (syncVersion !== grokDiagnosticsSyncVersion || !props.show || props.account?.id !== id) return

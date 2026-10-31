@@ -51,6 +51,7 @@ export default {
       toggleNode: 'Toggle node {name}', deleteConfirm: 'Remove “{name}” from the draft? It takes effect after saving.',
     },
     policy: {
+      priorityStrategy: 'Priority',
       title: 'Audit policy', description: 'Configure group scope, nine input-risk categories, workers, and queue bounds.', scope: 'Scope', allGroups: 'All groups', selectedGroups: 'Selected groups',
       searchGroups: 'Search groups', noGroups: 'No matching groups', missingGroups: 'Configured IDs for groups that no longer exist', selectedCount: '{count} groups selected',
       scanners: 'Qwen3Guard input-risk categories', workerCount: 'Worker count', queueCapacity: 'Persistent queue capacity', strategy: 'Node strategy', strategyHint: 'Try nodes in configuration order and fail over when allowed.',
@@ -62,6 +63,7 @@ export default {
       confirm: 'I understand; enable it',
     },
     events: {
+      filterHash: 'Filter SHA-256',
       title: 'Audit events', description: 'Review events by identity, route, risk, hash, and time; the detail view shows the full prompt.', decision: 'Decision', risk: 'Risk level', endpoint: 'Endpoint', groupId: 'Group ID', userId: 'User ID', apiKeyId: 'API Key ID', keyword: 'Keyword',
       startAt: 'Start time', endAt: 'End time', deleteSelected: 'Delete selected ({count})', deleteByFilter: 'Delete by filter',
       filterDeleteDialogTitle: 'Delete audit events by filter', filterDeleteDialogDesc: 'Choose the time range and risk criteria, then delete directly. Deletion is permanent. Generate a preview first if you want to see the match count.',

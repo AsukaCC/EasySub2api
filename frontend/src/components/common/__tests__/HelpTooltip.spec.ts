@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
+import { createI18n } from 'vue-i18n'
+
+const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common: { close: 'Close' } } } })
 
 function getTooltipElement(): HTMLDivElement {
   const tooltip = document.body.querySelector('[role="tooltip"]')
@@ -18,13 +21,14 @@ describe('HelpTooltip', () => {
 
   it('keeps the existing hover interaction by default', async () => {
     const wrapper = mount(HelpTooltip, {
+      global: { plugins: [i18n] },
       attachTo: document.body,
       props: {
         content: 'hover details',
       },
     })
 
-    const trigger = wrapper.get('.group')
+    const trigger = wrapper.get('[tabindex="0"]')
     const tooltip = getTooltipElement()
 
     expect(tooltip.style.display).toBe('none')
@@ -42,6 +46,7 @@ describe('HelpTooltip', () => {
 
   it('supports click-to-toggle details and closes on outside click', async () => {
     const wrapper = mount(HelpTooltip, {
+      global: { plugins: [i18n] },
       attachTo: document.body,
       props: {
         content: 'click details',
@@ -49,7 +54,7 @@ describe('HelpTooltip', () => {
       },
     })
 
-    const trigger = wrapper.get('.group')
+    const trigger = wrapper.get('[tabindex="0"]')
     const tooltip = getTooltipElement()
 
     expect(tooltip.style.display).toBe('none')

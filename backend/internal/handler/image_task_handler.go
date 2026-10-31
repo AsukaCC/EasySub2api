@@ -518,6 +518,7 @@ func (h *AsyncImageHandler) processQueuedTask(taskID string) {
 		}
 	}()
 	ctx = context.WithValue(ctx, ctxkey.UserID, apiKey.UserID)
+	ctx = context.WithValue(ctx, ctxkey.APIKeyID, apiKey.ID)
 	ctx = context.WithValue(ctx, ctxkey.APIKeyGroupIDs, apiKey.BoundGroupIDs())
 	req := httptest.NewRequest(http.MethodPost, "/v1/images/"+record.Endpoint, bytes.NewReader(body)).WithContext(ctx)
 	req.Header.Set("Content-Type", contentType)

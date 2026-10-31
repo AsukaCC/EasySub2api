@@ -62,7 +62,7 @@
             <p class="features-prompt-audit-components-endpoint-pool__description-4">{{ t('admin.promptAudit.pool.limits') }}</p>
             <div class="features-prompt-audit-components-endpoint-pool__panel-10">
               <span class="features-prompt-audit-components-endpoint-pool__text-4">{{ endpoint.timeout_ms }} ms</span>
-              <span class="features-prompt-audit-components-endpoint-pool__text-4">{{ endpoint.input_limit }} chars</span>
+              <span class="features-prompt-audit-components-endpoint-pool__text-4">{{ t('common.characterCount', { count: endpoint.input_limit }) }}</span>
             </div>
           </div>
 

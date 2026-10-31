@@ -1,6 +1,6 @@
 <template>
   <div class="app-top-nav-wrap">
-    <nav ref="navRootRef" class="app-top-nav-shell" aria-label="Primary navigation">
+    <nav ref="navRootRef" class="app-top-nav-shell" :aria-label="t('common.primaryNavigation')">
       <router-link
         :to="homePath"
         class="app-top-nav-brand"
