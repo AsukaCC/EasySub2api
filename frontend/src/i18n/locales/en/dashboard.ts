@@ -240,6 +240,8 @@ export default {
     lastUsedIP: 'Last Used IP',
     useKey: 'Use Key',
     useKeyModal: {
+      client: 'Client',
+      environment: 'Terminal / operating system',
       typesafe: {
         description: 'Call Jev through the native TypeSafe System One endpoint.',
         note: 'System One is non-streaming and is not compatible with Chat Completions, Responses, Claude Code or Codex clients.'

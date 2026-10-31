@@ -348,6 +348,7 @@ export default {
     actualPay: 'Actual Payment',
     createOrder: 'Confirm Payment',
 	wallet: {
+	  remainingAfterPay: 'Points remaining after payment',
 	  useBalance: 'Use points',
 	  available: 'Available points',
 	  availablePoints: 'Point balance',

@@ -45,6 +45,8 @@ export default {
 
     // Channel Management
     channels: {
+      noGroupsSelected: '请为 {platform} 选择至少一个分组',
+      emptyModelsInPricing: '{platform} 的每个定价条目必须包含至少一个模型',
       title: '渠道管理',
       description: '管理渠道和自定义模型定价',
       searchChannels: '搜索渠道...',

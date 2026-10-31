@@ -281,7 +281,7 @@
       <!-- Gemini OAuth provider and fallback tier -->
       <div v-if="form.platform === 'gemini' && accountCategory === 'oauth-based'" class="components-account-create-account-modal__panel-23">
         <div>
-          <label class="input-label">OAuth Provider</label>
+          <label class="input-label">{{ t('admin.accounts.oauthProvider') }}</label>
           <Select v-model="geminiOAuthType" :options="[
             { value: 'google_one', label: 'Google One' },
             { value: 'code_assist', label: 'GCP Code Assist' },
@@ -289,7 +289,7 @@
           ]" />
         </div>
         <div>
-          <label class="input-label">Tier</label>
+          <label class="input-label">{{ t('admin.accounts.tierLabel') }}</label>
           <Select v-if="geminiOAuthType === 'google_one'" v-model="geminiTierGoogleOne" :options="[
             { value: 'google_one_free', label: 'Google One Free' },
             { value: 'google_ai_pro', label: 'Google AI Pro' },
@@ -728,8 +728,8 @@
               v-if="vertexClientEmail"
               class="components-account-create-account-modal__panel-27"
             >
-              <div class="components-account-create-account-modal__panel-28">Project ID: <span class="components-account-create-account-modal__field">{{ vertexProjectId }}</span></div>
-              <div class="components-account-create-account-modal__panel-28">Client Email: <span class="components-account-create-account-modal__field">{{ vertexClientEmail }}</span></div>
+              <div class="components-account-create-account-modal__panel-28">{{ t('admin.accounts.vertexProjectId') }}: <span class="components-account-create-account-modal__field">{{ vertexProjectId }}</span></div>
+              <div class="components-account-create-account-modal__panel-28">{{ t('admin.accounts.vertexClientEmail') }}: <span class="components-account-create-account-modal__field">{{ vertexClientEmail }}</span></div>
             </div>
           </div>
           <p class="input-hint">{{ t('admin.accounts.vertexSaJsonUploadHint') }}</p>
@@ -737,7 +737,7 @@
 
         <div class="components-account-create-account-modal__panel-29">
           <div>
-            <label class="input-label">Project ID</label>
+            <label class="input-label">{{ t('admin.accounts.vertexProjectId') }}</label>
             <input
               v-model="vertexProjectId"
               type="text"
@@ -747,7 +747,7 @@
             />
           </div>
           <div>
-            <label class="input-label">Location</label>
+            <label class="input-label">{{ t('admin.accounts.vertexLocation') }}</label>
             <Select
               v-model="vertexLocation"
               class="components-account-create-account-modal__field input"
@@ -5209,7 +5209,7 @@ const handleOpenAIImportCodexPAT = async (accessToken: string) => {
       extra: withUpstreamRequestIdHeader(extra)
     })
 
-    appStore.showSuccess(t('admin.accounts.messages.accountCreated'))
+    appStore.showSuccess(t('admin.accounts.accountCreated'))
     emit('created')
     handleClose()
   } catch (error: any) {

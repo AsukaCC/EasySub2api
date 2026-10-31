@@ -372,6 +372,7 @@ export default {
     actualPay: '实付金额',
     createOrder: '确认支付',
 	wallet: {
+	  remainingAfterPay: '付款后剩余积分',
 	  useBalance: '使用积分抵扣',
 	  available: '可用积分',
 	  availablePoints: '积分余额',

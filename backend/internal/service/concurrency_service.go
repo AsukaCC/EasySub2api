@@ -340,16 +340,12 @@ type UserLoadInfo struct {
 // If the account is at max concurrency, it waits until a slot is available or timeout.
 // Returns a release function that MUST be called when the request completes.
 func (s *ConcurrencyService) AcquireAccountSlot(ctx context.Context, accountID string, maxConcurrency int) (*AcquireResult, error) {
+	requestID := generateRequestID()
 	// If maxConcurrency is 0 or negative, no limit
 	if maxConcurrency <= 0 {
-		return &AcquireResult{
-			Acquired:    true,
-			ReleaseFunc: func() {}, // no-op
-		}, nil
+		acquired, release, err := acquireKeySchedulingLease(ctx, s.cache, accountID, requestID)
+		return &AcquireResult{Acquired: acquired, ReleaseFunc: release}, err
 	}
-
-	// Generate unique request ID for this slot
-	requestID := generateRequestID()
 
 	acquired, err := s.cache.AcquireAccountSlot(ctx, accountID, maxConcurrency, requestID)
 	if err != nil {
@@ -357,18 +353,30 @@ func (s *ConcurrencyService) AcquireAccountSlot(ctx context.Context, accountID s
 	}
 
 	if acquired {
+		keyAcquired, keyRelease, keyErr := acquireKeySchedulingLease(ctx, s.cache, accountID, requestID)
+		if keyErr != nil || !keyAcquired {
+			releaseCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = s.cache.ReleaseAccountSlot(releaseCtx, accountID, requestID)
+			return &AcquireResult{Acquired: false}, keyErr
+		}
+		var releaseOnce sync.Once
 		return &AcquireResult{
 			Acquired: true,
 			ReleaseFunc: func() {
-				bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				if err := s.cache.ReleaseAccountSlot(bgCtx, accountID, requestID); err != nil {
-					logger.LegacyPrintf("service.concurrency", "Warning: failed to release account slot for %v (req=%s): %v", accountID, requestID, err)
-				}
+				releaseOnce.Do(func() {
+					defer keyRelease()
+					bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					if err := s.cache.ReleaseAccountSlot(bgCtx, accountID, requestID); err != nil {
+						logger.LegacyPrintf("service.concurrency", "Warning: failed to release account slot for %v (req=%s): %v", accountID, requestID, err)
+					}
+				})
 			},
 		}, nil
 	}
 
+	excludeKeySchedulingPeer(ctx, accountID)
 	return &AcquireResult{
 		Acquired:    false,
 		ReleaseFunc: nil,

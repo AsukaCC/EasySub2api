@@ -70,7 +70,7 @@
       <!-- Desktop pagination buttons -->
       <nav
         class="components-common-pagination__navigation"
-        aria-label="Pagination"
+        :aria-label="t('common.pagination')"
       >
         <!-- Previous button -->
         <button

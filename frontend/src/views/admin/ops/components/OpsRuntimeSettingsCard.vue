@@ -328,12 +328,12 @@ onMounted(() => {
       </div>
 
       <div class="views-admin-ops-components-ops-runtime-settings-card__panel-5">
-        <div class="views-admin-ops-components-ops-runtime-settings-card__panel-16">{{ t('admin.ops.runtime.metricThresholds') }}</div>
-        <p class="views-admin-ops-components-ops-runtime-settings-card__description-3">{{ t('admin.ops.runtime.metricThresholdsHint') }}</p>
+        <div class="views-admin-ops-components-ops-runtime-settings-card__panel-16">{{ t('admin.ops.settings.metricThresholds') }}</div>
+        <p class="views-admin-ops-components-ops-runtime-settings-card__description-3">{{ t('admin.ops.settings.metricThresholdsHint') }}</p>
 
         <div class="views-admin-ops-components-ops-runtime-settings-card__panel-17">
           <div>
-            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.runtime.slaMinPercent') }}</div>
+            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.settings.slaMinPercent') }}</div>
             <input
               v-model.number="draftAlert.thresholds.sla_percent_min"
               type="number"
@@ -343,13 +343,13 @@ onMounted(() => {
               class="input"
               placeholder="99.5"
             />
-            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.runtime.slaMinPercentHint') }}</p>
+            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.settings.slaMinPercentHint') }}</p>
           </div>
 
 
 
           <div>
-            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.runtime.ttftP99MaxMs') }}</div>
+            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.settings.ttftP99MaxMs') }}</div>
             <input
               v-model.number="draftAlert.thresholds.ttft_p99_ms_max"
               type="number"
@@ -358,11 +358,11 @@ onMounted(() => {
               class="input"
               placeholder="500"
             />
-            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.runtime.ttftP99MaxMsHint') }}</p>
+            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.settings.ttftP99MaxMsHint') }}</p>
           </div>
 
           <div>
-            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.runtime.requestErrorRateMaxPercent') }}</div>
+            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.settings.requestErrorRateMaxPercent') }}</div>
             <input
               v-model.number="draftAlert.thresholds.request_error_rate_percent_max"
               type="number"
@@ -372,11 +372,11 @@ onMounted(() => {
               class="input"
               placeholder="5"
             />
-            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.runtime.requestErrorRateMaxPercentHint') }}</p>
+            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.settings.requestErrorRateMaxPercentHint') }}</p>
           </div>
 
           <div>
-            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.runtime.upstreamErrorRateMaxPercent') }}</div>
+            <div class="views-admin-ops-components-ops-runtime-settings-card__panel-15">{{ t('admin.ops.settings.upstreamErrorRateMaxPercent') }}</div>
             <input
               v-model.number="draftAlert.thresholds.upstream_error_rate_percent_max"
               type="number"
@@ -386,7 +386,7 @@ onMounted(() => {
               class="input"
               placeholder="5"
             />
-            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.runtime.upstreamErrorRateMaxPercentHint') }}</p>
+            <p class="views-admin-ops-components-ops-runtime-settings-card__description">{{ t('admin.ops.settings.upstreamErrorRateMaxPercentHint') }}</p>
           </div>
         </div>
       </div>

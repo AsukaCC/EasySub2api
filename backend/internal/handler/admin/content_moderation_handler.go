@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/handler/dto"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/pagination"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/response"
 	"github.com/AsukaCC/EasySub2api/internal/service"
@@ -18,34 +19,39 @@ func NewContentModerationHandler(svc *service.ContentModerationService) *Content
 	return &ContentModerationHandler{service: svc}
 }
 
+type contentModerationEngineConfigRequest struct {
+	service.UpdateContentModerationEngineInput
+	ProxyID dto.NullableStringField `json:"proxy_id"`
+}
+
 type contentModerationConfigRequest struct {
-	Engine        *string                                               `json:"engine"`
-	EngineConfigs map[string]service.UpdateContentModerationEngineInput `json:"engine_configs"`
-	Enabled       *bool                                                 `json:"enabled"`
-	Mode          *string                                               `json:"mode"`
-	BaseURL       *string                                               `json:"base_url"`
-	Model         *string                                               `json:"model"`
-	// 审计请求使用的代理服务器：null 不修改；0 清除（直连）；>0 指定代理。
-	ProxyID              *string             `json:"proxy_id"`
-	APIKey               *string             `json:"api_key"`
-	APIKeys              *[]string           `json:"api_keys"`
-	APIKeysMode          string              `json:"api_keys_mode"`
-	DeleteAPIKeyHashes   *[]string           `json:"delete_api_key_hashes"`
-	ClearAPIKey          bool                `json:"clear_api_key"`
-	TimeoutMS            *int                `json:"timeout_ms"`
-	SampleRate           *int                `json:"sample_rate"`
-	AllGroups            *bool               `json:"all_groups"`
-	GroupIDs             *[]string           `json:"group_ids"`
-	RecordNonHits        *bool               `json:"record_non_hits"`
-	Thresholds           *map[string]float64 `json:"thresholds"`
-	WorkerCount          *int                `json:"worker_count"`
-	QueueSize            *int                `json:"queue_size"`
-	BlockStatus          *int                `json:"block_status"`
-	BlockMessage         *string             `json:"block_message"`
-	EmailOnHit           *bool               `json:"email_on_hit"`
-	AutoBanEnabled       *bool               `json:"auto_ban_enabled"`
-	BanThreshold         *int                `json:"ban_threshold"`
-	ViolationWindowHours *int                `json:"violation_window_hours"`
+	Engine        *string                                         `json:"engine"`
+	EngineConfigs map[string]contentModerationEngineConfigRequest `json:"engine_configs"`
+	Enabled       *bool                                           `json:"enabled"`
+	Mode          *string                                         `json:"mode"`
+	BaseURL       *string                                         `json:"base_url"`
+	Model         *string                                         `json:"model"`
+	// Omitted preserves the proxy; null or an empty string selects direct access.
+	ProxyID              dto.NullableStringField `json:"proxy_id"`
+	APIKey               *string                 `json:"api_key"`
+	APIKeys              *[]string               `json:"api_keys"`
+	APIKeysMode          string                  `json:"api_keys_mode"`
+	DeleteAPIKeyHashes   *[]string               `json:"delete_api_key_hashes"`
+	ClearAPIKey          bool                    `json:"clear_api_key"`
+	TimeoutMS            *int                    `json:"timeout_ms"`
+	SampleRate           *int                    `json:"sample_rate"`
+	AllGroups            *bool                   `json:"all_groups"`
+	GroupIDs             *[]string               `json:"group_ids"`
+	RecordNonHits        *bool                   `json:"record_non_hits"`
+	Thresholds           *map[string]float64     `json:"thresholds"`
+	WorkerCount          *int                    `json:"worker_count"`
+	QueueSize            *int                    `json:"queue_size"`
+	BlockStatus          *int                    `json:"block_status"`
+	BlockMessage         *string                 `json:"block_message"`
+	EmailOnHit           *bool                   `json:"email_on_hit"`
+	AutoBanEnabled       *bool                   `json:"auto_ban_enabled"`
+	BanThreshold         *int                    `json:"ban_threshold"`
+	ViolationWindowHours *int                    `json:"violation_window_hours"`
 	// cyber_policy 命中是否排除出自动封号计数；前端 RiskControlView 已发送该字段，
 	// service.UpdateContentModerationConfigInput 已支持，此前 handler 层缺透传导致开关静默失效。
 	CyberPolicyExcludeFromBanCount *bool                                 `json:"cyber_policy_exclude_from_ban_count"`
@@ -59,15 +65,15 @@ type contentModerationConfigRequest struct {
 }
 
 type contentModerationAPIKeyTestRequest struct {
-	Engine     string              `json:"engine"`
-	Thresholds *map[string]float64 `json:"thresholds"`
-	APIKeys    []string            `json:"api_keys"`
-	BaseURL    string              `json:"base_url"`
-	Model      string              `json:"model"`
-	TimeoutMS  int                 `json:"timeout_ms"`
-	ProxyID    *string             `json:"proxy_id"`
-	Prompt     string              `json:"prompt"`
-	Images     []string            `json:"images"`
+	Engine     string                  `json:"engine"`
+	Thresholds *map[string]float64     `json:"thresholds"`
+	APIKeys    []string                `json:"api_keys"`
+	BaseURL    string                  `json:"base_url"`
+	Model      string                  `json:"model"`
+	TimeoutMS  int                     `json:"timeout_ms"`
+	ProxyID    dto.NullableStringField `json:"proxy_id"`
+	Prompt     string                  `json:"prompt"`
+	Images     []string                `json:"images"`
 }
 
 type contentModerationHashRequest struct {
@@ -89,13 +95,22 @@ func (h *ContentModerationHandler) UpdateConfig(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	var engineConfigs map[string]service.UpdateContentModerationEngineInput
+	if req.EngineConfigs != nil {
+		engineConfigs = make(map[string]service.UpdateContentModerationEngineInput, len(req.EngineConfigs))
+		for engine, profile := range req.EngineConfigs {
+			input := profile.UpdateContentModerationEngineInput
+			input.ProxyID = clearableStringPtr(profile.ProxyID)
+			engineConfigs[engine] = input
+		}
+	}
 	cfg, err := h.service.UpdateConfig(c.Request.Context(), service.UpdateContentModerationConfigInput{
-		Engine: req.Engine, EngineConfigs: req.EngineConfigs,
+		Engine: req.Engine, EngineConfigs: engineConfigs,
 		Enabled:                        req.Enabled,
 		Mode:                           req.Mode,
 		BaseURL:                        req.BaseURL,
 		Model:                          req.Model,
-		ProxyID:                        req.ProxyID,
+		ProxyID:                        clearableStringPtr(req.ProxyID),
 		APIKey:                         req.APIKey,
 		APIKeys:                        req.APIKeys,
 		APIKeysMode:                    req.APIKeysMode,
@@ -143,7 +158,7 @@ func (h *ContentModerationHandler) TestAPIKeys(c *gin.Context) {
 		BaseURL:   req.BaseURL,
 		Model:     req.Model,
 		TimeoutMS: req.TimeoutMS,
-		ProxyID:   req.ProxyID,
+		ProxyID:   clearableStringPtr(req.ProxyID),
 		Prompt:    req.Prompt,
 		Images:    req.Images,
 	})

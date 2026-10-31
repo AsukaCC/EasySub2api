@@ -80,7 +80,7 @@
         <dl class="features-prompt-audit-components-filter-delete-dialog__dl">
           <dt>{{ t('admin.promptAudit.events.snapshotMax') }}</dt>
           <dd>{{ preview.snapshot_max_id }}</dd>
-          <dt>Filter SHA-256</dt>
+          <dt>{{ t('admin.promptAudit.events.filterHash') }}</dt>
           <dd class="features-prompt-audit-components-filter-delete-dialog__dd">{{ preview.filter_hash }}</dd>
           <dt>{{ t('admin.promptAudit.events.expiresAt') }}</dt>
           <dd>{{ formatDate(preview.expires_at) }}</dd>

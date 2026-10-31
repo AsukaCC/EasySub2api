@@ -240,6 +240,8 @@ export default {
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
     useKeyModal: {
+      client: '客户端',
+      environment: '终端 / 操作系统',
       typesafe: {
         description: '通过 TypeSafe 原生 System One 端点调用 Jev。',
         note: 'System One 不支持流式请求，不兼容 Chat Completions、Responses、Claude Code 或 Codex 客户端。'

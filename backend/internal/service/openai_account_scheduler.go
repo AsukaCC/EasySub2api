@@ -143,6 +143,7 @@ type openAIAccountSchedulerMetrics struct {
 }
 
 type openAIAccountLoadPlan struct {
+	keyScheduling             *keySchedulingSnapshot
 	allCandidates             []openAIAccountCandidateScore
 	candidates                []openAIAccountCandidateScore
 	staleSnapshotCompactRetry []openAIAccountCandidateScore
@@ -867,6 +868,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 	}
 
 	plan := openAIAccountLoadPlan{
+		keyScheduling:             keySchedulingFromContext(ctx),
 		allCandidates:             allCandidates,
 		candidates:                candidates,
 		staleSnapshotCompactRetry: staleSnapshotCompactRetry,
@@ -1036,6 +1038,13 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 			groupTopK = len(pool)
 		}
 		ranked := selectTopKOpenAICandidates(pool, groupTopK)
+		keyCtx := context.WithValue(context.Background(), keySchedulingContextKey{}, plan.keyScheduling)
+		accountOf := func(c openAIAccountCandidateScore) *Account { return c.account }
+		if plan.keyScheduling != nil {
+			ranked = selectTopKOpenAICandidates(pool, len(pool))
+			applyKeySchedulingOrder(keyCtx, ranked, accountOf, sameAccountPriority)
+			ranked = ranked[:groupTopK]
+		}
 		primary := buildOpenAIWeightedSelectionOrder(ranked, req)
 		// Keep the existing weighted scheduling distribution. Affinity may only
 		// replace a candidate with the same base score, priority, load and queue.
@@ -1046,7 +1055,8 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 				preferSchedulingAffinity(primary, candidate.account.ID, func(c openAIAccountCandidateScore) *Account { return c.account }, sameOpenAISchedulingTier)
 			}
 		}
-		if !plan.includeOverflowFallback || groupTopK >= len(pool) {
+		applyKeySchedulingOrder(keyCtx, primary, accountOf, sameAccountPriority)
+		if (!plan.includeOverflowFallback && plan.keyScheduling == nil) || groupTopK >= len(pool) {
 			return primary
 		}
 
@@ -1063,6 +1073,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 		sort.Slice(overflow, func(i, j int) bool {
 			return isOpenAIAccountCandidateBetter(overflow[i], overflow[j])
 		})
+		applyKeySchedulingOrder(keyCtx, overflow, accountOf, sameAccountPriority)
 		return append(primary, overflow...)
 	}
 
@@ -1141,6 +1152,9 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 	budget *openAISelectionProbeBudget,
 ) (*AccountSelectionResult, bool, error) {
 	compactBlocked := false
+	setKeySchedulingPeers(ctx, selectionOrder, func(c openAIAccountCandidateScore) *Account { return c.account }, func(a, b *Account) bool {
+		return a.Priority == b.Priority && (!req.RequireCompact || openAICompactSupportTier(a) == openAICompactSupportTier(b))
+	})
 	release := func(result *AcquireResult) {
 		if result != nil && result.ReleaseFunc != nil {
 			result.ReleaseFunc()
@@ -1452,6 +1466,7 @@ func (s *defaultOpenAIAccountScheduler) trySelectByLoadBalancePool(
 	loadMap map[string]*AccountLoadInfo,
 	budget *openAISelectionProbeBudget,
 ) openAIAccountLoadSelectionAttempt {
+	ctx = withKeyScheduling(ctx, s.service.cache, filtered)
 	plan := s.buildOpenAIAccountLoadPlan(ctx, req, filtered, loadMap)
 	if openAICostOverflowExpanded(req, plan) {
 		budget.enableLimit()
@@ -1491,6 +1506,7 @@ func (s *defaultOpenAIAccountScheduler) trySelectByLoadBalancePool(
 	if s.service.concurrencyService != nil && !budget.acquireExhausted() {
 		loadReq := buildOpenAIAccountLoadRequest(filtered)
 		if freshLoadMap, loadErr := s.service.concurrencyService.GetAccountsLoadBatchFresh(ctx, loadReq); loadErr == nil {
+			ctx = withKeyScheduling(ctx, s.service.cache, filtered)
 			freshPlan := s.buildOpenAIAccountLoadPlan(ctx, req, filtered, freshLoadMap)
 			if openAICostOverflowExpanded(req, freshPlan) {
 				budget.enableLimit()

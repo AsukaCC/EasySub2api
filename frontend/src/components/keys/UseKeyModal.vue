@@ -30,7 +30,7 @@
 
         <!-- Client Tabs -->
         <div v-if="clientTabs.length" class="components-keys-use-key-modal__panel-3">
-          <nav class="components-keys-use-key-modal__navigation" aria-label="Client">
+          <nav class="components-keys-use-key-modal__navigation" :aria-label="t('keys.useKeyModal.client')">
             <button
               v-for="tab in clientTabs"
               :key="tab.id"
@@ -126,7 +126,7 @@
 
         <!-- OS/Shell Tabs -->
         <div v-if="showShellTabs" class="components-keys-use-key-modal__panel-3">
-          <nav class="components-keys-use-key-modal__navigation-2" aria-label="Tabs">
+          <nav class="components-keys-use-key-modal__navigation-2" :aria-label="t('keys.useKeyModal.environment')">
             <button
               v-for="tab in currentTabs"
               :key="tab.id"

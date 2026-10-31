@@ -218,32 +218,57 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 	}
 
 	if s.concurrencyService == nil || !cfg.LoadBatchEnabled {
+		var keyCapture *keySchedulingCapture
+		ctx, keyCapture = captureKeyScheduling(ctx)
 		ctx = WithPrefetchedStickySession(ctx, stickyAccountID, derefGroupID(groupID), false)
 		// 复制排除列表，用于会话限制拒绝时的重试
 		localExcluded := make(map[string]struct{})
 		for k, v := range excludedIDs {
 			localExcluded[k] = v
 		}
+		var keyWaitFallback *Account
+		keyStickyBusy := false
 
 		for {
 			account, err := s.SelectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, localExcluded)
+			useWaitFallback := false
 			if err != nil {
-				return nil, err
+				if keyWaitFallback == nil || !errors.Is(err, ErrNoAvailableAccounts) {
+					return nil, err
+				}
+				account, useWaitFallback = keyWaitFallback, true
 			}
 
-			result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Mode1EffectiveConcurrency())
+			result, err := s.tryAcquireAccountSlot(keyCapture.context(ctx), account.ID, account.Mode1EffectiveConcurrency())
+			if err == nil && result != nil && !result.Acquired && keyCapture.snapshot != nil && !useWaitFallback {
+				keyStickyBusy = keyStickyBusy || account.ID == stickyAccountID
+				if keyWaitFallback == nil {
+					keyWaitFallback = account
+				}
+				localExcluded[account.ID] = struct{}{}
+				continue
+			}
 			if err == nil && result.Acquired {
 				// 获取槽位后检查会话限制（使用 sessionHash 作为会话标识符）
 				if !s.checkAndRegisterSession(ctx, account, sessionHash) {
-					result.ReleaseFunc()                   // 释放槽位
+					result.ReleaseFunc() // 释放槽位
+					if useWaitFallback {
+						return nil, ErrNoAvailableAccounts
+					}
 					localExcluded[account.ID] = struct{}{} // 排除此账号
 					continue                               // 重新选择
+				}
+				if keyCapture.snapshot != nil && sessionHash != "" && !keyStickyBusy {
+					_ = s.bindGatewayStickySessionDuringSelection(ctx, groupID, sessionHash, account.ID)
 				}
 				return s.newSelectionResult(ctx, account, true, result.ReleaseFunc, nil)
 			}
 
 			// 对于等待计划的情况，也需要先检查会话限制
 			if !s.checkAndRegisterSession(ctx, account, sessionHash) {
+				if useWaitFallback {
+					return nil, ErrNoAvailableAccounts
+				}
 				localExcluded[account.ID] = struct{}{}
 				continue
 			}
@@ -286,6 +311,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 	}
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
 	ctx = s.withRPMPrefetch(ctx, accounts)
+	ctx = withKeySchedulingAccounts(ctx, s.cache, accounts)
 
 	// 提前构建 accountByID（供 Layer 1 和 Layer 1.5 使用）
 	accountByID := make(map[string]*Account, len(accounts))
@@ -449,6 +475,8 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 				})
 				shuffleWithinSortGroups(routingAvailable)
 				preferSchedulingAffinity(routingAvailable, stickyAccountID, schedulingLoadAccount, sameAccountPriorityAndLoad)
+				applyKeySchedulingOrder(ctx, routingAvailable, schedulingLoadAccount, sameAccountPriority)
+				setKeySchedulingPeers(ctx, routingAvailable, schedulingLoadAccount, sameAccountPriority)
 
 				// 4. 尝试获取槽位
 				for _, item := range routingAvailable {
@@ -589,6 +617,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 		for len(available) > 0 {
 			// 1. 取优先级最小的集合
 			candidates := filterByMinPriority(available)
+			candidates = filterByKeyScheduling(ctx, candidates)
 			// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
 			if cfg.PreferSoonestReset {
 				candidates = filterBySoonestReset(candidates)
@@ -629,6 +658,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 	// ============ Layer 3: 兜底排队 ============
 	s.sortCandidatesForFallback(candidates, preferOAuth, cfg.FallbackSelectionMode)
 	preferSchedulingAffinity(candidates, stickyAccountID, schedulingAccount, sameAccountPriority)
+	applyKeySchedulingOrder(ctx, candidates, schedulingAccount, sameAccountPriority)
 	for _, acc := range candidates {
 		// 会话数量限制检查（等待计划也需要占用会话配额）
 		if !s.checkAndRegisterSession(ctx, acc, sessionHash) {
@@ -654,6 +684,8 @@ func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates
 	ordered := append([]*Account(nil), candidates...)
 	sortAccountsByPriorityAndLastUsed(ordered, preferOAuth)
 	preferSchedulingAffinity(ordered, stickyAccountID, schedulingAccount, sameAccountPriority)
+	applyKeySchedulingOrder(ctx, ordered, schedulingAccount, sameAccountPriority)
+	setKeySchedulingPeers(ctx, ordered, schedulingAccount, sameAccountPriority)
 
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Mode1EffectiveConcurrency())
@@ -1764,6 +1796,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		// 提前预取窗口费用+RPM 计数，确保 routing 段内的调度检查调用能命中缓存
 		ctx = s.withWindowCostPrefetch(ctx, accounts)
 		ctx = s.withRPMPrefetch(ctx, accounts)
+		ctx = withKeySchedulingAccounts(ctx, s.cache, accounts)
 
 		routingSet := make(map[string]struct{}, len(routingAccountIDs))
 		for _, id := range routingAccountIDs {
@@ -1773,6 +1806,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		}
 
 		var selected *Account
+		var keyCandidates []*Account
 		for i := range accounts {
 			acc := &accounts[i]
 			if _, ok := routingSet[acc.ID]; !ok {
@@ -1813,6 +1847,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			if !s.isAccountSchedulableForRPM(ctx, acc, acc.ID == stickyAccountID) {
 				continue
 			}
+			keyCandidates = append(keyCandidates, acc)
 			if selected == nil {
 				selected = acc
 				continue
@@ -1820,6 +1855,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			if acc.Priority < selected.Priority {
 				selected = acc
 			} else if acc.Priority == selected.Priority {
+				if cmp := keySchedulingFromContext(ctx).compare(acc, selected); cmp != 0 {
+					if cmp < 0 {
+						selected = acc
+					}
+					continue
+				}
 				if acc.ID == stickyAccountID {
 					selected = acc
 					continue
@@ -1844,8 +1885,9 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			}
 		}
 
+		setKeySchedulingPeers(ctx, keyCandidates, schedulingAccount, sameAccountPriority)
 		if selected != nil {
-			if sessionHash != "" && s.cache != nil {
+			if sessionHash != "" && s.cache != nil && !deferKeySchedulingAffinity(ctx) {
 				if err := s.bindGatewayStickySessionDuringSelection(ctx, groupID, sessionHash, selected.ID); err != nil {
 					logger.LegacyPrintf("service.gateway", "set session account failed: session=%s account_id=%v err=%v", sessionHash, selected.ID, err)
 				}
@@ -1876,11 +1918,13 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 	// 批量预取窗口费用+RPM 计数，避免逐个账号查询（N+1）
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
 	ctx = s.withRPMPrefetch(ctx, accounts)
+	ctx = withKeySchedulingAccounts(ctx, s.cache, accounts)
 
 	// 3. 按优先级+最久未用选择（考虑模型支持）
 	// 粘性与其他候选共用相同的渠道限制检查。
 	needsUpstreamCheck := s.needsUpstreamChannelRestrictionCheck(ctx, groupID)
 	var selected *Account
+	var keyCandidates []*Account
 	for i := range accounts {
 		acc := &accounts[i]
 		if _, excluded := excludedIDs[acc.ID]; excluded {
@@ -1918,6 +1962,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		if !s.isAccountSchedulableForRPM(ctx, acc, acc.ID == stickyAccountID) {
 			continue
 		}
+		keyCandidates = append(keyCandidates, acc)
 		if selected == nil {
 			selected = acc
 			continue
@@ -1925,6 +1970,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		if acc.Priority < selected.Priority {
 			selected = acc
 		} else if acc.Priority == selected.Priority {
+			if cmp := keySchedulingFromContext(ctx).compare(acc, selected); cmp != 0 {
+				if cmp < 0 {
+					selected = acc
+				}
+				continue
+			}
 			if acc.ID == stickyAccountID {
 				selected = acc
 				continue
@@ -1949,6 +2000,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		}
 	}
 
+	setKeySchedulingPeers(ctx, keyCandidates, schedulingAccount, sameAccountPriority)
 	if selected == nil {
 		stats := s.logDetailedSelectionFailure(ctx, groupID, sessionHash, requestedModel, platform, accounts, excludedIDs, false)
 		if requestedModel != "" {
@@ -1958,7 +2010,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 	}
 
 	// 4. 建立粘性绑定
-	if sessionHash != "" && s.cache != nil {
+	if sessionHash != "" && s.cache != nil && !deferKeySchedulingAffinity(ctx) {
 		if err := s.bindGatewayStickySessionDuringSelection(ctx, groupID, sessionHash, selected.ID); err != nil {
 			logger.LegacyPrintf("service.gateway", "set session account failed: session=%s account_id=%v err=%v", sessionHash, selected.ID, err)
 		}

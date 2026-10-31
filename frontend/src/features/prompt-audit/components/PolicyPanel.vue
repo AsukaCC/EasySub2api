@@ -64,7 +64,7 @@
         </label>
         <div class="features-prompt-audit-components-policy-panel__panel-9">
           <p class="features-prompt-audit-components-policy-panel__description-4">{{ t('admin.promptAudit.policy.strategy') }}</p>
-          <p class="features-prompt-audit-components-policy-panel__description-5">priority · {{ t('admin.promptAudit.policy.strategyHint') }}</p>
+          <p class="features-prompt-audit-components-policy-panel__description-5">{{ t('admin.promptAudit.policy.priorityStrategy') }} · {{ t('admin.promptAudit.policy.strategyHint') }}</p>
         </div>
       </div>
     </div>

@@ -163,7 +163,7 @@ describe('UseKeyModal', () => {
     expect(parsedSettings.env.ANTHROPIC_MODEL).toBe('grok-4.5')
     expect(wrapper.text()).toContain('keys.useKeyModal.claudeSettingsHint')
     expect(wrapper.text()).toContain('keys.useKeyModal.grok.claudeNote')
-    expect(wrapper.get('nav[aria-label="Client"]').findAll('button').map(button => button.text().trim())).toEqual([
+    expect(wrapper.get('nav[aria-label="keys.useKeyModal.client"]').findAll('button').map(button => button.text().trim())).toEqual([
       'keys.useKeyModal.cliTabs.grokCli',
       'keys.useKeyModal.cliTabs.claudeCode',
       'keys.useKeyModal.cliTabs.codexCli',

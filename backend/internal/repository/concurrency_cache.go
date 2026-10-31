@@ -161,6 +161,9 @@ var (
 		redis.call('EXPIRE', accountLive, ttl)
 		redis.call('EXPIRE', userLive, ttl)
 		redis.call('EXPIRE', apiLive, ttl)
+		redis.call('ZADD', KEYS[6], now, ARGV[6] .. ':' .. leaseID)
+		redis.call('EXPIRE', KEYS[6], 90)
+		redis.call('SET', KEYS[7], now, 'EX', 5184000)
 		return 1
 	`)
 
@@ -170,14 +173,18 @@ var (
 		local leaseID = ARGV[2]
 		local now = tonumber(redis.call('TIME')[1])
 		local expireBefore = now - ttl
-		for _, key in ipairs(KEYS) do
+		for i = 1, 3 do
+			local key = KEYS[i]
 			redis.call('ZREMRANGEBYSCORE', key, '-inf', expireBefore)
 			if redis.call('ZSCORE', key, leaseID) == false then return 0 end
 		end
-		for _, key in ipairs(KEYS) do
+		for i = 1, 3 do
+			local key = KEYS[i]
 			redis.call('ZADD', key, now, leaseID)
 			redis.call('EXPIRE', key, ttl)
 		end
+		redis.call('ZADD', KEYS[4], now, ARGV[3] .. ':' .. leaseID)
+		redis.call('EXPIRE', KEYS[4], 90)
 		return 1
 	`)
 
@@ -816,7 +823,9 @@ func (c *concurrencyCache) AcquireLiveLease(
 		userSlotKey(userID),
 		liveUserSlotKey(userID),
 		liveAPIKeySlotKey(apiKeyID),
-	}, accountMax, userMax, liveLeaseTTLSeconds, leaseID, replacing).Int()
+		accountKeyLeasePrefix + accountID,
+		accountLastScheduledPrefix + accountID,
+	}, accountMax, userMax, liveLeaseTTLSeconds, leaseID, replacing, apiKeyID).Int()
 	return result == 1, err
 }
 
@@ -828,7 +837,8 @@ func (c *concurrencyCache) RefreshLiveLease(ctx context.Context, accountID, user
 		liveAccountSlotKey(accountID),
 		liveUserSlotKey(userID),
 		liveAPIKeySlotKey(apiKeyID),
-	}, liveLeaseTTLSeconds, leaseID).Int()
+		accountKeyLeasePrefix + accountID,
+	}, liveLeaseTTLSeconds, leaseID, apiKeyID).Int()
 	return result == 1, err
 }
 
@@ -840,6 +850,7 @@ func (c *concurrencyCache) ReleaseLiveLease(ctx context.Context, accountID, user
 	pipe.ZRem(ctx, liveAccountSlotKey(accountID), leaseID)
 	pipe.ZRem(ctx, liveUserSlotKey(userID), leaseID)
 	pipe.ZRem(ctx, liveAPIKeySlotKey(apiKeyID), leaseID)
+	pipe.ZRem(ctx, accountKeyLeasePrefix+accountID, apiKeyID+":"+leaseID)
 	_, err := pipe.Exec(ctx)
 	return err
 }

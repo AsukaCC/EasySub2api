@@ -8,7 +8,7 @@
       class="locale-trigger"
       :class="{ 'locale-trigger-open': isOpen }"
       :title="`Language: ${currentLocale?.name ?? currentLocaleCode}`"
-      :aria-label="`Language: ${currentLocale?.name ?? currentLocaleCode}`"
+      :aria-label="`${t('common.language')}: ${currentLocale?.name ?? currentLocaleCode}`"
       aria-haspopup="menu"
       :aria-expanded="isOpen"
     >
@@ -36,7 +36,7 @@
           :class="{ 'locale-menu-top': menuPlacement === 'top' }"
           :style="menuStyle"
           role="menu"
-          aria-label="Language"
+          :aria-label="t('common.language')"
           @click.stop
           @keydown.esc.prevent.stop="closeDropdown(true)"
         >
@@ -82,7 +82,7 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { setLocale, availableLocales } from '@/i18n'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
