@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,6 +23,7 @@ import (
 const ModelFingerprintExtraKey = "model_fingerprint"
 const ModelFingerprintRetention = 24 * time.Hour
 const modelFingerprintMaxTokens = 1536
+const modelFingerprintProbeTimeout = 90 * time.Second
 
 type ModelFingerprintSnapshot struct {
 	APIKeyID         string             `json:"api_key_id,omitempty"`
@@ -209,6 +211,9 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 			snapshot.Status = "failed"
 			snapshot.Error = "internal_error"
 		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) && snapshot.Status != "completed" {
+			snapshot.Status, snapshot.Error = "failed", "timeout"
+		}
 		finished := time.Now().UTC()
 		snapshot.FinishedAt = &finished
 		persistCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)
@@ -229,10 +234,14 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		protocol = "chat"
 	}
 	for turn, challenge := range challenges {
+		if ctx.Err() != nil {
+			snapshot.Status, snapshot.Error = "failed", "timeout"
+			return
+		}
 		if snapshot.SamplingMode == "independent" {
 			conversation = &modelFingerprintConversation{id: uuid.NewString()}
 		}
-		probeCtx, stop := context.WithTimeout(ctx, 90*time.Second)
+		probeCtx, stop := context.WithTimeout(ctx, modelFingerprintProbeTimeout)
 		probe := &modelFingerprintProbe{model: snapshot.Model, prompt: challenge.Prompt, expected: challenge.Expected, cancel: stop, conversation: conversation, startedAt: time.Now()}
 		probe.protocol, probe.effort, probe.native = protocol, snapshot.ReasoningEffort, native
 		if native {
@@ -245,7 +254,8 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest(http.MethodPost, "/model-fingerprint", nil).WithContext(probeCtx)
 		err := s.TestAccountConnection(c, id, snapshot.Model, challenge.Prompt, AccountTestModeDefault)
-		timedOut := probeCtx.Err() != nil && !probe.enough
+		var timeoutErr net.Error
+		timedOut := !probe.enough && (errors.Is(probeCtx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeoutErr) && timeoutErr.Timeout()))
 		stop()
 		snapshot.Completed++
 		if err := s.recordModelFingerprintUsage(userID, id, snapshot, turn, probe); err != nil {
@@ -260,7 +270,7 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 			if timedOut {
 				snapshot.Error = "timeout"
 			}
-			if snapshot.SamplingMode != "independent" || ctx.Err() != nil || probe.fatal {
+			if timedOut || snapshot.SamplingMode != "independent" || ctx.Err() != nil || probe.fatal {
 				return
 			}
 			if snapshot.Protocol == "auto" && snapshot.Valid == 0 && probe.formatRejected {
@@ -407,11 +417,12 @@ func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID strin
 	return err
 }
 
-// Only fingerprint contexts alter payloads. Native identity/authentication stays in
-// the existing test transport, while prompts and token limits are protocol specific.
+// Native identity/authentication stays in the existing test transport.
+// Ordinary tests only replace the prompt; fingerprints also set sampling options.
 func applyModelFingerprintPayload(ctx context.Context, payload map[string]any, protocol string, codex bool) {
 	p := fingerprintProbe(ctx)
 	if p == nil {
+		applyAccountTestPrompt(ctx, payload, protocol)
 		return
 	}
 	turns := append(append([]modelFingerprintTurn(nil), p.conversation.turns...), modelFingerprintTurn{role: "user", text: p.prompt})
@@ -546,7 +557,7 @@ func applyModelFingerprintHeaders(req *http.Request) {
 }
 
 func modelFingerprintPayloadBytes(ctx context.Context, body []byte, protocol string) []byte {
-	if fingerprintProbe(ctx) == nil {
+	if fingerprintProbe(ctx) == nil && accountTestPrompt(ctx) == "" {
 		return body
 	}
 	var payload map[string]any

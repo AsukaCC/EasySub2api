@@ -127,6 +127,7 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 	stickyAccountID := ""
 	if sessionHash != "" && s.cache != nil {
 		stickyAccountID, _ = s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), cacheKey)
+		ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, cacheKey, stickyAccountID)
 	}
 
 	// 3. 查询可调度账户（强制平台模式：优先按分组查找，找不到再查全部）
@@ -170,13 +171,20 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 		return nil, errors.New("no available Gemini accounts")
 	}
 
+	hydrated, err := s.hydrateSelectedAccount(ctx, selected)
+	if err != nil {
+		return nil, err
+	}
 	// 5. 设置粘性会话绑定
 	// Set sticky session binding
 	if sessionHash != "" && s.cache != nil {
 		_ = s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, selected.ID, geminiStickySessionTTL)
 	}
 
-	return s.hydrateSelectedAccount(ctx, selected)
+	if hydrated != nil {
+		renewSessionSchedulingAffinity(ctx, hydrated.ID)
+	}
+	return hydrated, nil
 }
 
 // resolvePlatformAndSchedulingMode 解析目标平台和调度模式。
@@ -329,6 +337,12 @@ func (s *GeminiMessagesCompatService) selectBestGeminiAccount(
 		// 选择最佳账号
 		if selected == nil {
 			selected = acc
+			continue
+		}
+		if cmp := compareSessionSchedulingPriority(ctx, acc, selected); cmp != 0 {
+			if cmp < 0 {
+				selected = acc
+			}
 			continue
 		}
 

@@ -381,8 +381,15 @@ func (s *OpenAIGatewayService) BindStickySessionAfterProfitAdmission(ctx context
 	if sessionHash == "" || accountID == "" {
 		return nil
 	}
+	bind := func() error {
+		if err := s.BindStickySession(ctx, groupID, sessionHash, accountID); err != nil {
+			return err
+		}
+		markSessionSchedulingSuccess(ctx, s.cache, derefGroupID(groupID), s.openAISessionCacheKey(sessionHash), accountID)
+		return nil
+	}
 	if !gatewayProfitControlGateActive(ctx) {
-		return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+		return bind()
 	}
 	existingAccountID, err := s.getStickySessionAccountID(ctx, groupID, sessionHash)
 	if err != nil && !errors.Is(err, ErrStickySessionNotFound) {
@@ -392,7 +399,7 @@ func (s *OpenAIGatewayService) BindStickySessionAfterProfitAdmission(ctx context
 	if existingAccountID != "" && existingAccountID != accountID {
 		return nil
 	}
-	return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+	return bind()
 }
 
 // ---- 可观测性：按分组累计计数 + 采样日志（无逐请求输出） ----

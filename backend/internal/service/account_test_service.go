@@ -329,11 +329,20 @@ func createTestPayload(modelID string) (map[string]any, error) {
 // modelID is optional - if empty, defaults to claude.DefaultTestModel
 // mode is optional - "compact" routes OpenAI accounts to the /responses/compact probe path
 // opts is optional media (image/audio data URLs for real generation / STT).
-func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID string, modelID string, prompt string, mode string, opts ...AccountTestOptions) error {
+func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID string, modelID string, prompt string, mode string, opts ...AccountTestOptions) (resultErr error) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Minute)
+	defer cancel()
+	ctx = context.WithValue(ctx, accountTestPromptKey{}, strings.TrimSpace(prompt))
+	c.Request = c.Request.WithContext(ctx)
+	defer func() {
+		if ctx.Err() == context.DeadlineExceeded {
+			_ = s.sendErrorAndEnd(c, "ACCOUNT_TEST_TIMEOUT")
+			resultErr = context.DeadlineExceeded
+		}
+	}()
 	if err := CheckActiveModel(modelID); err != nil {
 		return s.sendErrorAndEnd(c, err.Error())
 	}
-	ctx := c.Request.Context()
 	testOpts := firstAccountTestOptions(opts)
 
 	// Get account
@@ -2143,7 +2152,8 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	if isOAuth {
 		testModelID = normalizeOpenAIModelForUpstream(credentialAccount, testModelID)
 	}
-	payloadBytes, _ := json.Marshal(createOpenAICompactProbePayload(testModelID, isOAuth))
+	payload := createOpenAICompactProbePayload(testModelID, isOAuth, accountTestPrompt(ctx))
+	payloadBytes, _ := json.Marshal(payload)
 	if !agentIdentityTaskRecoveryWasTried(ctx) {
 		s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 	}
@@ -3200,6 +3210,9 @@ func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
 			probe.event(event)
 			return
 		}
+		if c.Request.Context().Err() == context.DeadlineExceeded && event.Type == "test_complete" {
+			event = TestEvent{Type: "error", Error: "ACCOUNT_TEST_TIMEOUT"}
+		}
 	}
 	eventJSON, _ := json.Marshal(event)
 	if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", eventJSON); err != nil {
@@ -3212,6 +3225,9 @@ func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
 // sendErrorAndEnd sends an error event and ends the stream
 func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) error {
 	if c.Request != nil {
+		if c.Request.Context().Err() == context.DeadlineExceeded {
+			errorMsg = "ACCOUNT_TEST_TIMEOUT"
+		}
 		errorMsg = modelFingerprintSafeError(c.Request.Context(), errorMsg)
 	}
 	log.Printf("Account test error: %s", errorMsg)

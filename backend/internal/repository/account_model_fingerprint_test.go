@@ -69,6 +69,8 @@ func TestModelFingerprintScheduledClaimWindowAndAtomicAdvance(t *testing.T) {
 		{"closed window", "2026-10-09T10:00:00Z", "2026-10-09T09:00:00Z", "", `,"time_window":{"start_hour":9,"end_hour":18,"timezone":"Asia/Shanghai"}`, 0},
 		{"legacy half hour waits", "2026-10-09T01:30:00Z", "2026-10-09T01:30:00Z", "", "", 0},
 		{"legacy runs hourly", "2026-10-09T02:00:00Z", "2026-10-09T01:30:00Z", "2026-10-09T03:00:00Z", "", 1},
+		{"daily count fractional slot", "2026-10-09T01:08:00Z", "2026-10-09T01:08:00Z", "2026-10-09T01:17:00Z", `,"tests_per_day":7,"time_window":{"start_hour":9,"end_hour":10,"timezone":"Asia/Shanghai"}`, 1},
+		{"daily count missed slots coalesce", "2026-10-09T08:10:00Z", "2026-10-09T01:00:00Z", "2026-10-10T01:00:00Z", `,"tests_per_day":3,"time_window":{"start_hour":9,"end_hour":18,"timezone":"Asia/Shanghai"}`, 1},
 		{"concurrent edit or claim", "2026-10-09T02:00:00Z", "2026-10-09T02:00:00Z", "2026-10-09T03:00:00Z", "", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

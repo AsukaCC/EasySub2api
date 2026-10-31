@@ -9,7 +9,8 @@ export default {
         autoProtocol: '自动识别格式', nativeProtocol: '账号原生协议',
         nativeProtocolHint: 'OAuth / Setup Token 等账号沿用账号自身的测试通道（Codex Responses / Claude Messages）采样，不需要额外的上游 API Key。',
         unsupportedAccount: '仅支持 OpenAI 与 Anthropic 平台账号；API Key / 上游账号还需配置上游 API Key。',
-        schedule: '每小时定时测试', nextRun: '下次测试：',
+        schedule: '定时测试', nextRun: '下次测试：',
+        testsPerDay: '每日测试次数', invalidFrequency: '每日测试次数须为 1 至 {max} 的整数',
         dailyWindow: '每日测试时段（{timezone}）', startHour: '开始时间（含）', endHour: '结束时间（不含）',
         scheduleSaved: '定时配置已保存', scheduleFailed: '定时配置加载或保存失败',
         history: '测试历史（24 小时）', usageRecords: '查看用量记录', historyFailed: '测试历史加载失败',
@@ -20,7 +21,7 @@ export default {
         pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能启动，请检查是否已有测试或测试名额已满。',
         errors: {
           preparation_failed: 'API 密钥、上游模型或参数校验失败',
-          interrupted: '测试中断，请重新测试', timeout: '测试超时', upstream_failed: '上游调用失败',
+          interrupted: '测试中断，请重新测试', timeout: '测试超时，已取消上游请求，请稍后重试', upstream_failed: '上游调用失败',
           insufficient_samples: '有效样本不足 3 组', analysis_failed: '归因失败', internal_error: '测试异常', save_failed: '结果保存失败'
         }
       },
@@ -159,7 +160,7 @@ export default {
         baseShort: '普通',
         stickyShort: '粘性',
         ungrouped: '未分组',
-        hint: '显示格式为“分组名 / 基础分 / 粘性权值”。基础分按当前筛选条件限定的候选账号计算，包含优先级、负载、排队、错误率、首包延迟、重置窗口、额度余量、计费倍率等因子；基础分用于确定调度候选池，分数越大越优先；粘性权值仅在基础分、优先级和负载等调度条件相同时用于 previous_response_id 或 session_hash，不计入基础分。'
+        hint: '显示格式为“分组名 / 基础分 / 粘性权值”。基础分包含优先级、负载、排队、错误率、首包延迟、重置窗口、额度余量和计费倍率等因子，分数越大越优先。会话最近一次成功调度后的 30 分钟内优先复用符合业务准入且可调用的绑定账号，每次成功调度续期。窗口过期后按正常调度规则选择，粘性权值仅用于同等调度条件下的 previous_response_id 或 session_hash，不计入基础分。'
       },
       usageWindowsHint: '“5h / 7d”是上游账号（如 OpenAI ChatGPT、Claude）官方的滚动用量窗口限制，由上游对账号设定，并非 EasySub2api 配置，也与你映射的模型无关。窗口滚动到期后用量会自动重置，无法在 EasySub2api 端解除该限制。',
       ollamaCloud: {
@@ -1405,7 +1406,11 @@ export default {
       testAccountTypeLabel: '账号类型：{type}',
       selectTestModel: '选择测试模型',
       testModel: '测试模型',
-      testPrompt: '提示词："hi"',
+      testPrompt: '文本测试',
+      connectionTestPrompt: '测试提示词',
+      connectionTestPromptPlaceholder: 'hi',
+      testTimedOut: '测试超时，已取消请求，请稍后重试',
+      testStreamInterrupted: '测试连接已中断，未收到完成结果，请重试',
       imagePromptLabel: '生图提示词',
       imagePromptPlaceholder: '例如：生成一只戴宇航员头盔的橘猫，像素插画风格，纯色背景。',
       imagePromptDefault: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',

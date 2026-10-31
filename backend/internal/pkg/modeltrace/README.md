@@ -16,7 +16,7 @@ including across server replicas. Closing the dialog does not stop the job.
 
 The Go scorer and bundled candidate bank are adapted from
 [xqy2006/ModelTrace](https://github.com/xqy2006/ModelTrace), pinned at
-`d4131b30243dfa05e70180b5eedde742103f1d73` (MIT). The original license is in
+`6cd4a8ff0f3f4e49d6d6969dd2fbadfa1569fde2` (MIT). The original license is in
 `backend/internal/pkg/modeltrace/LICENSE`.
 
 Scoring retains upstream's nuisance-projected Hellinger features (75%), ordered
@@ -24,7 +24,7 @@ block features (25%), score averaging, and softmax. A golden test compares all
 candidate probabilities against upstream's JavaScript implementation using
 public GPT, Claude, and mixed reference samples.
 
-The bank contains 17 GPT/Claude candidates, including Claude Opus 5.5. Other model families can be sampled,
+The bank contains 18 GPT/Claude candidates, including Claude Haiku 5.5. Other model families can be sampled,
 but cannot be identified reliably by this bank. Percentages are closed-set
 relative attribution, not proof of identity. Legacy single-conversation results
 retain their original sampling mode. Do not automatically change account
@@ -41,7 +41,9 @@ model mappings, billing multipliers, or scheduling based on these shares.
   failures stop the job. Every actual attempt is logged.
 - Output budgets are 4,096 tokens for default/low effort and 16,384 for higher
   effort. Each attempt has a 90-second timeout; jobs end before their ten-minute
-  lease expires. Provider-side billing remains controlled by the upstream.
+  lease expires. A timed-out attempt cancels the request and ends the entire job
+  with a timeout error, without retrying. Provider-side billing remains controlled
+  by the upstream.
 - No tools are offered. ModelTrace scoring runs locally without another model call.
 - Uses the existing account-test credentials, proxy and transport. This consumes
   upstream account quota like a connectivity test and is not a user API-key usage
@@ -89,8 +91,12 @@ is displayed as interrupted; tests are not automatically restarted or charged
 again. Writes compare the job ID so an expired worker cannot replace a newer job.
 Progress updates refresh the account cache without rebuilding scheduler buckets.
 
-Schedules are enabled explicitly and run at the next `:00` or `:30` slot, dispatched
-by the existing minute scheduler. Missed slots are coalesced after restart.
+Schedules are enabled explicitly with `tests_per_day` (1-144) and a `time_window`
+containing `start_hour`, `end_hour` (exclusive) and an IANA `timezone`. Daily tests
+are evenly spaced within that window, beginning at its opening time. Slots are
+rounded down to the minute; the window must allow at least one minute per test.
+The existing minute scheduler dispatches them. Old schedules retain their hourly
+cadence until saved. Missed slots are coalesced after restart.
 Disabled/deleted/expired accounts and disabled/deleted/non-admin schedule owners
 are not dispatched. Claiming the account lease, advancing the schedule and
 inserting history share one database statement. Busy slots retry at the next tick.

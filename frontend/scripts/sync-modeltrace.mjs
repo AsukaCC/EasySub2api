@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const revision = 'd4131b30243dfa05e70180b5eedde742103f1d73'
+const revision = '6cd4a8ff0f3f4e49d6d6969dd2fbadfa1569fde2'
 const source = resolve(process.argv[2] || '')
 if (execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() !== revision) {
   throw new Error(`Expected ModelTrace revision ${revision}`)

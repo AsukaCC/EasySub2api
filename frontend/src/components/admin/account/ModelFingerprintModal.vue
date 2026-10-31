@@ -32,6 +32,10 @@
         <legend class="fingerprint-label">{{ t('admin.accounts.fingerprint.dailyWindow', { timezone: scheduleTimezone }) }}</legend>
         <div class="fingerprint-window-fields">
           <div>
+            <label for="fingerprint-tests-per-day" class="fingerprint-label">{{ t('admin.accounts.fingerprint.testsPerDay') }}</label>
+            <input id="fingerprint-tests-per-day" v-model.number="testsPerDay" class="input" type="number" min="1" :max="maxTestsPerDay" step="1" />
+          </div>
+          <div>
             <label for="fingerprint-start-hour" class="fingerprint-label">{{ t('admin.accounts.fingerprint.startHour') }}</label>
             <Select id="fingerprint-start-hour" v-model="startHour" :options="startHourOptions" :disabled="savingSchedule || loadingSchedule" />
           </div>
@@ -124,6 +128,8 @@ const effortOptions = computed(() => [
 const scheduleEnabled = ref(false)
 const startHour = ref('0')
 const endHour = ref('24')
+const testsPerDay = ref(24)
+const maxTestsPerDay = computed(() => Math.min(144, (Number(endHour.value) - Number(startHour.value)) * 60))
 const scheduleTimezone = ref('Asia/Shanghai')
 const hourOption = (hour: number) => ({ value: String(hour), label: `${String(hour).padStart(2, '0')}:00` })
 const startHourOptions = Array.from({ length: 24 }, (_, hour) => hourOption(hour))
@@ -181,11 +187,17 @@ async function loadHistory(page = 1) {
 async function saveSchedule() {
   const id = accountId.value
   if (!id || savingSchedule.value || (scheduleEnabled.value && (!selectedKeyId.value || !selectedModel.value || loadingModels.value || loadError.value || keyError.value))) return
+  if (!Number.isInteger(testsPerDay.value) || testsPerDay.value < 1 || testsPerDay.value > maxTestsPerDay.value) {
+    scheduleFailed.value = true
+    scheduleMessage.value = t('admin.accounts.fingerprint.invalidFrequency', { max: maxTestsPerDay.value })
+    return
+  }
   savingSchedule.value = true
   scheduleMessage.value = ''
   try {
     const result = await setFingerprintSchedule(id, {
       enabled: scheduleEnabled.value,
+      tests_per_day: testsPerDay.value,
       time_window: { start_hour: Number(startHour.value), end_hour: Number(endHour.value), timezone: scheduleTimezone.value },
       options: { api_key_id: selectedKeyId.value, model_id: selectedModel.value, protocol: protocol.value, reasoning_effort: effort.value }
     })
@@ -217,6 +229,7 @@ watch(accountId, async (id, _, onCleanup) => {
   scheduleEnabled.value = false
   startHour.value = '0'
   endHour.value = '24'
+  testsPerDay.value = 24
   scheduleTimezone.value = 'Asia/Shanghai'
   nextRunAt.value = ''
   scheduleMessage.value = ''
@@ -232,6 +245,7 @@ watch(accountId, async (id, _, onCleanup) => {
     scheduleEnabled.value = value.enabled
     startHour.value = String(value.time_window?.start_hour ?? 0)
     endHour.value = String(value.time_window?.end_hour ?? 24)
+    testsPerDay.value = value.tests_per_day || Number(endHour.value) - Number(startHour.value)
     scheduleTimezone.value = value.time_window?.timezone || 'Asia/Shanghai'
     nextRunAt.value = value.enabled ? value.next_run_at || '' : ''
     savedOptions.value = value.options

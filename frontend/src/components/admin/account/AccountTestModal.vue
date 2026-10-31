@@ -365,7 +365,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -407,7 +407,19 @@ const errorMessage = ref('')
 const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
 const testPrompt = ref('')
+const sharedPromptStorageKey = 'account-test:last-prompt'
+function restoreTestPrompt() {
+  try { return localStorage.getItem(sharedPromptStorageKey) || '' }
+  catch { return '' }
+}
+function rememberTestPrompt() {
+  try {
+    if (testPrompt.value.trim()) localStorage.setItem(sharedPromptStorageKey, testPrompt.value.trim())
+    else localStorage.removeItem(sharedPromptStorageKey)
+  } catch { /* Storage may be disabled by the browser. */ }
+}
 const loadingModels = ref(false)
+let modelLoadGeneration = 0
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewMedia[]>([])
 const generatedAudios = ref<PreviewMedia[]>([])
@@ -490,9 +502,10 @@ const modelOptionsForMode = computed(() => {
 
 const supportsPromptInput = computed(() => {
   if (!isGrokAccount.value) {
-    return supportsImageTest.value
+    return true
   }
   return (
+    grokTestMode.value === 'text' ||
     grokTestMode.value === 'image' ||
     grokTestMode.value === 'video' ||
     grokTestMode.value === 'search' ||
@@ -601,7 +614,7 @@ const promptInputLabel = computed(() => {
   if (grokTestMode.value === 'tts') {
     return t('admin.accounts.grok.ttsTextLabel')
   }
-  return t('admin.accounts.imagePromptLabel')
+  return t('admin.accounts.connectionTestPrompt')
 })
 
 const promptInputPlaceholder = computed(() => {
@@ -617,7 +630,7 @@ const promptInputPlaceholder = computed(() => {
   if (grokTestMode.value === 'tts') {
     return t('admin.accounts.grok.ttsTextPlaceholder')
   }
-  return ''
+  return t('admin.accounts.connectionTestPromptPlaceholder')
 })
 
 const promptInputHint = computed(() => {
@@ -715,14 +728,17 @@ const pickDefaultModelForMode = () => {
 }
 
 watch(
-  () => props.show,
-  async (newVal) => {
+  () => [props.show, props.account?.id] as const,
+  async ([newVal]) => {
+    abortStream()
+    const generation = ++modelLoadGeneration
     if (newVal && props.account) {
-      testPrompt.value = ''
+      testPrompt.value = restoreTestPrompt()
       testMode.value = 'default'
       grokTestMode.value = 'text'
       resetState()
       await loadAvailableModels()
+      if (generation !== modelLoadGeneration) return
       if (isGrokAccount.value) {
         pickDefaultModelForMode()
         applyDefaultPromptForMode()
@@ -735,7 +751,7 @@ watch(
 
 watch(grokTestMode, () => {
   if (!isGrokAccount.value) return
-  testPrompt.value = ''
+  testPrompt.value = restoreTestPrompt()
   clearMediaUploads()
   pickDefaultModelForMode()
   applyDefaultPromptForMode()
@@ -743,11 +759,13 @@ watch(grokTestMode, () => {
 
 const loadAvailableModels = async () => {
   if (!props.account) return
+  const generation = modelLoadGeneration
 
   loadingModels.value = true
   selectedModelId.value = '' // Reset selection before loading
   try {
     const models = await adminAPI.accounts.getAvailableModels(props.account.id)
+    if (generation !== modelLoadGeneration) return
     availableModels.value = models
     // Default selection by platform
     if (availableModels.value.length > 0) {
@@ -756,12 +774,13 @@ const loadAvailableModels = async () => {
       selectedModelId.value = sonnetModel?.id || availableModels.value[0].id
     }
   } catch (error) {
+    if (generation !== modelLoadGeneration) return
     console.error('Failed to load available models:', error)
     // Fallback to empty list
     availableModels.value = []
     selectedModelId.value = ''
   } finally {
-    loadingModels.value = false
+    if (generation === modelLoadGeneration) loadingModels.value = false
   }
 }
 
@@ -787,6 +806,7 @@ const abortStream = () => {
     abortController = null
   }
 }
+onUnmounted(abortStream)
 
 const addLine = (text: string, className: string = 'status-text--neutral') => {
   outputLines.value.push({ text, class: className })
@@ -816,7 +836,14 @@ const startTest = async () => {
 
   abortStream()
 
-  abortController = new AbortController()
+  const controller = new AbortController()
+  abortController = controller
+  let timedOut = false
+  const timeout = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, 180_000)
+  if (supportsPromptInput.value) rememberTestPrompt()
 
   try {
     const requestBody: {
@@ -864,7 +891,7 @@ const startTest = async () => {
         [ADMIN_UI_REQUEST_HEADER]: '1'
       },
       body: JSON.stringify(requestBody),
-      signal: abortController.signal
+      signal: controller.signal
     })
 
     if (!response.ok) {
@@ -879,8 +906,9 @@ const startTest = async () => {
     const decoder = new TextDecoder()
     let buffer = ''
 
-    while (true) {
+    while (status.value === 'connecting') {
       const { done, value } = await reader.read()
+      if (abortController !== controller) return
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
@@ -901,15 +929,21 @@ const startTest = async () => {
         }
       }
     }
+    if (status.value === 'connecting') throw new Error(t('admin.accounts.testStreamInterrupted'))
   } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (abortController !== controller) return
+    if (controller.signal.aborted && !timedOut) {
       status.value = 'idle'
       return
     }
     status.value = 'error'
-    const msg = error instanceof Error ? error.message : t('common.unknownError')
+    const msg = timedOut ? t('admin.accounts.testTimedOut') : error instanceof Error ? error.message : t('common.unknownError')
     errorMessage.value = msg
     addLine(t('admin.accounts.errorPrefix', { message: msg }), 'status-text--danger')
+  } finally {
+    clearTimeout(timeout)
+    controller.abort()
+    if (abortController === controller) abortController = null
   }
 }
 
@@ -1013,7 +1047,7 @@ const handleEvent = (event: {
 
     case 'error':
       status.value = 'error'
-      errorMessage.value = event.error || t('common.unknownError')
+      errorMessage.value = event.error === 'ACCOUNT_TEST_TIMEOUT' ? t('admin.accounts.testTimedOut') : event.error || t('common.unknownError')
       if (streamingContent.value) {
         addLine(streamingContent.value, 'status-text--success')
         streamingContent.value = ''

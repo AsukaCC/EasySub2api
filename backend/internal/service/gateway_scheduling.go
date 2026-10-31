@@ -83,7 +83,11 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	return s.hydrateSelectedAccount(ctx, account)
+	hydrated, err := s.hydrateSelectedAccount(ctx, account)
+	if err == nil && hydrated != nil && ctx.Value(keySchedulingCaptureKey{}) == nil && !gatewayProfitControlGateActive(ctx) && sessionHash != "" {
+		markSessionSchedulingSuccess(ctx, s.cache, derefGroupID(groupID), sessionHash, hydrated.ID)
+	}
+	return hydrated, err
 }
 
 // SelectAccountWithLoadAwareness selects account with load-awareness and wait plan.
@@ -195,6 +199,8 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 			stickySource = "cache"
 		}
 	}
+
+	ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, sessionHash, stickyAccountID)
 
 	// [DEBUG-STICKY] 调度器入口日志
 	slog.Info("sticky.scheduler_entry",
@@ -477,6 +483,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 				preferSchedulingAffinity(routingAvailable, stickyAccountID, schedulingLoadAccount, sameAccountPriorityAndLoad)
 				applyKeySchedulingOrder(ctx, routingAvailable, schedulingLoadAccount, sameAccountPriority)
 				setKeySchedulingPeers(ctx, routingAvailable, schedulingLoadAccount, sameAccountPriority)
+				preferActiveSession(routingAvailable, sessionSchedulingPriorityID(ctx), schedulingLoadAccount)
 
 				// 4. 尝试获取槽位
 				for _, item := range routingAvailable {
@@ -613,19 +620,28 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 			}
 		}
 
-		// 分层过滤选择：优先级 →（可选）最早重置 → 负载率 → 粘性 → LRU
+		// Active sessions precede ranking; expired sessions use the normal tiers.
 		for len(available) > 0 {
-			// 1. 取优先级最小的集合
-			candidates := filterByMinPriority(available)
-			candidates = filterByKeyScheduling(ctx, candidates)
-			// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
-			if cfg.PreferSoonestReset {
-				candidates = filterBySoonestReset(candidates)
+			var selected *accountWithLoad
+			for i := range available {
+				if available[i].account.ID == sessionSchedulingPriorityID(ctx) {
+					selected = &available[i]
+					break
+				}
 			}
-			// 3. 取负载率最低的集合
-			candidates = filterByMinLoadRate(candidates)
-			// 4. 同等调度条件下应用粘性，其余按 LRU 选择
-			selected := selectByAffinityOrLRU(candidates, stickyAccountID, preferOAuth)
+			if selected == nil {
+				// 1. 取优先级最小的集合
+				candidates := filterByMinPriority(available)
+				candidates = filterByKeyScheduling(ctx, candidates)
+				// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
+				if cfg.PreferSoonestReset {
+					candidates = filterBySoonestReset(candidates)
+				}
+				// 3. 取负载率最低的集合
+				candidates = filterByMinLoadRate(candidates)
+				// 4. 同等调度条件下应用粘性，其余按 LRU 选择
+				selected = selectByAffinityOrLRU(candidates, stickyAccountID, preferOAuth)
+			}
 			if selected == nil {
 				break
 			}
@@ -659,6 +675,7 @@ func (s *GatewayService) selectAccountWithLoadAwarenessForGroup(ctx context.Cont
 	s.sortCandidatesForFallback(candidates, preferOAuth, cfg.FallbackSelectionMode)
 	preferSchedulingAffinity(candidates, stickyAccountID, schedulingAccount, sameAccountPriority)
 	applyKeySchedulingOrder(ctx, candidates, schedulingAccount, sameAccountPriority)
+	preferActiveSession(candidates, sessionSchedulingPriorityID(ctx), schedulingAccount)
 	for _, acc := range candidates {
 		// 会话数量限制检查（等待计划也需要占用会话配额）
 		if !s.checkAndRegisterSession(ctx, acc, sessionHash) {
@@ -686,6 +703,7 @@ func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates
 	preferSchedulingAffinity(ordered, stickyAccountID, schedulingAccount, sameAccountPriority)
 	applyKeySchedulingOrder(ctx, ordered, schedulingAccount, sameAccountPriority)
 	setKeySchedulingPeers(ctx, ordered, schedulingAccount, sameAccountPriority)
+	preferActiveSession(ordered, sessionSchedulingPriorityID(ctx), schedulingAccount)
 
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Mode1EffectiveConcurrency())
@@ -1427,6 +1445,9 @@ func (s *GatewayService) newSelectionResult(ctx context.Context, account *Accoun
 	if err != nil {
 		return nil, err
 	}
+	if acquired && hydrated != nil {
+		renewSessionSchedulingAffinity(ctx, hydrated.ID)
+	}
 	return attachSelectionProfitGate(ctx, &AccountSelectionResult{
 		Account:     hydrated,
 		Acquired:    acquired,
@@ -1745,6 +1766,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 	if stickyAccountID == "" && sessionHash != "" && s.cache != nil {
 		stickyAccountID, _ = s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
 	}
+	ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, sessionHash, stickyAccountID)
 	routingAccountIDs := s.routingAccountIDsForRequest(ctx, groupID, requestedModel, platform)
 
 	// require_privacy_set: 获取分组配置。GetByID 会聚合账号计数，旧选号路径不能用它。
@@ -1850,6 +1872,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			keyCandidates = append(keyCandidates, acc)
 			if selected == nil {
 				selected = acc
+				continue
+			}
+			if cmp := compareSessionSchedulingPriority(ctx, acc, selected); cmp != 0 {
+				if cmp < 0 {
+					selected = acc
+				}
 				continue
 			}
 			if acc.Priority < selected.Priority {
@@ -1965,6 +1993,12 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 		keyCandidates = append(keyCandidates, acc)
 		if selected == nil {
 			selected = acc
+			continue
+		}
+		if cmp := compareSessionSchedulingPriority(ctx, acc, selected); cmp != 0 {
+			if cmp < 0 {
+				selected = acc
+			}
 			continue
 		}
 		if acc.Priority < selected.Priority {

@@ -91,6 +91,7 @@ function mountModal(account: Record<string, unknown> = {
 
 describe('AccountTestModal', () => {
   beforeEach(() => {
+    const storage = new Map<string, string>([['auth_token', 'test-token']])
     getAvailableModels.mockResolvedValue([
       { id: 'grok-4.5', display_name: 'Grok 4.5' },
       { id: 'grok-imagine-image', display_name: 'Grok Imagine Image' },
@@ -99,9 +100,9 @@ describe('AccountTestModal', () => {
     copyToClipboard.mockReset()
     Object.defineProperty(globalThis, 'localStorage', {
       value: {
-        getItem: vi.fn((key: string) => (key === 'auth_token' ? 'test-token' : null)),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+        removeItem: vi.fn((key: string) => storage.delete(key)),
         clear: vi.fn()
       },
       configurable: true
@@ -116,7 +117,57 @@ describe('AccountTestModal', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
+  })
+
+  it('sends a text prompt and restores it across accounts and remounts', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.get('textarea').setValue('Reply with the word READY')
+    await (wrapper.vm as any).startTest()
+    expect(JSON.parse((global.fetch as any).mock.calls[0][1].body).prompt).toBe('Reply with the word READY')
+    wrapper.unmount()
+
+    const next = mountModal({ id: 'other', name: 'Claude', platform: 'anthropic', type: 'apikey', status: 'active' })
+    await next.setProps({ show: true })
+    await flushPromises()
+    expect((next.get('textarea').element as HTMLTextAreaElement).value).toBe('Reply with the word READY')
+    await (next.vm as any).startTest()
+    expect(JSON.parse((global.fetch as any).mock.calls[1][1].body).prompt).toBe('Reply with the word READY')
+    next.unmount()
+  })
+
+  it.each(['request', 'stream'])('aborts a stalled %s and shows a timeout error', async phase => {
+    vi.useFakeTimers()
+    global.fetch = vi.fn((_url, init) => {
+      const stalled = () => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      })
+      return phase === 'request' ? stalled() : Promise.resolve({ ok: true, body: { getReader: () => ({ read: stalled }) } })
+    }) as typeof fetch
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    const run = (wrapper.vm as any).startTest()
+    await vi.advanceTimersByTimeAsync(180_000)
+    await run
+    expect((global.fetch as any).mock.calls[0][1].signal.aborted).toBe(true)
+    expect(wrapper.text()).toContain('admin.accounts.testTimedOut')
+    expect((wrapper.vm as any).status).toBe('error')
+    wrapper.unmount()
+  })
+
+  it('reports an incomplete stream instead of staying in the connecting state', async () => {
+    global.fetch = vi.fn().mockResolvedValue(createStreamResponse(['data: {"type":"content","text":"partial"}\n']))
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await (wrapper.vm as any).startTest()
+    expect(wrapper.text()).toContain('admin.accounts.testStreamInterrupted')
+    expect((wrapper.vm as any).status).toBe('error')
+    wrapper.unmount()
   })
 
   it('图片模型测试会携带提示词并渲染图片预览', async () => {

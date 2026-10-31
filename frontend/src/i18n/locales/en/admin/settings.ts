@@ -1487,7 +1487,7 @@ export default {
         oauthRatePriorityDescription: 'When a group contains both API Key and OAuth accounts, this rate is used to order OAuth accounts alongside probed API Key billing rates.',
         oauthRateWeightedDescription: 'When a group contains both API Key and OAuth accounts, this rate is used for OAuth accounts when calculating the billing-rate score.',
         stickyWeightedTitle: 'Sticky weighting',
-        stickyWeightedDescription: 'Account scheduling determines the candidate pool first. Affinity applies only when base score, priority and load are equal. Enable to use affinity weights; otherwise prefer conversation continuity within the same scheduling tier.',
+        stickyWeightedDescription: 'For 30 minutes after successful session scheduling, prefer the bound account when it is eligible and has capacity. Each successful selection renews the 30-minute window. After expiry, normal account scheduling takes priority. This switch only controls affinity weights among otherwise equivalent candidates.',
         subscriptionPriorityTitle: 'Subscription priority',
         subscriptionPriorityDescription: 'When enabled, the scheduler scores ChatGPT subscription accounts first and falls back to non-subscription accounts only if no subscription slot can be acquired.',
         weightsTitle: 'Scheduler weight overrides',

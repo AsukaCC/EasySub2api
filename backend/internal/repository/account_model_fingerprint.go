@@ -28,15 +28,15 @@ func (r *accountRepository) ClaimModelFingerprint(ctx context.Context, id string
 		if !window.Contains(snapshot.StartedAt) {
 			return false, nil
 		}
-		// Recheck the hourly boundary here as well as in the due-plan query.
-		earliest, err := window.NextRun(plan.NextRunAt.Add(-time.Nanosecond))
+		// Recheck the slot before claiming, including legacy hourly schedules.
+		earliest, err := plan.NextRun(plan.NextRunAt.Add(-time.Nanosecond))
 		if err != nil {
 			return false, err
 		}
 		if earliest.After(snapshot.StartedAt) {
 			return false, nil
 		}
-		next, err := window.NextRun(snapshot.StartedAt)
+		next, err := plan.NextRun(snapshot.StartedAt)
 		if err != nil {
 			return false, err
 		}

@@ -85,6 +85,54 @@ func TestModelFingerprintTimeWindow(t *testing.T) {
 	}
 }
 
+func TestModelFingerprintDailyFrequency(t *testing.T) {
+	for _, tc := range []struct {
+		name, now, next, timezone string
+		start, end, count         int
+	}{
+		{"four daily", "2026-10-09T00:00:00Z", "2026-10-09T04:00:00Z", "Asia/Shanghai", 0, 24, 4},
+		{"window thirds", "2026-10-09T01:00:00Z", "2026-10-09T04:00:00Z", "Asia/Shanghai", 9, 18, 3},
+		{"fractional hourly slots", "2026-10-09T09:00:00Z", "2026-10-09T09:08:00Z", "UTC", 9, 10, 7},
+		{"daily rollover", "2026-10-09T07:00:00Z", "2026-10-10T01:00:00Z", "Asia/Shanghai", 9, 18, 3},
+		{"before window", "2026-10-09T00:30:00Z", "2026-10-09T01:00:00Z", "Asia/Shanghai", 9, 18, 3},
+		{"one daily", "2026-10-09T09:00:00Z", "2026-10-10T09:00:00Z", "UTC", 9, 18, 1},
+		{"DST spring day", "2026-03-08T05:00:00Z", "2026-03-08T16:30:00Z", "America/New_York", 0, 24, 2},
+		{"DST fall day", "2026-11-01T04:00:00Z", "2026-11-01T16:30:00Z", "America/New_York", 0, 24, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now, err := time.Parse(time.RFC3339, tc.now)
+			require.NoError(t, err)
+			plan := ModelFingerprintSchedule{TestsPerDay: tc.count, Window: &ModelFingerprintTimeWindow{StartHour: tc.start, EndHour: tc.end, Timezone: tc.timezone}}
+			next, err := plan.NextRun(now)
+			require.NoError(t, err)
+			require.Equal(t, tc.next, next.Format(time.RFC3339))
+		})
+	}
+	for _, count := range []int{-1, 61, 145} {
+		plan := ModelFingerprintSchedule{TestsPerDay: count, Window: &ModelFingerprintTimeWindow{StartHour: 9, EndHour: 10, Timezone: "UTC"}}
+		_, err := plan.NextRun(time.Now())
+		require.Error(t, err)
+	}
+}
+
+func TestModelFingerprintDailySlotsAreEvenAndDoNotDrift(t *testing.T) {
+	for _, count := range []int{1, 3, 7, 24, 144} {
+		plan := ModelFingerprintSchedule{TestsPerDay: count, Window: &ModelFingerprintTimeWindow{EndHour: 24, Timezone: "UTC"}}
+		day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
+		cursor := day.Add(-time.Nanosecond)
+		for i := 0; i < count; i++ {
+			next, err := plan.NextRun(cursor)
+			require.NoError(t, err)
+			require.Equal(t, day.Add(time.Duration(i*1440/count)*time.Minute), next)
+			// Dispatch delays must not accumulate into tomorrow's schedule.
+			cursor = next.Add(30 * time.Second)
+		}
+		next, err := plan.NextRun(cursor)
+		require.NoError(t, err)
+		require.Equal(t, day.Add(24*time.Hour), next)
+	}
+}
+
 func TestModelFingerprintScheduleRejectsInvalidWindow(t *testing.T) {
 	for _, window := range []ModelFingerprintTimeWindow{
 		{StartHour: -1, EndHour: 24, Timezone: "UTC"},
