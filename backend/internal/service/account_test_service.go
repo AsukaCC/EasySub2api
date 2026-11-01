@@ -159,6 +159,7 @@ type AccountTestService struct {
 	modelFingerprintUsage     modelFingerprintUsageWriter
 	modelFingerprintKeys      APIKeyRepository
 	modelFingerprintGroups    GroupRepository
+	modelFingerprintLoad      modelFingerprintAccountLoad
 	agentIdentityWS           agentIdentityWSConnectionInvalidator
 	// grokWSDialer is optional; realtime account tests use the default OpenAI-style
 	// WS dialer when nil (supports proxy + coder/websocket handshake).
@@ -349,6 +350,12 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Account not found")
+	}
+	if probe := fingerprintProbe(ctx); probe != nil {
+		if reason := s.fingerprintSkipReason(ctx, account); reason != "" {
+			probe.skipReason = reason
+			return errors.New(reason)
+		}
 	}
 	if err := ValidateAccountProtectionConfiguration(account); err != nil {
 		return s.sendErrorAndEnd(c, err.Error())

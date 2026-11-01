@@ -1,8 +1,10 @@
 package service
 
-// SensitiveCredentialKeys 列出 Account.Credentials JSON map 中绝不允许返回到前端的子键。
+// SensitiveCredentialKeys 列出 Account.Credentials JSON map 中必须从常规响应脱敏的子键。
 // dto 层做响应脱敏、service 层做更新合并都引用此清单——新增凭证类型时务必同步。
 var SensitiveCredentialKeys = []string{
+	// Administrator-managed login records; revealed only by the dedicated endpoint.
+	AccountLoginUsernameKey, AccountLoginPasswordKey, AccountLoginTOTPKey,
 	// OAuth
 	"access_token", "refresh_token", "id_token", "agent_private_key",
 	// API Key 类

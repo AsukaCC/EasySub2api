@@ -28,6 +28,8 @@
         <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
       </div>
 
+      <AccountLoginFields v-if="!isSparkShadow" v-model="loginCredentials" :account="account" :active="show" />
+
       <!-- API Key fields (only for apikey type) -->
       <OpenCodeAccountFields v-if="account.platform === 'opencode_go'" v-model="openCodeSettings" v-model:base-url="editBaseUrl" />
       <div v-if="account.type === 'apikey'" class="components-account-edit-account-modal__panel">
@@ -2697,6 +2699,9 @@ import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 
 import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import AccountLoginFields from './AccountLoginFields.vue'
+import type { AccountLoginCredentials } from '@/api/admin/accountLogin'
+import { parseAccountTotp } from '@/utils/accountTotp'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -2788,6 +2793,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const loginCredentials = ref<AccountLoginCredentials>({})
 const protectionAccount = ref<Account | null>(null)
 const protectionBusy = ref(false)
 const protectionManaged = computed(() => {
@@ -3687,6 +3693,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     syncingForm.value = false
   })
   form.name = newAccount.name
+  loginCredentials.value = {}
   form.notes = newAccount.notes || ''
   form.proxy_id = newAccount.proxy_id ?? null
   form.concurrency = newAccount.concurrency
@@ -4027,6 +4034,7 @@ async function loadTLSProfiles() {
 watch(
   [() => props.show, () => props.account],
   ([show, newAccount], [wasShow, previousAccount]) => {
+    if (!show) loginCredentials.value = {}
     if (!show || !newAccount) {
       return
     }
@@ -4402,6 +4410,7 @@ const parseDateTimeLocal = parseDateTimeLocalInput
 
 // Methods
 const handleClose = () => {
+  loginCredentials.value = {}
   emit('close')
 }
 
@@ -4445,6 +4454,13 @@ const persistGrokMediaEligibility = async (accountID: string, updatedAccount: Ac
 const submitUpdateAccount = async (accountID: string, updatePayload: Record<string, unknown>) => {
   submitting.value = true
   try {
+    if (!isSparkShadow.value && Object.keys(loginCredentials.value).length) {
+      if (loginCredentials.value.login_totp_secret?.trim()) {
+        try { parseAccountTotp(loginCredentials.value.login_totp_secret) }
+        catch { throw new Error(t('admin.accounts.loginInfo.invalidSecret')) }
+      }
+      updatePayload.credentials = { ...(updatePayload.credentials as Record<string, unknown> || props.account?.credentials || {}), ...loginCredentials.value }
+    }
     let updatedAccount = await adminAPI.accounts.update(accountID, updatePayload)
     updatedAccount = await persistGrokMediaEligibility(accountID, updatedAccount)
     appStore.showSuccess(t('admin.accounts.accountUpdated'))

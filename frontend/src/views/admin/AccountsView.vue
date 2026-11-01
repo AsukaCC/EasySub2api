@@ -241,6 +241,9 @@
                 </template>
               </HelpTooltip>
               <span v-else class="views-admin-accounts-view__text-11">{{ value }}</span>
+              <button v-if="row.credentials_status?.has_login_username || row.credentials_status?.has_login_password || row.credentials_status?.has_login_totp_secret"
+                type="button" class="btn btn-secondary btn-sm" :title="t('admin.accounts.loginInfo.view')" :aria-label="t('admin.accounts.loginInfo.view')"
+                @click.stop="loginInfoAccount = row"><Icon name="key" size="sm" /></button>
               <span
                 v-if="accountDisplayEmail(row)"
                 class="views-admin-accounts-view__text-12"
@@ -458,6 +461,9 @@
     </TablePageLayout>
     <CreateAccountModal :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
     <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
+    <BaseDialog :show="!!loginInfoAccount" :title="loginInfoAccount?.name || t('admin.accounts.loginInfo.title')" width="normal" @close="loginInfoAccount = null">
+      <AccountLoginFields v-if="loginInfoAccount" :key="loginInfoAccount.id" :account="loginInfoAccount" readonly />
+    </BaseDialog>
     <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <ModelFingerprintModal :show="!!fingerprintAcc" :account="fingerprintAcc" @close="fingerprintAcc = null" @update="updateFingerprint" />
@@ -514,6 +520,8 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
+import AccountLoginFields from '@/components/account/AccountLoginFields.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
@@ -618,6 +626,7 @@ const selTiers = computed<string[]>(() => {
 })
 const showCreate = ref(false)
 const showEdit = ref(false)
+const loginInfoAccount = ref<Account | null>(null)
 const showSync = ref(false)
 const showImportData = ref(false)
 const showExportDataDialog = ref(false)

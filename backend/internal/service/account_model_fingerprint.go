@@ -121,8 +121,11 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	if !IsModelFingerprintTextModel(model) {
 		return nil, apperrors.BadRequest("INVALID_MODEL", "Model fingerprinting requires an available text model")
 	}
-	if err := ValidateAccountProtectionConfiguration(a); err != nil {
-		return nil, err
+	skipReason := s.fingerprintSkipReason(ctx, a)
+	if skipReason == "" {
+		if err := ValidateAccountProtectionConfiguration(a); err != nil {
+			return nil, err
+		}
 	}
 	var option ModelFingerprintOptions
 	var preparationErr error
@@ -131,7 +134,7 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 		option = options[0]
 		option.Model = model
 		selectedKey, err = s.fingerprintKey(ctx, a, userID, option.APIKeyID)
-		if err == nil {
+		if err == nil && skipReason == "" {
 			err = s.validateFingerprintOptions(ctx, a, &option)
 		}
 		if err != nil {
@@ -180,9 +183,12 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 		release()
 		return nil, apperrors.New(409, "MODEL_FINGERPRINT_RUNNING", "An account fingerprint test is already running")
 	}
-	if preparationErr != nil {
+	if skipReason != "" || preparationErr != nil {
 		defer release()
 		snapshot.Status, snapshot.Error, snapshot.FinishedAt = "failed", "preparation_failed", &now
+		if skipReason != "" {
+			snapshot.Status, snapshot.Error = "skipped", skipReason
+		}
 		if err := store.SaveModelFingerprint(ctx, id, snapshot); err != nil {
 			return nil, err
 		}
@@ -257,6 +263,10 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		var timeoutErr net.Error
 		timedOut := !probe.enough && (errors.Is(probeCtx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeoutErr) && timeoutErr.Timeout()))
 		stop()
+		if probe.skipReason != "" {
+			snapshot.Status, snapshot.Error = "skipped", probe.skipReason
+			return
+		}
 		snapshot.Completed++
 		if err := s.recordModelFingerprintUsage(userID, id, snapshot, turn, probe); err != nil {
 			snapshot.Status = "failed"
@@ -322,6 +332,7 @@ type modelFingerprintConversation struct {
 	turns        []modelFingerprintTurn
 }
 type modelFingerprintProbe struct {
+	skipReason     string
 	apiKeyID       string
 	userID         string
 	protocol       string

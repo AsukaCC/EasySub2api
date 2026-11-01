@@ -5,6 +5,9 @@
       <Icon name="refresh" size="sm" class="fingerprint-spin" />
       {{ t('admin.accounts.fingerprint.progress', { count: snapshot.sampling_mode === 'independent' ? snapshot.valid : snapshot.completed, total: snapshot.total }) }}
     </div>
+    <div v-else-if="snapshot.status === 'skipped'" class="fingerprint-skipped" role="status" :title="t(`admin.accounts.fingerprint.skips.${snapshot.error}`)">
+      {{ t(`admin.accounts.fingerprint.skips.${snapshot.error}`) }}
+    </div>
     <div v-else-if="snapshot.status === 'failed'" class="fingerprint-error" role="status" :title="t(`admin.accounts.fingerprint.errors.${snapshot.error || 'upstream_failed'}`)">
       {{ t(`admin.accounts.fingerprint.errors.${snapshot.error || 'upstream_failed'}`) }}
     </div>
@@ -59,6 +62,7 @@ const familyLabel = computed(() => props.snapshot?.result?.families.map(f => `${
 .fingerprint-result--compact .fingerprint-row { grid-template-columns: minmax(0, 1fr) 44px; column-gap: 6px; }
 .fingerprint-result--compact .fingerprint-row > span:last-child { text-align: right; }
 .fingerprint-result--compact .fingerprint-candidate,
+.fingerprint-result--compact .fingerprint-skipped,
 .fingerprint-result--compact .fingerprint-error { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fingerprint-model { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fingerprint-bar { display: flex; height: 6px; overflow: hidden; border-radius: 3px; background: var(--color-surface-muted); }
@@ -73,6 +77,7 @@ const familyLabel = computed(() => props.snapshot?.result?.families.map(f => `${
 .fingerprint-model-bar span { display: block; height: 100%; background: var(--color-text-secondary); }
 .fingerprint-status { display: flex; align-items: center; gap: 6px; }
 .fingerprint-error { color: var(--color-text-danger); white-space: normal; }
+.fingerprint-skipped { color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .fingerprint-time, .fingerprint-more { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 .fingerprint-more summary { cursor: pointer; margin-bottom: 8px; }
 .fingerprint-more .fingerprint-row + .fingerprint-row { margin-top: 6px; }

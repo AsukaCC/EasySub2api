@@ -271,6 +271,7 @@ func ProvideAccountTestService(
 	usageLogRepo UsageLogRepository,
 	apiKeyRepo APIKeyRepository,
 	groupRepo GroupRepository,
+	concurrencyService *ConcurrencyService,
 ) *AccountTestService {
 	service := NewAccountTestService(
 		accountRepo,
@@ -287,6 +288,7 @@ func ProvideAccountTestService(
 	service.modelFingerprintUsage = usageLogRepo
 	service.modelFingerprintKeys = apiKeyRepo
 	service.modelFingerprintGroups = groupRepo
+	service.modelFingerprintLoad = concurrencyService
 	service.SetSettingService(settingService)
 	return service
 }

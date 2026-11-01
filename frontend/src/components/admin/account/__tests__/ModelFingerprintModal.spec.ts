@@ -83,6 +83,20 @@ describe('Model fingerprint workflow', () => {
     expect(getModelFingerprint).toHaveBeenCalledTimes(calls)
   })
 
+  it.each(['quota_exhausted', 'account_busy', 'account_unavailable', 'account_activity_unknown'])('shows a skipped test reason (%s) without continuing job polling', async reason => {
+    startModelFingerprint.mockResolvedValue({ ...running, status: 'skipped', error: reason, finished_at: running.started_at })
+    const wrapper = mountModal()
+    await flushPromises()
+    await wrapper.get('.btn-primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain(`admin.accounts.fingerprint.skips.${reason}`)
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeUndefined()
+    const calls = getModelFingerprint.mock.calls.length
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(getModelFingerprint).toHaveBeenCalledTimes(calls)
+    expect(startModelFingerprint).toHaveBeenCalledTimes(1)
+  })
+
   it('closing stops polling and does not cancel the server job', async () => {
     getModelFingerprint.mockResolvedValue(running)
     const wrapper = mountModal()
