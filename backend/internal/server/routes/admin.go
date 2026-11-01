@@ -413,6 +413,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.GET("/admin-usage/groups", h.Admin.Dashboard.GetGroupStatsAdmin)
 		accounts.GET("/admin-usage/snapshot", h.Admin.Dashboard.GetSnapshotV2Admin)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
+		accounts.GET("/:id/login-credentials", h.Admin.Account.GetLoginCredentials)
 		accounts.GET("/opencode-go-usage/settings", h.Admin.Account.GetOpenCodeGoUsageSettings)
 		accounts.PUT("/opencode-go-usage/settings", h.Admin.Account.UpdateOpenCodeGoUsageSettings)
 		accounts.GET("/:id/opencode-go-usage", h.Admin.Account.GetOpenCodeGoUsage)

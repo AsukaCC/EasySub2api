@@ -36,7 +36,7 @@ func (r *fingerprintTestRepo) GetByID(_ context.Context, id string) (*Account, e
 	for key, value := range r.extra[id] {
 		extra[key] = value
 	}
-	return &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive,
+	return &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
 		GroupIDs:    []string{"fingerprint-group"},
 		Credentials: map[string]any{"api_key": "test-only", "base_url": "https://example.com", "model_mapping": r.mapping},
 		Extra:       extra}, nil
@@ -131,6 +131,9 @@ func newFingerprintTestService() (*AccountTestService, *fingerprintTestRepo, *fi
 	repo := &fingerprintTestRepo{snapshots: make(map[string]*ModelFingerprintSnapshot), done: make(chan *ModelFingerprintSnapshot, 8)}
 	upstream := &fingerprintTestTransport{requests: make(map[string][][]byte), sessions: make(map[string][]string)}
 	return &AccountTestService{accountRepo: repo, httpUpstream: upstream, cfg: &config.Config{}, modelFingerprintUsage: &fingerprintUsageStub{},
+		modelFingerprintLoad: fingerprintLoadFunc(func(_ context.Context, accounts []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
+			return map[string]*AccountLoadInfo{accounts[0].ID: {}}, nil
+		}),
 		modelFingerprintKeys:   &fingerprintKeyRepo{keys: []APIKey{{ID: "local-key", Name: "My key", Key: "local-secret", UserID: "admin", Status: StatusActive, GroupIDs: []string{"fingerprint-group"}}}},
 		modelFingerprintGroups: &fingerprintGroupRepo{group: &Group{ID: "fingerprint-group", Platform: PlatformOpenAI, Status: StatusActive}},
 	}, repo, upstream

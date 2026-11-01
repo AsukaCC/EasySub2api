@@ -1,5 +1,12 @@
 export default {
     accounts: {
+      loginInfo: {
+        title: 'Login details', view: 'View login details and verification code', username: 'Login / Email', password: 'Login password',
+        secret: '2FA secret', secretPlaceholder: 'Base32 secret or otpauth://totp/ URI',
+        code: 'Verification code', remaining: 'Refreshes in {seconds}s', show: 'Show', hide: 'Hide',
+        invalidSecret: 'Enter a valid Base32 secret or TOTP URI (SHA1 / SHA256 / SHA512, 6 or 8 digits, period 1-300 seconds)',
+        loadFailed: 'Could not load login details. Please retry.'
+      },
       fingerprint: {
         title: 'Model Fingerprint Test', attribution: 'Model Attribution', start: 'Start Test', notTested: 'Not tested',
         samples: '3 valid fingerprint samples', serial: 'Independent samples', inBackground: 'Testing in background',
@@ -19,6 +26,12 @@ export default {
         scope: 'Shares are relative attribution within the GPT / Claude candidate bank, not proof of identity. Unlisted models are assigned to the closest candidate.',
         noModels: 'No text models available', loadFailed: 'Could not load models. Please retry.',
         pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not start. A test may already exist or all test slots may be occupied.',
+        skips: {
+          quota_exhausted: 'Skipped: 5-hour or 7-day quota exhausted',
+          account_busy: 'Skipped: account has active or queued requests',
+          account_unavailable: 'Skipped: account is currently unavailable',
+          account_activity_unknown: 'Skipped: could not confirm that the account is idle'
+        },
         errors: {
           preparation_failed: 'API key, upstream model or parameter validation failed',
           interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out. The upstream request was canceled. Try again later.', upstream_failed: 'Upstream request failed',

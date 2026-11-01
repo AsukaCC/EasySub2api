@@ -56,6 +56,7 @@
           data-tour="account-form-name"
         />
       </div>
+      <AccountLoginFields v-model="loginCredentials" :active="show" />
       <div>
         <label class="input-label">{{ t('admin.accounts.notes') }}</label>
         <textarea
@@ -2915,6 +2916,9 @@ import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import LoadingButtonContent from '@/components/common/LoadingButtonContent.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ref, reactive, computed, watch } from 'vue'
+import AccountLoginFields from './AccountLoginFields.vue'
+import type { AccountLoginCredentials } from '@/api/admin/accountLogin'
+import { parseAccountTotp } from '@/utils/accountTotp'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import {
@@ -3096,6 +3100,14 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const loginCredentials = ref<AccountLoginCredentials>({})
+const createAccountWithLogin = (payload: CreateAccountRequest) => {
+  if (loginCredentials.value.login_totp_secret?.trim()) {
+    try { parseAccountTotp(loginCredentials.value.login_totp_secret) }
+    catch { throw new Error(t('admin.accounts.loginInfo.invalidSecret')) }
+  }
+  return adminAPI.accounts.create({ ...payload, credentials: { ...payload.credentials, ...loginCredentials.value } })
+}
 const emit = defineEmits<{
   close: []
   created: []
@@ -4026,7 +4038,7 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
     if (payload.platform === 'openai') {
       applyCurrentModelReasoningEfforts(payload.credentials)
     }
-    const account = await adminAPI.accounts.create(payload)
+    const account = await createAccountWithLogin(payload)
     if (payload.type === 'apikey' && upstreamModelsPreviewed.value) {
       try {
         await adminAPI.accounts.syncUpstreamModels(account.id)
@@ -4056,6 +4068,7 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 
 // Methods
 const resetForm = () => {
+  loginCredentials.value = {}
   step.value = 1
   form.name = ''
   form.notes = ''
@@ -4343,6 +4356,10 @@ const handleVertexServiceAccountDrop = async (event: DragEvent) => {
 }
 
 const handleSubmit = async () => {
+  if (loginCredentials.value.login_totp_secret?.trim()) {
+    try { parseAccountTotp(loginCredentials.value.login_totp_secret) }
+    catch { appStore.showError(t('admin.accounts.loginInfo.invalidSecret')); return }
+  }
   // For OAuth-based type, handle OAuth flow (goes to step 2)
   if (isOAuthFlow.value) {
     if (!isGrokSSOInputMethod.value && !form.name.trim()) {
@@ -4733,7 +4750,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await createAccountWithLogin({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -4906,7 +4923,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await createAccountWithLogin({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -5006,7 +5023,7 @@ const handleOpenAIExchange = async (authCode: string) => {
 
     if (shouldCreateOpenAI) {
       applyCurrentModelReasoningEfforts(credentials)
-      await adminAPI.accounts.create({
+      await createAccountWithLogin({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
@@ -5040,7 +5057,7 @@ const handleOpenAIExchange = async (authCode: string) => {
 const OPENAI_MOBILE_RT_CLIENT_ID = 'app_LlGpXReQgckcGGUo2JrYvtJK'
 
 const buildOpenAICodexImportCredentialExtras = (): Record<string, unknown> | null => {
-  const credentials: Record<string, unknown> = {}
+  const credentials: Record<string, unknown> = { ...loginCredentials.value }
   if (!isOpenAIModelRestrictionDisabled.value) {
       const modelMapping = buildCurrentModelRestrictionMapping()
     if (modelMapping) {
@@ -5289,7 +5306,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
 
         if (shouldCreateOpenAI) {
           applyCurrentModelReasoningEfforts(credentials)
-          await adminAPI.accounts.create({
+          await createAccountWithLogin({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
@@ -5370,7 +5387,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
         const modelMapping = buildCurrentModelRestrictionMapping()
         if (modelMapping) credentials.model_mapping = modelMapping
         applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
-        await adminAPI.accounts.create({
+        await createAccountWithLogin({
           name: refreshTokens.length > 1 ? `${form.name || tokenInfo.email || 'Antigravity OAuth Account'} #${index + 1}` : (form.name || tokenInfo.email || 'Antigravity OAuth Account'),
           notes: form.notes,
           platform: 'antigravity',
@@ -5687,7 +5704,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await createAccountWithLogin({
           name: accountName,
           notes: form.notes,
           platform: form.platform,

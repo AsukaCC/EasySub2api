@@ -4,7 +4,7 @@ export interface ModelFingerprintSnapshot {
   api_key_id?: string
   id: string
   model: string
-  status: 'running' | 'completed' | 'failed'
+  status: 'running' | 'completed' | 'failed' | 'skipped'
   sampling_mode: 'single_conversation' | 'independent'
   protocol?: FingerprintProtocol
   resolved_protocol?: FingerprintProtocol

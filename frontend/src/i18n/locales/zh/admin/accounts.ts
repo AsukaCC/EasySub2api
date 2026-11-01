@@ -1,5 +1,12 @@
 export default {
     accounts: {
+      loginInfo: {
+        title: '登录资料', view: '查看登录资料与验证码', username: '登录账号 / 邮箱', password: '登录密码',
+        secret: '2FA 密钥', secretPlaceholder: 'Base32 密钥或 otpauth://totp/ 链接',
+        code: '动态验证码', remaining: '{seconds} 秒后更新', show: '显示', hide: '隐藏',
+        invalidSecret: '请输入有效的 Base32 密钥或 TOTP 链接（SHA1 / SHA256 / SHA512，6 或 8 位，周期 1–300 秒）',
+        loadFailed: '登录资料加载失败，请重试'
+      },
       fingerprint: {
         title: '模型指纹测试', attribution: '模型归因', start: '开始测试', notTested: '未测试',
         samples: '3 组有效指纹样本', serial: '独立采样', inBackground: '后台测试中',
@@ -19,6 +26,12 @@ export default {
         scope: '占比为 GPT / Claude 候选库内的相对归因，并非模型身份证明。未收录模型也会被归入最相似的候选。',
         noModels: '没有可测试的文本模型', loadFailed: '模型列表加载失败，请重试。',
         pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能启动，请检查是否已有测试或测试名额已满。',
+        skips: {
+          quota_exhausted: '已跳过：5 小时或 7 天额度已用尽',
+          account_busy: '已跳过：账号正在处理请求或有请求排队',
+          account_unavailable: '已跳过：账号当前不可用',
+          account_activity_unknown: '已跳过：暂时无法确认账号是否空闲'
+        },
         errors: {
           preparation_failed: 'API 密钥、上游模型或参数校验失败',
           interrupted: '测试中断，请重新测试', timeout: '测试超时，已取消上游请求，请稍后重试', upstream_failed: '上游调用失败',

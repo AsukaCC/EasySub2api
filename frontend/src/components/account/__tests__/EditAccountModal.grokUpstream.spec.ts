@@ -102,6 +102,7 @@ function mountModal(account: any) {
     global: {
       stubs: {
         BaseDialog: BaseDialogStub,
+        AccountProtectionPanel: true,
         Select: true,
         Icon: true,
         ProxySelector: true,
@@ -118,6 +119,21 @@ describe('EditAccountModal Grok OAuth upstream config', () => {
     updateAccountMock.mockReset()
     checkMixedChannelRiskMock.mockReset()
     checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+  })
+
+  it('saves login details independently of the OAuth credentials', async () => {
+    const account = buildGrokOAuthAccount()
+    updateAccountMock.mockResolvedValue(account)
+    const wrapper = mountModal(account)
+    await wrapper.get('input[name="login_username"]').setValue('person@example.com')
+    await wrapper.get('input[name="login_password"]').setValue(' password with spaces ')
+    await wrapper.get('input[name="login_totp_secret"]').setValue('JBSWY3DPEHPK3PXP')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await vi.waitFor(() => expect(updateAccountMock).toHaveBeenCalledTimes(1))
+    expect(updateAccountMock.mock.calls[0][1].credentials).toMatchObject({
+      login_username: 'person@example.com', login_password: ' password with spaces ', login_totp_secret: 'JBSWY3DPEHPK3PXP'
+    })
+    wrapper.unmount()
   })
 
   it('enabling the custom base URL toggle and saving persists base_url', async () => {

@@ -118,7 +118,7 @@ async function submitApiKeyAccount(
     await selectButtonByText(wrapper, 'API Key')
   }
   await wrapper.get('form#create-account-form input[type="text"]').setValue(`${platform} account`)
-  await wrapper.get('form#create-account-form input[type="password"]').setValue('test-api-key')
+  await wrapper.get('form#create-account-form input[type="password"][required]').setValue('test-api-key')
   if (enableLongContextBilling) {
     await wrapper.get('[data-testid="openai-long-context-billing-toggle"]').trigger('click')
   }
@@ -130,13 +130,17 @@ async function submitApiKeyAccount(
   return wrapper
 }
 
-async function openCodexImportStep(toggleClicks = 0) {
+async function openCodexImportStep(toggleClicks = 0, withLogin = false) {
   const wrapper = mountModal()
   await selectButtonByText(wrapper, 'OpenAI')
   for (let click = 0; click < toggleClicks; click += 1) {
     await wrapper.get('[data-testid="openai-long-context-billing-toggle"]').trigger('click')
   }
   await wrapper.get('form#create-account-form input[type="text"]').setValue('Codex import')
+  if (withLogin) {
+    await wrapper.get('input[name="login_password"]').setValue('login-password')
+    await wrapper.get('input[name="login_totp_secret"]').setValue('JBSWY3DPEHPK3PXP')
+  }
   await wrapper.get('form#create-account-form').trigger('submit.prevent')
   return wrapper
 }
@@ -161,6 +165,31 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
 
     expect(createAccountMock).toHaveBeenCalledTimes(1)
     expect(createAccountMock.mock.calls[0]?.[0]?.extra?.openai_long_context_billing_enabled).toBe(false)
+  })
+
+  it('saves optional login details during API key creation', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await selectButtonByText(wrapper, 'API Key')
+    await wrapper.get('form input[type="text"]').setValue('Account')
+    await wrapper.get('form input[type="password"][required]').setValue('api-token')
+    await wrapper.get('input[name="login_password"]').setValue('login-password')
+    await wrapper.get('input[name="login_totp_secret"]').setValue('JBSWY3DPEHPK3PXP')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(createAccountMock.mock.calls[0][0].credentials).toMatchObject({
+      api_key: 'api-token', login_password: 'login-password', login_totp_secret: 'JBSWY3DPEHPK3PXP'
+    })
+    wrapper.unmount()
+  })
+
+  it.each(['session', 'pat'])('preserves login details across the OAuth %s import step', async mode => {
+    const wrapper = await openCodexImportStep(0, true)
+    await wrapper.get(`[data-testid="import-codex-${mode}"]`).trigger('click')
+    await flushPromises()
+    const call = mode === 'session' ? importCodexSessionMock : createOpenAICodexPATMock
+    expect(call.mock.calls[0][0].credential_extras).toMatchObject({ login_password: 'login-password', login_totp_secret: 'JBSWY3DPEHPK3PXP' })
+    wrapper.unmount()
   })
 
   // namespace 摊平是仅 OAuth 的兼容开关：API Key 走 chat completions 回退桥时由桥自行摊平
