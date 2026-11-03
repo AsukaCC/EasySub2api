@@ -15,7 +15,7 @@ func (r *accountRepository) ListQueuedModelFingerprints(ctx context.Context) ([]
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	jobs := []service.ModelFingerprintQueuedJob{}
 	for rows.Next() {
 		var job service.ModelFingerprintQueuedJob

@@ -120,7 +120,10 @@ func (slot *modelFingerprintSlot) release() {
 }
 
 func (s *AccountTestService) dispatchModelFingerprints(q *modelFingerprintQueueRuntime) {
-	store := s.accountRepo.(modelFingerprintQueueStore)
+	store, ok := s.accountRepo.(modelFingerprintQueueStore)
+	if !ok {
+		return
+	}
 	ctx, cancel := context.WithTimeout(q.ctx, 30*time.Second)
 	defer cancel()
 	jobs, err := store.ListQueuedModelFingerprints(ctx)
