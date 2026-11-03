@@ -6,12 +6,13 @@ import ModelFingerprintCell from '../ModelFingerprintCell.vue'
 import type { Account } from '@/types'
 import type { ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 
-const { getFingerprintModels, getModelFingerprint, startModelFingerprint, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory, getFingerprintKeys } = vi.hoisted(() => ({
+const { cancelModelFingerprint, getFingerprintModels, getModelFingerprint, startModelFingerprint, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory, getFingerprintKeys } = vi.hoisted(() => ({
+  cancelModelFingerprint: vi.fn(),
   getFingerprintModels: vi.fn(), getModelFingerprint: vi.fn(), startModelFingerprint: vi.fn(),
   getFingerprintSchedule: vi.fn(), setFingerprintSchedule: vi.fn(), getFingerprintHistory: vi.fn(), getFingerprintKeys: vi.fn()
 }))
 vi.mock('@/api/admin/modelFingerprint', async importOriginal => ({
-  ...await importOriginal<typeof import('@/api/admin/modelFingerprint')>(), getModelFingerprint, startModelFingerprint,
+  ...await importOriginal<typeof import('@/api/admin/modelFingerprint')>(), getModelFingerprint, startModelFingerprint, cancelModelFingerprint,
   getFingerprintModels, getFingerprintSchedule, setFingerprintSchedule, getFingerprintHistory, getFingerprintKeys
 }))
 vi.mock('vue-i18n', async importOriginal => ({ ...await importOriginal<typeof import('vue-i18n')>(), useI18n: () => ({ t: (key: string) => key }) }))
@@ -58,6 +59,38 @@ describe('Model fingerprint workflow', () => {
     startModelFingerprint.mockResolvedValue(running)
   })
   afterEach(() => { mounts.splice(0).forEach(wrapper => wrapper.unmount()); vi.useRealTimers() })
+
+  it.each(['queued', 'waiting', 'running'] as const)('cancels a %s job and stops polling', async status => {
+    getModelFingerprint.mockResolvedValue({ ...running, status, queue_reason: 'account_busy' })
+    cancelModelFingerprint.mockResolvedValue({ ...running, status: 'cancelled', finished_at: running.started_at })
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
+    const cancel = wrapper.findAll('button').find(button => button.text().includes('fingerprint.cancelTest'))!
+    await cancel.trigger('click')
+    await flushPromises()
+    expect(cancelModelFingerprint).toHaveBeenCalledWith('one', 'job-one')
+    expect(wrapper.text()).toContain('fingerprint.cancelled')
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeUndefined()
+    const calls = getModelFingerprint.mock.calls.length
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(getModelFingerprint).toHaveBeenCalledTimes(calls)
+  })
+
+  it('polls a queued job until it starts and preserves cancellation on errors', async () => {
+    getModelFingerprint.mockResolvedValue({ ...running, status: 'queued', queue_reason: 'workers_busy' })
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.text()).toContain('fingerprint.queue.workers_busy')
+    getModelFingerprint.mockResolvedValue(running)
+    await vi.advanceTimersByTimeAsync(3100)
+    expect(wrapper.text()).toContain('fingerprint.inBackground')
+    cancelModelFingerprint.mockRejectedValue(new Error('offline'))
+    await wrapper.findAll('button').find(button => button.text().includes('fingerprint.cancelTest'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('offline')
+  })
 
   it('selects text models and starts exactly once, then polls without generating more samples', async () => {
     const wrapper = mountModal()

@@ -67,9 +67,12 @@
     </div>
     <template #footer>
       <button class="btn btn-secondary" @click="emit('close')">{{ t('common.close') }}</button>
+      <button v-if="busy" type="button" class="btn btn-secondary" :disabled="cancelling" @click="cancelTest">
+        <Icon name="x" size="sm" />{{ t('admin.accounts.fingerprint.cancelTest') }}
+      </button>
       <button class="btn btn-primary" :disabled="!selectedKeyId || keyError || !!loadError || !selectedModel || loadingModels || busy || starting || pollingError" @click="start">
         <Icon :name="busy || starting ? 'clock' : 'play'" size="sm" />
-        {{ busy ? t('admin.accounts.fingerprint.inBackground') : t('admin.accounts.fingerprint.start') }}
+        {{ busy ? t(snapshot?.status === 'running' ? 'admin.accounts.fingerprint.inBackground' : 'admin.accounts.fingerprint.queued') : t('admin.accounts.fingerprint.start') }}
       </button>
     </template>
   </BaseDialog>
@@ -84,7 +87,7 @@ import Select from '@/components/common/Select.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { Icon } from '@/components/icons'
-import { getFingerprintKeys, getFingerprintModels, getFingerprintHistory, getFingerprintSchedule, setFingerprintSchedule, startModelFingerprint, type FingerprintKey, type FingerprintOptions, type FingerprintProtocol, type FingerprintModel, type FingerprintHistory, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
+import { cancelModelFingerprint, isModelFingerprintPending, getFingerprintKeys, getFingerprintModels, getFingerprintHistory, getFingerprintSchedule, setFingerprintSchedule, startModelFingerprint, type FingerprintKey, type FingerprintOptions, type FingerprintProtocol, type FingerprintModel, type FingerprintHistory, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 import { useModelFingerprint } from '@/composables/useModelFingerprint'
 import type { Account } from '@/types'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -164,7 +167,8 @@ const loadError = ref('')
 const modelRetry = ref(0)
 const starting = ref(false)
 const submitError = ref('')
-const busy = computed(() => snapshot.value?.status === 'running')
+const cancelling = ref(false)
+const busy = computed(() => isModelFingerprintPending(snapshot.value))
 watch(selectedModel, (_value, previous) => {
   if (previous) effort.value = ''
 }, { flush: 'sync' })
@@ -307,8 +311,22 @@ async function start() {
     if (accountId.value === id) submitError.value = extractApiErrorMessage(error, t('admin.accounts.fingerprint.startFailed'))
   } finally { starting.value = false }
 }
+async function cancelTest() {
+  const id = accountId.value
+  const job = snapshot.value
+  if (!id || !job || !busy.value || cancelling.value) return
+  cancelling.value = true
+  submitError.value = ''
+  try {
+    const value = await cancelModelFingerprint(id, job.id)
+    if (accountId.value === id) { viewedSnapshot.value = null; track(value); void loadHistory() }
+    else emit('update', id, value)
+  } catch (error) {
+    if (accountId.value === id) submitError.value = extractApiErrorMessage(error, t('admin.accounts.fingerprint.cancelFailed'))
+  } finally { cancelling.value = false }
+}
 watch(() => snapshot.value?.status, (status, previous) => {
-  if (previous === 'running' && status !== 'running') void loadHistory()
+  if (previous && status !== previous) void loadHistory()
 })
 const historyTimer = setInterval(() => {
   if (accountId.value && !document.hidden) { void loadHistory(history.value.page); if (scheduleEnabled.value && !busy.value) void refresh() }

@@ -150,3 +150,30 @@ func (h *AccountHandler) GetModelFingerprint(c *gin.Context) {
 	}
 	response.Success(c, snapshot)
 }
+
+func (h *AccountHandler) CancelModelFingerprint(c *gin.Context) {
+	id, err := parseEntityID(c.Param("id"))
+	if err != nil || id == "" {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	jobID, err := parseEntityID(c.Param("job_id"))
+	if err != nil || jobID == "" {
+		response.BadRequest(c, "Invalid test ID")
+		return
+	}
+	if _, ok := middleware.GetAuthSubjectFromContext(c); !ok {
+		response.Unauthorized(c, "Admin not authenticated")
+		return
+	}
+	if h.accountTestService == nil {
+		response.InternalError(c, "Account test service unavailable")
+		return
+	}
+	snapshot, err := h.accountTestService.CancelModelFingerprint(c.Request.Context(), id, jobID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}

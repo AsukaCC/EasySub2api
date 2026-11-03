@@ -56,7 +56,7 @@ func TestModelFingerprintLocalAPIKeyValidation(t *testing.T) {
 		{"disabled group", func(_ *APIKey, g *Group) { g.Status = StatusDisabled }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			svc, repo, _ := newFingerprintTestService()
+			svc, repo, _ := newFingerprintTestService(t)
 			key := &svc.modelFingerprintKeys.(*fingerprintKeyRepo).keys[0]
 			tc.edit(key, svc.modelFingerprintGroups.(*fingerprintGroupRepo).group)
 			_, err := svc.GetFingerprintModelsForKey(context.Background(), "one", "admin", key.ID)
@@ -72,7 +72,7 @@ func TestModelFingerprintLocalAPIKeyValidation(t *testing.T) {
 }
 
 func TestModelFingerprintKeySelectionDoesNotExposeCredentials(t *testing.T) {
-	svc, _, _ := newFingerprintTestService()
+	svc, _, _ := newFingerprintTestService(t)
 	key := &svc.modelFingerprintKeys.(*fingerprintKeyRepo).keys[0]
 	key.GroupIDs = []string{"another", "fingerprint-group"}
 	keys, err := svc.ListFingerprintKeys(context.Background(), "one", "admin", "")
@@ -86,7 +86,7 @@ func TestModelFingerprintKeySelectionDoesNotExposeCredentials(t *testing.T) {
 }
 
 func TestModelFingerprintRevokedKeyStopsNextSample(t *testing.T) {
-	svc, _, _ := newFingerprintTestService()
+	svc, _, _ := newFingerprintTestService(t)
 	svc.modelFingerprintKeys.(*fingerprintKeyRepo).keys = nil
 	probe := &modelFingerprintProbe{apiKeyID: "local-key", userID: "admin", protocol: "chat"}
 	ctx := context.WithValue(context.Background(), modelFingerprintContextKey{}, probe)
@@ -98,7 +98,7 @@ func TestModelFingerprintRevokedKeyStopsNextSample(t *testing.T) {
 }
 
 func TestModelFingerprintOldScheduleRequiresKeySelection(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	result, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{Protocol: "chat", Source: "scheduled"})
 	require.NoError(t, err)
 	require.Equal(t, "preparation_failed", result.Error)

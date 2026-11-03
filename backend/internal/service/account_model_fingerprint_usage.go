@@ -1,9 +1,22 @@
 package service
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
-// Retain only upstream-reported usage. Early sampling cancellation may omit
-// final counters; do not estimate tokens or make another request to obtain them.
+func collectModelFingerprintJSONUsage(ctx context.Context, body []byte) {
+	if fingerprintProbe(ctx) == nil {
+		return
+	}
+	var data map[string]any
+	if json.Unmarshal(body, &data) == nil {
+		collectModelFingerprintUsage(ctx, data)
+	}
+}
+
+// Retain upstream-reported usage, including final counters after sampling is
+// complete. Interrupted requests may only report partial usage.
 func collectModelFingerprintUsage(ctx context.Context, data map[string]any) {
 	p := fingerprintProbe(ctx)
 	if p == nil {

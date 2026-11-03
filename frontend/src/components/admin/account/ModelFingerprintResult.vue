@@ -1,7 +1,12 @@
 <template>
   <div v-if="snapshot" class="fingerprint-result" :class="{ 'fingerprint-result--compact': compact }">
     <div v-if="!compact" class="fingerprint-model" :title="snapshot.model">{{ snapshot.model }}</div>
-    <div v-if="snapshot.status === 'running'" class="fingerprint-status" role="status">
+    <div v-if="snapshot.status === 'queued' || snapshot.status === 'waiting'" class="fingerprint-status" role="status">
+      <Icon name="clock" size="sm" />
+      {{ t(`admin.accounts.fingerprint.queue.${snapshot.queue_reason || 'workers_busy'}`) }}
+    </div>
+    <div v-else-if="snapshot.status === 'cancelled'" class="fingerprint-skipped" role="status">{{ t('admin.accounts.fingerprint.cancelled') }}</div>
+    <div v-else-if="snapshot.status === 'running'" class="fingerprint-status" role="status">
       <Icon name="refresh" size="sm" class="fingerprint-spin" />
       {{ t('admin.accounts.fingerprint.progress', { count: snapshot.sampling_mode === 'independent' ? snapshot.valid : snapshot.completed, total: snapshot.total }) }}
     </div>

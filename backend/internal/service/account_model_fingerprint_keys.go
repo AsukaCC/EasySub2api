@@ -32,29 +32,30 @@ func (s *AccountTestService) fingerprintKey(ctx context.Context, account *Accoun
 	if !key.IsActive() || key.IsExpired() || key.IsQuotaExhausted() {
 		return nil, apperrors.BadRequest("FINGERPRINT_API_KEY_INACTIVE", "API key is disabled, expired or exhausted")
 	}
-	groupID, err := s.fingerprintKeyGroup(ctx, account, key)
+	group, err := s.fingerprintKeyGroup(ctx, account, key)
 	if err != nil {
 		return nil, err
 	}
 	copy := *key
-	copy.GroupID = &groupID
+	copy.GroupID = &group.ID
+	copy.Group = group
 	return &copy, nil
 }
 
-func (s *AccountTestService) fingerprintKeyGroup(ctx context.Context, account *Account, key *APIKey) (string, error) {
+func (s *AccountTestService) fingerprintKeyGroup(ctx context.Context, account *Account, key *APIKey) (*Group, error) {
 	for _, id := range key.BoundGroupIDs() {
 		if !slices.Contains(account.GroupIDs, id) {
 			continue
 		}
 		group, err := s.modelFingerprintGroups.GetByID(ctx, id)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if group != nil && group.Status == StatusActive && (group.Platform == account.Platform || group.Platform == PlatformComposite) {
-			return id, nil
+			return group, nil
 		}
 	}
-	return "", apperrors.BadRequest("FINGERPRINT_API_KEY_PLATFORM", "API key has no active group containing this account and platform")
+	return nil, apperrors.BadRequest("FINGERPRINT_API_KEY_PLATFORM", "API key has no active group containing this account and platform")
 }
 
 // The selection response includes identifiers and names, never credential values.

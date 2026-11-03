@@ -8,6 +8,8 @@ export default {
         loadFailed: '登录资料加载失败，请重试'
       },
       fingerprint: {
+        queued: '排队中', cancelTest: '取消 / 中断测试', cancelled: '测试已取消', cancelFailed: '取消失败，请重试',
+        queue: { workers_busy: '排队中：等待测试名额', account_busy: '排队中：等待账号空闲' },
         title: '模型指纹测试', attribution: '模型归因', start: '开始测试', notTested: '未测试',
         samples: '3 组有效指纹样本', serial: '独立采样', inBackground: '后台测试中',
         apiKey: 'API 密钥', protocol: '请求格式', effort: '思考强度', defaultEffort: '上游默认',
@@ -25,14 +27,16 @@ export default {
         progress: '采样 {count}/{total}', allCandidates: '全部候选模型',
         scope: '占比为 GPT / Claude 候选库内的相对归因，并非模型身份证明。未收录模型也会被归入最相似的候选。',
         noModels: '没有可测试的文本模型', loadFailed: '模型列表加载失败，请重试。',
-        pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能启动，请检查是否已有测试或测试名额已满。',
+        pollFailed: '状态连接暂时中断，正在重连。', startFailed: '未能加入测试队列，请检查是否已有排队或运行中的测试。',
         skips: {
+          queue_expired: '已跳过：排队超过 24 小时',
           quota_exhausted: '已跳过：5 小时或 7 天额度已用尽',
           account_busy: '已跳过：账号正在处理请求或有请求排队',
           account_unavailable: '已跳过：账号当前不可用',
           account_activity_unknown: '已跳过：暂时无法确认账号是否空闲'
         },
         errors: {
+          billing_failed: '积分计费校验或结算失败，请检查余额、订阅及密钥额度',
           preparation_failed: 'API 密钥、上游模型或参数校验失败',
           interrupted: '测试中断，请重新测试', timeout: '测试超时，已取消上游请求，请稍后重试', upstream_failed: '上游调用失败',
           insufficient_samples: '有效样本不足 3 组', analysis_failed: '归因失败', internal_error: '测试异常', save_failed: '结果保存失败'

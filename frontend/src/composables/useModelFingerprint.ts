@@ -1,6 +1,6 @@
 import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
-import { getModelFingerprint, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
+import { getModelFingerprint, isModelFingerprintPending, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 
 const retentionMs = 24 * 60 * 60 * 1000
 
@@ -65,7 +65,7 @@ export function useModelFingerprint(accountId: Ref<string | null>, onUpdate?: (s
       if (current !== generation) return
       pollingError.value = true
     }
-    if (current === generation && (pollingError.value || snapshot.value?.status === 'running')) {
+    if (current === generation && (pollingError.value || isModelFingerprintPending(snapshot.value))) {
       timer = setTimeout(() => { void refresh() }, 3000)
     }
   }
@@ -73,7 +73,7 @@ export function useModelFingerprint(accountId: Ref<string | null>, onUpdate?: (s
   function track(value: ModelFingerprintSnapshot) {
     stop()
     setSnapshot(value)
-    if (value.status === 'running') timer = setTimeout(() => { void refresh() }, 1500)
+    if (isModelFingerprintPending(value)) timer = setTimeout(() => { void refresh() }, 1500)
   }
 
   watch(accountId, () => {

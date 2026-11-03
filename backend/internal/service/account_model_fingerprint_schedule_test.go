@@ -36,7 +36,7 @@ func (r *fingerprintScheduleTestRepo) CleanupModelFingerprintHistory(context.Con
 }
 
 func TestModelFingerprintScheduleConfigAndRun(t *testing.T) {
-	svc, base, _ := newFingerprintTestService()
+	svc, base, _ := newFingerprintTestService(t)
 	repo := &fingerprintScheduleTestRepo{fingerprintTestRepo: base}
 	svc.accountRepo = repo
 	svc.httpUpstream = &fingerprintAPITransport{}
@@ -150,7 +150,7 @@ func TestModelFingerprintScheduleRejectsInvalidWindow(t *testing.T) {
 }
 
 func TestModelFingerprintScheduleReadsLegacyAndSavedWindows(t *testing.T) {
-	svc, base, _ := newFingerprintTestService()
+	svc, base, _ := newFingerprintTestService(t)
 	due := time.Date(2099, 10, 9, 1, 30, 0, 0, time.UTC)
 	repo := &fingerprintScheduleTestRepo{fingerprintTestRepo: base, saved: &ModelFingerprintSchedule{
 		AccountID: "one", Enabled: true, NextRunAt: due,
@@ -168,7 +168,7 @@ func TestModelFingerprintScheduleReadsLegacyAndSavedWindows(t *testing.T) {
 }
 
 func TestModelFingerprintSchedulePreparationFailureIsRecorded(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	svc.httpUpstream = &fingerprintAPITransport{}
 	result, err := svc.StartModelFingerprint(context.Background(), "one", "removed-model", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "chat", Source: "scheduled"})
 	require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestModelFingerprintSchedulePreparationFailureIsRecorded(t *testing.T) {
 }
 
 func TestModelFingerprintScheduleBusyWorkersStillCleanHistory(t *testing.T) {
-	svc, base, _ := newFingerprintTestService()
+	svc, base, _ := newFingerprintTestService(t)
 	repo := &fingerprintScheduleTestRepo{fingerprintTestRepo: base, plans: []ModelFingerprintSchedule{{AccountID: "one"}}}
 	svc.accountRepo = repo
 	svc.modelFingerprintActive = 4

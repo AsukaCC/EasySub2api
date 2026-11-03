@@ -63,7 +63,7 @@ func TestModelFingerprintHistoryCleanupOnlyTargetsFingerprintRecords(t *testing.
 	defer db.Close()
 	repo := &accountRepository{sql: db}
 	now := time.Now()
-	mock.ExpectExec(`(?s)DELETE FROM usage_logs.*request_type=6 AND request_id LIKE 'fingerprint:%' AND created_at <= \$1.*LIMIT 5000`).WithArgs(now.Add(-24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec(`(?s)DELETE FROM usage_logs.*request_type=6 AND request_id LIKE 'fingerprint:%' AND actual_cost = 0 AND created_at <= \$1.*LIMIT 5000`).WithArgs(now.Add(-24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectExec(`(?s)DELETE FROM model_fingerprint_runs.*started_at <= \$1.*LIMIT 1000`).WithArgs(now.Add(-24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 1))
 	require.NoError(t, repo.CleanupModelFingerprintHistory(context.Background(), now))
 	require.NoError(t, mock.ExpectationsWereMet())

@@ -81,7 +81,7 @@ func TestModelFingerprintEligibility(t *testing.T) {
 func TestModelFingerprintSkippedWithoutUpstreamOrUsage(t *testing.T) {
 	for _, source := range []string{"manual", "scheduled"} {
 		t.Run(source, func(t *testing.T) {
-			svc, repo, upstream := newFingerprintTestService()
+			svc, repo, upstream := newFingerprintTestService(t)
 			require.NoError(t, repo.UpdateExtra(context.Background(), "one", map[string]any{"codex_7d_used_percent": 100}))
 			result, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "chat", Source: source})
 			require.NoError(t, err)
@@ -98,12 +98,13 @@ func TestModelFingerprintSkippedWithoutUpstreamOrUsage(t *testing.T) {
 	}
 }
 
-func TestModelFingerprintScheduledBusySkipAndIdleRecovery(t *testing.T) {
-	svc, base, upstream := newFingerprintTestService()
-	busy := true
+func TestModelFingerprintScheduledBusyQueueAndIdleRecovery(t *testing.T) {
+	svc, base, upstream := newFingerprintTestService(t)
+	var busy atomic.Bool
+	busy.Store(true)
 	svc.modelFingerprintLoad = fingerprintLoadFunc(func(context.Context, []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
 		load := &AccountLoadInfo{}
-		if busy {
+		if busy.Load() {
 			load.CurrentConcurrency = 1
 		}
 		return map[string]*AccountLoadInfo{"one": load}, nil
@@ -113,22 +114,22 @@ func TestModelFingerprintScheduledBusySkipAndIdleRecovery(t *testing.T) {
 		Options: ModelFingerprintOptions{APIKeyID: "local-key", Model: "gpt-6-astra", Protocol: "chat"},
 	}}}
 	svc.RunDueModelFingerprints(context.Background())
-	result := waitFingerprint(t, base.done)
-	require.Equal(t, "skipped", result.Status)
-	require.Equal(t, "account_busy", result.Error)
+	result, err := svc.GetModelFingerprint(context.Background(), "one")
+	require.NoError(t, err)
+	require.Equal(t, "queued", result.Status)
+	require.Equal(t, "account_busy", result.QueueReason)
 	require.Equal(t, "scheduled", result.Source)
 	require.Empty(t, upstream.requests)
-	busy = false
-	_, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin")
-	require.NoError(t, err)
+	svc.httpUpstream = &fingerprintAPITransport{}
+	busy.Store(false)
+	svc.wakeModelFingerprintQueue()
 	require.Equal(t, "completed", waitFingerprint(t, base.done).Status)
-	require.Len(t, upstream.requests["one"], 3)
 }
 
 func TestModelFingerprintYieldsBetweenSamples(t *testing.T) {
 	for _, reason := range []string{"account_busy", "quota_exhausted", "account_unavailable"} {
 		t.Run(reason, func(t *testing.T) {
-			svc, repo, upstream := newFingerprintTestService()
+			svc, repo, upstream := newFingerprintTestService(t)
 			var busy atomic.Bool
 			svc.modelFingerprintLoad = fingerprintLoadFunc(func(context.Context, []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
 				load := &AccountLoadInfo{}
@@ -154,6 +155,18 @@ func TestModelFingerprintYieldsBetweenSamples(t *testing.T) {
 				require.NoError(t, repo.UpdateExtra(context.Background(), "one", map[string]any{"quota_limit": 1, "quota_used": 1}))
 			}
 			close(upstream.release)
+			if reason == "account_busy" {
+				require.Eventually(t, func() bool {
+					result, _ := svc.GetModelFingerprint(context.Background(), "one")
+					return result != nil && result.Status == "waiting"
+				}, time.Second, time.Millisecond)
+				svc.modelFingerprintMu.Lock()
+				require.Zero(t, svc.modelFingerprintActive)
+				svc.modelFingerprintMu.Unlock()
+				busy.Store(false)
+				require.Equal(t, "completed", waitFingerprint(t, repo.done).Status)
+				return
+			}
 			result := waitFingerprint(t, repo.done)
 			require.Equal(t, "skipped", result.Status)
 			require.Equal(t, reason, result.Error)

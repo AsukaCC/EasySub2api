@@ -44,6 +44,7 @@ type ModelFingerprintSnapshot struct {
 	ExpiresAt        time.Time          `json:"expires_at"`
 	FinishedAt       *time.Time         `json:"finished_at,omitempty"`
 	Error            string             `json:"error,omitempty"`
+	QueueReason      string             `json:"queue_reason,omitempty"`
 	Result           *modeltrace.Result `json:"result,omitempty"`
 }
 
@@ -88,7 +89,7 @@ func ParseModelFingerprintSnapshot(raw any, now time.Time) (*ModelFingerprintSna
 	if !now.Before(retentionStart.Add(ModelFingerprintRetention)) {
 		return nil, nil
 	}
-	if snapshot.Status == "running" && !now.Before(snapshot.ExpiresAt) {
+	if IsModelFingerprintPending(snapshot.Status) && !now.Before(snapshot.ExpiresAt) {
 		snapshot.Status = "failed"
 		snapshot.Error = "interrupted"
 		snapshot.FinishedAt = &finished
@@ -147,21 +148,16 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	if userID == "" || s.modelFingerprintUsage == nil {
 		return nil, errors.New("model fingerprint usage logging unavailable")
 	}
-	store, ok := s.accountRepo.(modelFingerprintStore)
+	store, ok := s.accountRepo.(modelFingerprintQueueStore)
 	if !ok {
 		return nil, errors.New("model fingerprint store unavailable")
 	}
-	// Bound work per server; the database claim also prevents duplicates across replicas.
-	s.modelFingerprintMu.Lock()
-	if s.modelFingerprintActive >= 4 {
-		s.modelFingerprintMu.Unlock()
-		return nil, apperrors.New(429, "MODEL_FINGERPRINT_BUSY", "Model fingerprint workers are busy")
-	}
-	s.modelFingerprintActive++
-	s.modelFingerprintMu.Unlock()
-	release := func() { s.modelFingerprintMu.Lock(); s.modelFingerprintActive--; s.modelFingerprintMu.Unlock() }
 	now := time.Now().UTC()
-	snapshot := &ModelFingerprintSnapshot{ID: uuid.NewString(), Model: model, Status: "running", SamplingMode: "single_conversation", Total: modeltrace.QueryCount, StartedAt: now, ExpiresAt: now.Add(5 * time.Minute)}
+	snapshot := &ModelFingerprintSnapshot{ID: uuid.NewString(), Model: model, Status: "queued", SamplingMode: "single_conversation", Total: modeltrace.QueryCount, StartedAt: now, ExpiresAt: now.Add(ModelFingerprintRetention), QueueReason: "workers_busy"}
+	if skipReason == "account_busy" {
+		snapshot.QueueReason = skipReason
+		skipReason = ""
+	}
 	snapshot.UserID = userID
 	if selectedKey != nil {
 		snapshot.APIKeyID, snapshot.GroupID = selectedKey.ID, selectedKey.GroupID
@@ -172,20 +168,17 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 	if option.Protocol != "" {
 		snapshot.Protocol, snapshot.ReasoningEffort, snapshot.Source = option.Protocol, option.ReasoningEffort, option.Source
 		snapshot.SamplingMode = "independent"
-		snapshot.ExpiresAt = now.Add(10 * time.Minute)
 	}
 	claimed, err := store.ClaimModelFingerprint(ctx, id, snapshot)
 	if err != nil {
-		release()
 		return nil, err
 	}
 	if !claimed {
-		release()
-		return nil, apperrors.New(409, "MODEL_FINGERPRINT_RUNNING", "An account fingerprint test is already running")
+		return nil, apperrors.New(409, "MODEL_FINGERPRINT_RUNNING", "An account fingerprint test is already queued or running")
 	}
 	if skipReason != "" || preparationErr != nil {
-		defer release()
 		snapshot.Status, snapshot.Error, snapshot.FinishedAt = "failed", "preparation_failed", &now
+		snapshot.QueueReason = ""
 		if skipReason != "" {
 			snapshot.Status, snapshot.Error = "skipped", skipReason
 		}
@@ -195,7 +188,7 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 		return snapshot, nil
 	}
 	initial := *snapshot
-	go func() { defer release(); s.runModelFingerprint(id, userID, snapshot, store) }()
+	s.wakeModelFingerprintQueue()
 	return &initial, nil
 }
 
@@ -210,7 +203,11 @@ func IsModelFingerprintTextModel(model string) bool {
 }
 
 func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *ModelFingerprintSnapshot, store modelFingerprintStore) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Until(snapshot.ExpiresAt.Add(-15*time.Second)))
+	s.runModelFingerprintContext(context.Background(), id, userID, snapshot, store, nil)
+}
+
+func (s *AccountTestService) runModelFingerprintContext(parent context.Context, id, userID string, snapshot *ModelFingerprintSnapshot, store modelFingerprintStore, slot *modelFingerprintSlot) {
+	ctx, cancel := context.WithTimeout(parent, time.Until(snapshot.ExpiresAt.Add(-15*time.Second)))
 	defer cancel()
 	defer func() {
 		if recover() != nil {
@@ -219,7 +216,10 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		}
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) && snapshot.Status != "completed" {
 			snapshot.Status, snapshot.Error = "failed", "timeout"
+		} else if errors.Is(ctx.Err(), context.Canceled) {
+			snapshot.Status, snapshot.Error = "cancelled", ""
 		}
+		snapshot.QueueReason = ""
 		finished := time.Now().UTC()
 		snapshot.FinishedAt = &finished
 		persistCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)
@@ -228,6 +228,24 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 			slog.Warn("model fingerprint result could not be saved", "account_id", id, "job_id", snapshot.ID)
 		}
 	}()
+	if slot != nil && snapshot.Protocol != "" {
+		a, err := s.accountRepo.GetByID(ctx, id)
+		if err == nil {
+			_, err = s.fingerprintKey(ctx, a, userID, snapshot.APIKeyID)
+		}
+		if err == nil {
+			err = ValidateAccountProtectionConfiguration(a)
+		}
+		option := ModelFingerprintOptions{APIKeyID: snapshot.APIKeyID, Model: snapshot.Model, Protocol: snapshot.Protocol, ReasoningEffort: snapshot.ReasoningEffort}
+		if err == nil {
+			err = s.validateFingerprintOptions(ctx, a, &option)
+		}
+		if err != nil {
+			snapshot.Status, snapshot.Error = "failed", "preparation_failed"
+			return
+		}
+		snapshot.Protocol = option.Protocol
+	}
 	outputs := make([][]int, 0, modeltrace.QueryCount)
 	conversation := &modelFingerprintConversation{id: snapshot.ID}
 	challenges := modeltrace.Challenges()
@@ -239,9 +257,13 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 	if protocol == "auto" {
 		protocol = "chat"
 	}
-	for turn, challenge := range challenges {
+	for turn := 0; turn < len(challenges); {
+		challenge := challenges[turn]
 		if ctx.Err() != nil {
 			snapshot.Status, snapshot.Error = "failed", "timeout"
+			return
+		}
+		if slot != nil && !s.waitForFingerprintSlot(ctx, id, snapshot, store, slot) {
 			return
 		}
 		if snapshot.SamplingMode == "independent" {
@@ -264,16 +286,27 @@ func (s *AccountTestService) runModelFingerprint(id, userID string, snapshot *Mo
 		timedOut := !probe.enough && (errors.Is(probeCtx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeoutErr) && timeoutErr.Timeout()))
 		stop()
 		if probe.skipReason != "" {
+			if probe.skipReason == "account_busy" && slot != nil {
+				if !s.pauseFingerprint(ctx, id, snapshot, store, slot, "account_busy") {
+					return
+				}
+				continue
+			}
 			snapshot.Status, snapshot.Error = "skipped", probe.skipReason
+			return
+		}
+		if probe.billingFailed {
+			snapshot.Status, snapshot.Error = "failed", "billing_failed"
 			return
 		}
 		snapshot.Completed++
 		if err := s.recordModelFingerprintUsage(userID, id, snapshot, turn, probe); err != nil {
 			snapshot.Status = "failed"
-			snapshot.Error = "save_failed"
+			snapshot.Error = "billing_failed"
 			slog.Warn("model fingerprint usage could not be saved", "account_id", id, "job_id", snapshot.ID)
 			return
 		}
+		turn++
 		if !probe.enough && (err != nil || probe.failed || timedOut || !probe.complete) {
 			snapshot.Status = "failed"
 			snapshot.Error = "upstream_failed"
@@ -353,6 +386,8 @@ type modelFingerprintProbe struct {
 	firstTokenMs   *int
 	upstreamModel  string
 	usage          UsageLog
+	billing        *OpenAIRecordUsageInput
+	billingFailed  bool
 }
 
 func fingerprintProbe(ctx context.Context) *modelFingerprintProbe {
@@ -382,7 +417,6 @@ func (p *modelFingerprintProbe) event(event TestEvent) {
 		// Wait for a delimiter so a digit split over SSE chunks is not counted early.
 		if len(text) > 0 && (text[len(text)-1] < '0' || text[len(text)-1] > '9') && len(modeltrace.ParseNumbers(text)) >= p.expected {
 			p.enough = true
-			p.cancel()
 		}
 	case "test_complete":
 		p.complete = event.Success
@@ -392,10 +426,14 @@ func (p *modelFingerprintProbe) event(event TestEvent) {
 }
 
 type modelFingerprintUsageWriter interface {
-	Create(context.Context, *UsageLog) (bool, error)
+	Prepare(context.Context, *Account, *APIKey) (*OpenAIRecordUsageInput, error)
+	Record(context.Context, *UsageLog, *OpenAIRecordUsageInput) error
 }
 
 func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID string, snapshot *ModelFingerprintSnapshot, turn int, probe *modelFingerprintProbe) error {
+	if probe.billing == nil {
+		return nil // Billing admission failed before sending the model request.
+	}
 	log := probe.usage
 	log.UserID, log.AccountID = userID, accountID
 	log.APIKeyID, log.GroupID = snapshot.APIKeyID, snapshot.GroupID
@@ -421,11 +459,10 @@ func (s *AccountTestService) recordModelFingerprintUsage(userID, accountID strin
 		upstreamEndpoint = "/v1/messages"
 		log.UpstreamEndpoint = &upstreamEndpoint
 	}
-	// Persist even when sampling canceled upstream early. Tests never debit a wallet/key.
+	// Settle reported usage even when the request was cancelled or timed out.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, err := s.modelFingerprintUsage.Create(ctx, &log)
-	return err
+	return s.modelFingerprintUsage.Record(ctx, &log, probe.billing)
 }
 
 // Native identity/authentication stays in the existing test transport.

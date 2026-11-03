@@ -437,6 +437,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.DELETE("/:id", h.Admin.Account.Delete)
 		accounts.POST("/:id/test", h.Admin.Account.Test)
 		accounts.POST("/:id/model-fingerprint", h.Admin.Account.StartModelFingerprint)
+		accounts.POST("/:id/model-fingerprint/:job_id/cancel", h.Admin.Account.CancelModelFingerprint)
 		accounts.GET("/:id/model-fingerprint", h.Admin.Account.GetModelFingerprint)
 		accounts.GET("/:id/model-fingerprint/models", h.Admin.Account.GetFingerprintModels)
 		accounts.GET("/:id/model-fingerprint/api-keys", h.Admin.Account.ListFingerprintKeys)
