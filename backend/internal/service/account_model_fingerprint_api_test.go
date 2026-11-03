@@ -29,7 +29,7 @@ func (r *nativeFingerprintRepo) GetByID(ctx context.Context, id string) (*Accoun
 		return nil, err
 	}
 	account.Type = AccountTypeOAuth
-	account.Credentials = map[string]any{"access_token": "test-only"}
+	account.Credentials = map[string]any{"access_token": "test-only", "chatgpt_account_id": "test-chatgpt-account"}
 	delete(account.Extra, "openai_responses_mode")
 	account.Extra[UpstreamModelCatalogExtraKey] = upstreamModelCatalogSnapshot{
 		ConfigHash: upstreamModelCatalogConfigHash(account),
@@ -89,7 +89,7 @@ func (u *fingerprintAPITransport) DoWithTLS(req *http.Request, _ string, _ strin
 func TestModelFingerprintAPIProtocols(t *testing.T) {
 	for _, protocol := range []string{"chat", "anthropic", "auto"} {
 		t.Run(protocol, func(t *testing.T) {
-			svc, repo, _ := newFingerprintTestService()
+			svc, repo, _ := newFingerprintTestService(t)
 			transport := &fingerprintAPITransport{fallback: protocol == "auto"}
 			svc.httpUpstream = transport
 			models, err := svc.GetFingerprintModels(context.Background(), "one")
@@ -183,7 +183,7 @@ func TestModelFingerprintNativeAccountsUseAccountTransport(t *testing.T) {
 		require.Equal(t, tc.native, fingerprintNativeAccount(account), "%s/%s", tc.platform, tc.accountType)
 	}
 
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	svc.accountRepo = &nativeFingerprintRepo{repo}
 	ctx := context.Background()
 	models, err := svc.GetFingerprintModelsForKey(ctx, "one", "admin", "local-key")
@@ -214,7 +214,7 @@ func TestModelFingerprintNativeAccountsUseAccountTransport(t *testing.T) {
 }
 
 func TestModelFingerprintAPIValidationAndRetryBound(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	transport := &fingerprintAPITransport{invalid: true}
 	svc.httpUpstream = transport
 	for _, option := range []ModelFingerprintOptions{
@@ -234,7 +234,7 @@ func TestModelFingerprintAPIValidationAndRetryBound(t *testing.T) {
 }
 
 func TestModelFingerprintAPIAuthFailureDoesNotRetry(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	svc.httpUpstream = &fingerprintAPITransport{status: 401}
 	_, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin", ModelFingerprintOptions{APIKeyID: "local-key", Protocol: "auto"})
 	require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestModelFingerprintAPIDefaultHostsAndCustomRelay(t *testing.T) {
 		{PlatformAnthropic, "", "api.anthropic.com"},
 	} {
 		t.Run(tc.platform, func(t *testing.T) {
-			svc, _, _ := newFingerprintTestService()
+			svc, _, _ := newFingerprintTestService(t)
 			transport := &fingerprintAPITransport{}
 			svc.httpUpstream = transport
 			account := &Account{ID: "account", Platform: tc.platform, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "test-only", "base_url": tc.base}}

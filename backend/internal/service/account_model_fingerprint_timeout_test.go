@@ -31,7 +31,7 @@ func (u *fingerprintTimeoutTransport) DoWithTLS(req *http.Request, _ string, _ s
 func TestModelFingerprintTimeoutStopsWithoutRetry(t *testing.T) {
 	for _, wait := range []bool{false, true} {
 		t.Run(map[bool]string{false: "upstream timeout", true: "job deadline cancels transport"}[wait], func(t *testing.T) {
-			svc, repo, _ := newFingerprintTestService()
+			svc, repo, _ := newFingerprintTestService(t)
 			transport := &fingerprintTimeoutTransport{waitForCancellation: wait}
 			svc.httpUpstream = transport
 			now := time.Now()
@@ -49,7 +49,7 @@ func TestModelFingerprintTimeoutStopsWithoutRetry(t *testing.T) {
 }
 
 func TestModelFingerprintTimeoutReleasesWorker(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	svc.httpUpstream = &fingerprintAPITransport{}
 	_, err := svc.GetFingerprintModels(context.Background(), "one")
 	require.NoError(t, err)

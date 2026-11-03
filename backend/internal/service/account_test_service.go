@@ -156,6 +156,8 @@ type AccountTestService struct {
 	agentIdentityTaskMu       sync.Mutex
 	modelFingerprintMu        sync.Mutex
 	modelFingerprintActive    int
+	modelFingerprintQueue     *modelFingerprintQueueRuntime
+	modelFingerprintStopped   bool
 	modelFingerprintUsage     modelFingerprintUsageWriter
 	modelFingerprintKeys      APIKeyRepository
 	modelFingerprintGroups    GroupRepository
@@ -362,11 +364,24 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID str
 	}
 	if fingerprintProbe(ctx) != nil {
 		probe := fingerprintProbe(ctx)
+		var key *APIKey
 		if probe.apiKeyID != "" {
-			if _, err := s.fingerprintKey(ctx, account, probe.userID, probe.apiKeyID); err != nil {
+			key, err = s.fingerprintKey(ctx, account, probe.userID, probe.apiKeyID)
+			if err != nil {
 				probe.fatal = true
 				return err
 			}
+		}
+		if s.modelFingerprintUsage == nil {
+			probe.fatal = true
+			probe.billingFailed = true
+			return errors.New("model fingerprint billing unavailable")
+		}
+		probe.billing, err = s.modelFingerprintUsage.Prepare(ctx, account, key)
+		if err != nil {
+			probe.fatal = true
+			probe.billingFailed = true
+			return err
 		}
 		account = DirectModelTestAccount(account)
 		if fingerprintProbe(ctx).protocol != "" {
@@ -526,6 +541,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		collectModelFingerprintJSONUsage(ctx, body)
 		errMsg := fmt.Sprintf("API returned %v: %s", resp.StatusCode, string(body))
 
 		// 403 表示账号被上游封禁，标记为 error 状态
@@ -599,6 +615,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		collectModelFingerprintJSONUsage(ctx, body)
 		errMsg := fmt.Sprintf("API returned %v: %s", resp.StatusCode, string(body))
 		if resp.StatusCode == http.StatusForbidden {
 			_ = s.accountRepo.SetError(ctx, account.ID, modelFingerprintSafeError(ctx, errMsg))
@@ -685,6 +702,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
+	collectModelFingerprintJSONUsage(ctx, body)
 
 	if resp.StatusCode != http.StatusOK {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %v: %s", resp.StatusCode, string(body)))
@@ -888,6 +906,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		collectModelFingerprintJSONUsage(ctx, body)
 		body = redactAgentIdentitySensitiveBodyForAccount(ctx, s.accountRepo, credentialAccount, body)
 		if fingerprintProbe(ctx) == nil && !agentIdentityTaskRecoveryWasTried(ctx) && credentialAccount.IsOpenAIAgentIdentity() && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, body) {
 			expectedTaskID := credentialAccount.GetCredential("task_id")

@@ -134,7 +134,7 @@ func (r *accountRepository) CleanupModelFingerprintHistory(ctx context.Context, 
 	cutoff := now.Add(-service.ModelFingerprintRetention)
 	// Limit each sweep so cleanup cannot monopolize the database after downtime.
 	if _, err := r.sql.ExecContext(ctx, `DELETE FROM usage_logs WHERE id IN (
- SELECT id FROM usage_logs WHERE request_type=6 AND request_id LIKE 'fingerprint:%' AND created_at <= $1
+ SELECT id FROM usage_logs WHERE request_type=6 AND request_id LIKE 'fingerprint:%' AND actual_cost = 0 AND created_at <= $1
  ORDER BY created_at LIMIT 5000)`, cutoff); err != nil {
 		return err
 	}

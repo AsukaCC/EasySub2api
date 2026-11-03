@@ -49,7 +49,7 @@ func (r *accountRepository) ClaimModelFingerprint(ctx context.Context, id string
 	result, err := r.client.ExecContext(ctx, `WITH claimed AS (UPDATE accounts
 		SET extra = jsonb_set(COALESCE(extra, '{}'::jsonb), '{model_fingerprint}', $1::jsonb), updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL AND (
-			COALESCE(extra->'model_fingerprint'->>'status', '') <> 'running'
+			COALESCE(extra->'model_fingerprint'->>'status', '') NOT IN ('queued', 'running', 'waiting')
 			OR COALESCE((extra->'model_fingerprint'->>'expires_at')::timestamptz, '-infinity'::timestamptz) <= $3
 		) AND ($1::jsonb->>'source' IS DISTINCT FROM 'scheduled' OR EXISTS (
 			SELECT 1 FROM model_fingerprint_schedules s JOIN users u ON u.id = s.user_id
@@ -85,7 +85,8 @@ func (r *accountRepository) SaveModelFingerprint(ctx context.Context, id string,
 	}
 	result, err := r.client.ExecContext(ctx, `WITH saved AS (UPDATE accounts
 		SET extra = jsonb_set(COALESCE(extra, '{}'::jsonb), '{model_fingerprint}', $1::jsonb), updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL AND extra->'model_fingerprint'->>'id' = $3 RETURNING id)
+		WHERE id = $2 AND deleted_at IS NULL AND extra->'model_fingerprint'->>'id' = $3
+		AND extra->'model_fingerprint'->>'status' IN ('queued', 'running', 'waiting') RETURNING id)
 		INSERT INTO model_fingerprint_runs (id, account_id, started_at, snapshot)
 		SELECT $3::uuid, id, ($1::jsonb->>'started_at')::timestamptz, $1::jsonb FROM saved
 		ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot`, string(body), id, snapshot.ID)

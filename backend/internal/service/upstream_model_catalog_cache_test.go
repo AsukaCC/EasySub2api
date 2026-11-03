@@ -33,7 +33,7 @@ func (u *modelCatalogTransport) DoWithTLS(req *http.Request, _ string, _ string,
 }
 
 func TestUpstreamModelCatalogPersistsAcrossServicesAndKeyChanges(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	transport := &modelCatalogTransport{status: 200, body: `{"data":[{"id":"gpt-6-astra","supported_reasoning_levels":["low","high"]},{"id":"gpt-image-2"}]}`}
 	svc.httpUpstream = transport
 	models, err := svc.GetFingerprintModelsForKey(context.Background(), "one", "admin", "local-key")
@@ -60,7 +60,7 @@ func TestUpstreamModelCatalogPersistsAcrossServicesAndKeyChanges(t *testing.T) {
 }
 
 func TestUpstreamModelCatalogSyncRefreshesIncompleteModelsAndPreservesOnFailure(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	transport := &modelCatalogTransport{status: 200, body: `{"data":[{"id":"custom-one"}]}`}
 	svc.httpUpstream = transport
 	account, _ := repo.GetByID(context.Background(), "one")
@@ -87,7 +87,7 @@ func TestUpstreamModelCatalogSyncRefreshesIncompleteModelsAndPreservesOnFailure(
 }
 
 func TestUpstreamModelCatalogInvalidatesConnectionChanges(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	account, _ := repo.GetByID(context.Background(), "one")
 	require.NoError(t, svc.saveUpstreamModelCatalog(context.Background(), account, &UpstreamModelCatalog{Models: []string{"gpt-6-astra"}}, false, nil))
 	for _, field := range []string{"base_url", "api_key", "api_protocol", "header_overrides"} {
@@ -109,7 +109,7 @@ func TestUpstreamModelCatalogInvalidatesConnectionChanges(t *testing.T) {
 }
 
 func TestUpstreamModelCatalogConcurrentMissAndAccountIsolation(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	transport := &modelCatalogTransport{status: 200, body: `{"data":[{"id":"gpt-6-astra"}]}`}
 	svc.httpUpstream = transport
 	var wg sync.WaitGroup
@@ -138,7 +138,7 @@ func TestUpstreamModelCatalogConcurrentMissAndAccountIsolation(t *testing.T) {
 }
 
 func TestUpstreamModelCatalogConfiguredFallbackTracksMapping(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	repo.mapping = map[string]any{"alias": "custom-one"}
 	transport := &modelCatalogTransport{status: 404, body: `{}`}
 	svc.httpUpstream = transport
@@ -164,7 +164,7 @@ func (r *failingCatalogRepo) UpdateExtra(context.Context, string, map[string]any
 }
 
 func TestUpstreamModelCatalogStorageFailureIsNotReportedAsSuccess(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	svc.accountRepo = &failingCatalogRepo{repo}
 	svc.httpUpstream = &modelCatalogTransport{status: 200, body: `{"data":[{"id":"gpt-6-astra"}]}`}
 	account, _ := repo.GetByID(context.Background(), "one")

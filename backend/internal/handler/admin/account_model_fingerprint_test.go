@@ -63,6 +63,28 @@ func TestModelFingerprintRequiresAuditActor(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
+func TestModelFingerprintCancelValidatesIDsAndAuditActor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := &AccountHandler{}
+	router.POST("/accounts/:id/model-fingerprint/:job_id/cancel", handler.CancelModelFingerprint)
+	const id = "01995000-0000-7000-8000-000000000001"
+	for _, tc := range []struct {
+		name, accountID, jobID string
+		status                 int
+	}{
+		{"invalid account", "invalid", id, http.StatusBadRequest},
+		{"invalid job", id, "invalid", http.StatusBadRequest},
+		{"missing actor", id, id, http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/accounts/"+tc.accountID+"/model-fingerprint/"+tc.jobID+"/cancel", nil))
+			require.Equal(t, tc.status, rec.Code)
+		})
+	}
+}
+
 func TestModelFingerprintUsageFilter(t *testing.T) {
 	repo := &adminUsageRepoCapture{}
 	router := newAdminUsageRequestTypeTestRouter(repo)

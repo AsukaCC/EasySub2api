@@ -208,6 +208,7 @@ func (s *AccountTestService) RunDueModelFingerprints(ctx context.Context) {
 	if s == nil {
 		return
 	}
+	s.wakeModelFingerprintQueue()
 	store, ok := s.accountRepo.(modelFingerprintHistoryStore)
 	if !ok {
 		return
@@ -222,10 +223,7 @@ func (s *AccountTestService) RunDueModelFingerprints(ctx context.Context) {
 		return
 	}
 	for _, plan := range plans {
-		s.modelFingerprintMu.Lock()
-		full := s.modelFingerprintActive >= 4
-		s.modelFingerprintMu.Unlock()
-		if full || ctx.Err() != nil {
+		if ctx.Err() != nil {
 			return
 		}
 		plan.Options.Source = "scheduled"

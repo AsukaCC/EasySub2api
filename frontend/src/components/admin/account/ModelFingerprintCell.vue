@@ -10,7 +10,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
 import type { Account } from '@/types'
-import type { ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
+import { isModelFingerprintPending, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 import { useModelFingerprint, useModelFingerprintExpiry } from '@/composables/useModelFingerprint'
 import ModelFingerprintResult from './ModelFingerprintResult.vue'
 
@@ -18,7 +18,7 @@ const props = defineProps<{ account: Account }>()
 const emit = defineEmits<{ open: [account: Account]; update: [accountId: string, snapshot: ModelFingerprintSnapshot | null] }>()
 const { t } = useI18n()
 const saved = computed(() => props.account.extra?.model_fingerprint as ModelFingerprintSnapshot | undefined)
-const activeId = computed(() => saved.value?.status === 'running' ? props.account.id : null)
+const activeId = computed(() => isModelFingerprintPending(saved.value) ? props.account.id : null)
 const { snapshot } = useModelFingerprint(activeId, value => emit('update', props.account.id, value))
 const displaySnapshot = useModelFingerprintExpiry(
   computed(() => snapshot.value || saved.value || null),

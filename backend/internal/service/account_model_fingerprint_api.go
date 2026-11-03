@@ -245,6 +245,10 @@ func (s *AccountTestService) testFingerprintAPI(c *gin.Context, account *Account
 	if resp.StatusCode != http.StatusOK {
 		p.fatal = resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 429
 		p.formatRejected = slices.Contains([]int{400, 404, 405, 422}, resp.StatusCode)
+		var data map[string]any
+		if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&data) == nil {
+			collectModelFingerprintUsage(ctx, data)
+		}
 		return fmt.Errorf("fingerprint upstream HTTP %d", resp.StatusCode)
 	}
 	body, err = io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))

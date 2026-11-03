@@ -4,7 +4,8 @@ export interface ModelFingerprintSnapshot {
   api_key_id?: string
   id: string
   model: string
-  status: 'running' | 'completed' | 'failed' | 'skipped'
+  status: 'queued' | 'waiting' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled'
+  queue_reason?: 'workers_busy' | 'account_busy'
   sampling_mode: 'single_conversation' | 'independent'
   protocol?: FingerprintProtocol
   resolved_protocol?: FingerprintProtocol
@@ -63,6 +64,15 @@ export async function setFingerprintSchedule(id: string, schedule: FingerprintSc
 
 export async function getModelFingerprint(id: string, signal?: AbortSignal) {
   const { data } = await apiClient.get<ModelFingerprintSnapshot | null>(`/admin/accounts/${id}/model-fingerprint`, { signal })
+  return data
+}
+
+export function isModelFingerprintPending(snapshot?: ModelFingerprintSnapshot | null) {
+  return !!snapshot && ['queued', 'waiting', 'running'].includes(snapshot.status)
+}
+
+export async function cancelModelFingerprint(id: string, jobId: string) {
+  const { data } = await apiClient.post<ModelFingerprintSnapshot>(`/admin/accounts/${id}/model-fingerprint/${jobId}/cancel`)
   return data
 }
 

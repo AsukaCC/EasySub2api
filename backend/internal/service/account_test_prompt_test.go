@@ -70,7 +70,7 @@ func TestAccountConnectionGrokCustomPrompt(t *testing.T) {
 }
 
 func TestAccountConnectionDeadlineReturnsTimeout(t *testing.T) {
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	upstream := &fingerprintTimeoutTransport{waitForCancellation: true}
 	svc.httpUpstream = upstream
 	c, recorder := newTestContext()

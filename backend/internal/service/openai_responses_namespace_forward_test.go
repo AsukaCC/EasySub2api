@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/pkg/apicompat"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
@@ -30,6 +32,45 @@ const codexNamespaceRequestBody = `{
 }`
 
 const namespaceForwardOKResponse = `{"id":"resp_ns","output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`
+
+func TestOpenAIGatewayService_APIKeyNamespacedJSRoundTrip(t *testing.T) {
+	body := []byte(`{"model":"gpt-6-astra","stream":false,"tools":[
+		{"type":"namespace","name":"browser","tools":[{"type":"function","name":"js","parameters":{"type":"object"}}]},
+		{"type":"namespace","name":"node","tools":[{"type":"function","name":"js","parameters":{"type":"object"}}]}
+	],"input":[
+		{"type":"function_call","id":"fc_1","namespace":"browser","name":"js","call_id":"call_1","arguments":"{}"},
+		{"type":"function_call_output","call_id":"call_1","output":"browser result"},
+		{"type":"function_call","id":"fc_2","namespace":"node","name":"js","call_id":"call_2","arguments":"{}"},
+		{"type":"function_call_output","call_id":"call_2","output":"node result"}
+	]}`)
+	upstream := &httpUpstreamRecorder{responses: []*http.Response{newOpenAIRejectedFieldTestResponse(http.StatusOK, namespaceForwardOKResponse)}}
+	_, err := newOpenAIRejectedFieldTestService(upstream).Forward(context.Background(), newOpenAIRejectedFieldTestContext(body), newOpenAIRejectedFieldTestAccount(), body)
+	require.NoError(t, err)
+	require.Len(t, upstream.bodies, 1)
+	forwarded := upstream.bodies[0]
+	for _, path := range []string{"tools", "input"} {
+		require.JSONEq(t, gjson.GetBytes(body, path).Raw, gjson.GetBytes(forwarded, path).Raw)
+	}
+}
+
+func TestOpenAIGatewayService_APIKeyNamespacedJSChatBridge(t *testing.T) {
+	body := []byte(`{"model":"gpt-6-astra","stream":false,"tools":[{"type":"namespace","name":"browser","tools":[{"type":"function","name":"js","parameters":{"type":"object"}}]}],"input":[{"type":"function_call","namespace":"browser","name":"js","call_id":"call_old","arguments":"{}"},{"type":"function_call_output","call_id":"call_old","output":"ok"}]}`)
+	upstream := &httpUpstreamRecorder{responses: []*http.Response{newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"id":"chat_test","model":"gpt-6-astra","choices":[{"index":0,"message":{"role":"assistant","tool_calls":[{"id":"call_next","type":"function","function":{"name":"browser__js","arguments":"{}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`)}}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = newOpenAIRejectedFieldTestContext(body).Request
+	account := newOpenAIRejectedFieldTestAccount()
+	account.Extra["openai_responses_mode"] = "force_chat_completions"
+	_, err := newOpenAIRejectedFieldTestService(upstream).Forward(context.Background(), c, account, body)
+	require.NoError(t, err)
+	forwarded := upstream.lastBody
+	require.Equal(t, "browser__js", gjson.GetBytes(forwarded, "tools.0.function.name").String())
+	require.Equal(t, "browser__js", gjson.GetBytes(forwarded, "messages.0.tool_calls.0.function.name").String())
+	require.Equal(t, "call_old", gjson.GetBytes(forwarded, "messages.1.tool_call_id").String())
+	require.Equal(t, "browser", gjson.GetBytes(rec.Body.Bytes(), "output.0.namespace").String())
+	require.Equal(t, "js", gjson.GetBytes(rec.Body.Bytes(), "output.0.name").String())
+	require.Equal(t, "call_next", gjson.GetBytes(rec.Body.Bytes(), "output.0.call_id").String())
+}
 
 // OAuth 出口即 namespace 扩展的定义方：声明必须原样送达，历史调用项必须保留
 // namespace（缺字段上游会 400 "Missing namespace for function_call"），而非调用项上的

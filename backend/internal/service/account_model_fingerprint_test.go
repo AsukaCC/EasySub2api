@@ -5,9 +5,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -58,7 +60,7 @@ func (r *fingerprintTestRepo) UpdateExtra(_ context.Context, id string, updates 
 func (r *fingerprintTestRepo) ClaimModelFingerprint(_ context.Context, id string, snapshot *ModelFingerprintSnapshot) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if previous := r.snapshots[id]; previous != nil && previous.Status == "running" && time.Now().Before(previous.ExpiresAt) {
+	if previous := r.snapshots[id]; previous != nil && IsModelFingerprintPending(previous.Status) && time.Now().Before(previous.ExpiresAt) {
 		return false, nil
 	}
 	copy := *snapshot
@@ -67,13 +69,57 @@ func (r *fingerprintTestRepo) ClaimModelFingerprint(_ context.Context, id string
 }
 func (r *fingerprintTestRepo) SaveModelFingerprint(_ context.Context, id string, snapshot *ModelFingerprintSnapshot) error {
 	r.mu.Lock()
+	if previous := r.snapshots[id]; previous != nil && (previous.ID != snapshot.ID || !IsModelFingerprintPending(previous.Status)) {
+		r.mu.Unlock()
+		return errors.New("model fingerprint lease lost")
+	}
 	copy := *snapshot
 	r.snapshots[id] = &copy
 	r.mu.Unlock()
-	if snapshot.Status != "running" {
+	if !IsModelFingerprintPending(snapshot.Status) {
 		r.done <- &copy
 	}
 	return nil
+}
+
+func (r *fingerprintTestRepo) ListQueuedModelFingerprints(context.Context) ([]ModelFingerprintQueuedJob, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	jobs := []ModelFingerprintQueuedJob{}
+	for id, snapshot := range r.snapshots {
+		if snapshot.Status == "queued" {
+			copy := *snapshot
+			jobs = append(jobs, ModelFingerprintQueuedJob{AccountID: id, Snapshot: &copy})
+		}
+	}
+	sort.Slice(jobs, func(i, j int) bool { return jobs[i].Snapshot.StartedAt.Before(jobs[j].Snapshot.StartedAt) })
+	return jobs, nil
+}
+
+func (r *fingerprintTestRepo) ActivateModelFingerprint(_ context.Context, id string, snapshot *ModelFingerprintSnapshot) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	previous := r.snapshots[id]
+	if previous == nil || previous.ID != snapshot.ID || previous.Status != "queued" {
+		return false, nil
+	}
+	copy := *snapshot
+	r.snapshots[id] = &copy
+	return true, nil
+}
+
+func (r *fingerprintTestRepo) CancelModelFingerprint(_ context.Context, id, jobID string) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	previous := r.snapshots[id]
+	if previous == nil || previous.ID != jobID || !IsModelFingerprintPending(previous.Status) {
+		return false, nil
+	}
+	copy := *previous
+	finished := time.Now()
+	copy.Status, copy.Error, copy.QueueReason, copy.FinishedAt = "cancelled", "", "", &finished
+	r.snapshots[id] = &copy
+	return true, nil
 }
 
 type fingerprintTestTransport struct {
@@ -127,16 +173,18 @@ func (u *fingerprintTestTransport) DoWithTLS(req *http.Request, _ string, accoun
 	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(fmt.Sprintf("data: %s\n\ndata: [DONE]\n\n", delta)))}, nil
 }
 
-func newFingerprintTestService() (*AccountTestService, *fingerprintTestRepo, *fingerprintTestTransport) {
+func newFingerprintTestService(t *testing.T) (*AccountTestService, *fingerprintTestRepo, *fingerprintTestTransport) {
 	repo := &fingerprintTestRepo{snapshots: make(map[string]*ModelFingerprintSnapshot), done: make(chan *ModelFingerprintSnapshot, 8)}
 	upstream := &fingerprintTestTransport{requests: make(map[string][][]byte), sessions: make(map[string][]string)}
-	return &AccountTestService{accountRepo: repo, httpUpstream: upstream, cfg: &config.Config{}, modelFingerprintUsage: &fingerprintUsageStub{},
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream, cfg: &config.Config{}, modelFingerprintUsage: &fingerprintUsageStub{},
 		modelFingerprintLoad: fingerprintLoadFunc(func(_ context.Context, accounts []AccountWithConcurrency) (map[string]*AccountLoadInfo, error) {
 			return map[string]*AccountLoadInfo{accounts[0].ID: {}}, nil
 		}),
 		modelFingerprintKeys:   &fingerprintKeyRepo{keys: []APIKey{{ID: "local-key", Name: "My key", Key: "local-secret", UserID: "admin", Status: StatusActive, GroupIDs: []string{"fingerprint-group"}}}},
 		modelFingerprintGroups: &fingerprintGroupRepo{group: &Group{ID: "fingerprint-group", Platform: PlatformOpenAI, Status: StatusActive}},
-	}, repo, upstream
+	}
+	t.Cleanup(svc.StopModelFingerprintQueue)
+	return svc, repo, upstream
 }
 
 type fingerprintUsageStub struct {
@@ -145,14 +193,18 @@ type fingerprintUsageStub struct {
 	err  error
 }
 
-func (r *fingerprintUsageStub) Create(ctx context.Context, log *UsageLog) (bool, error) {
+func (r *fingerprintUsageStub) Prepare(context.Context, *Account, *APIKey) (*OpenAIRecordUsageInput, error) {
+	return &OpenAIRecordUsageInput{}, nil
+}
+
+func (r *fingerprintUsageStub) Record(ctx context.Context, log *UsageLog, _ *OpenAIRecordUsageInput) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if ctx.Err() != nil {
-		return false, ctx.Err()
+		return ctx.Err()
 	}
 	r.logs = append(r.logs, *log)
-	return r.err == nil, r.err
+	return r.err
 }
 
 func waitFingerprint(t *testing.T, done <-chan *ModelFingerprintSnapshot) *ModelFingerprintSnapshot {
@@ -160,7 +212,7 @@ func waitFingerprint(t *testing.T, done <-chan *ModelFingerprintSnapshot) *Model
 	select {
 	case result := <-done:
 		return result
-	case <-time.After(5 * time.Second):
+	case <-time.After(8 * time.Second):
 		t.Fatal("test worker did not finish")
 		return nil
 	}
@@ -202,7 +254,7 @@ func TestModelFingerprintRetention(t *testing.T) {
 			}
 		})
 	}
-	svc, repo, _ := newFingerprintTestService()
+	svc, repo, _ := newFingerprintTestService(t)
 	old := time.Now().Add(-25 * time.Hour)
 	repo.snapshots["expired"] = &ModelFingerprintSnapshot{Status: "completed", FinishedAt: &old}
 	got, err := svc.GetModelFingerprint(context.Background(), "expired")
@@ -237,7 +289,7 @@ func TestModelFingerprintCleanupRunsWithAccountExpiry(t *testing.T) {
 }
 
 func TestModelFingerprintSingleConversationAndAccountIsolation(t *testing.T) {
-	svc, repo, upstream := newFingerprintTestService()
+	svc, repo, upstream := newFingerprintTestService(t)
 	upstream.entered = make(chan string, 2)
 	upstream.release = make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -287,7 +339,7 @@ func TestModelFingerprintSingleConversationAndAccountIsolation(t *testing.T) {
 }
 
 func TestModelFingerprintInvalidSamplesAndMedia(t *testing.T) {
-	svc, repo, upstream := newFingerprintTestService()
+	svc, repo, upstream := newFingerprintTestService(t)
 	upstream.invalid = true
 	_, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-image-2", "admin")
 	require.Equal(t, 400, apperrors.Code(err))
@@ -329,7 +381,7 @@ func TestModelFingerprintDirectModelAndUsage(t *testing.T) {
 		{"other-model": "other-model"},
 		{"gpt-6-astra": "gpt-image-2"},
 	} {
-		svc, repo, upstream := newFingerprintTestService()
+		svc, repo, upstream := newFingerprintTestService(t)
 		repo.mapping = mapping
 		job, err := svc.StartModelFingerprint(context.Background(), "one", "gpt-6-astra", "admin")
 		require.NoError(t, err)
@@ -366,7 +418,7 @@ func TestModelFingerprintDirectModelAndUsage(t *testing.T) {
 
 func TestModelFingerprintFailureUsage(t *testing.T) {
 	for _, writeFailure := range []bool{false, true} {
-		svc, repo, upstream := newFingerprintTestService()
+		svc, repo, upstream := newFingerprintTestService(t)
 		writer := svc.modelFingerprintUsage.(*fingerprintUsageStub)
 		if writeFailure {
 			writer.err = fmt.Errorf("storage unavailable")

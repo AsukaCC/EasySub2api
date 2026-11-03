@@ -8,6 +8,8 @@ export default {
         loadFailed: 'Could not load login details. Please retry.'
       },
       fingerprint: {
+        queued: 'Queued', cancelTest: 'Cancel / stop test', cancelled: 'Test cancelled', cancelFailed: 'Could not cancel. Please retry.',
+        queue: { workers_busy: 'Queued: waiting for a test slot', account_busy: 'Queued: waiting for the account to become idle' },
         title: 'Model Fingerprint Test', attribution: 'Model Attribution', start: 'Start Test', notTested: 'Not tested',
         samples: '3 valid fingerprint samples', serial: 'Independent samples', inBackground: 'Testing in background',
         apiKey: 'API Key', protocol: 'Request Format', effort: 'Reasoning Effort', defaultEffort: 'Upstream default',
@@ -25,14 +27,16 @@ export default {
         progress: 'Sampling {count}/{total}', allCandidates: 'All candidates',
         scope: 'Shares are relative attribution within the GPT / Claude candidate bank, not proof of identity. Unlisted models are assigned to the closest candidate.',
         noModels: 'No text models available', loadFailed: 'Could not load models. Please retry.',
-        pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not start. A test may already exist or all test slots may be occupied.',
+        pollFailed: 'Status connection interrupted. Reconnecting.', startFailed: 'Could not queue the test. A queued or running test may already exist.',
         skips: {
+          queue_expired: 'Skipped: queued for more than 24 hours',
           quota_exhausted: 'Skipped: 5-hour or 7-day quota exhausted',
           account_busy: 'Skipped: account has active or queued requests',
           account_unavailable: 'Skipped: account is currently unavailable',
           account_activity_unknown: 'Skipped: could not confirm that the account is idle'
         },
         errors: {
+          billing_failed: 'Billing eligibility or settlement failed. Check the balance, subscription, and API key quota.',
           preparation_failed: 'API key, upstream model or parameter validation failed',
           interrupted: 'Test interrupted. Run again.', timeout: 'Test timed out. The upstream request was canceled. Try again later.', upstream_failed: 'Upstream request failed',
           insufficient_samples: 'Fewer than 3 valid samples', analysis_failed: 'Attribution failed', internal_error: 'Test failed', save_failed: 'Could not save results'

@@ -18,16 +18,16 @@ import (
 )
 
 func TestOpenAIResponsesRejectedFieldRetryStateRejectsDuplicateBodyAndCap(t *testing.T) {
-	initialBody := []byte(`{"model":"gpt-5.5"}`)
+	initialBody := []byte(`{"model":"gpt-6-astra"}`)
 	state := newOpenAIResponsesRejectedFieldRetryState(initialBody)
 
 	require.False(t, state.Allow(initialBody))
 	for attempt := 0; attempt < maxOpenAIResponsesRejectedFieldRetries; attempt++ {
-		nextBody := []byte(fmt.Sprintf(`{"model":"gpt-5.5","variant":%d}`, attempt))
+		nextBody := []byte(fmt.Sprintf(`{"model":"gpt-6-astra","variant":%d}`, attempt))
 		require.True(t, state.Allow(nextBody))
 		require.False(t, state.Allow(nextBody))
 	}
-	require.False(t, state.Allow([]byte(`{"model":"gpt-5.5","variant":"overflow"}`)))
+	require.False(t, state.Allow([]byte(`{"model":"gpt-6-astra","variant":"overflow"}`)))
 }
 
 func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyRejectsAmbiguousErrors(t *testing.T) {
@@ -114,8 +114,8 @@ func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyBindsMaxOutputTokensToRej
 	require.False(t, gjson.GetBytes(retryBody, "max_output_tokens").Exists())
 }
 
-func TestOpenAIGatewayService_APIKeyStripsAllIndexedNamespacesBeforeFirstForward(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.5","stream":false,"input":[{"type":"function_call","name":"first","namespace":"remove-first","arguments":"{}"},{"type":"custom_tool_call","name":"second","namespace":"remove-second","input":"{}"}]}`)
+func TestOpenAIGatewayService_APIKeyPreservesToolCallNamespaces(t *testing.T) {
+	body := []byte(`{"model":"gpt-6-astra","stream":false,"input":[{"type":"function_call","name":"first","namespace":"remove-first","arguments":"{}"},{"type":"custom_tool_call","name":"second","namespace":"remove-second","input":"{}"}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`),
 	}}
@@ -130,8 +130,8 @@ func TestOpenAIGatewayService_APIKeyStripsAllIndexedNamespacesBeforeFirstForward
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Len(t, upstream.bodies, 1)
-	require.False(t, gjson.GetBytes(upstream.bodies[0], "input.0.namespace").Exists())
-	require.False(t, gjson.GetBytes(upstream.bodies[0], "input.1.namespace").Exists())
+	require.Equal(t, "remove-first", gjson.GetBytes(upstream.bodies[0], "input.0.namespace").String())
+	require.Equal(t, "remove-second", gjson.GetBytes(upstream.bodies[0], "input.1.namespace").String())
 }
 
 func TestOpenAIGatewayService_OpenAIHTTPStripsInputNamespacesBeforeFirstForward(t *testing.T) {
@@ -145,7 +145,7 @@ func TestOpenAIGatewayService_OpenAIHTTPStripsInputNamespacesBeforeFirstForward(
 	for _, tt := range accounts {
 		for _, path := range []string{"/v1/responses", "/v1/responses/compact"} {
 			t.Run(tt.name+path, func(t *testing.T) {
-				body := []byte(`{"model":"gpt-5.5","stream":false,"instructions":"test","input":[{"type":"message","role":"user","namespace":"remove","content":[{"type":"input_text","text":"hello","namespace":"nested-keep"}]}]}`)
+				body := []byte(`{"model":"gpt-6-astra","stream":false,"instructions":"test","input":[{"type":"message","role":"user","namespace":"remove","content":[{"type":"input_text","text":"hello","namespace":"nested-keep"}]}]}`)
 				upstream := &httpUpstreamRecorder{responses: []*http.Response{
 					newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"id":"resp_namespace_ok","output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`),
 				}}
@@ -170,7 +170,7 @@ func TestOpenAIGatewayService_OpenAIHTTPStripsInputNamespacesBeforeFirstForward(
 }
 
 func TestOpenAIGatewayService_RetriesExplicitMaxOutputTokensRejection(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.5","stream":false,"max_output_tokens":4096,"input":[{"type":"message","role":"user","content":{"max_output_tokens":"keep"}}]}`)
+	body := []byte(`{"model":"gpt-6-astra","stream":false,"max_output_tokens":4096,"input":[{"type":"message","role":"user","content":{"max_output_tokens":"keep"}}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
 		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unsupported_parameter","message":"Unsupported parameter: max_output_tokens","param":"max_output_tokens","type":"invalid_request_error"}}`),
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`),
@@ -191,8 +191,8 @@ func TestOpenAIGatewayService_RetriesExplicitMaxOutputTokensRejection(t *testing
 	require.Equal(t, "keep", gjson.GetBytes(upstream.bodies[1], "input.0.content.max_output_tokens").String())
 }
 
-func TestOpenAIGatewayService_ComposesProactiveNamespaceStripWithRejectedFieldRetry(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.5","stream":false,"max_output_tokens":2048,"input":[{"type":"function_call","name":"first","namespace":"remove-first","arguments":"{}"},{"type":"custom_tool_call","name":"second","namespace":"remove-second","input":"{}"}]}`)
+func TestOpenAIGatewayService_PreservesNamespacesDuringUnrelatedFieldRetry(t *testing.T) {
+	body := []byte(`{"model":"gpt-6-astra","stream":false,"max_output_tokens":2048,"input":[{"type":"function_call","name":"first","namespace":"remove-first","arguments":"{}"},{"type":"custom_tool_call","name":"second","namespace":"remove-second","input":"{}"}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
 		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unsupported_parameter","message":"Unsupported parameter: max_output_tokens","param":"max_output_tokens"}}`),
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`),
@@ -209,8 +209,8 @@ func TestOpenAIGatewayService_ComposesProactiveNamespaceStripWithRejectedFieldRe
 	require.NotNil(t, result)
 	require.Len(t, upstream.bodies, 2)
 	for _, forwardedBody := range upstream.bodies {
-		require.False(t, gjson.GetBytes(forwardedBody, "input.0.namespace").Exists())
-		require.False(t, gjson.GetBytes(forwardedBody, "input.1.namespace").Exists())
+		require.Equal(t, "remove-first", gjson.GetBytes(forwardedBody, "input.0.namespace").String())
+		require.Equal(t, "remove-second", gjson.GetBytes(forwardedBody, "input.1.namespace").String())
 	}
 	require.Equal(t, int64(2048), gjson.GetBytes(upstream.bodies[0], "max_output_tokens").Int())
 	require.False(t, gjson.GetBytes(upstream.bodies[1], "max_output_tokens").Exists())
