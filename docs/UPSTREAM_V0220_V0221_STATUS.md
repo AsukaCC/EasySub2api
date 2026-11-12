@@ -25,7 +25,7 @@
 | bounded-io | 限制停滞读写、Bedrock 帧、Gemini SSE 和 Antigravity 非流式读取。 |
 | bounded-background | 限制 drain、后台任务、SSE 队列及会话缓存；保留本地结算。 |
 | hotpath | 减少重复 JSON 解析，使用已有鉴权投影处理 RPM 与隐私门控。 |
-| security-dependencies | 更新 brotli/compress，新增 MCP SDK 依赖。 |
+| security-dependencies | 更新 brotli/compress，新增 MCP SDK 依赖；Go 1.27.4 修复 GO-2026-6859。 |
 | websocket | 后续轮次失败关闭、搜索激活、HTTP 桥接指纹、逐轮 TTFT 配置。 |
 | stable-session-seeds | 工具回合及追加 system/developer 消息不改变无显式 ID 的会话种子。 |
 | reasoning-policy | 合成 effort 应用映射和上限，保留 GLM 降级并处理外部 reasoning 封装。 |
