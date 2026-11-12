@@ -34,6 +34,11 @@ func RegisterUserRoutes(
 
 		// 用户接口
 		user := authenticated.Group("/user")
+		user.GET("/mcp/config", h.MCPOAuth.ConnectionConfig)
+		user.GET("/mcp/grants", h.MCPOAuth.ListGrants)
+		user.DELETE("/mcp/grants/:id", h.MCPOAuth.RevokeGrant)
+		user.GET("/mcp/authorize", h.MCPOAuth.Preview)
+		user.POST("/mcp/authorize", h.MCPOAuth.Decide)
 		{
 			user.GET("/profile", h.User.GetProfile)
 			user.GET("/level", h.User.GetLevel)

@@ -234,14 +234,14 @@ func (_c *UserAttributeDefinitionCreate) ExecX(ctx context.Context) {
 func (_c *UserAttributeDefinitionCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if userattributedefinition.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userattributedefinition.DefaultCreatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized userattributedefinition.DefaultCreatedAt (forgotten import ent/runtime?)")
 		}
 		v := userattributedefinition.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if userattributedefinition.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized userattributedefinition.DefaultUpdatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized userattributedefinition.DefaultUpdatedAt (forgotten import ent/runtime?)")
 		}
 		v := userattributedefinition.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -276,7 +276,7 @@ func (_c *UserAttributeDefinitionCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if userattributedefinition.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized userattributedefinition.DefaultID (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized userattributedefinition.DefaultID (forgotten import ent/runtime?)")
 		}
 		v := userattributedefinition.DefaultID()
 		_c.mutation.SetID(v)
@@ -359,6 +359,8 @@ func (_c *UserAttributeDefinitionCreate) sqlSave(ctx context.Context) (*UserAttr
 	if _spec.ID.Value != nil {
 		if id, ok := _spec.ID.Value.(string); ok {
 			_node.ID = id
+		} else if id, ok := _spec.ID.Value.([]byte); ok {
+			_node.ID = string(id)
 		} else {
 			return nil, fmt.Errorf("unexpected UserAttributeDefinition.ID type: %T", _spec.ID.Value)
 		}

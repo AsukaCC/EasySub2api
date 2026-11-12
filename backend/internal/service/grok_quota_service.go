@@ -353,7 +353,7 @@ func (s *GrokQuotaService) runProbeFlight(
 		return nil, infraerrors.New(http.StatusInternalServerError, "GROK_QUOTA_NOT_CONFIGURED", "grok quota service is not configured")
 	}
 	resultCh := s.probeFlight.DoChan(key, func() (any, error) {
-		sharedCtx, cancel := context.WithTimeout(context.Background(), grokQuotaUpstreamTimeout+5*time.Second)
+		sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grokQuotaUpstreamTimeout+5*time.Second)
 		defer cancel()
 		return probe(sharedCtx)
 	})
@@ -543,6 +543,9 @@ func (s *GrokQuotaService) loadGrokOAuthAccount(ctx context.Context, accountID s
 	}
 	if account == nil {
 		return nil, infraerrors.New(http.StatusNotFound, "GROK_QUOTA_ACCOUNT_NOT_FOUND", "account not found")
+	}
+	if err := scopedAccountAccess(ctx, s.accountRepo, account, "accounts.usage.read", false); err != nil {
+		return nil, err
 	}
 	if account.Platform != PlatformGrok {
 		return nil, infraerrors.New(http.StatusBadRequest, "GROK_QUOTA_INVALID_PLATFORM", "account is not a Grok account")

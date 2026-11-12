@@ -307,6 +307,8 @@ func (_c *PromoCodeCreate) sqlSave(ctx context.Context) (*PromoCode, error) {
 	if _spec.ID.Value != nil {
 		if id, ok := _spec.ID.Value.(string); ok {
 			_node.ID = id
+		} else if id, ok := _spec.ID.Value.([]byte); ok {
+			_node.ID = string(id)
 		} else {
 			return nil, fmt.Errorf("unexpected PromoCode.ID type: %T", _spec.ID.Value)
 		}

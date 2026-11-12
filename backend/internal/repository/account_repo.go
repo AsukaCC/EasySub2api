@@ -68,6 +68,7 @@ var schedulerNeutralExtraKeyPrefixes = []string{
 var schedulerNeutralExtraKeys = map[string]struct{}{
 	service.ModelFingerprintExtraKey: {},
 	"codex_usage_updated_at":         {},
+	"codex_credits_snapshot":         {},
 	"grok_billing_snapshot":          {},
 	"session_window_utilization":     {},
 }
@@ -2123,7 +2124,7 @@ func (r *accountRepository) BindGroups(ctx context.Context, accountID string, gr
 	if scoped := r.accountTransactionScope(ctx); scoped != r {
 		return scoped.BindGroups(ctx, accountID, groupIDs)
 	}
-	if adminaccess.FromContext(ctx) != nil {
+	if adminaccess.RestrictedFromContext(ctx) != nil {
 		return r.scopedAdminBindGroups(ctx, accountID, groupIDs)
 	}
 	existingGroupIDs, err := r.loadAccountGroupIDs(ctx, accountID)

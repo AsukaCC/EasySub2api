@@ -520,6 +520,9 @@ func (s *OpenAIGatewayService) newOpenAIAccountFailoverErrorWithClassificationHe
 		upstreamMsg,
 		explicitRetryable,
 	)
+	if shouldDisable && account != nil && account.Platform == PlatformOpenAI && failoverErr.RequestScopedTransient {
+		failoverErr.RetryableOnSameAccount = false
+	}
 	// The generic constructor is shared by a few legacy paths that do not pass
 	// an account. Keep the capacity marker OpenAI-specific; Grok, unknown-account,
 	// and other compatible-provider paths retain their existing retry/account-health

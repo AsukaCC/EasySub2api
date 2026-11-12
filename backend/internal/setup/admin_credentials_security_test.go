@@ -204,7 +204,7 @@ func TestBootstrapAdminUserCreatesAdminWithGeneratedCredentials(t *testing.T) {
 	}
 	defer func() { _ = db.Close() }()
 	expectAdminBootstrapCounts(mock, 0, 0)
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO users")).
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO users (email, password_hash, role, recharge_balance, concurrency, status, created_at, updated_at)")).
 		WithArgs(
 			sqlmock.AnyArg(), sqlmock.AnyArg(), service.RoleAdmin, sqlmock.AnyArg(),
 			sqlmock.AnyArg(), service.StatusActive, sqlmock.AnyArg(), sqlmock.AnyArg(),

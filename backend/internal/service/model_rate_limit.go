@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/antigravity"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 const (
 	modelRateLimitsKey                 = "model_rate_limits"
 	antigravityGeminiModelRateLimitKey = "antigravity:gemini"
+	antigravityArgonModelRateLimitKey  = "antigravity:gemini:argon"
 	openAIImageGenerationRateLimitKey  = "openai:image_generation"
 	// anthropicFableRateLimitKey 是 Anthropic 7d_oi（Fable 专属 7d 窗口）限流的
 	// 家族级 scope：命中后所有 Fable 变体（含 [1m] 等后缀）都不再调度到该账号。
@@ -108,14 +110,23 @@ func isAntigravityGeminiModel(model string) bool {
 	return strings.HasPrefix(normalizeAntigravityModelName(model), "gemini-")
 }
 
-func antigravityModelRateLimitKeys(model string) []string {
+func antigravityModelRateLimitKeys(account *Account, model string) []string {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return nil
 	}
 	keys := []string{model}
-	if isAntigravityGeminiModel(model) && model != antigravityGeminiModelRateLimitKey {
-		keys = append(keys, antigravityGeminiModelRateLimitKey)
+	if isAntigravityGeminiModel(model) && !isAntigravityGeminiImageModel(model) && model != antigravityGeminiModelRateLimitKey {
+		familyKey := antigravityGeminiModelRateLimitKey
+		// Pro has a separate Argon quota pool. Ultra and unknown plans retain
+		// the shared Gemini scope; Argon variants still cool down together.
+		if account != nil && strings.EqualFold(strings.TrimSpace(antigravity.TierIDToPlanType(account.GetCredential("plan_type"))), "Pro") {
+			normalized := normalizeAntigravityModelName(model)
+			if normalized == "gemini-4-argon" || strings.HasPrefix(normalized, "gemini-4-argon-") {
+				familyKey = antigravityArgonModelRateLimitKey
+			}
+		}
+		keys = append(keys, familyKey)
 	}
 	return keys
 }
@@ -185,4 +196,9 @@ func (a *Account) modelRateLimitResetAt(scope string) *time.Time {
 		return nil
 	}
 	return &resetAt
+}
+
+func isAntigravityGeminiImageModel(model string) bool {
+	normalized := normalizeAntigravityModelName(model)
+	return strings.HasPrefix(normalized, "gemini-") && strings.Contains(normalized, "-image")
 }

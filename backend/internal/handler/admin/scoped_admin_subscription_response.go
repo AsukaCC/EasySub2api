@@ -11,7 +11,7 @@ import (
 )
 
 func scopedAdminWriteOnly(c *gin.Context, readPermission string) bool {
-	p := adminaccess.FromContext(c.Request.Context())
+	p := adminaccess.RestrictedFromContext(c.Request.Context())
 	return p != nil && !slices.Contains(p.Policy.GlobalPermissions, readPermission)
 }
 
@@ -38,7 +38,7 @@ func adminSubscriptionGrantResponse(c *gin.Context, grant *service.SubscriptionG
 // adminSubscriptionResponse 在缓存重放后也应用字段白名单，不嵌入用户、分配人或分组配置。
 // 写权限只确认订阅 ID；订阅用量等字段必须另有读取权限。
 func adminSubscriptionResponse(c *gin.Context, data any) any {
-	if adminaccess.FromContext(c.Request.Context()) == nil {
+	if adminaccess.RestrictedFromContext(c.Request.Context()) == nil {
 		return data
 	}
 	raw, err := json.Marshal(data)

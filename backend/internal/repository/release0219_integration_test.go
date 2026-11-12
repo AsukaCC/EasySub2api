@@ -233,7 +233,7 @@ func TestRelease0219ScopedAccountQueriesKeepRulesSeparate(t *testing.T) {
 		{Permissions: []string{"accounts.read"}, GroupIDs: []string{second.ID}, AccountTypes: []string{service.AccountTypeOAuth}, Platforms: []string{service.PlatformGemini}},
 	}}}
 	ctx = adminaccess.WithPrincipal(ctx, principal)
-	accounts, total, err := repo.ScopedAdminList(ctx, pagination.PaginationParams{Page: 1, PageSize: 20}, "", "", "", "")
+	accounts, total, err := repo.ScopedAdminList(ctx, pagination.PaginationParams{Page: 1, PageSize: 20}, "", "", "", "", "")
 	require.NoError(t, err)
 	require.EqualValues(t, 2, total)
 	require.Len(t, accounts, 2)

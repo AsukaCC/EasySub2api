@@ -2412,6 +2412,8 @@
         </p>
       </div>
 
+      <OpenAIImageSizeTiersField v-if="form.platform === 'openai'" v-model="openAIImageSizeTiers" class="mb-4" />
+
       <!-- OpenAI 自动透传开关（OAuth/API Key） -->
       <div
         v-if="form.platform === 'openai'"
@@ -2956,6 +2958,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { OPENAI_IMAGE_SIZE_TIERS, applyOpenAIImageSizeTiersToExtra, type OpenAIImageSizeTier } from './openaiImageSizeTiers'
+import OpenAIImageSizeTiersField from './OpenAIImageSizeTiersField.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
@@ -3377,6 +3381,7 @@ const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 // Images 非流式响应缺 b64_json 时由网关下载 url 回填（仅 OpenAI API Key）。
 const openAIImagesUrlToB64JsonEnabled = ref(false)
+const openAIImageSizeTiers = ref<OpenAIImageSizeTier[]>([...OPENAI_IMAGE_SIZE_TIERS])
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
@@ -3790,6 +3795,7 @@ watch(
     headerOverrideEnabled.value = false
     headerOverrideRows.value = []
     openAIImagesUrlToB64JsonEnabled.value = false
+    openAIImageSizeTiers.value = [...OPENAI_IMAGE_SIZE_TIERS]
     grokOAuthCustomBaseUrlEnabled.value = false
     grokOAuthBaseUrl.value = ''
     // Reset OAuth states
@@ -4251,6 +4257,7 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
   } else {
     delete extra.images_url_to_b64_json
   }
+  applyOpenAIImageSizeTiersToExtra(extra, openAIImageSizeTiers.value)
 
   return Object.keys(extra).length > 0 ? extra : undefined
 }

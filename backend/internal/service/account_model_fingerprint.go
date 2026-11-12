@@ -21,7 +21,8 @@ import (
 )
 
 const ModelFingerprintExtraKey = "model_fingerprint"
-const ModelFingerprintRetention = 24 * time.Hour
+const ModelFingerprintRetention = 7 * 24 * time.Hour
+const modelFingerprintQueueTTL = 24 * time.Hour
 const modelFingerprintMaxTokens = 1536
 const modelFingerprintProbeTimeout = 90 * time.Second
 
@@ -153,7 +154,7 @@ func (s *AccountTestService) StartModelFingerprint(ctx context.Context, id, mode
 		return nil, errors.New("model fingerprint store unavailable")
 	}
 	now := time.Now().UTC()
-	snapshot := &ModelFingerprintSnapshot{ID: uuid.NewString(), Model: model, Status: "queued", SamplingMode: "single_conversation", Total: modeltrace.QueryCount, StartedAt: now, ExpiresAt: now.Add(ModelFingerprintRetention), QueueReason: "workers_busy"}
+	snapshot := &ModelFingerprintSnapshot{ID: uuid.NewString(), Model: model, Status: "queued", SamplingMode: "single_conversation", Total: modeltrace.QueryCount, StartedAt: now, ExpiresAt: now.Add(modelFingerprintQueueTTL), QueueReason: "workers_busy"}
 	if skipReason == "account_busy" {
 		snapshot.QueueReason = skipReason
 		skipReason = ""

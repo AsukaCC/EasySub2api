@@ -446,6 +446,8 @@ func (_c *PendingSubscriptionCreate) sqlSave(ctx context.Context) (*PendingSubsc
 	if _spec.ID.Value != nil {
 		if id, ok := _spec.ID.Value.(string); ok {
 			_node.ID = id
+		} else if id, ok := _spec.ID.Value.([]byte); ok {
+			_node.ID = string(id)
 		} else {
 			return nil, fmt.Errorf("unexpected PendingSubscription.ID type: %T", _spec.ID.Value)
 		}

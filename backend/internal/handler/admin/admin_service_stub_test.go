@@ -835,3 +835,31 @@ func (s *stubAdminService) CreateShadow(ctx context.Context, parentID string, op
 
 // Ensure stub implements interface.
 var _ service.AdminService = (*stubAdminService)(nil)
+
+func (s *stubAdminService) BatchDisableUsers(_ context.Context, ids []string) (int, error) {
+	disabled := 0
+	for i := range s.users {
+		for _, id := range ids {
+			if s.users[i].ID == id && s.users[i].Status != service.StatusDisabled {
+				s.users[i].Status = service.StatusDisabled
+				disabled++
+				break
+			}
+		}
+	}
+	return disabled, nil
+}
+
+func (s *stubAdminService) FindActiveUsersByBlacklistedEmails(_ context.Context, emails []string) ([]service.User, error) {
+	identities := service.RegistrationEmailBlacklistIdentities(emails)
+	users := make([]service.User, 0)
+	for _, user := range s.users {
+		if user.Role == service.RoleAdmin || user.Status != service.StatusActive {
+			continue
+		}
+		if _, match := identities[service.NormalizeEmailForAliasDedup(user.Email)]; match {
+			users = append(users, user)
+		}
+	}
+	return users, nil
+}

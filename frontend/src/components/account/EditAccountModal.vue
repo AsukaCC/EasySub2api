@@ -1563,6 +1563,8 @@
         </p>
       </div>
 
+      <OpenAIImageSizeTiersField v-if="account?.platform === 'openai'" v-model="openAIImageSizeTiers" class="mb-4" />
+
       <!-- OpenAI 自动透传开关（OAuth/API Key） -->
       <div
         v-if="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'setup-token' || account?.type === 'apikey')"
@@ -2724,6 +2726,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { OPENAI_IMAGE_SIZE_TIERS, applyOpenAIImageSizeTiersToExtra, readOpenAIImageSizeTiers, type OpenAIImageSizeTier } from './openaiImageSizeTiers'
+import OpenAIImageSizeTiersField from './OpenAIImageSizeTiersField.vue'
 import AccountProtectionPanel from './AccountProtectionPanel.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
@@ -3263,6 +3267,7 @@ const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 // Images 非流式响应缺 b64_json 时由网关下载 url 回填（仅 OpenAI API Key）。
 const openAIImagesUrlToB64JsonEnabled = ref(false)
+const openAIImageSizeTiers = ref<OpenAIImageSizeTier[]>([...OPENAI_IMAGE_SIZE_TIERS])
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
@@ -3716,6 +3721,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   editZhipuOrganization.value = ''
   editZhipuProject.value = ''
 	const extra = newAccount.extra as Record<string, unknown> | undefined
+ openAIImageSizeTiers.value = readOpenAIImageSizeTiers(extra)
 	upstreamRequestIdHeader.value = readUpstreamRequestIdHeader(extra)
 	autoPause5hThreshold.value = typeof extra?.auto_pause_5h_threshold === 'number' ? extra.auto_pause_5h_threshold * 100 : null
 	autoPause7dThreshold.value = typeof extra?.auto_pause_7d_threshold === 'number' ? extra.auto_pause_7d_threshold * 100 : null
@@ -4976,6 +4982,7 @@ const handleSubmit = async () => {
 				delete newExtra.images_url_to_b64_json
 			}
 		}
+		applyOpenAIImageSizeTiersToExtra(newExtra, openAIImageSizeTiers.value)
 		if (autoPause5hThreshold.value != null && autoPause5hThreshold.value > 0) {
 			newExtra.auto_pause_5h_threshold = autoPause5hThreshold.value / 100
 		} else {

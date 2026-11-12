@@ -132,7 +132,7 @@ func (s *ChannelService) fillGlobalPricingFallback(models []SupportedModel) {
 		if lp == nil {
 			continue
 		}
-		models[i].Pricing = synthesizePricingFromLiteLLM(lp, models[i].Pricing)
+		models[i].Pricing = synthesizePricingFromLiteLLM(lp, models[i].Pricing, models[i].Name)
 	}
 }
 
@@ -143,13 +143,13 @@ func pricingNeedsFallback(p *ChannelModelPricing) bool {
 		return true
 	}
 	if p.InputPrice != nil || p.OutputPrice != nil ||
-		p.CacheWritePrice != nil || p.CacheWrite1hPrice != nil || p.CacheReadPrice != nil ||
+		p.CacheWritePrice != nil || p.CacheWrite1hPrice != nil || p.CacheWrite12hPrice != nil || p.CacheReadPrice != nil ||
 		p.ImageOutputPrice != nil || p.PerRequestPrice != nil {
 		return false
 	}
 	for _, iv := range p.Intervals {
 		if iv.InputPrice != nil || iv.OutputPrice != nil ||
-			iv.CacheWritePrice != nil || iv.CacheWrite1hPrice != nil || iv.CacheReadPrice != nil ||
+			iv.CacheWritePrice != nil || iv.CacheWrite1hPrice != nil || iv.CacheWrite12hPrice != nil || iv.CacheReadPrice != nil ||
 			iv.PerRequestPrice != nil {
 			return false
 		}
@@ -167,7 +167,11 @@ func pricingNeedsFallback(p *ChannelModelPricing) bool {
 //  3. 默认 token
 //
 // LiteLLM 中字段 0 视为未配置，不带入展示。
-func synthesizePricingFromLiteLLM(lp *LiteLLMModelPricing, existing *ChannelModelPricing) *ChannelModelPricing {
+func synthesizePricingFromLiteLLM(lp *LiteLLMModelPricing, existing *ChannelModelPricing, modelNames ...string) *ChannelModelPricing {
+	model := ""
+	if len(modelNames) > 0 {
+		model = modelNames[0]
+	}
 	if lp == nil {
 		return existing
 	}
@@ -190,13 +194,14 @@ func synthesizePricingFromLiteLLM(lp *LiteLLMModelPricing, existing *ChannelMode
 		}
 	}
 	return &ChannelModelPricing{
-		BillingMode:       mode,
-		InputPrice:        nonZeroPtr(lp.InputCostPerToken),
-		OutputPrice:       nonZeroPtr(lp.OutputCostPerToken),
-		CacheWritePrice:   nonZeroPtr(lp.CacheCreationInputTokenCost),
-		CacheWrite1hPrice: nonZeroPtr(lp.CacheCreationInputTokenCostAbove1hr),
-		CacheReadPrice:    nonZeroPtr(lp.CacheReadInputTokenCost),
-		ImageOutputPrice:  nonZeroPtr(lp.OutputCostPerImageToken),
+		BillingMode:        mode,
+		InputPrice:         nonZeroPtr(lp.InputCostPerToken),
+		OutputPrice:        nonZeroPtr(lp.OutputCostPerToken),
+		CacheWritePrice:    nonZeroPtr(lp.CacheCreationInputTokenCost),
+		CacheWrite1hPrice:  nonZeroPtr(lp.CacheCreationInputTokenCostAbove1hr),
+		CacheWrite12hPrice: openAIReference12hPrice(model, lp),
+		CacheReadPrice:     nonZeroPtr(lp.CacheReadInputTokenCost),
+		ImageOutputPrice:   nonZeroPtr(lp.OutputCostPerImageToken),
 	}
 }
 

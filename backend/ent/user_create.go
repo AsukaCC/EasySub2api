@@ -631,14 +631,14 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 func (_c *UserCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if user.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultCreatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultCreatedAt (forgotten import ent/runtime?)")
 		}
 		v := user.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if user.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultUpdatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultUpdatedAt (forgotten import ent/runtime?)")
 		}
 		v := user.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -709,7 +709,7 @@ func (_c *UserCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if user.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized user.DefaultID (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.DefaultID (forgotten import ent/runtime?)")
 		}
 		v := user.DefaultID()
 		_c.mutation.SetID(v)
@@ -826,6 +826,8 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	if _spec.ID.Value != nil {
 		if id, ok := _spec.ID.Value.(string); ok {
 			_node.ID = id
+		} else if id, ok := _spec.ID.Value.([]byte); ok {
+			_node.ID = string(id)
 		} else {
 			return nil, fmt.Errorf("unexpected User.ID type: %T", _spec.ID.Value)
 		}

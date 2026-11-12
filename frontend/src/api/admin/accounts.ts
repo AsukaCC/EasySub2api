@@ -951,6 +951,7 @@ export interface OpenAIRateLimitResetCredits {
 }
 
 export interface OpenAIQuotaUsage {
+  credits?: import('./upstreamCapabilities').CodexCredits | null
   user_id?: string
   account_id?: string
   email?: string
@@ -988,6 +989,7 @@ export interface OpenAIQuotaResetResult {
 /** Usage payload plus whether the reset-credit snapshot was persisted. */
 export interface OpenAIQuotaRefreshResult extends OpenAIQuotaUsage {
   cache_persisted: boolean
+  credits_cache_persisted?: boolean
 }
 
 /**

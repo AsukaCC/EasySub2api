@@ -27,6 +27,29 @@ legitimately occupy it for many minutes. Apply connection and unauthenticated
 request controls at the edge; authenticated user/API-key concurrency remains
 the application's responsibility.
 
+## Gateway body memory and stalled connections
+
+`gateway.request_body_memory_budget_bytes` limits aggregate in-flight buffered
+request bodies, including rewrite copies and asynchronous image job bodies.
+When omitted, it is one quarter of the lowest physical-memory, cgroup or
+`GOMEMLIMIT` limit, with a 1 GiB minimum. Set an explicit byte count for small
+instances or use `0` to disable this budget. Exhaustion returns HTTP 503 with
+`Retry-After`; the budget is released when its owning request or job completes.
+This limit does not replace the per-request body-size limits above.
+
+`gateway.request_body_read_timeout_seconds` and
+`gateway.downstream_write_timeout_seconds` default to 120 seconds; `0` disables
+the respective deadline. They bound stalled reads/writes, rather than total
+healthy stream duration. Body-read timeouts return 408, disconnects are classified
+as 499, and malformed or truncated bodies remain client errors. Diagnostic logs
+do not include the request body.
+
+Upstream draining after client disconnect is bounded, as are SSE queues,
+individual SSE lines, Bedrock frames and non-streaming response bodies. A drain
+that reaches its limit settles using the usage actually observed; it cannot
+recover token counts that the upstream has not delivered. Monitor upstream
+completion and usage records when tuning limits for long-running image requests.
+
 ## Trusted client IPs
 
 `security.trust_forwarded_ip_for_api_key_acl` is disabled by default. While

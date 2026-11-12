@@ -1,6 +1,6 @@
 <template>
   <div v-if="visible" class="components-account-open-aiquota-reset-cell__panel">
-    <OpenAIReferralCell :account="account" />
+    <OpenAIReferralCell :account="account" @credits-updated="handleCreditsUpdated" />
     <!--
       Unified action row. Parents that already render their own "local query"
       affordance (e.g. AccountUsageCell's active-sampling refresh) pass it in
@@ -161,6 +161,10 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const handleCreditsUpdated = (snapshot: NonNullable<NonNullable<Account['extra']>['codex_credits_snapshot']>) => {
+  emit('account-updated', { ...props.account, extra: { ...props.account.extra, codex_credits_snapshot: snapshot } })
+}
 
 // Visible only for OpenAI OAuth accounts.
 const visible = computed(() => props.account.platform === 'openai' && props.account.type === 'oauth')
@@ -340,6 +344,10 @@ const handleQuery = async () => {
       cachedData.value = result
     } else {
       resetWarning.value = t('admin.accounts.openaiQuotaReset.refreshCachePersistFailed')
+    }
+    if (result.credits !== undefined) {
+      handleCreditsUpdated({ credits: result.credits, fetched_at: result.fetched_at })
+      if (result.credits_cache_persisted === false) resetWarning.value = t('upstreamUpdate.creditsCacheFailed')
     }
   } catch (e) {
     error.value = extractErrorMessage(e)

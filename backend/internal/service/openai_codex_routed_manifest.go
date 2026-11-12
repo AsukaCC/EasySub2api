@@ -390,6 +390,13 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 		d.officialMetadata = openai.CodexGPT61SolMetadata
 		d.ContextWindow = 500_000
 	}
+	if openai.IsGPT61TerraModelSpelling(modelID) {
+		if err := json.Unmarshal(openai.CodexGPT61TerraMetadata, &d); err != nil {
+			panic(err)
+		}
+		d.Slug = modelID
+		d.officialMetadata = openai.CodexGPT61TerraMetadata
+	}
 	return d
 }
 

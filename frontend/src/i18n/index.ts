@@ -1,7 +1,7 @@
 import { createI18n } from 'vue-i18n'
 
 type LocaleCode = 'en' | 'zh'
-type LocaleNamespace = 'core' | 'app' | 'admin' | 'adminAccessKeys' | 'monitor'
+type LocaleNamespace = 'core' | 'app' | 'admin' | 'adminAccessKeys' | 'monitor' | 'mcp'
 type LocaleMessages = Record<string, any>
 
 const LOCALE_KEY = 'easysub2api_locale'
@@ -14,6 +14,7 @@ const namespaceLoaders: Record<
 > = {
   en: {
     core: () => import('./locales/en/core'),
+    mcp: () => import('./locales/en/mcp'),
     app: () => import('./locales/en/app'),
     admin: () => import('./locales/en/admin'),
     adminAccessKeys: () => import('./locales/en/adminAccessKeys'),
@@ -21,6 +22,7 @@ const namespaceLoaders: Record<
   },
   zh: {
     core: () => import('./locales/zh/core'),
+    mcp: () => import('./locales/zh/mcp'),
     app: () => import('./locales/zh/app'),
     admin: () => import('./locales/zh/admin'),
     adminAccessKeys: () => import('./locales/zh/adminAccessKeys'),
@@ -74,7 +76,7 @@ export const i18n = createI18n({
 const loadedNamespaces = new Map<LocaleCode, Set<LocaleNamespace>>()
 
 function namespacesForPath(path: string): LocaleNamespace[] {
-  const namespaces = new Set<LocaleNamespace>(['core'])
+  const namespaces = new Set<LocaleNamespace>(['core','mcp'])
   const isAdmin = path.startsWith('/admin')
   const isMonitor = path.includes('monitor') || path.includes('channel-status')
   const isCoreOnly =
@@ -104,7 +106,7 @@ async function loadNamespace(locale: LocaleCode, namespace: LocaleNamespace): Pr
   }
 
   const module = await namespaceLoaders[locale][namespace]()
-  const messages = namespace === 'admin' || namespace === 'adminAccessKeys'
+  const messages = namespace === 'admin' || namespace === 'adminAccessKeys' || namespace === 'mcp'
     ? { [namespace]: module.default }
     : module.default
   i18n.global.mergeLocaleMessage(locale, messages)

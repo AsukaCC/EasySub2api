@@ -49,17 +49,21 @@ func TestGPT61TerraIdentityAndEffort(t *testing.T) {
 	for _, model := range []string{"gpt-6.1-terra", "gpt-6.1-terra-openai-compact", "openai/gpt_6.1_terra"} {
 		require.Equal(t, "gpt-6.1-terra", normalizeKnownOpenAICodexModel(model))
 	}
-	for _, model := range []string{"gpt-6.1-sol", "gpt-5.6-terra", "gpt-6.1-terra-pro", "gpt-6.1-terra-ultra", "gpt-6.1-terra-minimal"} {
+	for _, model := range []string{"gpt-6.1-sol", "gpt-5.6-terra", "gpt-6.1-terra-pro", "gpt-6.1-terra-ultra"} {
 		require.False(t, openai.IsGPT61TerraModelSpelling(model))
 	}
 	descriptor := newConfiguredCodexModelDescriptor("gpt-6.1-terra")
-	require.Equal(t, "medium", *descriptor.DefaultReasoningLevel)
+	require.Equal(t, "low", *descriptor.DefaultReasoningLevel)
 	var efforts []string
 	for _, level := range descriptor.SupportedReasoningLevels {
 		efforts = append(efforts, level.Effort)
 	}
-	require.Equal(t, []string{"none", "low", "medium", "high", "xhigh", "max"}, efforts)
-	require.Empty(t, descriptor.officialMetadata)
+	require.Equal(t, []string{"low", "medium", "high", "xhigh", "max", "ultra"}, efforts)
+	require.Equal(t, openai.CodexGPT61TerraMetadata, []byte(descriptor.officialMetadata))
+	require.Equal(t, int64(500000), descriptor.ContextWindow)
+	require.True(t, openai.IsGPT61TerraModelSpelling("gpt-6.1-terra-minimal"))
+	require.Error(t, validateGPT61SolReasoningEffort([]byte(`{"model":"gpt-6.1-terra-minimal"}`)))
+	require.Error(t, validateGPT61SolReasoningEffort([]byte(`{"reasoning":{"effort":"minimal"}}`), "gpt-6.1-terra"))
 	converted, err := apicompat.AnthropicToResponses(&apicompat.AnthropicRequest{Model: "gpt-6.1-terra"})
 	require.NoError(t, err)
 	require.Equal(t, "medium", converted.Reasoning.Effort)

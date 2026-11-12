@@ -276,14 +276,14 @@ func (_c *ProxyCreate) ExecX(ctx context.Context) {
 func (_c *ProxyCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if proxy.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized proxy.DefaultCreatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized proxy.DefaultCreatedAt (forgotten import ent/runtime?)")
 		}
 		v := proxy.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if proxy.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized proxy.DefaultUpdatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized proxy.DefaultUpdatedAt (forgotten import ent/runtime?)")
 		}
 		v := proxy.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -302,7 +302,7 @@ func (_c *ProxyCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if proxy.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized proxy.DefaultID (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized proxy.DefaultID (forgotten import ent/runtime?)")
 		}
 		v := proxy.DefaultID()
 		_c.mutation.SetID(v)
@@ -391,6 +391,8 @@ func (_c *ProxyCreate) sqlSave(ctx context.Context) (*Proxy, error) {
 	if _spec.ID.Value != nil {
 		if id, ok := _spec.ID.Value.(string); ok {
 			_node.ID = id
+		} else if id, ok := _spec.ID.Value.([]byte); ok {
+			_node.ID = string(id)
 		} else {
 			return nil, fmt.Errorf("unexpected Proxy.ID type: %T", _spec.ID.Value)
 		}

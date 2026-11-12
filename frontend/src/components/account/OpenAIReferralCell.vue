@@ -1,7 +1,7 @@
 <template>
   <div class="codex-capabilities">
     <div class="codex-capabilities__row">
-      <span>{{ t('upstreamUpdate.credits') }}: {{ credits?.unlimited ? t('upstreamUpdate.unlimited') : credits?.balance ?? t('upstreamUpdate.unknown') }}</span>
+      <span :title="updatedAt">{{ t('upstreamUpdate.credits') }}: {{ credits?.unlimited ? t('upstreamUpdate.unlimited') : credits?.balance ?? t('upstreamUpdate.unknown') }}</span>
       <button type="button" class="btn btn-secondary btn-xs" :disabled="busy" :title="t('upstreamUpdate.refresh')" :aria-label="t('upstreamUpdate.refresh')" @click="queryCredits"><Icon name="refresh" size="sm" /></button>
       <button v-if="!account.parent_account_id" type="button" class="btn btn-secondary btn-xs" @click="open = true">{{ t('upstreamUpdate.invitations') }}</button>
     </div>
@@ -22,22 +22,38 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import type { Account } from '@/types'
 import type { OpenAIReferralEligibility } from '@/types/openaiReferrals'
-import { refreshCodexCredits, refreshCodexReferrals, sendCodexReferral, type CodexCredits } from '@/api/admin/upstreamCapabilities'
+import { refreshCodexCredits, refreshCodexReferrals, sendCodexReferral } from '@/api/admin/upstreamCapabilities'
 const props = defineProps<{ account: Account }>()
+type CreditsSnapshot = NonNullable<NonNullable<Account['extra']>['codex_credits_snapshot']>
+const emit = defineEmits<{ 'credits-updated': [snapshot: CreditsSnapshot] }>()
 const { t } = useI18n()
-const credits = ref<CodexCredits>(), eligibility = ref<OpenAIReferralEligibility>()
+const snapshot = ref<CreditsSnapshot>()
+const credits = computed(() => snapshot.value?.credits)
+const updatedAt = computed(() => snapshot.value?.fetched_at ? `${t('upstreamUpdate.updated')}: ${new Date(snapshot.value.fetched_at * 1000).toLocaleString()}` : undefined)
+const eligibility = ref<OpenAIReferralEligibility>()
 const busy = ref(false), open = ref(false), error = ref(''), email = ref(''), consent = ref(false), sent = ref(false), uncertain = ref(false)
 let epoch = 0
-watch(() => props.account.id, () => { epoch++; credits.value = undefined; eligibility.value = undefined; busy.value = false; open.value = false; error.value = ''; email.value = ''; consent.value = false; sent.value = false; uncertain.value = false })
+watch(() => props.account.id, () => { epoch++; snapshot.value = undefined; eligibility.value = undefined; busy.value = false; open.value = false; error.value = ''; email.value = ''; consent.value = false; sent.value = false; uncertain.value = false })
+watch(() => [props.account.id, props.account.extra?.codex_credits_snapshot] as const, ([, cached]) => {
+  if (cached && (!snapshot.value || cached.fetched_at >= snapshot.value.fetched_at)) snapshot.value = cached
+}, { immediate: true, deep: true })
 async function queryCredits() {
+  if (busy.value) return
   const current = ++epoch; busy.value = true; error.value = ''
-  try { const value = await refreshCodexCredits(props.account.id); if (epoch === current) credits.value = value.credits }
+  try {
+    const value = await refreshCodexCredits(props.account.id)
+    if (epoch === current) {
+      snapshot.value = { credits: value.credits ?? null, fetched_at: value.fetched_at }
+      emit('credits-updated', snapshot.value)
+      if (value.credits_cache_persisted === false) error.value = t('upstreamUpdate.creditsCacheFailed')
+    }
+  }
   catch { if (epoch === current) error.value = t('upstreamUpdate.queryFailed') }
   finally { if (epoch === current) busy.value = false }
 }

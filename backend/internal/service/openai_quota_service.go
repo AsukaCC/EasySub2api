@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/pkg/adminaccess"
 	infraerrors "github.com/AsukaCC/EasySub2api/internal/pkg/errors"
 	"github.com/imroc/req/v3"
 )
@@ -393,6 +394,9 @@ func (s *OpenAIQuotaService) prepareUpstreamCall(ctx context.Context, accountID 
 	if account == nil {
 		return "", "", "", false, infraerrors.New(http.StatusNotFound, "OPENAI_QUOTA_ACCOUNT_NOT_FOUND", "account not found")
 	}
+	if err := scopedAccountAccess(ctx, s.accountRepo, account, scopedAccountOperation(ctx, "openai.quota.read"), true); err != nil {
+		return "", "", "", false, err
+	}
 	if account.Platform != PlatformOpenAI {
 		return "", "", "", false, infraerrors.New(http.StatusBadRequest, "OPENAI_QUOTA_INVALID_PLATFORM", "account is not an OpenAI account")
 	}
@@ -409,6 +413,9 @@ func (s *OpenAIQuotaService) prepareUpstreamCall(ctx context.Context, accountID 
 			return "", "", "", false, infraerrors.Newf(http.StatusBadGateway, "OPENAI_QUOTA_SHADOW_RESOLVE_FAILED", "failed to resolve shadow account: %v", rerr)
 		}
 		account = resolved
+		if err := scopedAccountAccess(ctx, s.accountRepo, account, scopedAccountOperation(ctx, "openai.quota.read"), false); err != nil {
+			return "", "", "", false, err
+		}
 	}
 
 	chatGPTAccountID = strings.TrimSpace(account.GetCredential("chatgpt_account_id"))
@@ -461,11 +468,17 @@ func (s *OpenAIQuotaService) recoverAgentIdentityTask(ctx context.Context, accou
 	if err != nil || account == nil {
 		return fmt.Errorf("account is unavailable")
 	}
+	if scopeErr := scopedAccountAccess(ctx, s.accountRepo, account, scopedAccountOperation(ctx, "openai.quota.read"), true); scopeErr != nil {
+		return scopeErr
+	}
 	if account.IsShadow() {
 		account, err = resolveCredentialAccount(ctx, s.accountRepo, account)
 		if err != nil || account == nil {
 			return fmt.Errorf("credential account is unavailable")
 		}
+	}
+	if scopeErr := scopedAccountAccess(ctx, s.accountRepo, account, scopedAccountOperation(ctx, "openai.quota.read"), false); scopeErr != nil {
+		return scopeErr
 	}
 	if !account.IsOpenAIAgentIdentity() {
 		return nil
@@ -495,10 +508,19 @@ func (s *OpenAIQuotaService) buildCodexQuotaHeaders(ctx context.Context, account
 	// 终态清理：与其余出站路径一致，剥离平台品牌 / 基础设施头。
 	sanitizeOutboundHeaderMap(headers)
 	if s == nil || s.accountRepo == nil {
+		if adminaccess.RestrictedFromContext(ctx) != nil {
+			return nil, "", infraerrors.NotFound("SCOPED_ACCOUNT_NOT_FOUND", "账户不存在")
+		}
 		return headers, "", nil
 	}
 	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if scopeErr := scopedAccountAccess(ctx, s.accountRepo, account, scopedAccountOperation(ctx, "openai.quota.read"), true); scopeErr != nil {
+		return nil, "", scopeErr
+	}
 	if err != nil || account == nil {
+		if adminaccess.RestrictedFromContext(ctx) != nil {
+			return nil, "", infraerrors.NotFound("SCOPED_ACCOUNT_NOT_FOUND", "账户不存在")
+		}
 		if strings.TrimSpace(accessToken) == "" {
 			return nil, "", fmt.Errorf("agent identity account credentials are unavailable")
 		}
@@ -507,6 +529,11 @@ func (s *OpenAIQuotaService) buildCodexQuotaHeaders(ctx context.Context, account
 	if account.IsShadow() {
 		if resolved, resolveErr := resolveCredentialAccount(ctx, s.accountRepo, account); resolveErr == nil && resolved != nil {
 			account = resolved
+			if scopeErr := scopedAccountAccess(ctx, s.accountRepo, account, scopedAccountOperation(ctx, "openai.quota.read"), false); scopeErr != nil {
+				return nil, "", scopeErr
+			}
+		} else if adminaccess.RestrictedFromContext(ctx) != nil {
+			return nil, "", infraerrors.NotFound("SCOPED_ACCOUNT_NOT_FOUND", "账户不存在")
 		} else if strings.TrimSpace(accessToken) == "" {
 			return nil, "", fmt.Errorf("agent identity shadow credentials are unavailable")
 		}

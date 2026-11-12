@@ -99,6 +99,18 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	// slow_down), not an account health failure. Do not update rate-limit,
 	// temp-unschedulable, model-transient, or account-block state for it.
 	if account != nil && account.Platform == PlatformOpenAI && isOpenAIRequestScopedCapacityShed("", responseBody) {
+		// An explicit model-scoped rule overrides the default retry policy without
+		// turning a request-level overload into an account-wide health failure.
+		model := firstRequestedModel(canonicalModel)
+		if s != nil && s.rateLimitService != nil && model != "" && account.IsTempUnschedulableEnabled() {
+			ruleBody := openAICapacityShedRuleBody(responseBody)
+			matches := matchTempUnschedulableRules(account, statusCode, ruleBody)
+			if len(matches) > 0 && matches[0].rule.Scope == TempUnschedScopeModel {
+				stateCtx, cancel := openAIAccountStateContext(ctx)
+				defer cancel()
+				return s.rateLimitService.HandleTempUnschedulable(stateCtx, account, statusCode, ruleBody, model)
+			}
+		}
 		return false
 	}
 	// Any non-2xx upstream HTTP response means the model request was actually sent.

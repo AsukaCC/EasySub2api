@@ -86,19 +86,10 @@ func TestNormalizeOpenAIPassthroughOAuthBody_ArrayInputUnchanged(t *testing.T) {
 	require.Equal(t, "message", input.Array()[0].Get("type").String())
 }
 
-func TestDetectOpenAIPassthroughInstructionsRejectReason(t *testing.T) {
-	for _, tt := range []struct {
-		name string
-		body string
-		want string
-	}{
-		{name: "missing is optional", body: `{"model":"gpt-5.1-codex"}`, want: ""},
-		{name: "non string remains rejected", body: `{"instructions":{"text":"invalid"}}`, want: "instructions_not_string"},
-		{name: "empty remains rejected", body: `{"instructions":"  "}`, want: "instructions_empty"},
-		{name: "non empty remains accepted", body: `{"instructions":"client guidance"}`, want: ""},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, detectOpenAIPassthroughInstructionsRejectReason("gpt-5.1-codex", []byte(tt.body)))
-		})
+func TestNormalizeOpenAIPassthroughInstructionsRemainClientOwned(t *testing.T) {
+	for _, body := range []string{`{"model":"gpt-5.1-codex"}`, `{"instructions":""}`, `{"instructions":"  "}`, `{"instructions":"client guidance"}`} {
+		normalized, _, err := normalizeOpenAIPassthroughOAuthBody([]byte(body), false)
+		require.NoError(t, err)
+		require.Equal(t, gjson.Get(body, "instructions").Raw, gjson.GetBytes(normalized, "instructions").Raw)
 	}
 }

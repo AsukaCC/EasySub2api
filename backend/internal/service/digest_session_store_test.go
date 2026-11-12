@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,7 +136,7 @@ func TestDigestSessionStore_EmptyDigestChain(t *testing.T) {
 
 func TestDigestSessionStore_TTLExpiration(t *testing.T) {
 	store := &DigestSessionStore{
-		cache: gocache.New(100*time.Millisecond, 50*time.Millisecond),
+		cache: sessionMemoryCache{sweep: 50 * time.Millisecond},
 	}
 
 	store.Save("1", "prefix", "u:a-m:b", "uuid-1", "100", "")
@@ -278,7 +277,7 @@ func TestDigestSessionStore_CacheItemCountStable(t *testing.T) {
 func TestDigestSessionStore_TTLPreventsUnboundedGrowth(t *testing.T) {
 	// 使用极短 TTL 验证大量写入后 cache 能被清理
 	store := &DigestSessionStore{
-		cache: gocache.New(100*time.Millisecond, 50*time.Millisecond),
+		cache: sessionMemoryCache{sweep: 50 * time.Millisecond},
 	}
 
 	// 插入 500 个不同的 key（无 oldDigestChain，模拟最坏场景：全是新会话首轮）

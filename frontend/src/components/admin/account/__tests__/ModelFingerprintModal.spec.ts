@@ -168,8 +168,8 @@ describe('Model fingerprint workflow', () => {
     expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe('GPT 30.0%, Claude 70.0%')
   })
 
-  it('shows only the highest share and expires saved list results exactly after 24 hours', async () => {
-    vi.setSystemTime(new Date('2026-09-21T23:59:59Z'))
+  it('shows only the highest share and expires saved list results exactly after 7 days', async () => {
+    vi.setSystemTime(new Date('2026-09-27T23:59:59Z'))
     const wrapper = mount(ModelFingerprintCell, {
       props: { account: { ...account('one'), extra: { model_fingerprint: completed } } },
       global: { stubs: { Icon: true } }
@@ -200,12 +200,12 @@ describe('Model fingerprint workflow', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(wrapper.text()).toContain('70.0%')
     expect(wrapper.emitted('update')).toBeUndefined()
-    await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000 - 1000)
+    await vi.advanceTimersByTimeAsync(7 * 24 * 60 * 60 * 1000 - 1000)
     expect(wrapper.emitted('update')).toEqual([['one', null]])
   })
 
   it('expires dialog results without polling or rerunning model tests', async () => {
-    vi.setSystemTime(new Date('2026-09-21T23:59:59Z'))
+    vi.setSystemTime(new Date('2026-09-27T23:59:59Z'))
     getModelFingerprint.mockResolvedValue(completed)
     const wrapper = mountModal()
     await flushPromises()
@@ -218,7 +218,7 @@ describe('Model fingerprint workflow', () => {
   })
 
   it('hides already expired API results and rechecks saved results after tab suspension', async () => {
-    vi.setSystemTime(new Date('2026-09-22T00:00:00Z'))
+    vi.setSystemTime(new Date('2026-09-28T00:00:00Z'))
     getModelFingerprint.mockResolvedValue(completed)
     const modal = mountModal()
     await flushPromises()
@@ -231,7 +231,7 @@ describe('Model fingerprint workflow', () => {
       global: { stubs: { Icon: true } }
     })
     mounts.push(cell)
-    vi.setSystemTime(new Date('2026-09-22T01:00:00Z'))
+    vi.setSystemTime(new Date('2026-09-28T01:00:00Z'))
     document.dispatchEvent(new Event('visibilitychange'))
     await flushPromises()
     expect(cell.find('.fingerprint-result').exists()).toBe(false)

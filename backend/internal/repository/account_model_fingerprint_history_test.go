@@ -16,7 +16,9 @@ func TestModelFingerprintHistoryPaginationAndExpiry(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 	repo := &accountRepository{sql: db}
-	snapshot := service.ModelFingerprintSnapshot{ID: "job", StartedAt: time.Now(), ExpiresAt: time.Now().Add(time.Minute), Status: "running"}
+	started := time.Now().Add(-6 * 24 * time.Hour)
+	finished := started.Add(time.Minute)
+	snapshot := service.ModelFingerprintSnapshot{ID: "job", StartedAt: started, FinishedAt: &finished, ExpiresAt: finished, Status: "completed", SamplingMode: "independent"}
 	body, _ := json.Marshal([]service.ModelFingerprintSnapshot{snapshot})
 	mock.ExpectQuery(`(?s)WITH filtered AS.*started_at > \$2.*ORDER BY started_at DESC, id DESC LIMIT \$3 OFFSET \$4.*count\(\*\).*jsonb_agg`).WithArgs("account", sqlmock.AnyArg(), 10, 10).
 		WillReturnRows(sqlmock.NewRows([]string{"count", "snapshots"}).AddRow(11, body))
@@ -63,8 +65,8 @@ func TestModelFingerprintHistoryCleanupOnlyTargetsFingerprintRecords(t *testing.
 	defer db.Close()
 	repo := &accountRepository{sql: db}
 	now := time.Now()
-	mock.ExpectExec(`(?s)DELETE FROM usage_logs.*request_type=6 AND request_id LIKE 'fingerprint:%' AND actual_cost = 0 AND created_at <= \$1.*LIMIT 5000`).WithArgs(now.Add(-24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 3))
-	mock.ExpectExec(`(?s)DELETE FROM model_fingerprint_runs.*started_at <= \$1.*LIMIT 1000`).WithArgs(now.Add(-24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`(?s)DELETE FROM usage_logs.*request_type=6 AND request_id LIKE 'fingerprint:%' AND actual_cost = 0 AND created_at <= \$1.*LIMIT 5000`).WithArgs(now.Add(-7 * 24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec(`(?s)DELETE FROM model_fingerprint_runs.*started_at <= \$1.*LIMIT 1000`).WithArgs(now.Add(-7 * 24 * time.Hour)).WillReturnResult(sqlmock.NewResult(0, 1))
 	require.NoError(t, repo.CleanupModelFingerprintHistory(context.Background(), now))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
