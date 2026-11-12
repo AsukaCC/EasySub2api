@@ -63,6 +63,7 @@ type channelModelPricingRequest struct {
 	OutputPrice                *float64                   `json:"output_price" binding:"omitempty,min=0"`
 	CacheWritePrice            *float64                   `json:"cache_write_price" binding:"omitempty,min=0"`
 	CacheWrite1hPrice          *float64                   `json:"cache_write_1h_price" binding:"omitempty,min=0"`
+	CacheWrite12hPrice         *float64                   `json:"cache_write_12h_price" binding:"omitempty,min=0"`
 	CacheReadPrice             *float64                   `json:"cache_read_price" binding:"omitempty,min=0"`
 	ImageInputPrice            *float64                   `json:"image_input_price" binding:"omitempty,min=0"`
 	ImageCacheReadPrice        *float64                   `json:"image_cache_read_price" binding:"omitempty,min=0"`
@@ -85,16 +86,17 @@ type channelTimePricingPeriodRequest struct {
 }
 
 type pricingIntervalRequest struct {
-	MinTokens         int      `json:"min_tokens"`
-	MaxTokens         *int     `json:"max_tokens"`
-	TierLabel         string   `json:"tier_label"`
-	InputPrice        *float64 `json:"input_price"`
-	OutputPrice       *float64 `json:"output_price"`
-	CacheWritePrice   *float64 `json:"cache_write_price"`
-	CacheWrite1hPrice *float64 `json:"cache_write_1h_price"`
-	CacheReadPrice    *float64 `json:"cache_read_price"`
-	PerRequestPrice   *float64 `json:"per_request_price"`
-	SortOrder         int      `json:"sort_order"`
+	MinTokens          int      `json:"min_tokens"`
+	MaxTokens          *int     `json:"max_tokens"`
+	TierLabel          string   `json:"tier_label"`
+	InputPrice         *float64 `json:"input_price"`
+	OutputPrice        *float64 `json:"output_price"`
+	CacheWritePrice    *float64 `json:"cache_write_price"`
+	CacheWrite1hPrice  *float64 `json:"cache_write_1h_price"`
+	CacheWrite12hPrice *float64 `json:"cache_write_12h_price"`
+	CacheReadPrice     *float64 `json:"cache_read_price"`
+	PerRequestPrice    *float64 `json:"per_request_price"`
+	SortOrder          int      `json:"sort_order"`
 }
 
 type accountStatsPricingRuleRequest struct {
@@ -131,6 +133,7 @@ type channelModelPricingResponse struct {
 	OutputPrice                *float64                    `json:"output_price"`
 	CacheWritePrice            *float64                    `json:"cache_write_price"`
 	CacheWrite1hPrice          *float64                    `json:"cache_write_1h_price"`
+	CacheWrite12hPrice         *float64                    `json:"cache_write_12h_price"`
 	CacheReadPrice             *float64                    `json:"cache_read_price"`
 	ImageInputPrice            *float64                    `json:"image_input_price"`
 	ImageCacheReadPrice        *float64                    `json:"image_cache_read_price"`
@@ -153,17 +156,18 @@ type channelTimePricingPeriodResponse struct {
 }
 
 type pricingIntervalResponse struct {
-	ID                string   `json:"id"`
-	MinTokens         int      `json:"min_tokens"`
-	MaxTokens         *int     `json:"max_tokens"`
-	TierLabel         string   `json:"tier_label,omitempty"`
-	InputPrice        *float64 `json:"input_price"`
-	OutputPrice       *float64 `json:"output_price"`
-	CacheWritePrice   *float64 `json:"cache_write_price"`
-	CacheWrite1hPrice *float64 `json:"cache_write_1h_price"`
-	CacheReadPrice    *float64 `json:"cache_read_price"`
-	PerRequestPrice   *float64 `json:"per_request_price"`
-	SortOrder         int      `json:"sort_order"`
+	ID                 string   `json:"id"`
+	MinTokens          int      `json:"min_tokens"`
+	MaxTokens          *int     `json:"max_tokens"`
+	TierLabel          string   `json:"tier_label,omitempty"`
+	InputPrice         *float64 `json:"input_price"`
+	OutputPrice        *float64 `json:"output_price"`
+	CacheWritePrice    *float64 `json:"cache_write_price"`
+	CacheWrite1hPrice  *float64 `json:"cache_write_1h_price"`
+	CacheWrite12hPrice *float64 `json:"cache_write_12h_price"`
+	CacheReadPrice     *float64 `json:"cache_read_price"`
+	PerRequestPrice    *float64 `json:"per_request_price"`
+	SortOrder          int      `json:"sort_order"`
 }
 
 type accountStatsPricingRuleResponse struct {
@@ -255,6 +259,7 @@ func pricingToResponse(p *service.ChannelModelPricing) channelModelPricingRespon
 		OutputPrice:                p.OutputPrice,
 		CacheWritePrice:            p.CacheWritePrice,
 		CacheWrite1hPrice:          p.CacheWrite1hPrice,
+		CacheWrite12hPrice:         p.CacheWrite12hPrice,
 		CacheReadPrice:             p.CacheReadPrice,
 		ImageInputPrice:            p.ImageInputPrice,
 		ImageCacheReadPrice:        p.ImageCacheReadPrice,
@@ -283,17 +288,18 @@ func timePricingToResponse(value *service.ChannelTimePricing) *channelTimePricin
 
 func intervalToResponse(iv service.PricingInterval) pricingIntervalResponse {
 	return pricingIntervalResponse{
-		ID:                iv.ID,
-		MinTokens:         iv.MinTokens,
-		MaxTokens:         iv.MaxTokens,
-		TierLabel:         iv.TierLabel,
-		InputPrice:        iv.InputPrice,
-		OutputPrice:       iv.OutputPrice,
-		CacheWritePrice:   iv.CacheWritePrice,
-		CacheWrite1hPrice: iv.CacheWrite1hPrice,
-		CacheReadPrice:    iv.CacheReadPrice,
-		PerRequestPrice:   iv.PerRequestPrice,
-		SortOrder:         iv.SortOrder,
+		ID:                 iv.ID,
+		MinTokens:          iv.MinTokens,
+		MaxTokens:          iv.MaxTokens,
+		TierLabel:          iv.TierLabel,
+		InputPrice:         iv.InputPrice,
+		OutputPrice:        iv.OutputPrice,
+		CacheWritePrice:    iv.CacheWritePrice,
+		CacheWrite1hPrice:  iv.CacheWrite1hPrice,
+		CacheWrite12hPrice: iv.CacheWrite12hPrice,
+		CacheReadPrice:     iv.CacheReadPrice,
+		PerRequestPrice:    iv.PerRequestPrice,
+		SortOrder:          iv.SortOrder,
 	}
 }
 
@@ -308,16 +314,17 @@ func pricingRequestToService(reqs []channelModelPricingRequest) []service.Channe
 		intervals := make([]service.PricingInterval, 0, len(r.Intervals))
 		for _, iv := range r.Intervals {
 			intervals = append(intervals, service.PricingInterval{
-				MinTokens:         iv.MinTokens,
-				MaxTokens:         iv.MaxTokens,
-				TierLabel:         iv.TierLabel,
-				InputPrice:        iv.InputPrice,
-				OutputPrice:       iv.OutputPrice,
-				CacheWritePrice:   iv.CacheWritePrice,
-				CacheWrite1hPrice: iv.CacheWrite1hPrice,
-				CacheReadPrice:    iv.CacheReadPrice,
-				PerRequestPrice:   iv.PerRequestPrice,
-				SortOrder:         iv.SortOrder,
+				MinTokens:          iv.MinTokens,
+				MaxTokens:          iv.MaxTokens,
+				TierLabel:          iv.TierLabel,
+				InputPrice:         iv.InputPrice,
+				OutputPrice:        iv.OutputPrice,
+				CacheWritePrice:    iv.CacheWritePrice,
+				CacheWrite1hPrice:  iv.CacheWrite1hPrice,
+				CacheWrite12hPrice: iv.CacheWrite12hPrice,
+				CacheReadPrice:     iv.CacheReadPrice,
+				PerRequestPrice:    iv.PerRequestPrice,
+				SortOrder:          iv.SortOrder,
 			})
 		}
 		result = append(result, service.ChannelModelPricing{
@@ -328,6 +335,7 @@ func pricingRequestToService(reqs []channelModelPricingRequest) []service.Channe
 			OutputPrice:                r.OutputPrice,
 			CacheWritePrice:            r.CacheWritePrice,
 			CacheWrite1hPrice:          r.CacheWrite1hPrice,
+			CacheWrite12hPrice:         r.CacheWrite12hPrice,
 			CacheReadPrice:             r.CacheReadPrice,
 			ImageInputPrice:            r.ImageInputPrice,
 			ImageCacheReadPrice:        r.ImageCacheReadPrice,

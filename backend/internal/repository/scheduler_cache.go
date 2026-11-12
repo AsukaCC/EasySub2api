@@ -1006,6 +1006,8 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		// flags so model_mapping is not mistaken for a whitelist on passthrough accounts.
 		"openai_passthrough",
 		"openai_oauth_passthrough",
+		// 生图尺寸档位在候选过滤阶段按本投影判定，裁掉后受限账号会接到不允许的档位。
+		service.AccountExtraOpenAIImageSizeTiers,
 		"codex_fingerprint_mode",
 		"codex_fingerprint_seed",
 		"codex_5h_used_percent",

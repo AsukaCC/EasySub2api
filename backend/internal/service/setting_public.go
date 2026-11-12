@@ -613,6 +613,7 @@ type PublicSettingsInjectionPayload struct {
 	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
+	MCPEnabled                          bool                     `json:"mcp_enabled"`
 	PaymentEnabled                      bool                     `json:"payment_enabled"`
 	SubscriptionEnabled                 bool                     `json:"subscription_enabled"`
 	SiteBillingMode                     string                   `json:"site_billing_mode"`
@@ -712,6 +713,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		GitHubOAuthEnabled:                  settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:                  settings.GoogleOAuthEnabled,
 		BackendModeEnabled:                  settings.BackendModeEnabled,
+		MCPEnabled:                          settings.MCPEnabled,
 		PaymentEnabled:                      settings.PaymentEnabled,
 		SubscriptionEnabled:                 settings.SubscriptionEnabled,
 		SiteBillingMode:                     settings.SiteBillingMode,

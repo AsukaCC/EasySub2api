@@ -23,15 +23,20 @@ func validateGPT61SolChatOnlyRequest(body []byte, upstreamModel string, hasTools
 func validateGPT61SolReasoningEffort(body []byte, models ...string) error {
 	models = append(models, gjson.GetBytes(body, "model").String())
 	for _, model := range models {
-		if !openai.IsGPT61SolModelSpelling(model) {
+		if !openai.IsGPT61SolModelSpelling(model) && !openai.IsGPT61TerraModelSpelling(model) {
 			continue
+		}
+		if strings.HasSuffix(strings.ToLower(strings.TrimSpace(model)), "-minimal") {
+			if err := openai.ValidateGPT61ReasoningEffort(model, "minimal"); err != nil {
+				return err
+			}
 		}
 		for _, path := range []string{"reasoning.effort", "reasoning_effort", "output_config.effort"} {
 			effort := strings.TrimSpace(gjson.GetBytes(body, path).String())
 			if strings.EqualFold(gjson.GetBytes(body, "thinking.type").String(), "disabled") {
 				effort = "none"
 			}
-			if err := openai.ValidateGPT61SolReasoningEffort(model, effort); err != nil {
+			if err := openai.ValidateGPT61ReasoningEffort(model, effort); err != nil {
 				return fmt.Errorf("invalid reasoning effort for %s: %w", model, err)
 			}
 		}

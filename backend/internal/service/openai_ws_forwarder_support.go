@@ -323,6 +323,9 @@ func isOpenAIWSTokenEvent(eventType string) bool {
 // openAIWSMessageStartsTTFT applies the same Responses TTFT boundary used by
 // HTTP SSE forwarding to a decoded WebSocket event.
 func openAIWSMessageStartsTTFT(message []byte, eventType, mode string) bool {
+	if strings.HasPrefix(strings.TrimSpace(eventType), "codex.") {
+		return false
+	}
 	return openAIStreamDataStartsTTFT(string(message), eventType, false, mode)
 }
 
@@ -516,6 +519,9 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	// normal scheduling skips it. Pause is transient, so fall through to normal scheduling
 	// without deleting the binding (the window may reset before the next turn).
 	if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, account); paused {
+		return "", nil, "", nil
+	}
+	if vetoed, _ := openAIImageSizeVetoReason(withOpenAIImageSizeStickyAccount(ctx, account.ID), account); vetoed {
 		return "", nil, "", nil
 	}
 	// 分组利润控制：与 quota auto-pause 同语义——利润不合格是暂时

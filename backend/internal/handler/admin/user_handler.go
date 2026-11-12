@@ -468,7 +468,7 @@ func (h *UserHandler) List(c *gin.Context) {
 		filters.IncludeSubscriptions = &includeSubscriptions
 	}
 
-	principal := adminaccess.FromContext(c.Request.Context())
+	principal := adminaccess.RestrictedFromContext(c.Request.Context())
 	if principal != nil {
 		include := false
 		filters.IncludeSubscriptions = &include
@@ -879,7 +879,7 @@ func (h *UserHandler) UpdateBalance(c *gin.Context) {
 		}
 		return dto.UserFromServiceAdmin(user), nil
 	}, func(data any) any {
-		if adminaccess.FromContext(c.Request.Context()) != nil {
+		if adminaccess.RestrictedFromContext(c.Request.Context()) != nil {
 			return gin.H{"id": userID}
 		}
 		return data

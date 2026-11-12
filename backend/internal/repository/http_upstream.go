@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/http2"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
+	pkghttputil "github.com/AsukaCC/EasySub2api/internal/pkg/httputil"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/proxyurl"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/proxyutil"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/tlsfingerprint"
@@ -220,7 +221,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID s
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	req, headerTrace := s.attachUpstreamHeaderTrace(req, profile, accountID, entry.protocolMode, entry.proxyKey)
-	resp, err := doUpstreamRequest(client, req)
+	resp, err := doUpstreamRequest(client, req, s.upstreamDrainTimeout())
 	headerTrace.finish(resp, err)
 	if err != nil {
 		s.recordOpenAIHTTP2Failure(profile, entry.protocolMode, entry.proxyKey, err)
@@ -283,7 +284,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	req, headerTrace := s.attachUpstreamHeaderTrace(req, upstreamProfile, accountID, entry.protocolMode, entry.proxyKey)
-	resp, err := doUpstreamRequest(client, req)
+	resp, err := doUpstreamRequest(client, req, s.upstreamDrainTimeout())
 	headerTrace.finish(resp, err)
 	if err != nil {
 		atomic.AddInt64(&entry.inFlight, -1)
@@ -1513,4 +1514,11 @@ func (d *decompressedBody) Close() error {
 		_ = rc.Close()
 	}
 	return d.closer.Close()
+}
+
+func (s *httpUpstreamService) upstreamDrainTimeout() time.Duration {
+	if s.cfg != nil && s.cfg.Gateway.StreamDataIntervalTimeout > 0 {
+		return time.Duration(s.cfg.Gateway.StreamDataIntervalTimeout) * time.Second
+	}
+	return pkghttputil.DefaultUpstreamDrainTimeout
 }

@@ -52,7 +52,8 @@ func (r *groupRepository) ScopedAdminListGroupModels(ctx context.Context, params
 		return nil, 0, infraerrors.Forbidden("SCOPED_GROUP_MODELS_FORBIDDEN", "缺少受限身份")
 	}
 	alternatives := []predicate.Group{}
-	for _, rule := range p.Policy.RulesFor("groups.models.read") {
+	rules := append(p.Policy.RulesFor("groups.models.read"), p.Policy.RulesFor("groups.list.read")...)
+	for _, rule := range rules {
 		terms := []predicate.Group{group.IDNEQ("")}
 		if !rule.AllGroups {
 			if len(rule.GroupIDs) == 0 {

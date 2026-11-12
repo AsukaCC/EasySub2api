@@ -328,6 +328,9 @@ func isOpenAICompatibleAccountEligibleForRequest(ctx context.Context, account *A
 	if !isOpenAICompatibleAccountEligibleForRequestBeforeProfit(ctx, account, platform, requestedModel, requireCompact, requiredCapability) {
 		return false
 	}
+	if vetoed, _ := openAIImageSizeVetoReason(ctx, account); vetoed {
+		return false
+	}
 	// 分组利润控制：legacy 引擎的粘性/候选循环与 DB recheck 共用
 	// 本判定，任何 fallback 都不能把利润不合格账号重新放回候选。
 	if vetoed, _ := openAIProfitControlVetoReason(ctx, account); vetoed {
@@ -340,6 +343,9 @@ func isOpenAICompatibleAccountEligibleForRequest(ctx context.Context, account *A
 // ordinary scheduling gate. Legacy selection uses it before classifying the
 // profit veto so earlier failures retain their actual reason.
 func isOpenAICompatibleAccountEligibleForRequestBeforeProfit(ctx context.Context, account *Account, platform string, requestedModel string, requireCompact bool, requiredCapability OpenAIEndpointCapability) bool {
+	if vetoed, _ := openAIImageSizeVetoReason(ctx, account); vetoed {
+		return false
+	}
 	if account != nil && CheckActiveModel(requestedModel, resolveOpenAIAccountUpstreamModelForRequest(account, requestedModel, requireCompact)) != nil {
 		return false
 	}
@@ -764,6 +770,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 	}
 
 	stickyAccountID = s.clearInvalidOpenAIStickySession(ctx, groupID, platform, sessionHash, stickyAccountID, requestedModel, excludedIDs, accounts, requireCompact)
+	ctx = withOpenAIImageSizeStickyAccount(ctx, stickyAccountID)
 	ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, s.openAISessionCacheKey(sessionHash), stickyAccountID)
 
 	// 3. 按优先级 + LRU 选择最佳账号
@@ -783,7 +790,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 	// 终检否决的账号不得成为新的粘性目标；无门保持既有 eager 绑定与 TTL）
 	// Set sticky session binding (deferred until terminal admission under a profit gate)
 	if sessionHash != "" && !gatewayProfitControlGateActive(ctx) && !deferKeySchedulingAffinity(ctx) {
-		_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, selected.ID, openaiStickySessionTTL)
+		_ = s.bindOpenAIStickySessionDuringSelection(ctx, groupID, sessionHash, selected.ID)
 	}
 	if ctx.Value(keySchedulingCaptureKey{}) == nil {
 		renewSessionSchedulingAffinity(ctx, hydrated.ID)
@@ -1016,6 +1023,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			stickyAccountID = accountID
 		}
 	}
+	ctx = withOpenAIImageSizeStickyAccount(ctx, stickyAccountID)
 	ctx = withSessionSchedulingAffinity(ctx, s.cache, groupID, s.openAISessionCacheKey(sessionHash), stickyAccountID)
 	if s.concurrencyService == nil || !cfg.LoadBatchEnabled {
 		var keyCapture *keySchedulingCapture
@@ -1259,7 +1267,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 					return nil, true, selectErr
 				}
 				if sessionHash != "" && !stickySpillover && !gatewayProfitControlGateActive(ctx) {
-					_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fresh.ID, openaiStickySessionTTL)
+					_ = s.bindOpenAIStickySessionDuringSelection(ctx, groupID, sessionHash, fresh.ID)
 				}
 				return selection, true, nil
 			}
@@ -1308,7 +1316,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 					return nil, selectErr
 				}
 				if sessionHash != "" && !stickySpillover && !gatewayProfitControlGateActive(ctx) {
-					_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fresh.ID, openaiStickySessionTTL)
+					_ = s.bindOpenAIStickySessionDuringSelection(ctx, groupID, sessionHash, fresh.ID)
 				}
 				return selection, nil
 			}

@@ -4,6 +4,7 @@ export default {
     refresh: 'Refresh', remaining: 'Remaining', unknown: 'Unknown', failed: 'Refresh failed', stale: 'Last known usage', updated: 'Updated',
     claudeVersion: 'Claude Code client version', syncVersion: 'Sync stable version automatically', syncedVersion: 'Latest synced version',
     credits: 'Codex credits', unlimited: 'Unlimited', invitations: 'Referral invitations', recipient: 'Recipient email',
+    creditsCacheFailed: 'Credits updated, but the cache could not be saved. Reopening the page may show the previous value.',
     available: 'Available invitations', confirmConsent: 'Recipient consent confirmed', send: 'Send invitation', sent: 'Invitation sent',
     unknownSend: 'Delivery is uncertain. Check invitation status in Codex before sending again.',
     engine: 'Content audit engine', savedEngine: 'Active engine', endpoint: 'API URL', model: 'Model', key: 'API key',

@@ -386,14 +386,14 @@ func (_c *APIKeyCreate) ExecX(ctx context.Context) {
 func (_c *APIKeyCreate) defaults() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if apikey.DefaultCreatedAt == nil {
-			return fmt.Errorf("ent: uninitialized apikey.DefaultCreatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized apikey.DefaultCreatedAt (forgotten import ent/runtime?)")
 		}
 		v := apikey.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		if apikey.DefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized apikey.DefaultUpdatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized apikey.DefaultUpdatedAt (forgotten import ent/runtime?)")
 		}
 		v := apikey.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -436,7 +436,7 @@ func (_c *APIKeyCreate) defaults() error {
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if apikey.DefaultID == nil {
-			return fmt.Errorf("ent: uninitialized apikey.DefaultID (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized apikey.DefaultID (forgotten import ent/runtime?)")
 		}
 		v := apikey.DefaultID()
 		_c.mutation.SetID(v)
@@ -523,6 +523,8 @@ func (_c *APIKeyCreate) sqlSave(ctx context.Context) (*APIKey, error) {
 	if _spec.ID.Value != nil {
 		if id, ok := _spec.ID.Value.(string); ok {
 			_node.ID = id
+		} else if id, ok := _spec.ID.Value.([]byte); ok {
+			_node.ID = string(id)
 		} else {
 			return nil, fmt.Errorf("unexpected APIKey.ID type: %T", _spec.ID.Value)
 		}

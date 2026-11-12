@@ -120,13 +120,13 @@
                   class="components-model-plaza-plaza-model-pricing-table__panel-5"
                 >
                   <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ tierLabel(iv) }}</span>
-                  <template v-if="iv.cache_write_price != null || iv.cache_write_1h_price != null || iv.cache_read_price != null">
+                  <template v-if="iv.cache_write_price != null || iv.cache_write_1h_price != null || iv.cache_write_12h_price != null || iv.cache_read_price != null">
                     <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheWrite') }}</span>
                     {{ paidPerMillion(iv.cache_write_price)
                     }}<template v-if="iv.cache_write_1h_price != null"
                       ><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (1h </span>{{ paidPerMillion(iv.cache_write_1h_price)
                       }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template
-                    >
+                    ><template v-if="iv.cache_write_12h_price != null"><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (12h </span>{{ paidPerMillion(iv.cache_write_12h_price) }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template>
                     <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheRead') }}</span>
                     {{ paidPerMillion(iv.cache_read_price) }}
                   </template>
@@ -143,7 +143,7 @@
                   }}<template v-if="m.pricing?.cache_write_1h_price != null"
                     ><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (1h </span>{{ paidPerMillion(m.pricing.cache_write_1h_price)
                     }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template
-                  >
+                  ><template v-if="m.pricing?.cache_write_12h_price != null"><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (12h </span>{{ paidPerMillion(m.pricing.cache_write_12h_price) }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template>
                 </div>
                 <div>
                   <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheRead') }}</span>
@@ -201,7 +201,7 @@
                 }}<template v-if="m.official_pricing.cache_write_1h_price != null"
                   ><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (1h </span>{{ official(m.official_pricing.cache_write_1h_price)
                   }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template
-                >
+                ><template v-if="m.official_pricing.cache_write_12h_price != null"><span class="components-model-plaza-plaza-model-pricing-table__text-8"> (12h </span>{{ official(m.official_pricing.cache_write_12h_price) }}<span class="components-model-plaza-plaza-model-pricing-table__text-8">)</span></template>
               </div>
               <div>
                 <span class="components-model-plaza-plaza-model-pricing-table__text-5">{{ t('modelPlaza.table.cacheRead') }}</span>
@@ -324,11 +324,11 @@ function perUnitSuffix(m: PlazaModel): string {
 }
 
 function hasCachePricing(m: PlazaModel): boolean {
-  return m.pricing?.cache_write_price != null || m.pricing?.cache_write_1h_price != null || m.pricing?.cache_read_price != null
+  return m.pricing?.cache_write_price != null || m.pricing?.cache_write_1h_price != null || m.pricing?.cache_write_12h_price != null || m.pricing?.cache_read_price != null
 }
 
 function hasOfficialCache(o: NonNullable<PlazaModel['official_pricing']>): boolean {
-  return o.cache_write_price != null || o.cache_read_price != null || o.cache_write_1h_price != null
+  return o.cache_write_price != null || o.cache_read_price != null || o.cache_write_1h_price != null || o.cache_write_12h_price != null
 }
 
 /** token 模式的阶梯定价(内联进输入/输出列)。 */

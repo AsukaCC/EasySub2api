@@ -448,12 +448,12 @@ func bootstrapAdminUser(ctx context.Context, db *sql.DB, cfg *SetupConfig) (bool
 
 	_, err = db.ExecContext(
 		ctx,
-		`INSERT INTO users (email, password_hash, role, balance, concurrency, status, created_at, updated_at)
+		`INSERT INTO users (email, password_hash, role, recharge_balance, concurrency, status, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		admin.Email,
 		admin.PasswordHash,
 		admin.Role,
-		admin.Balance,
+		admin.RechargeBalance,
 		admin.Concurrency,
 		admin.Status,
 		admin.CreatedAt,

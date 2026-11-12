@@ -97,6 +97,7 @@ type ChannelModelPricing struct {
 	OutputPrice                *float64            `json:"output_price"`
 	CacheWritePrice            *float64            `json:"cache_write_price"`
 	CacheWrite1hPrice          *float64            `json:"cache_write_1h_price"`
+	CacheWrite12hPrice         *float64            `json:"cache_write_12h_price"`
 	CacheReadPrice             *float64            `json:"cache_read_price"`
 	ImageInputPrice            *float64            `json:"image_input_price"`
 	ImageCacheReadPrice        *float64            `json:"image_cache_read_price"`
@@ -124,20 +125,21 @@ type ChannelTimePricingPeriod struct {
 
 // PricingInterval 定价区间（token 区间 / 按次分层 / 图片分辨率分层）
 type PricingInterval struct {
-	ID                string    `json:"id,omitempty"`
-	PricingID         string    `json:"pricing_id,omitempty"`
-	MinTokens         int       `json:"min_tokens"`
-	MaxTokens         *int      `json:"max_tokens"`
-	TierLabel         string    `json:"tier_label"`
-	InputPrice        *float64  `json:"input_price"`
-	OutputPrice       *float64  `json:"output_price"`
-	CacheWritePrice   *float64  `json:"cache_write_price"`
-	CacheWrite1hPrice *float64  `json:"cache_write_1h_price"`
-	CacheReadPrice    *float64  `json:"cache_read_price"`
-	PerRequestPrice   *float64  `json:"per_request_price"`
-	SortOrder         int       `json:"sort_order"`
-	CreatedAt         time.Time `json:"created_at,omitempty"`
-	UpdatedAt         time.Time `json:"updated_at,omitempty"`
+	ID                 string    `json:"id,omitempty"`
+	PricingID          string    `json:"pricing_id,omitempty"`
+	MinTokens          int       `json:"min_tokens"`
+	MaxTokens          *int      `json:"max_tokens"`
+	TierLabel          string    `json:"tier_label"`
+	InputPrice         *float64  `json:"input_price"`
+	OutputPrice        *float64  `json:"output_price"`
+	CacheWritePrice    *float64  `json:"cache_write_price"`
+	CacheWrite12hPrice *float64  `json:"cache_write_12h_price"`
+	CacheWrite1hPrice  *float64  `json:"cache_write_1h_price"`
+	CacheReadPrice     *float64  `json:"cache_read_price"`
+	PerRequestPrice    *float64  `json:"per_request_price"`
+	SortOrder          int       `json:"sort_order"`
+	CreatedAt          time.Time `json:"created_at,omitempty"`
+	UpdatedAt          time.Time `json:"updated_at,omitempty"`
 }
 
 // IsActive 判断渠道是否启用
@@ -374,6 +376,7 @@ func validateIntervalPrices(iv *PricingInterval, idx int) error {
 		{"output_price", iv.OutputPrice},
 		{"cache_write_price", iv.CacheWritePrice},
 		{"cache_write_1h_price", iv.CacheWrite1hPrice},
+		{"cache_write_12h_price", iv.CacheWrite12hPrice},
 		{"cache_read_price", iv.CacheReadPrice},
 		{"per_request_price", iv.PerRequestPrice},
 	}

@@ -9,7 +9,7 @@
       "
     >
       <!-- Loading state -->
-      <div v-if="loading" class="components-account-account-usage-cell__panel">
+      <div v-if="loading && !usageInfo" class="components-account-account-usage-cell__panel">
         <!-- OAuth: 3 rows, Setup Token: 1 row -->
         <div class="components-account-account-usage-cell__panel-2">
           <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
@@ -31,7 +31,7 @@
       </div>
 
       <!-- Error state -->
-      <div v-else-if="error" class="components-account-account-usage-cell__panel-5">
+      <div v-else-if="error && !usageInfo" class="components-account-account-usage-cell__panel-5">
         {{ error }}
       </div>
 
@@ -175,7 +175,7 @@
           </template>
         </OpenAIQuotaResetCell>
       </div>
-      <div v-else-if="loading" class="components-account-account-usage-cell__panel">
+      <div v-else-if="loading && !usageInfo" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
           <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
           <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
@@ -200,13 +200,13 @@
 
     <!-- Gemini OAuth / service-account quota windows -->
     <template v-else-if="account.platform === 'gemini'">
-      <div v-if="loading" class="components-account-account-usage-cell__panel">
+      <div v-if="loading && !usageInfo" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
           <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
           <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
         </div>
       </div>
-      <div v-else-if="error" class="components-account-account-usage-cell__panel-5">{{ error }}</div>
+      <div v-else-if="error && !usageInfo" class="components-account-account-usage-cell__panel-5">{{ error }}</div>
       <div v-else-if="usageInfo" class="components-account-account-usage-cell__panel-6">
         <UsageProgressBar v-if="usageInfo.gemini_shared_daily" label="1d" :utilization="usageInfo.gemini_shared_daily.utilization" :resets-at="usageInfo.gemini_shared_daily.resets_at" color="indigo" />
         <UsageProgressBar v-if="usageInfo.gemini_pro_daily" label="1d Pro" :utilization="usageInfo.gemini_pro_daily.utilization" :resets-at="usageInfo.gemini_pro_daily.resets_at" color="purple" />
@@ -219,13 +219,16 @@
 
     <!-- Antigravity reports quota per upstream model. -->
     <template v-else-if="account.platform === 'antigravity' && account.type === 'oauth'">
-      <div v-if="loading" class="components-account-account-usage-cell__panel">
+      <div v-if="loading && !usageInfo" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
           <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
           <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
         </div>
       </div>
-      <div v-else-if="error" class="components-account-account-usage-cell__panel-5">{{ error }}</div>
+      <div v-else-if="error && !usageInfo" class="components-account-account-usage-cell__panel-5">{{ error }}</div>
+      <div v-else-if="antigravityQuotaGroupBars.length > 0" class="components-account-account-usage-cell__panel-6">
+        <UsageProgressBar v-for="bar in antigravityQuotaGroupBars" :key="bar.key" :label="bar.label" :title="bar.title" :utilization="bar.utilization" :resets-at="bar.resetsAt" :color="bar.color" />
+      </div>
       <div v-else-if="antigravityQuotaBars.length > 0" class="components-account-account-usage-cell__panel-6">
         <UsageProgressBar
           v-for="bar in antigravityQuotaBars"
@@ -238,18 +241,19 @@
         />
       </div>
       <div v-else class="components-account-account-usage-cell__panel-9">-</div>
+      <button type="button" class="btn btn-secondary btn-sm" :disabled="loading" @click.stop="loadUsage({ source: 'active', bypassCache: true })">{{ t('admin.accounts.usageWindow.activeQuery') }}</button>
     </template>
 
     <!-- Grok OAuth accounts: passive xAI quota headers + local EasySub2api usage -->
     <template v-else-if="account.platform === 'grok' && account.type === 'oauth'">
-      <div v-if="loading" class="components-account-account-usage-cell__panel">
+      <div v-if="loading && !usageInfo" class="components-account-account-usage-cell__panel">
         <div class="components-account-account-usage-cell__panel-2">
           <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
           <div class="components-account-account-usage-cell__panel-4 loading-shimmer"></div>
           <div class="components-account-account-usage-cell__panel-3 loading-shimmer"></div>
         </div>
       </div>
-      <div v-else-if="error" class="components-account-account-usage-cell__panel-5">
+      <div v-else-if="error && !usageInfo" class="components-account-account-usage-cell__panel-5">
         {{ error }}
       </div>
       <div v-else-if="needsReauth" class="components-account-account-usage-cell__panel-6">
@@ -564,6 +568,39 @@ const hasGeminiUsage = computed(() => Boolean(
   usageInfo.value?.gemini_pro_minute ||
   usageInfo.value?.gemini_flash_minute
 ))
+
+const antigravityQuotaGroupBars = computed(() => {
+  const groups = usageInfo.value?.antigravity_quota_groups
+  if (!groups || groups.length === 0) return []
+  const bars: Array<{
+    key: string
+    label: string
+    title: string
+    utilization: number
+    resetsAt: string | null
+    color: 'indigo' | 'emerald' | 'purple' | 'amber'
+  }> = []
+  for (const group of groups) {
+    // 'gemini' = Gemini models, 'gemini-argon-wtu' = the separate Argon quota of Pro plans,
+    // '3p' (or anything else) = Antigravity's Claude and GPT models.
+    const family = group.key === 'gemini' ? 'Gemini' : group.key.startsWith('gemini-argon') ? 'Argon' : 'Other'
+    for (const window of group.windows || []) {
+      const weekly = window.window === 'weekly'
+      const labelKey = `admin.accounts.usageWindow.antigravity${family}${weekly ? 'Weekly' : '5h'}`
+      const color: 'indigo' | 'emerald' | 'purple' | 'amber' =
+        family === 'Gemini' ? (weekly ? 'indigo' : 'emerald') : family === 'Argon' ? 'indigo' : weekly ? 'purple' : 'amber'
+      bars.push({
+        key: `${group.key}-${window.window}`,
+        label: t(labelKey),
+        title: group.name,
+        utilization: Math.round(window.utilization ?? 0),
+        resetsAt: window.resets_at ?? null,
+        color
+      })
+    }
+  }
+  return bars
+})
 
 const antigravityQuotaBars = computed(() => {
   const quota = usageInfo.value?.antigravity_quota || {}

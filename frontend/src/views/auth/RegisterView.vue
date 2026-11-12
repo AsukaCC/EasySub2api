@@ -908,6 +908,9 @@ function buildRegistrationErrorMessage(error: unknown, fallback: string): string
   ) {
     return t('auth.invitationCodeInvalidCannotRegister')
   }
+  if (extractApiErrorCode(error) === 'EMAIL_BLOCKED') {
+    return t('auth.errors.EMAIL_BLOCKED')
+  }
   return buildAuthErrorMessage(error, { fallback })
 }
 </script>

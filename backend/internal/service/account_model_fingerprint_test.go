@@ -227,13 +227,14 @@ func TestModelFingerprintRetention(t *testing.T) {
 		finished bool
 		visible  bool
 	}{
-		{"completed before boundary", "completed", 24*time.Hour - time.Nanosecond, true, true},
-		{"completed at boundary", "completed", 24 * time.Hour, true, false},
-		{"completed after boundary", "completed", 25 * time.Hour, true, false},
-		{"failure at boundary", "failed", 24 * time.Hour, true, false},
+		{"completed after one day", "completed", 25 * time.Hour, true, true},
+		{"completed before boundary", "completed", 7*24*time.Hour - time.Nanosecond, true, true},
+		{"completed at boundary", "completed", 7 * 24 * time.Hour, true, false},
+		{"completed after boundary", "completed", 8 * 24 * time.Hour, true, false},
+		{"failure at boundary", "failed", 7 * 24 * time.Hour, true, false},
 		{"active lease", "running", -time.Minute, false, true},
 		{"recent interrupted worker", "running", time.Minute, false, true},
-		{"expired interrupted worker", "running", 24 * time.Hour, false, false},
+		{"expired interrupted worker", "running", 7 * 24 * time.Hour, false, false},
 		{"legacy result", "completed", time.Hour, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -255,7 +256,7 @@ func TestModelFingerprintRetention(t *testing.T) {
 		})
 	}
 	svc, repo, _ := newFingerprintTestService(t)
-	old := time.Now().Add(-25 * time.Hour)
+	old := time.Now().Add(-8 * 24 * time.Hour)
 	repo.snapshots["expired"] = &ModelFingerprintSnapshot{Status: "completed", FinishedAt: &old}
 	got, err := svc.GetModelFingerprint(context.Background(), "expired")
 	require.NoError(t, err)

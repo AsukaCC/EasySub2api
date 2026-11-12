@@ -361,8 +361,8 @@
               <span class="components-admin-usage-usage-table__text-32">{{ tokenTooltipData.image_output_tokens.toLocaleString() }}</span>
             </div>
             <div v-if="tokenTooltipData && tokenTooltipData.cache_creation_tokens > 0">
-              <!-- 有 5m/1h 明细时，展开显示 -->
-              <template v-if="tokenTooltipData.cache_creation_5m_tokens > 0 || tokenTooltipData.cache_creation_1h_tokens > 0">
+              <!-- Expand only the lifetimes reported by the upstream. -->
+              <template v-if="tokenTooltipData.cache_creation_5m_tokens > 0 || tokenTooltipData.cache_creation_1h_tokens > 0 || (tokenTooltipData.cache_creation_30m_tokens ?? 0) > 0 || (tokenTooltipData.cache_creation_12h_tokens ?? 0) > 0">
                 <div v-if="tokenTooltipData.cache_creation_5m_tokens > 0" class="usage-tooltip__row">
                   <span class="components-admin-usage-usage-table__text-33">
                     {{ t('admin.usage.cacheCreation5mTokens') }}

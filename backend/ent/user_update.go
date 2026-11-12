@@ -981,7 +981,7 @@ func (_u *UserUpdate) ExecX(ctx context.Context) {
 func (_u *UserUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if user.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
 		}
 		v := user.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
@@ -2724,7 +2724,7 @@ func (_u *UserUpdateOne) ExecX(ctx context.Context) {
 func (_u *UserUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
 		if user.UpdateDefaultUpdatedAt == nil {
-			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import entgen/runtime?)")
+			return fmt.Errorf("ent: uninitialized user.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
 		}
 		v := user.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)

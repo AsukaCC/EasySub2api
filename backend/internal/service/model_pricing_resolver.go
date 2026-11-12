@@ -305,6 +305,12 @@ func (r *ModelPricingResolver) applyTokenOverrides(chPricing *ChannelModelPricin
 		resolved.BasePricing.CacheCreation1hPrice = *chPricing.CacheWrite1hPrice
 		resolved.BasePricing.SupportsCacheBreakdown = true
 	}
+	if chPricing.CacheWrite12hPrice != nil {
+		resolved.BasePricing.CacheCreation12hPricePerToken = chPricing.CacheWrite12hPrice
+		resolved.BasePricing.CacheCreation12hPriceExplicit = true
+	} else if chPricing.CacheWritePrice != nil {
+		resolved.BasePricing.CacheCreation12hPricePerToken = nil
+	}
 	if chPricing.CacheReadPrice != nil {
 		resolved.BasePricing.CacheReadPricePerToken = *chPricing.CacheReadPrice
 		resolved.BasePricing.CacheReadPricePerTokenPriority = *chPricing.CacheReadPrice
@@ -358,7 +364,7 @@ func filterValidIntervals(intervals []PricingInterval) []PricingInterval {
 	var valid []PricingInterval
 	for _, iv := range intervals {
 		if iv.InputPrice != nil || iv.OutputPrice != nil ||
-			iv.CacheWritePrice != nil || iv.CacheWrite1hPrice != nil || iv.CacheReadPrice != nil ||
+			iv.CacheWritePrice != nil || iv.CacheWrite1hPrice != nil || iv.CacheWrite12hPrice != nil || iv.CacheReadPrice != nil ||
 			iv.PerRequestPrice != nil {
 			valid = append(valid, iv)
 		}
@@ -406,6 +412,12 @@ func intervalToModelPricing(iv *PricingInterval, supportsCacheBreakdown bool, ch
 	if iv.CacheWrite1hPrice != nil {
 		pricing.CacheCreation1hPrice = *iv.CacheWrite1hPrice
 		pricing.SupportsCacheBreakdown = true
+	}
+	if iv.CacheWrite12hPrice != nil {
+		pricing.CacheCreation12hPricePerToken = iv.CacheWrite12hPrice
+		pricing.CacheCreation12hPriceExplicit = true
+	} else if iv.CacheWritePrice != nil {
+		pricing.CacheCreation12hPricePerToken = nil
 	}
 	if iv.CacheReadPrice != nil {
 		pricing.CacheReadPricePerToken = *iv.CacheReadPrice

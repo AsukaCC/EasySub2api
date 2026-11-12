@@ -166,7 +166,8 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 	var usage ClaudeUsage
 
 	// 读间隔上限：上游挂住 SSE 时中止组装（缓冲路径尚未提交响应头，可回 502）。
-	streamInterval := s.anthropicNativeStreamInterval()
+	streamInterval := anthropicNativeStreamInterval(s.cfg)
+	streamStatus := &anthropicCompatStream{body: resp.Body}
 	pump := newAnthropicNativeLinePump(scanner, streamInterval)
 	defer pump.stop()
 
@@ -195,6 +196,7 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 				return onIdle()
 			}
 			logReadErr(rerr)
+			streamStatus.readErr = rerr
 			break
 		}
 		// SSE 规范允许 `event:xxx`（冒号后无空格）：Kimi 等 Anthropic 兼容上游
@@ -209,6 +211,7 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 				return onIdle()
 			}
 			logReadErr(rerr)
+			streamStatus.readErr = rerr
 			break
 		}
 		payload, ok := extractOpenAISSEDataLine(dataLine)
@@ -219,6 +222,11 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 		var event apicompat.AnthropicStreamEvent
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
 			continue
+		}
+
+		streamStatus.observe(&event, payload)
+		if streamStatus.upstreamErrType != "" {
+			break
 		}
 
 		if event.Type == "message_start" && event.Message != nil {
@@ -249,6 +257,16 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 				}
 			}
 		}
+	}
+
+	if failure := streamStatus.failure(); failure != nil {
+		_ = resp.Body.Close()
+		writeChatCompletionsError(c, http.StatusBadGateway, "server_error", failure.message)
+		return &OpenAIForwardResult{
+			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: claudeUsageToOpenAIUsage(&usage),
+			Model: originalModel, BillingModel: billingModel, UpstreamModel: upstreamModel,
+			UpstreamEndpoint: "/v1/messages", ReasoningEffort: reasoningEffort, Duration: time.Since(startTime),
+		}, failure.err
 	}
 
 	if finalResp == nil {
@@ -333,6 +351,7 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 		maxLineSize = s.cfg.Gateway.MaxLineSize
 	}
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineSize)
+	scanner.Split(newBoundedSSESplit(s.cfg, maxLineSize, nil))
 
 	resultWithUsage := func() *OpenAIForwardResult {
 		return &OpenAIForwardResult{
@@ -353,7 +372,8 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 	// 读间隔上限：上游挂住 SSE（不发数据也不断连）时结束排水。上游 ctx 为
 	// WithoutCancel 且 http.Client 无整体 Timeout，无此界限则客户端断开后
 	// scanner.Scan() 永久阻塞（见 anthropic native pump 文件注释）。
-	streamInterval := s.anthropicNativeStreamInterval()
+	streamInterval := anthropicNativeStreamInterval(s.cfg)
+	streamStatus := &anthropicCompatStream{body: resp.Body}
 	pump := newAnthropicNativeLinePump(scanner, streamInterval)
 	defer pump.stop()
 
@@ -435,6 +455,7 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 				return onIdle()
 			}
 			logReadErr(rerr)
+			streamStatus.readErr = rerr
 			break
 		}
 		if _, ok := extractOpenAISSEEventLine(line); !ok {
@@ -448,6 +469,7 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 			}
 			// EOF / 读错误：事件行后流终止，进入 finalize。
 			logReadErr(rerr)
+			streamStatus.readErr = rerr
 			break
 		}
 		payload, ok := extractOpenAISSEDataLine(dataLine)
@@ -465,7 +487,19 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 		}
 	}
 
-	// Finalize both state machines（客户端已断开时仍执行，保证 usage 汇总完整）。
+	if failure := streamStatus.failure(); failure != nil {
+		_ = resp.Body.Close()
+		if !clientDisconnected {
+			writeAnthropicCompatCCStreamFailure(c, failure)
+		}
+		return resultWithUsage(), failure.err
+	}
+
+	if clientDisconnected {
+		return resultWithUsage(), nil
+	}
+
+	// Finalize only after the upstream has supplied a terminal event.
 	finalResEvents := apicompat.FinalizeAnthropicResponsesStream(anthState)
 	for _, resEvt := range finalResEvents {
 		ccChunks := apicompat.ResponsesEventToChatChunks(&resEvt, ccState)

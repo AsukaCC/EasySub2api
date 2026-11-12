@@ -2,7 +2,7 @@ import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { getModelFingerprint, isModelFingerprintPending, type ModelFingerprintSnapshot } from '@/api/admin/modelFingerprint'
 
-const retentionMs = 24 * 60 * 60 * 1000
+const retentionMs = 7 * 24 * 60 * 60 * 1000
 
 function retainedUntil(value: ModelFingerprintSnapshot) {
   // expires_at is the worker lease, used only for interrupted/legacy results.

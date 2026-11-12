@@ -22,6 +22,6 @@ export async function getOpenCodeSettings() { return (await apiClient.get<OpenCo
 export async function saveOpenCodeSettings(value: OpenCodeGoUsageSettings) { return (await apiClient.put<OpenCodeGoUsageSettings>(`${usageBase}/opencode-go-usage/settings`, value)).data }
 export async function refreshOpenCodeUsage(id: string) { return (await apiClient.post<OpenCodeGoUsageState>(`${usageBase}/${id}/opencode-go-usage/refresh`)).data }
 export async function setOpenCodeAutoRefresh(id: string, enabled: boolean) { return (await apiClient.put<OpenCodeGoUsageState>(`${usageBase}/${id}/opencode-go-usage/auto-refresh`, { enabled })).data }
-export async function refreshCodexCredits(id: string) { return (await apiClient.post<{ credits?: CodexCredits }>(`/admin/openai/accounts/${id}/quota/refresh`)).data }
+export async function refreshCodexCredits(id: string) { return (await apiClient.post<import('./accounts').OpenAIQuotaRefreshResult>(`/admin/openai/accounts/${id}/quota/refresh`)).data }
 export async function refreshCodexReferrals(id: string) { return (await apiClient.post<{ eligibility: OpenAIReferralEligibility; cache_persisted: boolean }>(`/admin/openai/accounts/${id}/referrals/refresh`)).data }
 export async function sendCodexReferral(id: string, email: string, program_id: string) { return (await apiClient.post<{ sent: boolean; refresh_failed: boolean; eligibility?: OpenAIReferralEligibility }>(`/admin/openai/accounts/${id}/referrals/invite`, { email, program_id, confirmed: true })).data }

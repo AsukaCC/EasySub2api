@@ -72,6 +72,21 @@ jobs:
             ./internal/pkg/antigravity ./internal/pkg/gemini ./internal/pkg/geminicli \
             -run "$release_tests" -count=1 -timeout=10m
 
+      - name: Release 0.2.20 and 0.2.21 compatibility regressions
+        working-directory: backend
+        run: >-
+          go test -tags=unit ./internal/service ./internal/handler ./internal/managementmcp
+          ./internal/config ./internal/service/openai_ws_v2 ./internal/pkg/apicompat
+          -run 'Test(MCPOAuth|RevokeAllUserTokensAlsoRevokesMCP|NormalizeRegistrationEmail|ParseRegistrationEmail|SettingService_.*RegistrationEmailBlacklist|NonStreaming|OpenAICacheWriteTTL|OpenAIResponsesSealed|RelayStallsMetadata|DeriveOpenAIContentSessionSeed_Responses|OpenAIGatewayService_ResponsesToolLoop|ApplyGeminiCompatThinking|Gemini.*Thought|Gemini.*Thinking|Gemini.*Reasoning|ConvertClaudeMessagesToGemini_DropsHistory|SelectAccountWithSchedulerForImages|SelectAccountWithScheduler_.*Size|SelectOpenAIAccountByImageSizePasses|AccountOpenAIImageSize|AccountOpenAIImageTestSize|OpenAIImageSizeTierUnsupported|SSEQueueBudget|BoundedSSE|AnthropicNativePump|SSETransport|RequestBodyBudget|RequestBodyRead|DownstreamWrite|MCP|Catalog|Server)'
+          -count=1 -timeout=10m
+
+      - name: Protocol IO, configuration and MCP package regressions
+        working-directory: backend
+        run: >-
+          go test -tags=unit ./internal/pkg/httputil ./internal/pkg/antigravity
+          ./internal/pkg/apicompat ./internal/config ./internal/managementmcp
+          ./internal/service/openai_ws_v2 ./internal/setup -count=1 -timeout=5m
+
       - name: Account scheduling before conversation affinity
         working-directory: backend
         run: >-
@@ -98,11 +113,11 @@ jobs:
           check-latest: false
           cache: true
           cache-dependency-path: backend/go.sum
-      - name: Release 0.2.19 migrations and wallet regressions
+      - name: Release migrations, MCP, cache TTL and wallet regressions
         working-directory: backend
         env:
           SUB2API_TEST_POSTGRES_IMAGE: postgres:16-alpine
-        run: python3 scripts/test-release0219-integration.py
+        run: python3 scripts/test-release0221-integration.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -163,6 +178,14 @@ jobs:
           src/components/admin/settings/__tests__/AdminAccessKeysSettings.spec.ts
           src/components/account/__tests__/GrokModelDiagnosticsPanel.spec.ts
           src/views/admin/__tests__/ChannelsView.webSearchEmulation.spec.ts
+
+      - name: Release 0.2.20 and 0.2.21 frontend regressions
+        working-directory: frontend
+        run: >-
+          pnpm exec vitest run src/i18n/__tests__
+          src/components/account/__tests__/OpenAIReferralCell.spec.ts
+          src/components/admin/settings/__tests__/AdminAccessKeysSettings.spec.ts
+          src/views/user/__tests__/UsageView.spec.ts
 
   golangci-lint:
     runs-on: ubuntu-latest

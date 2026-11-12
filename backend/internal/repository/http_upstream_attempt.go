@@ -2,16 +2,22 @@ package repository
 
 import (
 	"context"
+	pkghttputil "github.com/AsukaCC/EasySub2api/internal/pkg/httputil"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/servertiming"
 	"io"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // doUpstreamRequest owns cancellation for one attempt, without cancelling the
 // caller's context (which may be detached for billing or reused for retries).
-func doUpstreamRequest(client *http.Client, req *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithCancel(req.Context())
+func doUpstreamRequest(client *http.Client, req *http.Request, timeouts ...time.Duration) (*http.Response, error) {
+	var timeout time.Duration
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	ctx, cancel := pkghttputil.NewUpstreamAttemptContext(req.Context(), timeout)
 	resp, err := servertiming.Do(client, req.WithContext(ctx))
 	if err != nil {
 		cancel()

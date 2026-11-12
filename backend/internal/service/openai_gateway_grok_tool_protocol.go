@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/apicompat"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -109,10 +110,11 @@ func newResponsesClientToolStreamBody(
 	source io.ReadCloser,
 	mapping apicompat.ResponsesClientToolMapping,
 	maxLineSize int,
+	cfg *config.Config,
 ) io.ReadCloser {
 	reader, writer := io.Pipe()
 	body := &responsesClientToolStreamBody{PipeReader: reader, source: source}
-	go transformResponsesClientToolStream(source, writer, mapping, maxLineSize)
+	go transformResponsesClientToolStream(source, writer, mapping, maxLineSize, cfg)
 	return body
 }
 
@@ -120,8 +122,9 @@ func newGrokResponsesClientToolStreamBody(
 	source io.ReadCloser,
 	mapping apicompat.ResponsesClientToolMapping,
 	maxLineSize int,
+	cfg *config.Config,
 ) io.ReadCloser {
-	return newResponsesClientToolStreamBody(source, mapping, maxLineSize)
+	return newResponsesClientToolStreamBody(source, mapping, maxLineSize, cfg)
 }
 
 func transformResponsesClientToolStream(
@@ -129,6 +132,7 @@ func transformResponsesClientToolStream(
 	destination *io.PipeWriter,
 	mapping apicompat.ResponsesClientToolMapping,
 	maxLineSize int,
+	cfg *config.Config,
 ) {
 	defer func() { _ = source.Close() }()
 	if maxLineSize <= 0 {
@@ -139,6 +143,7 @@ func transformResponsesClientToolStream(
 	scanBuf := getSSEScannerBuf64K()
 	defer putSSEScannerBuf64K(scanBuf)
 	scanner.Buffer(scanBuf[:0], maxLineSize)
+	scanner.Split(newBoundedSSESplit(cfg, maxLineSize, nil))
 	documents := newOpenAISSEJSONDocumentScanner(scanner)
 	restorer := apicompat.NewResponsesClientToolStreamRestorer(mapping)
 	buffered := bufio.NewWriterSize(destination, 4*1024)

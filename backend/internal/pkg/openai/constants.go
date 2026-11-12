@@ -22,7 +22,7 @@ type Model struct {
 // DefaultModels OpenAI models list
 var DefaultModels = []Model{
 	{ID: "gpt-5.6-sol", Object: "model", Created: 1780876800, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.6 Sol"},
-	{ID: "gpt-6.1-terra", Object: "model", Created: 1704067200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6.1 Terra"},
+	{ID: "gpt-6.1-terra", Object: "model", Created: 1792972800, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6.1 Terra"},
 	{ID: "gpt-6.1-sol", Object: "model", Created: 1790640000, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6.1 Sol"},
 	{ID: "gpt-6-astra", Object: "model", Created: 1788480000, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6 Astra"},
 	{ID: "gpt-6-sol", Object: "model", Created: 1790035200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-6 Sol"},
@@ -39,6 +39,8 @@ var DefaultModels = []Model{
 	{ID: "gpt-image-2", Object: "model", Created: 1738368000, OwnedBy: "openai", Type: "model", DisplayName: "GPT Image 2"},
 	{ID: "gpt-image-2.5-flare", Object: "model", Created: 1788825600, OwnedBy: "openai", Type: "model", DisplayName: "GPT Image 2.5 Flare"},
 	{ID: "gpt-image-2.5-sunburst", Object: "model", Created: 1788825600, OwnedBy: "openai", Type: "model", DisplayName: "GPT Image 2.5 Sunburst"},
+	{ID: "gpt-image-2.6-flare", Object: "model", Created: 1793750400, OwnedBy: "openai", Type: "model", DisplayName: "GPT Image 2.6 Flare"},
+	{ID: "gpt-image-2.6-sunburst", Object: "model", Created: 1793750400, OwnedBy: "openai", Type: "model", DisplayName: "GPT Image 2.6 Sunburst"},
 }
 
 // DefaultModelIDs returns the default model ID list
@@ -81,6 +83,26 @@ var instructionsGPT55 string
 //go:embed codex_gpt61_sol.json
 var CodexGPT61SolMetadata []byte
 
+// CodexGPT61TerraMetadata is the complete official descriptor from openai/codex
+// 126a0ee92ed2c5e73cd8a8f7e37563e8527552d7, codex-rs/models-manager/models.json.
+//
+//go:embed codex_gpt61_terra.json
+var CodexGPT61TerraMetadata []byte
+
+// codexInstructionsTemplate returns the base prompt bundled in an official
+// Codex model descriptor.
+func codexInstructionsTemplate(descriptor []byte) string {
+	var metadata struct {
+		ModelMessages struct {
+			InstructionsTemplate string `json:"instructions_template"`
+		} `json:"model_messages"`
+	}
+	if err := json.Unmarshal(descriptor, &metadata); err != nil {
+		panic(err)
+	}
+	return metadata.ModelMessages.InstructionsTemplate
+}
+
 // latestCodexInstructions 返回当前已知最新版本的 Codex base instructions，
 // 当前为 GPT-5.5；若 5.5 prompt 意外为空则回退到 DefaultInstructions 保证非空。
 func latestCodexInstructions() string {
@@ -102,15 +124,9 @@ func CodexBaseInstructionsForModel(model string) string {
 	m := strings.ToLower(strings.TrimSpace(model))
 	switch {
 	case IsGPT61SolModelSpelling(model):
-		var metadata struct {
-			ModelMessages struct {
-				InstructionsTemplate string `json:"instructions_template"`
-			} `json:"model_messages"`
-		}
-		if err := json.Unmarshal(CodexGPT61SolMetadata, &metadata); err != nil {
-			panic(err)
-		}
-		return metadata.ModelMessages.InstructionsTemplate
+		return codexInstructionsTemplate(CodexGPT61SolMetadata)
+	case IsGPT61TerraModelSpelling(model):
+		return codexInstructionsTemplate(CodexGPT61TerraMetadata)
 	case strings.Contains(m, "codex"):
 		return DefaultInstructions
 	case strings.HasPrefix(m, "gpt-5.2"):
@@ -194,6 +210,8 @@ func ValidateGPT61SolReasoningEffort(model, effort string) error {
 	}
 }
 
+// IsGPT61TerraModelSpelling recognizes the published model and local effort/compact
+// spellings. Invalid effort suffixes remain identifiable for request validation.
 func IsGPT61TerraModelSpelling(model string) bool {
 	canonical := strings.ToLower(strings.TrimSpace(model))
 	if i := strings.LastIndex(canonical, "/"); i >= 0 {
@@ -211,13 +229,72 @@ func IsGPT61TerraModelSpelling(model string) bool {
 		return false
 	}
 	switch suffix {
-	case "none", "low", "medium", "high", "xhigh", "max", "openai-compact":
+	case "none", "minimal", "low", "medium", "high", "xhigh", "max", "openai-compact":
 		return true
 	default:
 		return false
 	}
 }
 
+// RequiresResponsesForToolCalls reports models whose tool calls are only
+// available through the Responses API.
 func RequiresResponsesForToolCalls(model string) bool {
 	return IsGPT61SolModelSpelling(model) || IsGPT61TerraModelSpelling(model)
+}
+
+// ValidateGPT61TerraReasoningEffort rejects the unpublished minimal level;
+// GPT-6.1 Terra accepts none through max.
+func ValidateGPT61TerraReasoningEffort(model, effort string) error {
+	if IsGPT61TerraModelSpelling(model) && strings.EqualFold(strings.TrimSpace(effort), "minimal") {
+		return fmt.Errorf("gpt-6.1-terra does not support reasoning effort %q; use none, low, medium, high, xhigh or max", effort)
+	}
+	return nil
+}
+
+// ValidateGPT61ReasoningEffort applies the published effort scale of each
+// GPT-6.1 model.
+func ValidateGPT61ReasoningEffort(model, effort string) error {
+	if err := ValidateGPT61SolReasoningEffort(model, effort); err != nil {
+		return err
+	}
+	return ValidateGPT61TerraReasoningEffort(model, effort)
+}
+
+func CanonicalizeOpenAIModelAliasSpelling(model string) string {
+	model = strings.TrimSpace(model)
+	if slash := strings.LastIndexByte(model, '/'); slash >= 0 {
+		model = strings.TrimSpace(model[slash+1:])
+	}
+	model = strings.ToLower(model)
+	if model == "" {
+		return ""
+	}
+
+	normalized := strings.ReplaceAll(model, "_", "-")
+	normalized = strings.Join(strings.Fields(normalized), "-")
+	for strings.Contains(normalized, "--") {
+		normalized = strings.ReplaceAll(normalized, "--", "-")
+	}
+
+	if strings.HasPrefix(normalized, "gpt5") {
+		normalized = "gpt-5" + strings.TrimPrefix(normalized, "gpt5")
+	}
+	if !strings.HasPrefix(normalized, "gpt-") && !strings.Contains(normalized, "codex") {
+		return ""
+	}
+
+	replacements := []struct {
+		from string
+		to   string
+	}{
+		{"gpt-5.4mini", "gpt-5.4-mini"},
+		{"gpt-5.4nano", "gpt-5.4-nano"},
+		{"gpt-5.3-codexspark", "gpt-5.3-codex-spark"},
+		{"gpt-5.3codexspark", "gpt-5.3-codex-spark"},
+		{"gpt-5.3codex", "gpt-5.3-codex"},
+	}
+	for _, replacement := range replacements {
+		normalized = strings.ReplaceAll(normalized, replacement.from, replacement.to)
+	}
+	return normalized
 }

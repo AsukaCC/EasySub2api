@@ -689,6 +689,7 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const configContent = `model_provider = "OpenAI"
 model = "gpt-5.6-sol"
 review_model = "gpt-5.6-sol"
+web_search = "live"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
 ${codexModelCatalogConfig()}network_access = "enabled"
@@ -701,7 +702,7 @@ ${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${buildCodexM
 ${generateCodexProviderAuthConfig()}
 
 [features]
-${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}goals = true`
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}${codexAuthMode.value === 'api-key' ? 'image_generation = true\n' : ''}goals = true`
 
   // auth.json content
   const authContent = `{
@@ -958,6 +959,7 @@ function generateOpenAIWsFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const configContent = `model_provider = "OpenAI"
 model = "gpt-5.6-sol"
 review_model = "gpt-5.6-sol"
+web_search = "live"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
 ${codexModelCatalogConfig()}network_access = "enabled"
@@ -971,7 +973,7 @@ supports_websockets = true
 ${generateCodexProviderAuthConfig()}
 
 [features]
-${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}responses_websockets_v2 = true
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}${codexAuthMode.value === 'api-key' ? 'image_generation = true\n' : ''}responses_websockets_v2 = true
 goals = true`
 
   // auth.json content
@@ -1024,7 +1026,7 @@ function generateOpenCodeConfig(
         xhigh: {}
       }
     },
-    'gpt-6.1-terra': { name: 'GPT-6.1 Terra', limit: { context: 1050000, output: 128000 }, options: { store: false }, variants: { none: {}, low: {}, medium: {}, high: {}, xhigh: {}, max: {} } },
+    'gpt-6.1-terra': { name: 'GPT-6.1 Terra', limit: { context: 500000, output: 128000 }, options: { store: false }, variants: { none: {}, low: {}, medium: {}, high: {}, xhigh: {}, max: {} } },
     'gpt-6.1-sol': {
       name: 'GPT-6.1 Sol',
       limit: {
@@ -1214,6 +1216,38 @@ function generateOpenCodeConfig(
     }
   }
   const claudeModels = {
+    'claude-fable-5-2': {
+      name: 'Claude Fable 5.2',
+      limit: {
+        context: 1048576,
+        output: 128000
+      },
+      modalities: {
+        input: ['text', 'image', 'pdf'],
+        output: ['text']
+      },
+      options: {
+        thinking: {
+          type: 'adaptive'
+        }
+      }
+    },
+    'claude-mythos-5-2': {
+      name: 'Claude Mythos 5.2',
+      limit: {
+        context: 1048576,
+        output: 128000
+      },
+      modalities: {
+        input: ['text', 'image', 'pdf'],
+        output: ['text']
+      },
+      options: {
+        thinking: {
+          type: 'adaptive'
+        }
+      }
+    },
     'claude-fable-5-1': {
       name: 'Claude Fable 5.1',
       limit: {

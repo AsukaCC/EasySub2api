@@ -68,6 +68,13 @@ func (s *OpenAIQuotaService) referralAccount(ctx context.Context, id string, sen
 	if a == nil {
 		return nil, ErrAccountNotFound
 	}
+	action := scopedAccountOperation(ctx, "openai.referrals.read")
+	if sending {
+		action = "openai.referrals.invite"
+	}
+	if err := scopedAccountAccess(ctx, s.accountRepo, a, action, !sending); err != nil {
+		return nil, err
+	}
 	if a.Platform != PlatformOpenAI || a.Type != AccountTypeOAuth {
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_REFERRAL_INVALID_ACCOUNT", "referrals require an OpenAI OAuth account")
 	}
@@ -75,7 +82,14 @@ func (s *OpenAIQuotaService) referralAccount(ctx context.Context, id string, sen
 		if sending {
 			return nil, infraerrors.New(http.StatusConflict, "OPENAI_REFERRAL_SHADOW_ACCOUNT", "send invitations from the parent account")
 		}
-		return resolveCredentialAccount(ctx, s.accountRepo, a)
+		resolved, err := resolveCredentialAccount(ctx, s.accountRepo, a)
+		if err != nil {
+			return nil, err
+		}
+		if err := scopedAccountAccess(ctx, s.accountRepo, resolved, action, false); err != nil {
+			return nil, err
+		}
+		return resolved, nil
 	}
 	return a, nil
 }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import OpenAIQuotaResetCell from '../OpenAIQuotaResetCell.vue'
+import OpenAIReferralCell from '../OpenAIReferralCell.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import type { Account } from '@/types'
 import { refreshOpenAIQuota, resetOpenAIQuota } from '@/api/admin/accounts'
@@ -55,9 +56,10 @@ function makeAccount(overrides: Partial<Account>): Account {
   }
 }
 
-// 第二个按钮(橙色)是 reset 按钮::disabled="resetting||loading||!canReset" :title="resetButtonTitle"
 const resetButton = (wrapper: ReturnType<typeof mount>) =>
-  wrapper.findAll('button')[1]
+  wrapper.get('button.components-account-open-aiquota-reset-cell__action-2')
+const queryButton = (wrapper: ReturnType<typeof mount>) =>
+  wrapper.get('button.components-account-open-aiquota-reset-cell__action')
 
 beforeEach(() => {
   vi.mocked(refreshOpenAIQuota).mockReset()
@@ -65,6 +67,22 @@ beforeEach(() => {
 })
 
 describe('OpenAIQuotaResetCell — 外审 F6:影子禁用重置', () => {
+  it('回传积分缓存时保留账号的其他缓存字段', async () => {
+    const account = makeAccount({ extra: { codex_reset_credit_snapshot: { available_count: 0 } } })
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
+    const snapshot = { credits: { has_credits: true, unlimited: false, balance: '12.50' }, fetched_at: 1770000000 }
+
+    wrapper.findComponent(OpenAIReferralCell).vm.$emit('credits-updated', snapshot)
+    await flushPromises()
+
+    expect(wrapper.emitted('account-updated')?.[0]?.[0]).toEqual({
+      ...account,
+      extra: { ...account.extra, codex_credits_snapshot: snapshot },
+    })
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('影子账号(parent_account_id 非空)的 reset 按钮被禁用且提示在母账号重置', () => {
     const account = makeAccount({ parent_account_id: 100 })
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
@@ -165,7 +183,7 @@ describe('OpenAIQuotaResetCell — 外审 F6:影子禁用重置', () => {
     const account = makeAccount({ parent_account_id: null })
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
 
-    await wrapper.findAll('button')[0].trigger('click')
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
 
     expect(refreshOpenAIQuota).toHaveBeenCalledWith(1)
@@ -200,7 +218,7 @@ describe('OpenAIQuotaResetCell — 外审 F6:影子禁用重置', () => {
     const account = makeAccount({ parent_account_id: null })
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
 
-    await wrapper.findAll('button')[0].trigger('click')
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="reset-credit-expiry-toggle"]').exists()).toBe(false)
@@ -221,7 +239,7 @@ describe('OpenAIQuotaResetCell — 外审 F6:影子禁用重置', () => {
     const account = makeAccount({ parent_account_id: null })
     const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
 
-    await wrapper.findAll('button')[0].trigger('click')
+    await queryButton(wrapper).trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('admin.accounts.openaiQuotaReset.count2')

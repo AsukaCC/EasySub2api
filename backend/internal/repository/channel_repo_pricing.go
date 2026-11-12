@@ -16,7 +16,7 @@ import (
 
 func (r *channelRepository) ListModelPricing(ctx context.Context, channelID string) ([]service.ChannelModelPricing, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price, image_input_price, image_cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, time_pricing, created_at, updated_at
+		`SELECT id, channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_write_12h_price, cache_read_price, image_input_price, image_cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, time_pricing, created_at, updated_at
 		 FROM channel_model_pricing WHERE channel_id = $1 ORDER BY id`, channelID,
 	)
 	if err != nil {
@@ -65,9 +65,9 @@ func (r *channelRepository) UpdateModelPricing(ctx context.Context, pricing *ser
 	}
 	result, err := r.db.ExecContext(ctx,
 		`UPDATE channel_model_pricing
-		 SET models = $1, billing_mode = $2, input_price = $3, output_price = $4, cache_write_price = $5, cache_write_1h_price = $6, cache_read_price = $7, image_input_price = $8, image_cache_read_price = $9, image_output_price = $10, per_request_price = $11, reasoning_effort_multipliers = $12, time_pricing = $13, platform = $14, updated_at = NOW()
-		 WHERE id = $15`,
-		modelsJSON, billingMode, pricing.InputPrice, pricing.OutputPrice, pricing.CacheWritePrice, pricing.CacheWrite1hPrice, pricing.CacheReadPrice,
+		 SET models = $1, billing_mode = $2, input_price = $3, output_price = $4, cache_write_price = $5, cache_write_1h_price = $6, cache_write_12h_price = $7, cache_read_price = $8, image_input_price = $9, image_cache_read_price = $10, image_output_price = $11, per_request_price = $12, reasoning_effort_multipliers = $13, time_pricing = $14, platform = $15, updated_at = NOW()
+		 WHERE id = $16`,
+		modelsJSON, billingMode, pricing.InputPrice, pricing.OutputPrice, pricing.CacheWritePrice, pricing.CacheWrite1hPrice, pricing.CacheWrite12hPrice, pricing.CacheReadPrice,
 		pricing.ImageInputPrice, pricing.ImageCacheReadPrice, pricing.ImageOutputPrice, pricing.PerRequestPrice, reasoningJSON, timePricingJSON, pricing.Platform, pricing.ID,
 	)
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *channelRepository) ReplaceModelPricing(ctx context.Context, channelID s
 // batchLoadModelPricing 批量加载多个渠道的模型定价（含区间）
 func (r *channelRepository) batchLoadModelPricing(ctx context.Context, channelIDs []string) (map[string][]service.ChannelModelPricing, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price, image_input_price, image_cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, time_pricing, created_at, updated_at
+		`SELECT id, channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_write_12h_price, cache_read_price, image_input_price, image_cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, time_pricing, created_at, updated_at
 		 FROM channel_model_pricing WHERE channel_id = ANY($1) ORDER BY channel_id, id`,
 		pq.Array(channelIDs),
 	)
@@ -139,7 +139,7 @@ func (r *channelRepository) batchLoadModelPricing(ctx context.Context, channelID
 func (r *channelRepository) batchLoadIntervals(ctx context.Context, pricingIDs []string) (map[string][]service.PricingInterval, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, pricing_id, min_tokens, max_tokens, tier_label,
-		        input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price,
+		        input_price, output_price, cache_write_price, cache_write_1h_price, cache_write_12h_price, cache_read_price,
 		        per_request_price, sort_order, created_at, updated_at
 		 FROM channel_pricing_intervals
 		 WHERE pricing_id = ANY($1) ORDER BY pricing_id, sort_order, id`,
@@ -155,7 +155,7 @@ func (r *channelRepository) batchLoadIntervals(ctx context.Context, pricingIDs [
 		var iv service.PricingInterval
 		if err := rows.Scan(
 			&iv.ID, &iv.PricingID, &iv.MinTokens, &iv.MaxTokens, &iv.TierLabel,
-			&iv.InputPrice, &iv.OutputPrice, &iv.CacheWritePrice, &iv.CacheWrite1hPrice, &iv.CacheReadPrice,
+			&iv.InputPrice, &iv.OutputPrice, &iv.CacheWritePrice, &iv.CacheWrite1hPrice, &iv.CacheWrite12hPrice, &iv.CacheReadPrice,
 			&iv.PerRequestPrice, &iv.SortOrder, &iv.CreatedAt, &iv.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan interval: %w", err)
@@ -181,7 +181,7 @@ func scanModelPricingRows(rows *sql.Rows) ([]service.ChannelModelPricing, []stri
 		var reasoningJSON []byte
 		if err := rows.Scan(
 			&p.ID, &p.ChannelID, &p.Platform, &modelsJSON, &p.BillingMode,
-			&p.InputPrice, &p.OutputPrice, &p.CacheWritePrice, &p.CacheWrite1hPrice, &p.CacheReadPrice,
+			&p.InputPrice, &p.OutputPrice, &p.CacheWritePrice, &p.CacheWrite1hPrice, &p.CacheWrite12hPrice, &p.CacheReadPrice,
 			&p.ImageInputPrice, &p.ImageCacheReadPrice, &p.ImageOutputPrice, &p.PerRequestPrice, &reasoningJSON, &timePricingJSON, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, nil, fmt.Errorf("scan model pricing: %w", err)
@@ -256,10 +256,10 @@ func createModelPricingExec(ctx context.Context, exec dbExec, pricing *service.C
 		platform = "anthropic"
 	}
 	err = exec.QueryRowContext(ctx,
-		`INSERT INTO channel_model_pricing (channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price, image_input_price, image_cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, time_pricing)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, created_at, updated_at`,
+		`INSERT INTO channel_model_pricing (channel_id, platform, models, billing_mode, input_price, output_price, cache_write_price, cache_write_1h_price, cache_write_12h_price, cache_read_price, image_input_price, image_cache_read_price, image_output_price, per_request_price, reasoning_effort_multipliers, time_pricing)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, created_at, updated_at`,
 		pricing.ChannelID, platform, modelsJSON, billingMode,
-		pricing.InputPrice, pricing.OutputPrice, pricing.CacheWritePrice, pricing.CacheWrite1hPrice, pricing.CacheReadPrice,
+		pricing.InputPrice, pricing.OutputPrice, pricing.CacheWritePrice, pricing.CacheWrite1hPrice, pricing.CacheWrite12hPrice, pricing.CacheReadPrice,
 		pricing.ImageInputPrice, pricing.ImageCacheReadPrice, pricing.ImageOutputPrice, pricing.PerRequestPrice, reasoningJSON, timePricingJSON,
 	).Scan(&pricing.ID, &pricing.CreatedAt, &pricing.UpdatedAt)
 	if err != nil {
@@ -301,10 +301,10 @@ func unmarshalChannelTimePricing(data []byte) (*service.ChannelTimePricing, erro
 func createIntervalExec(ctx context.Context, exec dbExec, iv *service.PricingInterval) error {
 	return exec.QueryRowContext(ctx,
 		`INSERT INTO channel_pricing_intervals
-		 (pricing_id, min_tokens, max_tokens, tier_label, input_price, output_price, cache_write_price, cache_write_1h_price, cache_read_price, per_request_price, sort_order)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, created_at, updated_at`,
+		 (pricing_id, min_tokens, max_tokens, tier_label, input_price, output_price, cache_write_price, cache_write_1h_price, cache_write_12h_price, cache_read_price, per_request_price, sort_order)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, created_at, updated_at`,
 		iv.PricingID, iv.MinTokens, iv.MaxTokens, iv.TierLabel,
-		iv.InputPrice, iv.OutputPrice, iv.CacheWritePrice, iv.CacheWrite1hPrice, iv.CacheReadPrice,
+		iv.InputPrice, iv.OutputPrice, iv.CacheWritePrice, iv.CacheWrite1hPrice, iv.CacheWrite12hPrice, iv.CacheReadPrice,
 		iv.PerRequestPrice, iv.SortOrder,
 	).Scan(&iv.ID, &iv.CreatedAt, &iv.UpdatedAt)
 }

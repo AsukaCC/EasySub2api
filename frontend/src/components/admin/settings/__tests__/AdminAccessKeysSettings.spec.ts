@@ -6,10 +6,11 @@ import en from '@/i18n/locales/en/adminAccessKeys'
 import accounts from '@/i18n/locales/zh/admin/accounts'
 const mountSettings = () => mount(AdminAccessKeysSettings)
 vi.mock('vue-i18n', () => ({ useI18n: () => ({
+  te: (key: string) => key.replace('adminAccessKeys.', '').split('.').reduce((o: any, k) => o?.[k], zh) != null,
   t: (key: string, values: Record<string, unknown> = {}) => {
     const message = key.startsWith('admin.accounts.platforms.')
       ? accounts.accounts.platforms[key.replace('admin.accounts.platforms.', '') as keyof typeof accounts.accounts.platforms]
-      : zh[key.replace('adminAccessKeys.', '') as keyof typeof zh]
+      : key.replace('adminAccessKeys.', '').split('.').reduce((o: any, k) => o?.[k], zh)
     if (!message) throw new Error(`缺少翻译：${key}`)
     return message.replace(/\{(\w+)\}/g, (_, name: string) => String(values[name]))
   }
@@ -188,7 +189,7 @@ describe('管理员受限密钥配置', () => {
     expect(wrapper.text()).not.toContain('kiro')
     await wrapper.get('[data-test="save"]').trigger('click')
     await flushPromises()
-    expect(mocks.update).toHaveBeenCalledWith('key-2', expect.objectContaining({ name: '新名称', allowed_ips: [], policy: { rules, global_permissions: [] } }))
+    expect(mocks.update).toHaveBeenCalledWith('key-2', expect.objectContaining({ name: '新名称', allowed_ips: [], policy: { rules, global_permissions: [], full_access: false } }))
   })
   it('空数组返回 null 时仍可创建默认无权限密钥', async () => {
     mocks.list.mockResolvedValueOnce({ items: null, permissions: null })

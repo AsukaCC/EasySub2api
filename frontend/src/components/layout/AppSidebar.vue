@@ -265,6 +265,7 @@ import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { scheduleIdle } from '@/utils/scheduleIdle'
+import Icon from '@/components/icons/Icon.vue'
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
@@ -582,6 +583,10 @@ const DownloadIcon = {
     )
 }
 
+const MCPIcon = {
+  render: () => h(Icon, { name: 'mcp' })
+}
+
 const BellIcon = {
   render: () =>
     h(
@@ -795,6 +800,7 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagUsageGuide = makeSidebarFlag(FeatureFlags.usageGuide)
+const flagMCP = makeSidebarFlag(FeatureFlags.mcp)
 const flagImageWorkbench = makeSidebarFlag(FeatureFlags.imageWorkbench)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
@@ -853,6 +859,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
+    { path: '/settings/mcp', label: t('mcp.title'), icon: MCPIcon, featureFlag: flagMCP },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
       label: item.label,

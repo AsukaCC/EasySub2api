@@ -19,14 +19,17 @@ import (
 func TestRelease0219ScopedAccountFieldPermissionsAndGroups(t *testing.T) {
 	for _, fields := range []map[string]json.RawMessage{
 		{"extra": json.RawMessage(`{}`)},
-		{"rate_multiplier": json.RawMessage(`0`)},
+		{"rate_multiplier": json.RawMessage(`-1`)},
 		{"credentials": json.RawMessage(`{"unknown":"value"}`)},
 		{"credentials": json.RawMessage(`{"model_mapping":{"alias":42}}`)},
 	} {
 		_, err := scopedAccountFieldPermissions(fields, false)
 		require.Error(t, err)
 	}
-	permissions, err := scopedAccountFieldPermissions(map[string]json.RawMessage{"credentials": json.RawMessage(`{"model_mapping":{"alias":"upstream"}}`)}, false)
+	permissions, err := scopedAccountFieldPermissions(map[string]json.RawMessage{"rate_multiplier": json.RawMessage(`0`)}, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"accounts.rate.write"}, permissions)
+	permissions, err = scopedAccountFieldPermissions(map[string]json.RawMessage{"credentials": json.RawMessage(`{"model_mapping":{"alias":"upstream"}}`)}, false)
 	require.NoError(t, err)
 	require.Equal(t, []string{"accounts.models.write"}, permissions)
 	policy := adminaccess.Policy{Rules: []adminaccess.Rule{{Permissions: []string{"accounts.groups"}, GroupIDs: []string{"allowed"}, AccountTypes: []string{"apikey"}, Platforms: []string{"openai"}}}}

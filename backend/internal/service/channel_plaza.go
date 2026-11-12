@@ -10,11 +10,12 @@ import (
 // PlazaOfficialPricing 模型广场展示用的 LiteLLM 官方参考价（USD per token）。
 // 字段为 nil 表示官方数据中该项缺失（0 视为未配置）。
 type PlazaOfficialPricing struct {
-	InputPrice        *float64
-	OutputPrice       *float64
-	CacheWritePrice   *float64 // 5m 缓存写入（= LiteLLM cache_creation）
-	CacheWrite1hPrice *float64 // 1h 缓存写入（LiteLLM cache_creation_above_1hr）
-	CacheReadPrice    *float64
+	InputPrice         *float64
+	OutputPrice        *float64
+	CacheWritePrice    *float64 // 5m 缓存写入（= LiteLLM cache_creation）
+	CacheWrite12hPrice *float64
+	CacheWrite1hPrice  *float64 // 1h 缓存写入（LiteLLM cache_creation_above_1hr）
+	CacheReadPrice     *float64
 }
 
 // PlazaModel 模型广场中单个模型条目：渠道定价 + 官方参考价。
@@ -248,11 +249,12 @@ func (s *ChannelService) lookupOfficialPricing(modelName string, memo map[string
 	var result *PlazaOfficialPricing
 	if lp := s.pricingService.GetModelPricing(modelName); lp != nil && !lp.TokenPricingAbsent {
 		result = &PlazaOfficialPricing{
-			InputPrice:        nonZeroPtr(lp.InputCostPerToken),
-			OutputPrice:       nonZeroPtr(lp.OutputCostPerToken),
-			CacheWritePrice:   nonZeroPtr(lp.CacheCreationInputTokenCost),
-			CacheWrite1hPrice: nonZeroPtr(lp.CacheCreationInputTokenCostAbove1hr),
-			CacheReadPrice:    nonZeroPtr(lp.CacheReadInputTokenCost),
+			InputPrice:         nonZeroPtr(lp.InputCostPerToken),
+			OutputPrice:        nonZeroPtr(lp.OutputCostPerToken),
+			CacheWritePrice:    nonZeroPtr(lp.CacheCreationInputTokenCost),
+			CacheWrite1hPrice:  nonZeroPtr(lp.CacheCreationInputTokenCostAbove1hr),
+			CacheWrite12hPrice: openAIReference12hPrice(modelName, lp),
+			CacheReadPrice:     nonZeroPtr(lp.CacheReadInputTokenCost),
 		}
 		if result.InputPrice == nil && result.OutputPrice == nil &&
 			result.CacheWritePrice == nil && result.CacheWrite1hPrice == nil && result.CacheReadPrice == nil {
@@ -261,4 +263,16 @@ func (s *ChannelService) lookupOfficialPricing(modelName string, memo map[string
 	}
 	memo[modelName] = result
 	return result
+}
+
+func openAIReference12hPrice(model string, p *LiteLLMModelPricing) *float64 {
+	if p == nil {
+		return nil
+	}
+	model = historicalOpenAIBillingModel(model)
+	if isOpenAIGPT56Model(model) || isOpenAIGPT6AstraModel(model) || openAIModelFastPricingRatio(model) > 0 && strings.HasPrefix(model, "gpt-6") {
+		price := p.InputCostPerToken * 2.5
+		return &price
+	}
+	return nil
 }

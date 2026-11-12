@@ -1136,9 +1136,10 @@ func TestAnthropicToResponses_ThinkingDisabled(t *testing.T) {
 
 	resp, err := AnthropicToResponses(req)
 	require.NoError(t, err)
-	// Default effort applies (medium) even when thinking is disabled.
+	// An explicit disable must survive conversion.
 	require.NotNil(t, resp.Reasoning)
-	assert.Equal(t, "medium", resp.Reasoning.Effort)
+	assert.Equal(t, "none", resp.Reasoning.Effort)
+	assert.Empty(t, resp.Reasoning.Summary)
 }
 
 func TestAnthropicToResponses_NoThinking(t *testing.T) {

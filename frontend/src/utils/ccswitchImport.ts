@@ -1,4 +1,5 @@
 import type { GroupPlatform } from '@/types'
+import { buildCodexApiKeyAuthConfig } from '@/utils/codexAuthConfig'
 
 export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-5.6-sol'
 export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
@@ -63,12 +64,13 @@ function buildCodexImportPayload(
     `model = ${asTomlString(config.model || OPENAI_CC_SWITCH_CODEX_MODEL)}`,
     'model_reasoning_effort = "high"',
     'disable_response_storage = true',
+    'web_search = "live"',
     '',
     '[model_providers.custom]',
     `name = ${asTomlString(input.providerName)}`,
     `base_url = ${asTomlString(config.endpoint)}`,
     'wire_api = "responses"',
-    'requires_openai_auth = true',
+    buildCodexApiKeyAuthConfig(input.apiKey),
     `supports_websockets = ${websocketEnabled}`,
     '',
     '[features]',

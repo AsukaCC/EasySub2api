@@ -199,6 +199,12 @@ security:
 # 网关配置
 # =============================================================================
 gateway:
+  # Unset: auto-size to 1/4 of process memory, minimum 1 GiB; 0 disables the budget.
+  # 未配置时自动取进程内存上限的 1/4，最低 1 GiB；显式设为 0 关闭。
+  # request_body_memory_budget_bytes: 1073741824
+  request_body_read_timeout_seconds: 120
+  downstream_write_timeout_seconds: 120
+  disable_openai_transport_error_cooldown: false
   # Gemini 同账号重试次数（0–10，首次尝试不计入）
   max_same_account_retries_gemini: 4
   image_task_queue:
