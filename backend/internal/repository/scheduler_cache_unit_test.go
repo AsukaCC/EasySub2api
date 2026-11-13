@@ -556,6 +556,19 @@ func TestBuildSchedulerMetadataAccount_KeepsModelRateLimits(t *testing.T) {
 	require.Nil(t, got.Extra["unused_large_field"])
 }
 
+func TestBuildSchedulerMetadataAccount_KeepsOpenAIModelForwarding(t *testing.T) {
+	account := service.Account{
+		ID: schedulerTestID(201), Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{"gpt-5.6-sol": "gpt-5.6-sol"},
+			"model_forwarding": map[string]any{"gpt-5.6-luna": "gpt-5.6-terra"},
+		},
+	}
+	got := buildSchedulerMetadataAccount(account)
+	require.True(t, got.IsModelSupported("gpt-5.6-luna"))
+	require.Equal(t, "gpt-5.6-terra", got.GetMappedModel("gpt-5.6-luna"))
+}
+
 func TestBuildSchedulerMetadataAccount_KeepsSparkShadowRoutingIdentity(t *testing.T) {
 	parentID := "100"
 	account := service.Account{

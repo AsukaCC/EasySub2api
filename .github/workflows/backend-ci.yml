@@ -55,6 +55,13 @@ jobs:
           -run 'Test(Retired|Protection|LocalTLS|StickyEscape|GatewayPlatformIsolation)'
           -count=1 -timeout=10m
 
+      - name: Account model forwarding regressions
+        working-directory: backend
+        run: >-
+          go test -tags=unit ./internal/service ./internal/repository
+          -run 'TestAccountModelForwarding|TestBuildSchedulerMetadataAccount_KeepsOpenAIModelForwarding|TestGetAvailableModels_'
+          -count=1 -timeout=5m
+
       - name: Release 0.2.19 adaptation regressions
         working-directory: backend
         run: |
@@ -156,6 +163,8 @@ jobs:
           src/utils/__tests__/siteBillingMode.spec.ts
           src/utils/__tests__/ccswitchImport.spec.ts
           src/composables/__tests__/useModelWhitelist.spec.ts
+          src/components/account/__tests__/CreateAccountModal.spec.ts
+          src/components/account/__tests__/EditAccountModal.spec.ts
       - name: Wallet and model testing regressions
         working-directory: frontend
         run: >-

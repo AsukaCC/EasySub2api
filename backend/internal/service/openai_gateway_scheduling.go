@@ -727,6 +727,9 @@ func resolveOpenAIAccountUpstreamModelForRequest(account *Account, requestedMode
 	// directly to that channel-mapped model.
 	if account != nil && account.IsOpenAIPassthroughEnabled() {
 		upstreamModel := strings.TrimSpace(requestedModel)
+		if forwarded, matched := account.ResolveForwardedModel(requestedModel); matched {
+			upstreamModel = forwarded
+		}
 		if upstreamModel == "" {
 			return ""
 		}

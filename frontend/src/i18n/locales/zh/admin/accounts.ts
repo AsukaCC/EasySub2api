@@ -705,6 +705,9 @@ export default {
       },
       // OpenAI specific hints
       openai: {
+        modelForwarding: '模型转发',
+        modelForwardingHint: '仅对当前账号生效。命中规则的请求可使用该账号，无需将请求模型加入白名单；转发优先于普通模型映射，自动透传时也生效。按实际转发后的模型价格扣除积分。来源支持末尾 * 通配符，目标必须是上游支持的具体模型。',
+        addModelForwarding: '添加模型转发',
         baseUrlHint: '留空使用官方 OpenAI API',
         apiKeyHint: '您的 OpenAI API Key',
         oauthPassthrough: '自动透传（仅替换认证）',
