@@ -19,7 +19,7 @@ function decodeBase64Utf8(value: string): string {
 
 describe('ccswitchImport utils', () => {
   it('defaults OpenAI CC Switch imports to the current Codex model', () => {
-    expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-5.6-sol')
+    expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-6.1-sol')
   })
 
   it('defaults Grok Build imports to the current Grok model', () => {
@@ -49,6 +49,8 @@ describe('ccswitchImport utils', () => {
     expect(atob(params.get('usageScript') || '')).toBe(baseInput.usageScript)
     const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
     expect(payload.auth.OPENAI_API_KEY).toBe(baseInput.apiKey)
+    expect(payload.config).toContain(`model = "${OPENAI_CC_SWITCH_CODEX_MODEL}"`)
+    expect(payload.config).toContain('[agents]\ndefault_subagent_model = "gpt-6.1-terra"\n')
     expect(payload.config).toContain('supports_websockets = false')
     expect(payload.config).toContain('responses_websockets_v2 = false')
   })
@@ -68,6 +70,7 @@ describe('ccswitchImport utils', () => {
     expect(payload.config).toContain('name = "测试站点"')
     expect(payload.config).toContain('supports_websockets = true')
     expect(payload.config).toContain('responses_websockets_v2 = true')
+    expect(payload.config).toContain('[agents]\ndefault_subagent_model = "gpt-6.1-terra"\n')
   })
 
   it.each([
@@ -144,6 +147,7 @@ describe('ccswitchImport utils', () => {
     const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
     expect(payload.config).toContain('wire_api = "responses"')
     expect(payload.config).toContain(`model = "${GROK_CC_SWITCH_MODEL}"`)
+    expect(payload.config).toContain('[agents]\ndefault_subagent_model = "gpt-6.1-terra"\n')
   })
 
   it.each([

@@ -1,16 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 
-const { updateAccountMock, checkMixedChannelRiskMock, authIsSimpleMode } = vi.hoisted(() => ({
+// Protection settings have their own tests; avoid live preview requests and
+// their busy guard while testing account form persistence.
+vi.mock('../AccountProtectionPanel.vue', () => ({ default: { template: '<div />' } }))
+
+const { updateAccountMock, checkMixedChannelRiskMock, authIsSimpleMode, showErrorMock } = vi.hoisted(() => ({
   updateAccountMock: vi.fn(),
   checkMixedChannelRiskMock: vi.fn(),
+  showErrorMock: vi.fn(),
   authIsSimpleMode: { value: true }
 }))
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showError: vi.fn(),
+    showError: showErrorMock,
     showSuccess: vi.fn(),
     showInfo: vi.fn()
   })
@@ -285,6 +290,40 @@ function mountModal(account = buildAccount()) {
 describe('EditAccountModal', () => {
   beforeEach(() => {
     authIsSimpleMode.value = true
+    showErrorMock.mockClear()
+  })
+
+  it.each(['apikey', 'oauth', 'setup-token'])('saves account forwarding alongside the whitelist for %s', async (type) => {
+    const account = buildAccount()
+    account.type = type
+    account.credentials.model_mapping = { 'gpt-5.6-sol': 'gpt-5.6-sol' }
+    account.credentials.model_forwarding = { 'gpt-5.6-luna': 'gpt-5.6-terra' }
+    updateAccountMock.mockReset().mockResolvedValue(account)
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    const wrapper = mountModal(account)
+    expect(wrapper.get('[data-testid="forwarding-source"]').element).toHaveProperty('value', 'gpt-5.6-luna')
+    await wrapper.get('[data-testid="forwarding-target"]').setValue('gpt-6.1-sol')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(showErrorMock.mock.calls).toEqual([])
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    const credentials = updateAccountMock.mock.calls[0]?.[1]?.credentials
+    expect(credentials.model_forwarding).toEqual({ 'gpt-5.6-luna': 'gpt-6.1-sol' })
+    expect(credentials.model_mapping).toEqual({ 'gpt-5.6-sol': 'gpt-5.6-sol' })
+    wrapper.unmount()
+  })
+
+  it('clears forwarding without changing the whitelist', async () => {
+    const account = buildAccount()
+    account.credentials.model_forwarding = { 'gpt-5.6-luna': 'gpt-5.6-terra' }
+    updateAccountMock.mockReset().mockResolvedValue(account)
+    const wrapper = mountModal(account)
+    await wrapper.get('[data-testid="openai-model-forwarding"] button[aria-label="common.delete"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_forwarding).toEqual({})
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual(account.credentials.model_mapping)
+    wrapper.unmount()
   })
 
   it('reopening the same account rehydrates the OpenAI whitelist from props', async () => {

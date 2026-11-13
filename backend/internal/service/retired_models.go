@@ -32,6 +32,9 @@ func CheckActiveAccountModel(account *Account, model string) error {
 	if err := CheckActiveModel(model); err != nil {
 		return err
 	}
+	if target, forwarded := account.ResolveForwardedModel(model); forwarded {
+		return CheckActiveModel(target)
+	}
 	if account != nil && !account.IsOpenAIPassthroughEnabled() {
 		return CheckActiveModel(account.GetMappedModel(model))
 	}

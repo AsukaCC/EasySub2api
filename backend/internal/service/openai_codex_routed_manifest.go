@@ -167,7 +167,7 @@ func openAIConfiguredCodexModelIDs(accounts []Account) []string {
 		if account.Platform != PlatformOpenAI {
 			continue
 		}
-		for modelID, target := range account.GetModelMapping() {
+		for modelID, target := range account.ConfiguredModelMappings() {
 			if CheckActiveModel(modelID, target) != nil {
 				continue
 			}
@@ -929,7 +929,7 @@ func codexExplicitModelMappingClaims(account Account, modelID string) bool {
 	if account.Credentials == nil || strings.TrimSpace(modelID) == "" {
 		return false
 	}
-	return strings.TrimSpace(account.GetModelMapping()[modelID]) != ""
+	return strings.TrimSpace(account.ConfiguredModelMappings()[modelID]) != ""
 }
 
 func accountCodexModelSupportsImageInput(account *Account, upstreamModel string) bool {

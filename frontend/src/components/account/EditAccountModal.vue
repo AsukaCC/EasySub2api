@@ -665,6 +665,11 @@
         </div>
       </div>
 
+      <OpenAIModelForwardingFields
+        v-if="account.platform === 'openai' && !isSparkShadow"
+        v-model="modelForwardingRows"
+      />
+
       <!-- OpenAI/Grok OAuth Model Mapping (OAuth 类型没有 apikey 容器，需要独立的模型映射区域) -->
       <div
         v-if="(account.platform === 'openai' || account.platform === 'gemini' || account.platform === 'antigravity' || account.platform === 'grok') && account.type === 'oauth'"
@@ -2733,6 +2738,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import OpenAIModelForwardingFields from './OpenAIModelForwardingFields.vue'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import GrokModelDiagnosticsPanel from '@/components/account/GrokModelDiagnosticsPanel.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
@@ -2958,6 +2964,7 @@ const isBedrockAPIKeyMode = computed(() =>
   (props.account?.credentials as Record<string, unknown>)?.auth_mode === 'apikey'
 )
 const modelMappings = ref<ModelMapping[]>([])
+const modelForwardingRows = ref<ModelMapping[]>([])
 const openAICompactModelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -3713,6 +3720,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
 
   // Load intercept warmup requests setting (applies to all account types)
   const credentials = newAccount.credentials as Record<string, unknown> | undefined
+  modelForwardingRows.value = Object.entries((credentials?.model_forwarding || {}) as Record<string, unknown>)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+    .map(([from, to]) => ({ from, to }))
   interceptWarmupRequests.value = credentials?.intercept_warmup_requests === true
   autoPauseOnExpired.value = newAccount.auto_pause_on_expired === true
   editVertexProjectId.value = ''
@@ -4460,6 +4470,15 @@ const persistGrokMediaEligibility = async (accountID: string, updatedAccount: Ac
 const submitUpdateAccount = async (accountID: string, updatePayload: Record<string, unknown>) => {
   submitting.value = true
   try {
+    if (props.account?.platform === 'openai' && !isSparkShadow.value) {
+      const forwarding = buildModelMappingObject('mapping', [], modelForwardingRows.value)
+      if (forwarding || props.account.credentials?.model_forwarding) {
+        updatePayload.credentials = {
+          ...(updatePayload.credentials as Record<string, unknown> || props.account.credentials || {}),
+          model_forwarding: forwarding || {}
+        }
+      }
+    }
     if (!isSparkShadow.value && Object.keys(loginCredentials.value).length) {
       if (loginCredentials.value.login_totp_secret?.trim()) {
         try { parseAccountTotp(loginCredentials.value.login_totp_secret) }

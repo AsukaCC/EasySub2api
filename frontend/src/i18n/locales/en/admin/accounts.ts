@@ -616,6 +616,9 @@ export default {
       },
       // OpenAI specific hints
       openai: {
+        modelForwarding: 'Model forwarding',
+        modelForwardingHint: 'Applies only to this account. Matching requests can use this account without adding the requested model to its whitelist. Forwarding takes precedence over regular mapping and also works in passthrough mode. Points are charged for the model actually forwarded. Sources support a trailing *; targets must be concrete models supported by the upstream.',
+        addModelForwarding: 'Add model forwarding',
         baseUrlHint: 'Leave default for official OpenAI API',
         apiKeyHint: 'Your OpenAI API Key',
         oauthPassthrough: 'Auto passthrough (auth only)',

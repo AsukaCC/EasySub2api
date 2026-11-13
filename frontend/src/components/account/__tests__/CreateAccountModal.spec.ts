@@ -110,7 +110,8 @@ async function selectButtonByText(wrapper: ReturnType<typeof mountModal>, text: 
 async function submitApiKeyAccount(
   platform: 'openai' | 'anthropic',
   enableLongContextBilling = false,
-  disableUpstreamBillingProbe = false
+  disableUpstreamBillingProbe = false,
+  withForwarding = false
 ) {
   const wrapper = mountModal()
   await selectButtonByText(wrapper, platform === 'openai' ? 'OpenAI' : 'admin.accounts.claudeConsole')
@@ -119,6 +120,11 @@ async function submitApiKeyAccount(
   }
   await wrapper.get('form#create-account-form input[type="text"]').setValue(`${platform} account`)
   await wrapper.get('form#create-account-form input[type="password"][required]').setValue('test-api-key')
+  if (withForwarding) {
+    await wrapper.get('[data-testid="add-forwarding"]').trigger('click')
+    await wrapper.get('[data-testid="forwarding-source"]').setValue('gpt-5.6-luna')
+    await wrapper.get('[data-testid="forwarding-target"]').setValue('gpt-5.6-terra')
+  }
   if (enableLongContextBilling) {
     await wrapper.get('[data-testid="openai-long-context-billing-toggle"]').trigger('click')
   }
@@ -146,6 +152,15 @@ async function openCodexImportStep(toggleClicks = 0, withLogin = false) {
 }
 
 describe('CreateAccountModal OpenAI long-context billing', () => {
+  it('creates an OpenAI account with independent forwarding rules', async () => {
+    const wrapper = await submitApiKeyAccount('openai', false, false, true)
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials?.model_forwarding).toEqual({
+      'gpt-5.6-luna': 'gpt-5.6-terra'
+    })
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     createAccountMock.mockReset().mockResolvedValue({ id: 42, platform: 'openai', type: 'apikey' })
     probeUpstreamBillingMock.mockReset().mockResolvedValue({})

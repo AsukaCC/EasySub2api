@@ -22,6 +22,7 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/config"
 	"github.com/AsukaCC/EasySub2api/internal/domain"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/xai"
 	"github.com/AsukaCC/EasySub2api/internal/util/responseheaders"
 	"github.com/cespare/xxhash/v2"
@@ -1520,7 +1521,14 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *string
 			return nil
 		}
 
-		mapping := acc.GetModelMapping()
+		mapping := acc.ConfiguredModelMappings()
+		if acc.IsOpenAI() && len(acc.GetModelMapping()) == 0 && len(mapping) > 0 {
+			// Forwarding adds aliases; an otherwise unrestricted account still
+			// advertises the normal OpenAI model catalog.
+			for _, model := range openai.DefaultModelIDs() {
+				modelSet[model] = struct{}{}
+			}
+		}
 		if len(mapping) > 0 {
 			hasAnyMapping = true
 			for model, target := range mapping {

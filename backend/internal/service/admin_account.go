@@ -505,6 +505,9 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 }
 
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
+	if err := NormalizeOpenAIModelForwardingCredentials(input.Platform, input.Credentials); err != nil {
+		return nil, err
+	}
 	if err := NormalizeAccountLoginCredentials(input.Credentials); err != nil {
 		return nil, err
 	}
@@ -603,6 +606,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id string, input *
 	}
 	if account.Platform == PlatformTypeSafe && input.Type != "" && input.Type != AccountTypeAPIKey {
 		return nil, errors.New("typesafe accounts only support apikey credentials")
+	}
+	if err := NormalizeOpenAIModelForwardingCredentials(account.Platform, input.Credentials); err != nil {
+		return nil, err
 	}
 	var normalizedExtra map[string]any
 	if input.Extra != nil {

@@ -787,6 +787,9 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 	if a == nil || CheckActiveAccountModel(a, requestedModel) != nil {
 		return false
 	}
+	if _, matched := a.ResolveForwardedModel(requestedModel); matched {
+		return true
+	}
 	// 透传模式仅替换认证、模型语义完全交由上游决定，因此放行所有模型。
 	// 该短路必须在 model_mapping 判定之前：账号从"白名单模式"切换到透传后，
 	// credentials 里常残留旧的非空 model_mapping，若不在此放行，透传账号会被
@@ -847,6 +850,9 @@ func (a *Account) GetModelReasoningEffort(requestedModel string) string {
 // ResolveMappedModel 获取映射后的模型名，并返回是否命中了账号级映射。
 // matched=true 表示命中了精确映射或通配符映射，即使映射结果与原模型名相同。
 func (a *Account) ResolveMappedModel(requestedModel string) (mappedModel string, matched bool) {
+	if model, forwarded := a.ResolveForwardedModel(requestedModel); forwarded {
+		return model, true
+	}
 	mapping := a.GetModelMapping()
 	if len(mapping) == 0 {
 		return requestedModel, false
