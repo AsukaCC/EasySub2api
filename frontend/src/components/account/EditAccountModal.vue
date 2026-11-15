@@ -668,6 +668,7 @@
       <OpenAIModelForwardingFields
         v-if="account.platform === 'openai' && !isSparkShadow"
         v-model="modelForwardingRows"
+        :account-id="String(account.id)"
       />
 
       <!-- OpenAI/Grok OAuth Model Mapping (OAuth 类型没有 apikey 容器，需要独立的模型映射区域) -->
@@ -2739,6 +2740,7 @@ import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import OpenAIModelForwardingFields from './OpenAIModelForwardingFields.vue'
+import { isValidModelForwarding } from '@/utils/modelForwarding'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import GrokModelDiagnosticsPanel from '@/components/account/GrokModelDiagnosticsPanel.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
@@ -4502,6 +4504,11 @@ const handleSubmit = async () => {
   if (protectionBusy.value) return
   if (!props.account) return
   const accountID = props.account.id
+
+  if (props.account.platform === 'openai' && !isSparkShadow.value && !isValidModelForwarding(modelForwardingRows.value)) {
+    appStore.showError(t('admin.accounts.openai.modelForwardingInvalid'))
+    return
+  }
 
   if (form.status !== 'active' && form.status !== 'inactive' && form.status !== 'error') {
     appStore.showError(t('admin.accounts.pleaseSelectStatus'))

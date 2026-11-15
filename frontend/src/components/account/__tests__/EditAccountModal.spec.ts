@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import Select from '@/components/common/Select.vue'
 import { defineComponent } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 
@@ -28,6 +29,11 @@ vi.mock('@/stores/auth', () => ({
     }
   })
 }))
+
+vi.mock('@/api/admin/accounts', () => ({ accountsAPI: {
+  syncUpstreamModels: vi.fn().mockResolvedValue({ models: ['gpt-5.6-terra', 'gpt-6.1-sol'] }),
+  syncUpstreamModelsPreview: vi.fn().mockResolvedValue({ models: ['gpt-5.6-terra', 'gpt-6.1-sol'] })
+} }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
@@ -302,7 +308,7 @@ describe('EditAccountModal', () => {
     checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
     const wrapper = mountModal(account)
     expect(wrapper.get('[data-testid="forwarding-source"]').element).toHaveProperty('value', 'gpt-5.6-luna')
-    await wrapper.get('[data-testid="forwarding-target"]').setValue('gpt-6.1-sol')
+    wrapper.findComponent(Select).vm.$emit('update:modelValue', 'gpt-6.1-sol')
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
     await flushPromises()
     expect(showErrorMock.mock.calls).toEqual([])

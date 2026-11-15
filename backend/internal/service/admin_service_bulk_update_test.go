@@ -593,3 +593,50 @@ func TestAdminServiceBulkUpdateAccounts_ValidatesFilterResolvedOpenAITargets(t *
 	require.Equal(t, []string{"7"}, repo.getByIDsIDs)
 	require.Zero(t, repo.bulkUpdateCalls)
 }
+
+func TestAdminServiceBulkUpdateAccounts_ModelForwarding(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		platforms []string
+		rules     map[string]any
+		wantError bool
+	}{
+		{"replace", []string{PlatformOpenAI, PlatformOpenAI}, map[string]any{" client-* ": " gpt-6.1-sol "}, false},
+		{"clear", []string{PlatformOpenAI, PlatformOpenAI}, map[string]any{}, false},
+		{"invalid target", []string{PlatformOpenAI}, map[string]any{"client": "gpt-*"}, true},
+		{"invalid source", []string{PlatformOpenAI}, map[string]any{"cli*ent": "gpt-6.1-sol"}, true},
+		{"other platform", []string{PlatformAnthropic}, map[string]any{}, true},
+		{"mixed platforms", []string{PlatformOpenAI, PlatformAnthropic}, map[string]any{"client": "gpt-6.1-sol"}, true},
+		{"missing account", nil, map[string]any{}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &accountRepoStubForBulkUpdate{}
+			ids := []string{"1"}
+			for i, platform := range tt.platforms {
+				id := []string{"1", "2"}[i]
+				if i > 0 {
+					ids = append(ids, id)
+				}
+				repo.getByIDsAccounts = append(repo.getByIDsAccounts, &Account{ID: id, Platform: platform})
+			}
+			result, err := (&adminServiceImpl{accountRepo: repo}).BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+				AccountIDs:  ids,
+				Credentials: map[string]any{"model_forwarding": tt.rules},
+			})
+			if tt.wantError {
+				require.Error(t, err)
+				require.Nil(t, result)
+				require.Zero(t, repo.bulkUpdateCalls, "invalid forwarding must be rejected before any write")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, len(ids), result.Success)
+			require.Len(t, repo.lastBulkUpdate.Credentials, 1, "forwarding must not overwrite the whitelist")
+			if len(tt.rules) == 0 {
+				require.Empty(t, repo.lastBulkUpdate.Credentials["model_forwarding"])
+			} else {
+				require.Equal(t, map[string]any{"client-*": "gpt-6.1-sol"}, repo.lastBulkUpdate.Credentials["model_forwarding"])
+			}
+		})
+	}
+}

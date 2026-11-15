@@ -1014,6 +1014,20 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		}
 		result.LongContextInheritedCount = inheritedCount
 	}
+	if _, forwardingChanged := input.Credentials["model_forwarding"]; forwardingChanged {
+		for _, accountID := range input.AccountIDs {
+			account, ok := targetsByID[accountID]
+			if !ok {
+				return nil, ErrAccountNotFound
+			}
+			if !account.IsOpenAI() {
+				return nil, infraerrors.BadRequest("INVALID_MODEL_FORWARDING", "model forwarding is only supported for OpenAI accounts")
+			}
+		}
+		if err := NormalizeOpenAIModelForwardingCredentials(PlatformOpenAI, input.Credentials); err != nil {
+			return nil, infraerrors.BadRequest("INVALID_MODEL_FORWARDING", err.Error())
+		}
+	}
 	if input.ProbeEnabled != nil {
 		for _, accountID := range input.AccountIDs {
 			account, ok := targetsByID[accountID]

@@ -18,6 +18,8 @@ vi.mock('@/stores/app', () => ({
   })
 }))
 
+vi.mock('@/api/admin/accounts', () => ({ accountsAPI: { syncUpstreamModels: vi.fn().mockResolvedValue({ models: ['upstream-model'] }) } }))
+
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
@@ -76,6 +78,52 @@ function mountModal(extraProps: Record<string, unknown> = {}) {
 }
 
 describe('BulkEditAccountModal', () => {
+  it('批量设置模型转发不提交模型限制，并支持筛选结果目标', async () => {
+    const wrapper = mountModal({
+      target: { mode: 'filtered', filters: { platform: 'openai' }, previewCount: 12 },
+      upstreamAccountId: 'reference-account'
+    })
+    await wrapper.get('#bulk-edit-model-forwarding-enabled').setValue(true)
+    await wrapper.get('[data-testid="add-forwarding"]').trigger('click')
+    await wrapper.get('[data-testid="forwarding-source"]').setValue('client-*')
+    await flushPromises()
+    await wrapper.get('[data-testid="forwarding-target"]').setValue('upstream-model')
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith({ filters: { platform: 'openai' },
+      credentials: { model_forwarding: { 'client-*': 'upstream-model' } }
+    })
+    wrapper.unmount()
+  })
+
+  it('规则留空时批量清空转发', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('#bulk-edit-model-forwarding-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], { credentials: { model_forwarding: {} } })
+    wrapper.unmount()
+  })
+
+  it('不允许保存缺少目标的转发规则', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('#bulk-edit-model-forwarding-enabled').setValue(true)
+    await wrapper.get('[data-testid="add-forwarding"]').trigger('click')
+    await wrapper.get('[data-testid="forwarding-source"]').setValue('client-*')
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    expect(adminAPI.accounts.bulkUpdate).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('admin.accounts.openai.modelForwardingInvalid')
+    wrapper.unmount()
+  })
+
+  it('混合平台和非 OpenAI 目标不显示转发入口', () => {
+    for (const selectedPlatforms of [['openai', 'anthropic'], ['anthropic']]) {
+      const wrapper = mountModal({ selectedPlatforms })
+      expect(wrapper.find('#bulk-edit-model-forwarding-enabled').exists()).toBe(false)
+      wrapper.unmount()
+    }
+  })
+
   beforeEach(() => {
     vi.mocked(adminAPI.accounts.bulkUpdate).mockReset()
     showError.mockReset()
