@@ -88,7 +88,7 @@ describe('ModelWhitelistSelector', () => {
 
   it('copies a model ID without selecting the model', async () => {
     const wrapper = mountSelector()
-    await wrapper.get('.components-account-model-whitelist-selector__panel-2').trigger('click')
+    await wrapper.get('.model-whitelist__trigger').trigger('click')
 
     const row = findModelRow(wrapper, 'gpt-5.6-sol')
 
@@ -104,7 +104,7 @@ describe('ModelWhitelistSelector', () => {
 
   it('keeps the existing model selection behavior', async () => {
     const wrapper = mountSelector()
-    await wrapper.get('.components-account-model-whitelist-selector__panel-2').trigger('click')
+    await wrapper.get('.model-whitelist__trigger').trigger('click')
 
     const row = findModelRow(wrapper, 'gpt-5.6-sol')
     await row.get('[data-testid="select-model"]').trigger('click')

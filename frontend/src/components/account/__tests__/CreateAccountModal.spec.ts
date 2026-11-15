@@ -26,6 +26,11 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({ isSimpleMode: true }),
 }))
 
+vi.mock('@/api/admin/accounts', () => ({ accountsAPI: {
+  syncUpstreamModels: vi.fn().mockResolvedValue({ models: ['gpt-5.6-terra', 'gpt-6.1-sol'] }),
+  syncUpstreamModelsPreview: vi.fn().mockResolvedValue({ models: ['gpt-5.6-terra', 'gpt-6.1-sol'] })
+} }))
+
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
@@ -123,7 +128,7 @@ async function submitApiKeyAccount(
   if (withForwarding) {
     await wrapper.get('[data-testid="add-forwarding"]').trigger('click')
     await wrapper.get('[data-testid="forwarding-source"]').setValue('gpt-5.6-luna')
-    await wrapper.get('[data-testid="forwarding-target"]').setValue('gpt-5.6-terra')
+    wrapper.findComponent('[data-testid="forwarding-target"]').vm.$emit('update:modelValue', 'gpt-5.6-terra')
   }
   if (enableLongContextBilling) {
     await wrapper.get('[data-testid="openai-long-context-billing-toggle"]').trigger('click')

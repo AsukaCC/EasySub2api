@@ -268,6 +268,21 @@
         </p>
       </div>
 
+      <div v-if="modelRestrictionPlatform === 'openai'" class="components-account-bulk-edit-account-modal__panel-3">
+        <div class="components-account-bulk-edit-account-modal__panel-4">
+          <label class="input-label" for="bulk-edit-model-forwarding-enabled">{{ t('admin.accounts.openai.modelForwarding') }}</label>
+          <input id="bulk-edit-model-forwarding-enabled" v-model="enableModelForwarding" type="checkbox" class="components-account-bulk-edit-account-modal__field" aria-controls="bulk-edit-model-forwarding-body" />
+        </div>
+        <OpenAIModelForwardingFields
+          v-if="enableModelForwarding"
+          id="bulk-edit-model-forwarding-body"
+          v-model="modelForwardingRows"
+          :account-id="upstreamAccountId || (targetMode === 'selected' && accountIds.length ? String(accountIds[0]) : undefined)"
+          hide-label
+          batch
+        />
+      </div>
+
       <!-- Model restriction -->
       <div class="components-account-bulk-edit-account-modal__panel-3">
         <div class="components-account-bulk-edit-account-modal__panel-4">
@@ -1522,6 +1537,8 @@ import Select from '@/components/common/Select.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import OpenAIModelForwardingFields from '@/components/account/OpenAIModelForwardingFields.vue'
+import { isValidModelForwarding } from '@/utils/modelForwarding'
 import Icon from '@/components/icons/Icon.vue'
 import {
   buildModelMappingObject as buildModelMappingPayload,
@@ -1694,6 +1711,8 @@ interface ModelMapping {
 // State - field enable flags
 const enableBaseUrl = ref(false)
 const enableModelRestriction = ref(false)
+const enableModelForwarding = ref(false)
+const modelForwardingRows = ref<ModelMapping[]>([])
 const enableCustomErrorCodes = ref(false)
 const enableInterceptWarmup = ref(false)
 const enableHeaderOverride = ref(false)
@@ -2103,6 +2122,11 @@ const buildUpdatePayload = (): Record<string, unknown> | null => {
     credentialsChanged = true
   }
 
+  if (enableModelForwarding.value && modelRestrictionPlatform.value === 'openai') {
+    credentials.model_forwarding = buildModelMappingPayload('mapping', [], modelForwardingRows.value) ?? {}
+    credentialsChanged = true
+  }
+
   if (enableCustomErrorCodes.value) {
     credentials.custom_error_codes_enabled = true
     credentials.custom_error_codes = [...selectedErrorCodes.value]
@@ -2232,6 +2256,7 @@ const handleSubmit = async () => {
     (enableOpenAIEndpointCapabilities.value && allOpenAIAPIKey.value) ||
     (enableOpenAIResponsesMode.value && allOpenAIAPIKey.value) ||
     enableModelRestriction.value ||
+    (enableModelForwarding.value && modelRestrictionPlatform.value === 'openai') ||
     enableCustomErrorCodes.value ||
     enableInterceptWarmup.value ||
     enableHeaderOverride.value ||
@@ -2280,6 +2305,11 @@ const handleSubmit = async () => {
       appStore.showError(t(`admin.accounts.headerOverride.${headerError}`))
       return
     }
+  }
+
+  if (enableModelForwarding.value && modelRestrictionPlatform.value === 'openai' && !isValidModelForwarding(modelForwardingRows.value)) {
+    appStore.showError(t('admin.accounts.openai.modelForwardingInvalid'))
+    return
   }
 
   const built = buildUpdatePayload()
@@ -2351,6 +2381,8 @@ watch(
       // Reset all enable flags
       enableBaseUrl.value = false
       enableModelRestriction.value = false
+      enableModelForwarding.value = false
+      modelForwardingRows.value = []
       enableCustomErrorCodes.value = false
       enableInterceptWarmup.value = false
       enableHeaderOverride.value = false
