@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+
+	"github.com/AsukaCC/EasySub2api/internal/pkg/openai"
 )
 
 var codexToolCapabilityFields = []string{
@@ -448,6 +450,19 @@ func enforceGPT6AstraCodexDescriptor(descriptor *configuredCodexModelDescriptor,
 		return
 	}
 	modelID = strings.TrimSpace(modelID)
+	if openai.IsGPT62ModelSpelling(modelID) || openai.IsGPT62ModelSpelling(descriptor.Slug) {
+		level := "medium"
+		descriptor.DefaultReasoningLevel = &level
+		descriptor.SupportedReasoningLevels = reasoningLevels("low", "medium", "high", "xhigh", "max")
+		descriptor.ContextWindow, descriptor.MaxContextWindow = 1_050_000, 1_050_000
+		descriptor.InputModalities = []string{"text", "image"}
+		tierModel := modelID
+		if !openai.IsGPT62ModelSpelling(tierModel) {
+			tierModel = descriptor.Slug
+		}
+		descriptor.ServiceTiers = configuredCodexServiceTiersForModel(tierModel)
+		return
+	}
 	if !isOpenAIGPT6AstraModel(modelID) && !isOpenAIGPT6AstraModel(descriptor.Slug) {
 		return
 	}

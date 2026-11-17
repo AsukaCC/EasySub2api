@@ -55,6 +55,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthUsesDecodedOutputDimensions(t *t
 			require.Equal(t, []string{"1672x941"}, run.result.ImageOutputSizes)
 
 			ApplyOpenAIImageBillingResolution(run.result)
+			require.Equal(t, "3840x2160", run.result.ImageInputSize)
 			require.Equal(t, ImageBillingSize2K, run.result.ImageSize)
 			require.Equal(t, "1672x941", run.result.ImageOutputSize)
 			require.Equal(t, ImageSizeSourceOutput, run.result.ImageSizeSource)
@@ -73,6 +74,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingUsesDecodedOutputDimens
 			require.Equal(t, "1672x941", gjson.Get(completed.Data, "size").String())
 			require.Equal(t, "auto", gjson.Get(completed.Data, "quality").String())
 			require.Equal(t, []string{"1672x941"}, run.result.ImageOutputSizes)
+			require.Equal(t, "3840x2160", run.result.ImageInputSize)
 		})
 	}
 }

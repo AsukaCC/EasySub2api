@@ -2760,6 +2760,29 @@ func (r *accountRepository) ClearModelRateLimits(ctx context.Context, id string)
 	return nil
 }
 
+// Clear only the observed reason; a concurrent replacement cooldown must survive recovery.
+func (r *accountRepository) ClearModelRateLimitIfReason(ctx context.Context, id, scope, reason string) (bool, error) {
+	if scoped := r.accountTransactionScope(ctx); scoped != r {
+		return scoped.ClearModelRateLimitIfReason(ctx, id, scope, reason)
+	}
+	result, err := clientFromContext(ctx, r.client).ExecContext(ctx, `UPDATE accounts
+		SET extra = extra #- ARRAY['model_rate_limits', $2]::text[], updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+		AND extra->'model_rate_limits'->$2->>'reason' = $3`, id, scope, reason)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		return false, err
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
+		logger.LegacyPrintf("repository.account", "enqueue model cooldown recovery failed: account=%s err=%v", id, err)
+	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
+	return true, nil
+}
+
 func (r *accountRepository) UpdateSessionWindow(ctx context.Context, id string, start, end *time.Time, status string) error {
 	builder := r.client.Account.Update().
 		Where(dbaccount.IDEQ(id)).
@@ -2786,6 +2809,7 @@ func (r *accountRepository) UpdateSessionWindow(ctx context.Context, id string, 
 func (r *accountRepository) UpdateSessionWindowEnd(ctx context.Context, id string, end time.Time) error {
 	_, err := r.client.Account.Update().
 		Where(dbaccount.IDEQ(id)).
+		SetSessionWindowStart(end.Add(-5 * time.Hour)).
 		SetSessionWindowEnd(end).
 		Save(ctx)
 	if err != nil {

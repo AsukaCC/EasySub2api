@@ -965,6 +965,7 @@ export default {
       accountsTotal: '总量:',
       accountsUnit: '个账号',
       openaiFast: {
+        ultrafast: '强制 Ultra Fast（GPT-6.2 / GPT-6 Astra / GPT-6.1 Sol）',
         title: 'OpenAI Fast 模式',
         force: '强制使用 Fast（priority）',
         hint: '开启后，此分组的 OpenAI 请求会强制使用 priority 服务层级；全局 Fast/Flex 策略仍可过滤或拦截。',
@@ -1338,7 +1339,7 @@ export default {
       ccsCodexWebsocket: {
         title: 'CC-Switch Codex WebSocket',
         allow: '导出时启用 WebSocket',
-        hint: '启用后，属于此 OpenAI 分组的密钥导入 CC-Switch 时会写入 supports_websockets 与 responses_websockets_v2。仅影响导出配置，请确保网关本身已启用 Responses WebSocket；部分旧版 CC-Switch 可能丢弃自定义 Codex 字段。'
+        hint: '设置此 OpenAI 分组密钥导出时的 WebSocket 默认值，用户可在导出前修改。配置写入 supports_websockets；网关仍需启用 Responses WebSocket。'
       },
       invalidRequestFallback: {
         title: '无效请求兜底分组',

@@ -279,6 +279,7 @@ type CreateGroupInput struct {
 	AllowLive                   bool
 	CcsCodexWSEnabled           bool
 	ForceOpenAIFast             bool
+	ForceOpenAIUltrafast        bool
 	FreeOpenAIFast              bool
 	DefaultMappedModel          string
 	RequireOAuthOnly            bool
@@ -362,6 +363,7 @@ type UpdateGroupInput struct {
 	AllowLive                   *bool
 	CcsCodexWSEnabled           *bool
 	ForceOpenAIFast             *bool
+	ForceOpenAIUltrafast        *bool
 	FreeOpenAIFast              *bool
 	DefaultMappedModel          *string
 	RequireOAuthOnly            *bool

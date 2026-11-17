@@ -751,6 +751,20 @@ func (_c *GroupCreate) SetNillableCcsCodexWsEnabled(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetForceOpenaiUltrafast sets the "force_openai_ultrafast" field.
+func (_c *GroupCreate) SetForceOpenaiUltrafast(v bool) *GroupCreate {
+	_c.mutation.SetForceOpenaiUltrafast(v)
+	return _c
+}
+
+// SetNillableForceOpenaiUltrafast sets the "force_openai_ultrafast" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableForceOpenaiUltrafast(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetForceOpenaiUltrafast(*v)
+	}
+	return _c
+}
+
 // SetForceOpenaiFast sets the "force_openai_fast" field.
 func (_c *GroupCreate) SetForceOpenaiFast(v bool) *GroupCreate {
 	_c.mutation.SetForceOpenaiFast(v)
@@ -1232,6 +1246,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultCcsCodexWsEnabled
 		_c.mutation.SetCcsCodexWsEnabled(v)
 	}
+	if _, ok := _c.mutation.ForceOpenaiUltrafast(); !ok {
+		v := group.DefaultForceOpenaiUltrafast
+		_c.mutation.SetForceOpenaiUltrafast(v)
+	}
 	if _, ok := _c.mutation.ForceOpenaiFast(); !ok {
 		v := group.DefaultForceOpenaiFast
 		_c.mutation.SetForceOpenaiFast(v)
@@ -1460,6 +1478,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.CcsCodexWsEnabled(); !ok {
 		return &ValidationError{Name: "ccs_codex_ws_enabled", err: errors.New(`ent: missing required field "Group.ccs_codex_ws_enabled"`)}
+	}
+	if _, ok := _c.mutation.ForceOpenaiUltrafast(); !ok {
+		return &ValidationError{Name: "force_openai_ultrafast", err: errors.New(`ent: missing required field "Group.force_openai_ultrafast"`)}
 	}
 	if _, ok := _c.mutation.ForceOpenaiFast(); !ok {
 		return &ValidationError{Name: "force_openai_fast", err: errors.New(`ent: missing required field "Group.force_openai_fast"`)}
@@ -1782,6 +1803,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CcsCodexWsEnabled(); ok {
 		_spec.SetField(group.FieldCcsCodexWsEnabled, field.TypeBool, value)
 		_node.CcsCodexWsEnabled = value
+	}
+	if value, ok := _c.mutation.ForceOpenaiUltrafast(); ok {
+		_spec.SetField(group.FieldForceOpenaiUltrafast, field.TypeBool, value)
+		_node.ForceOpenaiUltrafast = value
 	}
 	if value, ok := _c.mutation.ForceOpenaiFast(); ok {
 		_spec.SetField(group.FieldForceOpenaiFast, field.TypeBool, value)
@@ -2902,6 +2927,18 @@ func (u *GroupUpsert) SetCcsCodexWsEnabled(v bool) *GroupUpsert {
 // UpdateCcsCodexWsEnabled sets the "ccs_codex_ws_enabled" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateCcsCodexWsEnabled() *GroupUpsert {
 	u.SetExcluded(group.FieldCcsCodexWsEnabled)
+	return u
+}
+
+// SetForceOpenaiUltrafast sets the "force_openai_ultrafast" field.
+func (u *GroupUpsert) SetForceOpenaiUltrafast(v bool) *GroupUpsert {
+	u.Set(group.FieldForceOpenaiUltrafast, v)
+	return u
+}
+
+// UpdateForceOpenaiUltrafast sets the "force_openai_ultrafast" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateForceOpenaiUltrafast() *GroupUpsert {
+	u.SetExcluded(group.FieldForceOpenaiUltrafast)
 	return u
 }
 
@@ -4211,6 +4248,20 @@ func (u *GroupUpsertOne) SetCcsCodexWsEnabled(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateCcsCodexWsEnabled() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateCcsCodexWsEnabled()
+	})
+}
+
+// SetForceOpenaiUltrafast sets the "force_openai_ultrafast" field.
+func (u *GroupUpsertOne) SetForceOpenaiUltrafast(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetForceOpenaiUltrafast(v)
+	})
+}
+
+// UpdateForceOpenaiUltrafast sets the "force_openai_ultrafast" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateForceOpenaiUltrafast() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateForceOpenaiUltrafast()
 	})
 }
 
@@ -5720,6 +5771,20 @@ func (u *GroupUpsertBulk) SetCcsCodexWsEnabled(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateCcsCodexWsEnabled() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateCcsCodexWsEnabled()
+	})
+}
+
+// SetForceOpenaiUltrafast sets the "force_openai_ultrafast" field.
+func (u *GroupUpsertBulk) SetForceOpenaiUltrafast(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetForceOpenaiUltrafast(v)
+	})
+}
+
+// UpdateForceOpenaiUltrafast sets the "force_openai_ultrafast" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateForceOpenaiUltrafast() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateForceOpenaiUltrafast()
 	})
 }
 

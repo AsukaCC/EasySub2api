@@ -97,9 +97,11 @@ type BillingCache interface {
 
 // ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
 type ModelPricing struct {
+	priceOverrides tokenPriceOverrides
 	// UltrafastMultiplier is an explicit model-owned multiplier. It is kept
 	// separate from the operator-configured fast/priority pricing policy.
 	UltrafastMultiplier                float64
+	UltrafastPromotionEnd              time.Time
 	InputPricePerToken                 float64 // 每token输入价格 (USD)
 	InputPricePerTokenPriority         float64 // priority service tier 下每token输入价格 (USD)
 	ImageInputPricePerToken            float64 // 图片输入 token 价格 (USD)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
@@ -155,8 +157,18 @@ func serviceTierCostMultiplier(serviceTier string) float64 {
 	}
 }
 
-func configuredServiceTierMultiplier(serviceTier string, pricing *ModelPricing) float64 {
+func configuredServiceTierMultiplier(serviceTier string, pricing *ModelPricing, pricingAt ...time.Time) float64 {
 	if pricing != nil && normalizeBillingServiceTier(serviceTier) == OpenAIFastTierUltrafast && pricing.UltrafastMultiplier > 0 {
+		at := time.Time{}
+		if len(pricingAt) > 0 {
+			at = pricingAt[0]
+		}
+		if at.IsZero() {
+			at = timezone.Now()
+		}
+		if !pricing.UltrafastPromotionEnd.IsZero() && at.Before(pricing.UltrafastPromotionEnd) {
+			return 3
+		}
 		return pricing.UltrafastMultiplier
 	}
 	return serviceTierCostMultiplier(serviceTier)
@@ -302,6 +314,7 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 // initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）
 // 价格单位：USD per token（与LiteLLM格式一致）
 func (s *BillingService) initFallbackPricing() {
+	s.initCurrentGeminiAndQwenPricing()
 	s.fallbackPrices["claude-haiku-5-5"] = &ModelPricing{
 		InputPricePerToken:          0.1e-6,
 		OutputPricePerToken:         0.5e-6,
@@ -478,6 +491,17 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextOutputMultiplier:        1.5,
 	}
 	// GPT-6 Sol/Luna official rates, 2026-09-22.
+	for _, model := range []string{"gpt-6.2-astra", "gpt-6.2-sol"} {
+		p := openAIGPT62FallbackPricing(model)
+		write12h := p.InputCostPerToken * 2.5
+		s.fallbackPrices[model] = &ModelPricing{
+			InputPricePerToken: p.InputCostPerToken, OutputPricePerToken: p.OutputCostPerToken,
+			CacheReadPricePerToken:     p.CacheReadInputTokenCost,
+			CacheCreationPricePerToken: p.CacheCreationInputTokenCost, CacheCreationPriceExplicit: true,
+			CacheCreation12hPricePerToken: &write12h,
+			LongContextInputThreshold:     272_000, LongContextInputMultiplier: 2, LongContextOutputMultiplier: 1.5,
+		}
+	}
 	s.fallbackPrices["gpt-6.1-sol"] = &ModelPricing{
 		InputPricePerToken: 2e-6, InputPricePerTokenPriority: 4e-6,
 		OutputPricePerToken: 10e-6, OutputPricePerTokenPriority: 20e-6,
@@ -857,6 +881,12 @@ func (s *BillingService) initFallbackPricing() {
 // getFallbackPricing 根据模型系列获取回退价格
 func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	modelLower := strings.ToLower(model)
+	currentModel := normalizeGeminiThinkingTierAlias(lastSegment(strings.TrimSpace(modelLower)))
+	if currentModel == "gemini-4-carbon" || currentModel == "gemini-4-hydrogen" || strings.HasPrefix(currentModel, "qwen3-embedding-") || strings.HasPrefix(currentModel, "qwen3-reranker-") {
+		if price := s.fallbackPrices[currentModel]; price != nil {
+			return price
+		}
+	}
 	if modelLower == "jev-latest" {
 		return s.fallbackPrices["jev-latest"]
 	}
@@ -1043,7 +1073,7 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	// OpenAI（GPT-5 / Codex 族）：仅匹配已知型号，避免未知 OpenAI 型号误计价。
 	if normalized := normalizeKnownOpenAICodexModel(modelLower); normalized != "" {
 		switch normalized {
-		case "gpt-6-astra", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna":
+		case "gpt-6.2-astra", "gpt-6.2-sol", "gpt-6-astra", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna":
 			return s.fallbackPrices[normalized]
 		case "gpt-5.6-sol":
 			return s.fallbackPrices["gpt-5.6-sol"]
@@ -1183,11 +1213,12 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 			price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
 			enableBreakdown := price1h > 0 && price1h > price5m
 			return s.applyModelSpecificPricingPolicy(model, &ModelPricing{
+				priceOverrides:                     litellmPricing.priceOverrides,
 				InputPricePerToken:                 litellmPricing.InputCostPerToken,
 				InputPricePerTokenPriority:         litellmPricing.InputCostPerTokenPriority,
 				OutputPricePerToken:                litellmPricing.OutputCostPerToken,
 				OutputPricePerTokenPriority:        litellmPricing.OutputCostPerTokenPriority,
-				CacheCreationPriceExplicit:         openai.IsGPT6SolOrLunaModelSpelling(model) && litellmPricing.CacheCreationInputTokenCostExplicit,
+				CacheCreationPriceExplicit:         (openai.IsGPT62ModelSpelling(model) || openai.IsGPT6SolOrLunaModelSpelling(model)) && litellmPricing.CacheCreationInputTokenCostExplicit,
 				CacheCreationPricePerToken:         litellmPricing.CacheCreationInputTokenCost,
 				CacheCreationPricePerTokenPriority: litellmPricing.CacheCreationInputTokenCostPriority,
 				CacheReadPricePerToken:             litellmPricing.CacheReadInputTokenCost,
@@ -1308,13 +1339,14 @@ func (s *BillingService) CalculateCostUnified(input CostInput) (*CostBreakdown, 
 		if input.LongContextBillingEnabled != nil {
 			applyLongContextBilling = *input.LongContextBillingEnabled
 		}
-		return s.calculateCostInternalWithPolicy(
+		return s.calculateCostInternalWithPolicyAt(
 			input.Model,
 			input.Tokens,
 			input.RateMultiplier,
 			input.ServiceTier,
 			nil,
 			applyLongContextBilling,
+			input.PricingAt,
 			input.ReasoningEffort,
 		)
 	}
@@ -1375,7 +1407,7 @@ func (s *BillingService) calculateTokenCost(resolved *ResolvedPricing, input Cos
 		applyLongCtx = applyLongCtx && *input.LongContextBillingEnabled
 	}
 
-	breakdown := s.computeTokenBreakdown(pricing, input.Tokens, input.RateMultiplier, input.ServiceTier, applyLongCtx)
+	breakdown := s.computeTokenBreakdown(pricing, input.Tokens, input.RateMultiplier, input.ServiceTier, applyLongCtx, input.PricingAt)
 	applyCostBreakdownMultiplier(breakdown, resolvedChannelTimeMultiplier(resolved, input.PricingAt))
 	applyCostBreakdownMultiplier(breakdown, reasoningEffortBillingMultiplier(input.ReasoningEffort, pricing.ReasoningEffortMultipliers))
 	return breakdown, nil
@@ -1387,6 +1419,7 @@ func (s *BillingService) computeTokenBreakdown(
 	pricing *ModelPricing, tokens UsageTokens,
 	rateMultiplier float64, serviceTier string,
 	applyLongCtx bool,
+	pricingAt ...time.Time,
 ) *CostBreakdown {
 	// 保存时强制 > 0；若仍有负数泄漏，按 0 处理避免按 1x 误扣。
 	if rateMultiplier < 0 {
@@ -1402,7 +1435,7 @@ func (s *BillingService) computeTokenBreakdown(
 	tierMultiplier := 1.0
 
 	if normalizeBillingServiceTier(serviceTier) == OpenAIFastTierUltrafast && pricing.UltrafastMultiplier > 0 {
-		tierMultiplier = pricing.UltrafastMultiplier
+		tierMultiplier = configuredServiceTierMultiplier(serviceTier, pricing, pricingAt...)
 	} else if usePriorityServiceTierPricing(serviceTier, pricing) {
 		if pricing.InputPricePerTokenPriority > 0 {
 			inputPrice = pricing.InputPricePerTokenPriority
@@ -1439,7 +1472,7 @@ func (s *BillingService) computeTokenBreakdown(
 	longContextPricingEligible := applyLongCtx && s.shouldApplySessionLongContextPricing(tokens, pricing)
 	var baselineCost *CostBreakdown
 	if longContextPricingEligible {
-		baselineCost = s.computeTokenBreakdown(pricing, tokens, rateMultiplier, serviceTier, false)
+		baselineCost = s.computeTokenBreakdown(pricing, tokens, rateMultiplier, serviceTier, false, pricingAt...)
 		inputMultiplier := longContextMultiplierOrOne(pricing.LongContextInputMultiplier)
 		outputMultiplier := longContextMultiplierOrOne(pricing.LongContextOutputMultiplier)
 		inputPrice *= inputMultiplier
@@ -1639,12 +1672,20 @@ func (s *BillingService) calculateCostInternal(model string, tokens UsageTokens,
 }
 
 func (s *BillingService) calculateCostInternalWithPolicy(
+	model string, tokens UsageTokens, rateMultiplier float64, serviceTier string,
+	channelPricing *ChannelModelPricing, longContextBillingEnabled bool, reasoningEffort ...string,
+) (*CostBreakdown, error) {
+	return s.calculateCostInternalWithPolicyAt(model, tokens, rateMultiplier, serviceTier, channelPricing, longContextBillingEnabled, time.Time{}, reasoningEffort...)
+}
+
+func (s *BillingService) calculateCostInternalWithPolicyAt(
 	model string,
 	tokens UsageTokens,
 	rateMultiplier float64,
 	serviceTier string,
 	channelPricing *ChannelModelPricing,
 	longContextBillingEnabled bool,
+	pricingAt time.Time,
 	reasoningEffort ...string,
 ) (*CostBreakdown, error) {
 	var pricing *ModelPricing
@@ -1657,9 +1698,9 @@ func (s *BillingService) calculateCostInternalWithPolicy(
 	if err != nil {
 		return nil, err
 	}
-	pricing = applyDeepSeekPeakPricing(model, pricing, time.Time{}, channelPricing == nil)
+	pricing = applyDeepSeekPeakPricing(model, pricing, pricingAt, channelPricing == nil)
 
-	breakdown := s.computeTokenBreakdown(pricing, tokens, rateMultiplier, serviceTier, longContextBillingEnabled)
+	breakdown := s.computeTokenBreakdown(pricing, tokens, rateMultiplier, serviceTier, longContextBillingEnabled, pricingAt)
 	effort := ""
 	if len(reasoningEffort) > 0 {
 		effort = reasoningEffort[0]
@@ -1678,19 +1719,23 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 	}
 	if forceDeepSeekRates && isDeepSeekModel(model) {
 		cloned := *pricing
+		inputPrice, outputPrice, cacheReadPrice := deepseekFlashOffPeakInputPrice, deepseekFlashOffPeakOutputPrice, deepseekFlashOffPeakCacheRead
 		if strings.Contains(strings.ToLower(strings.TrimSpace(model)), "deepseek-v4-pro") {
-			cloned.InputPricePerToken = deepseekProOffPeakInputPrice
-			cloned.OutputPricePerToken = deepseekProOffPeakOutputPrice
-			cloned.CacheReadPricePerToken = deepseekProOffPeakCacheRead
-		} else {
-			cloned.InputPricePerToken = deepseekFlashOffPeakInputPrice
-			cloned.OutputPricePerToken = deepseekFlashOffPeakOutputPrice
-			cloned.CacheReadPricePerToken = deepseekFlashOffPeakCacheRead
+			inputPrice, outputPrice, cacheReadPrice = deepseekProOffPeakInputPrice, deepseekProOffPeakOutputPrice, deepseekProOffPeakCacheRead
+		}
+		if !cloned.priceOverrides.input {
+			cloned.InputPricePerToken = inputPrice
+		}
+		if !cloned.priceOverrides.output {
+			cloned.OutputPricePerToken = outputPrice
+		}
+		if !cloned.priceOverrides.cacheRead {
+			cloned.CacheReadPricePerToken = cacheReadPrice
 		}
 		return &cloned
 	}
 	normalized := historicalOpenAIBillingModel(model)
-	hasCacheWritePremium := isOpenAIGPT56Model(normalized) || isOpenAIGPT6AstraModel(normalized) || openAIGPT6SolLunaBaseModel(normalized) != "" || openai.IsGPT61TerraModelSpelling(normalized) || openai.IsGPT61SolModelSpelling(normalized)
+	hasCacheWritePremium := isOpenAIGPT56Model(normalized) || isOpenAIGPT6Model(normalized)
 	needsCacheCreationPolicy := hasCacheWritePremium && !pricing.CacheCreationPriceExplicit && (pricing.CacheCreationPricePerToken <= 0 ||
 		(pricing.InputPricePerTokenPriority > 0 && pricing.CacheCreationPricePerTokenPriority <= 0))
 	needsReasoningPolicy := pricing.ReasoningEffortMultipliers == nil && defaultReasoningEffortMultipliers(model) != nil
@@ -1699,8 +1744,11 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 		return pricing
 	}
 	cloned := *pricing
-	if isOpenAIGPT6AstraModel(normalized) {
+	if openAIModelSupportsUltrafast(normalized) {
 		cloned.UltrafastMultiplier = 6
+		if openai.IsGPT62ModelSpelling(normalized) {
+			cloned.UltrafastPromotionEnd = openAIGPT62UltrafastPromotionEnd
+		}
 	}
 	if needsReasoningPolicy {
 		cloned.ReasoningEffortMultipliers = defaultReasoningEffortMultipliers(model)
@@ -1728,7 +1776,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 
 func openAIModelFastPricingRatio(normalized string) float64 {
 	switch normalized {
-	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna":
+	case "gpt-6.2-astra", "gpt-6.2-sol", "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna":
 		return 2
 	case "gpt-5.5":
 		return 2.5
@@ -1766,9 +1814,15 @@ func applyDeepSeekPeakPricing(model string, pricing *ModelPricing, at time.Time,
 		return pricing
 	}
 	cloned := *pricing
-	cloned.InputPricePerToken *= multiplier
-	cloned.OutputPricePerToken *= multiplier
-	cloned.CacheReadPricePerToken *= multiplier
+	if !cloned.priceOverrides.input {
+		cloned.InputPricePerToken *= multiplier
+	}
+	if !cloned.priceOverrides.output {
+		cloned.OutputPricePerToken *= multiplier
+	}
+	if !cloned.priceOverrides.cacheRead {
+		cloned.CacheReadPricePerToken *= multiplier
+	}
 	return &cloned
 }
 

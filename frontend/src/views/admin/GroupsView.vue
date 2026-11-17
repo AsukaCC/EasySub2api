@@ -626,6 +626,7 @@
         <OpenAIFastPolicyFields
           v-if="supportsGroupOpenAIFast(createForm.platform)"
           id-prefix="create-group-fast"
+          v-model:ultrafast="createForm.force_openai_ultrafast"
           v-model:force="createForm.force_openai_fast"
           v-model:free="createForm.free_openai_fast"
         />
@@ -2083,6 +2084,7 @@
         <OpenAIFastPolicyFields
           v-if="supportsGroupOpenAIFast(editForm.platform)"
           id-prefix="edit-group-fast"
+          v-model:ultrafast="editForm.force_openai_ultrafast"
           v-model:force="editForm.force_openai_fast"
           v-model:free="editForm.free_openai_fast"
         />
@@ -4578,6 +4580,7 @@ const createForm = reactive({
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
   rpm_limit: 0 as number,
   force_openai_fast: false,
+  force_openai_ultrafast: false,
   free_openai_fast: false,
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
@@ -4919,6 +4922,7 @@ const editForm = reactive({
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
   rpm_limit: 0 as number,
   force_openai_fast: false,
+  force_openai_ultrafast: false,
   free_openai_fast: false,
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
@@ -5356,6 +5360,7 @@ const closeCreateModal = () => {
   createForm.copy_accounts_from_group_ids = [];
   createForm.rpm_limit = 0;
   createForm.force_openai_fast = false;
+  createForm.force_openai_ultrafast = false;
   createForm.free_openai_fast = false;
   createForm.max_reasoning_effort = "";
   createForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
@@ -5449,6 +5454,10 @@ const handleCreateGroup = async () => {
       force_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
         createForm.force_openai_fast,
+      ),
+      force_openai_ultrafast: normalizeGroupOpenAIFast(
+        createForm.platform,
+        createForm.force_openai_ultrafast,
       ),
       free_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
@@ -5634,6 +5643,9 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.force_openai_fast = supportsGroupOpenAIFast(group.platform)
     ? group.force_openai_fast ?? false
     : false;
+  editForm.force_openai_ultrafast = supportsGroupOpenAIFast(group.platform)
+    ? group.force_openai_ultrafast ?? false
+    : false;
   editForm.free_openai_fast = supportsGroupOpenAIFast(group.platform)
     ? group.free_openai_fast ?? false
     : false;
@@ -5707,6 +5719,7 @@ const closeEditModal = () => {
   editForm.video_model_prices = createVideoModelPricesForm();
   editForm.long_context_pricing_enabled = true;
   editForm.force_openai_fast = false;
+  editForm.force_openai_ultrafast = false;
   editForm.free_openai_fast = false;
   editForm.model_pricing = [];
   editForm.web_search_price_per_call = null;
@@ -5758,6 +5771,10 @@ const handleUpdateGroup = async () => {
       force_openai_fast: normalizeGroupOpenAIFast(
         editForm.platform,
         editForm.force_openai_fast,
+      ),
+      force_openai_ultrafast: normalizeGroupOpenAIFast(
+        editForm.platform,
+        editForm.force_openai_ultrafast,
       ),
       free_openai_fast: normalizeGroupOpenAIFast(
         editForm.platform,
@@ -6183,6 +6200,7 @@ watch(
     }
     if (!supportsGroupOpenAIFast(newVal)) {
       createForm.force_openai_fast = false;
+      createForm.force_openai_ultrafast = false;
       createForm.free_openai_fast = false;
     }
     createForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
@@ -6228,6 +6246,7 @@ watch(
     }
     if (!supportsGroupOpenAIFast(newVal)) {
       editForm.force_openai_fast = false;
+      editForm.force_openai_ultrafast = false;
       editForm.free_openai_fast = false;
     }
     editForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(

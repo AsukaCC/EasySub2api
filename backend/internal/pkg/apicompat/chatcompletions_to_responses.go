@@ -22,7 +22,7 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 }
 
 func ChatCompletionsToResponsesWithMinOutputTokens(req *ChatCompletionsRequest, minOutputTokens int) (*ResponsesRequest, error) {
-	if openai.IsGPT61SolModelSpelling(req.Model) {
+	if openai.IsGPT62ModelSpelling(req.Model) || openai.IsGPT61SolModelSpelling(req.Model) {
 		if err := openai.ValidateGPT61ReasoningEffort(req.Model, req.ReasoningEffort); err != nil {
 			return nil, err
 		}

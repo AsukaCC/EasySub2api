@@ -240,6 +240,14 @@ export default {
     lastUsedIP: 'Last Used IP',
     useKey: 'Use Key',
     useKeyModal: {
+      codexOptions: {
+        model: 'Main model',
+        subagent: 'Subagent model',
+        followMain: 'Subagents follow the current main model',
+        websocket: 'Use WebSocket connection',
+        exportTitle: 'Export Codex configuration',
+        export: 'Import into CC Switch'
+      },
       client: 'Client',
       environment: 'Terminal / operating system',
       typesafe: {
@@ -1134,6 +1142,8 @@ export default {
   },
 
   imageWorkbench: {
+    requestSize: 'Requested size',
+    requestQuality: 'Requested quality',
     title: 'Image Workbench',
     description: 'Generate and edit images through the project gateway',
     prompt: 'Describe the image you want to create',

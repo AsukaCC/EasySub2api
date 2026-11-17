@@ -1,8 +1,14 @@
 import type { GroupPlatform } from '@/types'
 import { buildCodexApiKeyAuthConfig } from '@/utils/codexAuthConfig'
 
-export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-6.1-sol'
+export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-6.2-sol'
 export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
+
+export interface CodexExportSettings {
+  model: string
+  subagentModel: string | null
+  websocketEnabled: boolean
+}
 
 export type CcSwitchClientType = 'claude'
 // Keep this list aligned with CC-Switch deep-link import app identifiers.
@@ -28,6 +34,8 @@ export interface CcSwitchImportDeeplinkInput {
   apiKey: string
   usageScript: string
   codexWebsocketEnabled?: boolean
+  codexModel?: string
+  codexSubagentModel?: string | null
 }
 
 interface CcSwitchCodexImportPayload {
@@ -61,7 +69,7 @@ function buildCodexImportPayload(
   const websocketEnabled = input.codexWebsocketEnabled === true
   const codexConfig = [
     'model_provider = "custom"',
-    `model = ${asTomlString(config.model || OPENAI_CC_SWITCH_CODEX_MODEL)}`,
+    `model = ${asTomlString(input.codexModel?.trim() || config.model || OPENAI_CC_SWITCH_CODEX_MODEL)}`,
     'model_reasoning_effort = "high"',
     'disable_response_storage = true',
     'web_search = "live"',
@@ -74,10 +82,11 @@ function buildCodexImportPayload(
     `supports_websockets = ${websocketEnabled}`,
     '',
     '[features]',
-    `responses_websockets_v2 = ${websocketEnabled}`,
+    'image_generation = true',
+    'untrusted_as_tool_output = false',
     '',
     '[agents]',
-    'default_subagent_model = "gpt-6.1-terra"',
+    ...(input.codexSubagentModel?.trim() ? [`default_subagent_model = ${asTomlString(input.codexSubagentModel.trim())}`] : []),
     ''
   ].join('\n')
 
@@ -146,7 +155,7 @@ export function resolveCcSwitchImportConfig(
   if (appOverride === 'codex') {
     return {
       app: 'codex',
-      endpoint: baseUrl,
+      endpoint: withV1Endpoint(baseUrl),
       model: platform === 'grok' ? GROK_CC_SWITCH_MODEL : (inferred.model || OPENAI_CC_SWITCH_CODEX_MODEL)
     }
   }
@@ -210,6 +219,7 @@ function inferCcSwitchImportConfig(
 
 export function buildCcSwitchImportDeeplink(input: CcSwitchImportDeeplinkInput): string {
   const config = resolveCcSwitchImportConfig(input.platform, input.clientType, input.baseUrl, input.app)
+  if (config.app === 'codex' && input.codexModel?.trim()) config.model = input.codexModel.trim()
   const entries: [string, string][] = [
     ['resource', 'provider'],
     ['app', config.app],

@@ -473,7 +473,7 @@ func configuredCodexSupportsPriorityServiceTier(modelID string) bool {
 }
 
 func configuredCodexSupportsUltrafastServiceTier(modelID string) bool {
-	return normalizeKnownOpenAICodexModel(modelID) == "gpt-5.6-sol" || isOpenAIGPT6AstraModel(modelID)
+	return normalizeKnownOpenAICodexModel(modelID) == "gpt-5.6-sol" || openAIModelSupportsUltrafast(modelID)
 }
 
 func configuredCodexGrokReasoningLevels(modelID string) []configuredCodexReasoningLevel {
@@ -503,6 +503,9 @@ func claudeCodexDefaultReasoningLevel(levels []configuredCodexReasoningLevel) st
 }
 
 func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasoningLevel {
+	if openai.IsGPT62ModelSpelling(modelID) {
+		return reasoningLevels("low", "medium", "high", "xhigh", "max")
+	}
 	if openai.IsGPT61TerraModelSpelling(modelID) {
 		return reasoningLevels("none", "low", "medium", "high", "xhigh", "max")
 	}

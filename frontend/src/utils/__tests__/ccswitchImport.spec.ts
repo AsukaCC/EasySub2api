@@ -19,7 +19,7 @@ function decodeBase64Utf8(value: string): string {
 
 describe('ccswitchImport utils', () => {
   it('defaults OpenAI CC Switch imports to the current Codex model', () => {
-    expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-6.1-sol')
+    expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-6.2-sol')
   })
 
   it('defaults Grok Build imports to the current Grok model', () => {
@@ -50,9 +50,11 @@ describe('ccswitchImport utils', () => {
     const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
     expect(payload.auth.OPENAI_API_KEY).toBe(baseInput.apiKey)
     expect(payload.config).toContain(`model = "${OPENAI_CC_SWITCH_CODEX_MODEL}"`)
-    expect(payload.config).toContain('[agents]\ndefault_subagent_model = "gpt-6.1-terra"\n')
+    expect(payload.config).not.toContain('default_subagent_model')
     expect(payload.config).toContain('supports_websockets = false')
-    expect(payload.config).toContain('responses_websockets_v2 = false')
+    expect(payload.config).toContain('image_generation = true')
+    expect(payload.config).toContain('untrusted_as_tool_output = false')
+    expect(payload.config).toContain('experimental_bearer_token = "sk-test"')
   })
 
   it('adds WebSocket support to the Codex configuration when enabled by admin settings', () => {
@@ -69,8 +71,8 @@ describe('ccswitchImport utils', () => {
     const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
     expect(payload.config).toContain('name = "测试站点"')
     expect(payload.config).toContain('supports_websockets = true')
-    expect(payload.config).toContain('responses_websockets_v2 = true')
-    expect(payload.config).toContain('[agents]\ndefault_subagent_model = "gpt-6.1-terra"\n')
+    expect(payload.config).not.toContain('responses_websockets_v2')
+    expect(payload.config).not.toContain('default_subagent_model')
   })
 
   it.each([
@@ -142,12 +144,24 @@ describe('ccswitchImport utils', () => {
     )
 
     expect(params.get('app')).toBe('codex')
-    expect(params.get('endpoint')).toBe(baseInput.baseUrl)
+    expect(params.get('endpoint')).toBe(baseInput.baseUrl + '/v1')
     expect(params.get('model')).toBe(GROK_CC_SWITCH_MODEL)
     const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
     expect(payload.config).toContain('wire_api = "responses"')
     expect(payload.config).toContain(`model = "${GROK_CC_SWITCH_MODEL}"`)
-    expect(payload.config).toContain('[agents]\ndefault_subagent_model = "gpt-6.1-terra"\n')
+    expect(payload.config).not.toContain('default_subagent_model')
+  })
+
+  it('exports edited models consistently in the deep link and TOML', () => {
+    const params = paramsFromDeeplink(buildCcSwitchImportDeeplink({
+      ...baseInput, platform: 'openai', clientType: 'claude',
+      codexModel: ' gpt-6-astra ', codexSubagentModel: 'gpt-6.1-terra', codexWebsocketEnabled: true
+    }))
+    const payload = JSON.parse(decodeBase64Utf8(params.get('config') || ''))
+    expect(params.get('model')).toBe('gpt-6-astra')
+    expect(payload.config).toContain('model = "gpt-6-astra"')
+    expect(payload.config).toContain('default_subagent_model = "gpt-6.1-terra"')
+    expect(payload.config).toContain('supports_websockets = true')
   })
 
   it.each([

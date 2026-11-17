@@ -386,6 +386,11 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 	if upstreamMsg != "" {
 		upstreamMsg = truncateForLog([]byte(upstreamMsg), 512)
 	}
+	if account.IsBedrock() {
+		if handled, disable := s.handleBedrockUpstreamError(ctx, account, statusCode, upstreamMsg, firstRequestedModel(requestedModel)); handled {
+			return disable
+		}
+	}
 
 	switch statusCode {
 	case 400:
@@ -1482,16 +1487,10 @@ func (s *RateLimitService) UpdateSessionWindow(ctx context.Context, account *Acc
 		slog.Info("account_session_window_initialized", "account_id", account.ID, "window_start", start, "window_end", end, "status", status)
 	}
 
-	// 窗口重置时清除旧的 utilization 和被动采样数据，避免残留上个窗口的数据
+	// 5h 窗口重置时清除上个 5h 窗口的 utilization。周窗口有自己的重置时间，
+	// 只清除已经过期的周读数（见 rolloverPassiveUsageClears）。
 	if windowEnd != nil && needInitWindow {
-		_ = s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{
-			"session_window_utilization":      nil,
-			"passive_usage_7d_utilization":    nil,
-			"passive_usage_7d_reset":          nil,
-			"passive_usage_7d_oi_utilization": nil,
-			"passive_usage_7d_oi_reset":       nil,
-			"passive_usage_sampled_at":        nil,
-		})
+		_ = s.accountRepo.UpdateExtra(ctx, account.ID, rolloverPassiveUsageClears(account.Extra, time.Now()))
 	}
 
 	if err := s.accountRepo.UpdateSessionWindow(ctx, account.ID, windowStart, windowEnd, status); err != nil {
@@ -1507,6 +1506,36 @@ func (s *RateLimitService) UpdateSessionWindow(ctx context.Context, account *Acc
 			slog.Warn("rate_limit_clear_failed", "account_id", account.ID, "error", err)
 		}
 	}
+}
+
+// passiveWeeklyUsageWindows lists the sampled weekly windows as utilization/reset Extra keys.
+var passiveWeeklyUsageWindows = [...][2]string{
+	{"passive_usage_7d_utilization", "passive_usage_7d_reset"},
+	{"passive_usage_7d_oi_utilization", "passive_usage_7d_oi_reset"},
+}
+
+// rolloverPassiveUsageClears returns the Extra updates for a 5h window rollover.
+// The 5h utilization always belongs to the previous window. A weekly reading
+// is kept while its own reset is still ahead: only Fable responses carry 7d_oi,
+// so a Fable-exhausted account that no longer receives Fable traffic would
+// otherwise lose its 7d F reading at every rollover until the weekly reset.
+// Readings with no reset, or a reset that has passed, are stale and cleared.
+func rolloverPassiveUsageClears(extra map[string]any, now time.Time) map[string]any {
+	updates := map[string]any{"session_window_utilization": nil}
+	kept := false
+	for _, keys := range passiveWeeklyUsageWindows {
+		if reset := parseExtraFloat64(extra[keys[1]]); reset > 0 && time.Unix(int64(reset), 0).After(now) {
+			kept = true
+			continue
+		}
+		updates[keys[0]] = nil
+		updates[keys[1]] = nil
+	}
+	// The sample time still describes any weekly reading that was kept.
+	if !kept {
+		updates["passive_usage_sampled_at"] = nil
+	}
+	return updates
 }
 
 // samplePassiveUsageFromHeaders 从 Anthropic 响应头收集 5h/7d/7d_oi 的
@@ -1535,9 +1564,11 @@ func (s *RateLimitService) samplePassiveUsageFromHeaders(ctx context.Context, ac
 		}
 	}
 	// 7d_oi (Fable 专属 7d 窗口) utilization（0-1 小数）
+	var fableUtil *float64
 	if utilStr := headers.Get("anthropic-ratelimit-unified-7d_oi-utilization"); utilStr != "" {
 		if util, err := strconv.ParseFloat(utilStr, 64); err == nil {
 			extraUpdates["passive_usage_7d_oi_utilization"] = util
+			fableUtil = &util
 		}
 	}
 	// 7d_oi reset timestamp
@@ -1554,6 +1585,13 @@ func (s *RateLimitService) samplePassiveUsageFromHeaders(ctx context.Context, ac
 		if err := s.accountRepo.UpdateExtra(ctx, account.ID, extraUpdates); err != nil {
 			slog.Warn("passive_usage_update_failed", "account_id", account.ID, "error", err)
 		}
+	}
+
+	// 上游已明确回报 7d_oi 用量回落到耗尽线以下（额度重置或窗口滚动）时，
+	// 撤销此前窗口耗尽写入的模型级限流，避免重置卡生效后仍被本地拦到原
+	// rate_limit_reset_at 才解封。窗口仍处于 rejected/exceeded 时不撤销。
+	if fableUtil != nil && !isAnthropicWindowRejected(headers, "7d_oi") && !isAnthropicWindowExceeded(headers, "7d_oi") {
+		recoverAnthropicFableWindowLimit(ctx, s.accountRepo, account, *fableUtil)
 	}
 }
 

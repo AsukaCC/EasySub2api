@@ -7,6 +7,7 @@ import {
   loadWorkbenchCredentials,
   isAsyncImageTaskUnavailable,
   submitImageTask,
+  generateImage,
   cancelImageTask,
   retryImageTask,
   deleteImageTask,
@@ -124,6 +125,27 @@ function requestError(status: number, message: string, details?: Record<string, 
 describe('image workbench async fallback signal', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['async generation', submitImageTask, false, '/generations/async'],
+    ['async edit', submitImageTask, true, '/edits/async'],
+    ['sync generation', generateImage, false, '/generations'],
+    ['sync edit', generateImage, true, '/edits'],
+  ] as const)('forwards every selected parameter for %s', async (_, submit, edit, endpoint) => {
+    const selected = { ...params, size: '3840x2160', quality: 'high', output_format: 'webp', output_compression: 73, background: 'transparent', moderation: 'low', n: 2 }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [], id: 'task', status: 'queued' })))
+    vi.stubGlobal('fetch', fetchMock)
+    const reference = edit ? new File(['test-image'], 'reference.png', { type: 'image/png' }) : undefined
+    await submit('sk-test', selected, reference)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`http://localhost:3000/v1/images${endpoint}`)
+    if (edit) {
+      expect(init.body).toBeInstanceOf(FormData)
+      for (const [key, value] of Object.entries(selected)) expect(init.body.get(key)).toBe(String(value))
+      expect(init.body.get('image').name).toBe('reference.png')
+      expect(init.headers['Content-Type']).toBeUndefined()
+    } else expect(JSON.parse(init.body)).toEqual(selected)
   })
 
   it.each([

@@ -971,8 +971,19 @@
       :base-url="publicSettings?.api_base_url || ''"
       :platform="selectedKey?.group?.platform || null"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
+      :codex-websocket-enabled="selectedKey?.group?.ccs_codex_ws_enabled === true"
       @close="closeUseKeyModal"
     />
+
+    <BaseDialog :show="!!ccSwitchKey" :title="t('keys.useKeyModal.codexOptions.exportTitle')" @close="ccSwitchKey = null">
+      <CodexExportOptions v-model="ccSwitchOptions" />
+      <template #footer>
+        <button type="button" class="btn btn-secondary" @click="ccSwitchKey = null">{{ t('common.cancel') }}</button>
+        <button type="button" class="btn btn-primary" :disabled="!ccSwitchOptions.model.trim()" @click="confirmCcSwitchImport">
+          <Icon name="upload" size="sm" />{{ t('keys.useKeyModal.codexOptions.export') }}
+        </button>
+      </template>
+    </BaseDialog>
 
   </AppLayout>
 </template>
@@ -1004,6 +1015,7 @@ import Select from '@/components/common/Select.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import Icon from '@/components/icons/Icon.vue'
 import UseKeyModal from '@/components/keys/UseKeyModal.vue'
+import CodexExportOptions from '@/components/keys/CodexExportOptions.vue'
 import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
@@ -1014,6 +1026,9 @@ import { formatDateTime, formatPointAmount, formatPoints } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
   buildCcSwitchImportDeeplink,
+  resolveCcSwitchImportConfig,
+  OPENAI_CC_SWITCH_CODEX_MODEL,
+  type CodexExportSettings,
 } from '@/utils/ccswitchImport'
 
 const formatPointRange = (used: number | null | undefined, limit: number | null | undefined): string =>
@@ -1194,6 +1209,8 @@ const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
+const ccSwitchKey = ref<ApiKey | null>(null)
+const ccSwitchOptions = ref<CodexExportSettings>({ model: OPENAI_CC_SWITCH_CODEX_MODEL, subagentModel: null, websocketEnabled: false })
 const showColumnDropdown = ref(false)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<string | null>(null)
@@ -1714,6 +1731,24 @@ const resetRateLimitUsage = async () => {
 }
 
 const importToCcSwitch = (row: ApiKey) => {
+  const boundGroups = keyGroupOptions(row)
+  const platform = boundGroups[0]?.platform || row.group?.platform || 'anthropic'
+  const config = resolveCcSwitchImportConfig(platform, 'claude', publicSettings.value?.api_base_url || window.location.origin)
+  if (config.app === 'codex') {
+    ccSwitchOptions.value = { model: config.model || OPENAI_CC_SWITCH_CODEX_MODEL, subagentModel: null, websocketEnabled: boundGroups[0]?.ccs_codex_ws_enabled === true }
+    ccSwitchKey.value = row
+  } else {
+    performCcSwitchImport(row)
+  }
+}
+
+const confirmCcSwitchImport = () => {
+  if (!ccSwitchKey.value || !ccSwitchOptions.value.model.trim()) return
+  performCcSwitchImport(ccSwitchKey.value, ccSwitchOptions.value)
+  ccSwitchKey.value = null
+}
+
+const performCcSwitchImport = (row: ApiKey, options?: CodexExportSettings) => {
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
   const boundGroups = keyGroupOptions(row)
   const platform = boundGroups[0]?.platform || row.group?.platform || 'anthropic'
@@ -1744,7 +1779,9 @@ const importToCcSwitch = (row: ApiKey) => {
     providerName,
     apiKey: row.key,
     usageScript,
-    codexWebsocketEnabled: websocketEnabled
+    codexWebsocketEnabled: options?.websocketEnabled ?? websocketEnabled,
+    codexModel: options?.model,
+    codexSubagentModel: options?.subagentModel
   })
 
   try {

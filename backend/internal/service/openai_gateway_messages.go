@@ -50,7 +50,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	// Chat Completions 转换、Responses 转换）都会把 tools 原样带给上游，而
 	// xAI / Moonshot 等严格校验方会因 input_schema 里的 required:null 或
 	// type:null 直接 400。
-	if sanitized, changed, err := sanitizeOpenAIResponsesToolParameterTypes(body); err != nil {
+	if sanitized, changed, err := sanitizeOpenAIResponsesToolSchemasForPlatform(body, account.Platform); err != nil {
 		return nil, err
 	} else if changed {
 		body = sanitized
@@ -739,6 +739,7 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 		beginUpstreamResponseModelObservation(c)
 	}
 	acc := apicompat.NewBufferedResponseAccumulator()
+	acc.XAIServerSideSearch = account != nil && account.IsGrok()
 	var usage OpenAIUsage
 	if resp == nil || resp.Body == nil {
 		return nil, usage, acc, errors.New("upstream response body is nil")
@@ -920,6 +921,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 	writeStreamHeaders := s.newStreamHeaderWriter(c, resp.Header)
 
 	state := apicompat.NewResponsesEventToAnthropicState()
+	state.XAIServerSideSearch = account != nil && account.IsGrok()
 	state.Model = originalModel
 	var usage OpenAIUsage
 	responseID := ""

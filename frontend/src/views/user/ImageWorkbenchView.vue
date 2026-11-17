@@ -84,6 +84,10 @@
             </div>
             <div class="history-card__body">
               <h3>{{ task.prompt }}</h3>
+              <div class="history-card__tags">
+                <span>{{ t('imageWorkbench.requestSize') }} {{ task.params.size || 'auto' }}</span>
+                <span>{{ t('imageWorkbench.requestQuality') }} {{ task.params.quality || 'auto' }}</span>
+              </div>
               <p>{{ task.status === 'queued' ? t('imageWorkbench.queued') : task.status === 'processing' ? t('imageWorkbench.generating') : task.status === 'failed' ? (task.error?.message || t('imageWorkbench.generateFailed')) : t('imageWorkbench.canceled') }}</p>
               <div class="history-card__actions">
                 <button v-if="task.status === 'queued' || task.status === 'processing'" type="button" :title="t('imageWorkbench.cancelTask')" @click.stop="cancelTask(task)"><Icon name="x" size="xs" /></button>
@@ -111,7 +115,8 @@
               <div class="history-card__tags">
                 <span :title="item.keyName"><Icon name="key" size="xs" />{{ item.keyName || t('imageWorkbench.apiKey') }}</span>
                 <span :title="item.model"><Icon name="sparkles" size="xs" />{{ item.model }}</span>
-                <span>{{ t('imageWorkbench.quality') }} {{ qualityLabel(item) }}</span>
+                <span>{{ t('imageWorkbench.requestSize') }} {{ item.params.size || 'auto' }}</span>
+                <span>{{ t('imageWorkbench.requestQuality') }} {{ qualityLabel(item) }}</span>
               </div>
               <div class="history-card__actions">
                 <button type="button" :class="{ active: isItemFavorited(item) }" :title="t('imageWorkbench.saveToCollection')" @click.stop="openFavoritePicker(item)">
@@ -170,7 +175,7 @@
                 :aria-label="t('imageWorkbench.format')"
               />
             </div>
-            <label v-if="adapter.capabilities.outputFormat" class="toolbar-pill toolbar-pill--input" :title="t('imageWorkbench.compression')">
+            <label v-if="adapter.capabilities.outputFormat && params.output_format !== 'png'" class="toolbar-pill toolbar-pill--input" :title="t('imageWorkbench.compression')">
               <span class="toolbar-pill__prefix">{{ t('imageWorkbench.compression') }}</span>
               <input v-model.number="params.output_compression" type="number" min="0" max="100" step="1" />
               <span class="toolbar-pill__suffix">%</span>
@@ -336,7 +341,7 @@
         </div>
         <label>
           <span>{{ t('imageWorkbench.quality') }}</span>
-          <Select v-model="preferences.quality" :options="qualityOptions" :searchable="false" />
+          <Select v-model="preferences.quality" :options="qualityOptions" :searchable="false" @update:model-value="params.quality = String($event)" />
         </label>
         <button class="primary-button" type="button" @click="savePreferences">{{ t('common.save') }}</button>
       </div>
@@ -676,8 +681,16 @@ function qualityLabel(item: ImageHistoryItem): string {
   return String(item.params?.quality || 'auto')
 }
 
-function imageSource(result: { url?: string; b64_json?: string }): string {
-  return result.url || (result.b64_json ? `data:image/png;base64,${result.b64_json}` : '')
+function imageSource(result: ImageResult, requestedFormat: unknown): string {
+  if (result.url) return result.url
+  if (!result.b64_json) return ''
+  if (result.b64_json.startsWith('data:')) return result.b64_json
+  const format = result.b64_json.startsWith('/9j/') ? 'jpeg'
+    : result.b64_json.startsWith('UklGR') ? 'webp'
+      : result.b64_json.startsWith('iVBOR') ? 'png'
+        : result.output_format || requestedFormat
+  const mime = format === 'jpeg' || format === 'webp' ? format : 'png'
+  return `data:image/${mime};base64,${result.b64_json}`
 }
 
 function measureImage(src: string): Promise<{ width: number; height: number } | null> {
@@ -700,7 +713,7 @@ async function saveImageResults(
   },
 ) {
   for (const result of results) {
-    const src = imageSource(result)
+    const src = imageSource(result, metadata.params.output_format)
     if (!src) continue
     const measured = await measureImage(src)
     await putHistory({
@@ -771,7 +784,7 @@ function openSizePicker(target: 'params' | 'preferences') {
 
 function onSizePicked(size: string) {
   if (sizePickerTarget.value === 'preferences') preferences.size = size
-  else params.size = size
+  params.size = size
 }
 
 function clearReference() {
@@ -819,10 +832,10 @@ async function submitGeneration() {
     size: params.size,
     quality: params.quality,
     output_format: params.output_format,
-    output_compression: Number.isFinite(compression) ? Math.min(100, Math.max(0, compression)) : 100,
+    output_compression: Number.isFinite(compression) ? Math.min(100, Math.max(0, Math.round(compression))) : 100,
     background: params.background,
     moderation: params.moderation,
-    n: Math.min(4, Math.max(1, Number(params.n) || 1)),
+    n: Math.min(4, Math.max(1, Math.round(Number(params.n) || 1))),
   }
   const paramsSnapshot: Record<string, unknown> = {
     ...params,
@@ -1087,7 +1100,7 @@ async function copyPrompt(item: ImageHistoryItem) {
 }
 
 async function downloadItem(item: ImageHistoryItem) {
-  const extension = String(item.params?.output_format || 'png')
+  const extension = /^data:image\/(png|jpeg|webp);/i.exec(item.src)?.[1] || String(item.params?.output_format || 'png')
   const filename = `image-${item.id}.${extension}`
   try {
     if (item.src.startsWith('data:')) {
@@ -1172,8 +1185,6 @@ function saveConnection() {
 }
 
 function savePreferences() {
-  params.size = preferences.size
-  params.quality = preferences.quality
   persistConnection()
   settingsOpen.value = false
 }
@@ -1207,8 +1218,15 @@ watch(activePlatform, () => {
 watch(settingsOpen, (open) => {
   if (!open) persistConnection()
 })
+// Settings are persisted on close, so confirmed defaults must also apply to
+// the current request. Sync only the changed field to retain composer edits.
+watch(() => preferences.size, (value) => { params.size = value }, { flush: 'sync' })
+watch(() => preferences.quality, (value) => { params.quality = value }, { flush: 'sync' })
 watch(() => params.background, (value) => {
   if (value === 'transparent' && params.output_format === 'jpeg') params.output_format = 'png'
+})
+watch(() => params.output_format, (value) => {
+  if (value === 'jpeg' && params.background === 'transparent') params.background = 'opaque'
 })
 
 onMounted(async () => {
