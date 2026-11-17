@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/tidwall/sjson"
 )
 
 // normalizeOpenAIResponsesLiteTools applies the Responses Lite request
@@ -200,13 +202,27 @@ func openAIResponsesLiteToolIdentityForError(rawTool any) string {
 }
 
 func normalizeOpenAIResponsesLiteToolsPayload(body []byte) ([]byte, bool, error) {
+	original := body
+	var err error
+	body, _, err = normalizeCodexAdditionalToolsIDsBody(body)
+	if err != nil {
+		return original, false, err
+	}
+	body, _, err = sanitizeOpenAIResponsesToolSchemasForPlatform(body, PlatformOpenAI)
+	if err != nil {
+		return original, false, err
+	}
+	if hasNativeImageGenerationTool(body) {
+		updated, err := sjson.DeleteBytes(body, "client_metadata."+responsesLiteWSMetadataKey)
+		return updated, string(updated) != string(original), err
+	}
 	var requestBody map[string]any
 	if err := json.Unmarshal(body, &requestBody); err != nil {
 		return body, false, fmt.Errorf("decode responses Lite request body: %w", err)
 	}
 	changed, err := normalizeOpenAIResponsesLiteTools(requestBody)
 	if err != nil || !changed {
-		return body, false, err
+		return body, string(body) != string(original), err
 	}
 	rebuilt, err := marshalOpenAIUpstreamJSON(requestBody)
 	if err != nil {

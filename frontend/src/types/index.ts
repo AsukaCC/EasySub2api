@@ -737,6 +737,7 @@ export interface Group {
 
 export interface AdminGroup extends Group {
   force_openai_fast?: boolean
+  force_openai_ultrafast?: boolean
   free_openai_fast?: boolean
   model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
   // 分组利润控制（token 平台可启用；margin/buffer 为小数存储）。
@@ -956,6 +957,7 @@ export interface CreateGroupRequest {
   model_routing_enabled?: boolean
   rpm_limit?: number
   force_openai_fast?: boolean
+  force_openai_ultrafast?: boolean
   free_openai_fast?: boolean
   max_reasoning_effort?: string
   max_reasoning_effort_over_limit?: ReasoningEffortOverLimitPolicy
@@ -1028,6 +1030,7 @@ export interface UpdateGroupRequest {
   model_routing_enabled?: boolean
   rpm_limit?: number
   force_openai_fast?: boolean
+  force_openai_ultrafast?: boolean
   free_openai_fast?: boolean
   max_reasoning_effort?: string
   max_reasoning_effort_over_limit?: ReasoningEffortOverLimitPolicy
@@ -1480,6 +1483,7 @@ export interface WindowStats {
 
 export interface UsageProgress {
   utilization: number // Percentage (0-100+, 100 = 100%)
+  utilization_unknown?: boolean
   resets_at: string | null
   remaining_seconds: number
   window_stats?: WindowStats | null // 窗口期统计（从窗口开始到当前的使用量）

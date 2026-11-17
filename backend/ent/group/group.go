@@ -128,6 +128,8 @@ const (
 	FieldAllowLive = "allow_live"
 	// FieldCcsCodexWsEnabled holds the string denoting the ccs_codex_ws_enabled field in the database.
 	FieldCcsCodexWsEnabled = "ccs_codex_ws_enabled"
+	// FieldForceOpenaiUltrafast holds the string denoting the force_openai_ultrafast field in the database.
+	FieldForceOpenaiUltrafast = "force_openai_ultrafast"
 	// FieldForceOpenaiFast holds the string denoting the force_openai_fast field in the database.
 	FieldForceOpenaiFast = "force_openai_fast"
 	// FieldFreeOpenaiFast holds the string denoting the free_openai_fast field in the database.
@@ -289,6 +291,7 @@ var Columns = []string{
 	FieldAllowMessagesDispatch,
 	FieldAllowLive,
 	FieldCcsCodexWsEnabled,
+	FieldForceOpenaiUltrafast,
 	FieldForceOpenaiFast,
 	FieldFreeOpenaiFast,
 	FieldRequireOauthOnly,
@@ -423,6 +426,8 @@ var (
 	DefaultAllowLive bool
 	// DefaultCcsCodexWsEnabled holds the default value on creation for the "ccs_codex_ws_enabled" field.
 	DefaultCcsCodexWsEnabled bool
+	// DefaultForceOpenaiUltrafast holds the default value on creation for the "force_openai_ultrafast" field.
+	DefaultForceOpenaiUltrafast bool
 	// DefaultForceOpenaiFast holds the default value on creation for the "force_openai_fast" field.
 	DefaultForceOpenaiFast bool
 	// DefaultFreeOpenaiFast holds the default value on creation for the "free_openai_fast" field.
@@ -714,6 +719,11 @@ func ByAllowLive(opts ...sql.OrderTermOption) OrderOption {
 // ByCcsCodexWsEnabled orders the results by the ccs_codex_ws_enabled field.
 func ByCcsCodexWsEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCcsCodexWsEnabled, opts...).ToFunc()
+}
+
+// ByForceOpenaiUltrafast orders the results by the force_openai_ultrafast field.
+func ByForceOpenaiUltrafast(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldForceOpenaiUltrafast, opts...).ToFunc()
 }
 
 // ByForceOpenaiFast orders the results by the force_openai_fast field.

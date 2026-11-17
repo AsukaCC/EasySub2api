@@ -29,11 +29,11 @@ func TestOpenAIGatewayServiceForward_RejectsDisabledImageGenerationIntents(t *te
 		},
 		{
 			name: "image tool",
-			body: []byte(`{"model":"gpt-5.4","input":"draw","tools":[{"type":"image_generation"}]}`),
+			body: []byte(`{"model":"gpt-6.1-sol","input":"draw","tools":[{"type":"image_generation"}]}`),
 		},
 		{
 			name: "image tool choice",
-			body: []byte(`{"model":"gpt-5.4","input":"draw","tool_choice":{"type":"image_generation"}}`),
+			body: []byte(`{"model":"gpt-6.1-sol","input":"draw","tool_choice":{"type":"image_generation"}}`),
 		},
 	}
 
@@ -62,14 +62,14 @@ func TestOpenAIGatewayServiceForward_DisabledGroupAllowsTextOnlyResponses(t *tes
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_text","model":"gpt-5.4","usage":{"input_tokens":3,"output_tokens":2}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_text","model":"gpt-6.1-sol","usage":{"input_tokens":3,"output_tokens":2}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
 	c, recorder := newOpenAIImageGenerationControlTestContext(false, "unit-test-agent/1.0")
 	account := newOpenAIImageGenerationControlTestAccount()
 
-	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.4","input":"write code","stream":false}`))
+	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-6.1-sol","input":"write code","stream":false}`))
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -92,7 +92,7 @@ func TestOpenAIGatewayServiceForward_CodexImageInjectionRespectsGroupCapability(
 	}{
 		{name: "disabled group skips injection", allowImages: false, bridgeEnabled: true, wantInjected: false},
 		{name: "enabled group skips injection by default", allowImages: true, bridgeEnabled: false, wantInjected: false},
-		{name: "enabled group injects image tool when bridge enabled", allowImages: true, bridgeEnabled: true, wantInjected: true},
+		{name: "legacy bridge does not inject image tool", allowImages: true, bridgeEnabled: true, wantInjected: false},
 		{name: "responses lite skips hosted image bridge", allowImages: true, bridgeEnabled: true, responsesLite: true, wantInjected: false},
 	}
 
@@ -102,7 +102,7 @@ func TestOpenAIGatewayServiceForward_CodexImageInjectionRespectsGroupCapability(
 				resp: &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
-					Body:       io.NopCloser(strings.NewReader(`{"id":"resp_codex","model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1}}`)),
+					Body:       io.NopCloser(strings.NewReader(`{"id":"resp_codex","model":"gpt-6.1-sol","usage":{"input_tokens":1,"output_tokens":1}}`)),
 				},
 			}
 			svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -113,7 +113,7 @@ func TestOpenAIGatewayServiceForward_CodexImageInjectionRespectsGroupCapability(
 			}
 			account := newOpenAIImageGenerationControlTestAccount()
 
-			result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.4","input":"write code","stream":false}`))
+			result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-6.1-sol","input":"write code","stream":false}`))
 
 			require.NoError(t, err)
 			require.NotNil(t, result)
@@ -146,7 +146,7 @@ func TestOpenAIBuildUpstreamRequestOpenAIPassthroughForwardsResponsesLiteHeader(
 		c.Request.Context(),
 		c,
 		newOpenAIImageGenerationControlTestAccount(),
-		[]byte(`{"model":"gpt-5.4","input":"write code"}`),
+		[]byte(`{"model":"gpt-6.1-sol","input":"write code"}`),
 		"test-token",
 	)
 
@@ -161,13 +161,13 @@ func TestOpenAIGatewayServiceForward_ExplicitImageToolWorksWithBridgeDisabled(t 
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_explicit_image","model":"gpt-5.4","usage":{"input_tokens":2,"output_tokens":1}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_explicit_image","model":"gpt-6.1-sol","usage":{"input_tokens":2,"output_tokens":1}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
 	c, _ := newOpenAIImageGenerationControlTestContext(true, "codex_cli_rs/0.98.0")
 	account := newOpenAIImageGenerationControlTestAccount()
-	body := []byte(`{"model":"gpt-5.4","input":"draw","stream":false,"tools":[{"type":"image_generation","format":"jpeg"}]}`)
+	body := []byte(`{"model":"gpt-6.1-sol","input":"draw","stream":false,"tools":[{"type":"image_generation","format":"jpeg"}]}`)
 
 	result, err := svc.Forward(context.Background(), c, account, body)
 
@@ -181,14 +181,14 @@ func TestOpenAIGatewayServiceForward_ExplicitImageToolWorksWithBridgeDisabled(t 
 	require.NotContains(t, instructions, "image_generation")
 }
 
-func TestOpenAIGatewayServiceForward_AccountPolicyStripsExplicitImageTool(t *testing.T) {
+func TestOpenAIGatewayServiceForward_AccountPolicyPreservesExplicitImageTool(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	upstream := &httpUpstreamRecorder{
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_stripped_image","model":"gpt-5.4","usage":{"input_tokens":2,"output_tokens":1}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_stripped_image","model":"gpt-6.1-sol","usage":{"input_tokens":2,"output_tokens":1}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -198,7 +198,7 @@ func TestOpenAIGatewayServiceForward_AccountPolicyStripsExplicitImageTool(t *tes
 		featureKeyCodexImageGenerationExplicitToolPolicy: codexImageGenerationExplicitToolPolicyStrip,
 	}
 	body := []byte(`{
-		"model":"gpt-5.4",
+		"model":"gpt-6.1-sol",
 		"input":"draw",
 		"stream":false,
 		"tools":[
@@ -213,9 +213,9 @@ func TestOpenAIGatewayServiceForward_AccountPolicyStripsExplicitImageTool(t *tes
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.NotNil(t, upstream.lastReq)
-	require.False(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="image_generation")`).Exists())
+	require.True(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="image_generation")`).Exists())
 	require.True(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="function")`).Exists())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "tool_choice").Exists())
+	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
 	instructions := gjson.GetBytes(upstream.lastBody, "instructions").String()
 	require.NotContains(t, instructions, "image_generation")
 }
@@ -237,7 +237,7 @@ func TestOpenAIGatewayServiceForward_AccountPolicyStripsImageNamespaceTools(t *t
 				resp: &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
-					Body:       io.NopCloser(strings.NewReader(`{"id":"resp_stripped_namespace","model":"gpt-5.5","usage":{"input_tokens":2,"output_tokens":1}}`)),
+					Body:       io.NopCloser(strings.NewReader(`{"id":"resp_stripped_namespace","model":"gpt-6-astra","usage":{"input_tokens":2,"output_tokens":1}}`)),
 				},
 			}
 			svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -249,7 +249,7 @@ func TestOpenAIGatewayServiceForward_AccountPolicyStripsImageNamespaceTools(t *t
 				"openai_passthrough":                             tt.passthrough,
 			}
 			body := []byte(`{
-				"model":"gpt-5.5",
+				"model":"gpt-6-astra",
 				"stream":false,
 				"tools":[
 					{"type":"function","name":"shell","parameters":{"type":"object"}},
@@ -282,14 +282,14 @@ func TestOpenAIGatewayServiceForward_AccountPolicyStripsImageNamespaceTools(t *t
 	}
 }
 
-func TestOpenAIGatewayServiceForward_ChannelBridgeOverrideEnablesCodexInjection(t *testing.T) {
+func TestOpenAIGatewayServiceForward_ChannelBridgeOverrideDoesNotInject(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	upstream := &httpUpstreamRecorder{
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_channel_bridge","model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_channel_bridge","model":"gpt-6.1-sol","usage":{"input_tokens":1,"output_tokens":1}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -304,15 +304,15 @@ func TestOpenAIGatewayServiceForward_ChannelBridgeOverrideEnablesCodexInjection(
 	c, _ := newOpenAIImageGenerationControlTestContext(true, "codex_cli_rs/0.98.0")
 	account := newOpenAIImageGenerationControlTestAccount()
 
-	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.4","input":"write code","stream":false}`))
+	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-6.1-sol","input":"write code","stream":false}`))
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.NotNil(t, upstream.lastReq)
-	require.True(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="image_generation")`).Exists())
-	require.Equal(t, "auto", gjson.GetBytes(upstream.lastBody, "tool_choice").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="image_generation")`).Exists())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "tool_choice").Exists())
 	instructions := gjson.GetBytes(upstream.lastBody, "instructions").String()
-	require.Contains(t, instructions, "image_generation")
+	require.NotContains(t, instructions, "image_generation")
 }
 
 func TestOpenAIGatewayServiceForward_CodexBridgeDoesNotInjectHostedToolAlongsideImageGenNamespace(t *testing.T) {
@@ -322,7 +322,7 @@ func TestOpenAIGatewayServiceForward_CodexBridgeDoesNotInjectHostedToolAlongside
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_namespace_image","model":"gpt-5.5","usage":{"input_tokens":1,"output_tokens":1}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_namespace_image","model":"gpt-6-astra","usage":{"input_tokens":1,"output_tokens":1}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -330,7 +330,7 @@ func TestOpenAIGatewayServiceForward_CodexBridgeDoesNotInjectHostedToolAlongside
 	c, _ := newOpenAIImageGenerationControlTestContext(true, "codex_cli_rs/0.144.1")
 	account := newOpenAIImageGenerationControlTestAccount()
 	body := []byte(`{
-		"model":"gpt-5.5",
+		"model":"gpt-6-astra",
 		"stream":false,
 		"tools":[
 			{"type":"function","name":"shell","parameters":{"type":"object"}},
@@ -376,14 +376,14 @@ func TestOpenAIGatewayServiceForward_CodexBridgePreservesImageGenFunction(t *tes
 				resp: &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
-					Body:       io.NopCloser(strings.NewReader(`{"id":"resp_function_image","model":"gpt-5.5","usage":{"input_tokens":1,"output_tokens":1}}`)),
+					Body:       io.NopCloser(strings.NewReader(`{"id":"resp_function_image","model":"gpt-6-astra","usage":{"input_tokens":1,"output_tokens":1}}`)),
 				},
 			}
 			svc := newOpenAIImageGenerationControlTestService(upstream)
 			svc.cfg.Gateway.CodexImageGenerationBridgeEnabled = true
 			c, _ := newOpenAIImageGenerationControlTestContext(true, "codex_cli_rs/0.144.1")
 			account := newOpenAIImageGenerationControlTestAccount()
-			body := []byte(`{"model":"gpt-5.5","input":"draw a cat","stream":false,"tools":[` + tt.tool + `]}`)
+			body := []byte(`{"model":"gpt-6-astra","input":"draw a cat","stream":false,"tools":[` + tt.tool + `]}`)
 
 			result, err := svc.Forward(context.Background(), c, account, body)
 
@@ -408,7 +408,7 @@ func TestOpenAIGatewayServiceForward_CodexBridgePreservesExistingToolChoice(t *t
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_codex_tool_choice","model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_codex_tool_choice","model":"gpt-6.1-sol","usage":{"input_tokens":1,"output_tokens":1}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -416,7 +416,7 @@ func TestOpenAIGatewayServiceForward_CodexBridgePreservesExistingToolChoice(t *t
 	c, _ := newOpenAIImageGenerationControlTestContext(true, "codex_cli_rs/0.98.0")
 	account := newOpenAIImageGenerationControlTestAccount()
 
-	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.4","input":"draw","stream":false,"tools":[{"type":"image_generation"}],"tool_choice":{"type":"image_generation"}}`))
+	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-6.1-sol","input":"draw","stream":false,"tools":[{"type":"image_generation"}],"tool_choice":{"type":"image_generation"}}`))
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -431,7 +431,7 @@ func TestOpenAIGatewayServiceForward_CodexBridgeSkipsCompactRequests(t *testing.
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_codex_compact","model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_codex_compact","model":"gpt-6.1-sol","usage":{"input_tokens":1,"output_tokens":1}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)
@@ -442,7 +442,7 @@ func TestOpenAIGatewayServiceForward_CodexBridgeSkipsCompactRequests(t *testing.
 	account := newOpenAIImageGenerationControlTestAccount()
 
 	// /responses/compact 上游不接受 tool_choice，bridge 注入必须整体豁免 compact 请求。
-	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.4","input":"summarize the conversation","stream":false}`))
+	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-6.1-sol","input":"summarize the conversation","stream":false}`))
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -552,13 +552,13 @@ func TestOpenAIGatewayServiceHandleResponsesImageOutputs_NonStreaming(t *testing
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body: io.NopCloser(strings.NewReader(`{
 			"id":"resp_image_json",
-			"model":"gpt-5.4",
+			"model":"gpt-6.1-sol",
 			"output":[{"id":"ig_json_1","type":"image_generation_call","result":"final-image"}],
 			"usage":{"input_tokens":7,"output_tokens":3,"output_tokens_details":{"image_tokens":2}}
 		}`)),
 	}
 
-	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeAPIKey}, "gpt-5.4", "gpt-5.4")
+	result, err := svc.handleNonStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1", Type: AccountTypeAPIKey}, "gpt-6.1-sol", "gpt-6.1-sol")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -579,11 +579,11 @@ func TestOpenAIGatewayServiceHandleResponsesImageOutputs_Streaming(t *testing.T)
 		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
 		Body: io.NopCloser(strings.NewReader(
 			"data: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"ig_stream_1\",\"type\":\"image_generation_call\",\"status\":\"generating\",\"result\":\"final-image\"}}\n\n" +
-				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_image_stream\",\"model\":\"gpt-5.5\",\"output\":[{\"id\":\"ig_stream_1\",\"type\":\"image_generation_call\",\"status\":\"generating\",\"result\":\"final-image\"}],\"usage\":{\"input_tokens\":11,\"output_tokens\":5,\"output_tokens_details\":{\"image_tokens\":4}}}}\n\n",
+				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_image_stream\",\"model\":\"gpt-6-astra\",\"output\":[{\"id\":\"ig_stream_1\",\"type\":\"image_generation_call\",\"status\":\"generating\",\"result\":\"final-image\"}],\"usage\":{\"input_tokens\":11,\"output_tokens\":5,\"output_tokens_details\":{\"image_tokens\":4}}}}\n\n",
 		)),
 	}
 
-	result, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-6-astra", "gpt-6-astra")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -606,11 +606,11 @@ func TestOpenAIGatewayServiceHandleResponsesImageOutputs_StreamingPassthrough(t 
 		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
 		Body: io.NopCloser(strings.NewReader(
 			"data: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"ig_stream_1\",\"type\":\"image_generation_call\",\"status\":\"in_progress\",\"result\":\"final-image\"}}\n\n" +
-				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_image_stream\",\"model\":\"gpt-5.5\",\"output\":[{\"id\":\"ig_stream_1\",\"type\":\"image_generation_call\",\"status\":\"in_progress\",\"result\":\"final-image\"}],\"usage\":{\"input_tokens\":11,\"output_tokens\":5,\"output_tokens_details\":{\"image_tokens\":4}}}}\n\n",
+				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_image_stream\",\"model\":\"gpt-6-astra\",\"output\":[{\"id\":\"ig_stream_1\",\"type\":\"image_generation_call\",\"status\":\"in_progress\",\"result\":\"final-image\"}],\"usage\":{\"input_tokens\":11,\"output_tokens\":5,\"output_tokens_details\":{\"image_tokens\":4}}}}\n\n",
 		)),
 	}
 
-	result, err := svc.handleStreamingResponsePassthrough(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-5.5", "gpt-5.5")
+	result, err := svc.handleStreamingResponsePassthrough(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-6-astra", "gpt-6-astra")
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -685,7 +685,7 @@ func TestHandleStreamingResponse_CyberPolicyCapturesRealUpstreamTokens(t *testin
 		)),
 	}
 
-	_, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-5.5", "gpt-5.5")
+	_, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: "account-1"}, time.Now(), "gpt-6-astra", "gpt-6-astra")
 	require.Error(t, err, "cyber 命中的流式响应应返回错误（sawFailedEvent）")
 
 	mark := GetOpsCyberPolicy(c)

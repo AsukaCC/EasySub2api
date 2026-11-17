@@ -149,7 +149,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	// The HTML representation changes on every request because its CSP nonce is
 	// request-scoped. Browser caching or a 304 response can pair an old document
 	// with a new CSP header and block the injected configuration script.
-	c.Header("Cache-Control", "no-store")
+	applyHTMLNoCacheHeaders(c.Writer.Header())
 
 	// Check cache first
 	cached := s.cache.Get()

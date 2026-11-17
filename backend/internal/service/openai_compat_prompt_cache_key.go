@@ -13,7 +13,7 @@ import (
 const compatPromptCacheKeyPrefix = "compat_cc_"
 
 func shouldAutoInjectPromptCacheKeyForCompat(model string) bool {
-	if openai.IsGPT61SolModelSpelling(model) {
+	if openai.IsGPT62ModelSpelling(model) || openai.IsGPT61SolModelSpelling(model) {
 		return true
 	}
 	trimmed := strings.TrimSpace(strings.ToLower(model))

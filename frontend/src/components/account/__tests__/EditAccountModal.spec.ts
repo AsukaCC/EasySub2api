@@ -984,10 +984,10 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_responses_supported).toBe(true)
   })
 
-  it('submits Codex image tool force-inject mode as bridge override', async () => {
+  it('migrates legacy force-injection to no-injection mode', async () => {
     const account = buildAccount()
     account.extra = {
-      codex_image_generation_bridge: false,
+      codex_image_generation_bridge: true,
       codex_image_generation_bridge_enabled: true
     }
     updateAccountMock.mockReset()
@@ -999,13 +999,12 @@ describe('EditAccountModal', () => {
 
     expect(wrapper.text()).toContain('admin.accounts.openai.codexImageTool')
     expect(wrapper.text()).toContain('admin.accounts.openai.codexImageToolDesc')
-    expect(wrapper.text()).toContain('admin.accounts.openai.codexImageToolEnabledDesc')
+    expect(wrapper.find('button[data-testid="codex-image-tool-enabled"]').exists()).toBe(false)
 
-    await wrapper.get('button[data-testid="codex-image-tool-enabled"]').trigger('click')
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
-    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.codex_image_generation_bridge).toBe(true)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.codex_image_generation_bridge).toBe(false)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra).not.toHaveProperty('codex_image_generation_bridge_enabled')
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra).not.toHaveProperty('codex_image_generation_explicit_tool_policy')
   })

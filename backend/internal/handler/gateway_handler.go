@@ -571,7 +571,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		// 转发请求
 		c.Set("parsed_request", attemptParsedReq)
 		var result *service.ForwardResult
-		requestCtx := admissionCtx
+		requestCtx := service.WithGatewaySchedulingModel(admissionCtx, reqModel)
 		if fs.SwitchCount > 0 {
 			requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
 		}

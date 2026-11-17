@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,6 +19,60 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAsyncImageContextPreservesGenerationParameters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fields := map[string]string{
+		"model": "gpt-image-2", "prompt": "test image", "size": "3840x2160",
+		"quality": "high", "output_format": "webp", "output_compression": "73",
+		"background": "transparent", "moderation": "low", "n": "2",
+	}
+	for _, edit := range []bool{false, true} {
+		name := "generation"
+		if edit {
+			name = "edit"
+		}
+		t.Run(name, func(t *testing.T) {
+			path, contentType := "/v1/images/generations/async", "application/json"
+			body := []byte(`{"model":"gpt-image-2","prompt":"test image","size":"3840x2160","quality":"high","output_format":"webp","output_compression":73,"background":"transparent","moderation":"low","n":2}`)
+			if edit {
+				path = "/v1/images/edits/async"
+				var buf bytes.Buffer
+				writer := multipart.NewWriter(&buf)
+				for key, value := range fields {
+					require.NoError(t, writer.WriteField(key, value))
+				}
+				file, err := writer.CreateFormFile("image", "reference.png")
+				require.NoError(t, err)
+				_, err = file.Write([]byte("test image bytes"))
+				require.NoError(t, err)
+				require.NoError(t, writer.Close())
+				contentType, body = writer.FormDataContentType(), buf.Bytes()
+			}
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			requestContext, cancelRequest := context.WithCancel(context.Background())
+			defer cancelRequest()
+			c.Request = httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body)).WithContext(requestContext)
+			c.Request.Header.Set("Content-Type", contentType)
+			detached, _, cancel, err := newAsyncImageContext(c, body, time.Minute)
+			require.NoError(t, err)
+			defer cancel()
+			cancelRequest()
+			require.NoError(t, detached.Request.Context().Err())
+			require.Equal(t, strings.TrimSuffix(path, "/async"), detached.Request.URL.Path)
+			require.Equal(t, contentType, detached.Request.Header.Get("Content-Type"))
+			retained, err := io.ReadAll(detached.Request.Body)
+			require.NoError(t, err)
+			require.Equal(t, body, retained)
+			parsed, err := (&service.OpenAIGatewayService{}).ParseOpenAIImagesRequest(detached, retained)
+			require.NoError(t, err)
+			require.Equal(t, "3840x2160", parsed.Size)
+			require.Equal(t, "high", parsed.Quality)
+			require.Equal(t, "webp", parsed.OutputFormat)
+			require.Equal(t, 2, parsed.N)
+		})
+	}
+}
 
 type asyncImageMemoryStore struct {
 	mu    sync.RWMutex

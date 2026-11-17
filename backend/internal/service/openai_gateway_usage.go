@@ -827,12 +827,14 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageTokenCost(
 			LongContextBillingEnabled: longContextBillingGate,
 		})
 	}
-	return s.billingService.calculateCostWithServiceTierPolicy(
+	return s.billingService.calculateCostInternalWithPolicyAt(
 		billingModel,
 		tokens,
 		multiplier,
 		serviceTier,
+		nil,
 		longContextBillingGate == nil || *longContextBillingGate,
+		pricingAt,
 		reasoningEffort...,
 	)
 }

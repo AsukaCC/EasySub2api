@@ -93,6 +93,7 @@ func (s *OpenAIGatewayService) forwardChatCompletionsViaNativeAnthropic(
 	}
 
 	// 与 /v1/messages 直通路径相同的 pre-filter。
+	anthropicBody = withChatCompletionsMetadataUserID(body, anthropicBody)
 	anthropicBody = StripEmptyTextBlocks(anthropicBody)
 	anthropicBody = FilterWebSearchHistoryBlocks(anthropicBody, upstreamModel)
 	anthropicBody = enforceCacheControlLimit(anthropicBody)

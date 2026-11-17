@@ -26,6 +26,12 @@ func isOpenAIResponsesLiteWebSocketPayload(body []byte) bool {
 	return isOpenAIResponsesLiteHeader(gjson.GetBytes(body, "client_metadata."+responsesLiteWSMetadataKey).String())
 }
 
+// Hosted image generation requires full Responses, not the client-tools-only Lite protocol.
+func hasNativeImageGenerationTool(body []byte) bool {
+	return gjson.GetBytes(body, `tools.#(type=="image_generation")`).Exists() ||
+		gjson.GetBytes(body, "tool_choice.type").String() == "image_generation"
+}
+
 // ImageGenerationPermissionMessage returns the stable end-user error text for disabled groups.
 func ImageGenerationPermissionMessage() string {
 	return imageGenerationPermissionMessage

@@ -88,6 +88,9 @@ func (s *GatewayService) ForwardAsChatCompletions(
 	}
 
 	// 7. Enforce cache_control block limit
+	if account.Type == AccountTypeAPIKey {
+		anthropicBody = withChatCompletionsMetadataUserID(body, anthropicBody)
+	}
 	anthropicBody = enforceCacheControlLimit(anthropicBody)
 
 	// 8. Get access token

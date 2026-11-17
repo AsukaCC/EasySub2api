@@ -82,6 +82,7 @@ export interface ImageResult {
   url?: string
   b64_json?: string
   revised_prompt?: string
+  output_format?: string
 }
 
 export interface ImageTaskError {

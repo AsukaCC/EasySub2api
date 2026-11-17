@@ -326,7 +326,9 @@ func applySimulatedCodexExecHeaders(h http.Header, body []byte, compact bool) {
 			}
 		}
 	}
-	if !compact {
+	if hasNativeImageGenerationTool(body) || isOpenAIImageGenerationModel(gjson.GetBytes(body, "model").String()) {
+		h.Del(responsesLiteHeaderKey)
+	} else if !compact {
 		setHeaderIfEmpty(h, responsesLiteHeaderKey, "true")
 	}
 }

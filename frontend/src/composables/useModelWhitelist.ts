@@ -8,7 +8,7 @@ const openaiModels = [
   'gpt-5.2', 'gpt-5.2-2025-12-11', 'gpt-5.2-chat-latest',
   'gpt-5.2-pro', 'gpt-5.2-pro-2025-12-11',
   // GPT-6 系列（Astra）
-  'gpt-6', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna',
+  'gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna',
   // GPT-5.6 系列
   'gpt-5.6', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
   // GPT-5.3 / Codex 系列
@@ -42,6 +42,7 @@ export const claudeModels = [
 
 // Google Gemini models commonly available across OAuth, API key, and Vertex accounts.
 const geminiModels = [
+  'gemini-4-carbon',
   // Keep in sync with backend curated Gemini lists.
   // This list is intentionally conservative (models commonly available across OAuth/API key).
   'gemini-3.1-flash-image',
@@ -65,6 +66,7 @@ const geminiModels = [
 
 // Antigravity supports both Claude and Gemini model families.
 const antigravityModels = [
+  'gemini-4-carbon',
   'claude-fable-5-1',
   'claude-fable-5',
   'claude-opus-4-5-thinking',
@@ -298,6 +300,8 @@ const anthropicPresetMappings = [
 ]
 
 const openaiPresetMappings = [
+  { label: 'GPT-6.2 Sol', from: 'gpt-6.2-sol', to: 'gpt-6.2-sol', color: 'composables-use-model-whitelist__state-10' },
+  { label: 'GPT-6.2 Astra', from: 'gpt-6.2-astra', to: 'gpt-6.2-astra', color: 'composables-use-model-whitelist__state-11' },
   { label: 'GPT-4o', from: 'gpt-4o', to: 'gpt-4o', color: 'composables-use-model-whitelist__state-5' },
   { label: 'GPT-4o Mini', from: 'gpt-4o-mini', to: 'gpt-4o-mini', color: 'composables-use-model-whitelist__state-3' },
   { label: 'GPT-4.1', from: 'gpt-4.1', to: 'gpt-4.1', color: 'composables-use-model-whitelist__state-2' },

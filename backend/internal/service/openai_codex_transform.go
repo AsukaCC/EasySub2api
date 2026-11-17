@@ -802,10 +802,18 @@ func stripOpenAIImageGenerationToolsFromRawPayload(payload []byte) ([]byte, bool
 	return rebuilt, true, nil
 }
 
-// stripCodexSparkImageGenerationTools removes image tool declarations and choices.
-// gpt-5.3-codex-spark rejects those capabilities upstream, while Codex clients may
-// advertise them by default.
+// Keep explicitly requested hosted tools so unsupported models return an error
+// instead of silently completing the request without generating an image.
 func stripCodexSparkImageGenerationTools(reqBody map[string]any) bool {
+	tools, _ := reqBody["tools"].([]any)
+	for _, raw := range tools {
+		if tool, ok := raw.(map[string]any); ok && tool["type"] == "image_generation" {
+			return false
+		}
+	}
+	if choice, ok := reqBody["tool_choice"].(map[string]any); ok && choice["type"] == "image_generation" {
+		return false
+	}
 	return stripOpenAIImageGenerationTools(reqBody)
 }
 
@@ -1101,6 +1109,9 @@ func SupportsVerbosity(model string) bool {
 }
 
 func getNormalizedCodexModel(modelID string) string {
+	if base := openai.GPT62BaseModel(modelID); base != "" {
+		return base
+	}
 	if openai.IsRetiredModel(modelID) {
 		return ""
 	}
@@ -1369,6 +1380,7 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 
 func filterCodexInputWithOptions(input []any, opts codexInputFilterOptions) []any {
 	filtered := make([]any, 0, len(input))
+	additionalToolsIDMappings := codexAdditionalToolsIDMappings(input)
 	for _, item := range input {
 		m, ok := item.(map[string]any)
 		if !ok {
@@ -1443,6 +1455,11 @@ func filterCodexInputWithOptions(input []any, opts codexInputFilterOptions) []an
 			if id, ok := newItem["id"].(string); ok && strings.HasPrefix(id, "call_") {
 				newItem["id"] = fixCallIDPrefix(id)
 			}
+			if id, ok := newItem["id"].(string); ok {
+				if normalized, exists := additionalToolsIDMappings[id]; exists {
+					newItem["id"] = normalized
+				}
+			}
 			filtered = append(filtered, newItem)
 			continue
 		}
@@ -1501,7 +1518,17 @@ func filterCodexInputWithOptions(input []any, opts codexInputFilterOptions) []an
 			}
 		}
 
-		if !opts.PreserveReferences {
+		// additional_tools IDs identify declarations carried in this request,
+		// not stored history. Removing them can change native tool discovery
+		// into ordinary function calls even with store=false.
+		if typ == "additional_tools" {
+			if id, ok := m["id"].(string); ok {
+				if normalizedID, mapped := additionalToolsIDMappings[id]; mapped {
+					ensureCopy()
+					newItem["id"] = normalizedID
+				}
+			}
+		} else if !opts.PreserveReferences {
 			ensureCopy()
 			delete(newItem, "id")
 		} else if id, ok := m["id"].(string); ok && shouldStripOpenAIResponsesInputItemID(typ, id) {

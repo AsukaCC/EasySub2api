@@ -651,7 +651,7 @@ describe('AccountUsageCell', () => {
 		expect(wrapper.text()).toContain('1.0M req')
 		expect(wrapper.text()).toContain('1.0B')
 		expect(wrapper.text()).toContain('A $12.35')
-  expect(wrapper.text()).toContain('U 6.789 points')
+  expect(wrapper.text()).toContain('U 6.79 points')
   expect(wrapper.text()).not.toContain('U $6.789')
 
 		const badges = wrapper.findAll('span[title]')

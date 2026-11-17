@@ -322,7 +322,7 @@ func cnThresholdCandidate(extra map[string]any, provider, window string) *accoun
 		usedKey = cnExtraKey(provider, cnExtraSuffixWeeklyUsed)
 		resetKey = cnExtraKey(provider, cnExtraSuffixWeeklyReset)
 	case "monthly":
-		if provider != PlatformOpenCodeGo {
+		if provider != PlatformOpenCodeGo && provider != PlatformKimi {
 			return nil
 		}
 		usedKey = cnExtraKey(provider, cnExtraSuffixMonthlyUsed)

@@ -3361,13 +3361,6 @@ const codexImageToolOptions = computed<Array<{
     selectedDotClass: 'components-account-edit-account-modal__state-2'
   },
   {
-    value: 'enabled',
-    label: t('admin.accounts.openai.codexImageToolEnabled'),
-    description: t('admin.accounts.openai.codexImageToolEnabledDesc'),
-    selectedCardClass: 'components-account-edit-account-modal__state-3',
-    selectedDotClass: 'components-account-edit-account-modal__state-4'
-  },
-  {
     value: 'disabled',
     label: t('admin.accounts.openai.codexImageToolDisabled'),
     description: t('admin.accounts.openai.codexImageToolDisabledDesc'),
@@ -3789,7 +3782,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     if (extra?.codex_image_generation_explicit_tool_policy === 'strip') {
       codexImageToolMode.value = 'block'
     } else if (codexImageGenerationBridgeValue === true) {
-      codexImageToolMode.value = 'enabled'
+      codexImageToolMode.value = 'disabled'
     } else if (codexImageGenerationBridgeValue === false) {
       codexImageToolMode.value = 'disabled'
     }

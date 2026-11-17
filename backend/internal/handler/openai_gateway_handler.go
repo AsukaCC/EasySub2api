@@ -378,7 +378,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 
-	if normalized, changed := normalizeCodexPageContext(body); changed {
+	if normalized, changed := normalizeCodexUntrustedContext(body); changed {
 		body = normalized
 	}
 	setOpsRequestContext(c, "", false)

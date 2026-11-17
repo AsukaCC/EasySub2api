@@ -1027,7 +1027,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）
 	if apiKey.GroupID != nil {
-		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
+		applyAccountStatsCost(context.WithValue(ctx, upstreamPriceFactorKey{}, result.upstreamPriceFactor()), usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
 			// Anthropic's input_tokens excludes cache_read and cache_creation (billed separately);
 			// OpenAI gateway uses actualInputTokens which also excludes cache_read for the same reason.
@@ -1128,6 +1128,10 @@ func (s *GatewayService) calculateRecordUsageCost(
 
 	// Token 计费；SearchCount 为叠加 surcharge（不替代 token）。
 	tokenCost := s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, pricingAt)
+	if s.resolveChannelPricing(ctx, billingModel, apiKey) == nil && tokenCost != nil &&
+		(tokenCost.BillingMode == "" || tokenCost.BillingMode == string(BillingModeToken)) {
+		applyCostBreakdownMultiplier(tokenCost, result.upstreamPriceFactor())
+	}
 	if result.SearchCount > 0 {
 		price := groupSearchPricePer1kFromAPIKey(apiKey)
 		if price != nil && *price == 0 {

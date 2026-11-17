@@ -972,6 +972,7 @@ export default {
       accountsTotal: 'Total:',
       accountsUnit: '',
       openaiFast: {
+        ultrafast: 'Force Ultra Fast (GPT-6.2 / GPT-6 Astra / GPT-6.1 Sol)',
         title: 'OpenAI Fast mode',
         force: 'Force Fast (priority)',
         hint: 'Forces the priority service tier for OpenAI requests in this group; the global Fast/Flex policy can still filter or block it.',
@@ -1340,7 +1341,7 @@ export default {
       ccsCodexWebsocket: {
         title: 'CC-Switch Codex WebSocket',
         allow: 'Enable WebSocket in exports',
-        hint: 'When enabled, keys in this OpenAI group write supports_websockets and responses_websockets_v2 when imported into CC-Switch. This only affects exported configuration; the gateway must also have Responses WebSocket enabled. Some older CC-Switch versions may discard custom Codex fields.'
+        hint: 'Sets the default WebSocket option for keys in this OpenAI group. Users can change it before export. Writes supports_websockets; the gateway must also have Responses WebSocket enabled.'
       },
       invalidRequestFallback: {
         title: 'Invalid Request Fallback Group',

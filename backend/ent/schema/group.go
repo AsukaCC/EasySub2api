@@ -263,6 +263,7 @@ func (Group) Fields() []ent.Field {
 		field.Bool("ccs_codex_ws_enabled").
 			Default(false).
 			Comment("CC-Switch 导出此 OpenAI/Codex 分组时是否启用 Responses WebSocket"),
+		field.Bool("force_openai_ultrafast").Default(false),
 		field.Bool("force_openai_fast").
 			Default(false).
 			Comment("是否强制此 OpenAI/Composite 分组请求使用 service_tier=priority"),

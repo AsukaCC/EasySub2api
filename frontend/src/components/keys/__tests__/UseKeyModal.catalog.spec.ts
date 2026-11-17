@@ -7,6 +7,41 @@ vi.mock('@/composables/useClipboard', () => ({ useClipboard: () => ({ copyToClip
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Codex catalog configuration', () => {
+  it('uses the group WebSocket default when opening a previously hidden modal', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: { show: false, apiKey: '', baseUrl: '', platform: null },
+      global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, Icon: true } }
+    })
+    await wrapper.setProps({ show: true, apiKey: 'synthetic-key', baseUrl: 'https://example.com', platform: 'openai', codexWebsocketEnabled: true })
+    await flushPromises()
+    expect(wrapper.findAll('pre code').map(block => block.text()).join('\n')).toContain('supports_websockets = true')
+    wrapper.unmount()
+  })
+
+  it('exports edited models, follows the main model by default, and toggles WebSocket', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: { show: true, apiKey: 'synthetic-key', baseUrl: 'https://example.com', platform: 'openai' },
+      global: { stubs: { BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' }, Icon: true } }
+    })
+    const code = () => wrapper.findAll('pre code').map(block => block.text()).join('\n')
+    expect(code()).not.toContain('default_subagent_model')
+    await wrapper.get('[data-testid="codex-main-model"]').setValue('gpt-6-astra')
+    expect(code()).toContain('model = "gpt-6-astra"')
+    expect(code()).not.toContain('default_subagent_model')
+    await wrapper.get('[data-testid="codex-subagent-follow"]').setValue(false)
+    await wrapper.get('[data-testid="codex-subagent-model"]').setValue('gpt-6.1-terra')
+    expect(code()).toContain('default_subagent_model = "gpt-6.1-terra"')
+    await wrapper.get('[data-testid="codex-subagent-model"]').setValue('')
+    expect(wrapper.find('[data-testid="codex-subagent-model"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="codex-subagent-follow"]').setValue(true)
+    expect(code()).not.toContain('default_subagent_model')
+    await wrapper.get('[data-testid="codex-websocket"]').setValue(true)
+    expect(code()).toContain('supports_websockets = true')
+    await wrapper.get('[data-testid="codex-websocket"]').setValue(false)
+    expect(code()).toContain('supports_websockets = false')
+    wrapper.unmount()
+  })
+
   it('supports remote and fetched local catalogs for HTTP and WebSocket clients', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ models: [{ slug: 'gpt-6.1-sol' }] })))
     vi.stubGlobal('fetch', fetchMock)

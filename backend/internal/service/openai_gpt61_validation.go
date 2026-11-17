@@ -23,7 +23,7 @@ func validateGPT61SolChatOnlyRequest(body []byte, upstreamModel string, hasTools
 func validateGPT61SolReasoningEffort(body []byte, models ...string) error {
 	models = append(models, gjson.GetBytes(body, "model").String())
 	for _, model := range models {
-		if !openai.IsGPT61SolModelSpelling(model) && !openai.IsGPT61TerraModelSpelling(model) {
+		if !openai.IsGPT62ModelSpelling(model) && !openai.IsGPT61SolModelSpelling(model) && !openai.IsGPT61TerraModelSpelling(model) {
 			continue
 		}
 		if strings.HasSuffix(strings.ToLower(strings.TrimSpace(model)), "-minimal") {

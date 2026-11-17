@@ -35,7 +35,7 @@
               v-for="tab in clientTabs"
               :key="tab.id"
               type="button"
-              @click="activeClientTab = tab.id"
+              @click="selectClientTab(tab.id)"
               :class="[
                 'components-keys-use-key-modal__action-2',
                 activeClientTab === tab.id
@@ -50,6 +50,8 @@
             </button>
           </nav>
         </div>
+
+        <CodexExportOptions v-if="showCodexAuthMode" v-model="codexOptions" />
 
         <!-- Codex Authentication Mode -->
         <div
@@ -214,6 +216,9 @@ import { ref, computed, h, watch, onBeforeUnmount, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
+import CodexExportOptions from './CodexExportOptions.vue'
+import { OPENAI_CC_SWITCH_CODEX_MODEL, type CodexExportSettings } from '@/utils/ccswitchImport'
+import { buildCodexApiKeyAuthConfig } from '@/utils/codexAuthConfig'
 import { useClipboard } from '@/composables/useClipboard'
 import { buildCodexModelCatalogUrl, fetchCodexModelsManifest } from '@/api/codex'
 import type { GroupPlatform } from '@/types'
@@ -224,6 +229,7 @@ interface Props {
   baseUrl: string
   platform: GroupPlatform | null
   allowMessagesDispatch?: boolean
+  codexWebsocketEnabled?: boolean
 }
 
 interface Emits {
@@ -253,7 +259,8 @@ const copiedIndex = ref<number | null>(null)
 const activeTab = ref<string>('unix')
 const activeClientTab = ref<string>('claude')
 type CodexAuthMode = 'legacy' | 'api-key'
-const codexAuthMode = ref<CodexAuthMode>('legacy')
+const codexAuthMode = ref<CodexAuthMode>('api-key')
+const codexOptions = ref<CodexExportSettings>({ model: OPENAI_CC_SWITCH_CODEX_MODEL, subagentModel: null, websocketEnabled: props.codexWebsocketEnabled === true })
 const codexModelCatalogMode = ref<'remote' | 'local'>('remote')
 const buildCodexCatalogUrl = computed(() => buildCodexModelCatalogUrl(props.baseUrl))
 const catalogContent = ref('')
@@ -311,13 +318,14 @@ const defaultClientTab = computed(() => {
 watch(() => props.platform, () => {
   activeTab.value = 'unix'
   activeClientTab.value = defaultClientTab.value
-  codexAuthMode.value = 'legacy'
+  codexAuthMode.value = 'api-key'
   codexModelCatalogMode.value = 'remote'
 }, { immediate: true })
 
 watch(() => props.show, (show) => {
   if (show) {
-    codexAuthMode.value = 'legacy'
+    codexAuthMode.value = 'api-key'
+    codexOptions.value = { model: OPENAI_CC_SWITCH_CODEX_MODEL, subagentModel: null, websocketEnabled: props.codexWebsocketEnabled === true }
     codexModelCatalogMode.value = 'remote'
   }
 })
@@ -326,6 +334,12 @@ watch(() => props.show, (show) => {
 watch(activeClientTab, () => {
   activeTab.value = 'unix'
 })
+
+function selectClientTab(tab: string) {
+  activeClientTab.value = tab
+  if (tab === 'codex-ws') codexOptions.value.websocketEnabled = true
+  else if (tab === 'codex') codexOptions.value.websocketEnabled = false
+}
 
 // Icon components
 const AppleIcon = {
@@ -687,8 +701,7 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string): FileConfig[] {
 
   // config.toml content
   const configContent = `model_provider = "OpenAI"
-model = "gpt-5.6-sol"
-review_model = "gpt-5.6-sol"
+model = ${JSON.stringify(codexOptions.value.model.trim() || OPENAI_CC_SWITCH_CODEX_MODEL)}
 web_search = "live"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
@@ -699,10 +712,16 @@ windows_wsl_setup_acknowledged = true
 name = "OpenAI"
 base_url = "${baseUrl}"
 ${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${buildCodexModelCatalogUrl(baseUrl)}"\n` : ''}wire_api = "responses"
+supports_websockets = ${codexOptions.value.websocketEnabled}
 ${generateCodexProviderAuthConfig()}
 
 [features]
-${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}${codexAuthMode.value === 'api-key' ? 'image_generation = true\n' : ''}goals = true`
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}image_generation = true
+untrusted_as_tool_output = false
+goals = true
+
+[agents]
+${codexOptions.value.subagentModel?.trim() ? `default_subagent_model = ${JSON.stringify(codexOptions.value.subagentModel.trim())}\n` : ''}`
 
   // auth.json content
   const authContent = `{
@@ -724,8 +743,7 @@ ${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' 
 
 function generateCodexProviderAuthConfig(): string {
   if (codexAuthMode.value === 'api-key') {
-    return `requires_openai_auth = false
-http_headers = { "x-openai-actor-authorization" = "local-image-extension" }`
+    return buildCodexApiKeyAuthConfig(props.apiKey)
   }
 
   return 'requires_openai_auth = true'
@@ -952,46 +970,7 @@ supports_websockets = false
 }
 
 function generateOpenAIWsFiles(baseUrl: string, apiKey: string): FileConfig[] {
-  const isWindows = activeTab.value === 'windows'
-  const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
-
-  // config.toml content with WebSocket v2
-  const configContent = `model_provider = "OpenAI"
-model = "gpt-5.6-sol"
-review_model = "gpt-5.6-sol"
-web_search = "live"
-model_reasoning_effort = "xhigh"
-disable_response_storage = true
-${codexModelCatalogConfig()}network_access = "enabled"
-windows_wsl_setup_acknowledged = true
-
-[model_providers.OpenAI]
-name = "OpenAI"
-base_url = "${baseUrl}"
-${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${buildCodexModelCatalogUrl(baseUrl)}"\n` : ''}wire_api = "responses"
-supports_websockets = true
-${generateCodexProviderAuthConfig()}
-
-[features]
-${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}${codexAuthMode.value === 'api-key' ? 'image_generation = true\n' : ''}responses_websockets_v2 = true
-goals = true`
-
-  // auth.json content
-  const authContent = `{
-  "OPENAI_API_KEY": "${apiKey}"
-}`
-
-  return [
-    {
-      path: `${configDir}/config.toml`,
-      content: configContent,
-      hint: t('keys.useKeyModal.openai.configTomlHint')
-    },
-    {
-      path: `${configDir}/auth.json`,
-      content: authContent
-    }
-  ]
+  return generateOpenAIFiles(baseUrl, apiKey)
 }
 
 function generateOpenCodeConfig(
@@ -1010,6 +989,18 @@ function generateOpenCodeConfig(
     }
   }
   const openaiModels = {
+    'gpt-6.2-sol': {
+      name: 'GPT-6.2 Sol',
+      limit: { context: 1050000, output: 128000 },
+      options: { store: false },
+      variants: { low: {}, medium: {}, high: {}, xhigh: {}, max: {} }
+    },
+    'gpt-6.2-astra': {
+      name: 'GPT-6.2 Astra',
+      limit: { context: 1050000, output: 128000 },
+      options: { store: false },
+      variants: { low: {}, medium: {}, high: {}, xhigh: {}, max: {} }
+    },
     'gpt-5.2': {
       name: 'GPT-5.2',
       limit: {

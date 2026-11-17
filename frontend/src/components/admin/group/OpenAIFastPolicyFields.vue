@@ -3,6 +3,18 @@
     <h4 class="openai-fast-policy__title">{{ t("admin.groups.openaiFast.title") }}</h4>
 
     <div class="openai-fast-policy__option">
+      <label class="openai-fast-policy__label" :for="`${idPrefix}-ultrafast`">
+        {{ t('admin.groups.openaiFast.ultrafast') }}
+      </label>
+      <Toggle
+        :id="`${idPrefix}-ultrafast`"
+        :model-value="ultrafast ?? false"
+        :aria-label="t('admin.groups.openaiFast.ultrafast')"
+        @update:model-value="emit('update:ultrafast', $event)"
+      />
+    </div>
+
+    <div class="openai-fast-policy__option">
       <div>
         <label class="openai-fast-policy__label" :for="`${idPrefix}-force`">
           {{ t("admin.groups.openaiFast.force") }}
@@ -45,10 +57,12 @@ import Toggle from "@/components/common/Toggle.vue";
 defineProps<{
   idPrefix: string;
   force: boolean;
+  ultrafast?: boolean;
   free: boolean;
 }>();
 
 const emit = defineEmits<{
+  (event: "update:ultrafast", value: boolean): void;
   (event: "update:force", value: boolean): void;
   (event: "update:free", value: boolean): void;
 }>();

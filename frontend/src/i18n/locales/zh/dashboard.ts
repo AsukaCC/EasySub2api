@@ -240,6 +240,14 @@ export default {
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
     useKeyModal: {
+      codexOptions: {
+        model: '主模型',
+        subagent: '子代理模型',
+        followMain: '子代理跟随当前主模型',
+        websocket: '使用 WebSocket 连接',
+        exportTitle: '导出 Codex 配置',
+        export: '导入 CC Switch'
+      },
       client: '客户端',
       environment: '终端 / 操作系统',
       typesafe: {
@@ -1136,6 +1144,8 @@ export default {
   },
 
   imageWorkbench: {
+    requestSize: '请求尺寸',
+    requestQuality: '请求质量',
     title: '生图工作台',
     description: '使用项目网关进行 GPT 生图与图片编辑',
     prompt: '描述你想生成的图片',

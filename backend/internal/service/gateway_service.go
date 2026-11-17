@@ -626,10 +626,11 @@ type AudioUsage struct {
 }
 
 type ForwardResult struct {
-	RequestID       string
-	UpstreamHeaders http.Header
-	Usage           ClaudeUsage
-	Model           string
+	UpstreamPriceMultiplier float64
+	RequestID               string
+	UpstreamHeaders         http.Header
+	Usage                   ClaudeUsage
+	Model                   string
 	// UpstreamModel is the actual upstream model after mapping.
 	// Prefer empty when it is identical to Model; persistence normalizes equal values away as no-op mappings.
 	UpstreamModel string
@@ -665,6 +666,13 @@ type ForwardResult struct {
 // intentionally treated as inference so existing UpstreamFailoverError callers
 // retain their current behavior.
 type GatewayFailureStage string
+
+func (r *ForwardResult) upstreamPriceFactor() float64 {
+	if r == nil || r.UpstreamPriceMultiplier <= 0 {
+		return 1
+	}
+	return r.UpstreamPriceMultiplier
+}
 
 const (
 	GatewayFailureStageInference   GatewayFailureStage = "inference"

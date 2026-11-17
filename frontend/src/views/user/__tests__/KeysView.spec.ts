@@ -307,6 +307,32 @@ describe('user KeysView column settings', () => {
     isCurrentStep.mockReturnValue(false)
   })
 
+  it('edits Codex settings before importing a key into CC Switch', async () => {
+    const key = { ...createApiKey(), group_id: 'openai-group', group: { id: 'openai-group', name: 'OpenAI', platform: 'openai', ccs_codex_ws_enabled: true } as ApiKey['group'] }
+    listKeys.mockResolvedValueOnce({ items: [key], total: 1, page: 1, page_size: 20, pages: 1 })
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const wrapper = await mountView()
+    try {
+      await getButtonByText(wrapper, 'keys.importToCcSwitch').trigger('click')
+      expect(open).not.toHaveBeenCalled()
+      expect((wrapper.get('[data-testid="codex-websocket"]').element as HTMLInputElement).checked).toBe(true)
+      await wrapper.get('[data-testid="codex-main-model"]').setValue('gpt-6-astra')
+      await wrapper.get('[data-testid="codex-subagent-follow"]').setValue(false)
+      await wrapper.get('[data-testid="codex-subagent-model"]').setValue('gpt-6.1-terra')
+      await wrapper.get('[data-testid="codex-websocket"]').setValue(false)
+      await getButtonByText(wrapper, 'keys.useKeyModal.codexOptions.export').trigger('click')
+      const params = new URLSearchParams(String(open.mock.calls[0]?.[0]).split('?')[1])
+      const payload = JSON.parse(atob(params.get('config') || ''))
+      expect(params.get('model')).toBe('gpt-6-astra')
+      expect(payload.config).toContain('default_subagent_model = "gpt-6.1-terra"')
+      expect(payload.config).toContain('supports_websockets = false')
+      expect(payload.config).toContain('image_generation = true')
+    } finally {
+      wrapper.unmount()
+      open.mockRestore()
+    }
+  })
+
   it.each([
     { initialStatus: 'quota_exhausted', status: 'active', formStatus: 'active' },
     { initialStatus: 'inactive', status: 'inactive', formStatus: 'inactive' },

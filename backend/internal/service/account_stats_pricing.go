@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+type upstreamPriceFactorKey struct{}
+
 // resolveAccountStatsCost 计算账号统计定价费用。
 // 返回 nil 表示不覆盖，使用默认公式（total_cost × account_rate_multiplier）。
 //
@@ -56,7 +58,11 @@ func resolveAccountStatsCost(
 
 	// 优先级 3：模型定价文件（LiteLLM）默认价格
 	if billingService != nil {
-		return tryModelFilePricing(billingService, upstreamModel, tokens, serviceTier, reasoningEffort...)
+		cost := tryModelFilePricing(billingService, upstreamModel, tokens, serviceTier, reasoningEffort...)
+		if factor, ok := ctx.Value(upstreamPriceFactorKey{}).(float64); ok && factor > 0 && cost != nil {
+			*cost *= factor
+		}
+		return cost
 	}
 
 	return nil
