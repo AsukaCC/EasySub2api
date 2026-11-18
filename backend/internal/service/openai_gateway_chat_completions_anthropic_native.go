@@ -164,7 +164,7 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineSize)
 
 	var finalResp *apicompat.AnthropicResponse
-	var usage ClaudeUsage
+	var usage apicompat.AnthropicUsage
 
 	// 读间隔上限：上游挂住 SSE 时中止组装（缓冲路径尚未提交响应头，可回 502）。
 	streamInterval := anthropicNativeStreamInterval(s.cfg)
@@ -232,11 +232,11 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 
 		if event.Type == "message_start" && event.Message != nil {
 			finalResp = event.Message
-			mergeAnthropicUsage(&usage, event.Message.Usage)
+			usage.Merge(event.Message.Usage)
 		}
 		if event.Type == "message_delta" {
 			if event.Usage != nil {
-				mergeAnthropicUsage(&usage, *event.Usage)
+				usage.Merge(*event.Usage)
 			}
 			if event.Delta != nil && event.Delta.StopReason != "" && finalResp != nil {
 				finalResp.StopReason = apicompat.AnthropicStopReasonPtr(event.Delta.StopReason)
@@ -264,7 +264,7 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 		_ = resp.Body.Close()
 		writeChatCompletionsError(c, http.StatusBadGateway, "server_error", failure.message)
 		return &OpenAIForwardResult{
-			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: claudeUsageToOpenAIUsage(&usage),
+			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: claudeUsageFromWire(usage).toOpenAIUsage(),
 			Model: originalModel, BillingModel: billingModel, UpstreamModel: upstreamModel,
 			UpstreamEndpoint: "/v1/messages", ReasoningEffort: reasoningEffort, Duration: time.Since(startTime),
 		}, failure.err
@@ -275,14 +275,7 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 		return nil, fmt.Errorf("upstream stream ended without response")
 	}
 
-	if usage.InputTokens > 0 || usage.OutputTokens > 0 {
-		finalResp.Usage = apicompat.AnthropicUsage{
-			InputTokens:              usage.InputTokens,
-			OutputTokens:             usage.OutputTokens,
-			CacheCreationInputTokens: usage.CacheCreationInputTokens,
-			CacheReadInputTokens:     usage.CacheReadInputTokens,
-		}
-	}
+	finalResp.Usage = usage
 
 	responsesResp := apicompat.AnthropicToResponsesResponse(finalResp)
 	ccResp := apicompat.ResponsesToChatCompletions(responsesResp, originalModel)
@@ -301,7 +294,7 @@ func (s *OpenAIGatewayService) handleCCBufferedFromNativeAnthropic(
 
 	return &OpenAIForwardResult{
 		RequestID:        requestID,
-		Usage:            claudeUsageToOpenAIUsage(&usage),
+		Usage:            claudeUsageFromWire(usage).toOpenAIUsage(),
 		Model:            originalModel,
 		BillingModel:     billingModel,
 		UpstreamModel:    upstreamModel,
@@ -341,7 +334,7 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 	ccState.Model = originalModel
 	ccState.IncludeUsage = includeUsage
 
-	var usage ClaudeUsage
+	var usage apicompat.AnthropicUsage
 	var firstTokenMs *int
 	firstChunk := true
 	clientDisconnected := false
@@ -357,7 +350,7 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 	resultWithUsage := func() *OpenAIForwardResult {
 		return &OpenAIForwardResult{
 			RequestID:        requestID,
-			Usage:            claudeUsageToOpenAIUsage(&usage),
+			Usage:            claudeUsageFromWire(usage).toOpenAIUsage(),
 			Model:            originalModel,
 			BillingModel:     billingModel,
 			UpstreamModel:    upstreamModel,
@@ -424,10 +417,10 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 
 		// usage 恒累计（含客户端断开后的排水阶段，payg 上游照常计费）。
 		if event.Type == "message_delta" && event.Usage != nil {
-			mergeAnthropicUsage(&usage, *event.Usage)
+			usage.Merge(*event.Usage)
 		}
 		if event.Type == "message_start" && event.Message != nil {
-			mergeAnthropicUsage(&usage, event.Message.Usage)
+			usage.Merge(event.Message.Usage)
 		}
 
 		// 客户端已断开：跳过转换与写出，继续读上游直到流结束（usage 完整、

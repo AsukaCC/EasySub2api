@@ -1560,10 +1560,6 @@ func (s *BillingService) computeCacheCreationCost(pricing *ModelPricing, tokens 
 	}
 	if pricing.SupportsCacheBreakdown && (pricing.CacheCreation5mPrice > 0 || pricing.CacheCreation1hPrice > 0) {
 		cacheCreation5mTokens, cacheCreation1hTokens := normalizeCacheCreationBreakdown(tokens)
-		if cacheCreation5mTokens == 0 && cacheCreation1hTokens == 0 && tokens.CacheCreationTokens > 0 {
-			// API 未返回 ephemeral 明细，回退到全部按 5m 单价计费
-			return float64(tokens.CacheCreationTokens) * pricing.CacheCreation5mPrice * multiplier
-		}
 		return float64(cacheCreation5mTokens)*pricing.CacheCreation5mPrice*multiplier +
 			float64(cacheCreation1hTokens)*pricing.CacheCreation1hPrice*multiplier
 	}
@@ -1585,8 +1581,8 @@ func openAICacheCreationTTLCost(tokens UsageTokens, shortPrice float64, longPric
 	return float64(a)*shortPrice + float64(b)*p, true
 }
 
-// normalizeCacheCreationBreakdown caps contradictory 5m/1h details at an
-// explicitly positive aggregate while retaining their reported ratio.
+// Unclassified writes use the short TTL rate. If the details exceed the
+// reported aggregate, keep the existing proportional cap instead.
 func normalizeCacheCreationBreakdown(tokens UsageTokens) (int, int) {
 	cacheCreation5mTokens := tokens.CacheCreation5mTokens
 	cacheCreation1hTokens := tokens.CacheCreation1hTokens
@@ -1597,8 +1593,11 @@ func normalizeCacheCreationBreakdown(tokens UsageTokens) (int, int) {
 	if cacheCreation1hTokens < 0 {
 		cacheCreation1hTokens = 0
 	}
-	if aggregate <= 0 || (cacheCreation5mTokens <= aggregate && cacheCreation1hTokens <= aggregate-cacheCreation5mTokens) {
+	if aggregate <= 0 {
 		return cacheCreation5mTokens, cacheCreation1hTokens
+	}
+	if cacheCreation5mTokens <= aggregate && cacheCreation1hTokens <= aggregate-cacheCreation5mTokens {
+		return aggregate - cacheCreation1hTokens, cacheCreation1hTokens
 	}
 
 	detailTotal := float64(cacheCreation5mTokens) + float64(cacheCreation1hTokens)

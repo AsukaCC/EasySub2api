@@ -642,7 +642,9 @@ func parseSSEUsagePassthrough(data string, usage *ClaudeUsage) {
 		msgUsage := parsed.Get("message.usage")
 		if msgUsage.Exists() {
 			usage.InputTokens = int(msgUsage.Get("input_tokens").Int())
+			usage.OutputTokens = int(msgUsage.Get("output_tokens").Int())
 			usage.CacheCreationInputTokens = int(msgUsage.Get("cache_creation_input_tokens").Int())
+			usage.cacheCreationTotalInferred = false
 			usage.CacheReadInputTokens = int(msgUsage.Get("cache_read_input_tokens").Int())
 
 			// 保持与通用解析一致：message_start 允许覆盖 5m/1h 明细（包括 0）。
@@ -664,6 +666,7 @@ func parseSSEUsagePassthrough(data string, usage *ClaudeUsage) {
 			}
 			if v := deltaUsage.Get("cache_creation_input_tokens").Int(); v > 0 {
 				usage.CacheCreationInputTokens = int(v)
+				usage.cacheCreationTotalInferred = false
 			}
 			if v := deltaUsage.Get("cache_read_input_tokens").Int(); v > 0 {
 				usage.CacheReadInputTokens = int(v)
@@ -678,6 +681,14 @@ func parseSSEUsagePassthrough(data string, usage *ClaudeUsage) {
 				usage.CacheCreation1hTokens = int(cc1h.Int())
 			}
 		}
+	default:
+		// Some providers attach usage to content events instead of message_delta.
+		if v := parsed.Get("usage.cache_creation.ephemeral_5m_input_tokens").Int(); v > 0 {
+			usage.CacheCreation5mTokens = int(v)
+		}
+		if v := parsed.Get("usage.cache_creation.ephemeral_1h_input_tokens").Int(); v > 0 {
+			usage.CacheCreation1hTokens = int(v)
+		}
 	}
 
 	if usage.CacheReadInputTokens == 0 {
@@ -688,17 +699,9 @@ func parseSSEUsagePassthrough(data string, usage *ClaudeUsage) {
 			usage.CacheReadInputTokens = int(cached)
 		}
 	}
-	if usage.CacheCreationInputTokens == 0 {
-		cc5m := parsed.Get("message.usage.cache_creation.ephemeral_5m_input_tokens").Int()
-		cc1h := parsed.Get("message.usage.cache_creation.ephemeral_1h_input_tokens").Int()
-		if cc5m == 0 && cc1h == 0 {
-			cc5m = parsed.Get("usage.cache_creation.ephemeral_5m_input_tokens").Int()
-			cc1h = parsed.Get("usage.cache_creation.ephemeral_1h_input_tokens").Int()
-		}
-		total := cc5m + cc1h
-		if total > 0 {
-			usage.CacheCreationInputTokens = int(total)
-		}
+	if usage.CacheCreationInputTokens == 0 || usage.cacheCreationTotalInferred {
+		usage.CacheCreationInputTokens = max(0, usage.CacheCreation5mTokens) + max(0, usage.CacheCreation1hTokens)
+		usage.cacheCreationTotalInferred = usage.CacheCreationInputTokens > 0
 	}
 }
 

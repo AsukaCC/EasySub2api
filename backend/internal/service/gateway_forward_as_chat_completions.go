@@ -223,7 +223,7 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 	scanner.Split(newBoundedSSESplit(s.cfg, maxLineSize, nil))
 
 	var finalResp *apicompat.AnthropicResponse
-	var usage ClaudeUsage
+	var usage apicompat.AnthropicUsage
 	streamStatus := &anthropicCompatStream{body: resp.Body}
 
 	for scanner.Scan() {
@@ -255,13 +255,13 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 		// message_start carries the initial response structure and cache usage
 		if event.Type == "message_start" && event.Message != nil {
 			finalResp = event.Message
-			mergeAnthropicUsage(&usage, event.Message.Usage)
+			usage.Merge(event.Message.Usage)
 		}
 
 		// message_delta carries final usage and stop_reason
 		if event.Type == "message_delta" {
 			if event.Usage != nil {
-				mergeAnthropicUsage(&usage, *event.Usage)
+				usage.Merge(*event.Usage)
 			}
 			if event.Delta != nil && event.Delta.StopReason != "" && finalResp != nil {
 				finalResp.StopReason = apicompat.AnthropicStopReasonPtr(event.Delta.StopReason)
@@ -299,7 +299,7 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 		_ = resp.Body.Close()
 		writeGatewayCCError(c, http.StatusBadGateway, "server_error", failure.message)
 		return &ForwardResult{
-			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: usage,
+			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: claudeUsageFromWire(usage),
 			Model: originalModel, UpstreamModel: mappedModel, ReasoningEffort: reasoningEffort,
 			Duration: time.Since(startTime),
 		}, failure.err
@@ -311,14 +311,7 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 	}
 
 	// Update usage from accumulated delta
-	if usage.InputTokens > 0 || usage.OutputTokens > 0 {
-		finalResp.Usage = apicompat.AnthropicUsage{
-			InputTokens:              usage.InputTokens,
-			OutputTokens:             usage.OutputTokens,
-			CacheCreationInputTokens: usage.CacheCreationInputTokens,
-			CacheReadInputTokens:     usage.CacheReadInputTokens,
-		}
-	}
+	finalResp.Usage = usage
 
 	// Chain: Anthropic → Responses → Chat Completions
 	responsesResp := apicompat.AnthropicToResponsesResponse(finalResp)
@@ -344,7 +337,7 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 
 	return &ForwardResult{
 		RequestID:       requestID,
-		Usage:           usage,
+		Usage:           claudeUsageFromWire(usage),
 		Model:           originalModel,
 		UpstreamModel:   mappedModel,
 		ReasoningEffort: reasoningEffort,
@@ -382,7 +375,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 	ccState.Model = originalModel
 	ccState.IncludeUsage = includeUsage
 
-	var usage ClaudeUsage
+	var usage apicompat.AnthropicUsage
 	var firstTokenMs *int
 	firstChunk := true
 
@@ -397,7 +390,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 	resultWithUsage := func() *ForwardResult {
 		return &ForwardResult{
 			RequestID:       requestID,
-			Usage:           usage,
+			Usage:           claudeUsageFromWire(usage),
 			Model:           originalModel,
 			UpstreamModel:   mappedModel,
 			ReasoningEffort: reasoningEffort,
@@ -440,11 +433,11 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 
 		// Extract usage from message_delta
 		if event.Type == "message_delta" && event.Usage != nil {
-			mergeAnthropicUsage(&usage, *event.Usage)
+			usage.Merge(*event.Usage)
 		}
 		// Also capture usage from message_start (carries cache fields)
 		if event.Type == "message_start" && event.Message != nil {
-			mergeAnthropicUsage(&usage, event.Message.Usage)
+			usage.Merge(event.Message.Usage)
 		}
 
 		// Chain: Anthropic event → Responses events → CC chunks

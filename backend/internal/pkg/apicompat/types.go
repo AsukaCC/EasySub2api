@@ -162,10 +162,52 @@ func AnthropicStopReasonString(p *string) string {
 
 // AnthropicUsage holds token counts in Anthropic format.
 type AnthropicUsage struct {
-	InputTokens              int `json:"input_tokens"`
-	OutputTokens             int `json:"output_tokens"`
-	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
-	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+	InputTokens              int                     `json:"input_tokens"`
+	OutputTokens             int                     `json:"output_tokens"`
+	CacheCreationInputTokens int                     `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens     int                     `json:"cache_read_input_tokens"`
+	CacheCreation            *AnthropicCacheCreation `json:"cache_creation,omitempty"`
+}
+
+type AnthropicCacheCreation struct {
+	Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
+	Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
+}
+
+// CacheWriteTotal prefers the upstream aggregate, even when the TTLs disagree.
+func (u AnthropicUsage) CacheWriteTotal() int {
+	if u.CacheCreationInputTokens > 0 || u.CacheCreation == nil {
+		return max(0, u.CacheCreationInputTokens)
+	}
+	return max(0, u.CacheCreation.Ephemeral5mInputTokens) + max(0, u.CacheCreation.Ephemeral1hInputTokens)
+}
+
+// Merge updates cumulative counters. Compatible providers may send zero or
+// omit unchanged counters in a delta, including just one of the two TTLs.
+func (u *AnthropicUsage) Merge(delta AnthropicUsage) {
+	if delta.InputTokens > 0 {
+		u.InputTokens = delta.InputTokens
+	}
+	if delta.OutputTokens > 0 {
+		u.OutputTokens = delta.OutputTokens
+	}
+	if delta.CacheReadInputTokens > 0 {
+		u.CacheReadInputTokens = delta.CacheReadInputTokens
+	}
+	if delta.CacheCreationInputTokens > 0 {
+		u.CacheCreationInputTokens = delta.CacheCreationInputTokens
+	}
+	if d := delta.CacheCreation; d != nil {
+		if u.CacheCreation == nil {
+			u.CacheCreation = &AnthropicCacheCreation{}
+		}
+		if d.Ephemeral5mInputTokens > 0 {
+			u.CacheCreation.Ephemeral5mInputTokens = d.Ephemeral5mInputTokens
+		}
+		if d.Ephemeral1hInputTokens > 0 {
+			u.CacheCreation.Ephemeral1hInputTokens = d.Ephemeral1hInputTokens
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -550,15 +550,21 @@ func (s *OpenAIGatewayService) nativeAnthropicStreamResult(
 }
 
 // claudeUsageToOpenAIUsage 把 Anthropic 格式 usage 映射到 OpenAI 网关统一的
-// 用量结构（字段一一对应）。
+// 用量结构。OpenAI 总输入包含缓存；RecordUsage 会再拆分为互斥的计费项。
 func claudeUsageToOpenAIUsage(u *ClaudeUsage) OpenAIUsage {
 	if u == nil {
 		return OpenAIUsage{}
 	}
+	return u.toOpenAIUsage()
+}
+
+func (u ClaudeUsage) toOpenAIUsage() OpenAIUsage {
 	return OpenAIUsage{
-		InputTokens:              u.InputTokens,
-		OutputTokens:             u.OutputTokens,
-		CacheCreationInputTokens: u.CacheCreationInputTokens,
-		CacheReadInputTokens:     u.CacheReadInputTokens,
+		InputTokens:                u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens,
+		OutputTokens:               u.OutputTokens,
+		CacheCreationInputTokens:   u.CacheCreationInputTokens,
+		CacheCreation5mInputTokens: u.CacheCreation5mTokens,
+		CacheCreation1hInputTokens: u.CacheCreation1hTokens,
+		CacheReadInputTokens:       u.CacheReadInputTokens,
 	}
 }

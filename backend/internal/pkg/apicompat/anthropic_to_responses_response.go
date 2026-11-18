@@ -130,12 +130,12 @@ func AnthropicToResponsesResponse(resp *AnthropicResponse) *ResponsesResponse {
 	// when converting so downstream consumers see OpenAI semantics.
 	totalInputTokens := resp.Usage.InputTokens +
 		resp.Usage.CacheReadInputTokens +
-		resp.Usage.CacheCreationInputTokens
+		resp.Usage.CacheWriteTotal()
 	out.Usage = &ResponsesUsage{
 		InputTokens:              totalInputTokens,
 		OutputTokens:             resp.Usage.OutputTokens,
 		TotalTokens:              totalInputTokens + resp.Usage.OutputTokens,
-		CacheCreationInputTokens: resp.Usage.CacheCreationInputTokens,
+		CacheCreationInputTokens: resp.Usage.CacheWriteTotal(),
 	}
 	if resp.Usage.CacheReadInputTokens > 0 {
 		out.Usage.InputTokensDetails = &ResponsesInputTokensDetails{
@@ -210,10 +210,7 @@ type AnthropicEventToResponsesState struct {
 	// Usage from message_start / message_delta. InputTokens here follows
 	// Anthropic semantics (excludes cached tokens); they are added back when
 	// emitting the OpenAI Responses usage.
-	InputTokens              int
-	OutputTokens             int
-	CacheReadInputTokens     int
-	CacheCreationInputTokens int
+	AnthropicUsage
 
 	StopReason string
 }
@@ -285,15 +282,7 @@ func anthToResHandleMessageStart(evt *AnthropicStreamEvent, state *AnthropicEven
 		if state.Model == "" {
 			state.Model = evt.Message.Model
 		}
-		if evt.Message.Usage.InputTokens > 0 {
-			state.InputTokens = evt.Message.Usage.InputTokens
-		}
-		if evt.Message.Usage.CacheReadInputTokens > 0 {
-			state.CacheReadInputTokens = evt.Message.Usage.CacheReadInputTokens
-		}
-		if evt.Message.Usage.CacheCreationInputTokens > 0 {
-			state.CacheCreationInputTokens = evt.Message.Usage.CacheCreationInputTokens
-		}
+		state.AnthropicUsage.Merge(evt.Message.Usage)
 	}
 
 	if state.CreatedSent {
@@ -514,16 +503,7 @@ func anthToResHandleContentBlockStop(evt *AnthropicStreamEvent, state *Anthropic
 
 func anthToResHandleMessageDelta(evt *AnthropicStreamEvent, state *AnthropicEventToResponsesState) []ResponsesStreamEvent {
 	if evt.Usage != nil {
-		state.OutputTokens = evt.Usage.OutputTokens
-		if evt.Usage.InputTokens > 0 {
-			state.InputTokens = evt.Usage.InputTokens
-		}
-		if evt.Usage.CacheReadInputTokens > 0 {
-			state.CacheReadInputTokens = evt.Usage.CacheReadInputTokens
-		}
-		if evt.Usage.CacheCreationInputTokens > 0 {
-			state.CacheCreationInputTokens = evt.Usage.CacheCreationInputTokens
-		}
+		state.AnthropicUsage.Merge(*evt.Usage)
 	}
 	if evt.Delta != nil && evt.Delta.StopReason != "" {
 		state.StopReason = evt.Delta.StopReason
@@ -637,12 +617,12 @@ func makeResponsesCompletedEvent(
 
 	// Anthropic's input_tokens excludes cache_read/cache_creation; add them
 	// back to match OpenAI Responses semantics where input_tokens is the total.
-	totalInputTokens := state.InputTokens + state.CacheReadInputTokens + state.CacheCreationInputTokens
+	totalInputTokens := state.InputTokens + state.CacheReadInputTokens + state.CacheWriteTotal()
 	usage := &ResponsesUsage{
 		InputTokens:              totalInputTokens,
 		OutputTokens:             state.OutputTokens,
 		TotalTokens:              totalInputTokens + state.OutputTokens,
-		CacheCreationInputTokens: state.CacheCreationInputTokens,
+		CacheCreationInputTokens: state.CacheWriteTotal(),
 	}
 	if state.CacheReadInputTokens > 0 {
 		usage.InputTokensDetails = &ResponsesInputTokensDetails{

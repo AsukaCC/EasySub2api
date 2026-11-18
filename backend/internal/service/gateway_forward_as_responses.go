@@ -250,6 +250,16 @@ func ExtractResponsesReasoningEffortFromBody(body []byte) *string {
 	return &normalized
 }
 
+func claudeUsageFromWire(u apicompat.AnthropicUsage) ClaudeUsage {
+	usage := ClaudeUsage{InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
+		CacheReadInputTokens: u.CacheReadInputTokens, CacheCreationInputTokens: u.CacheWriteTotal()}
+	if u.CacheCreation != nil {
+		usage.CacheCreation5mTokens = u.CacheCreation.Ephemeral5mInputTokens
+		usage.CacheCreation1hTokens = u.CacheCreation.Ephemeral1hInputTokens
+	}
+	return usage
+}
+
 func mergeAnthropicUsage(dst *ClaudeUsage, src apicompat.AnthropicUsage) {
 	if dst == nil {
 		return
@@ -303,7 +313,7 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 
 	// Accumulate the final Anthropic response from streaming events
 	var finalResp *apicompat.AnthropicResponse
-	var usage ClaudeUsage
+	var usage apicompat.AnthropicUsage
 	streamStatus := &anthropicCompatStream{body: resp.Body}
 
 	for scanner.Scan() {
@@ -341,13 +351,13 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 		// message_start carries the initial response structure
 		if event.Type == "message_start" && event.Message != nil {
 			finalResp = event.Message
-			mergeAnthropicUsage(&usage, event.Message.Usage)
+			usage.Merge(event.Message.Usage)
 		}
 
 		// message_delta carries final usage and stop_reason
 		if event.Type == "message_delta" {
 			if event.Usage != nil {
-				mergeAnthropicUsage(&usage, *event.Usage)
+				usage.Merge(*event.Usage)
 			}
 			if event.Delta != nil && event.Delta.StopReason != "" && finalResp != nil {
 				finalResp.StopReason = apicompat.AnthropicStopReasonPtr(event.Delta.StopReason)
@@ -387,7 +397,7 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 		_ = resp.Body.Close()
 		writeResponsesError(c, http.StatusBadGateway, "server_error", failure.message)
 		return &ForwardResult{
-			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: usage,
+			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: claudeUsageFromWire(usage),
 			Model: originalModel, UpstreamModel: mappedModel, ReasoningEffort: reasoningEffort,
 			Duration: time.Since(startTime),
 		}, failure.err
@@ -399,14 +409,7 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 	}
 
 	// Update usage from accumulated delta
-	if usage.InputTokens > 0 || usage.OutputTokens > 0 {
-		finalResp.Usage = apicompat.AnthropicUsage{
-			InputTokens:              usage.InputTokens,
-			OutputTokens:             usage.OutputTokens,
-			CacheCreationInputTokens: usage.CacheCreationInputTokens,
-			CacheReadInputTokens:     usage.CacheReadInputTokens,
-		}
-	}
+	finalResp.Usage = usage
 
 	// Convert to Responses format
 	responsesResp := apicompat.AnthropicToResponsesResponse(finalResp)
@@ -434,7 +437,7 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 
 	return &ForwardResult{
 		RequestID:       requestID,
-		Usage:           usage,
+		Usage:           claudeUsageFromWire(usage),
 		Model:           originalModel,
 		UpstreamModel:   mappedModel,
 		ReasoningEffort: reasoningEffort,
@@ -468,7 +471,7 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 	state := apicompat.NewAnthropicEventToResponsesState()
 	state.Model = originalModel
 	clientToolRestorer := apicompat.NewResponsesClientToolStreamRestorer(clientToolMapping)
-	var usage ClaudeUsage
+	var usage apicompat.AnthropicUsage
 	var firstTokenMs *int
 	firstChunk := true
 
@@ -483,7 +486,7 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 	resultWithUsage := func() *ForwardResult {
 		return &ForwardResult{
 			RequestID:       requestID,
-			Usage:           usage,
+			Usage:           claudeUsageFromWire(usage),
 			Model:           originalModel,
 			UpstreamModel:   mappedModel,
 			ReasoningEffort: reasoningEffort,
@@ -503,11 +506,11 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 
 		// Extract usage from message_delta
 		if event.Type == "message_delta" && event.Usage != nil {
-			mergeAnthropicUsage(&usage, *event.Usage)
+			usage.Merge(*event.Usage)
 		}
 		// Also capture usage from message_start
 		if event.Type == "message_start" && event.Message != nil {
-			mergeAnthropicUsage(&usage, event.Message.Usage)
+			usage.Merge(event.Message.Usage)
 		}
 
 		// Convert to Responses events
