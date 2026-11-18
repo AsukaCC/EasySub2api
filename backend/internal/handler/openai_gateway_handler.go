@@ -779,6 +779,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				submitResponsesUsage(result)
 				return
 			}
+			if message, ok := service.ResponsesLiteClientErrorMessage(err, c.Request.Header, body); ok {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", message, streamStarted)
+				return
+			}
 			if errors.Is(err, service.ErrModelRetired) {
 				h.handleStreamingAwareErrorWithCode(c, http.StatusBadRequest, "invalid_request_error", "model_retired", "Requested model has been retired", streamStarted, false)
 				return

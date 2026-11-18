@@ -237,8 +237,11 @@ func normalizeOpenAIResponsesLiteToolsPayload(body []byte) ([]byte, bool, error)
 		return body, false, fmt.Errorf("decode responses Lite request body: %w", err)
 	}
 	changed, err := normalizeOpenAIResponsesLiteTools(requestBody)
-	if err != nil || !changed {
-		return body, string(body) != string(original), err
+	if err != nil {
+		return body, false, &responsesLiteValidationError{err}
+	}
+	if !changed {
+		return body, string(body) != string(original), nil
 	}
 	rebuilt, err := marshalOpenAIUpstreamJSON(requestBody)
 	if err != nil {

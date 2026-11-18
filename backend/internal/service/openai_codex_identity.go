@@ -326,10 +326,9 @@ func applySimulatedCodexExecHeaders(h http.Header, body []byte, compact bool) {
 			}
 		}
 	}
+	// Lite is a protocol opt-in, not part of the Codex identity. Never synthesize it.
 	if hasNativeImageGenerationTool(body) || isOpenAIImageGenerationModel(gjson.GetBytes(body, "model").String()) {
 		h.Del(responsesLiteHeaderKey)
-	} else if !compact {
-		setHeaderIfEmpty(h, responsesLiteHeaderKey, "true")
 	}
 }
 
