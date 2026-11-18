@@ -258,9 +258,6 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	if err != nil {
 		return nil, err
 	}
-	if account.Platform != PlatformGrok && isOpenAIResponsesLiteWebSocketPayload(payload) && !hasNativeImageGenerationTool(body) {
-		upstreamReq.Header.Set(responsesLiteHeader, "true")
-	}
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {

@@ -5,6 +5,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ func TestNormalizeOpenAIResponsesLiteTools_MovesNamespacesAndKeepsSupportedTools
 		"tools": []any{
 			map[string]any{"type": "function", "name": "shell"},
 			map[string]any{"type": "custom", "name": "exec"},
-			map[string]any{"type": "tool_search"},
+			map[string]any{"type": "tool_search", "execution": "client"},
 			map[string]any{"type": "namespace", "name": "collaboration", "tools": []any{
 				map[string]any{"type": "function", "name": "spawn_agent"},
 			}},
@@ -135,11 +136,12 @@ func TestNormalizeOpenAIResponsesLiteTools_ConvertsStringInput(t *testing.T) {
 
 func TestNormalizeOpenAIResponsesLiteTools_KeepsSupportedTopLevelTools(t *testing.T) {
 	reqBody := map[string]any{
-		"reasoning": map[string]any{"context": "all_turns"},
+		"parallel_tool_calls": false,
+		"reasoning":           map[string]any{"context": "all_turns"},
 		"tools": []any{
 			map[string]any{"type": "function", "name": "shell"},
 			map[string]any{"type": "custom", "name": "exec"},
-			map[string]any{"type": "tool_search"},
+			map[string]any{"type": "tool_search", "execution": "client"},
 			"custom shorthand",
 		},
 	}
@@ -149,6 +151,24 @@ func TestNormalizeOpenAIResponsesLiteTools_KeepsSupportedTopLevelTools(t *testin
 	require.NoError(t, err)
 	require.False(t, changed)
 	require.Len(t, reqBody["tools"], 4)
+}
+
+func TestNormalizeOpenAIResponsesLiteTools_DisablesParallelToolCalls(t *testing.T) {
+	for _, tools := range []string{"", `,"tools":[]`, `,"tools":[{"type":"function","name":"shell"}]`, `,"tools":[{"type":"namespace","name":"helpers"}]`} {
+		for _, parallel := range []string{"", `,"parallel_tool_calls":true`, `,"parallel_tool_calls":false`, `,"parallel_tool_calls":null`, `,"parallel_tool_calls":"false"`} {
+			body := []byte(`{"type":"response.create","input":"hello","reasoning":{"context":"all_turns","effort":"high"}` + tools + parallel + `}`)
+			out, _, err := normalizeOpenAIResponsesLiteToolsPayload(body)
+			require.NoError(t, err)
+			require.Equal(t, gjson.False, gjson.GetBytes(out, "parallel_tool_calls").Type)
+			require.Equal(t, "all_turns", gjson.GetBytes(out, "reasoning.context").String())
+			require.Equal(t, "high", gjson.GetBytes(out, "reasoning.effort").String())
+			require.Equal(t, "response.create", gjson.GetBytes(out, "type").String())
+			replayed, changed, err := normalizeOpenAIResponsesLiteToolsPayload(out)
+			require.NoError(t, err)
+			require.False(t, changed)
+			require.Equal(t, out, replayed)
+		}
+	}
 }
 
 func TestNormalizeOpenAIResponsesLiteTools_EnsuresReasoningContext(t *testing.T) {
@@ -199,6 +219,8 @@ func TestNormalizeOpenAIResponsesLiteTools_RejectsUnsupportedTools(t *testing.T)
 	}{
 		{name: "hosted web search", tool: map[string]any{"type": "web_search"}, want: `top-level tool type "web_search"`},
 		{name: "hosted image generation", tool: map[string]any{"type": "image_generation"}, want: `top-level tool type "image_generation"`},
+		{name: "hosted tool search", tool: map[string]any{"type": "tool_search", "execution": "server"}, want: "execution=client"},
+		{name: "default hosted tool search", tool: map[string]any{"type": "tool_search"}, want: "execution=client"},
 	}
 
 	for _, tt := range tests {
@@ -230,6 +252,14 @@ func TestNormalizeOpenAIResponsesLiteToolsPayload_PreservesResponseCreateShape(t
 	require.False(t, gjson.GetBytes(updated, "tools").Exists())
 	require.Equal(t, "collaboration", gjson.GetBytes(updated, `input.#(type=="additional_tools").tools.0.name`).String())
 	require.Equal(t, "namespace", gjson.GetBytes(updated, "tool_choice.type").String())
+}
+
+func TestNormalizeOpenAIResponsesLiteToolsPayload_RejectsTrailingJSON(t *testing.T) {
+	body := []byte(`{"model":"gpt-6.2-sol","tools":[]} {"tools":[{"type":"namespace","name":"functions"}]}`)
+	out, changed, err := normalizeOpenAIResponsesLiteToolsPayload(body)
+	require.ErrorContains(t, err, "invalid JSON")
+	require.False(t, changed)
+	require.Equal(t, body, out)
 }
 
 func TestApplyCodexOAuthTransform_PreservesLiteNamespaceToolChoice(t *testing.T) {
@@ -281,11 +311,12 @@ func TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth(t *tes
 			}
 			body := []byte(`{
 				"model":"gpt-5.6-terra","stream":true,"instructions":"test",
+				"parallel_tool_calls":true,
 				"reasoning":{"effort":"high","context":"current_turn"},
 				"tools":[
 					{"type":"function","name":"shell","parameters":{"type":"object"}},
 					{"type":"custom","name":"exec"},
-					{"type":"tool_search"},
+					{"type":"tool_search","execution":"client"},
 					{"type":"namespace","name":"collaboration","tools":[{"type":"function","name":"spawn_agent","parameters":{"type":"object"}}]}
 				],
 				"input":[{"type":"message","role":"user","content":"hello"}],
@@ -299,6 +330,7 @@ func TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth(t *tes
 			require.Equal(t, "true", upstream.lastReq.Header.Get(responsesLiteHeader))
 			require.Equal(t, "high", gjson.GetBytes(upstream.lastBody, "reasoning.effort").String())
 			require.Equal(t, "all_turns", gjson.GetBytes(upstream.lastBody, "reasoning.context").String())
+			require.Equal(t, gjson.False, gjson.GetBytes(upstream.lastBody, "parallel_tool_calls").Type)
 			require.False(t, gjson.GetBytes(upstream.lastBody, `tools.#(type=="namespace")`).Exists())
 			require.Equal(t, "shell", gjson.GetBytes(upstream.lastBody, `tools.#(type=="function").name`).String())
 			require.Equal(t, "exec", gjson.GetBytes(upstream.lastBody, `tools.#(type=="custom").name`).String())
@@ -306,6 +338,112 @@ func TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth(t *tes
 			require.Equal(t, "collaboration", gjson.GetBytes(upstream.lastBody, `input.#(type=="additional_tools").tools.0.name`).String())
 			require.Equal(t, "namespace", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
 			require.Equal(t, "collaboration", gjson.GetBytes(upstream.lastBody, "tool_choice.name").String())
+		})
+	}
+}
+
+func TestResponsesLiteSimulatedHeaderMatchesFinalBody(t *testing.T) {
+	for _, passthrough := range []bool{false, true} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+		account := &Account{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"chatgpt_account_id": "account-1", "access_token": "token"}}
+		body := []byte(`{"model":"gpt-5.6-terra","reasoning":{"effort":"high","context":"all_turns"},"parallel_tool_calls":true,"input":"test"}`)
+		svc := &OpenAIGatewayService{cfg: &config.Config{}}
+		var req *http.Request
+		var err error
+		if passthrough {
+			req, err = svc.buildUpstreamRequestOpenAIPassthrough(context.Background(), c, account, body, "token")
+		} else {
+			req, err = svc.buildUpstreamRequest(context.Background(), c, account, body, "token", false, "", true)
+		}
+		require.NoError(t, err)
+		require.Equal(t, "true", req.Header.Get(responsesLiteHeader))
+		out, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		require.Equal(t, "all_turns", gjson.GetBytes(out, "reasoning.context").String())
+		require.Equal(t, gjson.False, gjson.GetBytes(out, "parallel_tool_calls").Type)
+		require.Equal(t, "high", gjson.GetBytes(out, "reasoning.effort").String())
+		replay, err := req.GetBody()
+		require.NoError(t, err)
+		replayed, err := io.ReadAll(replay)
+		require.NoError(t, err)
+		require.Equal(t, out, replayed)
+		require.EqualValues(t, len(replayed), req.ContentLength)
+	}
+}
+
+func TestResponsesLiteSimulatedHeaderNormalizesNamespaceTools(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, passthrough := range []bool{false, true} {
+		for _, clientLite := range []bool{false, true} {
+			t.Run(fmt.Sprintf("passthrough=%t/client_lite=%t", passthrough, clientLite), func(t *testing.T) {
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+				if clientLite {
+					c.Request.Header.Set(responsesLiteHeader, "true")
+				}
+				account := &Account{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"chatgpt_account_id": "account-1", "access_token": "token"}}
+				body := []byte(`{
+					"model":"gpt-6.2-sol","input":"test","parallel_tool_calls":false,
+					"reasoning":{"effort":"high","context":"all_turns"},
+					"tools":[
+						{"type":"function","name":"shell","parameters":{"type":"object","properties":{"id":{"type":"integer","maximum":9007199254740993}}}},
+						{"type":"custom","name":"exec"},
+						{"type":"tool_search","execution":"client"},
+						{"type":"namespace","name":"functions","tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}]}
+					],
+					"tool_choice":{"type":"namespace","name":"functions"}
+				}`)
+				svc := &OpenAIGatewayService{cfg: &config.Config{}}
+				var req *http.Request
+				var err error
+				if passthrough {
+					req, err = svc.buildUpstreamRequestOpenAIPassthrough(context.Background(), c, account, body, "token")
+				} else {
+					req, err = svc.buildUpstreamRequest(context.Background(), c, account, body, "token", false, "", true)
+				}
+				require.NoError(t, err)
+				require.Equal(t, "true", req.Header.Get(responsesLiteHeader))
+				out, err := io.ReadAll(req.Body)
+				require.NoError(t, err)
+				require.False(t, gjson.GetBytes(out, `tools.#(type=="namespace")`).Exists())
+				require.Equal(t, "lookup", gjson.GetBytes(out, `input.#(type=="additional_tools").tools.0.tools.0.name`).String())
+				require.Equal(t, "functions", gjson.GetBytes(out, "tool_choice.name").String())
+				require.Equal(t, "client", gjson.GetBytes(out, `tools.#(type=="tool_search").execution`).String())
+				require.Equal(t, "9007199254740993", gjson.GetBytes(out, `tools.#(name=="shell").parameters.properties.id.maximum`).Raw)
+				replay, err := req.GetBody()
+				require.NoError(t, err)
+				defer replay.Close()
+				replayed, err := io.ReadAll(replay)
+				require.NoError(t, err)
+				require.Equal(t, out, replayed)
+				require.EqualValues(t, len(out), req.ContentLength)
+			})
+		}
+	}
+}
+
+func TestResponsesLiteFinalBodyPreservesHeaders(t *testing.T) {
+	for _, lite := range []string{"", "false", "true"} {
+		t.Run("lite="+lite, func(t *testing.T) {
+			body := `{"model":"gpt-6.2-sol","input":"test","tools":[{"type":"namespace","name":"functions"}]}`
+			req, err := http.NewRequest(http.MethodPost, "https://example.com/responses", strings.NewReader(body))
+			require.NoError(t, err)
+			req.Header.Set("User-Agent", "codex_cli_rs/0.169.0")
+			req.Header.Set("Authorization", "Bearer test")
+			if lite != "" {
+				req.Header.Set(responsesLiteHeader, lite)
+			}
+			headers := req.Header.Clone()
+			require.NoError(t, finalizeOpenAIResponsesLiteRequest(req))
+			require.Equal(t, headers, req.Header)
+			out, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			if lite == "true" {
+				require.False(t, gjson.GetBytes(out, `tools.#(type=="namespace")`).Exists())
+			} else {
+				require.Equal(t, body, string(out))
+			}
 		})
 	}
 }

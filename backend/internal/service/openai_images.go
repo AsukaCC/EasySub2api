@@ -727,7 +727,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		parsed.Endpoint,
 		account.Type,
 	)
-	forwardBody, forwardContentType, err := rewriteOpenAIImagesModel(body, parsed.ContentType, upstreamModel)
+	forwardBody, forwardContentType, err := RewriteRequestModel(body, parsed.ContentType, upstreamModel)
 	if err != nil {
 		return nil, err
 	}
@@ -935,7 +935,8 @@ func buildOpenAIImagesURL(base string, endpoint string) string {
 	return buildOpenAIEndpointURL(base, endpoint)
 }
 
-func rewriteOpenAIImagesModel(body []byte, contentType string, model string) ([]byte, string, error) {
+// RewriteRequestModel replaces the model field in a JSON or multipart request.
+func RewriteRequestModel(body []byte, contentType string, model string) ([]byte, string, error) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return body, contentType, nil
@@ -947,7 +948,7 @@ func rewriteOpenAIImagesModel(body []byte, contentType string, model string) ([]
 	}
 	rewritten, err := sjson.SetBytes(body, "model", model)
 	if err != nil {
-		return nil, "", fmt.Errorf("rewrite image request model: %w", err)
+		return nil, "", fmt.Errorf("rewrite request model: %w", err)
 	}
 	return rewritten, contentType, nil
 }

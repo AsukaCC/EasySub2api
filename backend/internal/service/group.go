@@ -105,6 +105,7 @@ type Group struct {
 	RequirePrivacySet           bool // 调度时仅允许 privacy 已成功设置的账号
 	DefaultMappedModel          string
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
+	ModelForwarding             map[string]string
 	ModelsListConfig            GroupModelsListConfig
 	// CodexModelsManifestConfig 开启后，该分组的 Codex /models manifest 请求只用
 	// 固定账号列表拉取并合并，不经过调度器（仅 openai 平台）。

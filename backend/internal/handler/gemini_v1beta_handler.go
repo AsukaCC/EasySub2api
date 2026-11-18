@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,8 @@ import (
 	"github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/google/uuid"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -48,7 +51,11 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 
 	// 强制 antigravity 模式：返回 antigravity 支持的模型列表
 	if forcePlatform == service.PlatformAntigravity {
-		c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
+		list := antigravity.FallbackGeminiModelsList()
+		list.Models = slices.DeleteFunc(list.Models, func(m antigravity.GeminiModel) bool {
+			return hiddenGeminiModel(apiKey.Group, m.Name)
+		})
+		c.JSON(http.StatusOK, list)
 		return
 	}
 
@@ -67,6 +74,9 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 	if len(declared) > 0 {
 		models := make([]gemini.Model, 0, len(declared))
 		for _, id := range declared {
+			if hiddenGeminiModel(apiKey.Group, id) {
+				continue
+			}
 			models = append(models, gemini.FallbackModel(id))
 		}
 		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: models})
@@ -79,7 +89,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)
 		if hasAntigravity {
 			// antigravity 账户使用静态模型列表
-			c.JSON(http.StatusOK, gemini.FallbackModelsList())
+			c.JSON(http.StatusOK, fallbackGeminiModelsList(apiKey.Group))
 			return
 		}
 		markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -93,10 +103,52 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		return
 	}
 	if shouldFallbackGeminiModels(res) {
-		c.JSON(http.StatusOK, gemini.FallbackModelsList())
+		c.JSON(http.StatusOK, fallbackGeminiModelsList(apiKey.Group))
 		return
 	}
-	writeUpstreamResponse(c, res)
+	writeUpstreamResponse(c, filterGeminiModelsResponse(res, apiKey.Group))
+}
+
+func hiddenGeminiModel(group *service.Group, name string) bool {
+	_, hidden := group.ResolveForwardedModel(strings.TrimPrefix(name, "models/"))
+	return hidden
+}
+
+func fallbackGeminiModelsList(group *service.Group) gemini.ModelsListResponse {
+	list := gemini.FallbackModelsList()
+	list.Models = slices.DeleteFunc(list.Models, func(m gemini.Model) bool { return hiddenGeminiModel(group, m.Name) })
+	return list
+}
+
+// Preserve the upstream pagination token and each visible model's original metadata.
+func filterGeminiModelsResponse(res *service.UpstreamHTTPResult, group *service.Group) *service.UpstreamHTTPResult {
+	if res == nil || group == nil || len(group.ModelForwarding) == 0 || res.StatusCode != http.StatusOK {
+		return res
+	}
+	models := gjson.GetBytes(res.Body, "models")
+	if !models.IsArray() {
+		return res
+	}
+	all := models.Array()
+	visible := make([]json.RawMessage, 0, len(all))
+	for _, model := range all {
+		if !hiddenGeminiModel(group, model.Get("name").String()) {
+			visible = append(visible, json.RawMessage(model.Raw))
+		}
+	}
+	if len(visible) == len(all) {
+		return res
+	}
+	body, err := sjson.SetBytes(res.Body, "models", visible)
+	if err != nil {
+		return res
+	}
+	filtered := *res
+	filtered.Body = body
+	filtered.Headers = res.Headers.Clone()
+	filtered.Headers.Del("ETag")
+	filtered.Headers.Del("Content-MD5")
+	return &filtered
 }
 
 func customGeminiModelsList(group *service.Group) (gemini.ModelsListResponse, bool) {
@@ -105,6 +157,9 @@ func customGeminiModelsList(group *service.Group) (gemini.ModelsListResponse, bo
 	}
 	models := make([]gemini.Model, 0, len(group.ModelsListConfig.Models))
 	for _, modelID := range group.ModelsListConfig.Models {
+		if hiddenGeminiModel(group, modelID) {
+			continue
+		}
 		models = append(models, gemini.FallbackModel(modelID))
 	}
 	return gemini.ModelsListResponse{Models: models}, true

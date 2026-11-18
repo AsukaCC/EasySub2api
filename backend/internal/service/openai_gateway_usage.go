@@ -289,9 +289,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		result.Model,
 	)
 	billingModels = s.filterCNProviderBillingModelCandidates(ctx, account, apiKey, billingModels)
-	accountForwardingModel := openAIAccountForwardingBillingModel(account, input)
-	if accountForwardingModel != "" {
-		billingModels = usageBillingModelCandidates(accountForwardingModel)
+	forwardingModel := openAIForwardingBillingModel(account, input)
+	if forwardingModel != "" {
+		billingModels = usageBillingModelCandidates(forwardingModel)
 	}
 	serviceTier := ""
 	if result.ServiceTier != nil {
@@ -349,7 +349,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		result.UpstreamResponseModelConflict,
 		result.ImageCount > 0 || result.VideoCount > 0 || result.WebSearchCalls > 0 ||
 			result.AudioUsage != nil || result.SearchCount > 0,
-	); accountForwardingModel == "" && responseModel != "" && !strings.EqualFold(responseModel, baselineBillingModel) {
+	); forwardingModel == "" && responseModel != "" && !strings.EqualFold(responseModel, baselineBillingModel) {
 		if identified, responseChannelPriced := s.hasIdentifiedOpenAIResponsePricing(ctx, responseModel, apiKey); identified {
 			responseModels := s.filterCNProviderBillingModelCandidates(ctx, account, apiKey, usageBillingModelCandidates(responseModel))
 			responseCost, responseErr := s.calculateOpenAIRecordUsageCost(

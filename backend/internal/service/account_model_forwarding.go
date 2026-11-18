@@ -62,33 +62,19 @@ func (a *Account) ResolveForwardedModel(requestedModel string) (string, bool) {
 	return model, true
 }
 
-// ConfiguredModelMappings includes forwarding aliases for model discovery.
-func (a *Account) ConfiguredModelMappings() map[string]string {
-	mapping := a.GetModelMapping()
-	if !a.IsOpenAI() {
-		return mapping
-	}
-	forwarding := stringMappingFromRaw(a.Credentials["model_forwarding"])
-	if len(forwarding) == 0 {
-		return mapping
-	}
-	combined := make(map[string]string, len(mapping)+len(forwarding))
-	for source, target := range mapping {
-		combined[source] = target
-	}
-	for source, target := range forwarding {
-		combined[source] = target
-	}
-	return combined
-}
-
-// Account forwarding always bills the model actually sent, across HTTP and WS.
+// Group forwarding and legacy account rules bill the model actually sent.
 // Never fall back to pricing for the client alias or a channel's intermediate model.
-func openAIAccountForwardingBillingModel(account *Account, input *OpenAIRecordUsageInput) string {
+func openAIForwardingBillingModel(account *Account, input *OpenAIRecordUsageInput) string {
 	if input == nil || input.Result == nil {
 		return ""
 	}
 	result := input.Result
+	if target, matched := apiKeyGroup(input.APIKey).ResolveForwardedModel(input.OriginalModel); matched {
+		if mapped := strings.TrimSpace(input.ChannelMappedModel); mapped != "" && mapped != input.OriginalModel {
+			target = mapped
+		}
+		return strings.TrimSpace(firstNonEmpty(result.UpstreamModel, target))
+	}
 	requested := firstNonEmpty(input.ChannelMappedModel, input.OriginalModel, result.Model)
 	target, matched := account.ResolveForwardedModel(requested)
 	if !matched {

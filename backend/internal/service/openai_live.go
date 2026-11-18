@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AsukaCC/EasySub2api/internal/pkg/ctxkey"
 	"github.com/AsukaCC/EasySub2api/internal/pkg/logger"
 	coderws "github.com/coder/websocket"
 	"github.com/google/uuid"
@@ -613,12 +614,18 @@ func (s *OpenAIGatewayService) ProxyLiveSideband(
 	defer func() { _ = upstream.Close() }()
 	downstream.SetReadLimit(openAIWSMessageReadLimitBytes)
 
+	group, _ := ctx.Value(ctxkey.Group).(*Group)
 	proxyCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	errCh := make(chan error, 2)
 	go func() {
 		for {
 			messageType, payload, readErr := downstream.Read(proxyCtx)
+			if readErr != nil {
+				errCh <- readErr
+				return
+			}
+			payload, readErr = group.forwardSessionUpdate(payload)
 			if readErr != nil {
 				errCh <- readErr
 				return

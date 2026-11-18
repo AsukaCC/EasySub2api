@@ -108,6 +108,7 @@ type APIKeyAuthGroupSnapshot struct {
 	FreeOpenAIFast              bool                              `json:"free_openai_fast"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
+	ModelForwarding             map[string]string                 `json:"model_forwarding,omitempty"`
 	ModelsListConfig            GroupModelsListConfig             `json:"models_list_config,omitempty"`
 	// CodexModelsManifestConfig 与 ModelsListConfig 一样在认证快照分组里透传，
 	// Codex /models handler 直接读认证分组对象。

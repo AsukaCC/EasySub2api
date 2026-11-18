@@ -114,23 +114,21 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 }
 
 func parseLiveCallRequest(c *gin.Context) (*service.LiveCallRequest, error) {
-	contentType := strings.ToLower(c.GetHeader("Content-Type"))
-	if strings.HasPrefix(contentType, "multipart/form-data") {
-		sdp := c.PostForm("sdp")
-		session := json.RawMessage(c.PostForm("session"))
-		request := &service.LiveCallRequest{SDP: sdp, Session: session}
-		if err := service.ValidateLiveCallRequest(request); err != nil {
-			return nil, err
-		}
-		return request, nil
-	}
 	var request service.LiveCallRequest
-	decoder := json.NewDecoder(c.Request.Body)
-	if err := decoder.Decode(&request); err != nil {
-		return nil, errors.New("request body must be valid JSON")
+	if strings.HasPrefix(strings.ToLower(c.GetHeader("Content-Type")), "multipart/form-data") {
+		request.SDP = c.PostForm("sdp")
+		request.Session = json.RawMessage(c.PostForm("session"))
+	} else {
+		decoder := json.NewDecoder(c.Request.Body)
+		if err := decoder.Decode(&request); err != nil {
+			return nil, errors.New("request body must be valid JSON")
+		}
+		if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+			return nil, errors.New("request body must contain one JSON object")
+		}
 	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return nil, errors.New("request body must contain one JSON object")
+	if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey != nil {
+		request.Session = apiKey.Group.ForwardRequestModel(request.Session)
 	}
 	if err := service.ValidateLiveCallRequest(&request); err != nil {
 		return nil, err

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -10,8 +11,8 @@ import (
 )
 
 // normalizeOpenAIResponsesLiteTools applies the Responses Lite request
-// contract: reasoning must cover all turns, and private namespace declarations
-// use the input.additional_tools carrier. Other top-level tools must belong to
+// contract: reasoning covers all turns, parallel tool calls are disabled, and
+// private namespace declarations use input.additional_tools. Top-level tools belong to
 // the small set accepted by the Lite endpoint; rejecting unsupported hosted
 // tools is intentional because silently dropping them would change behavior.
 func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
@@ -25,7 +26,7 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 	}
 	rawTools, exists := reqBody["tools"]
 	if !exists || rawTools == nil {
-		return ensureOpenAIResponsesLiteReasoningContext(reqBody)
+		return ensureOpenAIResponsesLiteParameters(reqBody)
 	}
 	tools, ok := rawTools.([]any)
 	if !ok {
@@ -48,7 +49,12 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 		}
 		toolType := strings.TrimSpace(firstNonEmptyString(tool["type"]))
 		switch toolType {
-		case "function", "custom", "tool_search":
+		case "function", "custom":
+			topLevelTools = append(topLevelTools, rawTool)
+		case "tool_search":
+			if tool["execution"] != "client" {
+				return false, fmt.Errorf("responses Lite requires tool_search at index %v to use execution=client; hosted tool search requires full Responses", index)
+			}
 			topLevelTools = append(topLevelTools, rawTool)
 		case "namespace":
 			namespaceTools = append(namespaceTools, rawTool)
@@ -59,14 +65,14 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 		}
 	}
 	if len(namespaceTools) == 0 {
-		return ensureOpenAIResponsesLiteReasoningContext(reqBody)
+		return ensureOpenAIResponsesLiteParameters(reqBody)
 	}
 
 	input, err := appendOpenAIResponsesLiteAdditionalTools(reqBody["input"], namespaceTools)
 	if err != nil {
 		return false, err
 	}
-	if _, err := ensureOpenAIResponsesLiteReasoningContext(reqBody); err != nil {
+	if _, err := ensureOpenAIResponsesLiteParameters(reqBody); err != nil {
 		return false, err
 	}
 	reqBody["input"] = input
@@ -78,21 +84,26 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 	return true, nil
 }
 
-func ensureOpenAIResponsesLiteReasoningContext(reqBody map[string]any) (bool, error) {
-	rawReasoning, exists := reqBody["reasoning"]
-	if !exists || rawReasoning == nil {
-		reqBody["reasoning"] = map[string]any{"context": "all_turns"}
-		return true, nil
-	}
+func ensureOpenAIResponsesLiteParameters(reqBody map[string]any) (bool, error) {
+	rawReasoning := reqBody["reasoning"]
 	reasoning, ok := rawReasoning.(map[string]any)
-	if !ok {
+	if rawReasoning != nil && !ok {
 		return false, fmt.Errorf("responses Lite requires reasoning to be an object")
 	}
-	if context, ok := reasoning["context"].(string); ok && context == "all_turns" {
-		return false, nil
+	changed := false
+	if reasoning == nil {
+		reasoning = make(map[string]any)
+		reqBody["reasoning"] = reasoning
 	}
-	reasoning["context"] = "all_turns"
-	return true, nil
+	if reasoning["context"] != "all_turns" {
+		reasoning["context"] = "all_turns"
+		changed = true
+	}
+	if parallel, ok := reqBody["parallel_tool_calls"].(bool); !ok || parallel {
+		reqBody["parallel_tool_calls"] = false
+		changed = true
+	}
+	return changed, nil
 }
 
 func appendOpenAIResponsesLiteAdditionalTools(input any, namespaceTools []any) ([]any, error) {
@@ -203,6 +214,9 @@ func openAIResponsesLiteToolIdentityForError(rawTool any) string {
 
 func normalizeOpenAIResponsesLiteToolsPayload(body []byte) ([]byte, bool, error) {
 	original := body
+	if !json.Valid(body) {
+		return original, false, fmt.Errorf("decode responses Lite request body: invalid JSON")
+	}
 	var err error
 	body, _, err = normalizeCodexAdditionalToolsIDsBody(body)
 	if err != nil {
@@ -217,7 +231,9 @@ func normalizeOpenAIResponsesLiteToolsPayload(body []byte) ([]byte, bool, error)
 		return updated, string(updated) != string(original), err
 	}
 	var requestBody map[string]any
-	if err := json.Unmarshal(body, &requestBody); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+	if err := decoder.Decode(&requestBody); err != nil {
 		return body, false, fmt.Errorf("decode responses Lite request body: %w", err)
 	}
 	changed, err := normalizeOpenAIResponsesLiteTools(requestBody)

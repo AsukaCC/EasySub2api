@@ -142,6 +142,8 @@ const (
 	FieldDefaultMappedModel = "default_mapped_model"
 	// FieldMessagesDispatchModelConfig holds the string denoting the messages_dispatch_model_config field in the database.
 	FieldMessagesDispatchModelConfig = "messages_dispatch_model_config"
+	// FieldModelForwarding holds the string denoting the model_forwarding field in the database.
+	FieldModelForwarding = "model_forwarding"
 	// FieldModelsListConfig holds the string denoting the models_list_config field in the database.
 	FieldModelsListConfig = "models_list_config"
 	// FieldCodexModelsManifestConfig holds the string denoting the codex_models_manifest_config field in the database.
@@ -298,6 +300,7 @@ var Columns = []string{
 	FieldRequirePrivacySet,
 	FieldDefaultMappedModel,
 	FieldMessagesDispatchModelConfig,
+	FieldModelForwarding,
 	FieldModelsListConfig,
 	FieldCodexModelsManifestConfig,
 	FieldRpmLimit,
@@ -442,6 +445,8 @@ var (
 	DefaultMappedModelValidator func(string) error
 	// DefaultMessagesDispatchModelConfig holds the default value on creation for the "messages_dispatch_model_config" field.
 	DefaultMessagesDispatchModelConfig domain.OpenAIMessagesDispatchModelConfig
+	// DefaultModelForwarding holds the default value on creation for the "model_forwarding" field.
+	DefaultModelForwarding map[string]string
 	// DefaultModelsListConfig holds the default value on creation for the "models_list_config" field.
 	DefaultModelsListConfig domain.GroupModelsListConfig
 	// DefaultCodexModelsManifestConfig holds the default value on creation for the "codex_models_manifest_config" field.

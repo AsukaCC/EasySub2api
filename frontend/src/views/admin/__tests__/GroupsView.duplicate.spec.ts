@@ -2,6 +2,7 @@ import { defineComponent } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { adminAPI } from '@/api/admin'
 import type { AdminGroup } from '@/types'
 import GroupsView from '@/views/admin/GroupsView.vue'
 
@@ -141,7 +142,7 @@ function mountView() {
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
         Pagination: true,
-        BaseDialog: true,
+        BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /></div>' },
         ConfirmDialog: true,
         EmptyState: true,
         Select: true,
@@ -156,7 +157,7 @@ function mountView() {
   })
 }
 
-describe('GroupsView duplicate action', () => {
+describe('GroupsView group actions', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -194,6 +195,35 @@ describe('GroupsView duplicate action', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('keeps the redirect editor out of the create form', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-tour="groups-create-btn"]').trigger('click')
+    expect(wrapper.get('#create-group-form').find('[data-testid="group-model-forwarding"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('loads and saves model redirects in the edit form for a Gemini group', async () => {
+    listGroups.mockResolvedValueOnce({
+      items: [{ ...sourceGroup, platform: 'gemini', model_forwarding: { 'old-*': 'previous' } }],
+      total: 1, page: 1, page_size: 20, pages: 1
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    const edit = wrapper.findAll('button').find(button => button.text() === 'common.edit')
+    await edit!.trigger('click')
+    await flushPromises()
+    const form = wrapper.get('#edit-group-form')
+    expect(form.get<HTMLInputElement>('[data-testid="forwarding-source"]').element.value).toBe('old-*')
+    await form.get('[data-testid="forwarding-target"]').setValue('gemini-target')
+    await form.trigger('submit')
+    await flushPromises()
+    expect(adminAPI.groups.update).toHaveBeenCalledWith(sourceGroup.id, expect.objectContaining({
+      model_forwarding: { 'old-*': 'gemini-target' }
+    }))
+    wrapper.unmount()
   })
 
   it('duplicates the selected group, reports success, and refreshes the list', async () => {

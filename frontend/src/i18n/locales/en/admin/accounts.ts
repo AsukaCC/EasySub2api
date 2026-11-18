@@ -616,14 +616,6 @@ export default {
       },
       // OpenAI specific hints
       openai: {
-        modelForwarding: 'Model forwarding',
-        modelForwardingHint: 'Applies only to this account. Matching requests can use this account without adding the requested model to its whitelist. Forwarding takes precedence over regular mapping and also works in passthrough mode. Points are charged for the model actually forwarded. Sources support a trailing *; targets must be concrete models supported by the upstream.',
-        addModelForwarding: 'Add model forwarding',
-        clearModelForwarding: 'Clear forwarding rules',
-        selectForwardingTarget: 'Select an upstream model',
-        modelForwardingCredentialsHint: 'Enter the upstream API key to load supported models. For OAuth accounts, configure forwarding after creating the account.',
-        modelForwardingBatchHint: 'Saving replaces forwarding rules on all target accounts. Leave rules empty to clear forwarding. Models come from the reference account; confirm that every target upstream supports the selected models.',
-        modelForwardingInvalid: 'Complete every rule. Sources may only use a trailing *, targets must be concrete models, and sources must be unique.',
         baseUrlHint: 'Leave default for official OpenAI API',
         apiKeyHint: 'Your OpenAI API Key',
         oauthPassthrough: 'Auto passthrough (auth only)',

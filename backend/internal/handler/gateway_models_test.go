@@ -792,3 +792,46 @@ func modelIDsForTest(models []gatewayModelItemForTest) []string {
 	}
 	return ids
 }
+
+func TestGatewayModels_GroupForwardingHidesExactAndWildcardSources(t *testing.T) {
+	group := &service.Group{ID: "g", Platform: service.PlatformOpenAI, ModelForwarding: map[string]string{
+		"client-*": "upstream", "old": "upstream",
+	}}
+	h := newGatewayModelsHandlerForTest(&gatewayModelsAccountRepoStub{byGroup: map[string][]service.Account{
+		group.ID: {{Platform: service.PlatformOpenAI, Credentials: map[string]any{
+			"model_mapping": map[string]any{"client-a": "client-a", "old": "old", "upstream": "upstream"},
+		}}},
+	}})
+	for _, custom := range []bool{false, true} {
+		group.ModelsListConfig = service.GroupModelsListConfig{Enabled: custom, Models: []string{"client-a", "old"}}
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{Group: group, GroupID: &group.ID})
+		h.Models(c)
+		var got gatewayModelsResponseForTest
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+		if custom {
+			require.Empty(t, got.Data)
+		} else {
+			require.Equal(t, []string{"upstream"}, modelIDsForTest(got.Data))
+		}
+	}
+}
+
+func TestGroupModelForwardingGeminiDiscovery(t *testing.T) {
+	group := &service.Group{Platform: service.PlatformGemini, ModelForwarding: map[string]string{"old-*": "gemini-target"},
+		ModelsListConfig: service.GroupModelsListConfig{Enabled: true, Models: []string{"old-name", "gemini-target"}}}
+	list, custom := customGeminiModelsList(group)
+	require.True(t, custom)
+	require.Len(t, list.Models, 1)
+	require.Equal(t, "models/gemini-target", list.Models[0].Name)
+	body := `{"models":[{"name":"models/old-name"},{"name":"models/gemini-target","metadata":7}],"nextPageToken":"next"}`
+	res := &service.UpstreamHTTPResult{StatusCode: http.StatusOK, Headers: http.Header{}, Body: []byte(body)}
+	res.Headers.Set("ETag", "original")
+	filtered := filterGeminiModelsResponse(res, group)
+	require.JSONEq(t, `{"models":[{"name":"models/gemini-target","metadata":7}],"nextPageToken":"next"}`, string(filtered.Body))
+	require.Empty(t, filtered.Headers.Get("ETag"))
+	require.Equal(t, body, string(res.Body))
+	require.Equal(t, "original", res.Headers.Get("ETag"))
+}

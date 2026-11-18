@@ -758,6 +758,7 @@ export interface AdminGroup extends Group {
   // OpenAI Messages 调度配置（仅 openai 平台使用）
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
+  model_forwarding?: Record<string, string>
   models_list_config?: ModelsListConfig
   codex_models_manifest_config?: CodexModelsManifestConfig
 
@@ -946,6 +947,7 @@ export interface CreateGroupRequest {
   claude_code_only?: boolean
   fallback_group_id?: string | null
   fallback_group_id_on_invalid_request?: string | null
+  model_forwarding?: Record<string, string>
   models_list_config?: ModelsListConfig
   codex_models_manifest_config?: CodexModelsManifestConfig
   allow_messages_dispatch?: boolean
@@ -1019,6 +1021,7 @@ export interface UpdateGroupRequest {
   claude_code_only?: boolean
   fallback_group_id?: string | null
   fallback_group_id_on_invalid_request?: string | null
+  model_forwarding?: Record<string, string>
   models_list_config?: ModelsListConfig
   codex_models_manifest_config?: CodexModelsManifestConfig
   allow_messages_dispatch?: boolean

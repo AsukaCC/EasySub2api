@@ -655,6 +655,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	if shouldSimulateCodexExecHeaders(account, isBridgeRequest) {
 		applySimulatedCodexExecHeaders(req.Header, body, isOpenAIResponsesCompactPath(c))
 	}
+	if err := finalizeOpenAIResponsesLiteRequest(req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
 

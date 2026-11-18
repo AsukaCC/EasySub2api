@@ -1225,6 +1225,10 @@ export default {
         bufferRangeError: '安全缓冲应在 0 到 99.99 之间',
         sumTooHigh: '最低毛利率与安全缓冲之和必须小于 100%，否则将排除全部账号'
       },
+      modelForwarding: '模型重定向',
+      addModelForwarding: '添加重定向规则',
+      modelForwardingInvalid: '请完整填写重定向规则，来源仅支持末尾 *，目标必须为具体模型，且来源不能重复。',
+      modelForwardingHint: '来源模型在模型列表中隐藏。请求命中时，分组先替换为目标模型，再选择支持该模型的账号。来源支持末尾 * 通配符。',
       modelsList: {
         title: '自定义 {endpoint} 模型列表',
         hint: '仅影响 {endpoint} 展示结果，不影响白名单模型调用和账号调度。',

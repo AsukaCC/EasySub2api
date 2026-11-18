@@ -191,7 +191,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	parseClientPayload := func(turn int, raw []byte) (openAIWSClientPayload, error) {
-		if err := checkActivePayloadModels(account, raw); err != nil {
+		admissionBody := raw
+		group := apiKeyGroup(getAPIKeyFromContext(c))
+		if turn > 1 {
+			admissionBody = group.ForwardRequestModel(raw)
+		}
+		if err := checkActivePayloadModels(account, admissionBody); err != nil {
 			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
 		}
 		if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
@@ -232,6 +237,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 
 		originalModel := strings.TrimSpace(values[1].String())
+		if turn == 1 && hooks != nil && hooks.InitialRequestModel != "" {
+			originalModel = hooks.InitialRequestModel
+		}
 		modelMissing := originalModel == ""
 		if originalModel == "" {
 			// 入站 WS 长会话里，部分客户端只在第一轮 response.create 上声明
@@ -270,7 +278,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			normalized = next
 		}
-		if (account.IsOpenAIOAuthLike() || hasNativeImageGenerationTool(normalized)) && isOpenAIResponsesLiteWebSocketPayload(normalized) {
+		if (account.IsOpenAI() || hasNativeImageGenerationTool(normalized)) && isOpenAIResponsesLiteWebSocketPayload(normalized) {
 			litePayload, _, liteErr := normalizeOpenAIResponsesLiteToolsPayload(normalized)
 			if liteErr != nil {
 				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(
@@ -287,7 +295,8 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		if isCodexCLI && !hasNativeImageGenerationTool(normalized) {
 			codexImageGenerationExplicitToolPolicy = account.CodexImageGenerationExplicitToolPolicy()
 		}
-		requestModel := originalModel
+		groupModel, _ := group.ResolveForwardedModel(originalModel)
+		requestModel := groupModel
 		if hooks != nil && hooks.MapRequestModel != nil {
 			mappedModel, mapErr := hooks.MapRequestModel(turn, originalModel)
 			if mapErr != nil {
@@ -298,10 +307,10 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 		}
 		upstreamModel := normalizeOpenAIModelForUpstream(account, account.GetMappedModel(requestModel))
-		if err := CheckActiveModel(originalModel, requestModel, upstreamModel); err != nil {
+		if err := CheckActiveModel(groupModel, requestModel, upstreamModel); err != nil {
 			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
 		}
-		if modelMissing || upstreamModel != originalModel {
+		if modelMissing || upstreamModel != strings.TrimSpace(values[1].String()) {
 			next, setErr := applyPayloadMutation(normalized, "model", upstreamModel)
 			if setErr != nil {
 				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", setErr)
