@@ -59,7 +59,7 @@ jobs:
         working-directory: backend
         run: >-
           go test -tags=unit ./internal/service ./internal/repository ./internal/handler ./internal/server/routes
-          -run 'TestAccountModelForwarding|TestAdminServiceBulkUpdateAccounts_ModelForwarding|TestBuildSchedulerMetadataAccount_KeepsOpenAIModelForwarding|TestGetAvailableModels_|TestGroupModelForwarding|TestGatewayModels_GroupForwarding|TestOpenAIResponsesWebSocket_GroupForwarding|TestResponsesLite|TestResponsesHTTPWebSearchFollowsClientLiteHeader|TestNormalizeOpenAIResponsesLiteTools|TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth|TestOpenAIGatewayHandlerResponses_(Failover|ExplicitLite)'
+          -run 'TestAccountModelForwarding|TestAdminServiceBulkUpdateAccounts_ModelForwarding|TestBuildSchedulerMetadataAccount_KeepsOpenAIModelForwarding|TestGetAvailableModels_|TestGroupModelForwarding|TestGatewayModels_GroupForwarding|TestOpenAIResponsesWebSocket_GroupForwarding|TestResponsesLite|TestResponsesHTTPWebSearchFollowsClientLiteHeader|TestNormalizeOpenAIResponsesLiteTools|TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth|TestOpenAIGatewayHandlerResponses_(Failover|ExplicitLite)|TestNormalizeCodex(PageContext|AdditionalUntrustedContext|BrowserTabsHistoryReplay)'
           -count=1 -timeout=5m
 
       - name: Release 0.2.19 adaptation regressions
