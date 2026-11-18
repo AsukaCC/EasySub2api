@@ -2,10 +2,26 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 )
+
+type responsesLiteValidationError struct{ error }
+
+// ResponsesLiteClientErrorMessage distinguishes a client opt-in from an account
+// header override. I/O and encoding errors must not become client errors.
+func ResponsesLiteClientErrorMessage(err error, headers http.Header, body []byte) (string, bool) {
+	var invalid *responsesLiteValidationError
+	if !errors.As(err, &invalid) {
+		return "", false
+	}
+	if !isOpenAIResponsesLiteHeader(headers.Get(responsesLiteHeader)) && !isOpenAIResponsesLiteWebSocketPayload(body) {
+		return "", false
+	}
+	return invalid.Error() + "; use full Responses or send a Lite-compatible request", true
+}
 
 // Normalize the final body after header simulation without changing the selected protocol.
 func finalizeOpenAIResponsesLiteRequest(req *http.Request) error {

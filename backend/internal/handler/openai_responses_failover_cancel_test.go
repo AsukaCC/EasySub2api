@@ -8,10 +8,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/AsukaCC/EasySub2api/internal/config"
+	"github.com/AsukaCC/EasySub2api/internal/pkg/tlsfingerprint"
 	middleware2 "github.com/AsukaCC/EasySub2api/internal/server/middleware"
 	"github.com/AsukaCC/EasySub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -49,6 +51,10 @@ func (u *openAIResponsesFailoverCancelUpstream) calls() []string {
 	return append([]string(nil), u.accountIDs...)
 }
 
+func (u *openAIResponsesFailoverCancelUpstream) DoWithTLS(req *http.Request, proxyURL, accountID string, concurrency int, _ *tlsfingerprint.Profile) (*http.Response, error) {
+	return u.Do(req, proxyURL, accountID, concurrency)
+}
+
 func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUpstream) *OpenAIGatewayHandler {
 	t.Helper()
 	accounts := []service.Account{
@@ -61,7 +67,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 			Schedulable: true,
 			Concurrency: 0,
 			Priority:    0,
-			Credentials: map[string]any{"access_token": "token-1"},
+			Credentials: map[string]any{"access_token": "token-1", "chatgpt_account_id": "test-account-1"},
 		},
 		{
 			ID:          "account-2",
@@ -72,7 +78,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 			Schedulable: true,
 			Concurrency: 0,
 			Priority:    1,
-			Credentials: map[string]any{"access_token": "token-2"},
+			Credentials: map[string]any{"access_token": "token-2", "chatgpt_account_id": "test-account-2"},
 		},
 	}
 	accountRepo := openAIImagesFailoverAccountRepo{accounts: accounts}
@@ -159,7 +165,7 @@ func TestOpenAIGatewayHandlerResponses_FailoverAbortsWhenClientDisconnected(t *t
 
 	handler.Responses(c)
 
-	require.Equal(t, []string{"account-1"}, upstream.calls(), "客户端断开后不应再切换到账号 2")
+	require.Equal(t, []string{"account-1"}, upstream.calls(), "客户端断开后不应再切换到账号 2: %s", rec.Body.String())
 	require.Equal(t, statusClientClosedRequest, c.Writer.Status(), "应按 499 归类")
 	require.Zero(t, rec.Body.Len(), "不应写入 502 错误响应体")
 
@@ -188,7 +194,34 @@ func TestOpenAIGatewayHandlerResponses_FailoverContinuesForConnectedClient(t *te
 
 	handler.Responses(c)
 
-	require.Equal(t, []string{"account-1", "account-2"}, upstream.calls(), "在线客户端应正常切换账号")
+	require.Equal(t, []string{"account-1", "account-2"}, upstream.calls(), "在线客户端应正常切换账号: %s", rec.Body.String())
 	require.Equal(t, http.StatusBadGateway, rec.Code)
 	require.Equal(t, "upstream_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
+}
+
+func TestOpenAIGatewayHandlerResponses_ExplicitLiteRejectsWebSearch(t *testing.T) {
+	for _, source := range []string{"header", "metadata"} {
+		t.Run(source, func(t *testing.T) {
+			upstream := &openAIResponsesFailoverCancelUpstream{}
+			h := newOpenAIResponsesFailoverTestHandler(t, upstream)
+			c, rec := newOpenAIResponsesFailoverTestContext(t, nil)
+			metadata := ""
+			if source == "header" {
+				c.Request.Header.Set("X-OpenAI-Internal-Codex-Responses-Lite", "true")
+			} else {
+				metadata = `,"client_metadata":{"ws_request_header_x_openai_internal_codex_responses_lite":"true"}`
+			}
+			body := `{"model":"gpt-6.2-sol","input":"test","stream":true,"tools":[{"type":"web_search"}]` + metadata + `}`
+			c.Request.Body = io.NopCloser(strings.NewReader(body))
+			c.Request.ContentLength = int64(len(body))
+			h.Responses(c)
+			require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+			require.True(t, gjson.ValidBytes(rec.Body.Bytes()), rec.Body.String())
+			require.Equal(t, "invalid_request_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
+			message := gjson.GetBytes(rec.Body.Bytes(), "error.message").String()
+			require.Contains(t, message, "web_search")
+			require.Contains(t, message, "full Responses")
+			require.Empty(t, upstream.calls())
+		})
+	}
 }

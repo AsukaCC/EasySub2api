@@ -342,10 +342,11 @@ func TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth(t *tes
 	}
 }
 
-func TestResponsesLiteSimulatedHeaderMatchesFinalBody(t *testing.T) {
+func TestResponsesLiteExplicitHeaderMatchesFinalBody(t *testing.T) {
 	for _, passthrough := range []bool{false, true} {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+		c.Request.Header.Set(responsesLiteHeader, "true")
 		account := &Account{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"chatgpt_account_id": "account-1", "access_token": "token"}}
 		body := []byte(`{"model":"gpt-5.6-terra","reasoning":{"effort":"high","context":"all_turns"},"parallel_tool_calls":true,"input":"test"}`)
 		svc := &OpenAIGatewayService{cfg: &config.Config{}}
@@ -372,7 +373,7 @@ func TestResponsesLiteSimulatedHeaderMatchesFinalBody(t *testing.T) {
 	}
 }
 
-func TestResponsesLiteSimulatedHeaderNormalizesNamespaceTools(t *testing.T) {
+func TestResponsesLiteOnlyNormalizesNamespaceToolsWhenRequested(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, passthrough := range []bool{false, true} {
 		for _, clientLite := range []bool{false, true} {
@@ -403,11 +404,14 @@ func TestResponsesLiteSimulatedHeaderNormalizesNamespaceTools(t *testing.T) {
 					req, err = svc.buildUpstreamRequest(context.Background(), c, account, body, "token", false, "", true)
 				}
 				require.NoError(t, err)
-				require.Equal(t, "true", req.Header.Get(responsesLiteHeader))
+				require.Equal(t, c.Request.Header.Values(responsesLiteHeader), req.Header.Values(responsesLiteHeader))
 				out, err := io.ReadAll(req.Body)
 				require.NoError(t, err)
-				require.False(t, gjson.GetBytes(out, `tools.#(type=="namespace")`).Exists())
-				require.Equal(t, "lookup", gjson.GetBytes(out, `input.#(type=="additional_tools").tools.0.tools.0.name`).String())
+				require.Equal(t, !clientLite, gjson.GetBytes(out, `tools.#(type=="namespace")`).Exists())
+				require.Equal(t, clientLite, gjson.GetBytes(out, `input.#(type=="additional_tools")`).Exists())
+				if clientLite {
+					require.Equal(t, "lookup", gjson.GetBytes(out, `input.#(type=="additional_tools").tools.0.tools.0.name`).String())
+				}
 				require.Equal(t, "functions", gjson.GetBytes(out, "tool_choice.name").String())
 				require.Equal(t, "client", gjson.GetBytes(out, `tools.#(type=="tool_search").execution`).String())
 				require.Equal(t, "9007199254740993", gjson.GetBytes(out, `tools.#(name=="shell").parameters.properties.id.maximum`).Raw)
@@ -446,4 +450,75 @@ func TestResponsesLiteFinalBodyPreservesHeaders(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResponsesHTTPWebSearchFollowsClientLiteHeader(t *testing.T) {
+	const search = `{"type":"web_search","search_context_size":"low"}`
+	body := []byte(`{"model":"gpt-6.2-sol","stream":true,"instructions":"test","input":"test","parallel_tool_calls":true,"tools":[` + search + `],"tool_choice":{"type":"web_search"}}`)
+	for _, passthrough := range []bool{false, true} {
+		for _, tt := range []struct {
+			name, lite    string
+			wantRejection bool
+		}{
+			{name: "no Lite header"},
+			{name: "explicit full", lite: "false"},
+			{name: "explicit Lite", lite: "true", wantRejection: true},
+		} {
+			t.Run(fmt.Sprintf("passthrough=%t/%s", passthrough, tt.name), func(t *testing.T) {
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
+				SetOpenAIClientTransport(c, OpenAIClientTransportHTTP)
+				c.Request.Header.Set("User-Agent", "codex_cli_rs/0.169.0")
+				if tt.lite != "" {
+					c.Request.Header.Set(responsesLiteHeader, tt.lite)
+				}
+				upstream := &httpUpstreamRecorder{resp: &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": {"text/event-stream"}},
+					Body:       io.NopCloser(strings.NewReader(alphaSearchResponsesSSE("search result"))),
+				}}
+				svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+				account := &Account{ID: "1", Platform: PlatformOpenAI, Type: AccountTypeOAuth,
+					Credentials: map[string]any{"access_token": "token", "chatgpt_account_id": "account"},
+					Extra:       map[string]any{"openai_passthrough": passthrough},
+				}
+				_, err := svc.Forward(context.Background(), c, account, body)
+				if tt.wantRejection {
+					message, clientError := ResponsesLiteClientErrorMessage(err, c.Request.Header, body)
+					require.True(t, clientError)
+					require.Contains(t, message, "web_search")
+					require.Empty(t, upstream.requests)
+					return
+				}
+				require.NoError(t, err)
+				require.Len(t, upstream.requests, 1)
+				if tt.lite == "false" {
+					require.Equal(t, []string{"false"}, upstream.lastReq.Header.Values(responsesLiteHeader))
+				} else {
+					require.Empty(t, upstream.lastReq.Header.Values(responsesLiteHeader))
+				}
+				require.JSONEq(t, search, gjson.GetBytes(upstream.lastBody, `tools.#(type=="web_search")`).Raw)
+				require.Equal(t, "web_search", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
+				require.Equal(t, gjson.True, gjson.GetBytes(upstream.lastBody, "parallel_tool_calls").Type)
+			})
+		}
+	}
+}
+
+func TestResponsesLiteClientErrorRequiresClientOptInAndValidationFailure(t *testing.T) {
+	body := []byte(`{"tools":[{"type":"web_search"}]}`)
+	req, err := http.NewRequest(http.MethodPost, "/responses", bytes.NewReader(body))
+	require.NoError(t, err)
+	// Account override: the outgoing request is Lite but the client did not ask for it.
+	req.Header.Set(responsesLiteHeader, "true")
+	err = finalizeOpenAIResponsesLiteRequest(req)
+	require.Error(t, err)
+	_, clientError := ResponsesLiteClientErrorMessage(err, http.Header{}, body)
+	require.False(t, clientError)
+
+	req.GetBody = func() (io.ReadCloser, error) { return nil, io.ErrUnexpectedEOF }
+	err = finalizeOpenAIResponsesLiteRequest(req)
+	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	_, clientError = ResponsesLiteClientErrorMessage(err, req.Header, body)
+	require.False(t, clientError)
 }
