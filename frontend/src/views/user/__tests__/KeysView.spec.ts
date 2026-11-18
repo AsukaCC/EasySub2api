@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 
 import type { ApiKey } from '@/types'
 import KeysView from '../KeysView.vue'
+import { SUB2API_CC_SWITCH_USAGE_SCRIPT } from '@/utils/ccswitchImport'
 
 const {
   listKeys,
@@ -324,6 +325,8 @@ describe('user KeysView column settings', () => {
       const params = new URLSearchParams(String(open.mock.calls[0]?.[0]).split('?')[1])
       const payload = JSON.parse(atob(params.get('config') || ''))
       expect(params.get('model')).toBe('gpt-6-astra')
+      expect(params.get('usageEnabled')).toBe('true')
+      expect(atob(params.get('usageScript') || '')).toBe(SUB2API_CC_SWITCH_USAGE_SCRIPT)
       expect(payload.config).toContain('default_subagent_model = "gpt-6.1-terra"')
       expect(payload.config).toContain('supports_websockets = false')
       expect(payload.config).toContain('image_generation = true')

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   GROK_CC_SWITCH_MODEL,
   OPENAI_CC_SWITCH_CODEX_MODEL,
+  SUB2API_CC_SWITCH_USAGE_SCRIPT,
   buildCcSwitchImportDeeplink,
   ccsImportTargetsFromGroups
 } from '@/utils/ccswitchImport'
@@ -18,6 +19,45 @@ function decodeBase64Utf8(value: string): string {
 }
 
 describe('ccswitchImport utils', () => {
+  const evaluateUsageScript = (code: string, baseUrl = 'https://api.example.com/v1') => {
+    const substituted = code.replaceAll('{{baseUrl}}', baseUrl).replaceAll('{{apiKey}}', 'sk-test')
+    return new Function(`return ${substituted}`)() as {
+      request: { url: string; method: string; headers: Record<string, string> }
+      extractor: (response: Record<string, unknown>) => Record<string, unknown>
+    }
+  }
+
+  it.each(['claude', 'codex', 'gemini', 'grokbuild', 'opencode', 'openclaw', 'hermes'] as const)(
+    'defaults %s exports to an enabled Sub2API usage script', (app) => {
+      const params = paramsFromDeeplink(buildCcSwitchImportDeeplink({
+        baseUrl: 'https://api.example.com', providerName: 'EasySub2api', apiKey: 'sk-test', clientType: 'claude', app,
+      }))
+      expect(params.get('usageEnabled')).toBe('true')
+      expect(params.get('usageAutoInterval')).toBe('30')
+      const script = decodeBase64Utf8(params.get('usageScript') || '')
+      expect(script).toBe(SUB2API_CC_SWITCH_USAGE_SCRIPT)
+      expect(evaluateUsageScript(script, params.get('endpoint')!).request).toEqual({
+        url: 'https://api.example.com/v1/usage', method: 'GET',
+        headers: { Authorization: 'Bearer sk-test', 'User-Agent': 'cc-switch/1.0' },
+      })
+    },
+  )
+
+  it.each(['', '/', '/v1', '/v1/'])('normalizes the usage URL suffix %s and preserves deployment paths', (suffix) => {
+    const script = evaluateUsageScript(SUB2API_CC_SWITCH_USAGE_SCRIPT, `https://api.example.com/gateway${suffix}`)
+    expect(script.request.url).toBe('https://api.example.com/gateway/v1/usage')
+  })
+
+  it.each([
+    [{ isValid: true, planName: '钱包余额', remaining: 42, unit: 'points' }, { isValid: true, planName: '钱包余额', remaining: 42, unit: 'points' }],
+    [{ isValid: true, remaining: 0, quota: { limit: 100, used: 100, unit: 'points' } }, { isValid: true, remaining: 0, total: 100, used: 100, unit: 'points' }],
+    [{ isValid: true, planName: 'Unlimited', remaining: -1, unit: 'points' }, { isValid: true, planName: 'Unlimited', unit: 'points' }],
+    [{ isValid: false, status: 'inactive' }, { isValid: false, invalidMessage: 'inactive', unit: 'points' }],
+    [{ isValid: true, remaining: 1.25, unit: 'USD' }, { isValid: true, remaining: 1.25, unit: 'USD' }],
+  ])('extracts Sub2API wallet, quota, subscription and invalid-key responses', (response, expected) => {
+    expect(evaluateUsageScript(SUB2API_CC_SWITCH_USAGE_SCRIPT).extractor(response)).toEqual(expected)
+  })
+
   it('defaults OpenAI CC Switch imports to the current Codex model', () => {
     expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-6.2-sol')
   })
@@ -55,6 +95,11 @@ describe('ccswitchImport utils', () => {
     expect(payload.config).toContain('image_generation = true')
     expect(payload.config).toContain('untrusted_as_tool_output = false')
     expect(payload.config).toContain('experimental_bearer_token = "sk-test"')
+    // CC Switch v4.0.34 preserves provider auth headers through its Codex link projection.
+    expect(payload.config).toContain('requires_openai_auth = false')
+    expect(payload.config).toContain('http_headers = { "x-openai-actor-authorization" = "local-image-extension" }')
+    expect(payload.config).toContain('web_search = "live"')
+    expect(payload.config).not.toMatch(/responses[-_]lite/i)
   })
 
   it('adds WebSocket support to the Codex configuration when enabled by admin settings', () => {

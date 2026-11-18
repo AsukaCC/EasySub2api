@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -880,6 +881,11 @@ func (h *GatewayHandler) collectModelIDsForGroups(ctx context.Context, groups []
 		if forCodex {
 			ids = service.FilterCodexModelIDsForGroup(ids, group)
 		}
+		visible := group.VisibleModelIDs(ids)
+		if len(ids) > 0 && len(visible) == 0 {
+			usedCustom = true // An empty filtered list is authoritative.
+		}
+		ids = visible
 		modelIDs = mergeModelIDs(modelIDs, ids)
 		platform := strings.TrimSpace(platformOverride)
 		if platform == "" {
@@ -891,6 +897,14 @@ func (h *GatewayHandler) collectModelIDsForGroups(ctx context.Context, groups []
 		if group.CustomModelsListEnabled() {
 			usedCustom = true
 		}
+	}
+	// A multi-group key uses its primary group's request settings on the merged list.
+	if len(groups) > 1 {
+		visible := groups[0].VisibleModelIDs(modelIDs)
+		if len(modelIDs) > 0 && len(visible) == 0 {
+			usedCustom = true
+		}
+		modelIDs = visible
 	}
 	return modelIDs, responsePlatformForModelList(platforms, platformOverride), usedCustom
 }
@@ -948,9 +962,16 @@ func (h *GatewayHandler) modelIDsForGroup(ctx context.Context, group *service.Gr
 
 // AntigravityModels returns the models supported by the Antigravity gateway.
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
+	models := antigravity.DefaultModels()
+	if key, ok := middleware2.GetAPIKeyFromContext(c); ok && key != nil {
+		models = slices.DeleteFunc(models, func(m antigravity.ClaudeModel) bool {
+			_, hidden := key.Group.ResolveForwardedModel(m.ID)
+			return hidden
+		})
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data":   antigravity.DefaultModels(),
+		"data":   models,
 	})
 }
 

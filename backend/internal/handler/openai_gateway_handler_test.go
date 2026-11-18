@@ -1765,6 +1765,7 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 }
 
 type openAIResponsesWSUsageLogCase struct {
+	groupForwarding           map[string]string
 	firstPayload              string
 	secondPayload             string
 	userAgent                 *string
@@ -2687,6 +2688,19 @@ func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClien
 	require.NotContains(t, accountRepo.rateLimitedIDs, testEntityID(9913), "healthy failover account must not be penalized")
 }
 
+type wsUsageLevelsRepo struct {
+	service.UserLevelRulesRepository
+	service.UserLevelRepository
+}
+
+func (wsUsageLevelsRepo) GetAssignedLevelRulesBatch(_ context.Context, ids []string) (map[string][]service.UserLevelRule, error) {
+	return map[string][]service.UserLevelRule{ids[0]: {{ID: "level", Enabled: true, WindowDays: 7, Tiers: []service.UserLevelTier{{ID: "tier"}}}}}, nil
+}
+
+func (wsUsageLevelsRepo) GetRollingSpendBatch(context.Context, []string, time.Time, time.Time) (map[string]float64, error) {
+	return nil, nil
+}
+
 func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSUsageLogCase) openAIResponsesWSUsageLogResult {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -2774,6 +2788,7 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	cfg.RunMode = config.RunModeSimple
 	cfg.Default.RateMultiplier = 1
 	cfg.Security.URLAllowlist.Enabled = false
+	cfg.Security.URLAllowlist.AllowPrivateHosts = true // httptest loopback upstream
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 	cfg.Gateway.OpenAIWS.Enabled = true
 	cfg.Gateway.OpenAIWS.APIKeyEnabled = true
@@ -2801,7 +2816,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	}
 
 	billingCacheSvc := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
-	gatewaySvc := service.NewOpenAIGatewayService(
+	group := &service.Group{ID: groupID, Platform: service.PlatformOpenAI, ModelForwarding: tc.groupForwarding, Status: service.StatusActive, Hydrated: true, RateMultiplier: 1}
+	groupRepo := &gatewayModelsGroupRepoStub{groups: map[string]*service.Group{groupID: group}}
+	gatewaySvc := service.NewOpenAIGatewayServiceWithUserLevel(
 		accountRepo,
 		usageRepo,
 		nil,
@@ -2824,6 +2841,7 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		nil,
 		nil,
 		nil, // userPlatformQuotaRepo
+		service.NewUserLevelService(wsUsageLevelsRepo{}, nil, groupRepo, nil, nil),
 	)
 
 	cache := &concurrencyCacheMock{
@@ -2843,8 +2861,8 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 
 	apiKey := &service.APIKey{
 		ID:      testEntityID(1801),
-		GroupID: &groupID,
-		User:    &service.User{ID: testEntityID(1701), Status: service.StatusActive},
+		GroupID: &groupID, Group: group, UserID: testEntityID(1701),
+		User: &service.User{ID: testEntityID(1701), Status: service.StatusActive},
 	}
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
@@ -3004,4 +3022,22 @@ data: {"type":"response.failed","error":{"message":"This content was flagged"}}
 
 		require.False(t, openAIForwardErrorAlreadyCommunicated(c, c.Writer.Size(), errors.New("openai cyber_policy: blocked")))
 	})
+}
+
+func TestOpenAIResponsesWebSocket_GroupForwarding(t *testing.T) {
+	for _, mode := range []string{service.OpenAIWSIngressModePassthrough, service.OpenAIWSIngressModeCtxPool} {
+		t.Run(mode, func(t *testing.T) {
+			got := runOpenAIResponsesWebSocketUsageLogCase(t, openAIResponsesWSUsageLogCase{
+				ingressMode:         mode,
+				firstPayload:        `{"type":"response.create","model":"old-client","stream":false}`,
+				secondPayload:       `{"type":"response.create","model":"gpt-5.4","stream":false}`,
+				groupForwarding:     map[string]string{"old-client": "gpt-5.6-sol", "gpt-5.4": "gpt-5.6-terra"},
+				accountModelMapping: map[string]any{"gpt-5.6-sol": "gpt-5.6-sol", "gpt-5.6-terra": "gpt-5.6-terra"},
+			})
+			require.Equal(t, "gpt-5.6-sol", gjson.GetBytes(got.upstreamPayloads[0], "model").String())
+			require.Equal(t, "gpt-5.6-terra", gjson.GetBytes(got.upstreamPayloads[1], "model").String())
+			require.Equal(t, "old-client", got.logs[0].RequestedModel)
+			require.Equal(t, "gpt-5.4", got.logs[1].RequestedModel)
+		})
+	}
 }

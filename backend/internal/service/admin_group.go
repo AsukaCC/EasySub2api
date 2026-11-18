@@ -84,7 +84,7 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		} else if acc.Platform != platform {
 			continue
 		}
-		for model := range acc.ConfiguredModelMappings() {
+		for model := range acc.GetModelMapping() {
 			model = strings.TrimSpace(model)
 			if model == "" {
 				continue
@@ -311,6 +311,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	platform := NormalizeGroupPlatform(input.Platform)
+	forwarding, err := normalizeGroupModelForwarding(input.ModelForwarding)
+	if err != nil {
+		return nil, err
+	}
 	// 固定账号 manifest 配置：账号绑定发生在创建之后，创建时无法校验成员关系，
 	// 拒绝开启并在创建后的编辑里配置。
 	if normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig).Enabled {
@@ -501,6 +505,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		RequirePrivacySet:               input.RequirePrivacySet,
 		DefaultMappedModel:              input.DefaultMappedModel,
 		MessagesDispatchModelConfig:     normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
+		ModelForwarding:                 forwarding,
 		ModelsListConfig:                normalizeGroupModelsListConfig(input.ModelsListConfig),
 		CodexModelsManifestConfig:       normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig),
 		RPMLimit:                        input.RPMLimit,
@@ -878,6 +883,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id string, input *Up
 	}
 	if input.MessagesDispatchModelConfig != nil {
 		group.MessagesDispatchModelConfig = normalizeOpenAIMessagesDispatchModelConfig(*input.MessagesDispatchModelConfig)
+	}
+	if input.ModelForwarding != nil {
+		group.ModelForwarding, err = normalizeGroupModelForwarding(*input.ModelForwarding)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if input.ModelsListConfig != nil {
 		group.ModelsListConfig = normalizeGroupModelsListConfig(*input.ModelsListConfig)

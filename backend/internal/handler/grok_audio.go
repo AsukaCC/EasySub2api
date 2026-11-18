@@ -52,12 +52,21 @@ func (h *OpenAIGatewayHandler) GrokRealtime(c *gin.Context) {
 	}
 	defer done()
 
+	model := c.Query("model")
+	schedulerModel := "grok-4.5"
+	if target, matched := apiKey.Group.ResolveForwardedModel(model); matched {
+		c.Set(service.GroupForwardingSourceKey, model)
+		model, schedulerModel = target, target
+	}
+	if strings.TrimSpace(model) == "" {
+		model = "grok-voice-latest"
+	}
 	selection, _, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
 		c.Request.Context(),
 		apiKey.GroupID,
 		"",
 		"",
-		"grok-4.5",
+		schedulerModel,
 		nil,
 		service.OpenAIUpstreamTransportHTTPSSE,
 		// Grok only advertises chat_completions + media capabilities on HEAD.
@@ -92,10 +101,6 @@ func (h *OpenAIGatewayHandler) GrokRealtime(c *gin.Context) {
 	}
 	defer func() { _ = conn.CloseNow() }()
 
-	model := c.Query("model")
-	if strings.TrimSpace(model) == "" {
-		model = "grok-voice-latest"
-	}
 	started := time.Now()
 	audioObserved, proxyErr := h.gatewayService.ProxyGrokRealtime(c.Request.Context(), c, conn, selection.Account, token, model)
 	elapsed := time.Since(started)

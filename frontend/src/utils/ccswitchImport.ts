@@ -4,6 +4,38 @@ import { buildCodexApiKeyAuthConfig } from '@/utils/codexAuthConfig'
 export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-6.2-sol'
 export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
 
+// Match CC Switch's Sub2API template, retaining this gateway's points unit.
+// Deeplink imports accept script code, but not a usage templateType.
+export const SUB2API_CC_SWITCH_USAGE_SCRIPT = String.raw`({
+  request: {
+    url: "{{baseUrl}}".replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/usage",
+    method: "GET",
+    headers: {
+      "Authorization": "Bearer {{apiKey}}",
+      "User-Agent": "cc-switch/1.0"
+    }
+  },
+  extractor: function (response) {
+    var quota = response.quota || {};
+    var result = {
+      isValid: response.isValid !== false,
+      unit: response.unit || quota.unit || "points"
+    };
+    if (typeof response.planName === "string") result.planName = response.planName;
+    if (typeof response.remaining === "number" && response.remaining >= 0) {
+      result.remaining = response.remaining;
+    }
+    if (quota.limit > 0) {
+      result.used = quota.used;
+      result.total = quota.limit;
+    }
+    if (!result.isValid) {
+      result.invalidMessage = response.status ? String(response.status) : "Usage query failed";
+    }
+    return result;
+  }
+})`
+
 export interface CodexExportSettings {
   model: string
   subagentModel: string | null
@@ -32,7 +64,7 @@ export interface CcSwitchImportDeeplinkInput {
   clientType: CcSwitchClientType
   providerName: string
   apiKey: string
-  usageScript: string
+  usageScript?: string
   codexWebsocketEnabled?: boolean
   codexModel?: string
   codexSubagentModel?: string | null
@@ -229,7 +261,7 @@ export function buildCcSwitchImportDeeplink(input: CcSwitchImportDeeplinkInput):
     ['apiKey', input.apiKey],
     ['configFormat', 'json'],
     ['usageEnabled', 'true'],
-    ['usageScript', encodeBase64Utf8(input.usageScript)],
+    ['usageScript', encodeBase64Utf8(input.usageScript ?? SUB2API_CC_SWITCH_USAGE_SCRIPT)],
     ['usageAutoInterval', '30']
   ]
 

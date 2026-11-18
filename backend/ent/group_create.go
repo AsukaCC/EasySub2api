@@ -849,6 +849,12 @@ func (_c *GroupCreate) SetNillableMessagesDispatchModelConfig(v *domain.OpenAIMe
 	return _c
 }
 
+// SetModelForwarding sets the "model_forwarding" field.
+func (_c *GroupCreate) SetModelForwarding(v map[string]string) *GroupCreate {
+	_c.mutation.SetModelForwarding(v)
+	return _c
+}
+
 // SetModelsListConfig sets the "models_list_config" field.
 func (_c *GroupCreate) SetModelsListConfig(v domain.GroupModelsListConfig) *GroupCreate {
 	_c.mutation.SetModelsListConfig(v)
@@ -1274,6 +1280,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultMessagesDispatchModelConfig
 		_c.mutation.SetMessagesDispatchModelConfig(v)
 	}
+	if _, ok := _c.mutation.ModelForwarding(); !ok {
+		v := group.DefaultModelForwarding
+		_c.mutation.SetModelForwarding(v)
+	}
 	if _, ok := _c.mutation.ModelsListConfig(); !ok {
 		v := group.DefaultModelsListConfig
 		_c.mutation.SetModelsListConfig(v)
@@ -1504,6 +1514,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.MessagesDispatchModelConfig(); !ok {
 		return &ValidationError{Name: "messages_dispatch_model_config", err: errors.New(`ent: missing required field "Group.messages_dispatch_model_config"`)}
+	}
+	if _, ok := _c.mutation.ModelForwarding(); !ok {
+		return &ValidationError{Name: "model_forwarding", err: errors.New(`ent: missing required field "Group.model_forwarding"`)}
 	}
 	if _, ok := _c.mutation.ModelsListConfig(); !ok {
 		return &ValidationError{Name: "models_list_config", err: errors.New(`ent: missing required field "Group.models_list_config"`)}
@@ -1831,6 +1844,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.MessagesDispatchModelConfig(); ok {
 		_spec.SetField(group.FieldMessagesDispatchModelConfig, field.TypeJSON, value)
 		_node.MessagesDispatchModelConfig = value
+	}
+	if value, ok := _c.mutation.ModelForwarding(); ok {
+		_spec.SetField(group.FieldModelForwarding, field.TypeJSON, value)
+		_node.ModelForwarding = value
 	}
 	if value, ok := _c.mutation.ModelsListConfig(); ok {
 		_spec.SetField(group.FieldModelsListConfig, field.TypeJSON, value)
@@ -3011,6 +3028,18 @@ func (u *GroupUpsert) SetMessagesDispatchModelConfig(v domain.OpenAIMessagesDisp
 // UpdateMessagesDispatchModelConfig sets the "messages_dispatch_model_config" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateMessagesDispatchModelConfig() *GroupUpsert {
 	u.SetExcluded(group.FieldMessagesDispatchModelConfig)
+	return u
+}
+
+// SetModelForwarding sets the "model_forwarding" field.
+func (u *GroupUpsert) SetModelForwarding(v map[string]string) *GroupUpsert {
+	u.Set(group.FieldModelForwarding, v)
+	return u
+}
+
+// UpdateModelForwarding sets the "model_forwarding" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateModelForwarding() *GroupUpsert {
+	u.SetExcluded(group.FieldModelForwarding)
 	return u
 }
 
@@ -4346,6 +4375,20 @@ func (u *GroupUpsertOne) SetMessagesDispatchModelConfig(v domain.OpenAIMessagesD
 func (u *GroupUpsertOne) UpdateMessagesDispatchModelConfig() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateMessagesDispatchModelConfig()
+	})
+}
+
+// SetModelForwarding sets the "model_forwarding" field.
+func (u *GroupUpsertOne) SetModelForwarding(v map[string]string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetModelForwarding(v)
+	})
+}
+
+// UpdateModelForwarding sets the "model_forwarding" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateModelForwarding() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateModelForwarding()
 	})
 }
 
@@ -5869,6 +5912,20 @@ func (u *GroupUpsertBulk) SetMessagesDispatchModelConfig(v domain.OpenAIMessages
 func (u *GroupUpsertBulk) UpdateMessagesDispatchModelConfig() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateMessagesDispatchModelConfig()
+	})
+}
+
+// SetModelForwarding sets the "model_forwarding" field.
+func (u *GroupUpsertBulk) SetModelForwarding(v map[string]string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetModelForwarding(v)
+	})
+}
+
+// UpdateModelForwarding sets the "model_forwarding" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateModelForwarding() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateModelForwarding()
 	})
 }
 

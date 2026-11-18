@@ -709,7 +709,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
 		return err
 	}
-	if (account.IsOpenAIOAuthLike() || hasNativeImageGenerationTool(firstClientMessage)) && isOpenAIResponsesLiteWebSocketPayload(firstClientMessage) {
+	if (account.IsOpenAI() || hasNativeImageGenerationTool(firstClientMessage)) && isOpenAIResponsesLiteWebSocketPayload(firstClientMessage) {
 		liteFirstMessage, _, liteErr := normalizeOpenAIResponsesLiteToolsPayload(firstClientMessage)
 		if liteErr != nil {
 			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, liteErr.Error(), liteErr)
@@ -982,7 +982,14 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
 				return payload, nil, nil
 			}
-			if err := checkActivePayloadModels(account, payload); err != nil {
+			group := apiKeyGroup(getAPIKeyFromContext(c))
+			clientPayload := payload
+			payload, filterErr = group.forwardSessionUpdate(payload)
+			if filterErr != nil {
+				return nil, nil, filterErr
+			}
+			admissionBody := group.ForwardRequestModel(payload)
+			if err := checkActivePayloadModels(account, admissionBody); err != nil {
 				return nil, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Requested model has been retired", err)
 			}
 			eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
@@ -1004,7 +1011,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			var originalResponseCreate []byte
 			if isResponseCreate {
 				originalResponseCreate = payload
-				if (account.IsOpenAIOAuthLike() || hasNativeImageGenerationTool(payload)) && isOpenAIResponsesLiteWebSocketPayload(payload) {
+				if (account.IsOpenAI() || hasNativeImageGenerationTool(payload)) && isOpenAIResponsesLiteWebSocketPayload(payload) {
 					litePayload, _, liteErr := normalizeOpenAIResponsesLiteToolsPayload(payload)
 					if liteErr != nil {
 						return payload, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, liteErr.Error(), liteErr)
@@ -1061,7 +1068,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					capturedReasoningModel = updated
 				}
 			}
-			usageMeta.updateSessionRequestModel(payload)
+			usageMeta.updateSessionRequestModel(clientPayload)
 			if requestModelForThisFrame == "" {
 				requestModelForThisFrame = usageMeta.requestModelForFrame(payload)
 			}

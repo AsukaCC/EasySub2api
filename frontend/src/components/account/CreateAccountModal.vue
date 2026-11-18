@@ -1656,12 +1656,6 @@
         </div>
       </div>
 
-      <OpenAIModelForwardingFields
-        v-if="form.platform === 'openai'"
-        v-model="modelForwardingRows"
-        :sync-credentials="syncPreviewCredentials"
-      />
-
       <!-- OpenAI OAuth Model Mapping (OAuth 类型没有 apikey 容器，需要独立的模型映射区域) -->
       <div
         v-if="(form.platform === 'openai' || form.platform === 'gemini' || form.platform === 'antigravity' || form.platform === 'grok') && isOAuthFlow"
@@ -2970,8 +2964,6 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
-import OpenAIModelForwardingFields from './OpenAIModelForwardingFields.vue'
-import { isValidModelForwarding } from '@/utils/modelForwarding'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
@@ -3114,11 +3106,6 @@ interface Props {
 const props = defineProps<Props>()
 const loginCredentials = ref<AccountLoginCredentials>({})
 const createAccountWithLogin = (payload: CreateAccountRequest) => {
-  if (payload.platform === 'openai') {
-    if (!isValidModelForwarding(modelForwardingRows.value)) throw new Error(t('admin.accounts.openai.modelForwardingInvalid'))
-    const forwarding = buildModelMappingObject('mapping', [], modelForwardingRows.value)
-    if (forwarding) payload.credentials.model_forwarding = forwarding
-  }
   if (loginCredentials.value.login_totp_secret?.trim()) {
     try { parseAccountTotp(loginCredentials.value.login_totp_secret) }
     catch { throw new Error(t('admin.accounts.loginInfo.invalidSecret')) }
@@ -3316,7 +3303,6 @@ const editWeeklyResetDay = ref<number | null>(null)
 const editWeeklyResetHour = ref<number | null>(null)
 const editResetTimezone = ref<string | null>(null)
 const modelMappings = ref<ModelMapping[]>([])
-const modelForwardingRows = ref<ModelMapping[]>([])
 const openAICompactModelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -3754,7 +3740,6 @@ watch(
     }
     // Clear model-related settings
     allowedModels.value = []
-    modelForwardingRows.value = []
     modelMappings.value = []
     if (newPlatform === 'typesafe') {
       modelRestrictionMode.value = 'whitelist'
@@ -4124,7 +4109,6 @@ const resetForm = () => {
   editWeeklyResetHour.value = null
   editResetTimezone.value = null
   modelMappings.value = []
-  modelForwardingRows.value = []
   openAICompactModelMappings.value = []
   modelRestrictionMode.value = 'whitelist'
   allowedModels.value = [...claudeModels] // Default fill related models
@@ -4379,10 +4363,6 @@ const handleVertexServiceAccountDrop = async (event: DragEvent) => {
 }
 
 const handleSubmit = async () => {
-  if (form.platform === 'openai' && !isValidModelForwarding(modelForwardingRows.value)) {
-    appStore.showError(t('admin.accounts.openai.modelForwardingInvalid'))
-    return
-  }
   if (loginCredentials.value.login_totp_secret?.trim()) {
     try { parseAccountTotp(loginCredentials.value.login_totp_secret) }
     catch { appStore.showError(t('admin.accounts.loginInfo.invalidSecret')); return }
@@ -5085,8 +5065,6 @@ const OPENAI_MOBILE_RT_CLIENT_ID = 'app_LlGpXReQgckcGGUo2JrYvtJK'
 
 const buildOpenAICodexImportCredentialExtras = (): Record<string, unknown> | null => {
   const credentials: Record<string, unknown> = { ...loginCredentials.value }
-  const forwarding = buildModelMappingObject('mapping', [], modelForwardingRows.value)
-  if (forwarding) credentials.model_forwarding = forwarding
   if (!isOpenAIModelRestrictionDisabled.value) {
       const modelMapping = buildCurrentModelRestrictionMapping()
     if (modelMapping) {

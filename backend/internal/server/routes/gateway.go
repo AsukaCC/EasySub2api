@@ -470,7 +470,7 @@ func RegisterGatewayRoutes(
 	antigravityV1 := r.Group("/antigravity/v1")
 	antigravityV1.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm)
 	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
-	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic)
+	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic)
 	{
 		antigravityV1.POST("/messages", h.Gateway.Messages)
 		antigravityV1.POST("/messages/count_tokens", h.Gateway.CountTokens)
@@ -481,7 +481,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta := r.Group("/antigravity/v1beta")
 	antigravityV1Beta.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
-	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle)
+	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), compositeGeminiTarget, requireGroupGoogle)
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
@@ -514,8 +514,10 @@ func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver)
 			c.Next()
 			return
 		}
-		isComposite := apiKey.Group.Platform == service.PlatformComposite
-		if !isComposite && !apiKey.HasMultipleBoundGroups() {
+		forced := middleware.HasForcePlatform(c)
+		isComposite := !forced && apiKey.Group.Platform == service.PlatformComposite
+		isMultiGroup := !forced && apiKey.HasMultipleBoundGroups()
+		if !isComposite && !isMultiGroup && len(apiKey.Group.ModelForwarding) == 0 {
 			c.Next()
 			return
 		}
@@ -533,7 +535,20 @@ func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver)
 			return
 		}
 
-		model := compositeRequestModelFromBody(c.GetHeader("Content-Type"), body)
+		contentType := c.GetHeader("Content-Type")
+		model := compositeRequestModelFromBody(contentType, body)
+		if target, matched := apiKey.Group.ResolveForwardedModel(model); matched {
+			rewritten, rewrittenType, rewriteErr := service.RewriteRequestModel(body, contentType, target)
+			if rewriteErr != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Invalid model forwarding request body"}})
+				return
+			}
+			c.Set(service.GroupForwardingSourceKey, model)
+			model, body = target, rewritten
+			if rewrittenType != contentType {
+				c.Request.Header.Set("Content-Type", rewrittenType)
+			}
+		}
 		if service.CheckActiveModel(model) != nil {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "code": "model_retired", "message": "Requested model has been retired"}})
@@ -564,7 +579,7 @@ func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver)
 					}
 				}
 			}
-		} else if model != "" {
+		} else if isMultiGroup && model != "" {
 			if platform, ok := service.DetectModelPlatform(model); ok {
 				c.Request = c.Request.WithContext(service.WithResolvedTargetPlatform(c.Request.Context(), platform))
 			}
@@ -580,13 +595,36 @@ func compositeGeminiTargetPlatformMiddleware(resolver *service.CompositeRouteRes
 	}
 	return func(c *gin.Context) {
 		model := compositeGeminiModelFromParams(c)
+		apiKey, ok := middleware.GetAPIKeyFromContext(c)
+		if ok && apiKey != nil {
+			if target, matched := apiKey.Group.ResolveForwardedModel(model); matched {
+				if !service.IsSafeGeminiModelPathSegment(model) || !service.IsSafeGeminiModelPathSegment(target) {
+					middleware.GoogleErrorWriter(c, http.StatusBadRequest, "Invalid model in URL")
+					c.Abort()
+					return
+				}
+				for i, param := range c.Params {
+					switch param.Key {
+					case "model":
+						c.Params[i].Value = target
+					case "modelAction":
+						c.Params[i].Value = "/" + target + strings.TrimPrefix(param.Value, "/"+model)
+					}
+				}
+				c.Set(service.GroupForwardingSourceKey, model)
+				model = target
+			}
+		}
+		if middleware.HasForcePlatform(c) {
+			c.Next()
+			return
+		}
 		if service.CheckActiveModel(model) != nil {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 			middleware.GoogleErrorWriter(c, http.StatusBadRequest, "Requested model has been retired")
 			c.Abort()
 			return
 		}
-		apiKey, ok := middleware.GetAPIKeyFromContext(c)
 		if ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite {
 			if model != "" {
 				decision, err := resolver.Resolve(c.Request.Context(), apiKey.Group.ID, model, service.CompositeRouteEndpointGemini)
@@ -608,8 +646,8 @@ func compositeGeminiTargetPlatformMiddleware(resolver *service.CompositeRouteRes
 }
 
 func compositeRequestModelFromBody(contentType string, body []byte) string {
-	if model := strings.TrimSpace(gjson.GetBytes(body, "model").String()); model != "" {
-		return model
+	if model := gjson.GetBytes(body, "model"); model.Type == gjson.String {
+		return strings.TrimSpace(model.String())
 	}
 	return compositeMultipartModelFromBody(contentType, body)
 }
@@ -670,14 +708,15 @@ func compositeGeminiModelFromParams(c *gin.Context) string {
 	if modelAction == "" {
 		return ""
 	}
-	if idx := strings.LastIndex(modelAction, ":"); idx >= 0 {
+	if idx := strings.IndexByte(modelAction, ':'); idx >= 0 {
 		return strings.TrimSpace(modelAction[:idx])
 	}
-	return modelAction
+	model, _, _ := strings.Cut(modelAction, "/")
+	return model
 }
 
 func resetRequestBody(c *gin.Context, body []byte) {
-	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	c.Request.Body = pkghttputil.NewPrereadBody(body)
 	c.Request.ContentLength = int64(len(body))
 	c.Request.Header.Set("Content-Length", strconv.Itoa(len(body)))
 }

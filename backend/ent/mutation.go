@@ -22062,6 +22062,7 @@ type GroupMutation struct {
 	require_privacy_set                  *bool
 	default_mapped_model                 *string
 	messages_dispatch_model_config       *domain.OpenAIMessagesDispatchModelConfig
+	model_forwarding                     *map[string]string
 	models_list_config                   *domain.GroupModelsListConfig
 	codex_models_manifest_config         *domain.GroupCodexModelsManifestConfig
 	rpm_limit                            *int
@@ -25257,6 +25258,42 @@ func (m *GroupMutation) ResetMessagesDispatchModelConfig() {
 	m.messages_dispatch_model_config = nil
 }
 
+// SetModelForwarding sets the "model_forwarding" field.
+func (m *GroupMutation) SetModelForwarding(value map[string]string) {
+	m.model_forwarding = &value
+}
+
+// ModelForwarding returns the value of the "model_forwarding" field in the mutation.
+func (m *GroupMutation) ModelForwarding() (r map[string]string, exists bool) {
+	v := m.model_forwarding
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelForwarding returns the old "model_forwarding" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldModelForwarding(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelForwarding is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelForwarding requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelForwarding: %w", err)
+	}
+	return oldValue.ModelForwarding, nil
+}
+
+// ResetModelForwarding resets all changes to the "model_forwarding" field.
+func (m *GroupMutation) ResetModelForwarding() {
+	m.model_forwarding = nil
+}
+
 // SetModelsListConfig sets the "models_list_config" field.
 func (m *GroupMutation) SetModelsListConfig(dmlc domain.GroupModelsListConfig) {
 	m.models_list_config = &dmlc
@@ -26014,7 +26051,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 72)
+	fields := make([]string, 0, 73)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26204,6 +26241,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.messages_dispatch_model_config != nil {
 		fields = append(fields, group.FieldMessagesDispatchModelConfig)
 	}
+	if m.model_forwarding != nil {
+		fields = append(fields, group.FieldModelForwarding)
+	}
 	if m.models_list_config != nil {
 		fields = append(fields, group.FieldModelsListConfig)
 	}
@@ -26365,6 +26405,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.DefaultMappedModel()
 	case group.FieldMessagesDispatchModelConfig:
 		return m.MessagesDispatchModelConfig()
+	case group.FieldModelForwarding:
+		return m.ModelForwarding()
 	case group.FieldModelsListConfig:
 		return m.ModelsListConfig()
 	case group.FieldCodexModelsManifestConfig:
@@ -26518,6 +26560,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldDefaultMappedModel(ctx)
 	case group.FieldMessagesDispatchModelConfig:
 		return m.OldMessagesDispatchModelConfig(ctx)
+	case group.FieldModelForwarding:
+		return m.OldModelForwarding(ctx)
 	case group.FieldModelsListConfig:
 		return m.OldModelsListConfig(ctx)
 	case group.FieldCodexModelsManifestConfig:
@@ -26985,6 +27029,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMessagesDispatchModelConfig(v)
+		return nil
+	case group.FieldModelForwarding:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelForwarding(v)
 		return nil
 	case group.FieldModelsListConfig:
 		v, ok := value.(domain.GroupModelsListConfig)
@@ -27724,6 +27775,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldMessagesDispatchModelConfig:
 		m.ResetMessagesDispatchModelConfig()
+		return nil
+	case group.FieldModelForwarding:
+		m.ResetModelForwarding()
 		return nil
 	case group.FieldModelsListConfig:
 		m.ResetModelsListConfig()

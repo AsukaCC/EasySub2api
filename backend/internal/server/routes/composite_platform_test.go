@@ -240,3 +240,55 @@ func TestCompositeGeminiTargetPlatformMiddlewareUsesPathRoute(t *testing.T) {
 
 	require.Equal(t, http.StatusNoContent, w.Code)
 }
+
+func TestGroupModelForwardingBeforeRouting(t *testing.T) {
+	for _, platform := range []string{service.PlatformOpenAI, service.PlatformComposite, service.PlatformAnthropic, service.PlatformDeepseek, service.PlatformGrok, service.PlatformTypeSafe} {
+		t.Run(platform, func(t *testing.T) {
+			router := gin.New()
+			group := &service.Group{ID: "g", Platform: platform, ModelForwarding: map[string]string{
+				"gpt-5.4": "gpt-5.6-terra", "gpt-5.6-terra": "other",
+			}}
+			router.Use(func(c *gin.Context) {
+				c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{Group: group, GroupID: &group.ID})
+			})
+			router.Use(compositeTargetPlatformMiddleware(nil))
+			router.POST("/v1/responses", func(c *gin.Context) {
+				body, err := io.ReadAll(c.Request.Body)
+				require.NoError(t, err)
+				require.JSONEq(t, `{"model":"gpt-5.6-terra","input":"gpt-5.4"}`, string(body))
+				c.Status(http.StatusNoContent)
+			})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"gpt-5.4","input":"gpt-5.4"}`)))
+			require.Equal(t, http.StatusNoContent, w.Code)
+		})
+	}
+}
+
+func TestGroupModelForwardingGeminiPath(t *testing.T) {
+	for _, platform := range []string{service.PlatformGemini, service.PlatformComposite, service.PlatformAntigravity} {
+		t.Run(platform, func(t *testing.T) {
+			router := gin.New()
+			group := &service.Group{ID: "g", Platform: platform, ModelForwarding: map[string]string{"gpt-5.4": "gemini-target"}}
+			router.Use(func(c *gin.Context) {
+				c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{Group: group})
+			})
+			if platform == service.PlatformAntigravity {
+				router.Use(servermiddleware.ForcePlatform(platform))
+			}
+			router.Use(compositeGeminiTargetPlatformMiddleware(nil))
+			router.GET("/models/:model", func(c *gin.Context) { c.String(200, c.Param("model")) })
+			router.POST("/models/*modelAction", func(c *gin.Context) { c.String(200, c.Param("modelAction")+"?"+c.Request.URL.RawQuery) })
+			for _, tc := range []struct{ method, suffix, want string }{
+				{"GET", "", "gemini-target"},
+				{"POST", ":streamGenerateContent?alt=sse", "/gemini-target:streamGenerateContent?alt=sse"},
+				{"POST", "/generateContent", "/gemini-target/generateContent?"},
+			} {
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, httptest.NewRequest(tc.method, "/models/gpt-5.4"+tc.suffix, nil))
+				require.Equal(t, http.StatusOK, w.Code)
+				require.Equal(t, tc.want, w.Body.String())
+			}
+		})
+	}
+}

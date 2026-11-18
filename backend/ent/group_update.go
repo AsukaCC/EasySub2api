@@ -1125,6 +1125,12 @@ func (_u *GroupUpdate) SetNillableMessagesDispatchModelConfig(v *domain.OpenAIMe
 	return _u
 }
 
+// SetModelForwarding sets the "model_forwarding" field.
+func (_u *GroupUpdate) SetModelForwarding(v map[string]string) *GroupUpdate {
+	_u.mutation.SetModelForwarding(v)
+	return _u
+}
+
 // SetModelsListConfig sets the "models_list_config" field.
 func (_u *GroupUpdate) SetModelsListConfig(v domain.GroupModelsListConfig) *GroupUpdate {
 	_u.mutation.SetModelsListConfig(v)
@@ -1944,6 +1950,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.MessagesDispatchModelConfig(); ok {
 		_spec.SetField(group.FieldMessagesDispatchModelConfig, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ModelForwarding(); ok {
+		_spec.SetField(group.FieldModelForwarding, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.ModelsListConfig(); ok {
 		_spec.SetField(group.FieldModelsListConfig, field.TypeJSON, value)
@@ -3388,6 +3397,12 @@ func (_u *GroupUpdateOne) SetNillableMessagesDispatchModelConfig(v *domain.OpenA
 	return _u
 }
 
+// SetModelForwarding sets the "model_forwarding" field.
+func (_u *GroupUpdateOne) SetModelForwarding(v map[string]string) *GroupUpdateOne {
+	_u.mutation.SetModelForwarding(v)
+	return _u
+}
+
 // SetModelsListConfig sets the "models_list_config" field.
 func (_u *GroupUpdateOne) SetModelsListConfig(v domain.GroupModelsListConfig) *GroupUpdateOne {
 	_u.mutation.SetModelsListConfig(v)
@@ -4237,6 +4252,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.MessagesDispatchModelConfig(); ok {
 		_spec.SetField(group.FieldMessagesDispatchModelConfig, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ModelForwarding(); ok {
+		_spec.SetField(group.FieldModelForwarding, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.ModelsListConfig(); ok {
 		_spec.SetField(group.FieldModelsListConfig, field.TypeJSON, value)

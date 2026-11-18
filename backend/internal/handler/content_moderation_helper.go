@@ -35,6 +35,15 @@ func clientRequestedModel(c *gin.Context, fallback string) string {
 }
 
 func clientRequestedUsageFields(c *gin.Context, mapping service.ChannelMappingResult, fallbackModel, upstreamModel string) service.ChannelUsageFields {
+	if c != nil {
+		if source := c.GetString(service.GroupForwardingSourceKey); source != "" {
+			mapping.Mapped = true
+			if mapping.MappedModel == "" {
+				mapping.MappedModel = fallbackModel
+			}
+			return mapping.ToUsageFields(source, upstreamModel)
+		}
+	}
 	return mapping.ToUsageFields(clientRequestedModel(c, fallbackModel), upstreamModel)
 }
 

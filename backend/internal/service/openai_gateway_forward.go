@@ -1353,6 +1353,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if shouldSimulateCodexExecHeaders(account, isBridgeRequest) {
 		applySimulatedCodexExecHeaders(req.Header, body, isOpenAIResponsesCompactPath(c))
 	}
+	if err := finalizeOpenAIResponsesLiteRequest(req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
 

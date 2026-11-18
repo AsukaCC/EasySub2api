@@ -66,7 +66,7 @@ func TestAccountModelForwarding_DynamicRules(t *testing.T) {
 	require.Equal(t, "gpt-6.1-sol", a.GetMappedModel("gpt-5.6-luna"))
 	require.True(t, a.IsModelSupported("custom-client-model"))
 	require.Equal(t, "gpt-6-luna", a.GetMappedModel("custom-client-model"))
-	require.Contains(t, openAIConfiguredCodexModelIDs([]Account{*a}), "custom-client-model")
+	require.NotContains(t, openAIConfiguredCodexModelIDs([]Account{*a}), "custom-client-model")
 	a.Credentials["model_forwarding"] = map[string]any{}
 	require.False(t, a.IsModelSupported("gpt-5.6-luna"))
 	require.False(t, a.IsModelSupported("custom-client-model"))

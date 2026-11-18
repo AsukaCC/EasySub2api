@@ -86,7 +86,7 @@ func (s *OpenAIGatewayService) BuildGroupConfiguredCodexModelsManifest(ctx conte
 	if err != nil {
 		return nil, false, fmt.Errorf("initialize group configured Codex models: %w", err)
 	}
-	body, _, err = mergeConfiguredCodexModelsManifest(body, nil, group.ModelsListConfig.Models, group.CustomModelsListEnabled())
+	body, _, err = mergeConfiguredCodexModelsManifest(body, nil, group)
 	if err != nil {
 		return nil, false, fmt.Errorf("build group configured Codex models: %w", err)
 	}
@@ -111,7 +111,7 @@ func (s *OpenAIGatewayService) MergeGroupConfiguredCodexModels(ctx context.Conte
 	if err != nil {
 		return fmt.Errorf("load group configured Codex models: %w", err)
 	}
-	body, changed, err := mergeConfiguredCodexModelsManifest(manifest.Body, configuredModels, group.ModelsListConfig.Models, group.CustomModelsListEnabled())
+	body, changed, err := mergeConfiguredCodexModelsManifest(manifest.Body, configuredModels, group)
 	if err != nil {
 		return fmt.Errorf("merge group configured Codex models: %w", err)
 	}
@@ -167,7 +167,7 @@ func openAIConfiguredCodexModelIDs(accounts []Account) []string {
 		if account.Platform != PlatformOpenAI {
 			continue
 		}
-		for modelID, target := range account.ConfiguredModelMappings() {
+		for modelID, target := range account.GetModelMapping() {
 			if CheckActiveModel(modelID, target) != nil {
 				continue
 			}
@@ -932,7 +932,7 @@ func codexExplicitModelMappingClaims(account Account, modelID string) bool {
 	if account.Credentials == nil || strings.TrimSpace(modelID) == "" {
 		return false
 	}
-	return strings.TrimSpace(account.ConfiguredModelMappings()[modelID]) != ""
+	return strings.TrimSpace(account.GetModelMapping()[modelID]) != ""
 }
 
 func accountCodexModelSupportsImageInput(account *Account, upstreamModel string) bool {
@@ -980,13 +980,14 @@ func BuildDeepSeekCodexModelsManifest(modelIDs []string) ([]byte, error) {
 	return BuildCodexModelsManifest(modelIDs)
 }
 
-func mergeConfiguredCodexModelsManifest(body []byte, configuredModels, selectedModels []string, filterBySelection bool) ([]byte, bool, error) {
+func mergeConfiguredCodexModelsManifest(body []byte, configuredModels []string, group *Group) ([]byte, bool, error) {
+	selectedModels, filterBySelection := group.ModelsListConfig.Models, group.CustomModelsListEnabled()
 	activeBody, retiredChanged, retiredErr := openai.FilterRetiredManifest(body)
 	if retiredErr != nil {
 		return nil, false, retiredErr
 	}
 	if retiredChanged {
-		merged, _, err := mergeConfiguredCodexModelsManifest(activeBody, openai.FilterActiveModelIDs(configuredModels), openai.FilterActiveModelIDs(selectedModels), filterBySelection)
+		merged, _, err := mergeConfiguredCodexModelsManifest(activeBody, configuredModels, group)
 		return merged, true, err
 	}
 	configuredModels = openai.FilterActiveModelIDs(configuredModels)
@@ -1021,7 +1022,7 @@ func mergeConfiguredCodexModelsManifest(body []byte, configuredModels, selectedM
 			continue
 		}
 		descriptor.Slug = strings.TrimSpace(descriptor.Slug)
-		if isCodexDedicatedMediaModel(descriptor.Slug) {
+		if _, hidden := group.ResolveForwardedModel(descriptor.Slug); hidden || isCodexDedicatedMediaModel(descriptor.Slug) {
 			changed = true
 			continue
 		}
@@ -1049,7 +1050,7 @@ func mergeConfiguredCodexModelsManifest(body []byte, configuredModels, selectedM
 	}
 	for _, modelID := range configuredModels {
 		modelID = strings.TrimSpace(modelID)
-		if modelID == "" || isCodexDedicatedMediaModel(modelID) {
+		if _, hidden := group.ResolveForwardedModel(modelID); hidden || modelID == "" || isCodexDedicatedMediaModel(modelID) {
 			continue
 		}
 		if filterBySelection {

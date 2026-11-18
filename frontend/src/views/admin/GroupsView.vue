@@ -2207,6 +2207,12 @@
           </div>
         </div>
 
+        <GroupModelForwardingFields
+          class="group-form__section"
+          v-model="editModelForwarding"
+          :candidates="editModelsListState.items.map(item => item.id)"
+        />
+
         <div class="group-form__section">
           <div class="views-admin-groups-view__panel-26">
             <div>
@@ -3896,6 +3902,9 @@ import {
   selectAllModelsListItems,
   setModelsListCandidates,
 } from "./groupsModelsList";
+import GroupModelForwardingFields from "@/components/admin/group/GroupModelForwardingFields.vue";
+import type { ModelMappingEntry } from "@/composables/useModelWhitelist";
+import { isValidModelForwarding } from "@/utils/modelForwarding";
 import { createModelsListCandidatesTracker } from "./groupsModelsListCandidates";
 import {
   isProfitControlPlatform,
@@ -4482,6 +4491,7 @@ const compositeRouteForm = reactive<CompositeRouteFormState>({
 const createMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 const editMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 const createModelsListState = reactive(createInitialModelsListState());
+const editModelForwarding = ref<ModelMappingEntry[]>([]);
 const editModelsListState = reactive(createInitialModelsListState());
 const modelsListEndpoint = (platform: string) =>
   platform === "gemini" ? "/v1beta/models" : "/v1/models";
@@ -5660,6 +5670,7 @@ const handleEdit = async (group: AdminGroup) => {
     group.reasoning_effort_mappings,
     group.platform,
   );
+  editModelForwarding.value = Object.entries(group.model_forwarding ?? {}).map(([from, to]) => ({ from, to }));
   resetModelsListState(editModelsListState, group.models_list_config);
   // 固定账号 manifest 配置：回显配置并异步解析已存账号名称（失败显示 #<id>）
   const savedCodexManifestConfig =
@@ -5730,6 +5741,7 @@ const closeEditModal = () => {
   resetMessagesDispatchFormState(editForm);
   editForm.allow_live = false;
   editForm.ccs_codex_ws_enabled = false;
+  editModelForwarding.value = [];
   resetModelsListState(editModelsListState);
   editCodexManifestConfig.value = createCodexManifestDefaults();
   editCodexManifestAccountNames.value = {};
@@ -5748,6 +5760,10 @@ const handleUpdateGroup = async () => {
     editReasoningEffortPolicyRef.value &&
     !editReasoningEffortPolicyRef.value.validate()
   ) {
+    return;
+  }
+  if (!isValidModelForwarding(editModelForwarding.value)) {
+    appStore.showError(t("admin.groups.modelForwardingInvalid"));
     return;
   }
   if (!validateProfitControlForm(editForm)) {
@@ -5805,6 +5821,7 @@ const handleUpdateGroup = async () => {
       model_routing: convertRoutingRulesToApiFormat(
         editModelRoutingRules.value,
       ),
+      model_forwarding: Object.fromEntries(editModelForwarding.value.map(row => [row.from.trim(), row.to.trim()])),
       models_list_config: buildModelsListConfig(editModelsListState),
       // 非 openai 平台提交关闭状态，与后端归一化一致
       codex_models_manifest_config:

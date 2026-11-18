@@ -1228,6 +1228,10 @@ export default {
         bufferRangeError: 'Safety buffer must be between 0 and 99.99',
         sumTooHigh: 'Min gross margin plus safety buffer must be less than 100%, otherwise every account would be excluded'
       },
+      modelForwarding: 'Model redirects',
+      addModelForwarding: 'Add redirect rule',
+      modelForwardingInvalid: 'Complete every rule. Sources may only use a trailing *, targets must be concrete models, and sources must be unique.',
+      modelForwardingHint: 'Matching source models are hidden from model lists. Requests use the target model before account selection. Sources may end in *.',
       modelsList: {
         title: 'Custom {endpoint} Model List',
         hint: 'Only changes the {endpoint} response. Whitelist model calls and account routing are unchanged.',

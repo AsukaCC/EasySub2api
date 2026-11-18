@@ -55,11 +55,11 @@ jobs:
           -run 'Test(Retired|Protection|LocalTLS|StickyEscape|GatewayPlatformIsolation)'
           -count=1 -timeout=10m
 
-      - name: Account model forwarding regressions
+      - name: Model forwarding and Responses Lite regressions
         working-directory: backend
         run: >-
-          go test -tags=unit ./internal/service ./internal/repository
-          -run 'TestAccountModelForwarding|TestAdminServiceBulkUpdateAccounts_ModelForwarding|TestBuildSchedulerMetadataAccount_KeepsOpenAIModelForwarding|TestGetAvailableModels_'
+          go test -tags=unit ./internal/service ./internal/repository ./internal/handler ./internal/server/routes
+          -run 'TestAccountModelForwarding|TestAdminServiceBulkUpdateAccounts_ModelForwarding|TestBuildSchedulerMetadataAccount_KeepsOpenAIModelForwarding|TestGetAvailableModels_|TestGroupModelForwarding|TestGatewayModels_GroupForwarding|TestOpenAIResponsesWebSocket_GroupForwarding|TestResponsesLite|TestNormalizeOpenAIResponsesLiteTools|TestOpenAIGatewayServiceForward_NormalizesResponsesLiteToolsForOAuth'
           -count=1 -timeout=5m
 
       - name: Release 0.2.19 adaptation regressions
@@ -166,7 +166,8 @@ jobs:
           src/components/account/__tests__/CreateAccountModal.spec.ts
           src/components/account/__tests__/EditAccountModal.spec.ts
           src/components/account/__tests__/BulkEditAccountModal.spec.ts
-          src/components/account/__tests__/OpenAIModelForwardingFields.spec.ts
+          src/components/admin/group/__tests__/GroupModelForwardingFields.spec.ts
+          src/views/admin/__tests__/GroupsView.duplicate.spec.ts
           src/components/account/__tests__/ModelWhitelistSelector.spec.ts
       - name: Wallet and model testing regressions
         working-directory: frontend
