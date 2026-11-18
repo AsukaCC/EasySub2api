@@ -57,7 +57,7 @@ func TestNormalizeCodexPageContextFirstMessage(t *testing.T) {
 func TestNormalizeCodexAdditionalUntrustedContext(t *testing.T) {
 	// AdditionalContextToolOutput derives names from caller-provided context keys.
 	// Codex 0.169.0 enables this representation by default (openai/codex#60487).
-	for _, name := range []string{"browser_info", "goal_objective", "untrusted_context"} {
+	for _, name := range []string{"browser_info", "browser_tabs", "goal_objective", "untrusted_context"} {
 		t.Run(name, func(t *testing.T) {
 			output := "external context\nline two"
 			body := pageContextRequest(t, pageContextItem(name, output),
@@ -86,8 +86,27 @@ func TestNormalizeCodexAdditionalUntrustedContext(t *testing.T) {
 	}
 }
 
+func TestNormalizeCodexBrowserTabsHistoryReplay(t *testing.T) {
+	// A historical desktop snapshot and a real call can have the same name.
+	const name = "browser_tabs"
+	snapshot := pageContextItem(name, "Open browser tabs:\nTab 1")
+	call := map[string]any{"type": "function_call", "namespace": "agent", "name": name, "call_id": "call_real", "arguments": "{}"}
+	result := pageContextItem(name, "tool result")
+	result["id"], result["call_id"] = "fco_result", "call_real"
+	body := pageContextRequest(t, snapshot, pageContextItem("codex_apps_open_page", `{"page_id":null}`), call, result)
+
+	got, changed := normalizeCodexUntrustedContext(body)
+	require.True(t, changed)
+	require.Equal(t, "<external_browser_tabs>Open browser tabs:\nTab 1</external_browser_tabs>", gjson.GetBytes(got, "input.0.content.0.text").String())
+	require.False(t, gjson.GetBytes(got, "input.0.id").Exists())
+	require.Equal(t, "message", gjson.GetBytes(got, "input.1.type").String())
+	for _, index := range []string{"input.2", "input.3"} {
+		require.JSONEq(t, gjson.GetBytes(body, index).Raw, gjson.GetBytes(got, index).Raw)
+	}
+}
+
 func TestNormalizeCodexAdditionalUntrustedContextPreservesRealAndMalformedOutputs(t *testing.T) {
-	for _, name := range []string{"browser_info", "goal_objective", "untrusted_context"} {
+	for _, name := range []string{"browser_info", "browser_tabs", "goal_objective", "untrusted_context"} {
 		for _, override := range []map[string]any{
 			{"call_id": "call_real"},
 			{"call_id": nil},
@@ -138,7 +157,7 @@ func TestNormalizeCodexAdditionalUntrustedContextPreservesRealAndMalformedOutput
 }
 
 func TestNormalizeCodexAdditionalUntrustedContextBlankCallIDsAndMixedInput(t *testing.T) {
-	names := []string{"browser_info", "goal_objective", "untrusted_context"}
+	names := []string{"browser_info", "browser_tabs", "goal_objective", "untrusted_context"}
 	for _, callID := range []string{"", " \t\n"} {
 		items := make([]any, 0, len(names))
 		for _, name := range names {
@@ -158,7 +177,7 @@ func TestNormalizeCodexAdditionalUntrustedContextBlankCallIDsAndMixedInput(t *te
 }
 
 func TestNormalizeCodexAdditionalUntrustedContextRejectsDuplicateMembers(t *testing.T) {
-	for _, name := range []string{"browser_info", "goal_objective", "untrusted_context"} {
+	for _, name := range []string{"browser_info", "browser_tabs", "goal_objective", "untrusted_context"} {
 		for _, body := range []string{
 			`{"input":[{"type":"function_call_output","namespace":"agent","name":"` + name + `","call_id":"real","call_id":"","output":"context"}]}`,
 			`{"input":[{"type":"function_call_output","namespace":"agent","name":"` + name + `","output":"first","output":"second"}]}`,
