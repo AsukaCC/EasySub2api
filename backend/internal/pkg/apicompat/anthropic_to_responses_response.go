@@ -282,7 +282,7 @@ func anthToResHandleMessageStart(evt *AnthropicStreamEvent, state *AnthropicEven
 		if state.Model == "" {
 			state.Model = evt.Message.Model
 		}
-		state.AnthropicUsage.Merge(evt.Message.Usage)
+		state.Merge(evt.Message.Usage)
 	}
 
 	if state.CreatedSent {
@@ -503,7 +503,7 @@ func anthToResHandleContentBlockStop(evt *AnthropicStreamEvent, state *Anthropic
 
 func anthToResHandleMessageDelta(evt *AnthropicStreamEvent, state *AnthropicEventToResponsesState) []ResponsesStreamEvent {
 	if evt.Usage != nil {
-		state.AnthropicUsage.Merge(*evt.Usage)
+		state.Merge(*evt.Usage)
 	}
 	if evt.Delta != nil && evt.Delta.StopReason != "" {
 		state.StopReason = evt.Delta.StopReason
