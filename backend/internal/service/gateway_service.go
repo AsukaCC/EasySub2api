@@ -741,7 +741,7 @@ func (e *UpstreamFailoverError) ShouldReportAccountScheduleFailure() bool {
 	if e == nil {
 		return false
 	}
-	if e.IsRequestScopedCapacityShed() {
+	if e.IsRequestScopedCapacityShed() || e.Reason == alphaSearchUnavailableReason {
 		return false
 	}
 	return !e.IsCredentialFailure() || e.Scope == GatewayFailureScopeAccount

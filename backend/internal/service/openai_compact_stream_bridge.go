@@ -101,7 +101,14 @@ func writeOpenAICompactSSEFailure(c *gin.Context, statusCode int, errorBody []by
 	if message == "" {
 		message = "Upstream compact request failed with HTTP " + strconv.Itoa(statusCode)
 	}
-	writeOpenAICompactSSEFailureMessage(c, statusCode, "upstream_error", message)
+	clientCode := "upstream_error"
+	if isOpenAIRequestScopedCapacityShed(message, errorBody) {
+		clientCode = openAICapacityShedRetryableClientCode
+	} else if actionable := openAIPassthroughRecoveryError(statusCode, message, errorBody); actionable != nil {
+		writeOpenAICompactFailureEvent(c, statusCode, "upstream_error", *actionable)
+		return
+	}
+	writeOpenAICompactFailureEvent(c, statusCode, "upstream_error", openAIClientError{Code: clientCode, Message: message})
 }
 
 // writeOpenAICompactSSEFailureMessage 写出 response.failed 终止事件。Codex 对
@@ -109,10 +116,18 @@ func writeOpenAICompactSSEFailure(c *gin.Context, statusCode int, errorBody []by
 // 不被识别，会退化为 "stream closed before response.completed" 盲重连）。
 // 同时标记流内错误，保证挂在 200 流上的失败仍进入 ops 错误看板。
 func writeOpenAICompactSSEFailureMessage(c *gin.Context, statusCode int, errType, message string) {
+	clientCode := errType
+	if isOpenAICapacityShedCode(clientCode) {
+		clientCode = openAICapacityShedRetryableClientCode
+	}
+	writeOpenAICompactFailureEvent(c, statusCode, errType, openAIClientError{Code: clientCode, Message: message})
+}
+
+func writeOpenAICompactFailureEvent(c *gin.Context, statusCode int, opsType string, clientError openAIClientError) {
 	if c == nil {
 		return
 	}
-	MarkOpsStreamError(c, errType, message, statusCode)
+	MarkOpsStreamError(c, opsType, clientError.Message, statusCode)
 	payload, err := json.Marshal(map[string]any{
 		"type": "response.failed",
 		"response": map[string]any{
@@ -121,10 +136,7 @@ func writeOpenAICompactSSEFailureMessage(c *gin.Context, statusCode int, errType
 			"created_at": time.Now().Unix(),
 			"status":     "failed",
 			"output":     []any{},
-			"error": map[string]any{
-				"code":    errType,
-				"message": message,
-			},
+			"error":      clientError,
 		},
 	})
 	if err != nil {

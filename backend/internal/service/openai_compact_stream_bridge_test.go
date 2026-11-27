@@ -524,3 +524,20 @@ func TestHandleNonStreamingResponsePassthrough_CompactClientStreamBridgesToSSE(t
 	require.NotNil(t, result.usage)
 	require.Equal(t, 7, result.usage.InputTokens)
 }
+
+func TestCompactFailureReportsRetryableCapacityToClientOnly(t *testing.T) {
+	for _, code := range []string{"slow_down", "server_is_overloaded", "server_overloaded"} {
+		t.Run(code, func(t *testing.T) {
+			c, rec := newCompactBridgeTestContext(t, true)
+			writeOpenAICompactSSEFailure(c, http.StatusServiceUnavailable, []byte(`{"error":{"code":"`+code+`","message":"Try again later"}}`))
+			events := parseCompactBridgeSSE(t, rec.Body.String())
+			require.Len(t, events, 1)
+			require.Equal(t, "response.failed", events[0][0])
+			require.Equal(t, openAICapacityShedRetryableClientCode, gjson.Get(events[0][1], "response.error.code").String())
+			ops, ok := GetOpsStreamError(c)
+			require.True(t, ok)
+			require.Equal(t, "upstream_error", ops.ErrType)
+			require.Equal(t, http.StatusServiceUnavailable, ops.IntendedStatus)
+		})
+	}
+}

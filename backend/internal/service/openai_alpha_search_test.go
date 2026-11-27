@@ -492,3 +492,32 @@ func TestIsOpenAIAlphaSearchEndpointUnsupported(t *testing.T) {
 	require.False(t, isOpenAIAlphaSearchEndpointUnsupported(oauth, http.StatusNotFound))
 	require.False(t, isOpenAIAlphaSearchEndpointUnsupported(nil, http.StatusNotFound))
 }
+
+func TestAlphaSearchLiteratureEntitlementIsNotAccountFailure(t *testing.T) {
+	for _, mode := range []string{"oauth", "pat"} {
+		t.Run(mode, func(t *testing.T) {
+			req := []byte(`{"model":"gpt-5.6-sol","commands":{"search_query":[{"q":"news"}]}}`)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/alpha/search", bytes.NewReader(req))
+			upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: http.StatusForbidden, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"detail":"Literature search is unavailable."}`))}}
+			repo := &alphaSearchAccountStateRepo{}
+			cfg := &config.Config{}
+			svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream, accountRepo: repo, rateLimitService: NewRateLimitService(repo, cfg, nil)}
+			account := &Account{ID: "account", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"access_token": "oauth-test", "chatgpt_account_id": "chatgpt-test"}}
+			if mode == "pat" {
+				account.Credentials["auth_mode"] = OpenAIAuthModePersonalAccessToken
+				account.Credentials["access_token"] = "at-test-token"
+			}
+			result, err := svc.ForwardAlphaSearch(context.Background(), c, account, req)
+			var failover *UpstreamFailoverError
+			require.ErrorAs(t, err, &failover)
+			require.Nil(t, result)
+			require.Equal(t, http.StatusForbidden, failover.StatusCode)
+			require.False(t, failover.ShouldReportAccountScheduleFailure())
+			require.True(t, failover.ShouldRetryNextAccount())
+			require.False(t, failover.IsRequestScopedCapacityShed())
+			require.False(t, c.Writer.Written())
+			require.Zero(t, repo.setErrorCalls)
+		})
+	}
+}

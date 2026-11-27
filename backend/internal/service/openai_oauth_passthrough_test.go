@@ -2596,3 +2596,34 @@ func TestOpenAIGatewayService_OAuthPassthrough_AllowTimeoutHeadersWhenConfigured
 	require.Equal(t, "120000", upstream.lastReq.Header.Get("x-stainless-timeout"))
 	require.Empty(t, upstream.lastReq.Header.Get("X-Test"))
 }
+
+func TestOpenAIPassthroughRecoveryErrorEnvelope(t *testing.T) {
+	for _, tc := range []struct{ name, code, param, wantCode, wantParam string }{
+		{"encrypted", "invalid_encrypted_content", "input[2].encrypted_content", "invalid_encrypted_content", "input[2].encrypted_content"},
+		{"context", "context_length_exceeded", "input", "context_length_exceeded", "input"},
+		{"non-field param omitted", "context_too_large", "internal.example", "context_too_large", ""},
+		{"unknown error stays generic", "unknown_failure", "input", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+			body := []byte(fmt.Sprintf(`{"error":{"code":%q,"type":"internal.example","message":"see internal.example","param":%q}}`, tc.code, tc.param))
+			h := http.Header{"X-Internal-Host": {"internal.example"}}
+			s := &OpenAIGatewayService{cfg: &config.Config{}}
+			err := s.handleErrorResponsePassthrough(context.Background(), &http.Response{StatusCode: 400, Header: h}, c, &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}, nil, body)
+			require.Error(t, err)
+			require.Equal(t, 400, rec.Code)
+			require.Empty(t, rec.Header().Get("X-Internal-Host"))
+			require.NotContains(t, rec.Body.String(), "internal.example")
+			got := gjson.Get(rec.Body.String(), "error")
+			require.Equal(t, tc.wantCode, got.Get("code").String())
+			require.Equal(t, tc.wantParam, got.Get("param").String())
+			if tc.wantCode == "" {
+				require.Equal(t, "upstream_error", got.Get("type").String())
+			} else {
+				require.Equal(t, "invalid_request_error", got.Get("type").String())
+			}
+		})
+	}
+}

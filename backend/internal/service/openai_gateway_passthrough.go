@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -778,21 +779,46 @@ func writeSanitizedOpenAIPassthroughError(c *gin.Context, upstreamStatus int, up
 			message = "Upstream service temporarily unavailable"
 		}
 	}
-	writeOpenAIPassthroughErrorEnvelope(c, downstreamStatus, upstreamHeaders, message)
+	writeOpenAIPassthroughErrorEnvelope(c, downstreamStatus, upstreamHeaders, openAIClientError{Type: "upstream_error", Message: message})
 }
 
-// writeOpenAIPassthroughErrorEnvelope 以本地 JSON 信封 + 净化后的头策略写出
-// 错误响应；message 由调用方决定（净化通用文案或脱敏后的上游消息）。
-func writeOpenAIPassthroughErrorEnvelope(c *gin.Context, downstreamStatus int, upstreamHeaders http.Header, message string) {
+type openAIClientError struct {
+	Type    string `json:"type,omitempty"`
+	Code    string `json:"code,omitempty"`
+	Param   string `json:"param,omitempty"`
+	Message string `json:"message"`
+}
+
+// Only protocol field paths may leave the gateway as error.param. Do not
+// copy free-form upstream strings (which can contain credentials or hosts).
+var openAIRecoveryParam = regexp.MustCompile(`^(input|messages|max_output_tokens|previous_response_id|encrypted_content)(\[[0-9]+\]|\.(content|encrypted_content|text|summary))*$`)
+
+func openAIPassthroughRecoveryError(status int, message string, body []byte) *openAIClientError {
+	code := extractUpstreamErrorCode(body)
+	switch {
+	case status == http.StatusBadRequest && code == "invalid_encrypted_content":
+		message = "The encrypted content could not be verified."
+	case (status == http.StatusBadRequest || status == http.StatusRequestEntityTooLarge || status >= 500) && isOpenAIContextWindowError(message, body):
+		message = "Your input exceeds the context window of this model. Please adjust your input and try again."
+		if code != "context_too_large" {
+			code = "context_length_exceeded"
+		}
+	default:
+		return nil
+	}
+	payload := &openAIClientError{Type: "invalid_request_error", Code: code, Message: message}
+	param := gjson.GetBytes(body, "error.param")
+	if param.Type == gjson.String && len(param.Str) <= 128 && openAIRecoveryParam.MatchString(param.Str) {
+		payload.Param = param.Str
+	}
+	return payload
+}
+
+func writeOpenAIPassthroughErrorEnvelope(c *gin.Context, downstreamStatus int, upstreamHeaders http.Header, payload openAIClientError) {
 	if c == nil {
 		return
 	}
-	body, _ := json.Marshal(gin.H{
-		"error": gin.H{
-			"type":    "upstream_error",
-			"message": message,
-		},
-	})
+	body, _ := json.Marshal(gin.H{"error": payload})
 	if writeOpenAICompactSSEBridge(c, downstreamStatus, body) {
 		return
 	}
@@ -907,11 +933,9 @@ func (s *OpenAIGatewayService) handleErrorResponsePassthrough(
 		Detail:               upstreamDetail,
 		UpstreamResponseBody: upstreamDetail,
 	})
-	// context-window 超限是确定性请求失败（shouldFailoverOpenAIPassthroughResponse
-	// 已保证不切号），其文案对客户端可操作（如触发自动压缩）；在净化信封内保留
-	// 脱敏后的上游消息，而不是抹成通用文案。
-	if isOpenAIContextWindowError(upstreamMsg, body) && upstreamMsg != "" {
-		writeOpenAIPassthroughErrorEnvelope(c, resp.StatusCode, resp.Header, upstreamMsg)
+	// Only return actionable protocol fields; never echo an upstream error body.
+	if payload := openAIPassthroughRecoveryError(resp.StatusCode, upstreamMsg, body); !cyberHit && payload != nil {
+		writeOpenAIPassthroughErrorEnvelope(c, resp.StatusCode, resp.Header, *payload)
 	} else {
 		writeSanitizedOpenAIPassthroughError(c, resp.StatusCode, resp.Header)
 	}

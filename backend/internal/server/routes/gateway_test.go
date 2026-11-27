@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -455,4 +457,36 @@ func TestGatewayRoutesOpenAICountTokensPathIsRegistered(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 	require.NotEqual(t, http.StatusNotFound, w.Code)
+}
+
+func TestGatewayRoutesTextLimitBeforeCompositeRouting(t *testing.T) {
+	cfg := &config.Config{Gateway: config.GatewayConfig{MaxBodySize: 4096, TextMaxBodySize: 64}}
+	router := newGatewayRoutesTestRouterWithConfig(cfg, service.PlatformComposite)
+	for _, path := range []string{"/v1/alpha/search", "/alpha/search", "/backend-api/codex/alpha/search", "/embeddings", "/v1/embeddings", "/v1/systemone"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(strings.Repeat(" ", 65)))
+			req.ContentLength = -1 // also bound streaming reads, not just declared lengths
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+			require.JSONEq(t, `{"error":{"type":"invalid_request_error","message":"Request body is too large"}}`, rec.Body.String())
+		})
+	}
+}
+
+func TestGatewayRoutesCompressedTextLimitBeforeCompositeRouting(t *testing.T) {
+	cfg := &config.Config{Gateway: config.GatewayConfig{MaxBodySize: 4096, TextMaxBodySize: 128}}
+	router := newGatewayRoutesTestRouterWithConfig(cfg, service.PlatformComposite)
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	_, err := writer.Write([]byte(strings.Repeat(" ", 129)))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	require.Less(t, compressed.Len(), 128)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/embeddings", &compressed)
+	req.Header.Set("Content-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
 }

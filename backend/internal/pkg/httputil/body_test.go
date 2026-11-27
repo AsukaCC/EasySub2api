@@ -141,3 +141,20 @@ func TestReadRequestBodyWithPrealloc_RespectsIdentityEncoding(t *testing.T) {
 		t.Fatalf("body mismatch: got %q", got)
 	}
 }
+
+func TestDecodedLimitOnPrereadBody(t *testing.T) {
+	data := []byte(samplePayload)
+	for _, limit := range []int64{int64(len(data)), int64(len(data) - 1)} {
+		req := newRequestWithBody(t, nil, "")
+		req.Body = NewPrereadBody(data)
+		req = req.WithContext(WithDecodedBodyLimit(req.Context(), limit))
+		got, err := ReadRequestBodyWithPrealloc(req)
+		if limit == int64(len(data)) {
+			if err != nil || len(got) != len(data) || &got[0] != &data[0] {
+				t.Fatalf("expected unchanged preread buffer, got %q, err %v", got, err)
+			}
+		} else if maxErr, ok := err.(*http.MaxBytesError); !ok || maxErr.Limit != limit {
+			t.Fatalf("expected body limit %d, got %v", limit, err)
+		}
+	}
+}

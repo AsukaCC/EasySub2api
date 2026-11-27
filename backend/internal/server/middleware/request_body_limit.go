@@ -19,3 +19,13 @@ func RequestBodyLimit(maxBytes int64, budgets ...*pkghttputil.BodyMemoryBudget) 
 		c.Next()
 	}
 }
+
+// TextRequestBodyLimit also caps the decoded representation, without installing
+// a second memory budget or copying a body already read by composite routing.
+func TextRequestBodyLimit(maxBytes int64, budget *pkghttputil.BodyMemoryBudget) gin.HandlerFunc {
+	wireLimit := RequestBodyLimit(maxBytes, budget)
+	return func(c *gin.Context) {
+		c.Request = c.Request.WithContext(pkghttputil.WithDecodedBodyLimit(c.Request.Context(), maxBytes))
+		wireLimit(c)
+	}
+}

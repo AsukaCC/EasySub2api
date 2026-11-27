@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -89,24 +88,7 @@ func (s *OpenAIGatewayService) ForwardAlphaSearch(ctx context.Context, c *gin.Co
 		upstreamMessage := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 		if s.shouldFailoverOpenAIUpstreamResponse(resp.StatusCode, upstreamMessage, respBody) ||
 			isOpenAIAlphaSearchEndpointUnsupported(account, resp.StatusCode) {
-			resp.Body = io.NopCloser(bytes.NewReader(respBody))
-			// alpha/search 是独立的工具端点，单次 401 不能证明账号的模型调用
-			// 凭据全局失效。若沿用通用 401 逻辑，PAT 会因没有 refresh_token
-			// 被永久标记为 error；历史导入且缺少 auth_mode 标记的 at- token 也会
-			// 漏过 PAT 类型判断。这里仍允许本次请求换号，但不修改任何账号状态；
-			// 真正的凭据失效由普通 Responses 请求或 whoami 校验判定。
-			shouldDisable := false
-			if shouldApplyOpenAIAlphaSearchAccountErrorSideEffects(resp.StatusCode) {
-				shouldDisable = s.handleFailoverSideEffects(ctx, resp, account, respBody, upstreamModel)
-			}
-			return nil, newOpenAIUpstreamFailoverErrorForPlatform(
-				account.Platform,
-				resp.StatusCode,
-				resp.Header,
-				respBody,
-				upstreamMessage,
-				!shouldDisable && account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
-			)
+			return nil, s.alphaSearchFailover(ctx, account, resp, respBody, upstreamMessage, upstreamModel)
 		}
 	}
 
@@ -171,20 +153,7 @@ func (s *OpenAIGatewayService) forwardAlphaSearchViaResponsesWebSearch(
 	if resp.StatusCode >= http.StatusBadRequest {
 		upstreamMessage := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 		if s.shouldFailoverOpenAIUpstreamResponse(resp.StatusCode, upstreamMessage, respBody) {
-			resp.Body = io.NopCloser(bytes.NewReader(respBody))
-			// 仍按 alpha/search 工具请求处理：PAT 的工具链路失败不能直接永久置错。
-			shouldDisable := false
-			if shouldApplyOpenAIAlphaSearchAccountErrorSideEffects(resp.StatusCode) {
-				shouldDisable = s.handleFailoverSideEffects(ctx, resp, account, respBody, upstreamModel)
-			}
-			return nil, newOpenAIUpstreamFailoverErrorForPlatform(
-				account.Platform,
-				resp.StatusCode,
-				resp.Header,
-				respBody,
-				upstreamMessage,
-				!shouldDisable && account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
-			)
+			return nil, s.alphaSearchFailover(ctx, account, resp, respBody, upstreamMessage, upstreamModel)
 		}
 	}
 
@@ -538,6 +507,25 @@ func isOpenAIAlphaSearchEndpointUnsupported(account *Account, statusCode int) bo
 		return false
 	}
 	return statusCode == http.StatusNotFound || statusCode == http.StatusMethodNotAllowed
+}
+
+// A tool entitlement denial is not evidence that the OAuth account is unhealthy.
+// Keep the local failover budget and preserve normal handling for other 403s.
+const alphaSearchUnavailableReason GatewayFailureReason = "alpha_search_unavailable"
+
+func (s *OpenAIGatewayService) alphaSearchFailover(ctx context.Context, account *Account, resp *http.Response, body []byte, message, model string) *UpstreamFailoverError {
+	if resp.StatusCode == http.StatusForbidden && account.IsOpenAIOAuth() {
+		detail := gjson.GetBytes(body, "detail")
+		if detail.Type == gjson.String && strings.EqualFold(strings.TrimSuffix(strings.TrimSpace(detail.Str), "."), "Literature search is unavailable") {
+			return &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseHeaders: resp.Header.Clone(), ResponseBody: body, Reason: alphaSearchUnavailableReason}
+		}
+	}
+	shouldDisable := false
+	if shouldApplyOpenAIAlphaSearchAccountErrorSideEffects(resp.StatusCode) {
+		shouldDisable = s.handleFailoverSideEffects(ctx, resp, account, body, model)
+	}
+	return newOpenAIUpstreamFailoverErrorForPlatform(account.Platform, resp.StatusCode, resp.Header, body, message,
+		!shouldDisable && account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode))
 }
 
 func shouldApplyOpenAIAlphaSearchAccountErrorSideEffects(statusCode int) bool {
